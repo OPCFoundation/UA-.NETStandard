@@ -645,7 +645,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
-        public Task RuntimeNodeSetLifecycleExtensionsRejectNullArgumentsAsync()
+        public async Task RuntimeNodeSetLifecycleExtensionsRejectNullArgumentsAsync()
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             var options = new RuntimeNodeSetOptions();
@@ -659,7 +659,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 nodeManager.Object);
 
             ArgumentNullException exception =
-                Assert.ThrowsAsync<ArgumentNullException>(
+                await Assert.ThrowsAsync<ArgumentNullException>(
                     async () => await RuntimeNodeSetLifecycleExtensions
                         .AddRuntimeNodeSetAsync(
                             null!,
@@ -668,13 +668,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("lifecycle"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .AddRuntimeNodeSetAsync(null!, null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("options"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await RuntimeNodeSetLifecycleExtensions
                     .ReloadRuntimeNodeSetAsync(
                         null!,
@@ -684,7 +684,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("lifecycle"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadRuntimeNodeSetAsync(
                         null!,
@@ -693,7 +693,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("registration"));
 
-            exception = Assert.ThrowsAsync<ArgumentNullException>(
+            exception = await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await lifecycle
                     .ReloadRuntimeNodeSetAsync(
                         registration,
@@ -701,7 +701,6 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         null)
                     .ConfigureAwait(false));
             Assert.That(exception.ParamName, Is.EqualTo("replacement"));
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -758,7 +757,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string xml = BuildDuplicateNodeSetXml(DuplicateNodeId);
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateRawOptions(
                             "DuplicateNodeIds",
@@ -794,7 +793,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 ExternalNodeId);
 
             InvalidOperationException exception =
-                Assert.ThrowsAsync<InvalidOperationException>(
+                await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateRawOptions(
                             "UnownedNamespace",

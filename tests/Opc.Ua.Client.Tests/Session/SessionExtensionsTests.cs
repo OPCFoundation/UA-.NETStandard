@@ -253,7 +253,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadByteStringInChunksAsyncThrowsWhenNoLimitIsKnown()
+        public async Task ReadByteStringInChunksAsyncThrowsWhenNoLimitIsKnown()
         {
             var capabilities = new ServerCapabilities { MaxByteStringLength = 0 };
             m_session
@@ -261,12 +261,12 @@ namespace Opc.Ua.Client.Tests
                 .Returns(capabilities);
             SetupMessageContext(maxByteStringLength: 0);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
         }
 
         [Test]
-        public void ReadByteStringInChunksAsyncThrowsWhenMaxByteStringLengthIsOne()
+        public async Task ReadByteStringInChunksAsyncThrowsWhenMaxByteStringLengthIsOne()
         {
             var capabilities = new ServerCapabilities { MaxByteStringLength = 1 };
             m_session
@@ -274,7 +274,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns(capabilities);
             SetupMessageContext(maxByteStringLength: 1024);
 
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
         }
 

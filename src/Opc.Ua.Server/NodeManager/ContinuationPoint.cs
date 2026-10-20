@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// The table of all reference types known to the server.
+    /// The parameters, state, and generation ownership of a resumable Browse operation.
     /// </summary>
     /// <remarks>This class is thread safe.</remarks>
     public class ContinuationPoint : IDisposable
@@ -45,6 +46,27 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Reports whether the exact manager is the source or a captured dependency of this point.
+        /// Session ownership trackers must use this query rather than compare only <see cref="Manager"/>.
+        /// </summary>
+        /// <param name="nodeManager">The node manager to look for.</param>
+        /// <returns><c>true</c> if the manager is the source or a captured dependency.</returns>
+        public bool RequiresManager(IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+            if (MatchesManager(Manager, nodeManager))
+            {
+                return true;
+            }
+            IAsyncNodeManager[]? dependencies = Volatile.Read(ref m_dependencyOwners);
+            return dependencies is not null && Array.Exists(
+                dependencies, owner => MatchesManager(owner, nodeManager));
+        }
+
+        /// <summary>
         /// Frees any unmanaged resources.
         /// </summary>
         public void Dispose()
@@ -54,13 +76,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// An overrideable version of the Dispose.
+        /// Releases the Browse data and session ownership once. Overrides must call the base implementation.
         /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
             {
-                (Data as IDisposable)?.Dispose();
+                Action? owner = Interlocked.Exchange(ref m_ownerRelease, s_disposedOwner);
+                if (ReferenceEquals(owner, s_disposedOwner))
+                {
+                    return;
+                }
+                try
+                {
+                    (Data as IDisposable)?.Dispose();
+                }
+                finally
+                {
+                    RoutingSnapshot = null;
+                    owner?.Invoke();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Registers the callback that releases the owning session slot when the continuation point is
+        /// disposed.
+        /// </summary>
+        /// <param name="releaseOwner">The callback invoked once when the continuation point is disposed.</param>
+        internal void SetOwnerRelease(Action releaseOwner)
+        {
+            if (releaseOwner is null)
+            {
+                throw new ArgumentNullException(nameof(releaseOwner));
+            }
+            Action? previous = Interlocked.CompareExchange(ref m_ownerRelease, releaseOwner, null);
+            if (ReferenceEquals(previous, s_disposedOwner))
+            {
+                throw new ObjectDisposedException(nameof(ContinuationPoint));
+            }
+            if (previous is not null)
+            {
+                throw new InvalidOperationException("The continuation point already has a session owner.");
             }
         }
 
@@ -73,6 +130,29 @@ namespace Opc.Ua.Server
         /// The node manager that created the continuation point.
         /// </summary>
         public IAsyncNodeManager Manager { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the routing snapshot captured when the continuation was created, used to resume against the
+        /// same node manager generations.
+        /// </summary>
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; set; }
+
+        /// <summary>
+        /// Gets whether the node managers the continuation depends on have been captured.
+        /// </summary>
+        internal bool HasCapturedDependencies => Volatile.Read(ref m_dependencyOwners) is not null;
+
+        /// <summary>
+        /// Captures the node managers the continuation depends on. This can be done only once.
+        /// </summary>
+        /// <param name="owners">The node managers retained for the lifetime of the continuation point.</param>
+        internal void SetDependencyOwners(ArrayOf<IAsyncNodeManager> owners)
+        {
+            if (Interlocked.CompareExchange(ref m_dependencyOwners, owners.ToArray(), null) is not null)
+            {
+                throw new InvalidOperationException("The Browse dependencies have already been captured.");
+            }
+        }
 
         /// <summary>
         /// The view being browsed.
@@ -132,6 +212,8 @@ namespace Opc.Ua.Server
         /// If this is the case then the object stored here must implement the Idispose
         /// interface. This will ensure the unmanaged resources are freed if the continuation
         /// point expires.
+        /// For pagination, the data must also implement <see cref="IBrowseContinuationDependencies"/>
+        /// and declare every remaining dependency before the point is saved.
         /// </remarks>
         public object? Data { get; set; }
 
@@ -193,5 +275,23 @@ namespace Opc.Ua.Server
                     ) != 0;
             }
         }
+
+        /// <summary>
+        /// Determines whether a node manager is the same owner as, or the synchronous node manager behind, the
+        /// specified candidate.
+        /// </summary>
+        /// <param name="owner">The retained owner, or null.</param>
+        /// <param name="candidate">The node manager to compare against.</param>
+        /// <returns>True if both refer to the same node manager.</returns>
+        private static bool MatchesManager(IAsyncNodeManager? owner, IAsyncNodeManager candidate)
+        {
+            return ReferenceEquals(owner, candidate) ||
+                (owner?.SyncNodeManager is { } syncManager &&
+                    ReferenceEquals(syncManager, candidate.SyncNodeManager));
+        }
+
+        private static readonly Action s_disposedOwner = static () => { };
+        private Action? m_ownerRelease;
+        private IAsyncNodeManager[]? m_dependencyOwners;
     }
 }

@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Assert.That(result.IsValid, Is.EqualTo(acceptError));
                 Assert.That(result.StatusCode, Is.EqualTo(
                     acceptError ? StatusCodes.Good : StatusCodes.BadCertificateUntrusted));
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     async () => await manager.ValidateAsync(certificate).ConfigureAwait(false));
             }
             finally
@@ -961,10 +961,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TrustListMasks.TrustedCertificates).ConfigureAwait(false);
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated &&
+                evt => evt is not null && evt.Kind == CertificateChangeKind.TrustListUpdated &&
                     evt.TrustList == TrustListIdentifier.Peers));
             Assert.That(received, Has.None.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.CrlUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.CrlUpdated));
         }
 
         [Test]
@@ -1017,7 +1017,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated &&
+                evt => evt is not null && evt.Kind == CertificateChangeKind.TrustListUpdated &&
                     evt.TrustList == TrustListIdentifier.Peers));
         }
 
@@ -1082,7 +1082,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.TrustListUpdated));
         }
 
         [Test]
@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.TrustListUpdated));
         }
 
         [Test]
@@ -1161,7 +1161,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.CrlUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.CrlUpdated));
         }
 
         [Test]
@@ -1193,7 +1193,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TrustListMasks.IssuerCertificates).ConfigureAwait(false);
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.TrustListUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.TrustListUpdated));
         }
 
         [Test]
@@ -1234,11 +1234,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TrustListMasks.TrustedCrls).ConfigureAwait(false);
 
             Assert.That(received, Has.Some.Matches<CertificateChangeEvent>(
-                evt => evt.Kind == CertificateChangeKind.CrlUpdated));
+                evt => evt is not null && evt.Kind == CertificateChangeKind.CrlUpdated));
         }
 
         [Test]
-        public Task RejectCertificateAsyncEnqueuesSuccessfully()
+        public async Task RejectCertificateAsyncEnqueuesSuccessfully()
         {
             string rejectedPath = CreateTempDir();
             using var manager = new CertificateManager(m_telemetry);
@@ -1250,10 +1250,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForRSA();
 
             using var rejectedCollection = new CertificateCollection { cert };
-            Assert.DoesNotThrowAsync(async () =>
+            await Assert.DoesNotThrowAsync(async () =>
                 await manager.RejectCertificateAsync(
                     rejectedCollection).ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [TestCase(false)]
@@ -1318,7 +1317,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
                 // Disposal closes admission before a late request can retain a chain.
                 using var late = new CertificateCollection { cert };
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await manager.RejectCertificateAsync(late).ConfigureAwait(false));
             }
             finally

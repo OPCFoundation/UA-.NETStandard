@@ -179,8 +179,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             harness.VerifyRefreshCommitState(true, 1);
             harness.VerifyRefreshCommitState(false, 0);
 
-            ServiceResultException refreshFailure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await binding.RefreshAsync().ConfigureAwait(false))!;
+            ServiceResultException refreshFailure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await binding.RefreshAsync().ConfigureAwait(false)))!;
             Assert.That(refreshFailure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(host.TryGetProviderPath(originalId, out _, out _, out _), Is.True);
             Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("external"), out _, out _, out _), Is.False);
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.RefreshFailure = new OperationCanceledException("pre-refresh cancelled");
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
                     harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
                     CancellationToken.None).ConfigureAwait(false));
@@ -298,10 +298,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             using var cancellation = new CancellationTokenSource();
             harness.BeforeEnumeration = cancellation.Cancel;
 
-            OperationCanceledException failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException failure = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await harness.Root.DeleteFileSystemObject!.OnCallAsync!(
                     harness.Context, harness.Root.DeleteFileSystemObject, harness.Root.NodeId, keptId,
-                    cancellation.Token).ConfigureAwait(false))!;
+                    cancellation.Token).ConfigureAwait(false)))!;
 
             Assert.That(failure.CancellationToken, Is.EqualTo(cancellation.Token));
             Assert.That(harness.MutationCount, Is.EqualTo(1));
@@ -524,7 +524,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 using var cancellation = new CancellationTokenSource();
                 Task waiting = binding.RefreshAsync(cancellation.Token).AsTask();
                 cancellation.Cancel();
-                Assert.ThrowsAsync<OperationCanceledException>(async () => await waiting.ConfigureAwait(false));
+                await Assert.ThrowsAsync<OperationCanceledException>(async () => await waiting.ConfigureAwait(false));
                 Assert.That(refresh.IsCompleted, Is.False);
                 disposing = binding.DisposeAsync().AsTask();
                 mutation = FileReadRegressionTests.CallAsync(
@@ -728,6 +728,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     LogLevel.Error,
                     It.Is<EventId>(id => id.Name == "FileDirectoryRefreshFailed"),
                     It.Is<It.IsAnyType>((state, _) =>
+                        state != null &&
                         state.ToString()!.Contains("current provider mutation committed: " + committed)),
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));

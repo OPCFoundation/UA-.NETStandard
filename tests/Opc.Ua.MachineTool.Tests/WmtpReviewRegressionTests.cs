@@ -324,13 +324,13 @@ namespace Opc.Ua.MachineTool.Tests
             {
                 if (cancel)
                 {
-                    Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await builder.BuildAsync(cancellation.Token).ConfigureAwait(false));
                 }
                 else
                 {
-                    InvalidOperationException error = Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                        await builder.BuildAsync(cancellation.Token).ConfigureAwait(false))!;
+                    InvalidOperationException error = (await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                        await builder.BuildAsync(cancellation.Token).ConfigureAwait(false)))!;
                     Assert.That(error.Message, Is.EqualTo("Injected conformance publication failure."));
                 }
                 Assert.That(stagedId.IsNull, Is.False);
@@ -377,7 +377,7 @@ namespace Opc.Ua.MachineTool.Tests
             WmtpPeripheralBuilder builder = equipment.Builder(m_fixture.Context, "TimerRetry")
                 .WithOwnedResource(resource.Object).WithClock(clock.Object)
                 .AddMeasurement(WmtpTestEquipment.Definition());
-            Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                 await builder.BuildAsync().ConfigureAwait(false));
             Assert.That(stagedId.IsNull, Is.False);
             Assert.That(m_fixture.Context.Manager.FindPredefinedNode(stagedId), Is.Null);

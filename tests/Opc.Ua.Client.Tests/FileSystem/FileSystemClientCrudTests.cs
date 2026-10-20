@@ -183,29 +183,27 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
+        public async Task CreateDirectoryAsyncThrowsWhenIntermediateMissingAndFlagFalseAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            Assert.ThrowsAsync<DirectoryNotFoundException>(
+            await Assert.ThrowsAsync<DirectoryNotFoundException>(
                 async () => await client
                     .CreateDirectoryAsync("/a/b/c", createIntermediate: false)
                     .ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
-        public Task CreateDirectoryAsyncRejectsNamespacePrefixedLeafAsync()
+        public async Task CreateDirectoryAsyncRejectsNamespacePrefixedLeafAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            Assert.ThrowsAsync<ArgumentException>(
+            await Assert.ThrowsAsync<ArgumentException>(
                 async () => await client
                     .CreateDirectoryAsync("/1:Reports")
                     .ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -237,14 +235,14 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public Task DeleteAsyncOnNonEmptyDirectoryWithoutRecursiveThrowsAsync()
+        public async Task DeleteAsyncOnNonEmptyDirectoryWithoutRecursiveThrowsAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
             harness.RegisterFile(subdir, new QualifiedName("file.txt"));
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            Assert.ThrowsAsync<IOException>(
+            await Assert.ThrowsAsync<IOException>(
                 async () => await client
                     .DeleteAsync("/subdir", recursive: false)
                     .ConfigureAwait(false));
@@ -252,7 +250,6 @@ namespace Opc.Ua.Client.Tests.FileSystem
             Assert.That(harness.CallRequests.Any(r =>
                 r.MethodId.TryGetValue(out uint mid) &&
                 mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
-            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -261,7 +258,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         /// continuation point; the point is released and nothing is deleted.
         /// </summary>
         [Test]
-        public void DeleteAsyncWithoutRecursiveStopsOnEndlessEmptyBrowseNextPages()
+        public async Task DeleteAsyncWithoutRecursiveStopsOnEndlessEmptyBrowseNextPages()
         {
             var harness = FileSystemSessionHarness.Create();
             NodeId subdir = harness.RegisterDirectory(harness.Root, new QualifiedName("subdir"));
@@ -310,7 +307,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 });
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client
                     .DeleteAsync("/subdir", recursive: false)
                     .ConfigureAwait(false));
@@ -328,7 +325,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public Task DeleteAsyncWithoutRecursiveRefusesDirectoryHoldingFilteredSubtypeAsync()
+        public async Task DeleteAsyncWithoutRecursiveRefusesDirectoryHoldingFilteredSubtypeAsync()
         {
             // The subtype filter hides a TrustListType child from
             // EnumerateAsync, but the server's Delete would still remove it
@@ -347,14 +344,13 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 harness.Root,
                 new FileSystemClientOptions { IncludeFileTypeSubtypes = false });
 
-            Assert.ThrowsAsync<IOException>(
+            await Assert.ThrowsAsync<IOException>(
                 async () => await client
                     .DeleteAsync("/subdir", recursive: false)
                     .ConfigureAwait(false));
             Assert.That(harness.CallRequests.Any(r =>
                 r.MethodId.TryGetValue(out uint mid) &&
                 mid == Methods.FileDirectoryType_DeleteFileSystemObject), Is.False);
-            return Task.CompletedTask;
         }
 
         [Test]
@@ -460,7 +456,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
         }
 
         [Test]
-        public Task DeleteAsyncMapsBadUserAccessDeniedAsync()
+        public async Task DeleteAsyncMapsBadUserAccessDeniedAsync()
         {
             var harness = FileSystemSessionHarness.Create();
             harness.RegisterFile(harness.Root, new QualifiedName("locked.bin"));
@@ -479,9 +475,8 @@ namespace Opc.Ua.Client.Tests.FileSystem
             };
             var client = new FileSystemClient(harness.Session, harness.Root);
 
-            Assert.ThrowsAsync<UnauthorizedAccessException>(
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(
                 async () => await client.DeleteAsync("/locked.bin").ConfigureAwait(false));
-            return Task.CompletedTask;
         }
 
         private static void ScriptCreateDirectory(

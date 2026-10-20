@@ -390,7 +390,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Factory = null
             };
 
-            Assert.CatchAsync(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false));
+            await Assert.CatchAsync(async () => await listener.OpenAsync(baseAddress, settings, callback.Object).ConfigureAwait(false));
 
             Assert.That(listener.ListenerId, Is.Not.Null.And.Not.Empty);
             Assert.That(listener.EndpointUrl, Is.EqualTo(baseAddress));
@@ -854,7 +854,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 int port = ((IPEndPoint)blocker.LocalEndpoint).Port;
                 await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
 
-                Assert.CatchAsync<IOException>(async () => await listener.OpenAsync(
+                await Assert.CatchAsync<IOException>(async () => await listener.OpenAsync(
                     new Uri($"https://localhost:{port}/taken"),
                     settings,
                     Mock.Of<ITransportListenerCallback>()).ConfigureAwait(false));
@@ -889,7 +889,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             SetPrivateField(listener, "m_host", host.Object);
             SetPrivateField(listener, "m_pinnedServerCert", tlsCertificate.AddRef());
 
-            AggregateException error = Assert.ThrowsAsync<AggregateException>(
+            AggregateException error = await Assert.ThrowsAsync<AggregateException>(
                 async () => await listener.StartAsync().ConfigureAwait(false));
 
             Assert.That(error.InnerExceptions, Is.EqualTo(new Exception[] { startError, cleanupError }));

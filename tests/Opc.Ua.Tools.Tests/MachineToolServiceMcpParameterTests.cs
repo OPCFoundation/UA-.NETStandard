@@ -419,21 +419,21 @@ namespace Opc.Ua.Tools.Tests
         /// Cancellation remains cancellation and cannot be rendered as an accepted operation.
         /// </summary>
         [Test]
-        public void PreCancellationNeverTouchesTheSession()
+        public async Task PreCancellationNeverTouchesTheSession()
         {
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await MachineToolServiceTools.QueryJobsAsync(null!, "i=1", ct: cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await MachineToolServiceTools.ControlJobAsync(null!, "i=1", "Start", "job", confirm: true,
                     ct: cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await MachineToolServiceTools.ListFilesAsync(null!, "i=1", ct: cancelled.Token).ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await MachineToolServiceTools.ReadFileAsync(null!, "i=1", "file", ct: cancelled.Token)
                     .ConfigureAwait(false));
-            Assert.CatchAsync<OperationCanceledException>(async () =>
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
                 await MachineToolServiceTools.ChangeFileAsync(null!, "i=1", "Delete", "file", confirm: true,
                     ct: cancelled.Token).ConfigureAwait(false));
         }

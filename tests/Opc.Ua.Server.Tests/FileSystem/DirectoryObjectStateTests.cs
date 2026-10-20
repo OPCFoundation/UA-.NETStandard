@@ -640,8 +640,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
-            IOException error = Assert.ThrowsAsync<IOException>(
-                async () => await GetTargetIdsAsync(browser).ConfigureAwait(false))!;
+            IOException error = (await Assert.ThrowsAsync<IOException>(
+                async () => await GetTargetIdsAsync(browser).ConfigureAwait(false)))!;
 
             Assert.That(error, Is.SameAs(provider.EnumerationFailure));
             Assert.That(await GetTargetIdsAsync(browser).ConfigureAwait(false), Is.Empty);
@@ -649,7 +649,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void NextAsyncPropagatesCancellationOfTheProviderEnumeration()
+        public async Task NextAsyncPropagatesCancellationOfTheProviderEnumeration()
         {
             UseProvider(new ThrowingEnumerateProvider());
             DirectoryObjectState state = CreateRootDirectory();
@@ -660,7 +660,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await browser.NextAsync(cts.Token).ConfigureAwait(false));
         }
 

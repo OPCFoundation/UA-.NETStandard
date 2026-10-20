@@ -104,17 +104,17 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
-        public void CrlOperationsAreNotSupported()
+        public async Task CrlOperationsAreNotSupported()
         {
             using var store = new Pkcs11CertificateStore(
                 NUnitTelemetryContext.Create(),
                 Pkcs11TestEnvironment.CreateOptions());
 
-            Assert.Multiple(() =>
+            await Assert.MultipleAsync(async () =>
             {
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await store.AddCRLAsync(null!).ConfigureAwait(false));
-                Assert.ThrowsAsync<NotSupportedException>(
+                await Assert.ThrowsAsync<NotSupportedException>(
                     async () => await store.DeleteCRLAsync(null!).ConfigureAwait(false));
             });
         }
@@ -273,13 +273,13 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
-        public void AddRejectsNull()
+        public async Task AddRejectsNull()
         {
             using var store = new Pkcs11CertificateStore(
                 NUnitTelemetryContext.Create(),
                 Pkcs11TestEnvironment.CreateOptions());
 
-            Assert.ThrowsAsync<ArgumentNullException>(
+            await Assert.ThrowsAsync<ArgumentNullException>(
                 async () => await store.AddAsync(null!).ConfigureAwait(false));
         }
 

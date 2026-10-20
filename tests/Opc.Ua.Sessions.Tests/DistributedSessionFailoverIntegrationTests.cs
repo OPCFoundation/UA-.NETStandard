@@ -92,7 +92,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(180_000)]
         public async Task TokenReuseFailoverRestoresSessionOnStandbyAsync(CancellationToken ct)
         {
@@ -234,8 +233,8 @@ namespace Opc.Ua.Sessions.Tests
         /// no longer deletes the entry of the live session when it closes.
         /// </summary>
         [Test]
-        [Order(200)]
         [CancelAfter(180_000)]
+        [DependsOnTest(nameof(TokenReuseFailoverRestoresSessionOnStandbyAsync), AllowFailure = true)]
         public async Task SessionUsedPastItsTimeoutFailsOverWithItsSessionIdAsync(CancellationToken ct)
         {
             using var sharedStore = new InMemorySharedKeyValueStore();

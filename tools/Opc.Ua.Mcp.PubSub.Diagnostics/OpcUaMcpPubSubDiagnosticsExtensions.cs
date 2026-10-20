@@ -130,6 +130,7 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.MachineTool:
                 case McpToolProfile.Gms:
                 case McpToolProfile.CranesHoists:
+                case McpToolProfile.AutoId:
                 case var _ when Enum.IsDefined(toolProfile):
                     break;
                 default:

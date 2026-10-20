@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -89,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         [Test]
-        public void ValidateAppConfigWithoutAppCert()
+        public async Task ValidateAppConfigWithoutAppCert()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var appCertId = new CertificateIdentifier();
@@ -105,7 +106,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     TrustedIssuerCertificates = new CertificateTrustList { StorePath = "Test" }
                 }
             };
-            Assert.DoesNotThrowAsync(() =>
+            await Assert.DoesNotThrowAsync(() =>
                 appConfig.ValidateAsync(ApplicationType.Client));
         }
     }

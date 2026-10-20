@@ -57,7 +57,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             fixture.Store.SetFailure = new MaliciousSecretProviderException("malicious-provider-secret-material");
             fixture.Store.RemoveFailure = new MaliciousSecretProviderException("malicious-cleanup-secret-material");
 
-            McpSecretPersistenceException? failure = Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
+            McpSecretPersistenceException? failure = await Assert.ThrowsAsync<McpSecretPersistenceException>(async () =>
                 await fixture.Secrets.StoreIssuedAsync(ByteString.From([1, 2, 3]),
                     McpCapability.CredentialIssuance, "key-credential", "urn:resource",
                     fixture.Clock.GetUtcNow().AddMinutes(1)).ConfigureAwait(false));
@@ -79,7 +79,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             fixture.Store.GetFailure = new MaliciousSecretProviderException("malicious-provider-secret-material",
                 new MaliciousSecretProviderException("malicious-inner-secret-material"));
 
-            ServiceResultException? failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await fixture.Secrets.ResolveAsync(
                     "alias:proof", "urn:resource", McpCapability.CredentialIssuance).ConfigureAwait(false));
 
@@ -102,7 +102,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Task<ISecret> operation = fixture.Secrets.ResolveAsync(
                 "alias:proof", "urn:resource", McpCapability.CredentialIssuance).AsTask();
 
-            OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await operation.ConfigureAwait(false));
 
             Assert.That(operation.IsCanceled, Is.True);
@@ -154,7 +154,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 fixture.Clock.GetUtcNow().AddMinutes(1)).AsTask();
 
             McpSecretPersistenceCanceledException? failure =
-                Assert.ThrowsAsync<McpSecretPersistenceCanceledException>(async () =>
+                await Assert.ThrowsAsync<McpSecretPersistenceCanceledException>(async () =>
                     await operation.ConfigureAwait(false));
 
             Assert.That(operation.IsCanceled, Is.True);

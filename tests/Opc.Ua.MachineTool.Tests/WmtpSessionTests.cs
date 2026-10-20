@@ -140,13 +140,13 @@ namespace Opc.Ua.MachineTool.Tests
                     Assert.That(reading.ValuePrecision.WrappedValue.TryGetValue(out double precision), Is.True);
                     Assert.That(precision, Is.EqualTo(0.125));
                 }
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.ReadMeasurementsAsync(7).ConfigureAwait(false));
                 WMTPMeasurementTypeClient sensor = client.GetMeasurementProxy(readings[0].NodeId);
                 await sensor.SetDeltaConditionAsync(Variant.From(2d)).ConfigureAwait(false);
                 await sensor.SetTriggerSettingsAsync(0).ConfigureAwait(false);
-                ServiceResultException invariant = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sensor.SetDeltaConditionAsync(Variant.From(0d)).ConfigureAwait(false))!;
+                ServiceResultException invariant = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sensor.SetDeltaConditionAsync(Variant.From(0d)).ConfigureAwait(false)))!;
                 Assert.That(invariant.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
                 await client.SetCalibrationAsync(true).ConfigureAwait(false);
                 Assert.That(peripheral.Nodes.CalibrationMode!.Value, Is.True);
@@ -156,9 +156,9 @@ namespace Opc.Ua.MachineTool.Tests
                 equipment.DeviceTime.Verify(provider => provider.SetTimeAsync(setTime,
                     It.Is<TimeZoneDataType>(zone => zone.Offset == -120 && zone.DaylightSavingInOffset),
                     It.IsAny<CancellationToken>()), Times.Once);
-                ServiceResultException refused = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException refused = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.TransferAsync(WmtpTransferKind.Firmware, ByteString.From(4, 5, 6))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(refused.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 byte[]? received = null;
                 equipment.Transfers.Setup(provider => provider.TransferAsync(
@@ -175,20 +175,20 @@ namespace Opc.Ua.MachineTool.Tests
                 equipment.Transfers.Setup(provider => provider.TransferAsync(
                         It.IsAny<WmtpTransferKind>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
                     .Throws(new InvalidOperationException(sensitiveMarker));
-                ServiceResultException hidden = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException hidden = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.TransferAsync(WmtpTransferKind.License, ByteString.From(7, 8))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(hidden.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
                 Assert.That(hidden.ToString(), Does.Not.Contain(sensitiveMarker));
                 equipment.Transfers.Setup(provider => provider.TransferAsync(
                         It.IsAny<WmtpTransferKind>(), It.IsAny<ByteString>(), It.IsAny<CancellationToken>()))
                     .Throws(new ServiceResultException(StatusCodes.BadNotSupported, sensitiveMarker));
-                ServiceResultException sanitized = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException sanitized = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await client.TransferAsync(WmtpTransferKind.Firmware, ByteString.From(7, 8))
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(sanitized.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                 Assert.That(sanitized.ToString(), Does.Not.Contain(sensitiveMarker));
-                Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                     await client.TransferAsync(WmtpTransferKind.Firmware, ByteString.From(4, 5, 6), 2)
                         .ConfigureAwait(false));
 
@@ -197,7 +197,7 @@ namespace Opc.Ua.MachineTool.Tests
                 await ExerciseRecordsAsync(workClient, 0).ConfigureAwait(false);
                 Assert.That(await serviceClient.CountAsync(new WmtpRecordQuery()).ConfigureAwait(false), Is.EqualTo(3));
                 await ExerciseRecordsAsync(serviceClient, 100).ConfigureAwait(false);
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await owner.GetWirelessPeripheral(other.NodeId).GetWorkRecordsAsync().ConfigureAwait(false));
                 WmtpPeripheralSnapshot minimal = await owner.GetWirelessPeripheral(other.NodeId).ReadSnapshotAsync()
                     .ConfigureAwait(false);
@@ -280,13 +280,13 @@ namespace Opc.Ua.MachineTool.Tests
                 await entered.Task.ConfigureAwait(false);
                 using var localCancellation = new CancellationTokenSource();
                 localCancellation.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(async () => await secondWork.ReadAsync(
+                await Assert.CatchAsync<OperationCanceledException>(async () => await secondWork.ReadAsync(
                     new WmtpRecordQuery(), cancellationToken: localCancellation.Token).ConfigureAwait(false));
                 equipment.Authorization.Verify(provider => provider.AuthorizeAsync(
                     It.IsAny<WmtpRequest>(), WmtpOperation.Abort, It.IsAny<CancellationToken>()), Times.Never);
                 Assert.That(pending.IsCompleted, Is.False);
-                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await secondWork.AbortAsync().ConfigureAwait(false))!;
+                ServiceResultException denied = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await secondWork.AbortAsync().ConfigureAwait(false)))!;
                 Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
                 Assert.That(cancelled.Task.IsCompleted, Is.False);
                 equipment.Clock.Advance(TimeSpan.FromSeconds(2));
@@ -298,13 +298,13 @@ namespace Opc.Ua.MachineTool.Tests
                 await firstService.AbortAsync().ConfigureAwait(false);
                 await cancelled.Task.ConfigureAwait(false);
                 release.TrySetResult(true);
-                ServiceResultException aborted = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await pending.ConfigureAwait(false))!;
+                ServiceResultException aborted = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await pending.ConfigureAwait(false)))!;
                 Assert.That(aborted.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                 Assert.That((await firstWork.ReadAsync(new WmtpRecordQuery()).ConfigureAwait(false))[0].ActualValue,
                     Is.EqualTo(4.5));
                 await firstOwner.DisposeAsync().ConfigureAwait(false);
-                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                     await firstWork.ReadAsync(new WmtpRecordQuery()).ConfigureAwait(false));
             }
             finally
@@ -355,11 +355,11 @@ namespace Opc.Ua.MachineTool.Tests
                 Assert.That(reading.Sample.WrappedValue.TryGetValue(out ulong sample), Is.True);
                 Assert.That(sample, Is.EqualTo(9007199254740993ul));
                 WMTPMeasurementTypeClient sensor = client.GetMeasurementProxy(reading.NodeId);
-                ServiceResultException wrongType = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sensor.SetDeltaConditionAsync(Variant.From(1d)).ConfigureAwait(false))!;
+                ServiceResultException wrongType = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sensor.SetDeltaConditionAsync(Variant.From(1d)).ConfigureAwait(false)))!;
                 Assert.That(wrongType.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
-                ServiceResultException lost = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await sensor.SetDeltaConditionAsync(Variant.From(9007199254740993ul)).ConfigureAwait(false))!;
+                ServiceResultException lost = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sensor.SetDeltaConditionAsync(Variant.From(9007199254740993ul)).ConfigureAwait(false)))!;
                 Assert.That(lost.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
                 equipment.Measurement.Verify(provider => provider.ConfigureAsync(
                     It.IsAny<string>(), It.IsAny<uint>(), It.IsAny<Variant>(), It.IsAny<CancellationToken>()),
@@ -368,7 +368,7 @@ namespace Opc.Ua.MachineTool.Tests
                 equipment.Measurement.Verify(provider => provider.ConfigureAsync(
                     "Temperature", 1000, Variant.From(9007199254740992ul), It.IsAny<CancellationToken>()), Times.Once);
                 Assert.That(peripheral.Measurements[0].State.DeltaCondition!.Value, Is.EqualTo(9007199254740992d));
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await sensor.SetTriggerSettingsAsync(0.5).ConfigureAwait(false));
                 Assert.That(peripheral.Measurements[0].TriggerMilliseconds, Is.EqualTo(1000));
             }
@@ -407,7 +407,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That((await client.ReadAsync(new WmtpRecordQuery { Selection = WmtpRecordSelection.Last })
                 .ConfigureAwait(false))[0].Index, Is.EqualTo(3));
             Assert.That(await client.CountAsync(all).ConfigureAwait(false), Is.EqualTo(3));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadAsync(all, 2).ConfigureAwait(false));
             await client.AbortAsync().ConfigureAwait(false);
             await client.DeleteAsync(middle).ConfigureAwait(false);
@@ -416,9 +416,9 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(await client.CountAsync(all).ConfigureAwait(false), Is.EqualTo(1));
             await client.DeleteAsync(all).ConfigureAwait(false);
             Assert.That(await client.CountAsync(all).ConfigureAwait(false), Is.Zero);
-            ServiceResultException empty = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException empty = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.ReadAsync(new WmtpRecordQuery { Selection = WmtpRecordSelection.Last })
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
             Assert.That(empty.StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
     }

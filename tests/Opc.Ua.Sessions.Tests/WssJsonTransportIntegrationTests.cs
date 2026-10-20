@@ -145,7 +145,7 @@ namespace Opc.Ua.Sessions.Tests
                     ep.SecurityMode == MessageSecurityMode.None);
             Assert.That(
                 wss.UserIdentityTokens.ToArray(),
-                Has.Some.Matches<UserTokenPolicy>(token => token.TokenType == UserTokenType.Anonymous));
+                Has.Some.Matches<UserTokenPolicy>(token => token is not null && token.TokenType == UserTokenType.Anonymous));
 
             // Connect through a ConfiguredEndpoint built from the discovered
             // wss/UA-Binary endpoint description (rather than the raw

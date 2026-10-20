@@ -143,7 +143,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             // CertificateValidator rejects the cert; HttpClient surfaces
             // this as an HttpRequestException wrapping
             // AuthenticationException("remote certificate was rejected").
-            Exception? ex = Assert.CatchAsync(async () => await channel
+            Exception? ex = await Assert.CatchAsync(async () => await channel
                     .SendRequestAsync(
                         new ReadRequest { RequestHeader = new RequestHeader() },
                         CancellationToken.None)

@@ -43,8 +43,8 @@ namespace Opc.Ua.Machinery.Tests
         public async Task StrictMeterRequiresApplicationTagButLegacyStillToleratesAbsence()
         {
             var harness = new ReadHarness();
-            MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await harness.Client().ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false))!;
+            MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
+                async () => await harness.Client().ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNoMatch));
             Assert.That(error.ReadValue!.BrowsePath[0].Name, Is.EqualTo(ECM.BrowseNames.ApplicationTag));
             Assert.That(error.ReadValue.IsAbsent, Is.True);
@@ -76,9 +76,9 @@ namespace Opc.Ua.Machinery.Tests
 
             if (wrongType)
             {
-                MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
+                MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
                     async () => await harness.Client().ReadMeteringPointAsync(harness.Machine)
-                        .ConfigureAwait(false))!;
+                        .ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
                 Assert.That(error.ReadValue!.Value, Is.EqualTo(original));
             }
@@ -134,7 +134,7 @@ namespace Opc.Ua.Machinery.Tests
         [TestCase("MalformedBinary", nameof(StatusCodes.BadDecodingError))]
         [TestCase("DeniedDeclaration", nameof(StatusCodes.BadUserAccessDenied))]
         [TestCase("MalformedDeclaration", nameof(StatusCodes.BadDecodingError))]
-        public void StrictMeterValidatesMeasurementDeclarationsAndBodies(string kind, string status)
+        public async Task StrictMeterValidatesMeasurementDeclarationsAndBodies(string kind, string status)
         {
             ReadHarness harness = CreateMeterHarness();
             var structure = new ECM.AcPeDataType { L1 = 1, L2 = 2, L3 = 3 };
@@ -161,8 +161,8 @@ namespace Opc.Ua.Machinery.Tests
             }
             harness.Browse = _ => Page([measurement]);
 
-            MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
-                async () => await harness.Client().ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false))!;
+            MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
+                async () => await harness.Client().ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(TestStatus(status)));
             Assert.That(error.ReadValue!.SourceNodeId, Is.EqualTo(source));
@@ -186,8 +186,8 @@ namespace Opc.Ua.Machinery.Tests
             MachineryClient client = harness.Client(new MachineryClientOptions { MaximumReadArrayItems = 2 });
             if (count > 2)
             {
-                MachineryReadException error = Assert.ThrowsAsync<MachineryReadException>(
-                    async () => await client.ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false))!;
+                MachineryReadException error = (await Assert.ThrowsAsync<MachineryReadException>(
+                    async () => await client.ReadMeteringPointAsync(harness.Machine).ConfigureAwait(false)))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
             else

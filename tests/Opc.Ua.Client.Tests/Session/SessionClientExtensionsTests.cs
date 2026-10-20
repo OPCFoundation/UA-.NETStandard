@@ -142,7 +142,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void BrowseWithBadResultThrowsServiceResultException()
+        public async Task BrowseWithBadResultThrowsServiceResultException()
         {
             using ISession session = CreateSession(
                 browseResponseFactory: _ => new BrowseResponse
@@ -159,7 +159,7 @@ namespace Opc.Ua.Client.Tests
                     DiagnosticInfos = []
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await session.BrowseAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await session.BrowseAsync(
                 null,
                 null,
                 new NodeId(1, 0),
@@ -210,7 +210,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void BrowseNextWithBadResultThrowsServiceResultException()
+        public async Task BrowseNextWithBadResultThrowsServiceResultException()
         {
             using ISession session = CreateSession(
                 browseNextResponseFactory: _ => new BrowseNextResponse
@@ -227,7 +227,7 @@ namespace Opc.Ua.Client.Tests
                     DiagnosticInfos = []
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await session.BrowseNextAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await session.BrowseNextAsync(
                 null,
                 false,
                 ByteString.From([1, 2, 3])).ConfigureAwait(false));
@@ -250,7 +250,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadBytesAsyncWithChunkLongerThanRangeThrows()
+        public async Task ReadBytesAsyncWithChunkLongerThanRangeThrows()
         {
             // A server ignoring the IndexRange returns the whole value on every
             // read; the client must not loop appending it forever (L3-5).
@@ -267,7 +267,7 @@ namespace Opc.Ua.Client.Tests
                     };
                 });
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await session.ReadBytesAsync(new NodeId(1, 0), 10).ConfigureAwait(false));
 
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadUnknownResponse));
@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void CallWithBadResultThrowsServiceResultException()
+        public async Task CallWithBadResultThrowsServiceResultException()
         {
             using ISession session = CreateSession(
                 callResponseFactory: _ => new CallResponse
@@ -396,7 +396,7 @@ namespace Opc.Ua.Client.Tests
                     DiagnosticInfos = []
                 });
 
-            Assert.ThrowsAsync<ServiceResultException>(async () => await session.CallAsync(
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await session.CallAsync(
                 new NodeId(1, 0),
                 new NodeId(2, 0),
                 default,

@@ -622,7 +622,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .ConfigureAwait(false);
             if (cancelActivation)
             {
-                Exception error = Assert.CatchAsync(async () => await reconnect.ConfigureAwait(false))!;
+                Exception error = (await Assert.CatchAsync(async () => await reconnect.ConfigureAwait(false)))!;
                 Assert.That(error, Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<ServiceResultException>());
                 if (error is ServiceResultException serviceError)
                 {

@@ -322,15 +322,24 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return base.OnNodeRemovedAsync(node, cancellationToken);
         }
 
+        /// <inheritdoc/>
+        protected override ValueTask DisposeAsyncCore()
+        {
+            m_referenceMutationGate.Dispose();
+            return base.DisposeAsyncCore();
+        }
+
+        /// <inheritdoc/>
         public override async ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)
         {
-            await base.AddReferencesAsync(references, cancellationToken)
-                .ConfigureAwait(false);
-
-            lock (m_addedReferencesLock)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
+                await base.AddReferencesAsync(references, cancellationToken)
+                    .ConfigureAwait(false);
+
                 foreach (KeyValuePair<NodeId, IList<IReference>> entry in references)
                 {
                     if (!PredefinedNodes.ContainsKey(entry.Key))
@@ -338,23 +347,62 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                         continue;
                     }
 
-                    if (!m_addedReferences.TryGetValue(
-                        entry.Key,
-                        out List<IReference>? added))
-                    {
-                        m_addedReferences[entry.Key] = added = [];
-                    }
                     foreach (IReference reference in entry.Value)
                     {
-                        if (!added.Any(existing =>
-                            existing.ReferenceTypeId == reference.ReferenceTypeId &&
-                            existing.IsInverse == reference.IsInverse &&
-                            existing.TargetId == reference.TargetId))
-                        {
-                            added.Add(reference);
-                        }
+                        TrackAddedReference(entry.Key, reference);
                     }
                 }
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<ServiceResult> AddReferenceAsync(
+            OperationContext context,
+            AddReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                ServiceResult result = await base.AddReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.StatusCode == StatusCodes.Good)
+                {
+                    TrackAddedReference(item.SourceNodeId,
+                        new NodeStateReference(item.ReferenceTypeId, !item.IsForward, item.TargetNodeId));
+                }
+                return result;
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public override async ValueTask<ServiceResult> DeleteReferenceAsync(
+            OperationContext context,
+            DeleteReferencesItem item,
+            CancellationToken cancellationToken = default)
+        {
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                ServiceResult result = await base.DeleteReferenceAsync(context, item, cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.StatusCode == StatusCodes.Good || result.StatusCode == StatusCodes.BadNoMatch)
+                {
+                    ForgetAddedReference(item.SourceNodeId, item.ReferenceTypeId, !item.IsForward, item.TargetNodeId);
+                }
+                return result;
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
             }
         }
 
@@ -366,34 +414,27 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             bool deleteBidirectional,
             CancellationToken cancellationToken = default)
         {
-            ServiceResult result = await base.DeleteReferenceAsync(
-                sourceHandle,
-                referenceTypeId,
-                isInverse,
-                targetId,
-                deleteBidirectional,
-                cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsGood(result) &&
-                sourceHandle is NodeHandle handle)
+            await m_referenceMutationGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
-                lock (m_addedReferencesLock)
+                ServiceResult result = await base.DeleteReferenceAsync(
+                    sourceHandle,
+                    referenceTypeId,
+                    isInverse,
+                    targetId,
+                    deleteBidirectional,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsGood(result) &&
+                    sourceHandle is NodeHandle handle)
                 {
-                    if (m_addedReferences.TryGetValue(
-                        handle.NodeId,
-                        out List<IReference>? references))
-                    {
-                        references.RemoveAll(reference =>
-                            reference.ReferenceTypeId == referenceTypeId &&
-                            reference.IsInverse == isInverse &&
-                            reference.TargetId == targetId);
-                        if (references.Count == 0)
-                        {
-                            m_addedReferences.Remove(handle.NodeId);
-                        }
-                    }
+                    ForgetAddedReference(handle.NodeId, referenceTypeId, isInverse, targetId);
                 }
+                return result;
             }
-            return result;
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
         }
 
         internal IReadOnlyDictionary<NodeId, DataTypeDefinition> GetDataTypeDefinitions(bool completeMetadata = false)
@@ -523,8 +564,16 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                     "with another runtime NodeSet NodeManager.");
             }
 
-            Dictionary<NodeId, IList<IReference>> addedReferences =
-                GetAddedReferences();
+            Dictionary<NodeId, IList<IReference>> addedReferences;
+            await m_referenceMutationGate.WaitAsync(ct).ConfigureAwait(false);
+            try
+            {
+                addedReferences = GetAddedReferences();
+            }
+            finally
+            {
+                m_referenceMutationGate.Release();
+            }
             await replacementRuntime
                 .AddReferencesAsync(addedReferences, ct)
                 .ConfigureAwait(false);
@@ -713,10 +762,60 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             return (ushort)index;
         }
 
+        /// <summary>
+        /// Records a reference added to a predefined node so it survives a reload.
+        /// </summary>
+        /// <param name="sourceId">The node the reference was added to.</param>
+        /// <param name="reference">The reference to track.</param>
+        private void TrackAddedReference(NodeId sourceId, IReference reference)
+        {
+            lock (m_addedReferencesLock)
+            {
+                if (!m_addedReferences.TryGetValue(sourceId, out List<IReference>? added))
+                {
+                    m_addedReferences[sourceId] = added = [];
+                }
+                if (!added.Any(existing =>
+                    existing.ReferenceTypeId == reference.ReferenceTypeId &&
+                    existing.IsInverse == reference.IsInverse &&
+                    existing.TargetId == reference.TargetId))
+                {
+                    added.Add(reference);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes a tracked reference after it was deleted from a predefined node.
+        /// </summary>
+        /// <param name="sourceId">The node the reference was removed from.</param>
+        /// <param name="referenceTypeId">The reference type.</param>
+        /// <param name="isInverse">Whether the reference is inverse.</param>
+        /// <param name="targetId">The reference target.</param>
+        private void ForgetAddedReference(
+            NodeId sourceId, NodeId referenceTypeId, bool isInverse, ExpandedNodeId targetId)
+        {
+            lock (m_addedReferencesLock)
+            {
+                if (m_addedReferences.TryGetValue(sourceId, out List<IReference>? references))
+                {
+                    references.RemoveAll(reference =>
+                        reference.ReferenceTypeId == referenceTypeId &&
+                        reference.IsInverse == isInverse &&
+                        reference.TargetId == targetId);
+                    if (references.Count == 0)
+                    {
+                        m_addedReferences.Remove(sourceId);
+                    }
+                }
+            }
+        }
+
         private readonly ParsedNodeSetDocument[] m_documents;
         private readonly string? m_defaultNamespaceUri;
         private readonly Action<INodeManagerBuilder>? m_configure;
         private readonly Func<INodeManagerBuilder, CancellationToken, ValueTask<IAsyncDisposable?>>? m_configureAsync;
+        private readonly SemaphoreSlim m_referenceMutationGate = new(1, 1);
         private readonly Lock m_addedReferencesLock = new();
         private readonly Dictionary<NodeId, List<IReference>> m_addedReferences = [];
         private IFluentDispatcher? m_dispatcher;

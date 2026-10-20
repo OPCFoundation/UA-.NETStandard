@@ -161,13 +161,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// must throw <see cref="StatusCodes.BadNotConnected"/>.
         /// </summary>
         [Test]
-        public void SendRequestAsyncBeforeOpenThrowsBadNotConnected()
+        public async Task SendRequestAsyncBeforeOpenThrowsBadNotConnected()
         {
             using var channel = new WssJsonTransportChannel(m_telemetry);
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = (await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await channel.SendRequestAsync(
                     new ReadRequest(),
-                    CancellationToken.None).ConfigureAwait(false))!;
+                    CancellationToken.None).ConfigureAwait(false)))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadNotConnected));
         }
 
@@ -348,11 +348,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// (MessageTooBig) before the socket is aborted.
         /// </summary>
         [Test]
-        public void ReceiveMessageAsyncStopsAtMaxMessageSize()
+        public async Task ReceiveMessageAsyncStopsAtMaxMessageSize()
         {
             using var ws = new StreamingWebSocket(endAfter: int.MaxValue);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await WssJsonTransportChannel
                     .ReceiveMessageAsync(ws, 64 * 1024, CancellationToken.None)
                     .ConfigureAwait(false));
@@ -371,11 +371,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// rejection: the close is bounded and the socket is aborted anyway.
         /// </summary>
         [Test]
-        public void ReceiveMessageAsyncAbortsWhenTheMessageTooBigCloseStalls()
+        public async Task ReceiveMessageAsyncAbortsWhenTheMessageTooBigCloseStalls()
         {
             using var ws = new StreamingWebSocket(endAfter: int.MaxValue, stallClose: true);
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await WssJsonTransportChannel
                     .ReceiveMessageAsync(ws, 64 * 1024, CancellationToken.None)
                     .ConfigureAwait(false));

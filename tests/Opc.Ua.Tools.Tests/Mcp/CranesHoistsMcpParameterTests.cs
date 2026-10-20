@@ -212,12 +212,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("values")]
         [TestCase("events")]
         [TestCase("configure")]
-        public void PreCancellationIsNotConvertedToAFalseSuccess(string tool)
+        public async Task PreCancellationIsNotConvertedToAFalseSuccess(string tool)
         {
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
-            OperationCanceledException error = Assert.CatchAsync<OperationCanceledException>(async () =>
-                await Invoke(tool, null!, cancellation.Token).ConfigureAwait(false))!;
+            OperationCanceledException error = (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await Invoke(tool, null!, cancellation.Token).ConfigureAwait(false)))!;
             Assert.That(error.CancellationToken, Is.EqualTo(cancellation.Token));
         }
 

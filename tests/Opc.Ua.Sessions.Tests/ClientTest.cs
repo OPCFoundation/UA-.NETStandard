@@ -69,7 +69,6 @@ namespace Opc.Ua.Sessions.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [TestFixtureSource(nameof(FixtureArgs))]
-    [Parallelizable(ParallelScope.Fixtures)]
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public class ClientTest : ClientTestFramework
@@ -171,7 +170,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         public async Task GetEndpointsAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -226,7 +224,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(101)]
+        [DependsOnTest(nameof(FindServersOnNetworkAsync), AllowFailure = true)]
         public async Task PublishWithUInt32MaxTimeoutHintAsync()
         {
             CreateSubscriptionResponse createResponse = await Session.CreateSubscriptionAsync(
@@ -268,7 +266,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(GetEndpointsAsync), AllowFailure = true)]
         public async Task FindServersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -308,9 +306,9 @@ namespace Opc.Ua.Sessions.Tests
         /// 003.js/006.js, Get Endpoints 002.js request de-DE).
         /// </summary>
         [Test]
-        [Order(101)]
         [TestCase("de-DE")]
         [TestCase("en-US")]
+        [DependsOnTest(nameof(PublishWithUInt32MaxTimeoutHintAsync), AllowFailure = true)]
         public async Task DiscoveryReturnsApplicationNameInRequestedLocaleAsync(string locale)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -349,7 +347,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
+        [DependsOnTest(nameof(FindServersAsync), AllowFailure = true)]
         public async Task FindServersOnNetworkAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -389,9 +387,9 @@ namespace Opc.Ua.Sessions.Tests
         /// Try to use the discovery channel to read a node.
         /// </summary>
         [Test]
-        [Order(105)]
         [TestCase(1000)]
         [TestCase(10000)]
+        [DependsOnTest(nameof(DiscoveryReturnsApplicationNameInRequestedLocaleAsync), AllowFailure = true)]
         public async Task ReadOnDiscoveryChannelAsync(int readCount)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -428,7 +426,7 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             // try to read nodes using discovery channel
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await sessionClient.ReadAsync(
                     null,
                     0,
@@ -453,8 +451,8 @@ namespace Opc.Ua.Sessions.Tests
         /// but an oversized message should return an error.
         /// </summary>
         [Test]
-        [Order(105)]
         [TestCase(false)]
+        [DependsOnTest(nameof(ReadOnDiscoveryChannelAsync), AllowFailure = true)]
         public async Task GetEndpointsOnDiscoveryChannelAsync(bool securityNoneEnabled)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -481,7 +479,7 @@ namespace Opc.Ua.Sessions.Tests
             }
             else
             {
-                ServiceResultException sre = Assert
+                ServiceResultException sre = await Assert
                     .ThrowsAsync<ServiceResultException>(() =>
                         client.GetEndpointsAsync(profileUris));
                 // race condition, if socket closed is detected before the error was returned,
@@ -498,7 +496,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(110)]
+        [DependsOnTest(nameof(GetEndpointsOnDiscoveryChannelAsync), AllowFailure = true)]
         public async Task InvalidConfigurationAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -522,7 +520,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(200)]
+        [DependsOnTest(nameof(InvalidConfigurationAsync), AllowFailure = true)]
         public async Task ConnectAndCloseSyncAsync(string securityPolicy)
         {
             bool closeChannel = securityPolicy != SecurityPolicies.Aes128_Sha256_RsaOaep;
@@ -537,7 +535,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(201)]
+        [DependsOnTest(nameof(ConnectAndCloseSyncAsync), AllowFailure = true)]
         public async Task ConnectAndCloseAsync(string securityPolicy)
         {
             bool closeChannel = securityPolicy != SecurityPolicies.Basic128Rsa15;
@@ -553,7 +551,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(202)]
+        [DependsOnTest(nameof(ConnectAndCloseAsync), AllowFailure = true)]
         public async Task ConnectAndCloseAsyncReadAfterCloseAsync()
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
@@ -575,7 +573,7 @@ namespace Opc.Ua.Sessions.Tests
 
             await Task.Delay(5_000).ConfigureAwait(false);
 
-            ServiceResultException sre = Assert
+            ServiceResultException sre = await Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
                         .ConfigureAwait(false));
@@ -585,7 +583,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(204)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncReadAfterCloseAsync), AllowFailure = true)]
         public async Task ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync()
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
@@ -610,7 +608,7 @@ namespace Opc.Ua.Sessions.Tests
 
             await Task.Delay(5_000).ConfigureAwait(false);
 
-            ServiceResultException sre = Assert
+            ServiceResultException sre = await Assert
                 .ThrowsAsync<ServiceResultException>(async () =>
                     await session.ReadNodeAsync(nodeId, CancellationToken.None)
                         .ConfigureAwait(false));
@@ -629,7 +627,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(206)]
+        [DependsOnTest(nameof(ConnectAndCloseAsyncReadAfterCloseSessionReconnectAsync), AllowFailure = true)]
         public async Task ConnectCloseSessionCloseChannelAsync()
         {
             const string securityPolicy = SecurityPolicies.Basic256Sha256;
@@ -669,8 +667,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(210)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ConnectCloseSessionCloseChannelAsync), AllowFailure = true)]
         public async Task ConnectAndReconnectAsync(
             bool reconnectAbort,
             bool useMaxReconnectPeriod,
@@ -757,7 +755,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(220)]
+        [DependsOnTest(nameof(ConnectAndReconnectAsync), AllowFailure = true)]
         public async Task ConnectJWTAsync(string securityPolicy)
         {
             byte[] identityToken = "fakeTokenString"u8.ToArray();
@@ -778,7 +776,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(230)]
+        [DependsOnTest(nameof(ConnectJWTAsync), AllowFailure = true)]
         public async Task ReconnectJWTAsync(string securityPolicy)
         {
             static UserIdentity CreateUserIdentity(byte[] tokenData)
@@ -817,7 +815,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
-        [Order(240)]
+        [DependsOnTest(nameof(ReconnectJWTAsync), AllowFailure = true)]
         public async Task TransferJWTSubscriptionUsesAuthenticatedClientUserIdAsync(
             bool sameSubject)
         {
@@ -899,7 +897,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(240)]
+        [DependsOnTest(nameof(TransferJWTSubscriptionUsesAuthenticatedClientUserIdAsync), AllowFailure = true)]
         public async Task ConnectMultipleSessionsAsync()
         {
             ConfiguredEndpoint endpoint = await ClientFixture
@@ -948,8 +946,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Close the first channel before or after the new channel is activated.
         /// </summary>
         [Theory]
-        [Order(250)]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ConnectMultipleSessionsAsync), AllowFailure = true)]
         public async Task ReconnectSessionOnAlternateChannelAsync(
             bool closeChannel,
             CancellationToken ct)
@@ -1003,7 +1001,7 @@ namespace Opc.Ua.Sessions.Tests
             if (!closeChannel)
             {
                 // Closing channel should throw because it was disposed during reconnect
-                Assert.ThrowsAsync<ObjectDisposedException>(
+                await Assert.ThrowsAsync<ObjectDisposedException>(
                     () => channel1.CloseAsync(default).AsTask());
                 // Calling dispose twice will not throw.
                 Assert.DoesNotThrow(channel1.Dispose);
@@ -1020,7 +1018,7 @@ namespace Opc.Ua.Sessions.Tests
                 .ConfigureAwait(false);
 
             // cannot read using a closed session, validate the status code
-            sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
             Assert.That(
@@ -1033,7 +1031,7 @@ namespace Opc.Ua.Sessions.Tests
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
-            sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            sre = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
                     VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
 
@@ -1054,7 +1052,6 @@ namespace Opc.Ua.Sessions.Tests
         /// the same session on a new channel with saved session secrets
         /// </summary>
         [Test]
-        [Order(260)]
         [TestCase(SecurityPolicies.None, true)]
         [TestCase(SecurityPolicies.None, false)]
         [TestCase(SecurityPolicies.Basic256Sha256, true)]
@@ -1065,6 +1062,7 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly, false)]
         [TestCaseSource(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsEccTestCases))]
         [CancelAfter(120_000)]
+        [DependsOnTest(nameof(ReconnectSessionOnAlternateChannelAsync), AllowFailure = true)]
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
             bool anonymous,
@@ -1153,7 +1151,7 @@ namespace Opc.Ua.Sessions.Tests
             if (endpoint.EndpointUrl!.ToString()
                 .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
-                sre = Assert.ThrowsAsync<ServiceResultException>(
+                sre = await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session1.ReadValueAsync<ServerStatusDataType>(
                         VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
                 Assert.That(
@@ -1181,8 +1179,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Open a session on a channel using a usertokenpolicy from another endpoint, then reconnect (activate)
         /// </summary>
         [Test]
-        [Order(260)]
         [TestCase(SecurityPolicies.Basic256Sha256, SecurityPolicies.Basic128Rsa15)]
+        [DependsOnTest(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync), AllowFailure = true)]
         public async Task ReconnectSession_ReuseUsertokenPolicyAsync(
             string securityPolicy, string userTokenPolicy)
         {
@@ -1247,7 +1245,7 @@ namespace Opc.Ua.Sessions.Tests
         /// before Session.Open
         /// /// </summary>
         [Test]
-        [Order(270)]
+        [DependsOnTest(nameof(ReconnectSession_ReuseUsertokenPolicyAsync), AllowFailure = true)]
         public async Task RecreateSessionWithRenewUserIdentityAsync()
         {
             var userIdentityAnonymous = new UserIdentity();
@@ -1321,7 +1319,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(RecreateSessionWithRenewUserIdentityAsync), AllowFailure = true)]
         public async Task GetOperationLimitsTestAsync()
         {
             await GetOperationLimitsAsync().ConfigureAwait(false);
@@ -1365,6 +1363,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public void ReadPublicProperties()
         {
             TestContext.Out.WriteLine("Identity         : {0}", Session.Identity);
@@ -1395,6 +1394,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ChangePreferredLocalesAsync()
         {
             // change locale
@@ -1403,6 +1403,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public Task ReadValueAsync()
         {
             // Test ReadValue
@@ -1414,6 +1415,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadValueTypedAsync()
         {
             // Test ReadValue
@@ -1422,13 +1424,14 @@ namespace Opc.Ua.Sessions.Tests
             await Session.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
 
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.ReadValueAsync<ServiceHost>(
                     VariableIds.Server_ServerStatus).ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadValueFromTestSimulationAsync()
         {
             NamespaceTable namespaceUris = Session.NamespaceUris;
@@ -1445,6 +1448,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadValuesAsync()
         {
             NamespaceTable namespaceUris = Session.NamespaceUris;
@@ -1457,6 +1461,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadDataTypeDefinitionAsync()
         {
             // Test Read a DataType Node
@@ -1466,6 +1471,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadDataTypeDefinition2Async()
         {
             // Test Read a DataType Node, the nodeclass is known
@@ -1476,6 +1482,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
+        [DependsOnTest(nameof(GetMonitoredItemsTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task ReadDataTypeDefinitionNodesAsync()
         {
             // Test Read a DataType Node, the nodeclass is known
@@ -1500,7 +1507,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Theory]
-        [Order(400)]
+        [DependsOnTest(nameof(GetOperationLimitsTestAsync), AllowFailure = true)]
         public async Task BrowseFullAddressSpaceAsync(
             string securityPolicy,
             bool operationLimits = false)
@@ -1550,8 +1557,8 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(410)]
         [NonParallelizable]
+        [DependsOnTest(nameof(BrowseFullAddressSpaceAsync), AllowFailure = true)]
         public async Task ReadDisplayNamesAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -1567,7 +1574,7 @@ namespace Opc.Ua.Sessions.Tests
                 try
                 {
                     Session.OperationLimits.MaxNodesPerRead = 0;
-                    ServiceResultException sre = Assert
+                    ServiceResultException sre = await Assert
                         .ThrowsAsync<ServiceResultException>(async () =>
                             await Session.ReadDisplayNameAsync(
                                 nodeIds).ConfigureAwait(false));
@@ -1607,7 +1614,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(480)]
+        [DependsOnTest(nameof(ReadDisplayNamesAsync), AllowFailure = true)]
         public async Task SubscriptionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1623,7 +1630,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(SubscriptionAsync), AllowFailure = true)]
         public async Task ReadNodeSyncAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -1654,7 +1661,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(550)]
+        [DependsOnTest(nameof(ReadNodeSyncAsync), AllowFailure = true)]
         public async Task ReadNodeAsync()
         {
             if (ReferenceDescriptions.IsNull)
@@ -1686,9 +1693,9 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(560)]
         [TestCase(0)]
         [TestCase(MaxReferences)]
+        [DependsOnTest(nameof(ReadNodeAsync), AllowFailure = true)]
         public async Task ReadNodesSyncAsync(int nodeCount)
         {
             if (ReferenceDescriptions.IsNull)
@@ -1758,9 +1765,9 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(570)]
         [TestCase(0)]
         [TestCase(MaxReferences)]
+        [DependsOnTest(nameof(ReadNodesSyncAsync), AllowFailure = true)]
         public async Task ReadNodesAsync(int nodeCount)
         {
             if (ReferenceDescriptions.IsNull)
@@ -1833,10 +1840,10 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(620)]
+        [DependsOnTest(nameof(ReadNodesAsync), AllowFailure = true)]
         public async Task ReadAvailableEncodingsAsync()
         {
-            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException sre = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Session.ReadAvailableEncodingsAsync(DataTypeIds.BaseDataType)
                     .ConfigureAwait(false));
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -1854,8 +1861,8 @@ namespace Opc.Ua.Sessions.Tests
         /// Create a secondary Session.
         /// </remarks>
         [Theory]
-        [Order(800)]
         [NonParallelizable]
+        [DependsOnTest(nameof(ReadAvailableEncodingsAsync), AllowFailure = true)]
         public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1983,7 +1990,7 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(900)]
+        [DependsOnTest(nameof(TransferSubscriptionNativeAsync), AllowFailure = true)]
         public async Task ClientTestRequestHeaderUpdateAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2053,7 +2060,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Read BuildInfo and ensure the values in the structure are the same as in the properties.
         /// </summary>
         [Test]
-        [Order(10000)]
+        [DependsOnTest(nameof(ClientTestRequestHeaderUpdateAsync), AllowFailure = true)]
         public async Task ReadBuildInfoAsync()
         {
             ArrayOf<NodeId> nodes =
@@ -2101,7 +2108,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(10100)]
+        [DependsOnTest(nameof(ReadBuildInfoAsync), AllowFailure = true)]
         public async Task OpenSessionECCUserNamePwdIdentityTokenAsync(
             [ValueSource(nameof(SupportedEccPolicies))] string securityPolicy)
         {
@@ -2143,7 +2150,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(10200)]
+        [DependsOnTest(nameof(OpenSessionECCUserNamePwdIdentityTokenAsync), AllowFailure = true)]
         public async Task OpenSessionECCIssuedIdentityTokenAsync(
             [ValueSource(nameof(SupportedEccPolicies))] string securityPolicy)
         {
@@ -2190,7 +2197,7 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Test]
         [Combinatorial]
-        [Order(10300)]
+        [DependsOnTest(nameof(OpenSessionECCIssuedIdentityTokenAsync), AllowFailure = true)]
         public async Task OpenSessionECCUserCertIdentityTokenAsync(
             [ValueSource(nameof(SupportedEccX509Policies))] string securityPolicy)
         {
@@ -2274,7 +2281,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Happy SetSubscriptionDurable
         /// </summary>
         [Test]
-        [Order(11000)]
+        [DependsOnTest(nameof(OpenSessionECCUserCertIdentityTokenAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableSuccessAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2310,7 +2317,7 @@ namespace Opc.Ua.Sessions.Tests
         /// SetSubscriptionDurable Typical Failure
         /// </summary>
         [Test]
-        [Order(11010)]
+        [DependsOnTest(nameof(SetSubscriptionDurableSuccessAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableExceptionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2336,7 +2343,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11020)]
+        [DependsOnTest(nameof(SetSubscriptionDurableExceptionAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableNoOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2364,7 +2371,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11030)]
+        [DependsOnTest(nameof(SetSubscriptionDurableNoOutputParametersAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableNullOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2392,7 +2399,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11040)]
+        [DependsOnTest(nameof(SetSubscriptionDurableNullOutputParametersAsync), AllowFailure = true)]
         public async Task SetSubscriptionDurableTooManyOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2421,7 +2428,7 @@ namespace Opc.Ua.Sessions.Tests
         /// GetMonitoredItems Success Case
         /// </summary>
         [Test]
-        [Order(11100)]
+        [DependsOnTest(nameof(SetSubscriptionDurableTooManyOutputParametersAsync), AllowFailure = true)]
         public async Task GetMonitoredItemsSuccessAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2454,7 +2461,7 @@ namespace Opc.Ua.Sessions.Tests
         /// GetMonitoredItems Error Case
         /// </summary>
         [Test]
-        [Order(11110)]
+        [DependsOnTest(nameof(GetMonitoredItemsSuccessAsync), AllowFailure = true)]
         public async Task GetMonitoredItemsExceptionAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2480,7 +2487,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11120)]
+        [DependsOnTest(nameof(GetMonitoredItemsExceptionAsync), AllowFailure = true)]
         public async Task GetMonitoredItemsNoOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2508,7 +2515,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11130)]
+        [DependsOnTest(nameof(GetMonitoredItemsNoOutputParametersAsync), AllowFailure = true)]
         public async Task GetMonitoredItemsNullOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -2536,7 +2543,7 @@ namespace Opc.Ua.Sessions.Tests
         /// Not an expected case
         /// </summary>
         [Test]
-        [Order(11140)]
+        [DependsOnTest(nameof(GetMonitoredItemsNullOutputParametersAsync), AllowFailure = true)]
         public async Task GetMonitoredItemsTooManyOutputParametersAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();

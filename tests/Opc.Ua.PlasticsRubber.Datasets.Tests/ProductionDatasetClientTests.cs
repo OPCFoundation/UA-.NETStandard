@@ -65,12 +65,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// A peer's Error state remains a failure even when CloseAndCommit returned a successful service result.
         /// </summary>
         [Test]
-        public void UploadRejectsAsynchronousRemoteCommitError()
+        public async Task UploadRejectsAsynchronousRemoteCommitError()
         {
             var peer = new ProductionDatasetClientPeer { FailsCommit = true };
             var client = new ProductionDatasetClient(peer.Session.Object, peer.ManagementId);
             using var source = new MemoryStream([1]);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.UploadAsync(Options(), source).ConfigureAwait(false));
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(peer.StateReads, Is.EqualTo(2));
@@ -80,12 +80,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// A bad completion-state read cannot be interpreted as successful commit completion.
         /// </summary>
         [Test]
-        public void UploadPropagatesBadCompletionStateQuality()
+        public async Task UploadPropagatesBadCompletionStateQuality()
         {
             var peer = new ProductionDatasetClientPeer { BadStateQuality = true };
             var client = new ProductionDatasetClient(peer.Session.Object, peer.ManagementId);
             using var source = new MemoryStream([1]);
-            ServiceResultException? exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException? exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await client.UploadAsync(Options(), source).ConfigureAwait(false));
             Assert.That(exception!.StatusCode, Is.EqualTo(StatusCodes.BadNoCommunication));
         }
@@ -94,14 +94,15 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// An asynchronous peer that never finishes cannot keep the high-level operation alive indefinitely.
         /// </summary>
         [Test]
-        public void UploadCompletionWaitHonorsOverallDeadline()
+        public async Task UploadCompletionWaitHonorsOverallDeadlineAsync()
         {
             var peer = new ProductionDatasetClientPeer { NeverCompletes = true };
             var client = new ProductionDatasetClient(peer.Session.Object, peer.ManagementId,
-                new ProductionDatasetClientOptions { OperationTimeout = TimeSpan.FromMilliseconds(150) });
+                new ProductionDatasetClientOptions { OperationTimeout = TimeSpan.FromSeconds(5) });
             using var source = new MemoryStream([1]);
-            Assert.That(async () => await client.UploadAsync(Options(), source).ConfigureAwait(false),
-                Throws.InstanceOf<OperationCanceledException>());
+            Task upload = client.UploadAsync(Options(), source).AsTask();
+            await peer.CommitStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            await Assert.CatchAsync<OperationCanceledException>(async () => await upload.ConfigureAwait(false));
             Assert.That(peer.CommitCalls, Is.EqualTo(1));
         }
 
@@ -206,6 +207,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                         else if (method == Opc.Ua.MethodIds.TemporaryFileTransferType_CloseAndCommit)
                         {
                             CommitCalls++;
+                            CommitStarted.TrySetResult(true);
                             output = [Variant.From(m_completionId)];
                         }
                         else if (method != Opc.Ua.MethodIds.FileType_Write && method != Opc.Ua.MethodIds.FileType_Close)
@@ -277,6 +279,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         /// Gets the observed commit calls.
         /// </summary>
         internal int CommitCalls { get; private set; }
+
+        /// <summary>
+        /// Gets a task that completes when the remote commit method is invoked.
+        /// </summary>
+        internal TaskCompletionSource<bool> CommitStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <summary>
         /// Gets the observed completion-state reads.

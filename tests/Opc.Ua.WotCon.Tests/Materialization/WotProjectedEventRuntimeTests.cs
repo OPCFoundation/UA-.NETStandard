@@ -197,7 +197,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Task<bool> pending = events.MoveNextAsync().AsTask();
             await upstream.Started.Task.WaitAsync(s_timeout).ConfigureAwait(false);
             upstream.Push(new WotNotification(new DataValue(Variant.Null)));
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await pending.WaitAsync(s_timeout).ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(upstream.Stopped, Is.EqualTo(1));

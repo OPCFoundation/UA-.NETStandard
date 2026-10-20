@@ -79,8 +79,8 @@ namespace Opc.Ua.GMS.Tests
             IMachineHandle<GMSState> first = await fixture.Stage("First").WithGmsResults(
                 store, out GmsResultBinding binding).BuildAsync();
             IMachineBuilder<GMSState> second = fixture.Stage("Second").WithGmsResults(store, out _);
-            ServiceResultException shared = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await second.BuildAsync())!;
+            ServiceResultException shared = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await second.BuildAsync()))!;
             Assert.That(shared.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(fixture.Manager.FindPredefinedNode(second.State.NodeId), Is.Null);
             IMachineHandle<GMSState> independent = await fixture.Stage("Independent").WithGmsResults(
@@ -93,8 +93,8 @@ namespace Opc.Ua.GMS.Tests
             var firstClient = new GmsResultClient(session, first.NodeId, NUnitTelemetryContext.Create());
             var otherClient = new GmsResultClient(session, independent.NodeId, NUnitTelemetryContext.Create());
             Assert.That((await firstClient.GetLatestAsync()).ResultMetaData!.ResultId, Is.EqualTo("first-only"));
-            GmsResultDomainException absent = Assert.ThrowsAsync<GmsResultDomainException>(
-                async () => await otherClient.GetLatestAsync())!;
+            GmsResultDomainException absent = (await Assert.ThrowsAsync<GmsResultDomainException>(
+                async () => await otherClient.GetLatestAsync()))!;
             Assert.That(absent.Error, Is.EqualTo(unchecked((int)StatusCodes.BadNoDataAvailable.Code)));
         }
 
@@ -134,7 +134,7 @@ namespace Opc.Ua.GMS.Tests
                 }).BuildAsync();
             ISession session = await fixture.ConnectAsync();
             var client = new GmsResultClient(session, machine.NodeId, NUnitTelemetryContext.Create());
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 switch (mode)
                 {
@@ -151,7 +151,7 @@ namespace Opc.Ua.GMS.Tests
                         await client.QueryAsync(2);
                         break;
                 }
-            })!;
+            }))!;
             Assert.That(failure.StatusCode.Code, Is.EqualTo(expectedCode));
         }
 
