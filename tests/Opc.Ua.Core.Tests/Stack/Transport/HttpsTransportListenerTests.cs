@@ -982,7 +982,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             request.RequestHeader = new RequestHeader
             {
                 RequestHandle = 819,
-                AuthenticationToken = new NodeId("session", 0)
+                AuthenticationToken = new NodeId(1u, 0)
             };
 
             IServiceResponse response = await DispatchSecurityRequestAsync(listener, request, json).ConfigureAwait(false);

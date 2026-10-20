@@ -842,9 +842,10 @@ namespace Opc.Ua.Bindings
                     header = SecurityPolicies.None;
                 }
 
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                if (input is CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } createSessionAdmissionFault)
                 {
-                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    await WriteServiceResponseAsync(context, createSessionAdmissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -892,6 +893,13 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         return;
                     }
+                }
+
+                if (input is not CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } requestAdmissionFault)
+                {
+                    await WriteServiceResponseAsync(context, requestAdmissionFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 var secureChannelContext = new SecureChannelContext(
@@ -1005,9 +1013,10 @@ namespace Opc.Ua.Bindings
                     input.RequestHeader.AuthenticationToken = authenticationToken;
                 }
 
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                if (input is CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } createSessionAdmissionFault)
                 {
-                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    await WriteJsonResponseAsync(context, createSessionAdmissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -1036,6 +1045,13 @@ namespace Opc.Ua.Bindings
                             StatusCodes.BadSecurityPolicyRejected,
                             "Channel can only be used for discovery."));
                     await WriteJsonResponseAsync(context, discoveryFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                if (input is not CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } requestAdmissionFault)
+                {
+                    await WriteJsonResponseAsync(context, requestAdmissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -1075,6 +1091,19 @@ namespace Opc.Ua.Bindings
         {
             if (!m_mutualTlsEnabled || IsDiscoveryRequest(request.TypeId))
             {
+                return null;
+            }
+
+            NodeId authenticationToken = NodeId.Null;
+            if (request.RequestHeader != null)
+            {
+                authenticationToken = request.RequestHeader.AuthenticationToken;
+            }
+
+            if (request is not CreateSessionRequest &&
+                (authenticationToken.IsNull || authenticationToken.TryGetValue(out string _)))
+            {
+                // Session-less calls authenticate anonymous identities and access tokens in SessionManager.
                 return null;
             }
 
