@@ -31,7 +31,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -43,6 +42,7 @@ using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Tests.Materialization;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry;
 using Quickstarts.ReferenceServer;
 
@@ -67,16 +67,9 @@ namespace Opc.Ua.WotCon.Tests
     [NonParallelizable]
     public sealed class WotRegistryClientLiveServerTests
     {
-        private string m_pkiRoot = null!;
-        private ServerFixture<ReferenceServer> m_serverFixture = null!;
-        private ClientFixture m_clientFixture = null!;
-        private ReferenceServer m_server = null!;
-        private ISession m_session = null!;
-        private ITelemetryContext m_telemetry = null!;
-        private WotRegistryService m_registry = null!;
-        private WotMaterializationCoordinator m_coordinator = null!;
-        private BlockingProjectionHost m_projectionHost = null!;
-
+        /// <summary>
+        /// Starts the test server and initializes the session and registry fixtures used by the tests.
+        /// </summary>
         [SetUp]
         public async Task SetUpAsync()
         {
@@ -94,6 +87,7 @@ namespace Opc.Ua.WotCon.Tests
 
             var options = new WotRegistryServerOptions
             {
+                IdentityBindings = Registry.WotRegistryTestAuthorities.ForResources("sensor01", "concurrent-sensor"),
                 // The test drives Refresh explicitly for a deterministic
                 // sequence of events/generations.
                 AutoRefresh = false,
@@ -104,8 +98,10 @@ namespace Opc.Ua.WotCon.Tests
                     RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_registry = new WotRegistryService();
-            m_projectionHost = new BlockingProjectionHost(
+            m_preparedStorage = new PreparedWotTestStorage(Path.Combine(m_pkiRoot, "registry"));
+            m_store = m_preparedStorage.OpenStore();
+            m_registry = new WotRegistryService(m_store, options.Bounds, options.IdentityBindings);
+            m_projectionHost = new PausableWotProjectionHost(
                 new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry,
@@ -124,6 +120,9 @@ namespace Opc.Ua.WotCon.Tests
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Closes client sessions, stops the test server, and releases the registry fixtures and files.
+        /// </summary>
         [TearDown]
         public async Task TearDownAsync()
         {
@@ -139,6 +138,8 @@ namespace Opc.Ua.WotCon.Tests
                 m_session?.Dispose();
                 m_coordinator?.Dispose();
                 m_registry?.Dispose();
+                m_store?.Dispose();
+                m_preparedStorage?.Dispose();
                 m_server?.Dispose();
 
                 if (m_serverFixture != null)
@@ -154,6 +155,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that upload refresh and read back resource metadata.
+        /// </summary>
         [Test]
         public async Task UploadRefreshAndReadBackResourceMetadataAsync()
         {
@@ -201,7 +205,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 hasFailure |= result.Outcome == WoTOutcomeEnum.Failed;
                 hasActiveResource |=
-                    result.ResourceId == "sensor01" &&
+                    result.ResourceId == resource.ResourceId &&
                     result.LoadState == WoTLoadStateEnum.Active;
             }
             Assert.That(
@@ -231,6 +235,9 @@ namespace Opc.Ua.WotCon.Tests
                 "The server must assign a real version id once a version has been committed.");
         }
 
+        /// <summary>
+        /// Verifies that concurrent refresh returns server too busy without deadlock.
+        /// </summary>
         [Test]
         public async Task ConcurrentRefreshReturnsServerTooBusyWithoutDeadlockAsync()
         {
@@ -252,7 +259,7 @@ namespace Opc.Ua.WotCon.Tests
             Task<WotRegistryRefreshResult> firstRefresh = client
                 .RefreshAllAsync(requestId: "first-refresh")
                 .AsTask();
-            await m_projectionHost.WaitUntilBlockedAsync().ConfigureAwait(false);
+            await m_projectionHost.WaitUntilBlockedAsync(firstRefresh).ConfigureAwait(false);
 
             ServiceResultException? secondFailure = null;
             try
@@ -324,111 +331,16 @@ namespace Opc.Ua.WotCon.Tests
                 "\"}";
         }
 
-        private sealed class BlockingProjectionHost : IWotProjectionHost
-        {
-            public BlockingProjectionHost(IWotProjectionHost inner)
-            {
-                m_inner = inner;
-            }
-
-            public async ValueTask<WotProjectionHandle> AddAsync(
-                WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
-                return await m_inner.AddAsync(document, cancellationToken).ConfigureAwait(false);
-            }
-
-            public async ValueTask<WotProjectionHandle> ShadowReloadAsync(
-                WotProjectionHandle current,
-                WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
-                return await m_inner
-                    .ShadowReloadAsync(current, document, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            public async ValueTask<WotProjectionHandle> ImmediateReloadAsync(
-                WotProjectionHandle current,
-                WotProjectionDocument document,
-                CancellationToken cancellationToken = default)
-            {
-                await WaitIfBlockedAsync(cancellationToken).ConfigureAwait(false);
-                return await m_inner
-                    .ImmediateReloadAsync(current, document, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-
-            public ValueTask RemoveAsync(
-                WotProjectionHandle handle,
-                CancellationToken cancellationToken = default)
-            {
-                return m_inner.RemoveAsync(handle, cancellationToken);
-            }
-
-            public void BlockNextActivation()
-            {
-                lock (m_gate)
-                {
-                    m_entered = new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                    m_release = new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                }
-            }
-
-            public Task<bool> WaitUntilBlockedAsync()
-            {
-                lock (m_gate)
-                {
-                    return m_entered?.Task ??
-                        throw new InvalidOperationException("No activation is blocked.");
-                }
-            }
-
-            public void ReleaseActivation()
-            {
-                lock (m_gate)
-                {
-                    m_release?.TrySetResult(true);
-                }
-            }
-
-            private async ValueTask WaitIfBlockedAsync(CancellationToken cancellationToken)
-            {
-                TaskCompletionSource<bool>? entered;
-                TaskCompletionSource<bool>? release;
-                lock (m_gate)
-                {
-                    entered = m_entered;
-                    release = m_release;
-                }
-                if (entered is null || release is null)
-                {
-                    return;
-                }
-
-                entered.TrySetResult(true);
-                using CancellationTokenRegistration registration = cancellationToken.Register(
-                    static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(),
-                    release);
-                await release.Task.ConfigureAwait(false);
-                lock (m_gate)
-                {
-                    if (ReferenceEquals(m_release, release))
-                    {
-                        m_entered = null;
-                        m_release = null;
-                    }
-                }
-            }
-
-            private readonly IWotProjectionHost m_inner;
-            private readonly Lock m_gate = new();
-            private TaskCompletionSource<bool>? m_entered;
-            private TaskCompletionSource<bool>? m_release;
-        }
+        private string m_pkiRoot = null!;
+        private ServerFixture<ReferenceServer> m_serverFixture = null!;
+        private ClientFixture m_clientFixture = null!;
+        private ReferenceServer m_server = null!;
+        private ISession m_session = null!;
+        private ITelemetryContext m_telemetry = null!;
+        private FileWotRegistryStore m_store = null!;
+        private PreparedWotTestStorage m_preparedStorage = null!;
+        private WotRegistryService m_registry = null!;
+        private WotMaterializationCoordinator m_coordinator = null!;
+        private PausableWotProjectionHost m_projectionHost = null!;
     }
 }

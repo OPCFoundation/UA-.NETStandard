@@ -277,6 +277,80 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
         }
 
+        /// <summary>
+        /// The terminal error message can wait for the transport's send lock, for
+        /// example while the writer still finishes the Acknowledge. Closing the
+        /// transport at once would cancel it and the peer would only see the
+        /// connection drop (BadConnectionClosed instead of the reason). Like
+        /// TcpTransportListener, the listener disposes the channel as soon as it
+        /// is removed, so the Dispose path must wait for the send too.
+        /// </summary>
+        [Test]
+        public async Task FaultClosesTheTransportOnlyAfterTheErrorMessageWasSentAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            TestServerChannel? removed = null;
+            listenerMock.Setup(l => l.ChannelClosed(It.IsAny<uint>()))
+                .Callback(() => removed?.Dispose());
+            var transport = new GatedSendByteTransport();
+            using TestServerChannel channel = BuildChannel(listenerMock);
+            removed = channel;
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello, new ArraySegment<byte>([])).ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.SendStarted, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never started the error message");
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            listenerMock.Verify(l => l.ChannelClosed(0u), Times.Once());
+            Assert.That(transport.Closed.IsCompleted, Is.False,
+                "transport closed while the error message was still being sent");
+
+            transport.ReleaseSend();
+
+            Assert.That(
+                await CompletesWithinAsync(transport.Closed, 30).ConfigureAwait(false),
+                Is.True,
+                "transport never closed after the error message was sent");
+            Assert.That(transport.SentBeforeClose, Is.True);
+            Assert.That(
+                DecodeErrorStatusCode(transport.LastSent),
+                Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+        }
+
+        [Test]
+        public async Task FaultClosesTheTransportWhenTheErrorMessageNeverCompletesAsync()
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            var transport = new GatedSendByteTransport();
+            var time = new FakeTimeProvider();
+            using TestServerChannel channel = BuildChannel(listenerMock, time);
+            channel.SetTransport(transport);
+            channel.CurrentState = TcpChannelState.Opening;
+
+            await channel.FeedIncomingMessageAsync(
+                TcpMessageType.Hello, new ArraySegment<byte>([])).ConfigureAwait(false);
+
+            Assert.That(
+                await CompletesWithinAsync(transport.SendStarted, 30).ConfigureAwait(false),
+                Is.True,
+                "channel never started the error message");
+            time.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(transport.Closed.IsCompleted, Is.False);
+
+            time.Advance(TimeSpan.FromSeconds(1));
+
+            Assert.That(
+                await CompletesWithinAsync(transport.Closed, 30).ConfigureAwait(false),
+                Is.True,
+                "transport never closed after the error message timed out");
+            transport.ReleaseSend();
+        }
+
         [Test]
         public async Task HandleIncomingMessageWithUnknownTypeSendsErrorAndFaultsAsync()
         {
@@ -608,7 +682,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return false;
         }
 
-        private TestServerChannel BuildChannel(Mock<ITcpChannelListener> listenerMock)
+        private TestServerChannel BuildChannel(
+            Mock<ITcpChannelListener> listenerMock,
+            FakeTimeProvider? timeProvider = null)
         {
             return new TestServerChannel(
                 contextId: "server-det",
@@ -617,7 +693,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 quotas: m_quotas,
                 endpoints: [],
                 telemetry: m_telemetry,
-                timeProvider: new FakeTimeProvider());
+                timeProvider: timeProvider ?? new FakeTimeProvider());
         }
 
         private static Mock<ITcpChannelListener> CreateListenerMock()
@@ -797,6 +873,79 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void CallSendServiceFault(uint requestId, bool renew, ServiceResult fault, uint requestHandle)
             {
                 SendServiceFault(requestId, renew, fault, requestHandle);
+            }
+        }
+
+        /// <summary>
+        /// A transport whose sends wait until the test releases them, like a send
+        /// that waits for the send lock held by another write.
+        /// </summary>
+        private sealed class GatedSendByteTransport : IUaSCByteTransport
+        {
+            private readonly TaskCompletionSource<bool> m_sendStarted =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private readonly TaskCompletionSource<bool> m_closed =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private byte[]? m_lastSent;
+
+            public EndPoint? LocalEndpoint => null;
+
+            public EndPoint? RemoteEndpoint => null;
+
+            public TransportChannelFeatures Features => default;
+
+            public string Implementation => "UA-FAKE";
+
+            public Task SendStarted => m_sendStarted.Task;
+
+            public Task Closed => m_closed.Task;
+
+            public bool SentBeforeClose { get; private set; }
+
+            public byte[] LastSent => Volatile.Read(ref m_lastSent)!;
+
+            public void ReleaseSend()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public ValueTask ConnectAsync(Uri url, CancellationToken ct)
+            {
+                return default;
+            }
+
+            public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
+            {
+                byte[] bytes = chunk.ToArray();
+                m_sendStarted.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                if (!m_closed.Task.IsCompleted)
+                {
+                    Volatile.Write(ref m_lastSent, bytes);
+                    SentBeforeClose = true;
+                }
+            }
+
+            public ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
+            {
+                throw new NotSupportedException();
+            }
+
+            public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+            {
+                await m_closed.Task.ConfigureAwait(false);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed, "fake transport closed");
+            }
+
+            public void Close()
+            {
+                m_closed.TrySetResult(true);
             }
         }
 

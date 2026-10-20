@@ -14,6 +14,8 @@
     <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.WotCon.Tests\Registry\RecordingLeasedResourceStore.cs"
+             Link="Native\RecordingLeasedResourceStore.cs" />
     <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Bridge\Opc.Ua.XRegistry.Bridge.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />

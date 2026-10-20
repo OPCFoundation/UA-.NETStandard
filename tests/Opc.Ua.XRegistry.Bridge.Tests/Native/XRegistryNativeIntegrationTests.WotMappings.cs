@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -36,6 +37,7 @@ using Opc.Ua.WotCon;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry.Bridge.Native;
 using Opc.Ua.XRegistry.Protocol;
 
@@ -46,10 +48,12 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
         [Test]
         public async Task ModelDrivenProfilesReadExistingWotProjectionWithoutChangingItsDomainImplementationAsync()
         {
-            using var registry = new WotRegistryService();
+            using var content = new RecordingLeasedResourceStore();
+            using var store = new FileWotRegistryStore(Path.Combine(m_root, "wot-registry"), content);
+            using var registry = new WotRegistryService(store);
             await registry.InitializeAsync().ConfigureAwait(false);
             const string document = """
-                {"@context":"https://www.w3.org/2022/wot/td/v1.1","id":"urn:xregistry:mapped-pump",
+                {"@context":"https://www.w3.org/2022/wot/td/v1.1","@type":"Thing","id":"urn:xregistry:mapped-pump",
                  "title":"Mapped pump","securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"security":["nosec_sc"]}
                 """;
             WotRegistryMutationResult created = await registry.UpsertResourceAsync(new WotUpsertResourceRequest

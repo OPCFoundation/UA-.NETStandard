@@ -904,6 +904,28 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
+        public async Task ReusedValidationScopesAreAwaitedUnderTheirNewIdAsync()
+        {
+            // disposed scopes are reused: every round is awaited by a drain that starts while it
+            // is open, and a drain that started before it does not wait for it.
+            for (int round = 0; round < 64; round++)
+            {
+                IDisposable earlier = m_requestManager.EnterValidationScope();
+                Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+                Assert.That(drain.IsCompleted, Is.False, $"round {round}");
+                earlier.Dispose();
+                await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
+
+                IDisposable later = m_requestManager.EnterValidationScope();
+                Task next = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
+                Assert.That(next.IsCompleted, Is.False, $"round {round}");
+                later.Dispose();
+                await AssertCompletesWithinTimeoutAsync(next).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [Category("NodeManagerLifecycle")]
         public async Task WaitForCurrentRequestsAsyncCompletesAfterAllSnapshotRequestsCompleteAsync()
         {
             using var requestLifetimeA = new RequestLifetime();
