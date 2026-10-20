@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -131,12 +132,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
+        /// <param name="call">The call on the binding that resolved the action; the caller disposes it.</param>
         public ServiceResult ResolveAction(
             WotProjectedEventBinding requester,
             ByteString eventId,
             string action,
             out WotCapturedEvent? occurrence,
-            out WotCapturedConditionAction? capturedAction)
+            out WotCapturedConditionAction? capturedAction,
+            out IDisposable? call)
         {
             WotProjectedEventBinding[] candidates;
             lock (m_gate)
@@ -150,13 +153,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (candidate.SourceCondition == requester.SourceCondition &&
                     candidate.EventTypeId == requester.EventTypeId &&
                     WotProjectedEventSource.SameEndpoint(candidate.Source.Form, requester.Source.Form) &&
-                    candidate.TryResolveOwnAction(eventId, action, out occurrence, out capturedAction))
+                    candidate.TryResolveOwnAction(eventId, action, out occurrence, out capturedAction, out call))
                 {
                     return ServiceResult.Good;
                 }
             }
             occurrence = null;
             capturedAction = null;
+            call = null;
             return new ServiceResult(StatusCodes.BadEventIdUnknown);
         }
 
