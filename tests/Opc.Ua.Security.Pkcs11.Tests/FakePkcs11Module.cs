@@ -758,6 +758,19 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         /// <summary>
+        /// Inserts before every other object a copy of the token's EC public key
+        /// object with another CKA_ID, for which the token holds no private key:
+        /// a stale object that carries the certificate's public key.
+        /// </summary>
+        /// <param name="id">The CKA_ID of the stale object.</param>
+        public void InsertStaleEcPublicKey(byte[] id)
+        {
+            FakeObject publicKey = m_objects.First(o =>
+                o.ObjectClass == (ulong)CKO.CKO_PUBLIC_KEY && o.KeyType == (ulong)CKK.CKK_EC);
+            m_objects.Insert(0, publicKey with { Handle = Handle(m_nextHandle++), Id = id });
+        }
+
+        /// <summary>
         /// Set to make the token refuse CKM_RSA_PKCS signatures, as for a key
         /// that permits only PSS.
         /// </summary>

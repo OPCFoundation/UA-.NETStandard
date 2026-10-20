@@ -397,6 +397,21 @@ namespace Opc.Ua.Security.Pkcs11
         /// </summary>
         private static byte[]? FindKeyId(Pkcs11Token token, Certificate certificate)
         {
+            List<byte[]> ids = FindKeyIds(token, certificate);
+
+            return ids.Count > 0 ? ids[0] : null;
+        }
+
+        /// <summary>
+        /// Finds the distinct CKA_IDs of every key object on the token that
+        /// carries the certificate's public key: an RSA key with the same
+        /// modulus and public exponent (private key objects first), or an EC
+        /// key with the same point on the same curve.
+        /// </summary>
+        private static List<byte[]> FindKeyIds(Pkcs11Token token, Certificate certificate)
+        {
+            var ids = new List<byte[]>();
+
             using (RSA? rsa = certificate.GetRSAPublicKey())
             {
                 if (rsa != null)
@@ -408,8 +423,9 @@ namespace Opc.Ua.Security.Pkcs11
                         (CKA.CKA_PUBLIC_EXPONENT, rsaParameters.Exponent!)
                     ];
 
-                    return token.FindKeyId(CKO.CKO_PRIVATE_KEY, CKK.CKK_RSA, rsaMatch) ??
-                        token.FindKeyId(CKO.CKO_PUBLIC_KEY, CKK.CKK_RSA, rsaMatch);
+                    AddDistinct(ids, token.FindKeyIds(CKO.CKO_PRIVATE_KEY, CKK.CKK_RSA, rsaMatch));
+                    AddDistinct(ids, token.FindKeyIds(CKO.CKO_PUBLIC_KEY, CKK.CKK_RSA, rsaMatch));
+                    return ids;
                 }
             }
 
@@ -417,7 +433,7 @@ namespace Opc.Ua.Security.Pkcs11
 
             if (ecdsa == null)
             {
-                return null;
+                return ids;
             }
 
             ECParameters parameters = ecdsa.ExportParameters(false);
@@ -432,21 +448,33 @@ namespace Opc.Ua.Security.Pkcs11
             byte[]? curve = certificate.PublicKey.EncodedParameters?.RawData;
             if (curve == null || curve.Length == 0)
             {
-                return null;
+                return ids;
             }
 
             // CKA_EC_POINT holds the DER encoded OCTET STRING; some modules
             // store the bare point instead.
-            return token.FindKeyId(
-                    CKO.CKO_PUBLIC_KEY,
-                    CKK.CKK_EC,
-                    (CKA.CKA_EC_POINT, EncodeOctetString(point)),
-                    (CKA.CKA_EC_PARAMS, curve)) ??
-                token.FindKeyId(
-                    CKO.CKO_PUBLIC_KEY,
-                    CKK.CKK_EC,
-                    (CKA.CKA_EC_POINT, point),
-                    (CKA.CKA_EC_PARAMS, curve));
+            AddDistinct(ids, token.FindKeyIds(
+                CKO.CKO_PUBLIC_KEY,
+                CKK.CKK_EC,
+                (CKA.CKA_EC_POINT, EncodeOctetString(point)),
+                (CKA.CKA_EC_PARAMS, curve)));
+            AddDistinct(ids, token.FindKeyIds(
+                CKO.CKO_PUBLIC_KEY,
+                CKK.CKK_EC,
+                (CKA.CKA_EC_POINT, point),
+                (CKA.CKA_EC_PARAMS, curve)));
+            return ids;
+        }
+
+        private static void AddDistinct(List<byte[]> ids, List<byte[]> found)
+        {
+            foreach (byte[] id in found)
+            {
+                if (!ids.Exists(known => known.AsSpan().SequenceEqual(id)))
+                {
+                    ids.Add(id);
+                }
+            }
         }
 
         /// <summary>
@@ -578,6 +606,29 @@ namespace Opc.Ua.Security.Pkcs11
                 }
             }
 
+            // The object id filter excludes every certificate without a CKA_ID
+            // from the search above; such a certificate is paired only by proof
+            // of possession with a key the filters select.
+            if (!token.Options.ObjectId.IsNull && token.Options.ObjectId.Length > 0)
+            {
+                foreach (byte[] encoded in token.FindCertificatesWithoutId())
+                {
+                    using Certificate candidate = Certificate.FromRawData(encoded);
+
+                    if (!Matches(candidate, thumbprint, subjectName, applicationUri, certificateType))
+                    {
+                        continue;
+                    }
+
+                    Certificate? withKey = AttachKeyWithoutId(token, candidate);
+
+                    if (withKey != null)
+                    {
+                        return withKey;
+                    }
+                }
+            }
+
             return null;
         }
 
@@ -672,25 +723,28 @@ namespace Opc.Ua.Security.Pkcs11
         /// <summary>
         /// Attaches a key to a copy of a certificate without a CKA_ID. Only a key
         /// that signs a challenge the certificate's public key verifies is
-        /// attached: neither the CKA_ID of the key object that carries the
+        /// attached: neither the CKA_ID of a key object that carries the
         /// certificate's public key nor the configured object label or id
-        /// establishes the pairing alone, because several keys may share them.
-        /// The candidates are the keys with that CKA_ID, then the keys the
-        /// configured object filters select; without a filter, only the former.
+        /// establishes the pairing alone, because several keys may share them
+        /// and an id may be stale. The candidates are the keys of each CKA_ID
+        /// whose key object carries the certificate's public key, then the keys
+        /// the configured object filters select; without a filter, only the former.
         /// </summary>
         private static Certificate? AttachKeyWithoutId(Pkcs11Token token, Certificate certificate)
         {
-            byte[]? keyId = FindKeyId(token, certificate);
-            Certificate? withKey = keyId == null
-                ? null
-                : AttachKey(token, certificate, keyId, provePossession: true);
-
-            if (withKey == null && HasObjectFilter(token.Options))
+            foreach (byte[] keyId in FindKeyIds(token, certificate))
             {
-                withKey = AttachKey(token, certificate, [], provePossession: true);
+                Certificate? withKey = AttachKey(token, certificate, keyId, provePossession: true);
+
+                if (withKey != null)
+                {
+                    return withKey;
+                }
             }
 
-            return withKey;
+            return HasObjectFilter(token.Options)
+                ? AttachKey(token, certificate, [], provePossession: true)
+                : null;
         }
 
         /// <summary>

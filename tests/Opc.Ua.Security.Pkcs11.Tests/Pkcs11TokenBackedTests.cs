@@ -700,6 +700,73 @@ namespace Opc.Ua.Security.Pkcs11.Tests
         }
 
         [Test]
+        public async Task CertificateWithoutIdIsPairedThroughALaterKeyIdWhenAnEarlierMatchingPublicKeyIsStaleAsync()
+        {
+            using var module = new FakePkcs11Module();
+            // The first public key object that carries the certificate's key has an id without a private key.
+            module.InsertStaleEcPublicKey([0x09]);
+            module.SetCertificateId(module.EccCertificate, []);
+            using Pkcs11CertificateStore store = OpenStore(module);
+            using Certificate identity = Certificate.FromRawData(module.EccCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsPairedWithTheKeyOfTheObjectIdThatSignsForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            // Only the private key keeps the CKA_ID the options select; nothing infers it from the certificate.
+            module.SetIdsOfLabel("ecc", [], CKO.CKO_CERTIFICATE);
+            module.SetIdsOfLabel("ecc", [], CKO.CKO_PUBLIC_KEY);
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectId = new ByteString(module.EccId);
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using Certificate identity = Certificate.FromRawData(module.EccCertificate);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(identity.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+            using CertificateCollection enumerated = await store.EnumerateAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded?.HasPrivateKey, Is.True);
+                Assert.That(enumerated, Is.Empty, "the object id still selects what the store enumerates");
+            });
+        }
+
+        [Test]
+        public async Task CertificateWithoutIdIsNotPairedWithTheKeyOfTheObjectIdThatDoesNotSignForItAsync()
+        {
+            using var module = new FakePkcs11Module();
+            Pkcs11TokenOptions options = module.CreateOptions();
+            options.ObjectId = new ByteString(module.EccId);
+            using var store = new Pkcs11CertificateStore(NUnitTelemetryContext.Create(), options, module);
+            store.Open("pkcs11:token=" + FakePkcs11Module.DefaultTokenLabel, noPrivateKeys: false);
+            using ECDsa peerKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            using Certificate peer = CreatePeerCertificate("CN=PeerWithoutKey", peerKey);
+            await store.AddAsync(peer).ConfigureAwait(false);
+            module.SetCertificateId(peer.RawData, []);
+
+            using Certificate? loaded = await store
+                .LoadPrivateKeyAsync(peer.Thumbprint, null, null, NodeId.Null, null)
+                .ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Null, "the key of the object id belongs to the token's own certificate");
+        }
+
+        [Test]
         public async Task CertificateWhoseIdCannotBeReadIsNotPairedWithAnUnrelatedKeyAsync()
         {
             using var module = new FakePkcs11Module();
