@@ -154,14 +154,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// node manager restored, saved again and assigned to a result before it failed.
         /// </summary>
         [Test]
-        public void FaultedRequestKeepsAssignedClientSuppliedContinuationPoint()
+        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPointAsync()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var continued = new TrackingPoint();
             harness.Points.SaveHistory(continued);
             harness.RestoreSaveAssignThenThrow();
 
-            Assert.ThrowsAsync<OperationCanceledException>(
+            await Assert.ThrowsAsync<OperationCanceledException>(
                 async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
 
             Assert.That(continued.Disposed, Is.False);
