@@ -235,11 +235,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// No item gets the next event before every item of a split event got the previous
-        /// one, also while the delivery to one item waits for its permission check.
+        /// An item whose delivery waits for its permission check gets the next event only
+        /// after the previous one, while the other items of the split events go on.
         /// </summary>
         [Test]
-        public async Task NextEventWaitsForEveryItemOfASplitEventAsync()
+        public async Task ItemGetsTheNextEventOnlyAfterThePreviousOneAsync()
         {
             const int itemCount = 100;
             const uint blockedItem = 50;
@@ -289,11 +289,101 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
                 .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
+            // the second event may have reached the other items, the blocked item gets
+            // nothing before its first event.
+            Assert.That(beforeRelease[blockedItem - 1], Is.Empty, "blocked item before release");
             for (int ii = 0; ii < itemCount; ii++)
             {
-                int[] expectedBefore = ii + 1 == blockedItem ? [] : [0];
-                Assert.That(beforeRelease[ii], Is.EqualTo(expectedBefore), $"item {ii + 1} before release");
+                if (ii + 1 != blockedItem)
+                {
+                    Assert.That(
+                        beforeRelease[ii],
+                        Is.EqualTo(s_firstEvent).Or.EqualTo(s_twoEvents),
+                        $"item {ii + 1} before release");
+                }
                 Assert.That(queues[ii].ToArray(), Is.EqualTo(s_twoEvents), $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// Events that wait behind each other for different items, audit events that only
+        /// reach the items of secure sessions between other events, are queued to each item
+        /// in order and none is lost.
+        /// </summary>
+        [Test]
+        public async Task WaitingEventsForDifferentItemsKeepTheOrderOfEveryItemAsync()
+        {
+            const int itemCount = 100;
+            const int eventCount = 30;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            var events = new IFilterTarget[eventCount];
+            for (int ii = 0; ii < eventCount; ii++)
+            {
+                // a snapshot is reported as it is, a node state would be cloned.
+                events[ii] = ii % 3 == 1
+                    ? new InstanceStateSnapshot { Handle = new AuditEventState(null) }
+                    : new Mock<IFilterTarget>().Object;
+            }
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    // holds the first event until the next ones wait in the channel.
+                    if (item.Id == 1 && ReferenceEquals(target, events[0]))
+                    {
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.Auditing).Returns(true);
+            using var monitored = new MonitoredNode2(manager.Object, server.Object, node)
+            {
+                ParallelEventDeliveryBudget = -1,
+                MinItemsPerEventDeliveryRange = 8
+            };
+
+            var secureSession = new Mock<ISession>();
+            secureSession.SetupGet(value => value.EndpointDescription)
+                .Returns(new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt });
+            var queues = new ConcurrentQueue<int>[itemCount];
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                var queue = new ConcurrentQueue<int>();
+                queues[ii] = queue;
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns((uint)ii + 1);
+                if (ii % 2 == 0)
+                {
+                    item.SetupGet(value => value.Session).Returns(secureSession.Object);
+                }
+                item.Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                    .Callback<IFilterTarget>(target => queue.Enqueue(Array.IndexOf(events, target)));
+                monitored.Add(item.Object);
+            }
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            await monitored.OnReportEventAsync(context, node, events[0]).ConfigureAwait(false);
+            await monitored.OnReportEventAsync(context, node, events[1]).ConfigureAwait(false);
+            await monitored.OnReportEventAsync(context, node, events[2]).ConfigureAwait(false);
+            release.TrySetResult(true);
+            for (int ii = 3; ii < eventCount; ii++)
+            {
+                await monitored.OnReportEventAsync(context, node, events[ii]).ConfigureAwait(false);
+            }
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            int[] all = [.. Enumerable.Range(0, eventCount)];
+            int[] withoutAudit = [.. all.Where(index => index % 3 != 1)];
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                Assert.That(
+                    queues[ii].ToArray(),
+                    Is.EqualTo(ii % 2 == 0 ? all : withoutAudit),
+                    $"item {ii + 1}");
             }
         }
 
@@ -353,6 +443,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// Defines the event order that each monitored item must preserve independently.
         /// </summary>
         private static readonly int[] s_order = [1, 2];
+
+        private static readonly int[] s_firstEvent = [0];
 
         private static readonly int[] s_twoEvents = [0, 1];
     }
