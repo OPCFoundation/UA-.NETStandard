@@ -723,12 +723,15 @@ namespace Opc.Ua.AutoID.Tests
             try
             {
                 AutoIdDeviceSnapshot faulty = await m_client.RefreshDeviceAsync(idle).ConfigureAwait(false);
+                // Other tests of this fixture scan the same reader, so compare against what the hosted
+                // variable holds instead of assuming the reader has never scanned.
+                StatusCode hostedScanStatus = hosted.Device.LastScanData!.StatusCode;
 
                 Assert.Multiple(() =>
                 {
                     Assert.That(idle.DeviceStatus, Is.EqualTo(DeviceStatusEnumeration.Idle));
                     Assert.That(faulty.DeviceStatus, Is.EqualTo(DeviceStatusEnumeration.Error));
-                    Assert.That(faulty.LastScanStatus, Is.EqualTo(StatusCodes.UncertainInitialValue));
+                    Assert.That(faulty.LastScanStatus, Is.EqualTo(hostedScanStatus));
                     Assert.That(faulty.Methods, Is.EqualTo(idle.Methods));
                 });
             }
