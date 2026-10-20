@@ -54,10 +54,11 @@ namespace Opc.Ua.Server
         private const int k_defaultChannelCapacity = 2;
 
         /// <summary>
-        /// The consumer queues an event on its own for up to a ten-thousandth of a second
-        /// (100 microseconds) before it queues the remaining items in parallel.
+        /// While no notification waits in the channel, the consumer queues an event on its
+        /// own for up to a thousandth of a second before it queues the remaining items in
+        /// parallel.
         /// </summary>
-        private const long k_parallelEventDeliveryBudgetDivisor = 10000;
+        private const long k_parallelEventDeliveryBudgetDivisor = 1000;
 
         /// <summary>
         /// The fewest items queued in one range when an event is queued in parallel, so a
@@ -677,31 +678,35 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // queue on the consumer thread while the event costs little, so a small
-                // event does not wake pool threads; split what is left once the budget is
-                // used up. Each item is in one range, so the items of the event are queued
-                // on several threads while every item queues its events in order: the next
-                // event is taken from the channel only after all ranges completed.
+                // while no notification waits behind the event, the consumer keeps up on its
+                // own and does not wake pool threads: it queues the event itself and splits
+                // only what is left of an event that takes longer than the budget. When
+                // notifications wait, the consumer is behind and splits the event at once.
+                // Each item is in one range, so the items of the event are queued on several
+                // threads while every item queues its events in order: the next event is
+                // taken from the channel only after all ranges completed.
                 List<Task>? pending = null;
-                Task? ranges = null;
-                long start = m_timeProvider.GetTimestamp();
-                for (int next = 0; next < count;)
+                int next = 0;
+                if (m_parallelEventDeliveryBudget >= 0 && m_channel.Reader.Count == 0)
                 {
-                    StartEventDeliveries(delivery, next, next + 1, ref pending, cancellationToken);
-                    next++;
-                    if (next < count &&
-                        m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
+                    long start = m_timeProvider.GetTimestamp();
+                    while (next < count)
                     {
-                        ranges = DeliverEventInRangesAsync(delivery, next, count, cancellationToken);
-                        break;
+                        StartEventDeliveries(delivery, next, next + 1, ref pending, cancellationToken);
+                        next++;
+                        if (m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
+                        {
+                            break;
+                        }
                     }
                 }
 
                 try
                 {
-                    if (ranges != null)
+                    if (next < count)
                     {
-                        await ranges.ConfigureAwait(false);
+                        await DeliverEventInRangesAsync(delivery, next, count, cancellationToken)
+                            .ConfigureAwait(false);
                     }
                 }
                 finally
@@ -823,8 +828,9 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// The time, in <see cref="TimeProvider.GetTimestamp"/> ticks, the consumer queues
-        /// an event on its own before it queues the remaining items in parallel. Tests set
-        /// a negative budget to split every event with more than one item.
+        /// an event on its own, while no notification waits behind it, before it queues the
+        /// remaining items in parallel. Tests set a negative budget to split every event as
+        /// if notifications were waiting.
         /// </summary>
         internal long ParallelEventDeliveryBudget
         {
