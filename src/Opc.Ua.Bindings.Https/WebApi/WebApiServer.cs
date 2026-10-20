@@ -94,13 +94,20 @@ namespace Opc.Ua.Bindings
         {
             m_listenerBound = true;
             m_callback = listener.Callback;
+            MessageSecurityMode requiredSecurityMode = listener.MutualTlsEnabled
+                ? MessageSecurityMode.SignAndEncrypt
+                : MessageSecurityMode.None;
             EndpointDescription? fallbackEndpoint = null;
             foreach (EndpointDescription endpoint in listener.Descriptions ??
                 throw new InvalidOperationException("The listener has no configured endpoints."))
             {
-                if (endpoint.SecurityMode != MessageSecurityMode.None ||
+                if (endpoint.SecurityMode != requiredSecurityMode ||
                     endpoint.EndpointUrl == null ||
-                    !Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
+                    !Utils.IsUriHttpsScheme(endpoint.EndpointUrl) ||
+                    endpoint.TransportProfileUri is not (
+                        Profiles.HttpsBinaryTransport or
+                        Profiles.HttpsJsonTransport or
+                        Profiles.HttpsOpenApiTransport))
                 {
                     continue;
                 }
@@ -217,8 +224,8 @@ namespace Opc.Ua.Bindings
         /// non-null for service dispatch (e.g.
         /// <c>SessionManager.CreateSession</c> dereferences
         /// <see cref="EndpointDescription.SecurityMode"/>), so the
-        /// startup contributor picks the listener's
-        /// <see cref="MessageSecurityMode.None"/> HTTPS endpoint and
+        /// startup contributor picks the listener's HTTPS endpoint whose
+        /// message security mode matches its mutual-TLS configuration and
         /// installs it here.
         /// </summary>
         /// <param name="endpoint">The default endpoint, or <c>null</c>.</param>

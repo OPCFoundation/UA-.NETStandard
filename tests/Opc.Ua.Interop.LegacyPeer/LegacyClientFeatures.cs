@@ -580,8 +580,7 @@ namespace Opc.Ua.Interop.LegacyPeer
                     .CreateForRSA()
                 : new X509Certificate2(
                     certificatePath,
-                    string.Empty,
-                    X509KeyStorageFlags.EphemeralKeySet);
+                    string.Empty);
             ISession session = await c.NewSessionAsync(new UserIdentity(user)).ConfigureAwait(false);
             try
             {

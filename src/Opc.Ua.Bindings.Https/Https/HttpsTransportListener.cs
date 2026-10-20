@@ -400,6 +400,11 @@ namespace Opc.Ua.Bindings
         /// <inheritdoc/>
         public string ListenerId { get; private set; } = default!;
 
+        /// <summary>
+        /// Gets a value indicating whether this listener requires mutual TLS for application authentication.
+        /// </summary>
+        internal bool MutualTlsEnabled => m_mutualTlsEnabled;
+
         /// <inheritdoc/>
         public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
 
@@ -837,6 +842,12 @@ namespace Opc.Ua.Bindings
                     header = SecurityPolicies.None;
                 }
 
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                {
+                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
                 EndpointDescription? endpoint = null;
                 foreach (EndpointDescription ep in m_descriptions)
                 {
@@ -881,12 +892,6 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         return;
                     }
-                }
-
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
-                {
-                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
-                    return;
                 }
 
                 var secureChannelContext = new SecureChannelContext(
@@ -1000,6 +1005,12 @@ namespace Opc.Ua.Bindings
                     input.RequestHeader.AuthenticationToken = authenticationToken;
                 }
 
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                {
+                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
                 // The JSON sub-protocol is restricted to SecurityPolicy = None
                 // (Part 6 §7.4.5); pick the matching endpoint up front.
                 EndpointDescription? endpoint = null;
@@ -1025,12 +1036,6 @@ namespace Opc.Ua.Bindings
                             StatusCodes.BadSecurityPolicyRejected,
                             "Channel can only be used for discovery."));
                     await WriteJsonResponseAsync(context, discoveryFault, ct).ConfigureAwait(false);
-                    return;
-                }
-
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
-                {
-                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -1070,6 +1075,17 @@ namespace Opc.Ua.Bindings
         {
             if (!m_mutualTlsEnabled || IsDiscoveryRequest(request.TypeId))
             {
+                return null;
+            }
+
+            NodeId authenticationToken = request.RequestHeader?.AuthenticationToken ?? NodeId.Null;
+            if (request is not CreateSessionRequest &&
+                (authenticationToken.IsNull || authenticationToken.TryGetValue(out string _)))
+            {
+                // Session-less invocation validates anonymous channel identity and
+                // access tokens in SessionManager, where their policies determine
+                // the correct fault. Session-bound requests still require a
+                // certificate on the mutual-TLS channel.
                 return null;
             }
 
