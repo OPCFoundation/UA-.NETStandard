@@ -54,6 +54,25 @@ namespace Opc.Ua.Server
         private const int k_defaultChannelCapacity = 2;
 
         /// <summary>
+        /// While no notification waits in the channel, the consumer queues an event on its
+        /// own for up to a thousandth of a second before it queues the remaining items in
+        /// parallel.
+        /// </summary>
+        private const long k_parallelEventDeliveryBudgetDivisor = 1000;
+
+        /// <summary>
+        /// The fewest items queued in one range when an event is queued in parallel, so a
+        /// range is worth waking a pool thread for.
+        /// </summary>
+        private const int k_minItemsPerEventDeliveryRange = 32;
+
+        /// <summary>
+        /// The most events the consumer queues in parallel at once when it is behind: the
+        /// event it took and the events waiting behind it for the same items.
+        /// </summary>
+        private const int k_maxEventsPerBatch = 4;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
@@ -106,6 +125,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
+            m_parallelEventDeliveryBudget = m_timeProvider.TimestampFrequency / k_parallelEventDeliveryBudgetDivisor;
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
@@ -631,7 +651,12 @@ namespace Opc.Ua.Server
                     {
                         if (notification is EventSnapshot eventSnapshot)
                         {
-                            await ProcessEventSnapshotAsync(eventSnapshot, cancellationToken).ConfigureAwait(false);
+                            EventSnapshot? next = eventSnapshot;
+                            do
+                            {
+                                next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
+                            }
+                            while (next != null);
                         }
                         else if (notification is DataChangeSnapshot dataChangeSnapshot)
                         {
@@ -675,47 +700,395 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Processes an <see cref="EventSnapshot"/> from the channel.
+        /// Processes an <see cref="EventSnapshot"/> from the channel, together with the
+        /// events that wait behind it for the same items when the consumer is behind.
         /// </summary>
-        private async Task ProcessEventSnapshotAsync(EventSnapshot snapshot, CancellationToken cancellationToken)
+        /// <returns>
+        /// An event taken from the channel that goes to other items than the batch and is
+        /// processed next, or <c>null</c>.
+        /// </returns>
+        private async Task<EventSnapshot?> ProcessEventSnapshotAsync(
+            EventSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            int count = CollectEventDeliveries(snapshot.EventTargetSnapshot, 0);
+            int collected = count;
+            int events = 0;
+            EventSnapshot? different = null;
+            try
+            {
+                if (count == 0)
+                {
+                    return null;
+                }
+
+                m_eventBatch[events++] = CreateEventDelivery(snapshot, 0);
+                if (!m_useMultipleConsumers)
+                {
+                    for (int ii = 0; ii < count; ii++)
+                    {
+                        await StartEventDelivery(m_eventBatch[0], ii, cancellationToken).ConfigureAwait(false);
+                    }
+                    return null;
+                }
+
+                // while no notification waits behind the event, the consumer keeps up on its
+                // own and does not wake pool threads: it queues the event itself and splits
+                // only what is left of an event that takes longer than the budget. When
+                // notifications wait, the consumer is behind: it takes the events waiting for
+                // the same items, too, and splits them at once, so that the pool threads are
+                // woken once for a few events. Each item is in one range, which queues the
+                // events of the batch to it in order, so the items are queued on several
+                // threads while every item queues its events in order: the next batch is
+                // taken from the channel only after all ranges completed.
+                List<Task>? pending = null;
+                int next = 0;
+                if (m_parallelEventDeliveryBudget >= 0 && m_channel.Reader.Count == 0)
+                {
+                    long start = m_timeProvider.GetTimestamp();
+                    while (next < count)
+                    {
+                        StartEventDeliveries(m_eventBatch[0], next, next + 1, ref pending, cancellationToken);
+                        next++;
+                        if (cancellationToken.IsCancellationRequested ||
+                            m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    while (events < m_eventBatch.Length &&
+                        m_channel.Reader.TryPeek(out INodeNotification? waiting) &&
+                        waiting is EventSnapshot &&
+                        m_channel.Reader.TryRead(out waiting))
+                    {
+                        var waitingEvent = (EventSnapshot)waiting;
+                        int offset = events * count;
+                        int waitingCount = CollectEventDeliveries(waitingEvent.EventTargetSnapshot, offset);
+                        collected = offset + waitingCount;
+                        if (!HasSameItems(offset, waitingCount, count))
+                        {
+                            different = waitingEvent;
+                            break;
+                        }
+                        m_eventBatch[events++] = CreateEventDelivery(waitingEvent, offset);
+                    }
+                }
+
+                try
+                {
+                    if (next < count)
+                    {
+                        await DeliverEventsInRangesAsync(events, next, count, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (pending != null)
+                    {
+                        await Task.WhenAll(pending).ConfigureAwait(false);
+                    }
+                }
+                return different;
+            }
+            finally
+            {
+                // no reference to an item or event outlives the batch in the buffers.
+                Array.Clear(m_eventDeliveries, 0, collected);
+                Array.Clear(m_eventBatch, 0, events);
+            }
+        }
+
+        /// <summary>
+        /// Creates the delivery of an event whose items start at <paramref name="offset"/>
+        /// in <see cref="m_eventDeliveries"/>.
+        /// </summary>
+        private static EventDelivery CreateEventDelivery(EventSnapshot snapshot, int offset)
         {
             // Extract EventTypeId + SourceNodeId once so the per-item
             // permission cache can be keyed by them. The asynchronous
             // permission lookup is the dominant cost; caching the verdict
             // per (item, eventType, sourceNode) avoids two role-validation
             // calls per delivered event.
-            (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(snapshot.EventTargetSnapshot);
+            IFilterTarget target = snapshot.EventTargetSnapshot;
+            (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(target);
+            return new EventDelivery(target, eventTypeId, sourceNodeId, offset);
+        }
+
+        /// <summary>
+        /// Whether the <paramref name="count"/> deliveries at <paramref name="offset"/> go to
+        /// the same items in the same order as the first <paramref name="expected"/> ones.
+        /// </summary>
+        private bool HasSameItems(int offset, int count, int expected)
+        {
+            if (count != expected)
+            {
+                return false;
+            }
+
+            for (int ii = 0; ii < count; ii++)
+            {
+                if (!ReferenceEquals(m_eventDeliveries[offset + ii].Item, m_eventDeliveries[ii].Item))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Puts the items an event is delivered to into <see cref="m_eventDeliveries"/> from
+        /// <paramref name="offset"/> on, each with the evaluation of the event it shares with
+        /// the items with an equal filter.
+        /// </summary>
+        /// <remarks>
+        /// Runs on the consumer, so the groups are looked up by one thread; the deliveries
+        /// that run in parallel use the evaluations, which synchronize themselves. The buffer
+        /// is reused for every batch, which the consumer delivers one after the other.
+        /// </remarks>
+        /// <returns>The number of deliveries.</returns>
+        private int CollectEventDeliveries(IFilterTarget target, int offset)
+        {
+            bool isAuditEvent =
+                target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState);
 
             // the items with an equal filter share one evaluation of the event: the where
             // clause and the select clauses are evaluated once per group, not per item.
             var evaluations = new SharedEventEvaluations();
-            if (m_useMultipleConsumers)
+            int count = 0;
+            foreach (KeyValuePair<uint, IEventMonitoredItem> entry in EventMonitoredItems)
             {
-                var deliveries = new List<Task>(EventMonitoredItems.Count);
-                foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
+                IEventMonitoredItem item = entry.Value;
+                if (isAuditEvent &&
+                    (!m_server.Auditing ||
+                    (item.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                        item.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)))
                 {
-                    deliveries.Add(ProcessEventForItemAsync(
-                        item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken));
+                    continue;
                 }
-                await Task.WhenAll(deliveries).ConfigureAwait(false);
-                return;
+
+                if (offset + count == m_eventDeliveries.Length)
+                {
+                    Array.Resize(ref m_eventDeliveries, Math.Max(16, (offset + count) * 2));
+                }
+
+                MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
+                    item,
+                    out MonitoredItem.SharedEventFilterKey? key);
+                m_eventDeliveries[offset + count++] = new EventItemDelivery(item, key, evaluation);
             }
-            foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
+            return count;
+        }
+
+        /// <summary>
+        /// Delivers the first <paramref name="events"/> events of <see cref="m_eventBatch"/>
+        /// to their items in [<paramref name="start"/>, <paramref name="end"/>) in up to
+        /// <see cref="MaxEventDeliveryRanges"/> ranges at once, one of them on the calling
+        /// thread.
+        /// </summary>
+        private Task DeliverEventsInRangesAsync(
+            int events,
+            int start,
+            int end,
+            CancellationToken cancellationToken)
+        {
+            // every range gets at least the minimum number of items.
+            int ranges = Math.Min(
+                MaxEventDeliveryRanges,
+                (end - start) / m_minItemsPerEventDeliveryRange);
+            if (ranges <= 1)
             {
-                await ProcessEventForItemAsync(
-                    item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken).ConfigureAwait(false);
+                return DeliverEventsAsync(events, start, end, cancellationToken);
             }
+            return DeliverEventsInRangesCoreAsync(events, start, end, ranges, cancellationToken);
+        }
+
+        private async Task DeliverEventsInRangesCoreAsync(
+            int events,
+            int start,
+            int end,
+            int ranges,
+            CancellationToken cancellationToken)
+        {
+            int size = end - start;
+            var others = new Task[ranges - 1];
+            for (int ii = 1; ii < ranges; ii++)
+            {
+                int rangeStart = start + (int)((long)size * ii / ranges);
+                int rangeEnd = start + (int)((long)size * (ii + 1) / ranges);
+                others[ii - 1] = Task.Run(
+                    () => DeliverEventsAsync(events, rangeStart, rangeEnd, cancellationToken),
+                    cancellationToken);
+            }
+
+            try
+            {
+                await DeliverEventsAsync(
+                    events,
+                    start,
+                    start + (size / ranges),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                // the buffers are reused by the next batch only after every range is done.
+                await Task.WhenAll(others).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The most ranges the items of one event are queued in at once.
+        /// </summary>
+        internal static int MaxEventDeliveryRanges { get; } = Math.Max(1, Math.Min(Environment.ProcessorCount, 8));
+
+        /// <summary>
+        /// The time, in <see cref="TimeProvider.GetTimestamp"/> ticks, the consumer queues
+        /// an event on its own, while no notification waits behind it, before it queues the
+        /// remaining items in parallel. Tests set a negative budget to split every event as
+        /// if notifications were waiting.
+        /// </summary>
+        internal long ParallelEventDeliveryBudget
+        {
+            get => m_parallelEventDeliveryBudget;
+            set => m_parallelEventDeliveryBudget = value;
+        }
+
+        /// <summary>
+        /// The fewest items queued in one range when an event is queued in parallel.
+        /// </summary>
+        internal int MinItemsPerEventDeliveryRange
+        {
+            get => m_minItemsPerEventDeliveryRange;
+            set => m_minItemsPerEventDeliveryRange = Math.Max(1, value);
+        }
+
+        /// <summary>
+        /// Delivers the first <paramref name="events"/> events of <see cref="m_eventBatch"/>,
+        /// one after the other, to their items in [<paramref name="start"/>,
+        /// <paramref name="end"/>).
+        /// </summary>
+        private async Task DeliverEventsAsync(
+            int events,
+            int start,
+            int end,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < events; ii++)
+            {
+                List<Task>? pending = null;
+                StartEventDeliveries(m_eventBatch[ii], start, end, ref pending, cancellationToken);
+                if (pending != null)
+                {
+                    // an item gets the next event only after it got this one.
+                    await Task.WhenAll(pending).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Starts the delivery of an event to each of its items in [<paramref name="start"/>,
+        /// <paramref name="end"/>), one after the other.
+        /// </summary>
+        /// <remarks>
+        /// A delivery that waits for an asynchronous permission check is added to
+        /// <paramref name="pending"/>, and the next item is not held up by it. A canceled
+        /// delivery is added, too, so that the caller sees the cancellation only once it
+        /// joined every delivery it started.
+        /// </remarks>
+        private void StartEventDeliveries(
+            EventDelivery delivery,
+            int start,
+            int end,
+            ref List<Task>? pending,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = start; ii < end; ii++)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    // the caller joins the deliveries started so far before it sees the
+                    // cancellation, so no delivery outlives the batch.
+                    (pending ??= []).Add(Task.FromCanceled(cancellationToken));
+                    return;
+                }
+
+                Task task = StartEventDelivery(delivery, ii, cancellationToken);
+                if (task.Status != TaskStatus.RanToCompletion)
+                {
+                    (pending ??= []).Add(task);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Starts the delivery of an event to its item at <paramref name="index"/>.
+        /// </summary>
+        private Task StartEventDelivery(EventDelivery delivery, int index, CancellationToken cancellationToken)
+        {
+            EventItemDelivery item = m_eventDeliveries[delivery.Offset + index];
+            return ProcessEventForItemAsync(
+                item.Item,
+                delivery.Target,
+                delivery.EventTypeId,
+                delivery.SourceNodeId,
+                item.Key,
+                item.Evaluation,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// An event of a batch, whose items start at <see cref="Offset"/> in
+        /// <see cref="m_eventDeliveries"/>.
+        /// </summary>
+        private readonly struct EventDelivery
+        {
+            public EventDelivery(IFilterTarget target, NodeId eventTypeId, NodeId sourceNodeId, int offset)
+            {
+                Target = target;
+                EventTypeId = eventTypeId;
+                SourceNodeId = sourceNodeId;
+                Offset = offset;
+            }
+
+            public IFilterTarget Target { get; }
+
+            public NodeId EventTypeId { get; }
+
+            public NodeId SourceNodeId { get; }
+
+            public int Offset { get; }
+        }
+
+        /// <summary>
+        /// An item an event is delivered to, with the group evaluation it uses.
+        /// </summary>
+        private readonly struct EventItemDelivery
+        {
+            public EventItemDelivery(
+                IEventMonitoredItem item,
+                MonitoredItem.SharedEventFilterKey? key,
+                MonitoredItem.SharedEventEvaluation? evaluation)
+            {
+                Item = item;
+                Key = key;
+                Evaluation = evaluation;
+            }
+
+            public IEventMonitoredItem Item { get; }
+
+            public MonitoredItem.SharedEventFilterKey? Key { get; }
+
+            public MonitoredItem.SharedEventEvaluation? Evaluation { get; }
         }
 
         /// <summary>
         /// The evaluations of one event, one per group of items with an equal filter.
         /// </summary>
         /// <remarks>
-        /// An item's group is looked up before its delivery first awaits, by the loop over
-        /// the items of the event, so the dictionary is never accessed concurrently (the
-        /// loop may continue on another thread after an asynchronous permission check). A
-        /// delivery that completes on another thread uses the evaluation, which
-        /// synchronizes itself.
+        /// Only the consumer looks up the groups, before the event is delivered to any item.
         /// </remarks>
         private sealed class SharedEventEvaluations
         {
@@ -753,27 +1126,14 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
-            SharedEventEvaluations evaluations,
+            MonitoredItem.SharedEventFilterKey? key,
+            MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
         {
-            if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
-            {
-                if (!m_server.Auditing ||
-                    (monitoredItem.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        monitoredItem.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport))
-                {
-                    return;
-                }
-            }
-
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // looked up before the first await, by the loop over the items.
-                MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
-                    monitoredItem,
-                    out MonitoredItem.SharedEventFilterKey? key);
                 ServiceResult validationResult = await GetOrAddEventPermissionAsync(
                     monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
@@ -1307,6 +1667,10 @@ namespace Opc.Ua.Server
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
         private readonly bool m_useMultipleConsumers;
+        private EventItemDelivery[] m_eventDeliveries = [];
+        private readonly EventDelivery[] m_eventBatch = new EventDelivery[k_maxEventsPerBatch];
+        private long m_parallelEventDeliveryBudget;
+        private int m_minItemsPerEventDeliveryRange = k_minItemsPerEventDeliveryRange;
         private readonly Lock m_rebindLock = new();
         private bool m_disposed;
 
