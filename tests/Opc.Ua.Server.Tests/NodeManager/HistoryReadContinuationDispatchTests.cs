@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// node manager restored, saved again and assigned to a result before it failed.
         /// </summary>
         [Test]
-        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPoint()
+        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPointAsync()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var continued = new TrackingPoint();
