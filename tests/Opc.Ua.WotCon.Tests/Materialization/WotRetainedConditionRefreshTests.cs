@@ -470,7 +470,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="sourceCondition">The source Condition the binding routes actions for, if any.</param>
             public RefreshHarness(
                 string mode, bool limitType = true, bool qualifiedProperty = false, bool includeStateProperty = false,
-                string? configurationProperty = null, int capacity = 1, ExpandedNodeId? sourceCondition = null)
+                string? configurationProperty = null, int capacity = 1, ExpandedNodeId sourceCondition = default)
             {
                 ServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
                 messageContext.NamespaceUris = new NamespaceTable(
@@ -539,7 +539,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var notifier = new BaseObjectState(null) { NodeId = new NodeId("Owner", 2) };
                 bool transparent = mode == "transparent-forwarding";
                 Binding = new WotProjectedEventBinding(Context, m_eventSource, notifier,
-                    transparent ? s_sourceType : s_localType, null, sourceCondition ?? ExpandedNodeId.Null, capacity,
+                    transparent ? s_sourceType : s_localType, null, sourceCondition, capacity,
                     TimeProvider.System,
                     "urn:wot:refresh:document", "/events/alarm", m_registry,
                     transparent
