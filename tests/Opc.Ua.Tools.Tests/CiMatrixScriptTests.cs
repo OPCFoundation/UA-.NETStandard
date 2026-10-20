@@ -529,6 +529,56 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// WoT shard filters must select every eligible test exactly once on
+        /// both framework branches, preserving each profile's category exclusions.
+        /// </summary>
+        [TestCase("pr", false, false)]
+        [TestCase("pr", false, true)]
+        [TestCase("pr", true, false)]
+        [TestCase("pr", true, true)]
+        [TestCase("full", false, false)]
+        [TestCase("full", false, true)]
+        [TestCase("full", true, false)]
+        [TestCase("full", true, true)]
+        public async Task WotFiltersPartitionEligibleTestsExactlyOnceAsync(
+            string scope,
+            bool materialization,
+            bool integration)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] wot = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.WotCon.Tests.csproj", StringComparison.Ordinal)).ToArray();
+            Assert.That(wot.Any(entry => entry.Framework == "net48"), Is.True);
+            Assert.That(wot.Any(entry => entry.Framework != "net48"), Is.True);
+
+            string testName = materialization
+                ? "Opc.Ua.WotCon.Tests.Materialization.ExampleTests.ExampleAsync"
+                : "Opc.Ua.WotCon.Tests.Registry.ExampleTests.ExampleAsync";
+            foreach (IGrouping<string, MatrixEntry> profile in wot.GroupBy(entry => entry.Profile))
+            {
+                foreach (string category in new[] { string.Empty, "LongRunning", "Stress" })
+                {
+                    string[] categories = integration ? [category, "Integration"] : [category];
+                    bool allowed = profile.First().Tier != "mainline" || category.Length == 0;
+                    string[] matches = profile
+                        .Where(entry => MatchesWotFilter(entry.Filter, testName, categories))
+                        .Select(entry => entry.Shard)
+                        .ToArray();
+                    string expectedShard = !materialization
+                        ? "wot-other"
+                        : profile.First().Framework != "net48"
+                            ? "wot-materialization"
+                            : integration ? "wot-materialization-integration" : "wot-materialization-core";
+
+                    Assert.That(
+                        matches,
+                        Is.EqualTo(allowed ? new[] { expectedShard } : Array.Empty<string>()),
+                        $"Profile '{profile.Key}', test '{testName}', categories '{string.Join(",", categories)}'.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Each test invocation gets its full budget after the build completes;
         /// build time is instead covered by the fixed overhead in the job
         /// timeout.
@@ -562,6 +612,27 @@ namespace Opc.Ua.Tools.Tests
                 source,
                 Does.Contain("$buildBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
                 "Build duration remains available for reporting.");
+        }
+
+        /// <summary>
+        /// Evaluates the conjunctions emitted for WoT tests; unsupported terms
+        /// fail rather than silently weakening the partition assertions.
+        /// </summary>
+        private static bool MatchesWotFilter(string filter, string testName, string[] categories)
+        {
+            return filter.Split('&').All(term => term switch
+            {
+                "" => true,
+                _ when term.StartsWith("FullyQualifiedName!~", StringComparison.Ordinal) =>
+                    !testName.Contains(term["FullyQualifiedName!~".Length..], StringComparison.OrdinalIgnoreCase),
+                _ when term.StartsWith("FullyQualifiedName~", StringComparison.Ordinal) =>
+                    testName.Contains(term["FullyQualifiedName~".Length..], StringComparison.OrdinalIgnoreCase),
+                _ when term.StartsWith("TestCategory!=", StringComparison.Ordinal) =>
+                    !categories.Contains(term["TestCategory!=".Length..], StringComparer.OrdinalIgnoreCase),
+                _ when term.StartsWith("TestCategory=", StringComparison.Ordinal) =>
+                    categories.Contains(term["TestCategory=".Length..], StringComparer.OrdinalIgnoreCase),
+                _ => throw new InvalidOperationException($"Unsupported WoT filter term '{term}'.")
+            });
         }
 
         private static async Task<MatrixResult> RunMatrixAsync(
