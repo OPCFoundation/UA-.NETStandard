@@ -36,7 +36,7 @@
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
 //           [--subs S] [--pub ms] [--write-interval ms] [--write-nodes K]
 //           [--trace file] [--trace-profile p] [--out file]
-//           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
+//           [--client managed|classic|shared] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
 //           and the CPU / GC / allocation deltas of both processes for the measurement window.
 
@@ -48,6 +48,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -68,6 +69,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     public static class Program
     {
         private static readonly Dictionary<string, string> s_args = new(StringComparer.OrdinalIgnoreCase);
+
+        // client GC events of the window (--gc-events 0 turns the listener off)
+        private static GcListener? s_gcListener;
+
+        // processor masks of a constrained client run (--client-cores), set by RunConstrainedAsync
+        private const string kClientAffinityVariable = "PERF_CLIENT_AFFINITY";
+        private const string kServerAffinityVariable = "PERF_SERVER_AFFINITY";
+        private const string kConstrainedVariable = "PERF_CONSTRAINED";
 
         /// <summary>
         /// Runs the server or the load driver.
@@ -92,11 +101,90 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             {
                 return await RunServerAsync().ConfigureAwait(false);
             }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                NativeWorkerBenchmark.IsScenario(Arg("scenario", "read")))
+            {
+                // the native workers are not .NET processes; they use --client-affinity
+                Console.WriteLine(
+                    "--client-cores and --client-memory apply to the .NET client scenarios; " +
+                    "use --client-affinity and --server-affinity with the native workers.");
+                return 2;
+            }
+            if ((s_args.ContainsKey("client-cores") || s_args.ContainsKey("client-memory")) &&
+                Environment.GetEnvironmentVariable(kConstrainedVariable) == null)
+            {
+                return await RunConstrainedAsync(args).ConfigureAwait(false);
+            }
             return NativeWorkerBenchmark.IsScenario(Arg("scenario", "read"))
                 ? await NativeWorkerBenchmark.RunAsync(args).ConfigureAwait(false)
                 : await RunDriverAsync(args).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Runs the harness again as a client confined like a container: <c>--client-cores N</c>
+        /// gives it the last N of the processors this process may use (the runtime sizes the
+        /// thread pool and GC for N through <c>DOTNET_PROCESSOR_COUNT</c>) and the server the
+        /// others; <c>--client-memory MB</c> sets the GC heap hard limit to 75 % of MB, the limit
+        /// .NET derives from a container memory limit.
+        /// </summary>
+        /// <remarks>
+        /// Processor confinement uses the process affinity mask, which on Windows applies to all
+        /// threads of a process. On Linux it applies only to the main thread, so there the
+        /// client belongs in a cgroup (for example <c>docker --cpuset-cpus</c>) or under
+        /// <c>taskset</c> instead.
+        /// </remarks>
+        private static async Task<int> RunConstrainedAsync(string[] args)
+        {
+            var startInfo = new ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = false };
+            foreach (string arg in args)
+            {
+                startInfo.ArgumentList.Add(arg);
+            }
+            startInfo.Environment[kConstrainedVariable] = "1";
+            if (TryGetArg("client-cores", out string? coresArg))
+            {
+                if (!OperatingSystem.IsWindows())
+                {
+                    Console.WriteLine(
+                        "--client-cores is supported on Windows only, where the affinity mask applies to all threads; " +
+                        "on Linux run the client in a cgroup (docker --cpuset-cpus) or under taskset.");
+                    return 2;
+                }
+                // the processors this process may use, which can be a subset of the machine,
+                // within the processor group of the process (at most 64)
+                using Process self = Process.GetCurrentProcess();
+                long allowed = self.ProcessorAffinity;
+                var processors = new List<int>();
+                for (int bit = 0; bit < 64; bit++)
+                {
+                    if ((allowed & (1L << bit)) != 0)
+                    {
+                        processors.Add(bit);
+                    }
+                }
+                int cores = Math.Clamp(int.Parse(coresArg!, CultureInfo.InvariantCulture), 1, processors.Count);
+                long clientMask = 0;
+                foreach (int bit in processors.Skip(processors.Count - cores))
+                {
+                    clientMask |= 1L << bit;
+                }
+                startInfo.Environment[kClientAffinityVariable] = clientMask.ToString("X", CultureInfo.InvariantCulture);
+                startInfo.Environment["DOTNET_PROCESSOR_COUNT"] = cores.ToString(CultureInfo.InvariantCulture);
+                if (cores < processors.Count)
+                {
+                    startInfo.Environment[kServerAffinityVariable] =
+                        (allowed & ~clientMask).ToString("X", CultureInfo.InvariantCulture);
+                }
+            }
+            if (TryGetArg("client-memory", out string? memory))
+            {
+                long limit = long.Parse(memory!, CultureInfo.InvariantCulture) * 1048576 * 3 / 4;
+                startInfo.Environment["DOTNET_GCHeapHardLimit"] = "0x" + limit.ToString("X", CultureInfo.InvariantCulture);
+            }
+            using Process child = Process.Start(startInfo)!;
+            await child.WaitForExitAsync().ConfigureAwait(false);
+            return child.ExitCode;
+        }
         internal static bool TryGetArg(string name, out string? value)
         {
             return s_args.TryGetValue(name, out value);
@@ -285,12 +373,46 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int warmupSeconds = ArgInt("warmup", 10);
             int port = ArgInt("port", 62555 + (Environment.ProcessId % 1000));
             string security = Arg("security", "none");
-
+            if (ArgInt("gc-events", 1) != 0)
+            {
+                s_gcListener = new GcListener();
+            }
+            // a constrained client starts the server before it confines itself, so the server
+            // does not inherit the client's processors; the server runtime is sized for the
+            // processors it keeps (SERVER_DOTNET_PROCESSOR_COUNT still overrides)
+            string? clientAffinity = Environment.GetEnvironmentVariable(kClientAffinityVariable);
+            string? serverAffinity = Environment.GetEnvironmentVariable(kServerAffinityVariable);
+            Dictionary<string, string>? serverEnvironment = serverAffinity == null
+                ? null
+                : new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["DOTNET_PROCESSOR_COUNT"] = BitOperations.PopCount(Convert.ToUInt64(serverAffinity, 16))
+                        .ToString(CultureInfo.InvariantCulture)
+                };
             (Process startedServer, BlockingCollection<string> startedLines) = StartServerChild(
                 FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"));
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"),
+                serverEnvironment);
             using Process server = startedServer;
             using BlockingCollection<string> serverLines = startedLines;
+            if (serverAffinity != null && OperatingSystem.IsWindows())
+            {
+                // the server keeps the processors the constrained client does not have
+                server.ProcessorAffinity = (nint)Convert.ToInt64(serverAffinity, 16);
+            }
+            if (clientAffinity != null && OperatingSystem.IsWindows())
+            {
+                // the process mask applies to the threads the runtime has already started, too
+                using Process self = Process.GetCurrentProcess();
+                self.ProcessorAffinity = (nint)Convert.ToInt64(clientAffinity, 16);
+            }
+            if (Environment.GetEnvironmentVariable(kConstrainedVariable) != null)
+            {
+                Console.WriteLine(FormattableString.Invariant(
+                    $"constrained client: processors={Environment.ProcessorCount} mask=0x{clientAffinity ?? "all"} ") +
+                    FormattableString.Invariant(
+                    $"server mask=0x{serverAffinity ?? "all"} heapLimitMB={GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / 1048576}"));
+            }
             string ready = serverLines.Take();
             if (!ready.StartsWith("READY", StringComparison.Ordinal))
             {
@@ -325,10 +447,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
+            // managed (default): ManagedSession with the default V2 subscription engine.
             // classic: Session from the default session factory (classic subscription engine).
-            // managed: ManagedSession with the default V2 subscription engine.
             // shared: classic Sessions whose secure channels come from one ClientChannelManager.
-            string clientKind = Arg("client", "classic");
+            string clientKind = Arg("client", "managed");
             ConfiguredEndpoint? endpointForBuilder = clientKind is "managed" or "shared"
                 ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
                 : null;
@@ -350,6 +472,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     "managed" => await new ManagedSessionBuilder(client.Config, telemetry)
                         .UseEndpoint(endpointForBuilder!)
                         .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                        .WithPoolNotifications(ArgInt("pool-notifications", 0) != 0)
                         .ConnectAsync(ct)
                         .ConfigureAwait(false),
                     "shared" => await Session.CreateAsync(
@@ -420,12 +543,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Take(serverLines, "MARKED");
             GC.Collect();
             GC.WaitForPendingFinalizers();
+            s_gcListener?.Mark();
             ProcessStats clientMark = ProcessStats.Capture();
             workload.ResetStats();
             var window = Stopwatch.StartNew();
             TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
             string clientProcess = ProcessStats.Capture().Delta(clientMark);
+            // the window ends here; GC events stamped before this arrive later and still count
+            s_gcListener?.End();
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
             // freeze the client counts at the end of the server window
@@ -456,6 +582,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 Console.WriteLine("trace: " + trace);
             }
 
+            string? clientGc = s_gcListener == null ? null : await s_gcListener.ReportAsync().ConfigureAwait(false);
             var result = new StringBuilder();
             result.Append(CultureInfo.InvariantCulture, $"RESULT scenario={scenario} security={security} sessions={sessionCount} ")
                 .Append(string.Join(' ', args.Skip(1)))
@@ -463,6 +590,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Append("  client: ").Append(clientReport).Append('\n')
                 .Append("  server: ").Append(report).Append('\n')
                 .Append("  client-process: ").Append(clientProcess).Append('\n');
+            if (clientGc != null)
+            {
+                result.Append("  client-gc: ").Append(clientGc).Append('\n');
+            }
             (double serverMb, double serverCpuMs) = ParseProcessReport(report);
             if (operations > 0)
             {
@@ -522,6 +653,19 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 RedirectStandardOutput = true,
                 UseShellExecute = false
             };
+            // GC and processor settings of the harness configure the measured client; the server
+            // inherits the environment, so they are removed and only SERVER_ variables configure it
+            foreach (string name in startInfo.Environment.Keys.ToList())
+            {
+                if (name.StartsWith("DOTNET_GC", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("COMPlus_GC", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("DOTNET_ThreadPool_", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("DOTNET_PROCESSOR_COUNT", StringComparison.OrdinalIgnoreCase) ||
+                    name.StartsWith("PERF_", StringComparison.Ordinal))
+                {
+                    startInfo.Environment.Remove(name);
+                }
+            }
             if (defaultEnvironment != null)
             {
                 foreach (KeyValuePair<string, string> variable in defaultEnvironment)
@@ -663,39 +807,99 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     }
 
     /// <summary>
-    /// Latency samples (Stopwatch ticks) recorded by many threads. ConcurrentBag keeps a
-    /// list per thread, so recording does not contend between the load threads.
+    /// Latency histogram (Stopwatch ticks) recorded by many threads without allocating:
+    /// log-linear buckets with 64 steps per power of two (at most ~1.6 % error), so the
+    /// recorder does not add allocations, promotions or large arrays to the measured client.
     /// </summary>
     internal sealed class LatencyRecorder
     {
         public void Record(long ticks)
         {
-            m_samples.Add(ticks);
+            if (ticks < 0)
+            {
+                ticks = 0;
+            }
+            Interlocked.Increment(ref m_buckets[Index(ticks)]);
+            long max = Volatile.Read(ref m_max);
+            while (ticks > max)
+            {
+                long seen = Interlocked.CompareExchange(ref m_max, ticks, max);
+                if (seen == max)
+                {
+                    break;
+                }
+                max = seen;
+            }
         }
 
         public void Clear()
         {
-            m_samples.Clear();
+            for (int i = 0; i < m_buckets.Length; i++)
+            {
+                Interlocked.Exchange(ref m_buckets[i], 0);
+            }
+            Interlocked.Exchange(ref m_max, 0);
         }
 
         public string Percentiles()
         {
-            var all = new List<long>(m_samples);
-            if (all.Count == 0)
+            long[] counts = new long[m_buckets.Length];
+            long total = 0;
+            for (int i = 0; i < counts.Length; i++)
+            {
+                counts[i] = Volatile.Read(ref m_buckets[i]);
+                total += counts[i];
+            }
+            if (total == 0)
             {
                 return "n=0";
             }
-            all.Sort();
             double Ms(double quantile)
             {
-                return all[Math.Min(all.Count - 1, (int)(quantile * all.Count))] * 1000.0 / Stopwatch.Frequency;
+                long rank = Math.Min(total - 1, (long)(quantile * total));
+                long seen = 0;
+                for (int i = 0; i < counts.Length; i++)
+                {
+                    seen += counts[i];
+                    if (seen > rank)
+                    {
+                        return Value(i) * 1000.0 / Stopwatch.Frequency;
+                    }
+                }
+                return Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency;
             }
             return FormattableString.Invariant(
-                $"n={all.Count} p50={Ms(0.5):F3}ms p90={Ms(0.9):F3}ms p99={Ms(0.99):F3}ms ") +
-                FormattableString.Invariant($"p999={Ms(0.999):F3}ms max={Ms(1):F3}ms");
+                $"n={total} p50={Ms(0.5):F3}ms p90={Ms(0.9):F3}ms p99={Ms(0.99):F3}ms ") +
+                FormattableString.Invariant(
+                $"p999={Ms(0.999):F3}ms max={Volatile.Read(ref m_max) * 1000.0 / Stopwatch.Frequency:F3}ms");
         }
 
-        private readonly ConcurrentBag<long> m_samples = [];
+        private static int Index(long ticks)
+        {
+            if (ticks < 2 * kSteps)
+            {
+                return (int)ticks;
+            }
+            int shift = 63 - BitOperations.LeadingZeroCount((ulong)ticks) - kBits;
+            return (2 * kSteps) + ((shift - 1) * kSteps) + (int)((ticks >> shift) - kSteps);
+        }
+
+        private static double Value(int index)
+        {
+            if (index < 2 * kSteps)
+            {
+                return index;
+            }
+            int shift = ((index - (2 * kSteps)) / kSteps) + 1;
+            long mantissa = ((index - (2 * kSteps)) % kSteps) + kSteps;
+            // bucket midpoint
+            return (mantissa << shift) + ((1L << shift) / 2.0);
+        }
+
+        private const int kBits = 6;
+        private const int kSteps = 1 << kBits;
+        private readonly long[] m_buckets = new long[(2 * kSteps) + (64 * kSteps)];
+        private long m_max;
     }
 
     /// <summary>
