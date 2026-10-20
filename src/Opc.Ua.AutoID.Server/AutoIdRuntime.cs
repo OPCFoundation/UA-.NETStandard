@@ -394,6 +394,7 @@ namespace Opc.Ua.AutoID.Server
         /// Runs the builder's identification delegate once, checks a component of a machine before
         /// anything is registered, and creates the device of the provider's reader kind.
         /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The provider reports an unknown reader kind.</exception>
         private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceOfKindAsync(
             AutoIdReaderBuilder builder,
             CancellationToken cancellationToken)
