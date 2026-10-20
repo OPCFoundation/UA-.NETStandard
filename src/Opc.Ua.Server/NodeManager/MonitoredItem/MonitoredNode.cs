@@ -54,6 +54,18 @@ namespace Opc.Ua.Server
         private const int k_defaultChannelCapacity = 2;
 
         /// <summary>
+        /// The consumer queues an event on its own for up to a ten-thousandth of a second
+        /// (100 microseconds) before it queues the remaining items in parallel.
+        /// </summary>
+        private const long k_parallelEventDeliveryBudgetDivisor = 10000;
+
+        /// <summary>
+        /// The fewest items queued in one range when an event is queued in parallel, so a
+        /// range is worth waking a pool thread for.
+        /// </summary>
+        private const int k_minItemsPerEventDeliveryRange = 32;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="MonitoredNode2"/> class.
         /// </summary>
         /// <param name="nodeManager">The node manager.</param>
@@ -106,6 +118,7 @@ namespace Opc.Ua.Server
                 ?? (server as ITimeProviderProvider)?.TimeProvider
                 ?? TimeProvider.System;
             m_logger = server.Telemetry?.CreateLogger<MonitoredNode2>();
+            m_parallelEventDeliveryBudget = m_timeProvider.TimestampFrequency / k_parallelEventDeliveryBudgetDivisor;
             m_useMultipleConsumers = enableMultipleEventConsumers || node.NodeId == ObjectIds.Server;
             m_channel = Channel.CreateBounded<INodeNotification>(new BoundedChannelOptions(k_defaultChannelCapacity)
             {
@@ -645,36 +658,297 @@ namespace Opc.Ua.Server
             // calls per delivered event.
             (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(snapshot.EventTargetSnapshot);
 
+            IFilterTarget target = snapshot.EventTargetSnapshot;
+            int count = CollectEventDeliveries(target);
+            if (count == 0)
+            {
+                return;
+            }
+
+            try
+            {
+                var delivery = new EventDelivery(target, eventTypeId, sourceNodeId);
+                if (!m_useMultipleConsumers)
+                {
+                    for (int ii = 0; ii < count; ii++)
+                    {
+                        await StartEventDelivery(delivery, ii, cancellationToken).ConfigureAwait(false);
+                    }
+                    return;
+                }
+
+                // queue on the consumer thread while the event costs little, so a small
+                // event does not wake pool threads; split what is left once the budget is
+                // used up. Each item is in one range, so the items of the event are queued
+                // on several threads while every item queues its events in order: the next
+                // event is taken from the channel only after all ranges completed.
+                List<Task>? pending = null;
+                Task? ranges = null;
+                long start = m_timeProvider.GetTimestamp();
+                for (int next = 0; next < count;)
+                {
+                    StartEventDeliveries(delivery, next, next + 1, ref pending, cancellationToken);
+                    next++;
+                    if (next < count &&
+                        m_timeProvider.GetTimestamp() - start > m_parallelEventDeliveryBudget)
+                    {
+                        ranges = DeliverEventInRangesAsync(delivery, next, count, cancellationToken);
+                        break;
+                    }
+                }
+
+                try
+                {
+                    if (ranges != null)
+                    {
+                        await ranges.ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    if (pending != null)
+                    {
+                        await Task.WhenAll(pending).ConfigureAwait(false);
+                    }
+                }
+            }
+            finally
+            {
+                // no reference to an item outlives the event in the buffer.
+                Array.Clear(m_eventDeliveries, 0, count);
+            }
+        }
+
+        /// <summary>
+        /// Puts the items an event is delivered to into <see cref="m_eventDeliveries"/>, each
+        /// with the evaluation of the event it shares with the items with an equal filter.
+        /// </summary>
+        /// <remarks>
+        /// Runs on the consumer, so the groups are looked up by one thread; the deliveries
+        /// that run in parallel use the evaluations, which synchronize themselves. The buffer
+        /// is reused for every event, which the consumer delivers one after the other.
+        /// </remarks>
+        /// <returns>The number of deliveries.</returns>
+        private int CollectEventDeliveries(IFilterTarget target)
+        {
+            bool isAuditEvent =
+                target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState);
+
             // the items with an equal filter share one evaluation of the event: the where
             // clause and the select clauses are evaluated once per group, not per item.
             var evaluations = new SharedEventEvaluations();
-            if (m_useMultipleConsumers)
+            int count = 0;
+            foreach (KeyValuePair<uint, IEventMonitoredItem> entry in EventMonitoredItems)
             {
-                var deliveries = new List<Task>(EventMonitoredItems.Count);
-                foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
+                IEventMonitoredItem item = entry.Value;
+                if (isAuditEvent &&
+                    (!m_server.Auditing ||
+                    (item.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
+                        item.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport)))
                 {
-                    deliveries.Add(ProcessEventForItemAsync(
-                        item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken));
+                    continue;
                 }
-                await Task.WhenAll(deliveries).ConfigureAwait(false);
-                return;
+
+                if (count == m_eventDeliveries.Length)
+                {
+                    Array.Resize(ref m_eventDeliveries, Math.Max(16, count * 2));
+                }
+
+                MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
+                    item,
+                    out MonitoredItem.SharedEventFilterKey? key);
+                m_eventDeliveries[count++] = new EventItemDelivery(item, key, evaluation);
             }
-            foreach (IEventMonitoredItem item in EventMonitoredItems.Values)
+            return count;
+        }
+
+        /// <summary>
+        /// Delivers an event to the items in [<paramref name="start"/>, <paramref name="end"/>)
+        /// of <see cref="m_eventDeliveries"/> in up to <see cref="MaxEventDeliveryRanges"/>
+        /// ranges at once, one of them on the calling thread.
+        /// </summary>
+        private Task DeliverEventInRangesAsync(
+            EventDelivery delivery,
+            int start,
+            int end,
+            CancellationToken cancellationToken)
+        {
+            int ranges = Math.Min(
+                MaxEventDeliveryRanges,
+                (end - start + m_minItemsPerEventDeliveryRange - 1) / m_minItemsPerEventDeliveryRange);
+            if (ranges <= 1)
             {
-                await ProcessEventForItemAsync(
-                    item, snapshot.EventTargetSnapshot, eventTypeId, sourceNodeId, evaluations, cancellationToken).ConfigureAwait(false);
+                return DeliverEventAsync(delivery, start, end, cancellationToken);
             }
+            return DeliverEventInRangesCoreAsync(delivery, start, end, ranges, cancellationToken);
+        }
+
+        private async Task DeliverEventInRangesCoreAsync(
+            EventDelivery delivery,
+            int start,
+            int end,
+            int ranges,
+            CancellationToken cancellationToken)
+        {
+            int size = end - start;
+            var others = new Task[ranges - 1];
+            for (int ii = 1; ii < ranges; ii++)
+            {
+                int rangeStart = start + (int)((long)size * ii / ranges);
+                int rangeEnd = start + (int)((long)size * (ii + 1) / ranges);
+                others[ii - 1] = Task.Run(
+                    () => DeliverEventAsync(delivery, rangeStart, rangeEnd, cancellationToken),
+                    cancellationToken);
+            }
+
+            try
+            {
+                await DeliverEventAsync(
+                    delivery,
+                    start,
+                    start + (size / ranges),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                // the buffer is reused by the next event only after every range is done.
+                await Task.WhenAll(others).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The most ranges the items of one event are queued in at once.
+        /// </summary>
+        internal static int MaxEventDeliveryRanges { get; } = Math.Max(1, Math.Min(Environment.ProcessorCount, 8));
+
+        /// <summary>
+        /// The time, in <see cref="TimeProvider.GetTimestamp"/> ticks, the consumer queues
+        /// an event on its own before it queues the remaining items in parallel. Tests set
+        /// a negative budget to split every event with more than one item.
+        /// </summary>
+        internal long ParallelEventDeliveryBudget
+        {
+            get => m_parallelEventDeliveryBudget;
+            set => m_parallelEventDeliveryBudget = value;
+        }
+
+        /// <summary>
+        /// The fewest items queued in one range when an event is queued in parallel.
+        /// </summary>
+        internal int MinItemsPerEventDeliveryRange
+        {
+            get => m_minItemsPerEventDeliveryRange;
+            set => m_minItemsPerEventDeliveryRange = Math.Max(1, value);
+        }
+
+        /// <summary>
+        /// Delivers an event to the items in [<paramref name="start"/>,
+        /// <paramref name="end"/>) of <see cref="m_eventDeliveries"/>.
+        /// </summary>
+        private Task DeliverEventAsync(
+            EventDelivery delivery,
+            int start,
+            int end,
+            CancellationToken cancellationToken)
+        {
+            List<Task>? pending = null;
+            StartEventDeliveries(delivery, start, end, ref pending, cancellationToken);
+            return pending == null ? Task.CompletedTask : Task.WhenAll(pending);
+        }
+
+        /// <summary>
+        /// Starts the delivery of an event to each item in [<paramref name="start"/>,
+        /// <paramref name="end"/>) of <see cref="m_eventDeliveries"/>, one after the other.
+        /// </summary>
+        /// <remarks>
+        /// A delivery that waits for an asynchronous permission check is added to
+        /// <paramref name="pending"/>, and the next item is not held up by it.
+        /// </remarks>
+        private void StartEventDeliveries(
+            EventDelivery delivery,
+            int start,
+            int end,
+            ref List<Task>? pending,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = start; ii < end; ii++)
+            {
+                Task task = StartEventDelivery(delivery, ii, cancellationToken);
+                if (task.IsCompleted)
+                {
+                    // rethrows the cancellation of the consumer.
+                    task.GetAwaiter().GetResult();
+                }
+                else
+                {
+                    (pending ??= []).Add(task);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Starts the delivery of an event to the item at <paramref name="index"/> of
+        /// <see cref="m_eventDeliveries"/>.
+        /// </summary>
+        private Task StartEventDelivery(EventDelivery delivery, int index, CancellationToken cancellationToken)
+        {
+            EventItemDelivery item = m_eventDeliveries[index];
+            return ProcessEventForItemAsync(
+                item.Item,
+                delivery.Target,
+                delivery.EventTypeId,
+                delivery.SourceNodeId,
+                item.Key,
+                item.Evaluation,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// The event of a <see cref="DeliverEventAsync"/> call.
+        /// </summary>
+        private readonly struct EventDelivery
+        {
+            public EventDelivery(IFilterTarget target, NodeId eventTypeId, NodeId sourceNodeId)
+            {
+                Target = target;
+                EventTypeId = eventTypeId;
+                SourceNodeId = sourceNodeId;
+            }
+
+            public IFilterTarget Target { get; }
+
+            public NodeId EventTypeId { get; }
+
+            public NodeId SourceNodeId { get; }
+        }
+
+        /// <summary>
+        /// An item an event is delivered to, with the group evaluation it uses.
+        /// </summary>
+        private readonly struct EventItemDelivery
+        {
+            public EventItemDelivery(
+                IEventMonitoredItem item,
+                MonitoredItem.SharedEventFilterKey? key,
+                MonitoredItem.SharedEventEvaluation? evaluation)
+            {
+                Item = item;
+                Key = key;
+                Evaluation = evaluation;
+            }
+
+            public IEventMonitoredItem Item { get; }
+
+            public MonitoredItem.SharedEventFilterKey? Key { get; }
+
+            public MonitoredItem.SharedEventEvaluation? Evaluation { get; }
         }
 
         /// <summary>
         /// The evaluations of one event, one per group of items with an equal filter.
         /// </summary>
         /// <remarks>
-        /// An item's group is looked up before its delivery first awaits, by the loop over
-        /// the items of the event, so the dictionary is never accessed concurrently (the
-        /// loop may continue on another thread after an asynchronous permission check). A
-        /// delivery that completes on another thread uses the evaluation, which
-        /// synchronizes itself.
+        /// Only the consumer looks up the groups, before the event is delivered to any item.
         /// </remarks>
         private sealed class SharedEventEvaluations
         {
@@ -712,27 +986,14 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
-            SharedEventEvaluations evaluations,
+            MonitoredItem.SharedEventFilterKey? key,
+            MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
         {
-            if (target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState))
-            {
-                if (!m_server.Auditing ||
-                    (monitoredItem.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        monitoredItem.Session?.EndpointDescription?.TransportProfileUri != Profiles.HttpsBinaryTransport))
-                {
-                    return;
-                }
-            }
-
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // looked up before the first await, by the loop over the items.
-                MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
-                    monitoredItem,
-                    out MonitoredItem.SharedEventFilterKey? key);
                 ServiceResult validationResult = await GetOrAddEventPermissionAsync(
                     monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
@@ -1245,6 +1506,9 @@ namespace Opc.Ua.Server
         private readonly CancellationTokenSource m_consumerCts;
         private readonly Task m_consumerTask;
         private readonly bool m_useMultipleConsumers;
+        private EventItemDelivery[] m_eventDeliveries = [];
+        private long m_parallelEventDeliveryBudget;
+        private int m_minItemsPerEventDeliveryRange = k_minItemsPerEventDeliveryRange;
         private readonly Lock m_rebindLock = new();
         private bool m_disposed;
 
