@@ -29,11 +29,13 @@
 
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
+using V2 = Opc.Ua.Client.Subscriptions;
 using IServerInternal = Opc.Ua.Server.IServerInternal;
 
 namespace Opc.Ua.Perf.ServerLoadHarness
@@ -202,6 +204,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         private async Task CreateSubscriptionAsync(ISession session, CancellationToken ct)
         {
+            if (session is ManagedSession managed)
+            {
+                await CreateManagedSubscriptionAsync(managed, ct).ConfigureAwait(false);
+                return;
+            }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
             var subscription = new Subscription(session.DefaultSubscription)
             {
@@ -213,20 +220,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 #pragma warning restore CA2000
             try
             {
-                var filter = new EventFilter();
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
-                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
                 subscription.AddItem(new MonitoredItem(subscription.DefaultItem)
                 {
                     StartNodeId = ObjectIds.Server,
                     AttributeId = Attributes.EventNotifier,
                     MonitoringMode = MonitoringMode.Reporting,
-                    Filter = filter,
+                    Filter = CreateFilter(),
                     QueueSize = (uint)m_queueSize
                 });
                 session.AddSubscription(subscription);
@@ -239,6 +238,51 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await subscription.CreateAsync(ct).ConfigureAwait(false);
         }
 
+        private async Task CreateManagedSubscriptionAsync(ManagedSession session, CancellationToken ct)
+        {
+            var setup = new SubscriptionSetup();
+            V2.ISubscription subscription = session.AddSubscription(
+                new NotificationHandler(this, setup),
+                new V2.SubscriptionOptions
+                {
+                    PublishingInterval = TimeSpan.FromMilliseconds(m_publishingInterval),
+                    PublishingEnabled = true,
+                    KeepAliveCount = 10,
+                    LifetimeCount = 100
+                });
+            if (!subscription.TryAddMonitoredItem(
+                "events",
+                new V2.MonitoredItems.MonitoredItemOptions
+                {
+                    StartNodeId = ObjectIds.Server,
+                    AttributeId = Attributes.EventNotifier,
+                    MonitoringMode = MonitoringMode.Reporting,
+                    Filter = CreateFilter(),
+                    QueueSize = (uint)m_queueSize
+                },
+                out _))
+            {
+                throw new InvalidOperationException("Could not add the event monitored item during subscription setup.");
+            }
+            await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The select clauses of the Sessions <c>ServerEventSubscribeLoadTest</c>; Time is field 4.
+        /// </summary>
+        private static EventFilter CreateFilter()
+        {
+            var filter = new EventFilter();
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventId));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceNode));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.SourceName));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Time));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Message));
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.Severity));
+            return filter;
+        }
+
         private void OnEvents(Subscription subscription, EventNotificationList notification, ArrayOf<string> stringTable)
         {
             DateTime now = DateTime.UtcNow;
@@ -246,14 +290,82 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             foreach (EventFieldList fields in notification.Events)
             {
                 count++;
-                // sample every 16th event so the recorder stays small at high rates
-                if ((count & 15) == 1 && fields.EventFields.Count > 4 &&
-                    fields.EventFields[4].TryGetValue(out DateTimeUtc time))
-                {
-                    m_latency.Record((long)((now - ((DateTime)time).ToUniversalTime()).TotalSeconds * Stopwatch.Frequency));
-                }
+                RecordLatency(now, count, fields.EventFields);
             }
             Interlocked.Add(ref m_events, count);
+        }
+
+        private void RecordLatency(DateTime now, int count, ArrayOf<Variant> fields)
+        {
+            // sample every 16th event so the recorder stays small at high rates
+            if ((count & 15) == 1 && fields.Count > 4 && fields[4].TryGetValue(out DateTimeUtc time))
+            {
+                m_latency.Record((long)((now - ((DateTime)time).ToUniversalTime()).TotalSeconds * Stopwatch.Frequency));
+            }
+        }
+
+        /// <summary>
+        /// V2 engine handler; events are counted like the classic fast event callback.
+        /// </summary>
+        private sealed class NotificationHandler : V2.ISubscriptionNotificationHandler
+        {
+            public NotificationHandler(EventWorkload owner, SubscriptionSetup setup)
+            {
+                m_owner = owner;
+                m_setup = setup;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.DataValueChange> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.EventNotification> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                DateTime now = DateTime.UtcNow;
+                int count = 0;
+                foreach (V2.EventNotification e in notification.Span)
+                {
+                    count++;
+                    m_owner.RecordLatency(now, count, e.Fields);
+                }
+                Interlocked.Add(ref m_owner.m_events, count);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                V2.PublishState publishStateMask)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                V2.ISubscription subscription,
+                V2.SubscriptionState state,
+                V2.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                m_setup.OnStateChanged(state);
+                return ValueTask.CompletedTask;
+            }
+
+            private readonly EventWorkload m_owner;
+            private readonly SubscriptionSetup m_setup;
         }
 
         private readonly ISession[] m_sessions;

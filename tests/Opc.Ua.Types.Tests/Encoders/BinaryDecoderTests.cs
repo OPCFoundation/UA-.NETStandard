@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -765,6 +766,33 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// Zero-length arrays, such as the empty StringTable of every response
+        /// header, decode as empty, not null, and allocate nothing.
+        /// </summary>
+        [Test]
+        public void ReadZeroLengthArraysReturnsEmptyWithoutAllocating()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [0, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            ArrayOf<string?> strings = decoder.ReadStringArray(null);
+            ArrayOf<int> integers = decoder.ReadInt32Array(null);
+            ArrayOf<string?> nullStrings = decoder.ReadStringArray(null);
+
+            Assert.That(strings.IsNull, Is.False);
+            Assert.That(strings.Count, Is.Zero);
+            Assert.That(MemoryMarshal.TryGetArray(strings.Memory, out ArraySegment<string?> stringArray), Is.True);
+            Assert.That(stringArray.Array, Is.SameAs(Array.Empty<string?>()));
+            Assert.That(integers.IsNull, Is.False);
+            Assert.That(integers.Count, Is.Zero);
+            Assert.That(MemoryMarshal.TryGetArray(integers.Memory, out ArraySegment<int> integerArray), Is.True);
+            Assert.That(integerArray.Array, Is.SameAs(Array.Empty<int>()));
+            Assert.That(nullStrings.IsNull, Is.True);
         }
 
         [Test]

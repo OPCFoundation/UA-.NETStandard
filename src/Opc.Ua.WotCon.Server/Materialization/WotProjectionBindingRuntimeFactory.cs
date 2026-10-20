@@ -67,6 +67,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Initializes a runtime factory with injectable event publication,
         /// Condition materialization and generation bounds.
         /// </summary>
+        /// <param name="channelFactory">The channel factory used to initialize the instance.</param>
+        /// <param name="resolver">The resolver used to initialize the instance.</param>
+        /// <param name="eventPublisher">The event publisher used to initialize the instance.</param>
+        /// <param name="conditionFactory">The condition factory used to initialize the instance.</param>
+        /// <param name="options">The WoT projection binding runtime options used to initialize the instance.</param>
         public WotProjectionBindingRuntimeFactory(
             IWotBindingChannelFactory channelFactory,
             IWotTargetVariableResolver? resolver,
@@ -80,6 +85,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_conditionFactory = conditionFactory ?? throw new ArgumentNullException(nameof(conditionFactory));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             WotBindingBounds.EnsurePositive(options.MaxQueuedEvents, nameof(options.MaxQueuedEvents));
+            WotBindingBounds.EnsurePositive(options.MaxQueuedPropertyValues, nameof(options.MaxQueuedPropertyValues));
             WotBindingBounds.EnsurePositive(options.MaxEventRoutes, nameof(options.MaxEventRoutes));
         }
 

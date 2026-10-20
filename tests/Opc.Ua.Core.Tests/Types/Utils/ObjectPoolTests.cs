@@ -103,12 +103,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         }
 
         /// <summary>
-        /// The capacity is capped at four objects per processor.
+        /// The capacity is capped at four objects per processor, but not below the floor.
         /// </summary>
         [Test]
         public void CapacityIsCappedByProcessorCount()
         {
-            int cap = Environment.ProcessorCount * 4;
+            int cap = Math.Max(Environment.ProcessorCount * 4, ObjectPool<object>.MinRetainedCap);
             var pool = new ObjectPool<object>(() => new object(), cap * 10);
             var rented = new List<object>();
             for (int ii = 0; ii < cap * 2; ii++)

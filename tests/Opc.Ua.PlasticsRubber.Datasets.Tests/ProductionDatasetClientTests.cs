@@ -102,8 +102,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             using var source = new MemoryStream([1]);
             Task upload = client.UploadAsync(Options(), source).AsTask();
             await peer.CommitStarted.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-            await Assert.CatchAsync<OperationCanceledException>(async () => await upload.ConfigureAwait(false))
-                .ConfigureAwait(false);
+            await Assert.CatchAsync<OperationCanceledException>(async () => await upload.ConfigureAwait(false));
             Assert.That(peer.CommitCalls, Is.EqualTo(1));
         }
 

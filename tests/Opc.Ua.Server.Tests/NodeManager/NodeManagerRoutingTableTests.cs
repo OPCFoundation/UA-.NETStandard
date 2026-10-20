@@ -92,6 +92,34 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CaptureUntilReturnEndsWhenTheAsyncMethodReturnsAsync(bool completeAsynchronously)
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager lifecycleManager = CreateManager();
+
+            async ValueTask CaptureAndPublishAsync()
+            {
+                table.CaptureUntilReturn();
+                NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                table.Add(lifecycleManager, AddNamespaceIndexes);
+                if (completeAsynchronously)
+                {
+                    await Task.Yield();
+                }
+                Assert.That(table.CapturedRevision, Is.SameAs(captured),
+                    "The rest of the method must keep the captured routing image.");
+                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.False);
+            }
+
+            await CaptureAndPublishAsync().ConfigureAwait(false);
+
+            Assert.That(table.CapturedRevision, Is.SameAs(table.Revision),
+                "The caller must read the live routing once the method returned.");
+            Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True);
+        }
+
         [Test]
         public void AddPublishesManagerAndNamespaceRoutesWithoutMutatingCapturedSnapshots()
         {

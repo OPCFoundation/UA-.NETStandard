@@ -1524,14 +1524,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
                 throw TranslateException(context, e);
             }
             finally
@@ -1568,15 +1561,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1625,15 +1610,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1679,15 +1656,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -1738,14 +1707,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1803,14 +1765,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteNodesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1868,14 +1823,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditAddReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -1933,14 +1881,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditDeleteReferencesEvent(
                     new ServerSystemContext(ServerInternal, context),
@@ -2023,15 +1964,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2069,15 +2002,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2126,15 +2051,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2181,15 +2098,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "Read", e, m_logger);
 
@@ -2252,15 +2161,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 ServerInternal.ReportAuditEvent(context, "HistoryRead", e, m_logger);
 
@@ -2304,15 +2205,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2356,15 +2249,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2456,15 +2341,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2504,15 +2381,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2550,15 +2419,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2600,15 +2461,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2647,15 +2500,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2709,15 +2554,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2763,15 +2600,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2834,15 +2663,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2886,15 +2707,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2937,15 +2750,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -2985,15 +2790,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3047,15 +2844,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3096,15 +2885,7 @@ namespace Opc.Ua.Server
             }
             catch (ServiceResultException e)
             {
-                ServerInternal.UpdateServerDiagnostics(diagnostics =>
-                {
-                    diagnostics.RejectedRequestsCount++;
-
-                    if (IsSecurityError(e.StatusCode))
-                    {
-                        diagnostics.SecurityRejectedRequestsCount++;
-                    }
-                });
+                CountRejectedServiceRequest(e.StatusCode);
 
                 throw TranslateException(context, e);
             }
@@ -3714,6 +3495,23 @@ namespace Opc.Ua.Server
             }
 
             return context;
+        }
+
+        /// <summary>
+        /// Counts a request that a service rejected after admission. A method of its own, so
+        /// that the service method allocates the closure only when it rejects a request.
+        /// </summary>
+        private void CountRejectedServiceRequest(StatusCode statusCode)
+        {
+            ServerInternal.UpdateServerDiagnostics(diagnostics =>
+            {
+                diagnostics.RejectedRequestsCount++;
+
+                if (IsSecurityError(statusCode))
+                {
+                    diagnostics.SecurityRejectedRequestsCount++;
+                }
+            });
         }
 
         /// <summary>
@@ -4934,6 +4732,10 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Registers a user-token authenticator immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="authenticator">The provider that authenticates user tokens.</param>
         internal void RegisterIdentityAuthenticator(IUserTokenAuthenticator authenticator)
         {
             if (authenticator == null)
@@ -4950,6 +4752,10 @@ namespace Opc.Ua.Server
             m_preStartAuthenticators.Add(authenticator);
         }
 
+        /// <summary>
+        /// Registers an identity augmenter immediately or retains it until server startup.
+        /// </summary>
+        /// <param name="augmenter">The provider that augments authenticated identities.</param>
         internal void RegisterIdentityAugmenter(IIdentityAugmenter augmenter)
         {
             if (augmenter == null)
@@ -5612,8 +5418,15 @@ namespace Opc.Ua.Server
             return new EventManager(
                 server,
                 (uint)configuration.ServerConfiguration!.MaxEventQueueSize,
-                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize);
+                (uint)configuration.ServerConfiguration.MaxDurableEventQueueSize,
+                EventIdentityAdmissionOptions);
         }
+
+        /// <summary>
+        /// Gets or sets the bounded event identity policy used when creating the
+        /// server's event manager. Set before startup, or register the options in DI.
+        /// </summary>
+        public EventIdentityAdmissionOptions EventIdentityAdmissionOptions { get; set; } = new();
 
         /// <summary>
         /// An optional factory used to build the server's session manager. When

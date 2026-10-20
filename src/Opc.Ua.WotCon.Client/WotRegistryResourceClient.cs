@@ -52,6 +52,21 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryResourceClient
     {
+        /// <summary>
+        /// Initializes a new <c>WotRegistryResourceClient</c> instance.
+        /// </summary>
+        /// <param name="session">The session used to initialize the instance.</param>
+        /// <param name="resourceNodeId">The resource node ID used to initialize the instance.</param>
+        /// <param name="groupId">The group ID used to initialize the instance.</param>
+        /// <param name="resourceId">The resource ID used to initialize the instance.</param>
+        /// <param name="versionId">The version ID used to initialize the instance.</param>
+        /// <param name="kind">The kind used to initialize the instance.</param>
+        /// <param name="groupProxy">The group proxy used to initialize the instance.</param>
+        /// <param name="proxy">The proxy used to initialize the instance.</param>
+        /// <param name="pendingStructuralVersion">
+        /// The pending-structural-version flag used to initialize <c>WotRegistryResourceClient</c>.
+        /// </param>
+        /// <param name="telemetry">The telemetry used to initialize the instance.</param>
         internal WotRegistryResourceClient(
             ISession session,
             NodeId resourceNodeId,
@@ -69,7 +84,7 @@ namespace Opc.Ua.WotCon.Client
             GroupId = groupId;
             ResourceId = resourceId;
             VersionId = versionId;
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             m_groupProxy = groupProxy;
             Proxy = proxy;
             m_pendingStructuralVersion = pendingStructuralVersion;
@@ -131,7 +146,10 @@ namespace Opc.Ua.WotCon.Client
         /// expose the field return <c>null</c>. The value is advisory; uploads
         /// use an atomic server operation before filling a content-less Version.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The server reports an error other than unavailable content state.
+        /// </exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<bool?> HasContentAsync(CancellationToken ct = default)
         {
             NodeId contentDigestNodeId;
@@ -201,7 +219,10 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Calls <c>Validate</c> on the resource.
         /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects Validate or returns an invalid outcome.
+        /// </exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<WoTValidationOutcomeDataType> ValidateAsync(CancellationToken ct = default)
         {
             var request = new CallMethodRequest
@@ -292,11 +313,12 @@ namespace Opc.Ua.WotCon.Client
         }
 
         /// <summary>
-        /// Calls <c>Delete</c> on the resource node. When the node is the current
-        /// default Version mapped from the logical Resource, this deletes the
-        /// Resource and all Versions using the Resource Meta epoch. Otherwise,
-        /// it deletes only this Version using the Version epoch.
+        /// Calls <c>Delete</c> on the addressed role. A logical Resource uses its
+        /// Meta epoch and removes its Versions. An exact Version uses its own
+        /// epoch and deletes only that Version, including when it is the default.
         /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
         public ValueTask DeleteAsync(uint expectedEpoch, CancellationToken ct = default)
         {
             return Proxy.DeleteAsync(expectedEpoch, ct);
@@ -341,7 +363,12 @@ namespace Opc.Ua.WotCon.Client
         /// an atomic server-side content-less write when available. Servers
         /// without that optional capability cause a new Version to be allocated.
         /// </summary>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="chunkSize"/> is not positive.
+        /// </exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="content">The byte string.</param>
+        /// <param name="chunkSize">The chunk size.</param>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
             ByteString content,
             int chunkSize = FileTypeClientExtensions.DefaultChunkSize,
@@ -513,11 +540,25 @@ namespace Opc.Ua.WotCon.Client
         /// <summary>
         /// Streams a new version within a byte limit, returning its exact identity without buffering or replaying.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="ArgumentException"></exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        /// <exception cref="IOException"></exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="content"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="content"/> is not readable.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="chunkSize"/> or <paramref name="maxBytes"/> is not positive.
+        /// </exception>
+        /// <exception cref="IOException">
+        /// The source exceeds <paramref name="maxBytes"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects the upload or does not return the requested write handle.
+        /// </exception>
+        /// <param name="content">The content stream to upload.</param>
+        /// <param name="maxBytes">The maximum number of bytes to transfer.</param>
+        /// <param name="chunkSize">The chunk size.</param>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<WotRegistryUploadResult> UploadNewVersionAndGetResultAsync(
             Stream content,
             long maxBytes,
@@ -609,6 +650,9 @@ namespace Opc.Ua.WotCon.Client
                 : new ThingDescriptionFileTypeClient(Session, nodeId, Telemetry);
         }
 
+        /// <summary>
+        /// Marks the client resource as awaiting structural-version content.
+        /// </summary>
         internal void MarkPendingStructuralVersion()
         {
             m_pendingStructuralVersion = true;
@@ -637,6 +681,11 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryUploadResult
     {
+        /// <summary>
+        /// Captures the resource node and version created or updated by an upload.
+        /// </summary>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
+        /// <param name="versionId">The uploaded resource version identifier.</param>
         internal WotRegistryUploadResult(NodeId resourceNodeId, string versionId)
         {
             ResourceNodeId = resourceNodeId;

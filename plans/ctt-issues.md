@@ -161,7 +161,13 @@ procedure for running the CTT is in [ctt-testing.md](ctt-testing.md).
   session late; the Confirm then uses an EventId the Condition has already replaced (Part 9 B.1.2 keeps no
   previous states), so the server is right.
 - **C63. A & C** units reuse an alarm thread whose publish thread stalled (C60) at the end of the previous
-  unit, so the whole next unit fails.
+  unit, so the whole next unit fails. Seen in the weekly run of 2026-10-18: Refresh2 `Test_002.js`,
+  `Test_003.js` and `cleanup.js` failed with `BadSubscriptionIdInvalid`, and the unit stopped after
+  `Test_004.js`. At 250 ms the stall still hits about 1 in 5 A&C runs on a GitHub-hosted runner, sometimes
+  within a unit (Refresh2 `Err_003.js`). Workaround in the CTT CI: each unit checks at its start that the
+  publish thread still receives keep-alives and otherwise starts on a new alarm thread. A part whose first
+  attempt has regressions together with the C60 watchdog warning runs once more, and the second attempt is
+  the result.
 - **C65. Aggregate Bad data search reads forward.** `HAAggregateHelper.GetBadData` reads 120 raw values
   "backward" from the configured `StartOfBadData*` time with EndTime `new UaDateTime()`, the null DateTime. The
   server therefore reads forward (Part 11 §6.5.3), and the helper takes the last value as the earliest. The

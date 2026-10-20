@@ -38,8 +38,19 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Live lifecycle integration tests for <see cref="INodeManagerLifecycle"/> and its
+    /// <see cref="NodeManagerRegistration"/> handles against a real, running
+    /// <see cref="ReferenceServer"/>, focused on registration identity/copy semantics,
+    /// monitored-item transitions, and rollback paths for Add/Reload/Remove.
+    /// </summary>
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Verifies that retired items keep native core service results.
+        /// </summary>
+        /// <param name="events">The events flag for this test case.</param>
+        /// <param name="replace">The replace flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -180,6 +191,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that detached data filters use source capability snapshot.
+        /// </summary>
+        /// <param name="text">Whether the filter under test is a text filter.</param>
+        /// <param name="range">The range flag for this test case.</param>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
@@ -258,6 +274,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Creates an event monitored item for a retired-source service check.
+        /// </summary>
+        /// <param name="nodeId">The monitored source.</param>
+        /// <param name="clientHandle">The client handle.</param>
+        /// <returns>The monitored item request.</returns>
         private static MonitoredItemCreateRequest CreateSurvivorEventRequest(NodeId nodeId, uint clientHandle)
         {
             var filter = new EventFilter();
@@ -278,6 +300,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
         }
 
+        /// <summary>
+        /// Creates a data monitored item for a retired-source service check.
+        /// </summary>
+        /// <param name="nodeId">The monitored source.</param>
+        /// <param name="clientHandle">The client handle.</param>
+        /// <returns>The monitored item request.</returns>
         private static MonitoredItemCreateRequest CreateSurvivorDataRequest(NodeId nodeId, uint clientHandle)
         {
             return new MonitoredItemCreateRequest

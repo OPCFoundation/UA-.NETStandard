@@ -143,6 +143,25 @@ namespace Opc.Ua.Server
         /// <see cref="TimeProvider"/> so the monotonic sampling clock can be
         /// mocked in tests.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="nodeManager">The node manager used to initialize the instance.</param>
+        /// <param name="managerHandle">The manager handle used to initialize the instance.</param>
+        /// <param name="subscriptionId">The subscription ID used to initialize the instance.</param>
+        /// <param name="id">The ID used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="itemToMonitor">The item to monitor used to initialize the instance.</param>
+        /// <param name="diagnosticsMasks">The diagnostics masks used to initialize the instance.</param>
+        /// <param name="timestampsToReturn">The timestamps to return used to initialize the instance.</param>
+        /// <param name="monitoringMode">The monitoring mode used to initialize the instance.</param>
+        /// <param name="clientHandle">The client handle used to initialize the instance.</param>
+        /// <param name="originalFilter">The original filter used to initialize the instance.</param>
+        /// <param name="filterToUse">The filter to use used to initialize the instance.</param>
+        /// <param name="range">The range used to initialize the instance.</param>
+        /// <param name="samplingInterval">The sampling interval used to initialize the instance.</param>
+        /// <param name="queueSize">The queue size used to initialize the instance.</param>
+        /// <param name="discardOldest">The discard-oldest flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="sourceSamplingInterval">The source sampling interval used to initialize the instance.</param>
+        /// <param name="createDurable">The create-durable flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="timeProvider">The time provider used to initialize the instance.</param>
         public MonitoredItem(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -489,7 +508,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType { get; }
+        public int MonitoredItemType { get; private init; }
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -498,6 +517,7 @@ namespace Opc.Ua.Server
         {
             get
             {
+                EnsureSourceRetirement(includeCaptured: false);
                 if (MonitoringMode == MonitoringMode.Disabled ||
                     (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
                 {
@@ -926,6 +946,17 @@ namespace Opc.Ua.Server
         /// Whether the monitored item should report a value without checking if it was changed.
         /// </summary>
         public bool AlwaysReportUpdates { get; set; }
+
+        /// <summary>
+        /// Gets or initializes whether values are supplied by an external source instead of stack sampling.
+        /// </summary>
+        internal bool UsesExternalValueSource
+        {
+            get => (MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
+            init => MonitoredItemType = value
+                ? MonitoredItemType | MonitoredItemTypeMask.ExternalValueSource
+                : MonitoredItemType & ~MonitoredItemTypeMask.ExternalValueSource;
+        }
 
         /// <summary>
         /// Returns a description of the item being monitored.
@@ -1414,8 +1445,18 @@ namespace Opc.Ua.Server
             bool ignoreFilters,
             bool initialValue)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                EnsureSourceRetirement();
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
+                EnsureSourceRetirement();
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1424,7 +1465,8 @@ namespace Opc.Ua.Server
 
                 // check monitoring mode.
                 if (MonitoringMode == MonitoringMode.Disabled ||
-                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)))
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)) ||
+                    (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -1447,6 +1489,12 @@ namespace Opc.Ua.Server
                     error,
                     ignoreFilters,
                     initialValue: initialValue);
+                if (m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
+                {
+                    QueueNodeIdUnknown();
+                }
             }
         }
 
@@ -1663,6 +1711,7 @@ namespace Opc.Ua.Server
             result.ClientHandle = ClientHandle;
             result.Handle = instance;
             result.EventFields = eventFieldValues;
+            m_server.EventManager?.RegisterEventFields(result, instance);
             return result;
         }
 
@@ -1763,12 +1812,22 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="instance"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="instance">The filter target.</param>
+        /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
             if (instance == null)
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
 
             // the evaluation shared by the items with an equal filter, when the event
             // consumer offers one for this event.
@@ -1778,6 +1837,11 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1858,10 +1922,23 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
+        /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
@@ -2362,11 +2439,15 @@ namespace Opc.Ua.Server
                 value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            // the notification is pooled; it is returned to the pool when the message that
-            // carries it was acknowledged and sent (NotificationMessageLease).
-            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
-            item.ClientHandle = ClientHandle;
-            item.Value = value;
+            // not pooled: a notification lives until its message was sent and acknowledged, so
+            // a publishing cycle holds all notifications of the cycle at once. Recycling them
+            // through the shared activator pool cost more CPU (pool contention, touching cold
+            // instances again) than allocating them.
+            var item = new MonitoredItemNotification
+            {
+                ClientHandle = ClientHandle,
+                Value = value
+            };
 
             ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
@@ -2487,6 +2568,38 @@ namespace Opc.Ua.Server
             }
         }
 
+        private bool CanQueueSourceEmission()
+        {
+            return !m_isDetached &&
+                (!m_isDeleted ||
+                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0) ||
+                    (m_server.NodeManager is MasterNodeManager master &&
+                        master.HasCapturedSourceEmission(NodeManager) &&
+                        !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+        }
+
+        /// <summary>
+        /// Retires the item when its source emission was cut off so the cutoff is reported to the subscription.
+        /// </summary>
+        internal void RetireCutOffSource()
+        {
+            EnsureSourceRetirement();
+        }
+
+        private void EnsureSourceRetirement(bool includeCaptured = true)
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured))
+                {
+                    SetDetachState(m_isDetached, isDeleted: true);
+                    QueueNodeIdUnknown();
+                }
+            }
+        }
+
         /// <summary>
         /// Captures a detached copy of the source node metadata needed to revise and validate item modifications.
         /// </summary>
@@ -2550,6 +2663,16 @@ namespace Opc.Ua.Server
                 StatusCodes.BadNodeIdUnknown,
                 utcNow,
                 utcNow);
+        }
+
+        private static bool IsBadNodeIdUnknown(in DataValue value, ServiceResult? error)
+        {
+            if (error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code)
+            {
+                return true;
+            }
+
+            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -2686,7 +2809,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2698,7 +2821,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {
@@ -2781,7 +2904,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2793,7 +2916,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {

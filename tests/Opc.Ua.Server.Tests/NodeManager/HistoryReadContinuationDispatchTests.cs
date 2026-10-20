@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// node manager restored, saved again and assigned to a result before it failed.
         /// </summary>
         [Test]
-        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPoint()
+        public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPointAsync()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
             var continued = new TrackingPoint();
@@ -162,8 +162,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             harness.RestoreSaveAssignThenThrow();
 
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false))
-                .ConfigureAwait(false);
+                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
 
             Assert.That(continued.Disposed, Is.False);
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));

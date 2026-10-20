@@ -99,6 +99,7 @@ namespace Opc.Ua.XRegistry.Server
                 : registryNodeIdPath;
             m_eventOptions = context.EventOptions;
             m_versionedStrategy = documentStrategy as IXRegistryVersionedProjectionStrategy;
+            m_contextualDelete = documentStrategy as IXRegistryProjectionContextualDelete;
             m_generationProvider =
                 documentStrategy as IXRegistryProjectionGenerationProvider ?? collectionStrategy;
         }
@@ -194,12 +195,22 @@ namespace Opc.Ua.XRegistry.Server
         /// <param name="ct">Cancels reconciliation.</param>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
-            return ReconcileCoreAsync(
-                suppliedGeneration: null,
-                previousEventSnapshot: null,
-                useSuppliedTransition: false,
-                emitEvents: false,
-                ct);
+            if (m_context.ProjectionDispatcher is { } dispatch)
+            {
+                if (m_registryNode is null)
+                {
+                    return default;
+                }
+                ct.ThrowIfCancellationRequested();
+                XRegistryProjectionGeneration generation = CaptureProjectionGeneration();
+                return dispatch(token => ReconcileCoreAsync(
+                    generation,
+                    previousEventSnapshot: null,
+                    useSuppliedTransition: false,
+                    emitEvents: false,
+                    token), ct);
+            }
+            return ReconcileCurrentProjectionAsync(ct);
         }
 
         /// <summary>
@@ -352,6 +363,16 @@ namespace Opc.Ua.XRegistry.Server
             return m_generationProvider is null
                 ? new XRegistryProjectionGeneration(DocumentStrategy.Current, null)
                 : m_generationProvider.CaptureProjectionGeneration();
+        }
+
+        private ValueTask ReconcileCurrentProjectionAsync(CancellationToken ct)
+        {
+            return ReconcileCoreAsync(
+                suppliedGeneration: null,
+                previousEventSnapshot: null,
+                useSuppliedTransition: false,
+                emitEvents: false,
+                ct);
         }
 
         private async ValueTask ReconcileCoreAsync(
@@ -1866,13 +1887,14 @@ namespace Opc.Ua.XRegistry.Server
 
             // Resource-delete: always uses MetaEpoch check, deletes the logical
             // Resource and ALL its Versions.
-            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
-                groupId,
-                resourceId,
-                versionId: string.Empty,
-                deleteLogicalResource: true,
-                expectedEpoch,
-                ct)
+            ServiceResult result = await DeleteProjectedEntityAsync(
+                    groupId,
+                    resourceId,
+                    versionId: string.Empty,
+                    deleteLogicalResource: true,
+                    expectedEpoch,
+                    context,
+                    ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -1896,13 +1918,14 @@ namespace Opc.Ua.XRegistry.Server
             // Version-delete: always uses that Version's own Epoch check,
             // deletes ONLY that Version. Last-version/default-reassignment
             // rules are applied by the strategy.
-            ServiceResult result = await m_versionedStrategy!.DeleteProjectedEntityAsync(
-                groupId,
-                resourceId,
-                versionId,
-                deleteLogicalResource: false,
-                expectedEpoch,
-                ct)
+            ServiceResult result = await DeleteProjectedEntityAsync(
+                    groupId,
+                    resourceId,
+                    versionId,
+                    deleteLogicalResource: false,
+                    expectedEpoch,
+                    context,
+                    ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -2274,10 +2297,29 @@ namespace Opc.Ua.XRegistry.Server
             {
                 return access;
             }
-            ServiceResult result = await DocumentStrategy
-                .DeleteGroupAsync(groupId, OptionalEpoch(input, 0), ct).ConfigureAwait(false);
+            long? expectedEpoch = OptionalEpoch(input, 0);
+            ServiceResult result = m_contextualDelete is not null
+                ? await m_contextualDelete.DeleteGroupAsync(groupId, expectedEpoch, context, ct)
+                    .ConfigureAwait(false)
+                : await DocumentStrategy.DeleteGroupAsync(groupId, expectedEpoch, ct).ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
+        }
+
+        private ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? expectedEpoch,
+            ISystemContext context,
+            CancellationToken ct)
+        {
+            return m_contextualDelete is not null
+                ? m_contextualDelete.DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, expectedEpoch, context, ct)
+                : m_versionedStrategy!.DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, expectedEpoch, ct);
         }
 
         private async ValueTask<ServiceResult> OnDeleteResourceAsync(
@@ -2307,13 +2349,14 @@ namespace Opc.Ua.XRegistry.Server
                         expectedEpoch,
                         ct)
                     .ConfigureAwait(false)
-                : await m_versionedStrategy.DeleteProjectedEntityAsync(
-                    groupId,
-                    resourceId,
-                    versionId,
-                    deleteLogicalResource,
-                    expectedEpoch,
-                    ct)
+                : await DeleteProjectedEntityAsync(
+                        groupId,
+                        resourceId,
+                        versionId,
+                        deleteLogicalResource,
+                        expectedEpoch,
+                        context,
+                        ct)
                     .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return result;
@@ -3559,6 +3602,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly XRegistryProjectionContext m_context;
         private readonly IXRegistryProjectionStrategy? m_strategy;
         private readonly IXRegistryVersionedProjectionStrategy? m_versionedStrategy;
+        private readonly IXRegistryProjectionContextualDelete? m_contextualDelete;
         private readonly IXRegistryProjectionGenerationProvider? m_generationProvider;
         private readonly XRegistryServerOptions? m_eventOptions;
         private readonly string m_registryNodeIdPath;
