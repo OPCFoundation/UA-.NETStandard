@@ -241,6 +241,12 @@ namespace Opc.Ua.AutoID.Server
                 node.GetChildren(context, children);
                 foreach (BaseInstanceState child in children)
                 {
+                    // A child can hang off its parent by a non-hierarchical reference, for example
+                    // a condition by HasCondition; it is no path from DeviceSet.
+                    if (!IsHierarchical(typeTree, child))
+                    {
+                        continue;
+                    }
                     if (ReferenceEquals(child, target))
                     {
                         return true;

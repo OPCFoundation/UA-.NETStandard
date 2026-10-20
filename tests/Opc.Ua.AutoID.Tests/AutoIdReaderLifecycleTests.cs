@@ -358,6 +358,53 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AReaderBelowANonHierarchicalChildOfAReachableDeviceIsOrganizedAsync(bool belowIt)
+        {
+            NodeState deviceSet = m_fixture!.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, m_fixture.Context.NamespaceUris))!;
+            AutoIdReader gate = await m_fixture.Runtime.CreateReaderAsync(
+                m_fixture.Name(Unique("Gate")), new FakeProvider()).ConfigureAwait(false);
+            // Attached the way a condition is: a child of the reader by HasCondition only.
+            var condition = new BaseObjectState(gate.Device)
+            {
+                SymbolicName = Unique("Condition"),
+                BrowseName = m_fixture.Name(Unique("Condition")),
+                DisplayName = new LocalizedText(Unique("Condition")),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType,
+                ReferenceTypeId = Types.ReferenceTypeIds.HasCondition,
+                NodeId = new NodeId(Unique("Condition"), m_fixture.Manager.InstanceNamespaceIndex)
+            };
+            gate.Device.AddChild(condition);
+            NodeState parent = condition;
+            if (belowIt)
+            {
+                var folder = new FolderState(condition)
+                {
+                    SymbolicName = Unique("Folder"),
+                    BrowseName = m_fixture.Name(Unique("Folder")),
+                    DisplayName = new LocalizedText(Unique("Folder")),
+                    TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
+                    ReferenceTypeId = Types.ReferenceTypeIds.HasComponent,
+                    NodeId = new NodeId(Unique("Folder"), m_fixture.Manager.InstanceNamespaceIndex)
+                };
+                condition.AddChild(folder);
+                parent = folder;
+            }
+            await m_fixture.Manager.AddPredefinedNodeAsync(condition).ConfigureAwait(false);
+
+            AutoIdReader reader = await m_fixture.Runtime.Reader(m_fixture.Name(Unique("Portal")), new FakeProvider())
+                .WithParent(parent).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Device.Parent, Is.SameAs(parent));
+                Assert.That(OrganizedFrom(deviceSet, reader.Device), Is.True,
+                    "HasCondition is no hierarchical path from DeviceSet (OPC 10000-100 4.9)");
+            });
+        }
+
         [Test]
         public async Task AFailedCreationBelowAnOutsideParentLeavesNoDeviceSetReferenceAsync()
         {
