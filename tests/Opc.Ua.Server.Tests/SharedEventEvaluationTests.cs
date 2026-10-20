@@ -111,7 +111,8 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         public async Task MixedFiltersOnOneNotifierGetWhatPerItemEvaluationGivesAsync(
-            [Values(true, false)] bool serverNode)
+            [Values(true, false)] bool serverNode,
+            [Values(false, true)] bool splitEvents)
         {
             (Func<EventFilter> Filter, string[]? Locales)[] specs =
             [
@@ -128,7 +129,7 @@ namespace Opc.Ua.Server.Tests
                 (() => CreateFilter(SelectB(), 500), ["de-DE"])
             ];
 
-            MonitoredNode2 monitoredNode = CreateMonitoredNode(serverNode);
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(serverNode, splitEvents);
             var shared = new List<MonitoredItem>();
             var alone = new List<MonitoredItem>();
             for (int ii = 0; ii < specs.Length; ii++)
@@ -185,10 +186,11 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         [Test]
         public async Task ItemsWithEqualFiltersEvaluateTheEventOnceAsync(
-            [Values(true, false)] bool serverNode)
+            [Values(true, false)] bool serverNode,
+            [Values(false, true)] bool splitEvents)
         {
-            int oneItem = await CountReadsAsync(serverNode, 1).ConfigureAwait(false);
-            int manyItems = await CountReadsAsync(serverNode, 20).ConfigureAwait(false);
+            int oneItem = await CountReadsAsync(serverNode, splitEvents, 1).ConfigureAwait(false);
+            int manyItems = await CountReadsAsync(serverNode, splitEvents, 20).ConfigureAwait(false);
 
             Assert.That(oneItem, Is.GreaterThan(SelectA().Length));
             Assert.That(manyItems, Is.EqualTo(oneItem));
@@ -269,9 +271,9 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(new[] { kMessageGerman, kMessageGerman }));
         }
 
-        private async Task<int> CountReadsAsync(bool serverNode, int itemCount)
+        private async Task<int> CountReadsAsync(bool serverNode, bool splitEvents, int itemCount)
         {
-            MonitoredNode2 monitoredNode = CreateMonitoredNode(serverNode);
+            MonitoredNode2 monitoredNode = CreateMonitoredNode(serverNode, splitEvents);
             var items = new List<MonitoredItem>();
             for (int ii = 0; ii < itemCount; ii++)
             {
@@ -504,7 +506,7 @@ namespace Opc.Ua.Server.Tests
             return result;
         }
 
-        private MonitoredNode2 CreateMonitoredNode(bool serverNode)
+        private MonitoredNode2 CreateMonitoredNode(bool serverNode, bool splitEvents = false)
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
             nodeManager
@@ -520,6 +522,12 @@ namespace Opc.Ua.Server.Tests
                 EventNotifier = EventNotifiers.SubscribeToEvents
             };
             var monitoredNode = new MonitoredNode2(nodeManager.Object, m_server, notifier);
+            if (splitEvents)
+            {
+                // queue the items of every event in ranges of one item on several threads.
+                monitoredNode.ParallelEventDeliveryBudget = -1;
+                monitoredNode.MinItemsPerEventDeliveryRange = 1;
+            }
             m_disposables.Add(monitoredNode);
             return monitoredNode;
         }
