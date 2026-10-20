@@ -188,6 +188,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 errors = [ex];
             }
+            // Retire the event bindings before releasing the sources they captured: a Condition action resolved
+            // against a retired binding would otherwise invoke through a disposed source binding.
             foreach (WotProjectedEventBinding binding in m_events.Values)
             {
                 binding.Clear();

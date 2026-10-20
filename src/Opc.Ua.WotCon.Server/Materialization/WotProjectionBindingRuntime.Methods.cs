@@ -359,6 +359,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ArrayOf<Variant> upstreamArguments = arguments;
                 WotCapturedEvent? capturedOccurrence = null;
                 WotCapturedConditionAction? capturedAction = null;
+                // Holds the generation that resolved the occurrence open until the invocation ends.
                 IDisposable? actionCall = null;
                 if (occurrenceAction)
                 {

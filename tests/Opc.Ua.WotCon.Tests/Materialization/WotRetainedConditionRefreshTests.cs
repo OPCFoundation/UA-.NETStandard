@@ -539,7 +539,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var notifier = new BaseObjectState(null) { NodeId = new NodeId("Owner", 2) };
                 bool transparent = mode == "transparent-forwarding";
                 Binding = new WotProjectedEventBinding(Context, m_eventSource, notifier,
-                    transparent ? s_sourceType : s_localType, null, sourceCondition, capacity, TimeProvider.System,
+                    transparent ? s_sourceType : s_localType, null, sourceCondition, capacity,
+                    TimeProvider.System,
                     "urn:wot:refresh:document", "/events/alarm", m_registry,
                     transparent
                         ? WoTEventIdentityModeEnum.TransparentForwarding : WoTEventIdentityModeEnum.LocalReEmission,
