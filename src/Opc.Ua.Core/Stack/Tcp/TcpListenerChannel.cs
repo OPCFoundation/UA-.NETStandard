@@ -1006,7 +1006,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Transport?.Close();
+                CloseTransport(Transport);
             }
             finally
             {
@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Bindings
         {
             try
             {
-                Transport?.Close();
+                CloseTransport(Transport);
             }
             finally
             {
