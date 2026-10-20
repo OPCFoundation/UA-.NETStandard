@@ -1078,17 +1078,6 @@ namespace Opc.Ua.Bindings
                 return null;
             }
 
-            NodeId authenticationToken = request.RequestHeader?.AuthenticationToken ?? NodeId.Null;
-            if (request is not CreateSessionRequest &&
-                (authenticationToken.IsNull || authenticationToken.TryGetValue(out string _)))
-            {
-                // Session-less invocation validates anonymous channel identity and
-                // access tokens in SessionManager, where their policies determine
-                // the correct fault. Session-bound requests still require a
-                // certificate on the mutual-TLS channel.
-                return null;
-            }
-
             byte[]? tlsCertificate = context.Connection.ClientCertificate?.RawData;
             if (tlsCertificate != null &&
                 (request is not CreateSessionRequest create ||
