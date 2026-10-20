@@ -77,5 +77,13 @@ namespace Opc.Ua.Redundancy.Server
         /// election (for example the lease-based <see cref="SharedStoreLeaseElection"/>).
         /// </summary>
         public bool UseRaftLeaderElection { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the number of applied commands after which the Raft store snapshots its state into the
+        /// consensus engine, which then discards the log behind the snapshot. Zero (the default) never compacts.
+        /// A positive value needs a consensus that implements <see cref="IRaftSnapshotConsensus"/>, such as
+        /// <see cref="DefaultRaftConsensus"/>.
+        /// </summary>
+        public int RaftCompactionInterval { get; set; }
     }
 }

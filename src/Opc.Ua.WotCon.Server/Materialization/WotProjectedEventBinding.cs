@@ -316,13 +316,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
+        /// <param name="call">
+        /// The call on the generation that owns the action, when resolution succeeds. The caller disposes it after
+        /// the invocation; until then that generation keeps the action's source binding open.
+        /// </param>
         public ServiceResult ResolveAction(
             ByteString eventId,
             string action,
             out WotCapturedEvent? occurrence,
-            out WotCapturedConditionAction? capturedAction)
+            out WotCapturedConditionAction? capturedAction,
+            out IDisposable? call)
         {
-            return m_routeRegistry.ResolveAction(this, eventId, action, out occurrence, out capturedAction);
+            return m_routeRegistry.ResolveAction(this, eventId, action, out occurrence, out capturedAction, out call);
         }
 
         /// <summary>
@@ -332,11 +337,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="action">The action name.</param>
         /// <param name="occurrence">The WoT captured event.</param>
         /// <param name="capturedAction">The captured action.</param>
+        /// <param name="call">
+        /// The call on this binding when resolution succeeds; <see cref="WhenActionCallsCompletedAsync"/> waits for
+        /// it to be disposed.
+        /// </param>
         public bool TryResolveOwnAction(
             ByteString eventId,
             string action,
             out WotCapturedEvent? occurrence,
-            out WotCapturedConditionAction? capturedAction)
+            out WotCapturedConditionAction? capturedAction,
+            out IDisposable? call)
         {
             lock (m_gate)
             {
@@ -346,13 +356,64 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     source.ConditionId == SourceCondition &&
                     m_actions.TryGetValue(action, out capturedAction))
                 {
+                    m_actionCalls++;
                     occurrence = source;
+                    call = new ActionCall(this);
                     return true;
                 }
             }
             occurrence = null;
             capturedAction = null;
+            call = null;
             return false;
+        }
+
+        /// <summary>
+        /// Waits until every action call resolved on this binding is disposed. After <see cref="Clear"/> no further
+        /// call resolves, so the owning generation may then release the source bindings those calls invoke through.
+        /// </summary>
+        public Task WhenActionCallsCompletedAsync()
+        {
+            lock (m_gate)
+            {
+                if (m_actionCalls == 0)
+                {
+                    return Task.CompletedTask;
+                }
+                m_actionCallsCompleted ??= new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                return m_actionCallsCompleted.Task;
+            }
+        }
+
+        private void EndActionCall()
+        {
+            TaskCompletionSource<bool>? completed = null;
+            lock (m_gate)
+            {
+                if (--m_actionCalls == 0)
+                {
+                    completed = m_actionCallsCompleted;
+                    m_actionCallsCompleted = null;
+                }
+            }
+            completed?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// An action call resolved on a binding; disposing it ends the call.
+        /// </summary>
+        private sealed class ActionCall(WotProjectedEventBinding binding) : IDisposable
+        {
+            public void Dispose()
+            {
+                if (Interlocked.Exchange(ref m_ended, 1) == 0)
+                {
+                    binding.EndActionCall();
+                }
+            }
+
+            private int m_ended;
         }
 
         /// <summary>
@@ -1225,6 +1286,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly HashSet<ByteString> m_rejectedEvents = [];
         private readonly Dictionary<string, WotCapturedConditionAction> m_actions = [];
         private TaskCompletionSource<bool>? m_pendingProjection;
+        private TaskCompletionSource<bool>? m_actionCallsCompleted;
+        private int m_actionCalls;
         private bool m_disposed;
         private static readonly ArrayOf<string> s_conditionMethods =
             ["Enable", "Disable", "AddComment", "Acknowledge", "Confirm"];

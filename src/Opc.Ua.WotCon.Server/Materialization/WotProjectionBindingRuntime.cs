@@ -188,6 +188,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 errors = [ex];
             }
+            // Retire the event bindings before releasing the sources they captured: a Condition action resolved
+            // against a retired binding would otherwise invoke through a disposed source binding.
+            foreach (WotProjectedEventBinding binding in m_events.Values)
+            {
+                binding.Clear();
+                m_eventRoutes.Remove(binding);
+            }
+            foreach (WotProjectedEventBinding binding in m_events.Values)
+            {
+                await binding.WhenActionCallsCompletedAsync().ConfigureAwait(false);
+            }
             foreach (WotObservedPropertySource source in m_observedProperties)
             {
                 try
@@ -220,11 +231,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     (errors ??= []).Add(ex);
                 }
-            }
-            foreach (WotProjectedEventBinding binding in m_events.Values)
-            {
-                binding.Clear();
-                m_eventRoutes.Remove(binding);
             }
             m_lifetime.Dispose();
             if (errors is { Count: > 0 })
