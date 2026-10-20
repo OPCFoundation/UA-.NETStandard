@@ -724,13 +724,22 @@ namespace Quickstarts.ReferenceServer
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);
+            using var userChain = new CertificateCollection();
+            if (userCertificate != null)
+            {
+                userChain.Add(userCertificate);
+            }
             try
             {
                 Opc.Ua.CertificateValidationResult userCertResult =
                     await (m_userCertificateValidator ?? CertificateManager!)
                         .ValidateAsync(
-                            userCertificate!,
+                            userChain,
                             TrustListIdentifier.Users,
+                            new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                            {
+                                AcceptError = static (_, _) => false
+                            },
                             ct)
                         .ConfigureAwait(false);
                 if (!userCertResult.IsValid)

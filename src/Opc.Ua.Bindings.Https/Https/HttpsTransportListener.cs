@@ -457,6 +457,18 @@ namespace Opc.Ua.Bindings
             ITransportListenerCallback callback,
             CancellationToken ct = default)
         {
+            Initialize(baseAddress, settings, callback);
+            await StartAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Initializes listener-bound dispatch resources before the host starts accepting requests.
+        /// </summary>
+        internal void Initialize(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
+        {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
 
@@ -536,8 +548,6 @@ namespace Opc.Ua.Bindings
                     m_quotas.MaxBufferSize,
                     m_telemetry));
 
-            // start the listener
-            await StartAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -799,28 +809,10 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
                 {
-                    // Match the TLS certificate against the application certificate in
-                    // CreateSessionRequest. The request may carry the leaf followed by its
-                    // issuers; TLS presents only the leaf.
-                    byte[]? tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
-                    ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
-
-                    if (!IsLeafOfCertificateChain(tlsClientCertificate, opcUaClientCertificate))
-                    {
-                        m_logger.ClientTlsCertificateMismatch(
-                            "Client TLS certificate does not match with ClientCertificate " +
-                            "provided in CreateSessionRequest");
-                        IServiceResponse mismatchFault = EndpointBase.CreateFault(
-                            m_logger,
-                            input,
-                            new ServiceResultException(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The TLS client certificate does not match the ClientCertificate."));
-                        await WriteServiceResponseAsync(context, mismatchFault, ct).ConfigureAwait(false);
-                        return;
-                    }
+                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 // extract the JWT token from the HTTP headers.
@@ -1000,6 +992,12 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                {
+                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
                 input.RequestHeader ??= new RequestHeader();
                 if (input.RequestHeader.AuthenticationToken.IsNull &&
                     !authenticationToken.IsNull &&
@@ -1062,6 +1060,33 @@ namespace Opc.Ua.Bindings
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the same mutual-TLS admission to binary and JSON service requests.
+        /// The TLS handshake validates a presented leaf; discovery may omit it.
+        /// </summary>
+        private ServiceFault? GetClientCertificateAdmissionFault(HttpContext context, IServiceRequest request)
+        {
+            if (!m_mutualTlsEnabled || IsDiscoveryRequest(request.TypeId))
+            {
+                return null;
+            }
+
+            byte[]? tlsCertificate = context.Connection.ClientCertificate?.RawData;
+            if (tlsCertificate != null &&
+                (request is not CreateSessionRequest create ||
+                    IsLeafOfCertificateChain(tlsCertificate, create.ClientCertificate)))
+            {
+                return null;
+            }
+
+            return EndpointBase.CreateFault(
+                m_logger,
+                request,
+                new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A TLS client certificate matching the application certificate is required."));
         }
 
         /// <summary>

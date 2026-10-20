@@ -1583,6 +1583,12 @@ namespace Opc.Ua.Schema.Model {
         
         /// <remarks/>
         SessionWithEncryptionAndApplyToBrowseRequired,
+
+        /// <remarks/>
+        None,
+
+        /// <remarks/>
+        ApplyToBrowse,
     }
     
     /// <remarks/>

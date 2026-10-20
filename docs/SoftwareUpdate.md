@@ -301,7 +301,17 @@ Operational caps (defaults, configurable via constants on
 | Read on a transient upload file | rejected with `BadNotSupported` |
 
 Handles are owned by the session that allocated them; cross-session
-access is rejected with `BadUserAccessDenied`.
+access is rejected with `BadUserAccessDenied`. Remote allocation, Open and every
+handle-consuming method require a real, non-null session identifier; authenticated
+sessionless requests receive `BadSessionIdInvalid` before allocation, staging,
+cursor changes or storage access. Handle numbers and `NodeId.Null` are not
+ownership capabilities. A transient file's methods also reject a handle belonging
+to another transient file, even when the same session owns both.
+
+Use an ordinary session for remote software uploads. Explicit trusted in-process
+calls using a system context without an operation context remain supported;
+their handles cannot be borrowed by remote callers. This does not disable
+sessionless invocation for unrelated stateless services.
 
 Committed package metadata contains the SHA-256 digest of the uploaded bytes.
 The `InstallSoftwarePackage` Hash argument is forwarded as hexadecimal

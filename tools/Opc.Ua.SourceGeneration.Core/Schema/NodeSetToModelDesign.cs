@@ -2208,10 +2208,8 @@ namespace Opc.Ua.Schema.Model
 
         /// <summary>
         /// Maps a NodeSet AccessRestrictions bit mask onto the design schema's
-        /// enumeration. Returns <c>null</c> when the mask carries no restriction
-        /// the schema can express - notably the empty mask (which means "no
-        /// restrictions", not "encryption required") and a mask that only sets
-        /// ApplyRestrictionsToBrowse.
+        /// enumeration, retaining explicit unrestricted overrides independently
+        /// from an omitted attribute.
         /// </summary>
         private static AccessRestrictions? ToAccessRestrictions(AccessRestrictionType input)
         {
@@ -2222,6 +2220,10 @@ namespace Opc.Ua.Schema.Model
 
             switch (input)
             {
+                case AccessRestrictionType.None:
+                    return AccessRestrictions.None;
+                case AccessRestrictionType.ApplyRestrictionsToBrowse:
+                    return AccessRestrictions.ApplyToBrowse;
                 case AccessRestrictionType.SigningRequired:
                     return AccessRestrictions.SigningRequired;
                 case AccessRestrictionType.EncryptionRequired:
@@ -2257,17 +2259,9 @@ namespace Opc.Ua.Schema.Model
             // alongside a bit the schema does know. Stay fail-closed: a bit this
             // mapping cannot name is still a restriction the NodeSet asked for,
             // and dropping it would publish the node with no protection at all.
-            // Only a mask that demands nothing - empty, or nothing beyond
-            // ApplyRestrictionsToBrowse, which restricts nothing on its own -
-            // maps to "unspecified".
-            if ((input & ~AccessRestrictionType.ApplyRestrictionsToBrowse) != 0)
-            {
-                return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
-                    ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
-                    : AccessRestrictions.SessionWithEncryptionRequired;
-            }
-
-            return null;
+            return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
+                ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
+                : AccessRestrictions.SessionWithEncryptionRequired;
         }
 
         private void ImportPermissions(UANode input)
@@ -2279,11 +2273,15 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
 
-            existing.RolePermissions = ToPermissionSet(input.RolePermissions);
+            ModelTableEntry? model = m_nodeset.Models?.FirstOrDefault(entry =>
+                entry.ModelUri == m_settings.NamespaceUris.GetString(nodeId.NamespaceIndex));
+            existing.RolePermissions = ToPermissionSet(input.RolePermissions ?? model?.RolePermissions);
 
             AccessRestrictions? restrictions = input.AccessRestrictionsSpecified
                 ? ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions)
-                : null;
+                : model?.AccessRestrictions is > 0
+                    ? ToAccessRestrictions((AccessRestrictionType)model.AccessRestrictions)
+                    : null;
             existing.AccessRestrictions = restrictions ?? default;
             existing.AccessRestrictionsSpecified = restrictions.HasValue;
         }

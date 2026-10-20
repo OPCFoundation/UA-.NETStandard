@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -53,6 +54,276 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     [TestFixture]
     public sealed class OpcUaWotBindingTermsTests
     {
+        /// <summary>
+        /// Discovery cannot expand an admitted endpoint into a forbidden connection.
+        /// </summary>
+        [TestCase("opc.tcp://127.0.0.1:4841")]
+        [TestCase("opc.tcp://[::1]:4841")]
+        [TestCase("opc.tcp://10.0.0.1:4841")]
+        [TestCase("opc.tcp://[fd00::1]:4841")]
+        [TestCase("opc.tcp://blocked.example:4841")]
+        [TestCase("not an endpoint")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46DiscoveryCannotConnectToPolicyForbiddenDestinationAsync(string destination)
+        {
+            int connections = 0;
+            int discoveries = 0;
+            var policy = new WotEndpointPolicy();
+            policy.BlockedHosts.Add("blocked.example");
+            var options = new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (url, _) =>
+                {
+                    Assert.That(url, Is.EqualTo("opc.tcp://example.test"));
+                    discoveries++;
+                    return new ValueTask<ArrayOf<EndpointDescription>>(
+                        [Endpoint(destination, MessageSecurityMode.None, SecurityPolicies.None, 0)]);
+                },
+                SelectedEndpointSessionFactory = (_, _, _) =>
+                {
+                    connections++;
+                    throw new InvalidOperationException("A forbidden destination must never connect.");
+                }
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)], endpointPolicy: policy);
+
+            await Assert.ThatAsync(
+                async () => await registry.OpenChannelAsync(BuildForm(null)).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadUserAccessDenied)).ConfigureAwait(false);
+
+            Assert.That(discoveries, Is.EqualTo(1));
+            Assert.That(connections, Is.Zero);
+        }
+
+        /// <summary>
+        /// Policy filtering precedes security ranking and preserves the mapped service result.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46AllowedDiscoveredEndpointRetainsSecurityFloorAndMappedResultAsync(bool floor)
+        {
+            const string selectedUrl = "opc.tcp://example.test:4842/";
+            int connections = 0;
+            var policy = new WotEndpointPolicy();
+            policy.AllowedHosts.Add("example.test");
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, selectedUrl);
+            session.Setup(s => s.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                It.Is<ArrayOf<ReadValueId>>(nodes => nodes.Count == 1 &&
+                    nodes[0].NodeId == new NodeId(2258u) && nodes[0].AttributeId == Attributes.Value),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results = [new DataValue(new Variant(42))]
+                });
+            EndpointDescription approved = Endpoint("opc.tcp://EXAMPLE.TEST:4842",
+                MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, 100);
+            approved.ProxyUrl = new Uri("opc.tcp://example.test:4844");
+            var options = new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (_, _) => new ValueTask<ArrayOf<EndpointDescription>>(
+                [
+                    Endpoint("opc.tcp://127.0.0.1:4841",
+                        MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, 255),
+                    Endpoint("opc.tcp://example.test:4843",
+                        MessageSecurityMode.None, SecurityPolicies.None, 0),
+                    approved
+                ]),
+                SelectedEndpointSessionFactory = (endpoint, request, _) =>
+                {
+                    connections++;
+                    Assert.That(endpoint.EndpointUrl, Is.EqualTo(selectedUrl));
+                    Assert.That(endpoint.ProxyUrl, Is.EqualTo(approved.ProxyUrl));
+                    Assert.That(request.EndpointPolicy, Is.SameAs(policy));
+                    Assert.That(request.ValidateEndpoint(endpoint.EndpointUrl).AbsoluteUri, Is.EqualTo(selectedUrl));
+                    Assert.Throws<ServiceResultException>(() => request.ValidateEndpoint("opc.tcp://127.0.0.1:4841"));
+                    return new ValueTask<ISession>(session.Object);
+                }
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)], endpointPolicy: policy);
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(
+                BuildForm(floor ? new WotSecurityFloor("Sign", null) : null)).ConfigureAwait(false);
+
+            WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(result.Value.WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(42));
+            Assert.That(connections, Is.EqualTo(1));
+            Assert.That(approved.EndpointUrl, Is.EqualTo("opc.tcp://EXAMPLE.TEST:4842"));
+            session.Verify(s => s.ReadAsync(
+                null, 0, TimestampsToReturn.Both,
+                It.Is<ArrayOf<ReadValueId>>(nodes => nodes.Count == 1 &&
+                    nodes[0].NodeId == new NodeId(2258u) && nodes[0].AttributeId == Attributes.Value),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Constrained factories retain precedence and receive the exact registry policy.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46ConstrainedFactoryReceivesPolicyWithoutDiscoveryAsync(bool floor)
+        {
+            int connections = 0;
+            var policy = new WotEndpointPolicy();
+            policy.AllowedHosts.Add("example.test");
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, "opc.tcp://example.test");
+            var options = new OpcUaWotBindingOptions
+            {
+                ConstrainedSessionFactory = (request, _) =>
+                {
+                    connections++;
+                    Assert.That(request.EndpointPolicy, Is.SameAs(policy));
+                    Assert.Throws<ServiceResultException>(() => request.ValidateEndpoint("opc.tcp://other.test"));
+                    return new ValueTask<ISession>(session.Object);
+                },
+                SessionFactory = (_, _) => throw new InvalidOperationException("Legacy factory must not run."),
+                EndpointDiscovery = (_, _) => throw new InvalidOperationException("Discovery must not run."),
+                SelectedEndpointSessionFactory = (_, _, _) =>
+                    throw new InvalidOperationException("Selected factory must not run.")
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)], endpointPolicy: policy);
+
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(
+                BuildForm(floor ? new WotSecurityFloor("Sign", null) : null)).ConfigureAwait(false);
+
+            Assert.That(connections, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A reported forbidden rewrite cannot expose a mapped-operation channel.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46ReturnedSessionRewriteIsRejectedBeforeMappedOperationAsync()
+        {
+            Mock<ISession> session = MockSession(
+                MessageSecurityMode.None, SecurityPolicies.None, "opc.tcp://127.0.0.1:4841");
+            var options = new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (_, _) => new ValueTask<ArrayOf<EndpointDescription>>(
+                    [Endpoint("opc.tcp://example.test", MessageSecurityMode.None, SecurityPolicies.None, 0)]),
+                SelectedEndpointSessionFactory = (_, _, _) => new ValueTask<ISession>(session.Object)
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)]);
+
+            await Assert.ThatAsync(
+                async () => await registry.OpenChannelAsync(BuildForm(null)).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+
+            session.Verify(s => s.ReadAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(s => s.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Empty, below-floor, denied and invalid-proxy responses fail before connection.
+        /// </summary>
+        [TestCase("empty", true)]
+        [TestCase("belowFloor", true)]
+        [TestCase("allDenied", false)]
+        [TestCase("proxyDenied", false)]
+        [TestCase("proxyRelative", false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46EndpointPolicyFiltersAllDiscoveryBranchesBeforeRankingAsync(
+            string partition, bool rejectsSecurityMode)
+        {
+            StatusCode expectedStatus = rejectsSecurityMode
+                ? StatusCodes.BadSecurityModeRejected
+                : StatusCodes.BadUserAccessDenied;
+            int connections = 0;
+            EndpointDescription allowed = Endpoint("opc.tcp://example.test",
+                MessageSecurityMode.None, SecurityPolicies.None, 0);
+            ArrayOf<EndpointDescription> candidates = partition switch
+            {
+                "empty" => [],
+                "belowFloor" => [allowed],
+                "allDenied" =>
+                [
+                    Endpoint("opc.tcp://127.0.0.1:4841", MessageSecurityMode.SignAndEncrypt,
+                        SecurityPolicies.Basic256Sha256, 255),
+                    Endpoint("malformed", MessageSecurityMode.None, SecurityPolicies.None, 0)
+                ],
+                _ => [allowed]
+            };
+            if (partition == "proxyDenied")
+            {
+                allowed.ProxyUrl = new Uri("opc.tcp://127.0.0.1:4841");
+            }
+            else if (partition == "proxyRelative")
+            {
+                allowed.ProxyUrl = new Uri("relative-proxy", UriKind.Relative);
+            }
+            var options = new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (_, _) => new ValueTask<ArrayOf<EndpointDescription>>(candidates),
+                SelectedEndpointSessionFactory = (_, _, _) =>
+                {
+                    connections++;
+                    throw new InvalidOperationException("No candidate may connect.");
+                }
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)]);
+
+            await Assert.ThatAsync(
+                async () => await registry.OpenChannelAsync(BuildForm(new WotSecurityFloor("Sign", null)))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)expectedStatus)).ConfigureAwait(false);
+
+            Assert.That(connections, Is.Zero);
+        }
+
+        /// <summary>
+        /// Explicit operator approval still permits private and loopback devices.
+        /// </summary>
+        [TestCase("opc.tcp://127.0.0.1:4841", true)]
+        [TestCase("opc.tcp://[::1]:4841", true)]
+        [TestCase("opc.tcp://10.0.0.1:4841", false)]
+        [TestCase("opc.tcp://[fd00::1]:4841", false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR46ExplicitlyApprovedAddressRemainsUsableAsync(string endpoint, bool loopback)
+        {
+            int connections = 0;
+            var policy = new WotEndpointPolicy
+            {
+                AllowLoopback = loopback,
+                AllowPrivateAddresses = !loopback
+            };
+            Mock<ISession> session = MockSession(MessageSecurityMode.None, SecurityPolicies.None, endpoint);
+            var options = new OpcUaWotBindingOptions
+            {
+                EndpointDiscovery = (_, _) => new ValueTask<ArrayOf<EndpointDescription>>(
+                    [Endpoint(endpoint, MessageSecurityMode.None, SecurityPolicies.None, 0)]),
+                SelectedEndpointSessionFactory = (selected, request, _) =>
+                {
+                    connections++;
+                    Assert.That(selected.EndpointUrl, Is.EqualTo(new Uri(endpoint).AbsoluteUri));
+                    Assert.That(request.EndpointPolicy, Is.SameAs(policy));
+                    return new ValueTask<ISession>(session.Object);
+                }
+            };
+            var registry = new WotProtocolBinderRegistry(
+                [new OpcUaBindingPlanner()], [new OpcUaWotBindingExecutor(options)], endpointPolicy: policy);
+
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(BuildForm(null))
+                .ConfigureAwait(false);
+
+            Assert.That(connections, Is.EqualTo(1));
+        }
+
         [Test]
         public void AnEventWithoutASelectionCompilesTheImplicitDefault()
         {
@@ -877,7 +1148,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Assert.That(selected, Is.Not.Null);
                 Assert.That(
                     selected!.EndpointUrl,
-                    Is.EqualTo("opc.tcp://strong"),
+                    Is.EqualTo("opc.tcp://strong/"),
                     "Section 5.7.1 takes the strongest of what remains above the floor.");
             });
             await channel.DisposeAsync().ConfigureAwait(false);
@@ -945,7 +1216,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             Assert.That(
                 selected!.EndpointUrl,
-                Is.EqualTo("opc.tcp://alpha"),
+                Is.EqualTo("opc.tcp://alpha/"),
                 "Equal mode, policy and level leave the smallest endpointUrl in ascending " +
                 "Unicode code-point order, so two clients reach the same endpoint.");
             await channel.DisposeAsync().ConfigureAwait(false);

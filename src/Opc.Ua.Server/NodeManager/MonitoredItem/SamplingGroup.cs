@@ -786,7 +786,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                QueueSample(items[ii], values[ii], errors[ii], permissionResult);
+                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult);
             }
         }
 
@@ -873,28 +873,33 @@ namespace Opc.Ua.Server
         /// </summary>
         private void QueueSample(
             ISampledDataChangeMonitoredItem item,
+            OperationContext context,
             DataValue value,
             ServiceResult error,
             ServiceResult permissionResult)
         {
             if (ServiceResult.IsBad(permissionResult))
             {
-                item.QueueValue(
-                    DataValue.FromStatusCode(
-                        permissionResult.StatusCode,
-                        m_timeProvider.GetUtcNow().UtcDateTime),
-                    permissionResult);
-                return;
+                value = DataValue.FromStatusCode(
+                    permissionResult.StatusCode,
+                    m_timeProvider.GetUtcNow().UtcDateTime);
+                error = permissionResult;
             }
-
-            if (value.IsNull)
+            else if (value.IsNull)
             {
                 value = DataValue.FromStatusCode(
                     StatusCodes.BadInternalError,
                     m_timeProvider.GetUtcNow().UtcDateTime);
             }
 
-            item.QueueValue(value, error);
+            if (item is MonitoredItem concreteItem)
+            {
+                concreteItem.QueueValueIfCurrent(context, value, error);
+            }
+            else
+            {
+                item.QueueValue(value, error);
+            }
         }
 
         /// <summary>
@@ -1084,7 +1089,7 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    m_group.QueueSample(items[ii], m_values[ii], m_errors[ii], permissionResult);
+                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult);
                 }
             }
 

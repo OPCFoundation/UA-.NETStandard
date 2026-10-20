@@ -16,6 +16,62 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
     public sealed partial class CommonBindingTests
     {
         /// <summary>
+        /// Correctly typed direct writes cannot mutate any provider-owned configuration output.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR21DirectCyclicPropertyWriteCannotBypassPolicyAsync(bool optional)
+        {
+            CyclicJobInformationState node = CreateCyclicConfigurationNode();
+            if (!optional)
+            {
+                node.NominalBoxParts = null;
+                node.ExpectedCycleTime = null;
+            }
+            CyclicJobConfiguration old = SeedOldCyclicConfiguration(node, false);
+            var provider = new Mock<ICyclicJobConfigurationProvider>(MockBehavior.Strict);
+            var policy = new Mock<IPlasticsRubberAccessPolicy>(MockBehavior.Strict);
+            policy.Setup(value => value.AuthorizeAsync(
+                It.IsAny<PlasticsRubberRequestContext>(), node.SetCyclicJobData!.NodeId,
+                It.IsAny<CancellationToken>()))
+                .Throws(new ServiceResultException(StatusCodes.BadUserAccessDenied));
+            await using var binding = new CyclicJobInformationBinding(node, m_context, provider.Object, policy.Object);
+            foreach (BaseVariableState? variable in CyclicPublicationNodes(node))
+            {
+                if (variable == null)
+                {
+                    continue;
+                }
+                Variant original = variable.Value.Copy();
+                Variant attack = original.TryGetValue(out ulong quantity) ? Variant.From(quantity + 1) :
+                    original.TryGetValue(out double duration) ? Variant.From(duration + 1) : original;
+                ServiceResult result = await variable.WriteAttributeAsync(
+                    m_context, Attributes.Value, NumericRange.Null,
+                    new DataValue(attack), CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable),
+                        variable.BrowseName.ToString());
+                    Assert.That(variable.Value, Is.EqualTo(original));
+                    Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                });
+            }
+            AssertCyclicPublication(node, old, StatusCodes.UncertainDataSubNormal);
+            policy.VerifyNoOtherCalls();
+            SetCyclicJobDataMethodStateResult denied = await InvokeCyclicConfigurationAsync(node, ConfigurationRequest(2))
+                .ConfigureAwait(false);
+            Assert.That(denied.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            AssertCyclicPublication(node, old, StatusCodes.UncertainDataSubNormal);
+            provider.VerifyNoOtherCalls();
+            policy.Verify(value => value.AuthorizeAsync(
+                It.IsAny<PlasticsRubberRequestContext>(), node.SetCyclicJobData!.NodeId,
+                It.IsAny<CancellationToken>()), Times.Once);
+            policy.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// The runtime cannot bind a missing configuration method or an implicit authority.
         /// </summary>
         [Test]
@@ -48,7 +104,8 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(3)]
-        public async Task CyclicConfigurationSnapshotsAllFieldsAndPublishesOnlyAfterCommitAsync(int partition)
+        [Category("SecurityRegression")]
+        public async Task SecurityR21AuthorizedMethodCommitsConfigurationBeforePublicationAsync(int partition)
         {
             CyclicJobInformationState node = CreateCyclicConfigurationNode();
             CyclicJobConfiguration expected = ConfigurationRequest(partition);
@@ -126,7 +183,8 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         [TestCase(false, 2)]
         [TestCase(true, 0)]
         [TestCase(true, 2)]
-        public async Task CyclicConfigurationPreservesAbsentOptionalPropertiesAsync(bool subset, int partition)
+        [Category("SecurityRegression")]
+        public async Task SecurityR21CyclicOptionalFieldsPreserveReadOnlySnapshotAsync(bool subset, int partition)
         {
             CyclicJobInformationState node = CreateCyclicConfigurationNode();
             node.ExpectedCycleTime = null;
@@ -214,7 +272,8 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
         [TestCase("exception")]
         [TestCase("cancel")]
         [TestCase("disposed")]
-        public async Task CyclicConfigurationGuardsAndProviderFailuresPreservePublicationAsync(string outcome)
+        [Category("SecurityRegression")]
+        public async Task SecurityR21FailedCommitPreservesReadOnlySnapshotAsync(string outcome)
         {
             CyclicJobInformationState node = CreateCyclicConfigurationNode();
             CyclicJobConfiguration old = SeedOldCyclicConfiguration(node, true);
@@ -472,6 +531,8 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
                     {
                         Assert.That(variable.Value, Is.EqualTo(values[index]), variable.BrowseName.ToString());
                         Assert.That(variable.StatusCode, Is.EqualTo(status), variable.BrowseName.ToString());
+                        Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                        Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
                     }
                 }
             });

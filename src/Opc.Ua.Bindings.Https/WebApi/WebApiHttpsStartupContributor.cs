@@ -250,52 +250,14 @@ namespace Opc.Ua.Bindings.WebApi
             // callback. By the time Configure runs Kestrel has been
             // built but not started, and listener.Callback has already
             // been wired by HttpsTransportListener.Open(...).
-            m_server.Attach(listener.Callback);
-            if (listener.MessageContext is { } context)
+            // A shared Kestrel host also shares its DI root. Keep remote authority
+            // in the listener branch, never in the application's mutable dispatcher.
+            var server = new WebApiServer(listener);
+            appBuilder.Use((context, next) =>
             {
-                m_server.UpdateMessageContext(context);
-            }
-            if (!string.IsNullOrEmpty(listener.ListenerId))
-            {
-                m_server.UpdateListenerId(listener.ListenerId);
-            }
-
-            // Pick the listener's OpenAPI endpoint description (added by
-            // HttpsServiceHost discovery emission) as the default
-            // invocation context. The server pipeline (e.g.
-            // SessionManager.CreateSession) dereferences
-            // SecureChannelContext.EndpointDescription, so a null endpoint
-            // surfaces as a server-side NRE / BadUnexpectedError. Falling
-            // back to the SM=None HTTPS-binary description keeps things
-            // working for older HttpsServiceHost versions that didn't
-            // emit the OpenAPI twin.
-            if (listener.Descriptions is { } descriptions)
-            {
-                EndpointDescription? defaultEndpoint = null;
-                foreach (EndpointDescription endpoint in descriptions)
-                {
-                    if (Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri))
-                    {
-                        defaultEndpoint = endpoint;
-                        break;
-                    }
-                }
-                if (defaultEndpoint == null)
-                {
-                    foreach (EndpointDescription endpoint in descriptions)
-                    {
-                        if (endpoint.SecurityMode == MessageSecurityMode.None &&
-                            !string.IsNullOrEmpty(endpoint.EndpointUrl) &&
-                            Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
-                        {
-                            defaultEndpoint = endpoint;
-                            break;
-                        }
-                    }
-                }
-                defaultEndpoint ??= descriptions.Count > 0 ? descriptions[0] : null;
-                m_server.UpdateDefaultEndpoint(defaultEndpoint);
-            }
+                context.Features.Set(server);
+                return next();
+            });
 
             // Mount routing + Minimal-API endpoints. Unmatched paths
             // fall through to the listener's terminal binary / JSON

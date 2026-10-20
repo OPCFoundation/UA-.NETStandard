@@ -400,8 +400,7 @@ namespace BinPickingClient
             // Thread telemetry in: without it the connector logs to NullLogger, so a live
             // stream that binds nothing, or that leaves every target unresolved, looks
             // exactly like one that is working.
-            var connector = new OpenUsdConnector(
-                session, sink, new OpenUsdConnectorOptions { EnableCommands = false }, telemetry);
+            OpenUsdConnector connector = CreateViewportConnector(session, sink, telemetry: telemetry);
             await using (connector.ConfigureAwait(false))
             {
                 await connector.StartAsync(cancellationToken).ConfigureAwait(false);
@@ -421,6 +420,22 @@ namespace BinPickingClient
                     await connector.StopAsync(CancellationToken.None).ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates the remote live-stream connector without granting structural viewport authority.
+        /// </summary>
+        internal static OpenUsdConnector CreateViewportConnector(
+            ISession session,
+            IUsdSink sink,
+            OpenUsdConnectorOptions? options = null,
+            ITelemetryContext? telemetry = null)
+        {
+            return new OpenUsdConnector(
+                session,
+                new UsdViewportValueSink(sink),
+                options ?? new OpenUsdConnectorOptions { EnableCommands = false },
+                telemetry);
         }
 
         /// <summary>

@@ -48,6 +48,64 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class EventAuthorizationRegressionTests
     {
         /// <summary>
+        /// Revocation must protect the very first event generated before a client has refreshed its roles.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR36PostRevocationEventCannotReachFirstPublishAsync(bool serverNotifier)
+        {
+            await using var harness = new EventHarness(serverNotifier);
+            harness.UseConfidentialTransport();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            await harness.ReportAsync("event-42").ConfigureAwait(false);
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["event-42"]));
+            Assert.That(harness.BobEvents.ToArray(), Is.EqualTo<string[]>(["event-42"]));
+
+            harness.SetAliceRole(false);
+            await harness.ReportAsync("secret-after-revoke").ConfigureAwait(false);
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["event-42"]),
+                "No request-driven role refresh has happened since revocation.");
+            Assert.That(harness.BobEvents.ToArray(), Is.EqualTo<string[]>(["event-42", "secret-after-revoke"]));
+            await harness.PublishAsync().ConfigureAwait(false);
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["event-42"]));
+
+            harness.SetAliceRole(true);
+            await harness.ReportAsync("newly-authorized").ConfigureAwait(false);
+            Assert.That(harness.AliceEvents.ToArray(), Is.EqualTo<string[]>(["event-42", "newly-authorized"]));
+        }
+
+        /// <summary>
+        /// A suspended successful decision cannot survive revocation merely because no client request has arrived.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR36RevocationDuringBackgroundAuthorizationInvalidatesQueuedEpochAsync(
+            bool serverNotifier)
+        {
+            await using var harness = new EventHarness(serverNotifier);
+            harness.UseConfidentialTransport();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.BlockAliceValidation = true;
+            await harness.EnqueueAsync("secret-after-revoke").ConfigureAwait(false);
+            try
+            {
+                await harness.ValidationEntered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                harness.SetAliceRole(false);
+            }
+            finally
+            {
+                harness.ReleaseValidation.TrySetResult(true);
+            }
+            await harness.WaitForDeliveryAsync().ConfigureAwait(false);
+            Assert.That(harness.AliceEvents, Is.Empty);
+            Assert.That(harness.BobEvents.ToArray(), Is.EqualTo<string[]>(["secret-after-revoke"]));
+            await harness.PublishAsync().ConfigureAwait(false);
+            Assert.That(harness.AliceEvents, Is.Empty);
+        }
+
+        /// <summary>
         /// Publish refreshes a revoked role, stops only its receiver, and resumes delivery after the role is regranted.
         /// </summary>
         [TestCase(false)]
@@ -462,6 +520,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_monitored.Add(AliceReceiver.Object);
                 m_monitored.Add(CreateReceiver(2, Bob.Session, BobEvents).Object);
                 await PublishAsync().ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Keeps the real username/session path while giving the physical modeled channel TLS confidentiality.
+            /// </summary>
+            public void UseConfidentialTransport()
+            {
+                m_channel.EndpointDescription!.EndpointUrl = "https://localhost/security-r36";
+                m_channel.EndpointDescription.TransportProfileUri = Profiles.HttpsBinaryTransport;
             }
 
             /// <summary>

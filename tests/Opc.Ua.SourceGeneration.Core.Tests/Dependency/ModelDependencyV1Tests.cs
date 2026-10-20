@@ -1214,7 +1214,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
             else
             {
-                body[marker + 4] = 2;
+                body[marker + 4] = byte.MaxValue;
             }
             var reference = new ModelDependencyReference(
                 "SecurityProducer", "urn:test:security", "Security", "1.0.0", string.Empty,
@@ -1284,6 +1284,165 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 ]
             });
             return dependency;
+        }
+
+        /// <summary>
+        /// Restriction-only declarations retain presence, explicit zero, defaults and composed ACLs.
+        /// </summary>
+        [TestCase(null, null)]
+        [TestCase(AccessRestrictions.None, null)]
+        [TestCase(null, AccessRestrictions.EncryptionRequired)]
+        [TestCase(AccessRestrictions.SigningRequired, AccessRestrictions.EncryptionRequired)]
+        [TestCase(AccessRestrictions.ApplyToBrowse, AccessRestrictions.None)]
+        [Category("SecurityRegression")]
+        public void SecurityR43DependencyRestrictionPresenceAndDefaultsRoundTrip(
+            AccessRestrictions? restrictions,
+            AccessRestrictions? defaults)
+        {
+            ModelDependencyV1 dependency = BuildSecuritySnapshot();
+            DependencyChild child = dependency.Nodes.Single().Children.Single();
+            child.Security = new DependencySecurity
+            {
+                AccessRestrictions = restrictions,
+                DefaultAccessRestrictions = defaults
+            };
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload())!;
+            DependencySecurity security = decoded.Nodes.Single().Children.Single().Security!;
+            var restored = new VariableDesign();
+            security.ApplyTo(restored);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(security.AccessRestrictions, Is.EqualTo(restrictions));
+                Assert.That(security.DefaultAccessRestrictions, Is.EqualTo(defaults));
+                Assert.That(restored.AccessRestrictionsSpecified, Is.EqualTo(restrictions.HasValue));
+                Assert.That(restored.DefaultAccessRestrictionsSpecified, Is.EqualTo(defaults.HasValue));
+                Assert.That(restored.AccessRestrictions, Is.EqualTo(restrictions.GetValueOrDefault()));
+                Assert.That(restored.DefaultAccessRestrictions, Is.EqualTo(defaults.GetValueOrDefault()));
+                Assert.That(decoded.Nodes.Single().Security!.UserWriteAccess, Is.EqualTo(64u));
+                Assert.That(decoded.Nodes.Single().Children.Single().Children.Count, Is.EqualTo(1));
+                Assert.That(decoded.Nodes.Single().Children.Single().Children[0].Security!.UserExecutable,
+                    Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Unsupported and incomplete extensions cannot turn a protected dependency into an open graph.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        [TestCase(6)]
+        [TestCase(7)]
+        [Category("SecurityRegression")]
+        public void SecurityR43DependencySecurityTrailerRejectsUnsupportedOrTruncatedPolicy(int corruption)
+        {
+            ModelDependencyV1 dependency = BuildSecuritySnapshot();
+            dependency.Nodes.Single().Security!.AccessRestrictions = corruption == 6
+                ? (AccessRestrictions)int.MaxValue
+                : AccessRestrictions.EncryptionRequired;
+            byte[] body = Inflate(dependency.ToBase64Payload());
+            int marker = body.AsSpan().IndexOf("SEC1"u8);
+            Assert.That(marker, Is.GreaterThan(0));
+            switch (corruption)
+            {
+                case 0:
+                    body[marker + 4] = byte.MaxValue;
+                    break;
+                case 1:
+                    body = body.AsSpan(0, body.Length - 1).ToArray();
+                    break;
+                case 2:
+                    body = body.AsSpan(0, marker + 2).ToArray();
+                    break;
+                case 3:
+                    body = body.AsSpan(0, marker + 4).ToArray();
+                    break;
+                case 5:
+                    body = body.AsSpan(0, marker).ToArray();
+                    break;
+                case 6:
+                    break;
+                case 7:
+                    body = body.AsSpan(0, marker - 1).ToArray();
+                    break;
+                default:
+                    body[marker] = 0;
+                    break;
+            }
+            var reference = new ModelDependencyReference(
+                "RestrictedProducer", "urn:test:security", "Security", "1.0.0", string.Empty,
+                payload: Deflate(body));
+
+            Assert.That(
+                () => ModelDependencyV1.FromBase64Payload(reference.Payload!),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("cannot preserve security metadata"));
+            Assert.That(
+                () => reference.GetDependency(),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("cannot preserve security metadata"));
+        }
+
+        /// <summary>
+        /// Version-one security payloads keep their earlier ACL and mask semantics with unspecified restrictions.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR43VersionOneSecurityTrailerRemainsReadable()
+        {
+            var dependency = new ModelDependencyV1 { ModelUri = "urn:test:legacy-security" };
+            dependency.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "LegacyType",
+                SymbolicNamespace = dependency.ModelUri,
+                ClassName = "Legacy",
+                Kind = DependencyNodeKind.ObjectType,
+                Security = new DependencySecurity { WriteAccess = 64 }
+            });
+            byte[] current = Inflate(dependency.ToBase64Payload());
+            int marker = current.AsSpan().IndexOf("SEC1"u8);
+            Assert.That(marker, Is.GreaterThan(0));
+            using var legacyBody = new MemoryStream();
+            using (var writer = new BinaryWriter(legacyBody, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(1);
+                writer.Write(true);
+                writer.Write(64u);
+                writer.Write(true);
+                writer.Write(0u);
+                writer.Write(false);
+                writer.Write(false);
+                writer.Write(false);
+                writer.Write(true);
+                writer.Write(false);
+                writer.Write(false);
+                writer.Write(0);
+                writer.Write(0);
+            }
+            using var legacy = new MemoryStream();
+            using (var writer = new BinaryWriter(legacy, System.Text.Encoding.UTF8, leaveOpen: true))
+            {
+                writer.Write(current, 0, marker);
+                writer.Write("SEC1"u8.ToArray());
+                writer.Write((byte)1);
+                writer.Write((int)legacyBody.Length);
+                writer.Write(legacyBody.ToArray());
+            }
+
+            DependencySecurity security = ModelDependencyV1.FromBase64Payload(
+                Deflate(legacy.ToArray()))!.Nodes.Single().Security!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(security.WriteAccess, Is.EqualTo(64u));
+                Assert.That(security.UserWriteAccess, Is.Zero);
+                Assert.That(security.DefaultRolePermissions!.RolePermission, Is.Empty);
+                Assert.That(security.RolePermissions, Is.Null);
+                Assert.That(security.AccessRestrictions, Is.Null);
+                Assert.That(security.DefaultAccessRestrictions, Is.Null);
+            });
         }
 
         private static int NestedTrailerOffset()

@@ -105,6 +105,52 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// A restriction-only producer declaration survives compilation and metadata-only consumption.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR43ReferencedDependencyRetainsRuntimeChannelRestrictionAsync(bool referencedModel)
+        {
+            await RunProbeAsync("ChannelRestrictions", referencedModel).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// A dependency's named ACL is resolved in its owner, not the consumer's identically named set.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR11DependencyNamedAclProtectsGeneratedMandatoryChildAsync()
+        {
+            CSharpCompilation compilation = Generate(
+                CreateRuntimeCompilation("R11NamedPermissions"),
+                EmbeddedText.Create("SecurityAttributes.xml", kNamedDependency),
+                EmbeddedText.Create("SecurityAttributesConsumer.xml", kNamedConsumer))
+                .AddSyntaxTrees(ParseProbe("context.CreateConsumerDevice()", "context.CreateConsumerOverride()", true));
+            await RunProbeAsync("NamedPermissions", false,
+                new GeneratedModels(compilation, compilation, "NoReferencedProducer", [])).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Missing named policy is a generation error rather than an omitted ACL assignment.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR11UnresolvedNamedPermissionFailsGeneration()
+        {
+            AdditionalText text = EmbeddedText.Create("SecurityAttributes.xml",
+                kNamedDependency.Replace("RolePermissions Name=\"Shared\"", "RolePermissions Name=\"Missing\"",
+                    StringComparison.Ordinal));
+            GeneratorDriver driver = CreateDriver(text).RunGeneratorsAndUpdateCompilation(
+                CreateRuntimeCompilation("R11MissingPermissions"), out _, out ImmutableArray<Diagnostic> diagnostics);
+            Assert.That(diagnostics.Any(diagnostic =>
+                diagnostic.Id == "MODELGEN003" &&
+                diagnostic.GetMessage(CultureInfo.InvariantCulture).Contains("Missing", StringComparison.Ordinal)),
+                Is.True, string.Join(Environment.NewLine, diagnostics));
+            Assert.That(driver.GetRunResult().Results[0].GeneratedSources, Is.Empty);
+        }
+
+        /// <summary>
         /// A genuinely unrepresentable symbolic role fails generation instead of emitting an open factory.
         /// </summary>
         [Test]
@@ -151,9 +197,12 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Runs an emitted probe with normal stack dependencies and removes the test-owned assembly resolver.
         /// </summary>
-        private static async Task RunProbeAsync(string methodName, bool referencedModel)
+        private static async Task RunProbeAsync(
+            string methodName,
+            bool referencedModel,
+            GeneratedModels? suppliedModels = null)
         {
-            GeneratedModels models = s_models.Value;
+            GeneratedModels models = suppliedModels ?? s_models.Value;
             CSharpCompilation compilation = referencedModel ? models.Consumer : models.Local;
             var references = compilation.References
                 .OfType<PortableExecutableReference>()
@@ -192,7 +241,9 @@ namespace Opc.Ua.SourceGeneration
         {
             CSharpCompilation producer = Generate(
                 CreateRuntimeCompilation("P19SecurityProducer"),
-                EmbeddedText.From("SecurityAttributes.NodeSet2.xml"));
+                EmbeddedText.Create("SecurityAttributes.NodeSet2.xml",
+                    EmbeddedText.From("SecurityAttributes.NodeSet2.xml").GetText()!.ToString()
+                        .Replace("</UANodeSet>", kRestrictionDeclarations + "</UANodeSet>", StringComparison.Ordinal)));
             byte[] image = Emit(producer);
             CSharpCompilation local = producer
                 .WithAssemblyName("P19SecurityLocal")
@@ -241,9 +292,9 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Uses the normal source generator pipeline with deterministic namespace identities.
         /// </summary>
-        private static CSharpCompilation Generate(CSharpCompilation compilation, AdditionalText text)
+        private static CSharpCompilation Generate(CSharpCompilation compilation, params AdditionalText[] texts)
         {
-            CreateDriver(text).RunGeneratorsAndUpdateCompilation(
+            CreateDriver(texts).RunGeneratorsAndUpdateCompilation(
                 compilation,
                 out Compilation output,
                 out ImmutableArray<Diagnostic> diagnostics);
@@ -255,25 +306,29 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Supplies only model metadata; all security metadata comes from the input model or dependency payload.
         /// </summary>
-        private static GeneratorDriver CreateDriver(AdditionalText text)
+        private static GeneratorDriver CreateDriver(params AdditionalText[] texts)
         {
             var options = new AnalyzerOptionsProvider(new Dictionary<string, string>
             {
                 ["build_property.ModelSourceGeneratorOmitFluentApi"] = "true",
                 ["build_property.ModelSourceGeneratorOmitEventRecords"] = "true"
             });
-            bool consumer = Path.GetFileName(text.Path) == "SecurityAttributesConsumer.NodeSet2.xml";
-            options.TextOptions[text.Path] = new Dictionary<string, string>
+            foreach (AdditionalText text in texts)
             {
-                ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] =
-                    consumer ? "SecurityConsumer" : "SecurityNodes",
-                ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] =
-                    consumer ? "SecurityConsumer" : "SecurityNodes"
-            };
+                bool consumer = Path.GetFileName(text.Path).StartsWith("SecurityAttributesConsumer",
+                    StringComparison.Ordinal);
+                options.TextOptions[text.Path] = new Dictionary<string, string>
+                {
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorName"] =
+                        consumer ? "SecurityConsumer" : "SecurityNodes",
+                    ["build_metadata.AdditionalFiles.ModelSourceGeneratorPrefix"] =
+                        consumer ? "SecurityConsumer" : "SecurityNodes"
+                };
+            }
             return CSharpGeneratorDriver.Create(new ModelSourceGenerator())
                 .WithUpdatedParseOptions(new CSharpParseOptions(LanguageVersion.CSharp13))
                 .WithUpdatedAnalyzerConfigOptions(options)
-                .AddAdditionalTexts([text]);
+                .AddAdditionalTexts([.. texts]);
         }
 
         /// <summary>
@@ -297,6 +352,109 @@ namespace Opc.Ua.SourceGeneration
             byte[] ProducerImage);
 
         private static readonly Lazy<GeneratedModels> s_models = new(CreateModels);
+
+        private const string kRestrictionDeclarations =
+            """
+              <UAVariable NodeId="ns=1;i=1201" BrowseName="1:EncryptionOnly" ParentNodeId="ns=1;i=1000"
+                  DataType="i=6" AccessLevel="1" AccessRestrictions="2">
+                <References>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+                <Value><uax:Int32>42</uax:Int32></Value>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1202" BrowseName="1:SigningOnly" ParentNodeId="ns=1;i=1000"
+                  DataType="i=6" AccessLevel="1" AccessRestrictions="1">
+                <References>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+                <Value><uax:Int32>42</uax:Int32></Value>
+              </UAVariable>
+              <UAVariable NodeId="ns=1;i=1203" BrowseName="1:ExplicitZero" ParentNodeId="ns=1;i=1000"
+                  DataType="i=6" AccessLevel="1" AccessRestrictions="0">
+                <References>
+                  <Reference ReferenceType="i=40">i=63</Reference>
+                  <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+                  <Reference ReferenceType="i=37">i=78</Reference>
+                </References>
+                <Value><uax:Int32>42</uax:Int32></Value>
+              </UAVariable>
+            """;
+
+        private const string kNamedDependency =
+            """
+            <opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/"
+                xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                xmlns="urn:test:security-nodes" TargetNamespace="urn:test:security-nodes"
+                TargetXmlNamespace="urn:test:security-nodes:types">
+              <opc:Namespaces>
+                <opc:Namespace Name="SecurityNodes" Prefix="SecurityNodes"
+                    XmlNamespace="urn:test:security-nodes:types">urn:test:security-nodes</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:PermissionSets>
+                <opc:PermissionSet Name="Shared">
+                  <opc:RolePermission Role="ua:WellKnownRole_SecurityAdmin">
+                    <opc:Permission>Read</opc:Permission>
+                  </opc:RolePermission>
+                </opc:PermissionSet>
+              </opc:PermissionSets>
+              <opc:ObjectType SymbolicName="SecurityDeviceType" BaseType="ua:BaseObjectType" NumericId="3000">
+                <opc:Children>
+                  <opc:Variable SymbolicName="NamedProtected" DataType="ua:Int32" AccessLevel="Read"
+                      ModellingRule="Mandatory">
+                    <opc:RolePermissions Name="Shared" />
+                    <opc:DefaultValue><uax:Int32>42</uax:Int32></opc:DefaultValue>
+                  </opc:Variable>
+                  <opc:Variable SymbolicName="NamedDefault" DataType="ua:Int32" AccessLevel="Read"
+                      ModellingRule="Mandatory">
+                    <opc:DefaultRolePermissions Name="Shared" />
+                    <opc:DefaultValue><uax:Int32>42</uax:Int32></opc:DefaultValue>
+                  </opc:Variable>
+                </opc:Children>
+              </opc:ObjectType>
+            </opc:ModelDesign>
+            """;
+
+        private const string kNamedConsumer =
+            """
+            <opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                xmlns:ua="http://opcfoundation.org/UA/" xmlns:dep="urn:test:security-nodes"
+                xmlns="urn:test:security-consumer" TargetNamespace="urn:test:security-consumer"
+                TargetXmlNamespace="urn:test:security-consumer:types">
+              <opc:Namespaces>
+                <opc:Namespace Name="SecurityConsumer" Prefix="SecurityConsumer"
+                    XmlNamespace="urn:test:security-consumer:types">urn:test:security-consumer</opc:Namespace>
+                <opc:Namespace Name="SecurityNodes" Prefix="SecurityNodes"
+                    XmlNamespace="urn:test:security-nodes:types">urn:test:security-nodes</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                    XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                    >http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:PermissionSets>
+                <opc:PermissionSet Name="Shared">
+                  <opc:RolePermission Role="ua:WellKnownRole_Anonymous">
+                    <opc:Permission>Read</opc:Permission>
+                  </opc:RolePermission>
+                </opc:PermissionSet>
+              </opc:PermissionSets>
+              <opc:Object SymbolicName="ConsumerDevice" TypeDefinition="dep:SecurityDeviceType" NumericId="5000" />
+              <opc:Object SymbolicName="ConsumerOverride" TypeDefinition="dep:SecurityDeviceType" NumericId="6000">
+                <opc:Children>
+                  <opc:Variable SymbolicName="dep:NamedProtected" BrowseName="NamedProtected"
+                      DataType="ua:Int32" AccessLevel="Read">
+                    <opc:RolePermissions Name="Shared" />
+                  </opc:Variable>
+                </opc:Children>
+              </opc:Object>
+            </opc:ModelDesign>
+            """;
 
         private const string kProbe =
             """
@@ -473,6 +631,99 @@ namespace Opc.Ua.SourceGeneration
                     }
                 }
 
+                public static async Task NamedPermissions()
+                {
+                    SystemContext context = CreateContext();
+                    BaseObjectState root = CreateRoot(context);
+                    foreach (string name in new[] { "NamedProtected", "NamedDefault" })
+                    {
+                        BaseVariableState variable = Variable(context, root, name);
+                        Assert.That(variable.RolePermissions.Count, Is.EqualTo(1));
+                        Assert.That(variable.RolePermissions[0].RoleId,
+                            Is.EqualTo(Opc.Ua.ObjectIds.WellKnownRole_SecurityAdmin));
+                        using (OperationContext outsider = Actor(context, Role.Anonymous))
+                        {
+                            Assert.That(Authorize(outsider, variable, PermissionType.Read).StatusCode,
+                                Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                        }
+                        using (OperationContext admin = Actor(context, Role.SecurityAdmin))
+                        {
+                            Assert.That(Authorize(admin, variable, PermissionType.Read).StatusCode,
+                                Is.EqualTo(StatusCodes.Good));
+                            var read = await variable.ReadAttributeAsync(
+                                context, Attributes.Value, default, default, default);
+                            Assert.That(read.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                            Assert.That(read.Value.WrappedValue.GetInt32(), Is.EqualTo(42));
+                        }
+                    }
+                    BaseVariableState local = Variable(context, __OVERRIDE_FACTORY__, "NamedProtected");
+                    Assert.That(local.RolePermissions.Count, Is.EqualTo(1));
+                    Assert.That(local.RolePermissions[0].RoleId, Is.EqualTo(Opc.Ua.ObjectIds.WellKnownRole_Anonymous));
+                    using (OperationContext outsider = Actor(context, Role.Anonymous))
+                    {
+                        Assert.That(Authorize(outsider, local, PermissionType.Read).StatusCode,
+                            Is.EqualTo(StatusCodes.Good));
+                    }
+                    using (OperationContext admin = Actor(context, Role.SecurityAdmin))
+                    {
+                        Assert.That(Authorize(admin, local, PermissionType.Read).StatusCode,
+                            Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                    }
+                }
+
+                public static async Task ChannelRestrictions()
+                {
+                    SystemContext context = CreateContext();
+                    BaseObjectState root = CreateRoot(context);
+                    foreach (string name in new[] { "EncryptionOnly", "SigningOnly", "ExplicitZero" })
+                    {
+                        BaseVariableState variable = Variable(context, root, name);
+                        AccessRestrictionType expected = name == "EncryptionOnly"
+                            ? AccessRestrictionType.EncryptionRequired
+                            : name == "SigningOnly"
+                                ? AccessRestrictionType.SigningRequired
+                                : AccessRestrictionType.None;
+                        Assert.That(variable.AccessRestrictions, Is.EqualTo(expected));
+                        foreach (MessageSecurityMode mode in new[]
+                            { MessageSecurityMode.None, MessageSecurityMode.Sign, MessageSecurityMode.SignAndEncrypt })
+                        {
+                            var channel = new SecureChannelContext("restriction-probe",
+                                new EndpointDescription
+                                {
+                                    SecurityMode = mode,
+                                    EndpointUrl = "opc.tcp://localhost:4840"
+                                },
+                                RequestEncoding.Binary);
+                            using var actor = new OperationContext(new RequestHeader(), channel, RequestType.Read,
+                                RequestLifetime.None, new UserIdentity());
+                            var metadata = new NodeMetadata(variable, variable.NodeId)
+                            {
+                                NodeClass = variable.NodeClass,
+                                AccessRestrictions = variable.AccessRestrictions.GetValueOrDefault()
+                            };
+                            MethodInfo guard = typeof(MasterNodeManager).GetMethod("ValidateAccessRestrictions",
+                                BindingFlags.Static | BindingFlags.NonPublic, null,
+                                new[] { typeof(OperationContext), typeof(NodeMetadata), typeof(PermissionType) }, null);
+                            Assert.That(guard, Is.Not.Null);
+                            var result = (ServiceResult)guard.Invoke(null,
+                                new object[] { actor, metadata, PermissionType.Read });
+                            bool allowed = expected == AccessRestrictionType.None ||
+                                mode == MessageSecurityMode.SignAndEncrypt ||
+                                (expected == AccessRestrictionType.SigningRequired && mode == MessageSecurityMode.Sign);
+                            Assert.That(result.StatusCode,
+                                Is.EqualTo(allowed ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient),
+                                name + "/" + mode);
+                            if (allowed)
+                            {
+                                var read = await variable.ReadAttributeAsync(
+                                    context, Attributes.Value, default, default, default);
+                                Assert.That(read.Result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                                Assert.That(read.Value.WrappedValue.GetInt32(), Is.EqualTo(42));
+                            }
+                        }
+                    }
+                }
+
                 private static SystemContext CreateContext()
                 {
                     var context = new SystemContext(null);
@@ -538,7 +789,7 @@ namespace Opc.Ua.SourceGeneration
                 private static OperationContext Actor(SystemContext context, Role role)
                 {
                     return new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None,
-                        new RoleBasedIdentity(new UserIdentity(), new[] { role }, context.NamespaceUris));
+                        RoleBasedIdentity.CreateRestricted(new UserIdentity(), new[] { role }, context.NamespaceUris));
                 }
 
                 private static ServiceResult Authorize(

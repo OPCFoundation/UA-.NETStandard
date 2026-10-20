@@ -28,18 +28,24 @@
  * ======================================================================*/
 
 using System;
+using System.Net;
 #if !MQTTNET_V5
 using System.Net.Security;
 #endif
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 #if MQTTNET_V5
 using MQTTnet;
 #else
 using MQTTnet.Client;
 #endif
 using NUnit.Framework;
+using Moq;
 using Opc.Ua.PubSub.Mqtt.Internal;
+using Opc.Ua.Security.Certificates;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.PubSub.Mqtt.Tests
 {
@@ -51,6 +57,117 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
     [CancelAfter(10000)]
     public sealed class MqttClientAdapterTlsSecurityTests
     {
+        /// <summary>
+        /// Trust-only options cannot override a secure scheme on the actual adapter connect path.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR23TrustOnlyMqttsOptionsCannotUsePlaintextConnectAsync()
+        {
+            using X509Certificate2 issuer = CreateIssuer("CN=SecurityR23 Trusted Issuer");
+            var resolver = new Mock<IMqttTrustedIssuerResolver>();
+            resolver.Setup(r => r.ResolveAsync(
+                    It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                    It.IsAny<ITelemetryContext>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask<CertificateCollection>(
+                    new CertificateCollection { Certificate.FromRawData(issuer.RawData) }));
+            var client = new Mock<IMqttClient>();
+            MqttClientOptions? captured = null;
+            client.Setup(c => c.ConnectAsync(It.IsAny<MqttClientOptions>(), It.IsAny<CancellationToken>()))
+                .Callback<MqttClientOptions, CancellationToken>((options, _) => captured = options)
+                .ReturnsAsync(new MqttClientConnectResult());
+            await using var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(), TimeProvider.System, resolver.Object, client.Object);
+
+            await adapter.ConnectAsync(new MqttConnectionOptions
+            {
+                Endpoint = "mqtts://broker.example",
+                Tls = new MqttTlsOptions { TrustedIssuerCertificateSubjects = ["CN=SecurityR23 Trusted Issuer"] }
+            }, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(captured, Is.Not.Null);
+            var channel = (MqttClientTcpOptions)captured!.ChannelOptions;
+            Assert.Multiple(() =>
+            {
+                Assert.That(channel.RemoteEndpoint, Is.TypeOf<DnsEndPoint>());
+                var endpoint = (DnsEndPoint)channel.RemoteEndpoint;
+                Assert.That(endpoint.Host, Is.EqualTo("broker.example"));
+                Assert.That(endpoint.Port, Is.EqualTo(8883));
+                Assert.That(channel.TlsOptions.UseTls, Is.True);
+                Assert.That(channel.TlsOptions.AllowUntrustedCertificates, Is.False);
+                Assert.That(channel.TlsOptions.IgnoreCertificateChainErrors, Is.False);
+            });
+#if MQTTNET_V5
+            Assert.That(channel.TlsOptions.TrustChain, Has.Count.EqualTo(1));
+            Assert.That(channel.TlsOptions.CertificateValidationHandler, Is.Null);
+#else
+            using X509Certificate2 broker = CreateBrokerCertificate(issuer);
+            using X509Chain platformChain = CreatePlatformChain(issuer, broker);
+            Assert.That(InvokeInstalledValidation(
+                channel, broker, platformChain, SslPolicyErrors.RemoteCertificateChainErrors), Is.True);
+            Assert.That(InvokeInstalledValidation(
+                channel, broker, platformChain, SslPolicyErrors.RemoteCertificateNameMismatch), Is.False);
+#endif
+            client.Verify(c => c.ConnectAsync(It.IsAny<MqttClientOptions>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            resolver.Verify(r => r.ResolveAsync(
+                It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                It.IsAny<ITelemetryContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Explicit opt-in TLS and secure endpoint schemes compose monotonically, retaining intentional plaintext.
+        /// </summary>
+        [TestCase("mqtt://broker.example", false, false)]
+        [TestCase("mqtt://broker.example", true, true)]
+        [TestCase("mqtts://broker.example", false, true)]
+        [TestCase("mqtts://broker.example", true, true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR23SchemeAndTlsOptionMatrixPreservesIntentionalPlaintextPolicyAsync(
+            string endpoint, bool optionTls, bool expectedTls)
+        {
+            var client = new Mock<IMqttClient>();
+            MqttClientOptions? captured = null;
+            client.Setup(c => c.ConnectAsync(It.IsAny<MqttClientOptions>(), It.IsAny<CancellationToken>()))
+                .Callback<MqttClientOptions, CancellationToken>((options, _) => captured = options)
+                .ReturnsAsync(new MqttClientConnectResult());
+            await using var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(), TimeProvider.System, client: client.Object);
+            await adapter.ConnectAsync(new MqttConnectionOptions
+            {
+                Endpoint = endpoint,
+                Tls = new MqttTlsOptions { UseTls = optionTls }
+            }, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(((MqttClientTcpOptions)captured!.ChannelOptions).TlsOptions?.UseTls ?? false,
+                Is.EqualTo(expectedTls));
+        }
+
+        /// <summary>
+        /// Store cancellation or failure must not fall back to an unprotected broker connection.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR23IssuerResolutionFailureCannotFallBackToPlaintextAsync(bool cancelled)
+        {
+            var client = new Mock<IMqttClient>();
+            var resolver = new Mock<IMqttTrustedIssuerResolver>();
+            Exception failure = cancelled ? new OperationCanceledException() : new InvalidOperationException("store");
+            resolver.Setup(r => r.ResolveAsync(
+                    It.IsAny<System.Collections.Generic.IReadOnlyList<string>>(),
+                    It.IsAny<ITelemetryContext>(), It.IsAny<CancellationToken>()))
+                .Throws(failure);
+            await using var adapter = new MqttClientAdapter(
+                NUnitTelemetryContext.Create(), TimeProvider.System, resolver.Object, client.Object);
+            await Assert.ThatAsync(async () => await adapter.ConnectAsync(new MqttConnectionOptions
+            {
+                Endpoint = "mqtts://broker.example",
+                Tls = new MqttTlsOptions { TrustedIssuerCertificateSubjects = ["CN=issuer"] }
+            }, CancellationToken.None).ConfigureAwait(false), Throws.Exception.SameAs(failure));
+            client.Verify(c => c.ConnectAsync(It.IsAny<MqttClientOptions>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
         /// <summary>
         /// Missing custom issuers leave the platform's certificate validation in place.
         /// </summary>

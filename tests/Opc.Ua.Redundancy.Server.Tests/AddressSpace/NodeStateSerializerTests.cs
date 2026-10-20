@@ -79,6 +79,97 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(restored.BrowseName, Is.EqualTo(original.BrowseName));
         }
 
+        /// <summary>
+        /// A dynamic access mask cannot be replaced by permissive backing bits on another replica.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public void SecurityR06DynamicUserAccessPolicyCannotBeSerializedAsStaticBits(bool nested)
+        {
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("DynamicRoot", NamespaceIndex),
+                BrowseName = new QualifiedName("DynamicRoot", NamespaceIndex)
+            };
+            var variable = new BaseDataVariableState(nested ? root : null)
+            {
+                NodeId = new NodeId("DynamicValue", NamespaceIndex),
+                BrowseName = new QualifiedName("DynamicValue", NamespaceIndex),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentReadOrWrite
+            };
+            int policyCalls = 0;
+            variable.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte access) =>
+            {
+                policyCalls++;
+                access = AccessLevels.None;
+                return ServiceResult.Good;
+            };
+            root.AddChild(variable);
+            NodeState source = nested ? root : variable;
+            var value = new DataValue();
+            ServiceResult read = variable.ReadAttribute(
+                m_context, Attributes.UserAccessLevel, default, QualifiedName.Null, ref value);
+            Assert.That(ServiceResult.IsGood(read), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out byte effectiveAccess), Is.True);
+            Assert.That(effectiveAccess, Is.EqualTo(AccessLevels.None));
+
+            Assert.That(
+                () => NodeStateSerializer.Serialize(m_context, source),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadEncodingError));
+            Assert.That(policyCalls, Is.EqualTo(1), "Serialization must not evaluate a particular caller's policy.");
+            Assert.That(variable.Value, Is.EqualTo(new Variant(42)));
+            Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+        }
+
+        /// <summary>
+        /// Static access masks and role permissions survive replication without a caller-specific substitution.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR06StaticReplicatedPermissionsRetainAuthorizedValues()
+        {
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("StaticValue", NamespaceIndex),
+                BrowseName = new QualifiedName("StaticValue", NamespaceIndex),
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar,
+                Value = 42,
+                AccessLevel = AccessLevels.CurrentReadOrWrite,
+                UserAccessLevel = AccessLevels.CurrentRead,
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_Observer,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ],
+                UserRolePermissions = [],
+                AccessRestrictions = AccessRestrictionType.EncryptionRequired
+            };
+
+            var restored = (BaseDataVariableState)RoundTrip(variable);
+            var value = new DataValue();
+            ServiceResult read = restored.ReadAttribute(
+                m_context, Attributes.Value, default, QualifiedName.Null, ref value);
+
+            Assert.That(ServiceResult.IsGood(read), Is.True);
+            Assert.That(value.WrappedValue, Is.EqualTo(new Variant(42)));
+            Assert.That(restored.AccessLevel, Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+            Assert.That(restored.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+            Assert.That(restored.RolePermissions, Is.EqualTo(variable.RolePermissions));
+            Assert.That(restored.UserRolePermissions.IsNull, Is.False);
+            Assert.That(restored.UserRolePermissions, Is.Empty);
+            Assert.That(restored.AccessRestrictions, Is.EqualTo(AccessRestrictionType.EncryptionRequired));
+        }
+
         [Test]
         public void VariableRoundTripsWithValue()
         {

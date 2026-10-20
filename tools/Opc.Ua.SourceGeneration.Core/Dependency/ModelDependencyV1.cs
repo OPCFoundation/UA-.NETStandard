@@ -488,6 +488,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kMethodIdentityTrailerVersion = 1;
         private const byte kNodeIsAbstract = 0x01;
         private const byte kNodeIsEnumeration = 0x02;
+        private const byte kNodeRequiresSecurityTrailer = 0x04;
         // The declaration trailer carries the DataType restriction of each
         // VariableType and the BrowseName namespace and ReferenceType of each
         // child, with a flag byte per node and per child.
@@ -521,7 +522,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Identifies the independently versioned, length-prefixed security extension after the existing trailers.
         /// </summary>
         private const uint kSecurityTrailerMarker = 0x31434553;
-        private const byte kSecurityTrailerVersion = 1;
+        private const byte kSecurityTrailerVersion = 2;
 
         /// <summary>
         /// Namespace URI that qualifies the standard reference types.
@@ -628,13 +629,22 @@ namespace Opc.Ua.SourceGeneration.Dependency
             inflated.Position = 0;
 
             var result = new ModelDependencyV1();
-            result.ReadUncompressed(inflated);
+            try
+            {
+                result.ReadUncompressed(inflated);
+            }
+            catch (Exception ex) when (result.m_requiresSecurityTrailer &&
+                (ex is InvalidDataException or IOException or ArgumentException or OverflowException or FormatException))
+            {
+                throw new InvalidOperationException("ModelDependencyV1: cannot preserve security metadata.", ex);
+            }
             return result;
         }
 
         private void WriteUncompressed(Stream destination)
         {
             using var writer = new BinaryWriter(destination, Encoding.UTF8, leaveOpen: true);
+            bool hasSecurityTrailer = HasSecurityTrailer();
             WriteString(writer, ModelUri);
             writer.Write(Nodes.Count);
             foreach (DependencyNode node in Nodes)
@@ -656,6 +666,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     flags |= kNodeIsEnumeration;
                 }
+                if (hasSecurityTrailer)
+                {
+                    flags |= kNodeRequiresSecurityTrailer;
+                }
                 writer.Write(flags);
                 writer.Write(node.Fields.Count);
                 foreach (DependencyDataField field in node.Fields)
@@ -676,7 +690,6 @@ namespace Opc.Ua.SourceGeneration.Dependency
             bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
             bool hasDeclarationTrailer = HasDeclarationTrailer();
             bool hasNestedChildrenTrailer = HasNestedChildrenTrailer();
-            bool hasSecurityTrailer = HasSecurityTrailer();
             // The structure field, value namespace, declaration and nested-child trailers
             // are written after the extended identifier trailer, which is
             // always written with them: a reader that predates them only reads
@@ -771,6 +784,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     "ModelDependencyV1: invalid type count " + typeCount);
             }
             Nodes.Capacity = typeCount;
+            bool readSecurityTrailer = false;
             for (int i = 0; i < typeCount; i++)
             {
                 var node = new DependencyNode
@@ -787,6 +801,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte flags = reader.ReadByte();
                 node.IsAbstract = (flags & kNodeIsAbstract) != 0;
                 node.IsEnumeration = (flags & kNodeIsEnumeration) != 0;
+                m_requiresSecurityTrailer |= (flags & kNodeRequiresSecurityTrailer) != 0;
                 int fieldCount = reader.ReadInt32();
                 if (fieldCount is < 0 or > 100_000)
                 {
@@ -890,7 +905,12 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     reader.ReadUInt32() == kSecurityTrailerMarker)
                 {
                     ReadSecurityTrailer(reader);
+                    readSecurityTrailer = true;
                 }
+            }
+            if (m_requiresSecurityTrailer && !readSecurityTrailer)
+            {
+                throw new InvalidOperationException("ModelDependencyV1: cannot preserve security metadata.");
             }
         }
 
@@ -984,6 +1004,20 @@ namespace Opc.Ua.SourceGeneration.Dependency
             WriteOptionalBoolean(writer, security.UserExecutable);
             WritePermissions(writer, security.RolePermissions);
             WritePermissions(writer, security.DefaultRolePermissions);
+            WriteOptionalRestriction(writer, security.AccessRestrictions);
+            WriteOptionalRestriction(writer, security.DefaultAccessRestrictions);
+        }
+
+        /// <summary>
+        /// Writes a restriction's presence independently from an explicit unrestricted value.
+        /// </summary>
+        private static void WriteOptionalRestriction(BinaryWriter writer, AccessRestrictions? value)
+        {
+            writer.Write(value.HasValue);
+            if (value.HasValue)
+            {
+                writer.Write((int)value.Value);
+            }
         }
 
         /// <summary>
@@ -1037,7 +1071,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
         {
             try
             {
-                if (reader.ReadByte() != kSecurityTrailerVersion)
+                byte version = reader.ReadByte();
+                if (version is not 1 && version != kSecurityTrailerVersion)
                 {
                     throw new InvalidDataException("Unknown security trailer.");
                 }
@@ -1055,8 +1090,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 int remaining = kMaxNestedChildren;
                 foreach (DependencyNode node in Nodes)
                 {
-                    node.Security = ReadSecurity(securityReader);
-                    ReadChildSecurity(securityReader, node.Children, 1, ref remaining);
+                    node.Security = ReadSecurity(securityReader, version);
+                    ReadChildSecurity(securityReader, node.Children, 1, ref remaining, version);
                 }
                 if (body.Position != body.Length)
                 {
@@ -1082,7 +1117,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
             BinaryReader reader,
             IReadOnlyList<DependencyChild> children,
             int depth,
-            ref int remaining)
+            ref int remaining,
+            byte version)
         {
             ValidateNestedChildren(children.Count, depth, ref remaining);
             if (reader.ReadInt32() != children.Count)
@@ -1091,15 +1127,15 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
             foreach (DependencyChild child in children)
             {
-                child.Security = ReadSecurity(reader);
-                ReadChildSecurity(reader, child.Children.ToArray() ?? [], depth + 1, ref remaining);
+                child.Security = ReadSecurity(reader, version);
+                ReadChildSecurity(reader, child.Children.ToArray() ?? [], depth + 1, ref remaining, version);
             }
         }
 
         /// <summary>
         /// Reads independent presence bits for user restrictions and method executability.
         /// </summary>
-        private static DependencySecurity? ReadSecurity(BinaryReader reader)
+        private static DependencySecurity? ReadSecurity(BinaryReader reader, byte version)
         {
             if (!reader.ReadBoolean())
             {
@@ -1112,8 +1148,30 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 NonExecutable = reader.ReadBoolean() ? reader.ReadBoolean() : null,
                 UserExecutable = reader.ReadBoolean() ? reader.ReadBoolean() : null,
                 RolePermissions = ReadPermissions(reader),
-                DefaultRolePermissions = ReadPermissions(reader)
+                DefaultRolePermissions = ReadPermissions(reader),
+                AccessRestrictions = version >= 2 ? ReadOptionalRestriction(reader) : null,
+                DefaultAccessRestrictions = version >= 2 ? ReadOptionalRestriction(reader) : null
             };
+        }
+
+        /// <summary>
+        /// Rejects unknown restriction values rather than degrading to unrestricted nodes.
+        /// </summary>
+        private static AccessRestrictions? ReadOptionalRestriction(BinaryReader reader)
+        {
+            if (!reader.ReadBoolean())
+            {
+                return null;
+            }
+            var value = (AccessRestrictions)reader.ReadInt32();
+#if NET5_0_OR_GREATER
+            bool defined = Enum.IsDefined(value);
+#else
+            bool defined = Enum.IsDefined(typeof(AccessRestrictions), value);
+#endif
+            return defined
+                ? value
+                : throw new InvalidDataException("Invalid security access restriction.");
         }
 
         /// <summary>
@@ -2036,5 +2094,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
             byte marker = reader.ReadByte();
             return marker == 0 ? null : reader.ReadString();
         }
+
+        /// <summary>
+        /// Records that a decoded declaration cannot be used without its security extension.
+        /// </summary>
+        private bool m_requiresSecurityTrailer;
     }
 }

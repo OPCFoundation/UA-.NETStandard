@@ -86,6 +86,14 @@ sessionManager.SessionlessInvocation = new SessionlessInvocationOptions();
 - Session tokens are UInt32 or ByteString NodeIds. A token of that kind that
   names no Session stays `Bad_SessionIdInvalid`, which is what a Client
   whose Session expired needs to see.
+- A valid Access Token authenticates a session-less request, but does not
+  create a UA Session. In the built-in DI software-update and xRegistry
+  implementations, file-transfer upload handles require a Session and their
+  allocation/open or handle operations return `Bad_SessionIdInvalid` to a
+  session-less caller. Use a Session for those workflows; the general
+  session-less `Call` allowance does not override a method's stateful
+  ownership requirements. See [Software Update](SoftwareUpdate.md) and
+  [xRegistry](XRegistry.md).
 
 Override `SessionManager.ValidateSessionlessRequestAsync` for different
 rules.

@@ -46,20 +46,35 @@ namespace Opc.Ua.Client.Tests.Samples
         /// <summary>
         /// Creates one trusted application certificate and a recording session factory.
         /// </summary>
-        internal SampleSessionSecurityTestContext(bool matchingHost)
+        internal SampleSessionSecurityTestContext(
+            bool matchingHost, string requestedHost = "requested.example", bool trustPeerRoot = false)
         {
             Telemetry = NUnitTelemetryContext.Create();
-            ServerCertificate = CertificateBuilder.Create("CN=Sample Security Regression")
+            using Certificate? root = trustPeerRoot
+                ? CertificateBuilder.Create("CN=Sample Security Trusted Peer Root").SetCAConstraint(-1).CreateForRSA()
+                : null;
+            List<string> domains = [matchingHost ? requestedHost : "other-trusted.example"];
+            if (matchingHost && requestedHost is "localhost" or "127.0.0.1" or "::1")
+            {
+                // The stack resolves loopback endpoint names to the local machine's certificate identity.
+                domains.Add(Utils.GetHostName());
+            }
+            ICertificateBuilder builder = CertificateBuilder.Create("CN=Sample Security Regression")
                 .AddExtension(new X509SubjectAltNameExtension(
                     "urn:sample:advertised-server",
-                    [matchingHost ? "requested.example" : "other-trusted.example"]))
-                .CreateForRSA();
+                    domains));
+            ServerCertificate = root == null
+                ? builder.CreateForRSA()
+                : builder.SetIssuer(root).CreateForRSA();
             var security = new SecurityConfiguration
             {
                 UseValidatedCertificates = true,
                 TrustedPeerCertificates = new CertificateTrustList
                 {
-                    TrustedCertificates = [new CertificateIdentifier { RawData = ServerCertificate.RawData }]
+                    TrustedCertificates =
+                    [
+                        new CertificateIdentifier { RawData = (root ?? ServerCertificate).RawData }
+                    ]
                 }
             };
             Manager = CertificateManagerFactory.Create(security, Telemetry);
@@ -289,6 +304,8 @@ namespace Opc.Ua.Client.Tests.Samples
                 channel.Object, configuration, endpoint,
                 engineFactory: DefaultSubscriptionEngineFactory.Instance);
             session.SessionCreated(new NodeId("sample-session", 1), new NodeId("sample-token", 1));
+            SessionConfiguration saved = session.SaveSessionConfiguration() with { CheckDomain = checkDomain };
+            session.ApplySessionConfiguration(saved);
             m_sessions.Add(session);
             return session;
         }

@@ -345,6 +345,19 @@ can recycle the retained pooled graph without changing a response still
 waiting for encoding or a captured retransmission/durable snapshot.
 Pooling remains enabled for the retained notifications.
 
+Retained notifications belong to the session's authenticated and effective
+identity and role grants. Activating a different identity or changing those
+grants retires queued values, events, aggregate state, and retransmission
+messages before the new identity can publish them. Renewing a token without
+changing the principal or grants preserves the queue. A response already
+admitted under the previous identity can finish encoding its leased snapshot;
+it does not grant the new identity access to retained messages.
+
+Event subscription transfer checks the destination session's notifier
+permissions and channel restrictions before preparing node-manager transfer
+work. An incompatible destination cannot acquire the subscription. Delivery
+also rechecks current notifier restrictions, including namespace defaults.
+
 The server retains notification messages for acknowledgement and Republish
 (Part 4 §5.14). When a new batch exceeds the configured retransmission capacity,
 only the excess oldest retained messages are evicted. The remaining sequence

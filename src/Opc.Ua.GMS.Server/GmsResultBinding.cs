@@ -138,6 +138,8 @@ namespace Opc.Ua.GMS.Server
                     if (m_options.IncludeUsedTools)
                     {
                         result.AddUsedTools(systemContext);
+                        result.UsedTools!.AccessLevel = AccessLevels.CurrentRead;
+                        result.UsedTools.UserAccessLevel = AccessLevels.CurrentRead;
                         result.UsedTools!.StatusCode = StatusCodes.BadWaitingForInitialData;
                     }
                     result.StatusCode = StatusCodes.BadWaitingForInitialData;

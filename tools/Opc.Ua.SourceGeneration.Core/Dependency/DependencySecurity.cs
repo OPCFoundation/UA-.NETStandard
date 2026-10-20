@@ -67,6 +67,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public RolePermissionSet? DefaultRolePermissions { get; set; }
 
         /// <summary>
+        /// The declaration's channel restrictions, or null when unspecified.
+        /// </summary>
+        public AccessRestrictions? AccessRestrictions { get; set; }
+
+        /// <summary>
+        /// The channel restrictions applied to instances, or null when unspecified.
+        /// </summary>
+        public AccessRestrictions? DefaultAccessRestrictions { get; set; }
+
+        /// <summary>
         /// Captures effective security metadata with namespace-qualified role identities.
         /// </summary>
         internal static DependencySecurity? FromNode(NodeDesign node, IModelDesign model)
@@ -77,7 +87,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 method?.NonExecutableSpecified != true &&
                 method?.UserExecutableSpecified != true &&
                 node.RolePermissions == null &&
-                node.DefaultRolePermissions == null)
+                node.DefaultRolePermissions == null &&
+                !node.AccessRestrictionsSpecified &&
+                !node.DefaultAccessRestrictionsSpecified)
             {
                 return null;
             }
@@ -88,7 +100,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 NonExecutable = method?.NonExecutableSpecified == true ? method.NonExecutable : null,
                 UserExecutable = method?.UserExecutableSpecified == true ? method.UserExecutable : null,
                 RolePermissions = ResolveRoleIds(node.RolePermissions, model),
-                DefaultRolePermissions = ResolveRoleIds(node.DefaultRolePermissions, model)
+                DefaultRolePermissions = ResolveRoleIds(node.DefaultRolePermissions, model),
+                AccessRestrictions = node.AccessRestrictionsSpecified ? node.AccessRestrictions : null,
+                DefaultAccessRestrictions = node.DefaultAccessRestrictionsSpecified
+                    ? node.DefaultAccessRestrictions
+                    : null
             };
         }
 
@@ -102,6 +118,10 @@ namespace Opc.Ua.SourceGeneration.Dependency
             node.UserWriteAccessSpecified = UserWriteAccess.HasValue;
             node.RolePermissions = RolePermissions!;
             node.DefaultRolePermissions = DefaultRolePermissions!;
+            node.AccessRestrictions = AccessRestrictions.GetValueOrDefault();
+            node.AccessRestrictionsSpecified = AccessRestrictions.HasValue;
+            node.DefaultAccessRestrictions = DefaultAccessRestrictions.GetValueOrDefault();
+            node.DefaultAccessRestrictionsSpecified = DefaultAccessRestrictions.HasValue;
             if (node is MethodDesign method)
             {
                 method.NonExecutable = NonExecutable.GetValueOrDefault();

@@ -396,6 +396,11 @@ Its limits, active state, severity, message and acquisition metadata remain
 provider observations. The warning's input is **not** a primary probe's
 qualification countdown.
 
+`ErrorCode` is also a provider-owned observation: its runtime instance is
+read-only before registration, regardless of `AllowedOperations`. Ordinary
+Value writes return `BadNotWritable`; providers update it through accepted
+snapshots and `RefreshAsync`, without granting a second cache-write path.
+
 Use the separate inherited MachineTool notification provider for unrelated
 operator alerts. Standard condition methods remain subject to their allowed
 operations and the server's authorization. Reading or observing a warning does
@@ -456,6 +461,13 @@ features:
 | `EnableFileTransfer` | Selects the shared temporary-file download path |
 | `Corrections` | Null omits the optional folder; an empty array exposes an explicitly empty folder |
 | `Limits` | Result, metadata, file, stored-byte, characteristic and correction budgets |
+
+Selected `UsedTools` properties are read-only provider provenance on every
+published result slot, including before its first result is acquired. Ordinary
+Value writes return `BadNotWritable`; `GmsResultPublisher.PublishAsync` remains
+the update path and retains acquisition quality and timestamps. Unselected
+properties remain absent, and zero published slots still supports method-only
+result access.
 
 **Default distinction:** `GmsBuilder.WithResults(store)` disables file transfer
 for the mandatory-only system. A separately constructed

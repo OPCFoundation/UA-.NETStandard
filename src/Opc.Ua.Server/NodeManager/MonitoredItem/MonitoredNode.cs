@@ -219,6 +219,43 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Admits a subscriber-specific force-resample onto the monitored node's consumer.
+        /// </summary>
+        /// <param name="source">The exact source node whose semantics changed.</param>
+        /// <param name="item">The monitored item that must be resampled.</param>
+        /// <returns><c>true</c> when the current lifecycle owns and queued the request.</returns>
+        public bool TryQueueSemanticResample(NodeState source, IDataChangeMonitoredItem2 item)
+        {
+            if (source == null || item == null)
+            {
+                return false;
+            }
+
+            lock (m_rebindLock)
+            {
+                if (m_disposed ||
+                    m_draining ||
+                    !ReferenceEquals(source, Node) ||
+                    !DataChangeMonitoredItems.TryGetValue(item.Id, out IDataChangeMonitoredItem2? current) ||
+                    !ReferenceEquals(current, item))
+                {
+                    return false;
+                }
+
+                item.SetSemanticsChanged();
+                m_pendingSemanticResamples.Enqueue(new SemanticResample(
+                    GetSubscriberContextTemplate(),
+                    source,
+                    item));
+                // The request is retained independently of the bounded notification channel.
+                // If the channel is full, its consumer drains the pending request after older
+                // notifications, so synchronous admission cannot silently lose a resample.
+                _ = m_channel.Writer.TryWrite(new SemanticResampleSignal(GetSubscriberContextTemplate()));
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Adds the specified event monitored item.
         /// </summary>
         /// <param name="eventItem">The monitored item.</param>
@@ -620,8 +657,16 @@ namespace Opc.Ua.Server
                         {
                             await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken).ConfigureAwait(false);
                         }
+                        else if (notification is SemanticResample semanticResample)
+                        {
+                            await ProcessSemanticResampleAsync(semanticResample, cancellationToken).ConfigureAwait(false);
+                        }
+                        else if (notification is SemanticResampleSignal)
+                        {
+                        }
                         else if (notification is NotificationFence fence)
                         {
+                            await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
                             fence.Completion.TrySetResult(true);
                         }
                     }
@@ -632,6 +677,22 @@ namespace Opc.Ua.Server
                     catch (Exception ex)
                     {
                         m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                    }
+
+                    if (!m_channel.Reader.TryPeek(out _))
+                    {
+                        try
+                        {
+                            await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            m_logger?.MonitoredNode2ConsumerEncounteredAnErrorProcessing(ex);
+                        }
                     }
                 }
             }
@@ -744,14 +805,16 @@ namespace Opc.Ua.Server
                 MonitoredItem.SharedEventEvaluation? evaluation = evaluations.Get(
                     monitoredItem,
                     out MonitoredItem.SharedEventFilterKey? key);
-                ServiceResult validationResult = await GetOrAddEventPermissionAsync(
+                (ServiceResult validationResult, ISession? authorizationSession,
+                    NotificationAuthorization? authorization) = await GetOrAddEventPermissionAsync(
                     monitoredItem, target, eventTypeId, sourceNodeId, cancellationToken).ConfigureAwait(false);
                 // An Uncertain verdict is not a denial, so it must not drop the event.
                 if (!ServiceResult.IsBad(validationResult))
                 {
-                    if (evaluation != null)
+                    if (monitoredItem is MonitoredItem concreteItem)
                     {
-                        ((MonitoredItem)monitoredItem).QueueSharedEvent(target, key!, evaluation);
+                        concreteItem.QueueEventIfCurrent(
+                            authorizationSession, authorization, target, key, evaluation);
                     }
                     else
                     {
@@ -802,7 +865,8 @@ namespace Opc.Ua.Server
         /// effective identity, identity generation, and node permission version.
         /// Falls back to an uncached lookup when either NodeId is null.
         /// </summary>
-        private async ValueTask<ServiceResult> GetOrAddEventPermissionAsync(
+        private async ValueTask<(ServiceResult Result, ISession? Session, NotificationAuthorization? Authorization)>
+            GetOrAddEventPermissionAsync(
             IEventMonitoredItem monitoredItem,
             IFilterTarget filterTarget,
             NodeId eventTypeId,
@@ -814,8 +878,22 @@ namespace Opc.Ua.Server
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                bool currentIdentity = MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session);
                 MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
+                if (!currentIdentity || authorization.Session?.IsIdentityStale == true)
+                {
+                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), authorization.Session, null);
+                }
+                NotificationAuthorization? notificationAuthorization = NotificationAuthorization.Capture(
+                    authorization.Session);
                 ServiceResult result;
+                using OperationContext context = MonitoredReadAuthorization.CreateContext(monitoredItem);
+                ServiceResult restrictions = await MonitoredReadAuthorization.ValidateEventRestrictionsAsync(
+                    m_server, Node, context, cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(restrictions))
+                {
+                    return (restrictions, authorization.Session, notificationAuthorization);
+                }
                 if (cacheable &&
                     m_eventPermissionCache.TryGetValue(
                         key, out (MonitoredItemPermissionContext Context, ServiceResult Result) cached) &&
@@ -835,7 +913,7 @@ namespace Opc.Ua.Server
                 }
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)))
                 {
-                    return result;
+                    return (result, authorization.Session, notificationAuthorization);
                 }
             }
         }
@@ -913,7 +991,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(validationResult))
             {
-                QueueError(monitoredItem, validationResult);
+                QueueError(monitoredItem, validationResult, contextToUse);
                 return;
             }
 
@@ -929,7 +1007,7 @@ namespace Opc.Ua.Server
                         if (ServiceResult.IsBad(userAccess) || (userAccessLevel & AccessLevels.CurrentRead) == 0)
                         {
                             QueueError(monitoredItem, ServiceResult.IsBad(userAccess)
-                                ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied));
+                                ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied), contextToUse);
                             return;
                         }
                     }
@@ -953,7 +1031,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
-                monitoredItem.QueueValue(valueToQueue, valueToQueue.StatusCode);
+                QueueValueIfCurrent(monitoredItem, contextToUse, valueToQueue, valueToQueue.StatusCode);
                 return;
             }
 
@@ -970,22 +1048,124 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(readResult))
                 {
-                    QueueError(monitoredItem, readResult);
+                    QueueError(monitoredItem, readResult, contextToUse);
                     return;
                 }
             }
-            monitoredItem.QueueValue(snapshotValue, ServiceResult.Good);
+            QueueValueIfCurrent(monitoredItem, contextToUse, snapshotValue, ServiceResult.Good);
+        }
+
+        /// <summary>
+        /// Re-reads one semantic-change item using its current subscriber identity and policy.
+        /// </summary>
+        private async Task ProcessSemanticResampleAsync(
+            SemanticResample request,
+            CancellationToken cancellationToken)
+        {
+            IDataChangeMonitoredItem2 item = request.Item;
+            if (!IsSemanticResampleCurrent(request))
+            {
+                return;
+            }
+
+            var snapshot = new DataChangeSnapshot
+            {
+                Context = request.Context,
+                NodeId = request.Source.NodeId,
+                Changes = NodeStateChangeMasks.Value
+            };
+
+            while (IsSemanticResampleCurrent(request))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                MonitoredItemPermissionContext authorization = CapturePermissionContext(item);
+                (ServiceResult permission, ServerSystemContext contextToUse) =
+                    await GetDataChangePermissionAsync(
+                        snapshot,
+                        item,
+                        MonitoredReadAuthorization.PermissionFor(item.AttributeId),
+                        cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(permission))
+                {
+                    if (authorization.Matches(CapturePermissionContext(item)) &&
+                        IsSemanticResampleCurrent(request))
+                    {
+                        QueueError(item, permission, contextToUse);
+                        return;
+                    }
+                    continue;
+                }
+
+                ServiceResult readResult;
+                DataValue value;
+                (readResult, value) = await request.Source.ReadAttributeAsync(
+                    contextToUse,
+                    item.AttributeId,
+                    default,
+                    QualifiedName.Null,
+                    new DataValue(
+                        default,
+                        StatusCodes.Good,
+                        DateTime.MinValue,
+                        m_timeProvider.GetUtcNow().UtcDateTime),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (!authorization.Matches(CapturePermissionContext(item)) ||
+                    !IsSemanticResampleCurrent(request))
+                {
+                    continue;
+                }
+
+                if (ServiceResult.IsBad(readResult))
+                {
+                    QueueError(item, readResult, contextToUse);
+                    return;
+                }
+
+                DataValue queuedValue = ApplyRangeAndEncoding(contextToUse, item, value);
+                QueueValueIfCurrent(item, contextToUse, queuedValue, queuedValue.StatusCode, ignoreFilters: true);
+                return;
+            }
+        }
+
+        private async Task ProcessPendingSemanticResamplesAsync(CancellationToken cancellationToken)
+        {
+            while (m_pendingSemanticResamples.TryDequeue(out SemanticResample? request))
+            {
+                await ProcessSemanticResampleAsync(request, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private bool IsSemanticResampleCurrent(SemanticResample request)
+        {
+            lock (m_rebindLock)
+            {
+                return !m_disposed &&
+                    ReferenceEquals(request.Source, Node) &&
+                    DataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
+                    ReferenceEquals(current, request.Item);
+            }
         }
 
         /// <summary>
         /// Queues a bad status value so the Publish response reports the error
         /// instead of the item going silent.
         /// </summary>
-        private void QueueError(IDataChangeMonitoredItem2 monitoredItem, ServiceResult error)
+        private void QueueError(
+            IDataChangeMonitoredItem2 monitoredItem,
+            ServiceResult error,
+            ServerSystemContext? context = null)
         {
-            monitoredItem.QueueValue(
-                DataValue.FromStatusCode(error.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime),
-                error);
+            DataValue value = DataValue.FromStatusCode(
+                error.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime);
+            if (context != null)
+            {
+                QueueValueIfCurrent(monitoredItem, context, value, error);
+            }
+            else
+            {
+                monitoredItem.QueueValue(value, error);
+            }
         }
 
         private static bool IsUserDependentAttribute(uint attributeId)
@@ -1005,6 +1185,7 @@ namespace Opc.Ua.Server
             while (true)
             {
                 ct.ThrowIfCancellationRequested();
+                _ = MonitoredReadAuthorization.TryRefreshIdentity(m_server, monitoredItem.Session);
                 MonitoredItemPermissionContext authorization = CapturePermissionContext(monitoredItem);
                 long generation = authorization.Generation +
                     authorization.RolePermissionsVersion +
@@ -1019,6 +1200,10 @@ namespace Opc.Ua.Server
                     GetSubscriberContextTemplate(), monitoredItem, generation);
                 OperationContext operationContext = cachedContext.OperationContext!;
                 ServiceResult result;
+                if (authorization.Session?.IsIdentityStale == true)
+                {
+                    return (new ServiceResult(StatusCodes.BadUserAccessDenied), cachedContext);
+                }
                 if (m_permissionCache.TryGetValue(
                     monitoredItem.Id,
                     out (long Generation, ISession? Session,
@@ -1075,7 +1260,7 @@ namespace Opc.Ua.Server
                 snapshot, monitoredItem, requested, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(authorization))
             {
-                QueueError(monitoredItem, authorization);
+                QueueError(monitoredItem, authorization, subscriberContext);
                 return;
             }
             var value = new DataValue(
@@ -1102,10 +1287,34 @@ namespace Opc.Ua.Server
                 !ReferenceEquals(subscriberContext.UserIdentity, currentContext.UserIdentity))
             {
                 QueueError(monitoredItem, ServiceResult.IsBad(authorization)
-                    ? authorization : new ServiceResult(StatusCodes.BadUserAccessDenied));
+                    ? authorization : new ServiceResult(StatusCodes.BadUserAccessDenied), subscriberContext);
                 return;
             }
-            monitoredItem.QueueValue(value, error);
+            QueueValueIfCurrent(monitoredItem, subscriberContext, value, error);
+        }
+
+        /// <summary>
+        /// Preserves read authorization provenance through the final monitored-item enqueue.
+        /// </summary>
+        private static void QueueValueIfCurrent(
+            IDataChangeMonitoredItem2 item,
+            ServerSystemContext context,
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters = false)
+        {
+            if (item is MonitoredItem concreteItem && context.OperationContext is OperationContext operation)
+            {
+                concreteItem.QueueValueIfCurrent(operation, value, error, ignoreFilters);
+            }
+            else if (ignoreFilters)
+            {
+                item.QueueValue(value, error, ignoreFilters: true);
+            }
+            else
+            {
+                item.QueueValue(value, error);
+            }
         }
 
         /// <summary>
@@ -1306,7 +1515,9 @@ namespace Opc.Ua.Server
         private readonly Task m_consumerTask;
         private readonly bool m_useMultipleConsumers;
         private readonly Lock m_rebindLock = new();
+        private readonly ConcurrentQueue<SemanticResample> m_pendingSemanticResamples = new();
         private bool m_disposed;
+        private bool m_draining;
 
         /// <summary>
         /// Completes the notification writer and asynchronously waits for all queued
@@ -1316,7 +1527,11 @@ namespace Opc.Ua.Server
         /// <returns>A task that completes when the notification consumer has stopped.</returns>
         public async ValueTask DrainAsync(CancellationToken cancellationToken = default)
         {
-            m_channel.Writer.TryComplete();
+            lock (m_rebindLock)
+            {
+                m_draining = true;
+                m_channel.Writer.TryComplete();
+            }
             await m_consumerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -1357,6 +1572,7 @@ namespace Opc.Ua.Server
                     return;
                 }
                 m_disposed = true;
+                m_draining = true;
                 if (disposing)
                 {
                     m_server.ConfigurationNodeManager?.DefaultPermissionsChanged -= OnDefaultPermissionsChanged;

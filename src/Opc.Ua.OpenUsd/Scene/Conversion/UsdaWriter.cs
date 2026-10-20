@@ -352,8 +352,8 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
         /// Renders a scalar string attribute value. A USD asset path is authored with
         /// <c>@…@</c> delimiters (§6.2 <c>asset</c> → <c>UsdAssetPath</c>), symmetric with the
         /// reader that unwraps <c>@…@</c>; a recognised string-like scalar or a recognised array
-        /// type is quoted; an unmapped (opaque) type carries its already-rendered value verbatim
-        /// so a structured opaque value survives the round trip (§8.4).
+        /// type is quoted. An unmapped type preserves only a complete, supported value literal;
+        /// all other opaque text is quoted so it cannot author surrounding layer syntax.
         /// </summary>
         private static string RenderStringValue(string s, string typeName)
         {
@@ -365,7 +365,112 @@ namespace Opc.Ua.OpenUsd.Scene.Conversion
                 (typeName is "token" or "string"
                     || typeName.EndsWith("[]", System.StringComparison.Ordinal))
                 && UsdValueTypeMap.IsKnown(typeName);
-            return quoted ? "\"" + EscapeQuoted(s) + "\"" : s;
+            if (quoted)
+            {
+                return "\"" + EscapeQuoted(s) + "\"";
+            }
+            int position = 0;
+            if (TryConsumeOpaqueLiteral(s, ref position, 0))
+            {
+                SkipOpaqueWhitespace(s, ref position);
+                if (position == s.Length)
+                {
+                    return s;
+                }
+            }
+            return "\"" + EscapeQuoted(s) + "\"";
+        }
+
+        /// <summary>
+        /// Recognizes exactly one bounded scalar or sequence, never prim or composition syntax.
+        /// </summary>
+        private static bool TryConsumeOpaqueLiteral(string text, ref int position, int depth)
+        {
+            SkipOpaqueWhitespace(text, ref position);
+            if (position == text.Length || depth > 64)
+            {
+                return false;
+            }
+            char first = text[position++];
+            if (first is '(' or '[')
+            {
+                char close = first == '(' ? ')' : ']';
+                SkipOpaqueWhitespace(text, ref position);
+                if (position < text.Length && text[position] == close)
+                {
+                    position++;
+                    return true;
+                }
+                while (TryConsumeOpaqueLiteral(text, ref position, depth + 1))
+                {
+                    SkipOpaqueWhitespace(text, ref position);
+                    if (position == text.Length)
+                    {
+                        return false;
+                    }
+                    char separator = text[position++];
+                    if (separator == close)
+                    {
+                        return true;
+                    }
+                    if (separator != ',')
+                    {
+                        return false;
+                    }
+                    SkipOpaqueWhitespace(text, ref position);
+                    if (position < text.Length && text[position] == close)
+                    {
+                        position++;
+                        return true;
+                    }
+                }
+                return false;
+            }
+            if (first == '"')
+            {
+                while (position < text.Length)
+                {
+                    char current = text[position++];
+                    if (current == '"')
+                    {
+                        return true;
+                    }
+                    if (current is '\r' or '\n' || char.IsControl(current))
+                    {
+                        return false;
+                    }
+                    if (current == '\\')
+                    {
+                        if (position == text.Length || char.IsControl(text[position]))
+                        {
+                            return false;
+                        }
+                        position++;
+                    }
+                }
+                return false;
+            }
+            int start = position - 1;
+            while (position < text.Length &&
+                !char.IsWhiteSpace(text[position]) &&
+                text[position] is not ',' and not ')' and not ']')
+            {
+                position++;
+            }
+            string scalar = text[start..position];
+            return scalar is "true" or "false" or "None" ||
+                double.TryParse(scalar, NumberStyles.Float, CultureInfo.InvariantCulture, out _);
+        }
+
+        /// <summary>
+        /// Skips whitespace between literal tokens without accepting comments or layer directives.
+        /// </summary>
+        private static void SkipOpaqueWhitespace(string text, ref int position)
+        {
+            while (position < text.Length && char.IsWhiteSpace(text[position]))
+            {
+                position++;
+            }
         }
 
         /// <summary>

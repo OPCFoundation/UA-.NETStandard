@@ -683,6 +683,8 @@
       <xs:enumeration value="SessionAndApplyToBrowseRequired" />
       <xs:enumeration value="SessionWithSigningAndApplyToBrowseRequired" />
       <xs:enumeration value="SessionWithEncryptionAndApplyToBrowseRequired" />
+      <xs:enumeration value="None" />
+      <xs:enumeration value="ApplyToBrowse" />
     </xs:restriction>
   </xs:simpleType>
 

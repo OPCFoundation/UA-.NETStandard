@@ -220,6 +220,122 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Replacement routing cannot grant access to the retained source during an immediate monitoring refresh.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR44RetainedItemReenableUsesOriginalGenerationReadAclAsync(bool reusedNodeId)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.Node.RolePermissions =
+            [
+                new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Anonymous, Permissions = (uint)PermissionType.Read }
+            ];
+            await harness.QueueImmediateAsync().ConfigureAwait(false);
+            AssertValue(harness.First.Values.ToArray()[0]);
+
+            harness.RouteVisibleNode(reusedNodeId
+                ? new BaseDataVariableState(null) { NodeId = harness.Node.NodeId, Value = 73 }
+                : null);
+            harness.Node.RolePermissions =
+            [
+                new RolePermissionType { RoleId = ObjectIds.WellKnownRole_AuthenticatedUser, Permissions = (uint)PermissionType.Read }
+            ];
+            harness.Node.Value = 99;
+            int reads = 0;
+            harness.Node.OnSimpleReadValue = (ISystemContext _, NodeState _, ref Variant _) =>
+            {
+                reads++;
+                return ServiceResult.Good;
+            };
+
+            await harness.QueueImmediateAsync().ConfigureAwait(false);
+
+            Assert.That(reads, Is.Zero);
+            Assert.That(harness.First.Values, Has.Count.EqualTo(2));
+            AssertDenied(harness.First.Values.ToArray()[1], StatusCodes.BadUserAccessDenied);
+        }
+
+        /// <summary>
+        /// An authorized retained subscriber receives the original source, never the replacement's value.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR44AuthorizedRetainedItemReadsExactOwnedSourceAsync(bool reusedNodeId)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.Node.RolePermissions =
+            [
+                new RolePermissionType { RoleId = ObjectIds.WellKnownRole_Anonymous, Permissions = (uint)PermissionType.Read }
+            ];
+            harness.RouteVisibleNode(reusedNodeId
+                ? new BaseDataVariableState(null) { NodeId = harness.Node.NodeId, Value = 73 }
+                : null);
+            int authorizations = 0;
+            using IDisposable registration = harness.Owner.RegisterValueReadAuthorization(
+                harness.Node, (_, _) =>
+                {
+                    authorizations++;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+
+            await harness.QueueImmediateAsync().ConfigureAwait(false);
+
+            Assert.That(authorizations, Is.EqualTo(2), "Both sides of the source read must use its policy.");
+            Assert.That(harness.First.Values, Has.Count.EqualTo(1));
+            AssertValue(harness.First.Values.ToArray()[0]);
+        }
+
+        /// <summary>
+        /// A retained source cannot lend a routing-based grant to a queued or suspended notification.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR44RetainedInitialAndNotificationReadsCannotBorrowVisibleRoutingAsync(bool immediate)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.RouteVisibleNode(null);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using IDisposable registration = harness.Owner.RegisterValueReadAuthorization(
+                harness.Node, async (_, ct) =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                });
+            ValueTask delivery = immediate ? harness.QueueImmediateAsync() : harness.EnqueueAsync();
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                harness.Node.RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)PermissionType.Read
+                    }
+                ];
+                harness.Node.Value = 99;
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await delivery.ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            Assert.That(harness.First.Values, Has.Count.EqualTo(1));
+            AssertDenied(harness.First.Values.ToArray()[0], StatusCodes.BadUserAccessDenied);
+        }
+
+        /// <summary>
         /// Queued and future protected values survive safe rebinds but cannot move to a plaintext channel.
         /// </summary>
         [TestCase(Profiles.HttpsBinaryTransport)]
@@ -512,6 +628,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Receiver AddReceiver(uint id)
             {
                 var identity = new Mock<IUserIdentity>();
+                identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_Anonymous]);
                 var endpoint = new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt };
                 var session = new Mock<ISession>();
                 session.SetupGet(value => value.Id).Returns(new NodeId(id, 1));
@@ -539,6 +656,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 return m_monitored.OnMonitoredNodeChangedAsync(
                     Owner.SystemContext, Node, NodeStateChangeMasks.Value);
+            }
+
+            /// <summary>
+            /// Models shadow replacement routing independently of the original monitored source.
+            /// </summary>
+            public void RouteVisibleNode(NodeState? visible)
+            {
+                Mock.Get(Server.Object.NodeManager)
+                    .Setup(value => value.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                    .Returns<NodeId, CancellationToken>((id, _) =>
+                        new ValueTask<(object? Handle, IAsyncNodeManager? Manager)>(
+                            visible != null && id == visible.NodeId
+                                ? (new NodeHandle(id, visible), Owner) : (null, null)));
             }
 
             /// <summary>

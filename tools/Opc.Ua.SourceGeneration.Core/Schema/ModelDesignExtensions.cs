@@ -3512,6 +3512,10 @@ namespace Opc.Ua.Schema.Model
             }
             return restrictions switch
             {
+                AccessRestrictions.None =>
+                    "global::Opc.Ua.AccessRestrictionType.None",
+                AccessRestrictions.ApplyToBrowse =>
+                    "global::Opc.Ua.AccessRestrictionType.ApplyRestrictionsToBrowse",
                 AccessRestrictions.SigningRequired =>
                     "global::Opc.Ua.AccessRestrictionType.SigningRequired",
                 AccessRestrictions.EncryptionRequired =>

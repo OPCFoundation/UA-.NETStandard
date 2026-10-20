@@ -88,6 +88,34 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// diagnostics.
         /// </summary>
         public string? AffordanceName { get; }
+
+        /// <summary>
+        /// Gets the outbound destination policy. Factories must apply it before
+        /// connecting to any rediscovered, redirected or rewritten destination.
+        /// </summary>
+        public WotEndpointPolicy EndpointPolicy { get; init; } = WotEndpointPolicy.Default;
+
+        /// <summary>
+        /// Validates and normalizes a destination before a factory connects to it.
+        /// </summary>
+        /// <param name="endpointUrl">The effective connection destination.</param>
+        /// <returns>The validated absolute destination URI.</returns>
+        /// <exception cref="ServiceResultException">
+        /// The destination is malformed, lacks a host or is excluded by the endpoint policy.
+        /// </exception>
+        public Uri ValidateEndpoint(string? endpointUrl)
+        {
+            ServiceResult result = WotEndpointValidator.Validate(endpointUrl, EndpointPolicy, out Uri? normalized);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+            if (normalized is null || string.IsNullOrEmpty(normalized.Host))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+            }
+            return normalized;
+        }
     }
 
     /// <summary>

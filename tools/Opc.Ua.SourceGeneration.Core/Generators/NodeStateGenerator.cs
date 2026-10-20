@@ -4678,6 +4678,11 @@ namespace Opc.Ua.SourceGeneration
 
         private static List<RolePermission> GetRolePermissions(NodeDesign node)
         {
+            if (!string.IsNullOrEmpty(node.RolePermissions?.Name) ||
+                !string.IsNullOrEmpty(node.DefaultRolePermissions?.Name))
+            {
+                throw new InvalidDataException("RolePermissions contains an unresolved named permission set.");
+            }
             // Emit RolePermissions on all nodes (type and instance).
             // Type hierarchy nodes carry permissions as metadata but the server
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.

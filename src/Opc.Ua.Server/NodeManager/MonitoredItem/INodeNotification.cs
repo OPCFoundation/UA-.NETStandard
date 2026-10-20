@@ -70,6 +70,56 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Requests one current value sample for a monitored item after a semantic change.
+    /// </summary>
+    internal sealed class SemanticResample : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResample"/> class.
+        /// </summary>
+        /// <param name="context">The source system context.</param>
+        /// <param name="source">The exact source node being sampled.</param>
+        /// <param name="item">The monitored item which requested the resample.</param>
+        public SemanticResample(ISystemContext context, NodeState source, IDataChangeMonitoredItem2 item)
+        {
+            Context = context;
+            Source = source;
+            Item = item;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+
+        /// <summary>
+        /// Gets the exact source node that was admitted.
+        /// </summary>
+        public NodeState Source { get; }
+
+        /// <summary>
+        /// Gets the monitored item that was admitted.
+        /// </summary>
+        public IDataChangeMonitoredItem2 Item { get; }
+    }
+
+    /// <summary>
+    /// Wakes the monitored-node consumer to inspect its lifecycle-owned semantic-resample queue.
+    /// </summary>
+    internal sealed class SemanticResampleSignal : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResampleSignal"/> class.
+        /// </summary>
+        /// <param name="context">The server context.</param>
+        public SemanticResampleSignal(ISystemContext context)
+        {
+            Context = context;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+    }
+
+    /// <summary>
     /// Represents a snapshot of a node event.
     /// </summary>
     internal class EventSnapshot : INodeNotification

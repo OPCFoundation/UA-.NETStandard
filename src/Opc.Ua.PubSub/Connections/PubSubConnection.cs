@@ -2773,6 +2773,13 @@ namespace Opc.Ua.PubSub.Connections
             return 1 + 4 + 1 + wrapper.Policy.NonceLength + wrapper.Policy.SignatureLength;
         }
 
+        /// <summary>
+        /// The security context actually used by this connection, including application overrides.
+        /// </summary>
+        internal PubSubSecurityContext? EffectiveSecurityContext => m_securityWrapper is null
+            ? null
+            : new PubSubSecurityContext(m_securityWrapper, m_securityWrapOptions);
+
         internal ValueTask SendTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,
             string? topic,
@@ -2782,6 +2789,47 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         internal async ValueTask SendTranscodedFrameAsync(
+            ReadOnlyMemory<byte> frame,
+            string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
+            CancellationToken cancellationToken)
+        {
+            await ValidateTranscodedFrameSecurityAsync(frame, cancellationToken).ConfigureAwait(false);
+            await SendValidatedTranscodedFrameAsync(frame, topic, properties, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates raw bridge egress against the connection's effective message security.
+        /// </summary>
+        internal async ValueTask ValidateTranscodedFrameSecurityAsync(
+            ReadOnlyMemory<byte> frame, CancellationToken cancellationToken)
+        {
+            MessageSecurityMode requiredMode = m_securityWrapper is null ? m_requiredSecurityMode :
+                m_securityWrapOptions == UadpSecurityWrapOptions.SignAndEncrypt
+                    ? MessageSecurityMode.SignAndEncrypt
+                    : MessageSecurityMode.Sign;
+            if (requiredMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt)
+            {
+                if (!UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo prefix) ||
+                    !prefix.SecurityEnabled ||
+                    !UadpSecurityHeader.TryRead(frame.Span[prefix.PrefixLength..], out UadpSecurityHeader header,
+                        out _) ||
+                    (header.SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.NetworkMessageSigned) == 0 ||
+                    (requiredMode == MessageSecurityMode.SignAndEncrypt &&
+                        (header.SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) == 0) ||
+                    m_securityWrapper is null ||
+                    !await m_securityWrapper.VerifyOutboundAsync(frame, prefix.PrefixLength, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a frame after the complete transcode result has passed security preflight.
+        /// </summary>
+        internal async ValueTask SendValidatedTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,
             string? topic,
             ArrayOf<PubSubMessageProperty> properties,

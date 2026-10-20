@@ -61,7 +61,8 @@ namespace Opc.Ua
         /// </summary>
         private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
         private readonly Func<Certificate, X509Certificate2> m_copyNativeCertificate;
-        private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
+        private readonly ConcurrentDictionary<string, ValidatedPath> m_validatedCertificates;
+        private readonly TimeProvider m_timeProvider;
 
         /// <summary>
         /// Trust-list store instances, cached and reused across validations so
@@ -98,11 +99,24 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
             Func<Certificate, X509Certificate2> copyNativeCertificate)
+            : this(telemetry, openStore, copyNativeCertificate, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates a validation engine using one clock for native validation and cached path validity.
+        /// </summary>
+        internal CertificateValidationCore(
+            ITelemetryContext telemetry,
+            Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
+            Func<Certificate, X509Certificate2> copyNativeCertificate,
+            TimeProvider timeProvider)
         {
             m_telemetry = telemetry;
             m_openStore = openStore ?? (store => store.OpenStore(telemetry));
             m_copyNativeCertificate = copyNativeCertificate ??
                 throw new ArgumentNullException(nameof(copyNativeCertificate));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
@@ -551,20 +565,24 @@ namespace Opc.Ua
             }
 
             Certificate certificate = chain[0];
+            ValidatedPath? validatedPath = null;
+            CertificateValidationResult result;
 
             try
             {
-                await InternalValidateAsync(chain, endpoint: null, options, ct).ConfigureAwait(false);
-
-                m_validatedCertificates.GetOrAdd(
-                   certificate.Thumbprint,
-                   _ => certificate.RawData);
-                return CertificateValidationResult.Success;
+                await InternalValidateAsync(
+                    chain, endpoint: null, options, path => validatedPath = path, ct).ConfigureAwait(false);
+                result = CertificateValidationResult.Success;
             }
             catch (ServiceResultException se)
             {
-                return HandleCertificateValidationException(se, certificate, acceptError);
+                result = HandleCertificateValidationException(se, certificate, acceptError);
             }
+            if (result.IsValid && validatedPath != null)
+            {
+                m_validatedCertificates[certificate.Thumbprint] = validatedPath;
+            }
+            return result;
         }
 
         /// <summary>
@@ -847,6 +865,7 @@ namespace Opc.Ua
             CertificateCollection certificates,
             ConfiguredEndpoint? endpoint,
             Security.Certificates.CertificateValidationOptions? options,
+            Action<ValidatedPath> capturePath,
             CancellationToken ct = default)
         {
             Certificate certificate = certificates[0];
@@ -895,6 +914,13 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
+                var currentPath = new ValidatedPath(certificate, issuers);
+                if (issuers.Count == 0
+                    ? X509Utils.IsSelfSigned(certificate)
+                    : X509Utils.IsSelfSigned(issuers[^1].Certificate))
+                {
+                    capturePath(currentPath);
+                }
 
                 // Check for a previously validated certificate. Deliberately
                 // placed AFTER the issuer walk: GetIssuersAsync is what
@@ -915,9 +941,8 @@ namespace Opc.Ua
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
                         certificate.Thumbprint,
-                        out byte[]? certificate2) &&
-                    Utils.IsEqual(certificate2, certificate.RawData) &&
-                    IsChainCurrentlyTimeValid(certificate, issuers))
+                        out ValidatedPath? cachedPath) &&
+                    cachedPath.Matches(currentPath, m_timeProvider.GetUtcNow().UtcDateTime))
                 {
                     return;
                 }
@@ -927,6 +952,7 @@ namespace Opc.Ua
                 {
                     RevocationFlag = X509RevocationFlag.EntireChain,
                     RevocationMode = X509RevocationMode.NoCheck,
+                    VerificationTime = m_timeProvider.GetUtcNow().UtcDateTime,
                     VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
                     DisableCertificateDownloads = !(options?.AllowCertificateDownload ?? false),
@@ -1089,6 +1115,30 @@ namespace Opc.Ua
                 {
                     // no issuer found at all
                     chainIncomplete = true;
+                }
+
+                // Apply the same exclusive expiry and clock to every path certificate,
+                // independently of native chain-engine time handling.
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                if ((now < certificate.NotBefore.ToUniversalTime() || now >= certificate.NotAfter.ToUniversalTime()) &&
+                    (trustedCertificate == null ||
+                        (trustedCertificate.Options & CertificateValidationOptions.SuppressCertificateExpired) == 0))
+                {
+                    sresult = new ServiceResult(
+                        ServiceResult.Create(StatusCodes.BadCertificateTimeInvalid, "Certificate is not time valid."),
+                        sresult);
+                }
+                foreach (CertificateIssuerReference issuer in issuers)
+                {
+                    if ((now < issuer.Certificate.NotBefore.ToUniversalTime() ||
+                        now >= issuer.Certificate.NotAfter.ToUniversalTime()) &&
+                        (issuer.Options & CertificateValidationOptions.SuppressCertificateExpired) == 0)
+                    {
+                        sresult = new ServiceResult(
+                            ServiceResult.Create(
+                                StatusCodes.BadCertificateIssuerTimeInvalid, "Issuer certificate is not time valid."),
+                            sresult);
+                    }
                 }
 
                 // A certificate or CA the trust list marks as "never trust"
@@ -1391,12 +1441,6 @@ namespace Opc.Ua
                     isSuppressible: true);
             }
 
-            // accepted; cache raw data for future fast-path without adding
-            // another disposable certificate owner to the validation cache.
-            if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
-            {
-                m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
-            }
             return CertificateValidationResult.Success;
         }
 
@@ -2118,31 +2162,60 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Prevents cached acceptance from outliving any certificate's validity period.
+        /// Immutable certificate bytes and validity intersection of the accepted issuer path.
+        /// Does not retain native certificate handles or borrow certificates from callers.
         /// </summary>
-        private static bool IsChainCurrentlyTimeValid(
-            Certificate certificate,
-            List<CertificateIssuerReference> issuers)
+        private sealed class ValidatedPath
         {
-            DateTime now = DateTime.UtcNow;
-            if (!IsTimeValid(certificate, now))
+            /// <summary>
+            /// Captures the resolved path before its borrowed certificate handles are released.
+            /// </summary>
+            public ValidatedPath(Certificate certificate, List<CertificateIssuerReference> issuers)
             {
-                return false;
+                m_certificates = new byte[issuers.Count + 1][];
+                m_certificates[0] = certificate.RawData;
+                m_notBefore = certificate.NotBefore.ToUniversalTime();
+                m_notAfter = certificate.NotAfter.ToUniversalTime();
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    Certificate issuer = issuers[i].Certificate;
+                    m_certificates[i + 1] = issuer.RawData;
+                    DateTime notBefore = issuer.NotBefore.ToUniversalTime();
+                    DateTime notAfter = issuer.NotAfter.ToUniversalTime();
+                    if (notBefore > m_notBefore)
+                    {
+                        m_notBefore = notBefore;
+                    }
+                    if (notAfter < m_notAfter)
+                    {
+                        m_notAfter = notAfter;
+                    }
+                }
             }
-            foreach (CertificateIssuerReference issuer in issuers)
+
+            /// <summary>
+            /// Requires the entire previously accepted issuer path and its earliest validity deadline.
+            /// </summary>
+            public bool Matches(ValidatedPath current, DateTime now)
             {
-                if (!IsTimeValid(issuer.Certificate, now))
+                if (now < m_notBefore || now >= m_notAfter ||
+                    m_certificates.Length != current.m_certificates.Length)
                 {
                     return false;
                 }
+                for (int i = 0; i < m_certificates.Length; i++)
+                {
+                    if (!Utils.IsEqual(m_certificates[i], current.m_certificates[i]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
-            return true;
 
-            static bool IsTimeValid(Certificate candidate, DateTime time)
-            {
-                return time >= candidate.NotBefore.ToUniversalTime() &&
-                    time < candidate.NotAfter.ToUniversalTime();
-            }
+            private readonly byte[][] m_certificates;
+            private readonly DateTime m_notBefore;
+            private readonly DateTime m_notAfter;
         }
 
         /// <summary>

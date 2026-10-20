@@ -11,6 +11,23 @@ http://opcfoundation.org/License/MIT/1.00/
 
 This sample connects to `IntentEnabledRobot`, discovers its Robot Intent controller, prints the facets declared by its capabilities, obtains command authority, and maps OpenUSD target picks to Robot Intent linear moves. With `--mcp` on a supported target framework, it also hosts the Robot Intent MCP tools over the same OPC UA session. A submitted intent returns admission immediately; this client then waits on the returned operation and prints live `ExecutionState`, `Progress`, `CurrentPose`, and the terminal `IntentResultDataType`.
 
+## Connection and viewport trust boundaries
+
+`SampleSession` checks the server certificate's hostname against the
+operator-supplied `--server` URL, including on reconnect. `--insecure` opts into
+trusting an otherwise untrusted certificate; it does not disable hostname
+validation or replace the requested identity with a discovery-advertised URL.
+
+With `--view`, the fetched initial stage is prepared before live streaming starts.
+Live viewport updates forward attribute values, time samples and batches only.
+Server-controlled component references, payloads, instances and activation changes
+are not composed into the running native viewport, even when they name a local
+file or command bindings are enabled. This prevents a live component update from
+resolving an external asset with the viewer process's ambient Windows credentials.
+Trusted host-side composition and file-sink export remain available; preparing an
+initial stage still requires the operator to trust its content and asset resolver.
+An asset digest establishes integrity, not trust in that content's dependencies.
+
 ## MCP hosting
 
 With `--mcp`, the viewer client exposes the Robotics MCP profile so an LLM agent can discover controllers, read state, request authority, submit intents and missions, pause/resume/cancel/retry operations, and wait for operation completion while a human watches the same robot in the OpenUSD viewport. The MCP tools use the one `SampleSession` opened by the sample; the viewer, OpenUSD live bindings, and MCP tools therefore observe and command the same connected controller.

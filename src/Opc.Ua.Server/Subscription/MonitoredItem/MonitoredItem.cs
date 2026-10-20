@@ -1392,6 +1392,132 @@ namespace Opc.Ua.Server
             QueueValueCore(in value, error, ignoreFilters, initialValue: false);
         }
 
+        /// <summary>
+        /// Removes notifications that were authorized under a previous session identity.
+        /// </summary>
+        internal void ClearQueuedNotifications()
+        {
+            lock (m_lock)
+            {
+                m_dataChangeQueueHandler?.Clear();
+                m_eventQueueHandler?.Clear();
+                AggregateFilter?.ClearNotifications();
+                m_valuePublication?.Complete(published: false);
+                m_valuePublication = null;
+                m_finalValuePending = false;
+                m_filteredRetainConditionIds?.Clear();
+                m_lastValue = default;
+                m_lastError = null;
+                m_readyToPublish = false;
+                m_readyToTrigger = false;
+                m_resendData = false;
+                m_triggered = false;
+                Interlocked.Exchange(ref m_readySignal, 0);
+            }
+        }
+
+        /// <summary>
+        /// Discards only notifications predating the current identity, preserving newly admitted events.
+        /// </summary>
+        internal void EnsureNotificationAuthorization()
+        {
+            lock (m_lock)
+            {
+                ISession? session = Session;
+                if (session == null)
+                {
+                    return;
+                }
+                NotificationAuthorization? authorization = NotificationAuthorization.Capture(session);
+                bool sameSession = ReferenceEquals(m_notificationSession, session);
+                bool sameAuthorization = ReferenceEquals(m_notificationAuthorization, authorization) ||
+                    (m_notificationAuthorization != null &&
+                        authorization != null &&
+                        m_notificationAuthorization.IsEquivalentTo(authorization, sameSession));
+                if (m_notificationSession != null && !sameAuthorization)
+                {
+                    ClearQueuedNotifications();
+                }
+                m_notificationSession = session;
+                m_notificationAuthorization = authorization;
+            }
+        }
+
+        /// <summary>
+        /// Admits a value only if the identity used to authorize its read still owns this item.
+        /// </summary>
+        internal void QueueValueIfCurrent(
+            OperationContext context,
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters = false,
+            bool initialValue = false)
+        {
+            lock (m_lock)
+            {
+                ISession? session = Session ?? context.Session;
+                if (!ReferenceEquals(context.Session, session) ||
+                    !NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
+                {
+                    return;
+                }
+                if (m_subscription == null)
+                {
+                    if (m_notificationSession != null &&
+                        !NotificationAuthorization.IsCurrent(m_notificationSession, m_notificationAuthorization))
+                    {
+                        ClearQueuedNotifications();
+                    }
+                    m_notificationSession = session;
+                    m_notificationAuthorization = context.NotificationAuthorization;
+                }
+                if (initialValue)
+                {
+                    QueueValueCore(value, error, ignoreFilters, initialValue: true);
+                }
+                else
+                {
+                    QueueValue(value, error, ignoreFilters);
+                }
+                if (!NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
+                {
+                    ClearQueuedNotifications();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Admits an event only in the epoch that authorized its delivery.
+        /// </summary>
+        internal void QueueEventIfCurrent(
+            ISession? session,
+            NotificationAuthorization? authorization,
+            IFilterTarget target,
+            SharedEventFilterKey? key,
+            SharedEventEvaluation? evaluation)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(session, Session) ||
+                    !NotificationAuthorization.IsCurrent(session, authorization))
+                {
+                    return;
+                }
+                if (evaluation != null)
+                {
+                    QueueSharedEvent(target, key!, evaluation);
+                }
+                else
+                {
+                    QueueEvent(target);
+                }
+                if (!NotificationAuthorization.IsCurrent(session, authorization))
+                {
+                    ClearQueuedNotifications();
+                }
+            }
+        }
+
         void IInitialValueMonitoredItem.QueueInitialValue(
             in DataValue value,
             ServiceResult? error,
@@ -1416,6 +1542,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1778,6 +1906,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1862,6 +1992,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
@@ -2081,6 +2212,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // check if the item reports events.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -2213,6 +2346,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // check if the item reports data changes.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -2405,6 +2540,7 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_subscription = value;
+                    EnsureNotificationAuthorization();
                 }
             }
         }
@@ -2453,6 +2589,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
                 return new StoredMonitoredItem
                 {
                     SamplingInterval = m_samplingInterval,
@@ -3061,6 +3198,12 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>The owner of this item's notification epoch.</summary>
+        private ISession? m_notificationSession;
+
+        /// <summary>The epoch of this item's queued values, events, and aggregate state.</summary>
+        private NotificationAuthorization? m_notificationAuthorization;
         private bool m_queueRestoreStaged;
 
         /// <summary>

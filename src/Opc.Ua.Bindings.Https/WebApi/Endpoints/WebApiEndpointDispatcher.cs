@@ -97,8 +97,8 @@ namespace Opc.Ua.Bindings.WebApi.Endpoints
         {
             ArgumentNullException.ThrowIfNull(context);
 
-            IWebApiServer server = context.RequestServices
-                .GetRequiredService<IWebApiServer>();
+            IWebApiServer server = context.Features.Get<WebApiServer>() ??
+                context.RequestServices.GetRequiredService<IWebApiServer>();
             ISessionlessIdentityProvider? identityProvider = context.RequestServices
                 .GetService<ISessionlessIdentityProvider>();
             ILoggerFactory loggerFactory = context.RequestServices

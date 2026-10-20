@@ -77,7 +77,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         public MqttClientAdapter(
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
-            IMqttTrustedIssuerResolver? trustedIssuerResolver = null)
+            IMqttTrustedIssuerResolver? trustedIssuerResolver = null,
+            IMqttClient? client = null)
         {
             if (telemetry is null)
             {
@@ -96,7 +97,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
 #else
             var factory = new MqttFactory();
 #endif
-            m_client = factory.CreateMqttClient();
+            m_client = client ?? factory.CreateMqttClient();
             m_client.ApplicationMessageReceivedAsync += OnApplicationMessageReceivedAsync;
             m_client.ConnectedAsync += OnConnectedAsync;
             m_client.DisconnectedAsync += OnDisconnectedAsync;
@@ -145,7 +146,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 builder = builder.WithClientId(options.ClientId);
             }
-            bool useTls = options.Tls?.UseTls ?? endpoint.UseTls;
+            bool useTls = endpoint.UseTls || options.Tls?.UseTls == true;
             ValidateCredentialTransport(options.UserName, useTls, options.AllowCredentialsOverPlaintext);
             if (!string.IsNullOrEmpty(options.UserName))
             {

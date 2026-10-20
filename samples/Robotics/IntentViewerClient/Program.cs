@@ -795,7 +795,7 @@ namespace IntentViewerClient
             IUsdSink sink,
             CancellationToken cancellationToken)
         {
-            var connector = new OpenUsdConnector(session, sink, enableCommands: false);
+            OpenUsdConnector connector = CreateViewportConnector(session, sink);
             await using (connector.ConfigureAwait(false))
             {
                 await StreamConnectorUntilCancelledAsync(
@@ -803,6 +803,20 @@ namespace IntentViewerClient
                     connector.StopAsync,
                     cancellationToken).ConfigureAwait(false);
             }
+        }
+
+        /// <summary>
+        /// Creates the remote live-stream connector without granting structural viewport authority.
+        /// </summary>
+        internal static OpenUsdConnector CreateViewportConnector(
+            ISession session,
+            IUsdSink sink,
+            OpenUsdConnectorOptions? options = null)
+        {
+            return new OpenUsdConnector(
+                session,
+                new UsdViewportValueSink(sink),
+                options ?? new OpenUsdConnectorOptions { EnableCommands = false });
         }
 
         internal static async Task StreamConnectorUntilCancelledAsync(

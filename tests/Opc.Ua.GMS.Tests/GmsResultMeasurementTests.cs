@@ -40,6 +40,8 @@ using Opc.Ua.GMS.Server;
 using Opc.Ua.Machinery.Result;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Machinery.Server.Builders;
+using Opc.Ua.MachineTool;
+using Opc.Ua.MachineTool.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Tests;
 using ISession = Opc.Ua.Client.ISession;
@@ -54,6 +56,159 @@ namespace Opc.Ua.GMS.Tests
     [NonParallelizable]
     public sealed class GmsResultMeasurementTests
     {
+        /// <summary>
+        /// Provider-owned tool provenance and warning codes reject the ordinary Value-write fallback.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR19ClientCannotOverwriteUsedToolsOrWarningCodeAsync()
+        {
+            await using MachineryNodeManager owner = await CreateCorrectionOwnerAsync(loadModels: true)
+                .ConfigureAwait(false);
+            IMachineryBuildContext context = SecurityContext(owner);
+            GmsSystemSnapshot initial = GmsSensorWarningTests.Example();
+            initial = initial with
+            {
+                SensorWarnings =
+                [
+                    initial.SensorWarnings[0] with
+                    {
+                        ErrorCode = "E17",
+                        AllowedOperations = MachineToolConditionOperations.None
+                    }
+                ]
+            };
+            var provider = new InMemoryGmsProvider(initial);
+            await using GmsHandle handle = await GmsSystemTests.Builder(context, "ProtectedMetadata", provider)
+                .WithOptions(new GmsSystemOptions
+                {
+                    Features = GmsFeatures.AdditionalSensors | GmsFeatures.SensorWarnings
+                })
+                .WithResults(new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()),
+                    new GmsResultBindingOptions
+                    {
+                        IncludeUsedTools = true, PublishedResults = 1, EnableFileTransfer = false
+                    })
+                .BuildAsync().ConfigureAwait(false);
+            await handle.Results.PublishAsync(new GmsResult(
+                GmsResultStoreTests.Result("one").Value.WithSourceTimestamp(s_acquired), ["tool-A"]))
+                .ConfigureAwait(false);
+            GMSResultState slot = ModelTestContext.IndexNodes(context.Context, [handle.State])
+                .Values.OfType<GMSResultState>().Single();
+            Assert.That(handle.TryGetSensorWarning("TemperatureWarning", out SensorWarningAlarmState? warning), Is.True);
+            Assert.That(warning!.Retain!.Value, Is.True);
+            BaseVariableState[] variables = [slot.UsedTools!, warning.ErrorCode!];
+            Variant[] attacks = [Variant.From((ArrayOf<string>)["forged-tool"]), Variant.From("attacker-code")];
+            for (int i = 0; i < variables.Length; i++)
+            {
+                BaseVariableState variable = variables[i];
+                Variant before = variable.Value.Copy();
+                DateTimeUtc timestamp = variable.Timestamp;
+                ServiceResult result = await variable.WriteAttributeAsync(
+                    context.Context, Attributes.Value, NumericRange.Null,
+                    new DataValue(attacks[i]), CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                    Assert.That(variable.Value, Is.EqualTo(before));
+                    Assert.That(variable.Timestamp, Is.EqualTo(timestamp));
+                    Assert.That(variable.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(variable.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                });
+            }
+            Assert.That(slot.UsedTools!.Value, Is.EqualTo((ArrayOf<string>)["tool-A"]));
+            Assert.That(warning.ErrorCode!.Value, Is.EqualTo("E17"));
+            Assert.That(handle.Observation!.SensorWarnings[0].ErrorCode, Is.EqualTo("E17"));
+
+            await handle.Results.PublishAsync(new GmsResult(
+                GmsResultStoreTests.Result("two").Value.WithSourceTimestamp(s_acquired), ["tool-B", "tool-C"]))
+                .ConfigureAwait(false);
+            await provider.SetSnapshotAsync(initial with
+            {
+                SensorWarnings = [initial.SensorWarnings[0] with { ErrorCode = "E18" }]
+            }).ConfigureAwait(false);
+            await handle.RefreshAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(slot.UsedTools.Value, Is.EqualTo((ArrayOf<string>)["tool-B", "tool-C"]));
+                Assert.That(slot.UsedTools.Timestamp, Is.EqualTo(s_acquired));
+                Assert.That(warning.ErrorCode.Value, Is.EqualTo("E18"));
+                Assert.That(warning.ErrorCode.Timestamp, Is.EqualTo(GmsEquipmentTests.AcquisitionTime));
+                Assert.That(warning.Retain.Value, Is.True);
+                Assert.That(warning.ActiveState!.Id!.Value, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Optional provenance is secured before registration, or remains genuinely absent.
+        /// </summary>
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR19OptionalMetadataIsProtectedBeforeRegistrationAsync(bool tools, int count)
+        {
+            await using MachineryNodeManager owner = await CreateCorrectionOwnerAsync().ConfigureAwait(false);
+            IMachineryBuildContext context = SecurityContext(owner);
+            GMSState root = context.Context.CreateInstanceOfGMSType(
+                context.MachinesFolder, new QualifiedName("OptionalMetadata", context.InstanceNamespaceIndex));
+            IMachineBuilder<GMSState> builder = context.AddMachine(root).WithGmsResults(
+                new InMemoryGmsResultStore(ModelTestContext.CreateMessageContext()), out GmsResultBinding binding,
+                new GmsResultBindingOptions
+                {
+                    PublishedResults = count, IncludeUsedTools = tools, EnableFileTransfer = false
+                });
+            using GmsResultBinding ownedBinding = binding;
+            GMSResultState[] slots = ModelTestContext.IndexNodes(context.Context, [root])
+                .Values.OfType<GMSResultState>().ToArray();
+            Assert.That(slots, Has.Length.EqualTo(count));
+            Assert.That(owner.FindPredefinedNode(root.NodeId), Is.Null);
+            foreach (GMSResultState slot in slots)
+            {
+                Assert.That(slot.UsedTools != null, Is.EqualTo(tools));
+                if (slot.UsedTools != null)
+                {
+                    ServiceResult result = await slot.UsedTools.WriteAttributeAsync(
+                        context.Context, Attributes.Value, NumericRange.Null,
+                        new DataValue(Variant.From((ArrayOf<string>)["forged-tool"])), CancellationToken.None)
+                        .ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+                    Assert.That(slot.UsedTools.AccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(slot.UsedTools.UserAccessLevel, Is.EqualTo(AccessLevels.CurrentRead));
+                }
+            }
+            IMachineHandle<GMSState> machine = await builder.BuildAsync().ConfigureAwait(false);
+            await binding.CreatePublisher(machine).PublishAsync(new GmsResult(
+                GmsResultStoreTests.Result("one").Value.WithSourceTimestamp(s_acquired),
+                tools ? ["tool-B", "tool-C"] : default))
+                .ConfigureAwait(false);
+            foreach (GMSResultState slot in slots)
+            {
+                if (tools)
+                {
+                    Assert.That(slot.UsedTools!.Value, Is.EqualTo((ArrayOf<string>)["tool-B", "tool-C"]));
+                    Assert.That(slot.UsedTools.Timestamp, Is.EqualTo(s_acquired));
+                }
+                else
+                {
+                    Assert.That(slot.UsedTools, Is.Null);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Selects the same owner options without a socket-backed test host.
+        /// </summary>
+        private static IMachineryBuildContext SecurityContext(MachineryNodeManager owner)
+        {
+            return owner.CreateMachineryBuildContext(new MachineryServerOptions
+            {
+                Parts = MachineryParts.BuildingBlocks | MachineryParts.Result,
+                InstanceNamespaceUri = "urn:gms-tests:application"
+            });
+        }
+
         /// <summary>
         /// Client writes cannot falsify correction observations, while their owning publisher can update samples.
         /// </summary>
@@ -465,7 +620,7 @@ namespace Opc.Ua.GMS.Tests
         /// <summary>
         /// Provides an in-memory Machinery owner without starting a transport or loading unrelated model nodes.
         /// </summary>
-        private static async Task<MachineryNodeManager> CreateCorrectionOwnerAsync()
+        private static async Task<MachineryNodeManager> CreateCorrectionOwnerAsync(bool loadModels = false)
         {
             SystemContext context = ModelTestContext.CreateSystemContext();
             var types = new TypeTable(context.NamespaceUris);
@@ -474,6 +629,13 @@ namespace Opc.Ua.GMS.Tests
             types.AddSubtype(NodeId.Create(Machinery.Result.ObjectTypes.ResultReadyEventType,
                 Machinery.Result.Namespaces.MachineryResult, context.NamespaceUris),
                 Ua.ObjectTypeIds.BaseEventType);
+            types.AddSubtype(Ua.VariableTypeIds.BaseVariableType, NodeId.Null);
+            types.AddSubtype(Ua.VariableTypeIds.BaseDataVariableType, Ua.VariableTypeIds.BaseVariableType);
+            NodeId resultType = NodeId.Create(Machinery.Result.VariableTypes.ResultType,
+                Machinery.Result.Namespaces.MachineryResult, context.NamespaceUris);
+            types.AddSubtype(resultType, Ua.VariableTypeIds.BaseDataVariableType);
+            types.AddSubtype(NodeId.Create(VariableTypes.GMSResultType, GmsModel.NamespaceUri, context.NamespaceUris),
+                resultType);
             var server = new Mock<IServerInternal>();
             var master = new Mock<IMasterNodeManager>();
             master.SetupGet(value => value.AsyncNodeManagers).Returns([]);
@@ -496,6 +658,16 @@ namespace Opc.Ua.GMS.Tests
             }, [new GmsModelProvider()], options);
             try
             {
+                if (loadModels)
+                {
+                    NodeStateCollection nodes = new NodeStateCollection().AddOpcUa(owner.SystemContext);
+                    new GmsModelProvider().AddPredefinedNodes(nodes, owner.SystemContext);
+                    foreach (NodeState node in nodes)
+                    {
+                        await owner.AddPredefinedNodeAsync(node).ConfigureAwait(false);
+                    }
+                    return owner;
+                }
                 await owner.AddPredefinedNodeAsync(new FolderState(null)
                 {
                     NodeId = NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, context.NamespaceUris),

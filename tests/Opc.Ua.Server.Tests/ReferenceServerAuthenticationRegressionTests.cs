@@ -29,6 +29,7 @@
 
 using System;
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -48,6 +49,165 @@ namespace Opc.Ua.Server.Tests
     [Category("Session")]
     public sealed class ReferenceServerAuthenticationRegressionTests
     {
+        /// <summary>
+        /// Application provisioning acceptance never authenticates an unapproved certificate user.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR12ProvisioningAutoAcceptCannotAuthenticateUntrustedUserCertificateAsync(bool peerTrusted)
+        {
+            using Certificate user = CertificateBuilder.Create("CN=Unapproved R12 User")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using var validator = new CertificateManager(NUnitTelemetryContext.Create());
+            validator.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                AutoAcceptUntrustedCertificates = true,
+                UseValidatedCertificates = true,
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    TrustedCertificates = peerTrusted
+                        ? [new CertificateIdentifier { RawData = user.RawData }]
+                        : []
+                }
+            });
+            validator.AcceptError = static (_, error) => error.StatusCode == StatusCodes.BadCertificateUntrusted;
+            await using var harness = new AuthenticationHarness(validator);
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await harness.ActivateCertificateAsync(created, user).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadIdentityTokenRejected));
+
+            Assert.That(created.Session.Activated, Is.False);
+            Assert.That(created.Session.EffectiveIdentity, Is.Null);
+            using Certificate applicationCertificate = CertificateBuilder.Create("CN=Bootstrap R12 Application")
+                .SetRSAKeySize(2048).CreateForRSA();
+            CertificateValidationResult application = await validator.ValidateAsync(applicationCertificate)
+                .ConfigureAwait(false);
+            Assert.That(application.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good),
+                "Application bootstrap acceptance must remain enabled.");
+        }
+
+        /// <summary>
+        /// A permissive Users cache is not authority for the sample's strict user-certificate verifier.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR12PermissiveCertificateCacheCannotCrossIntoStrictUsersValidationAsync()
+        {
+            using Certificate user = CertificateBuilder.Create("CN=Cached R12 User")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using var validator = new CertificateManager(NUnitTelemetryContext.Create());
+            validator.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                AutoAcceptUntrustedCertificates = true,
+                UseValidatedCertificates = true
+            });
+            validator.AcceptError = static (_, error) => error.StatusCode == StatusCodes.BadCertificateUntrusted;
+            CertificateValidationResult warmed = await validator.ValidateAsync(user, TrustListIdentifier.Users)
+                .ConfigureAwait(false);
+            Assert.That(warmed.IsValid, Is.True);
+            await using var harness = new AuthenticationHarness(validator);
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await harness.ActivateCertificateAsync(created, user).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadIdentityTokenRejected));
+
+            Assert.That(created.Session.Activated, Is.False);
+            Assert.That(created.Session.EffectiveIdentity, Is.Null);
+            using var chain = new CertificateCollection { user };
+            CertificateValidationResult strict = await validator.ValidateAsync(
+                chain, TrustListIdentifier.Users,
+                new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    AcceptError = static (_, _) => false
+                }).ConfigureAwait(false);
+            Assert.That(strict.IsValid, Is.False);
+        }
+
+        /// <summary>
+        /// Explicit Users trust grants only the intended user role and still requires private-key possession.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR12TrustedUserCertificateAndApplicationBootstrapRemainSupportedAsync(bool badProof)
+        {
+            using Certificate user = CertificateBuilder.Create("CN=Trusted R12 User")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using var validator = new CertificateManager(NUnitTelemetryContext.Create());
+            validator.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                AutoAcceptUntrustedCertificates = true,
+                TrustedUserCertificates = new CertificateTrustList
+                {
+                    TrustedCertificates = [new CertificateIdentifier { RawData = user.RawData }]
+                }
+            });
+            await using var harness = new AuthenticationHarness(validator);
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+            if (badProof)
+            {
+                await Assert.ThatAsync(
+                    async () => await harness.ActivateCertificateAsync(created, user, true).ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo((StatusCode)StatusCodes.BadUserSignatureInvalid));
+                Assert.That(created.Session.Activated, Is.False);
+                return;
+            }
+
+            await harness.ActivateCertificateAsync(created, user).ConfigureAwait(false);
+
+            Assert.That(created.Session.Activated, Is.True);
+            Assert.That(created.Session.EffectiveIdentity.GrantedRoleIds.ToArray(),
+                Does.Contain(ObjectIds.WellKnownRole_AuthenticatedUser));
+            Assert.That(created.Session.EffectiveIdentity.GrantedRoleIds.ToArray(),
+                Does.Not.Contain(ObjectIds.WellKnownRole_SecurityAdmin));
+            Assert.That(created.Session.EffectiveIdentity.GrantedRoleIds.ToArray(),
+                Does.Not.Contain(ObjectIds.WellKnownRole_ConfigureAdmin));
+        }
+
+        /// <summary>
+        /// Users trust and provisioning acceptance do not suppress invalid lifetime or key usage.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR12TrustedInvalidUserCertificateCannotAuthenticateAsync(bool expired)
+        {
+            using Certificate invalid = expired
+                ? CertificateBuilder.Create("CN=Expired R12 User")
+                    .SetNotBefore(new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                    .SetNotAfter(new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc))
+                    .SetRSAKeySize(2048).CreateForRSA()
+                : CertificateBuilder.Create("CN=Wrong Purpose R12 User")
+                    .AddExtension(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, true))
+                    .SetRSAKeySize(2048).CreateForRSA();
+            using var validator = new CertificateManager(NUnitTelemetryContext.Create());
+            validator.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                AutoAcceptUntrustedCertificates = true,
+                TrustedUserCertificates = new CertificateTrustList
+                {
+                    TrustedCertificates = [new CertificateIdentifier { RawData = invalid.RawData }]
+                }
+            });
+            await using var harness = new AuthenticationHarness(validator);
+            CreateSessionResult created = await harness.CreateSessionAsync().ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                async () => await harness.ActivateCertificateAsync(created, invalid).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(expired ? StatusCodes.BadIdentityTokenRejected : StatusCodes.BadIdentityTokenInvalid));
+
+            Assert.That(created.Session.Activated, Is.False);
+            Assert.That(created.Session.EffectiveIdentity, Is.Null);
+        }
+
         /// <summary>
         /// Disabling an account preserves its password but denies a new activation until the account is enabled.
         /// </summary>
@@ -124,7 +284,7 @@ namespace Opc.Ua.Server.Tests
             /// <summary>
             /// Creates test-owned account, certificate, identity registry, and diagnostics without starting a host.
             /// </summary>
-            public AuthenticationHarness()
+            public AuthenticationHarness(CertificateManager? userValidator = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 var configuration = new ApplicationConfiguration
@@ -138,6 +298,12 @@ namespace Opc.Ua.Server.Tests
                     }
                 };
                 Reference = new ReferenceServer(telemetry);
+                if (userValidator != null)
+                {
+                    typeof(ReferenceServer)
+                        .GetField("m_userCertificateValidator", BindingFlags.Instance | BindingFlags.NonPublic)!
+                        .SetValue(Reference, userValidator);
+                }
                 Password = Guid.NewGuid().ToString("N");
                 m_users = (IUserManagement)typeof(ReferenceServer)
                     .GetField("m_userManagement", BindingFlags.Instance | BindingFlags.NonPublic)!
@@ -186,6 +352,12 @@ namespace Opc.Ua.Server.Tests
                         {
                             PolicyId = "username",
                             TokenType = UserTokenType.UserName,
+                            SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                        },
+                        new UserTokenPolicy
+                        {
+                            PolicyId = "certificate",
+                            TokenType = UserTokenType.Certificate,
                             SecurityPolicyUri = SecurityPolicies.Basic256Sha256
                         }
                     ]
@@ -238,6 +410,7 @@ namespace Opc.Ua.Server.Tests
                         m_context, created.AuthenticationToken, new SignatureData(), new ExtensionObject(token.Token),
                         new SignatureData(), []).ConfigureAwait(false);
                 }
+
                 finally
                 {
                     if (token.DecryptedPassword is byte[] cleartext)
@@ -245,6 +418,32 @@ namespace Opc.Ua.Server.Tests
                         Array.Clear(cleartext, 0, cleartext.Length);
                     }
                 }
+            }
+
+            /// <summary>
+            /// Submits a real certificate token and private-key proof through fresh SessionManager activation.
+            /// </summary>
+            public async ValueTask ActivateCertificateAsync(
+                CreateSessionResult created, Certificate certificate, bool badProof = false)
+            {
+                SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+                byte[] signatureData = policy.GetUserTokenSignatureData(
+                    null, created.ServerNonce.ToArray(), m_certificate.RawData, null, null, null, null,
+                    MessageSecurityMode.None);
+                SignatureData proof = await SecurityPolicies.Default.CreateSignatureDataAsync(
+                    policy, certificate, signatureData, CancellationToken.None).ConfigureAwait(false);
+                if (badProof)
+                {
+                    proof.Signature = ByteString.From([0, 1, 2]);
+                }
+                var token = new X509IdentityToken
+                {
+                    PolicyId = "certificate",
+                    CertificateData = certificate.RawData.ToByteString()
+                };
+                await Manager.ActivateSessionAsync(
+                    m_context, created.AuthenticationToken, new SignatureData(),
+                    new ExtensionObject(token), proof, []).ConfigureAwait(false);
             }
 
             /// <summary>

@@ -163,13 +163,24 @@ namespace Opc.Ua.Server
                 try
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    ISession? authorizationSession = monitoredItem.Session;
+                    NotificationAuthorization? authorization =
+                        NotificationAuthorization.Capture(authorizationSession);
                     ServiceResult result = await nodeManager
                         .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
                         .ConfigureAwait(false);
                     // An Uncertain verdict is not a denial, so it must not drop the event.
                     if (!ServiceResult.IsBad(result))
                     {
-                        monitoredItem.QueueEvent(e);
+                        if (monitoredItem is MonitoredItem concreteItem)
+                        {
+                            concreteItem.QueueEventIfCurrent(
+                                authorizationSession, authorization, e, null, null);
+                        }
+                        else
+                        {
+                            monitoredItem.QueueEvent(e);
+                        }
                     }
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

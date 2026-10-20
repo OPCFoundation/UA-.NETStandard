@@ -2728,6 +2728,7 @@ namespace Opc.Ua.Server.Tests
                         SourceManager.Object,
                         TargetManager.Object
                     ]);
+                server.Setup(instance => instance.NodeManager).Returns(Sut);
             }
 
             public MasterNodeManager Sut { get; }

@@ -673,6 +673,19 @@ to independent monitored items, then complete that event before advancing
 the shared queue. A slow permission check cannot let a later event overtake
 an earlier one; the bounded queue still applies backpressure.
 
+Background event and value delivery use the subscriber's current effective
+identity and accepted channel, not the identity that reported a change.
+Role invalidation is reconciled before authorization; an asynchronous check
+cannot enqueue a result after its captured authorization context changes.
+
+Changes to semantic properties such as `EURange` resample the exact monitored
+source under each subscriber's read permissions and channel restrictions.
+The semantic-property writer's permission does not authorize reading the
+parent value. Both monitored-node and sampling-group consumers own this work
+for their lifetime and recheck authorization before queuing the result.
+Namespace defaults and registered value-read authorizers apply to these reads
+as they do to ordinary monitored delivery.
+
 Monitored-item deletion and mode changes isolate failures by owner.
 Already completed results are retained, remaining items for a failed
 owner receive an explicit error, and other owners still run. Event

@@ -147,10 +147,12 @@ if (!result.IsValid)
     Console.WriteLine($"Validation failed: {result.StatusCode}");
 }
 
-// Validate a user X.509 identity token against the Users trust-list
+// Validate a user X.509 identity token against Users without application autoaccept.
+using var userChain = new CertificateCollection { userCertificate };
 CertificateValidationResult userResult = await manager.ValidateAsync(
-    userCertificate,
-    TrustListIdentifier.Users);
+    userChain,
+    TrustListIdentifier.Users,
+    new CertificateValidationOptions { AcceptError = static (_, _) => false });
 
 // Validate against a custom trust-list
 CertificateValidationResult mqttResult = await manager.ValidateAsync(
@@ -183,10 +185,22 @@ An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
 
 When `UseValidatedCertificates` is enabled, cached acceptance still checks
-revocation and the current validity period of the leaf and every resolved issuer.
-An expired or not-yet-valid chain returns through normal validation, including
-the current caller's configured error policy. Hostname validation is independent
-of the chain cache and checks each requested endpoint.
+revocation, the complete accepted issuer path and the validity interval shared by
+every certificate on that path. Omitting a peer-only intermediate cannot reuse an
+earlier complete-chain acceptance. An expired, not-yet-valid, missing or changed
+path returns through normal chain validation and the current caller's error
+policy. Cache entries retain immutable certificate bytes, not native handles.
+The manager's `TimeProvider` drives both native verification time and cache
+deadlines, including when constructed through the factory. Hostname validation
+is independent of the chain cache and checks each requested endpoint.
+
+The Reference Server rejects every user-certificate validation error through an
+isolated per-call policy, even when application provisioning enables autoaccept
+or another validation has warmed a permissive Users cache. Approve X.509 users
+in the Users trust list; trusting an application in Peers does not approve a
+user. Valid user certificates still require proof of possession and grant no
+administrative role merely by being trusted. Application bootstrap acceptance
+and provisioning's removal of Anonymous remain unchanged.
 
 Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
 re-evaluating an existing connection without adding failures to the rejected

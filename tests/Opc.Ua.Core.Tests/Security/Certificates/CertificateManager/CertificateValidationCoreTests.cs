@@ -34,6 +34,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -53,6 +54,135 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public sealed class CertificateValidationCoreTests
     {
+        /// <summary>
+        /// An omitted peer-only issuer cannot borrow a prior complete path, including after its expiration.
+        /// </summary>
+        [TestCase(-1, false)]
+        [TestCase(0, false)]
+        [TestCase(1, false)]
+        [TestCase(-1, true)]
+        [TestCase(0, true)]
+        [TestCase(1, true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR15CachedLeafCannotOmitExpiredPeerIntermediateAsync(
+            int secondsFromExpiry, bool includeIssuer)
+        {
+            DateTime expiry = new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            using Certificate issuer = CertificateBuilder.Create("CN=Peer Only R15 Issuer")
+                .SetCAConstraint(0).SetNotBefore(s_leafFrom).SetNotAfter(expiry)
+                .SetIssuer(m_rootCa).SetRSAKeySize(2048).CreateForRSA();
+            using Certificate leaf = CreateUnclippedLeaf(issuer, expiry.AddYears(1));
+            var clock = new FakeTimeProvider(new DateTimeOffset(expiry.AddHours(-1)));
+            int nativeCopies = 0;
+            using var core = new CertificateValidationCore(
+                m_telemetry, static _ => null, certificate =>
+                {
+                    nativeCopies++;
+                    return certificate.AsX509Certificate2();
+                }, clock);
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            core.UseValidatedCertificates = true;
+            using (CertificateCollection complete = Chain(leaf, issuer))
+            {
+                CertificateValidationResult initial = await core.ValidateAsync(
+                    complete, null, null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(initial.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            }
+            int initialCopies = nativeCopies;
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromSeconds(secondsFromExpiry));
+            using CertificateCollection presented = includeIssuer ? Chain(leaf, issuer) : Chain(leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                presented, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            if (includeIssuer && secondsFromExpiry < 0)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(nativeCopies, Is.EqualTo(initialCopies), "A complete current path may use the cache.");
+            }
+            else
+            {
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(ContainsStatusCode(result, includeIssuer
+                    ? StatusCodes.BadCertificateIssuerTimeInvalid
+                    : StatusCodes.BadCertificateChainIncomplete), Is.True);
+                Assert.That(nativeCopies, Is.GreaterThan(initialCopies), "Invalid evidence requires native validation.");
+            }
+            using RSA sourceKey = issuer.GetRSAPublicKey()!;
+            Assert.That(sourceKey.KeySize, Is.EqualTo(2048), "Cache entries cannot dispose borrowed certificates.");
+        }
+
+        /// <summary>
+        /// Trusted self-signed leaves retain a fast path only strictly before their own expiry.
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(1)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR15CachedCompleteValidPathAndTrustedLeafRemainUsableAsync(int secondsFromExpiry)
+        {
+            DateTime expiry = new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            using Certificate leaf = CertificateBuilder.Create("CN=Trusted R15 Leaf")
+                .SetNotBefore(s_leafFrom).SetNotAfter(expiry).SetRSAKeySize(2048).CreateForRSA();
+            var clock = new FakeTimeProvider(new DateTimeOffset(expiry.AddHours(-1)));
+            int copies = 0;
+            using var core = new CertificateValidationCore(m_telemetry, static _ => null, certificate =>
+            {
+                copies++;
+                return certificate.AsX509Certificate2();
+            }, clock);
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = leaf.RawData }]
+            }, null);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(leaf);
+            Assert.That((await core.ValidateAsync(chain, null, null, CancellationToken.None)
+                .ConfigureAwait(false)).IsValid, Is.True);
+            int initialCopies = copies;
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromSeconds(secondsFromExpiry));
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.EqualTo(secondsFromExpiry < 0));
+            if (secondsFromExpiry < 0)
+            {
+                Assert.That(copies, Is.EqualTo(initialCopies));
+                core.ResetValidatedCertificates();
+                Assert.That((await core.ValidateAsync(chain, null, null, CancellationToken.None)
+                    .ConfigureAwait(false)).IsValid, Is.True);
+                Assert.That(copies, Is.GreaterThan(initialCopies), "Reset must retire the cached path.");
+            }
+            else
+            {
+                Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateTimeInvalid), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Constructs a signed leaf whose lifetime does not hide its issuer's independent expiration.
+        /// </summary>
+        private static Certificate CreateUnclippedLeaf(Certificate issuer, DateTime notAfter)
+        {
+            using var publicKey = RSA.Create(2048);
+            using RSA issuerKey = issuer.GetRSAPrivateKey()!;
+            var request = new CertificateRequest(
+                "CN=R15 Leaf", publicKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment |
+                X509KeyUsageFlags.DataEncipherment, true));
+            request.CertificateExtensions.Add(issuer.BuildAuthorityKeyIdentifier());
+            using X509Certificate2 native = request.Create(
+                issuer.SubjectName, X509SignatureGenerator.CreateForRSA(issuerKey, RSASignaturePadding.Pkcs1),
+                s_leafFrom, notAfter, new byte[] { 1, 5 });
+            return Certificate.FromRawData(native.RawData);
+        }
+
         private static readonly DateTime s_rootFrom = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_rootTo = new(2099, 12, 31, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_leafFrom = new(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc);

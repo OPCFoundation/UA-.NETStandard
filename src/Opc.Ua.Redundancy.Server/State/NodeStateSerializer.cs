@@ -200,13 +200,14 @@ namespace Opc.Ua.Redundancy.Server
             int depth)
         {
             CheckPolicyDepth(encoder.Context, depth);
-            if (node.OnReadRolePermissions != null ||
+            if (node is BaseVariableState { OnReadUserAccessLevel: not null } ||
+                node.OnReadRolePermissions != null ||
                 node.OnReadUserRolePermissions != null ||
                 node.OnReadAccessRestrictions != null)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadEncodingError,
-                    "Caller-dependent node authorization cannot be reconstructed from a replicated attribute.");
+                    "Caller-dependent node authorization cannot be reconstructed from replicated attributes.");
             }
             PolicyIdentity identity = GetPolicyIdentity(context, node, StatusCodes.BadEncodingError);
             encoder.WriteExpandedNodeId(null, identity.NodeId);

@@ -24,6 +24,23 @@ image as an MCP `ImageContentBlock` so the model genuinely sees pixels; the
 one-call `robotics_vision_pick`; typed intent/mission tools; and the state,
 authority, paging and bounded-wait tools needed to plan against refusals.
 
+## Connection and viewport trust boundaries
+
+The shared `SampleSession` checks the server certificate's hostname against the
+operator-supplied `--server` URL, including on reconnect. `--insecure` opts into
+trusting an otherwise untrusted certificate; it does not disable hostname
+validation or replace the requested identity with a discovery-advertised URL.
+
+With `--view`, the fetched initial stage is prepared before live streaming starts.
+Live viewport updates forward attribute values, time samples and batches only.
+Server-controlled component references, payloads, instances and activation changes
+are not composed into the running native viewport, even when they name a local
+file or command bindings are enabled. This prevents a live component update from
+resolving an external asset with the viewer process's ambient Windows credentials.
+Trusted host-side composition and file-sink export remain available; preparing an
+initial stage still requires the operator to trust its content and asset resolver.
+An asset digest establishes integrity, not trust in that content's dependencies.
+
 ## MCP hosting
 
 With `--mcp`, the client exposes the composed catalogue so an LLM can discover

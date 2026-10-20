@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -84,9 +85,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             string endpoint = BuildEndpoint(form.Endpoint);
             WotSecurityFloor? floor = form.SecurityFloor;
             ISession session = await ConnectAsync(
-                endpoint, floor, form, cancellationToken).ConfigureAwait(false);
+                endpoint, floor, form, context, cancellationToken).ConfigureAwait(false);
             try
             {
+                EndpointDescription? effective = session.ConfiguredEndpoint?.Description;
+                if (effective is not null)
+                {
+                    var destination = new OpcUaWotSessionRequest(endpoint)
+                    {
+                        EndpointPolicy = context.EndpointPolicy
+                    };
+                    _ = destination.ValidateEndpoint(effective.EndpointUrl);
+                    if (effective.ProxyUrl is { } proxy)
+                    {
+                        _ = destination.ValidateEndpoint(proxy.OriginalString);
+                    }
+                }
                 EnforceSecurityFloor(session, form, floor);
             }
             catch (ServiceResultException)
@@ -124,9 +138,14 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             string endpoint,
             WotSecurityFloor? floor,
             WotCompiledForm form,
+            WotExecutorContext context,
             CancellationToken cancellationToken)
         {
-            var request = new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName);
+            var request = new OpcUaWotSessionRequest(endpoint, floor, form.AffordanceName)
+            {
+                EndpointPolicy = context.EndpointPolicy
+            };
+            _ = request.ValidateEndpoint(endpoint);
             if (m_options.ConstrainedSessionFactory is not null)
             {
                 return await m_options.ConstrainedSessionFactory(request, cancellationToken)
@@ -175,8 +194,51 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             ArrayOf<EndpointDescription> discovered = await m_options
                 .EndpointDiscovery!(request.EndpointUrl, cancellationToken)
                 .ConfigureAwait(false);
+            var permitted = new List<EndpointDescription>();
+            foreach (EndpointDescription candidate in discovered)
+            {
+                if (candidate is null)
+                {
+                    continue;
+                }
+                ServiceResult validation = WotEndpointValidator.Validate(
+                    candidate.EndpointUrl, request.EndpointPolicy, out Uri? normalized);
+                if (ServiceResult.IsBad(validation) || normalized is null ||
+                    string.IsNullOrEmpty(normalized.Host))
+                {
+                    continue;
+                }
+                Uri? proxy = null;
+                if (candidate.ProxyUrl is { } candidateProxy)
+                {
+                    ServiceResult proxyValidation = WotEndpointValidator.Validate(
+                        candidateProxy.OriginalString, request.EndpointPolicy, out proxy);
+                    if (ServiceResult.IsBad(proxyValidation) || proxy is null || string.IsNullOrEmpty(proxy.Host))
+                    {
+                        continue;
+                    }
+                }
+                permitted.Add(new EndpointDescription
+                {
+                    EndpointUrl = normalized.AbsoluteUri,
+                    Server = candidate.Server,
+                    ServerCertificate = candidate.ServerCertificate,
+                    SecurityMode = candidate.SecurityMode,
+                    SecurityPolicyUri = candidate.SecurityPolicyUri,
+                    UserIdentityTokens = candidate.UserIdentityTokens,
+                    TransportProfileUri = candidate.TransportProfileUri,
+                    SecurityLevel = candidate.SecurityLevel,
+                    ProxyUrl = proxy
+                });
+            }
+            if (permitted.Count == 0 && !discovered.IsEmpty)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUserAccessDenied,
+                    "Discovery returned no destination permitted by the outbound endpoint policy.");
+            }
             EndpointDescription? selected = OpcUaWotEndpointSelector.Select(
-                discovered, request.MinimumSecurity);
+                permitted.ToArrayOf(), request.MinimumSecurity);
             if (selected is null)
             {
                 throw new ServiceResultException(

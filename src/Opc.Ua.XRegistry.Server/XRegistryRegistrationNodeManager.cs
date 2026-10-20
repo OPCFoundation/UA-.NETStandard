@@ -576,6 +576,10 @@ namespace Opc.Ua.XRegistry.Server
             ISystemContext context,
             CancellationToken cancellationToken)
         {
+            if (requestFileOpen && IsRemoteSessionless(context))
+            {
+                return Failed(StatusCodes.BadSessionIdInvalid);
+            }
             if (string.IsNullOrEmpty(resourceId))
             {
                 return Failed(StatusCodes.BadInvalidArgument);
@@ -1231,6 +1235,10 @@ namespace Opc.Ua.XRegistry.Server
             CancellationToken cancellationToken)
         {
             using OperationLease operation = BeginOperation(cancellationToken);
+            if (IsRemoteSessionless(context))
+            {
+                return Failed(StatusCodes.BadSessionIdInvalid);
+            }
             bool wantsRead = (mode & kReadMode) != 0;
             bool wantsWrite = (mode & kWriteMode) != 0;
             bool erase = (mode & kEraseExistingMode) != 0;
@@ -1410,7 +1418,7 @@ namespace Opc.Ua.XRegistry.Server
                 {
                     return new WriteMethodStateResult
                     {
-                        ServiceResult = StatusCodes.BadInvalidState
+                        ServiceResult = FileHandleError(context, fileHandle, StatusCodes.BadInvalidState)
                     };
                 }
 
@@ -1455,7 +1463,8 @@ namespace Opc.Ua.XRegistry.Server
         {
             return ExecuteFileCursorAsync(
                 resource, fileHandle, context, ReadAsync,
-                new ReadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState }, cancellationToken);
+                error => new ReadMethodStateResult { ServiceResult = error },
+                StatusCodes.BadInvalidState, cancellationToken);
 
             async ValueTask<ReadMethodStateResult> ReadAsync(ResourceFileHandle entry)
             {
@@ -1528,8 +1537,8 @@ namespace Opc.Ua.XRegistry.Server
         {
             return ExecuteFileCursorAsync(
                 resource, fileHandle, context, GetPositionAsync,
-                new GetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument },
-                cancellationToken);
+                error => new GetPositionMethodStateResult { ServiceResult = error },
+                StatusCodes.BadInvalidArgument, cancellationToken);
 
             async ValueTask<GetPositionMethodStateResult> GetPositionAsync(ResourceFileHandle entry)
             {
@@ -1564,8 +1573,8 @@ namespace Opc.Ua.XRegistry.Server
         {
             return ExecuteFileCursorAsync(
                 resource, fileHandle, context, SetPositionAsync,
-                new SetPositionMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument },
-                cancellationToken);
+                error => new SetPositionMethodStateResult { ServiceResult = error },
+                StatusCodes.BadInvalidArgument, cancellationToken);
 
             async ValueTask<SetPositionMethodStateResult> SetPositionAsync(ResourceFileHandle entry)
             {
@@ -1594,18 +1603,21 @@ namespace Opc.Ua.XRegistry.Server
             uint fileHandle,
             ISystemContext context,
             Func<ResourceFileHandle, ValueTask<TResult>> action,
-            TResult invalidHandle,
+            Func<ServiceResult, TResult> invalidHandle,
+            StatusCode invalidStatus,
             CancellationToken cancellationToken)
         {
             using OperationLease operation = BeginOperation(cancellationToken);
             ResourceFileHandle entry;
+            TResult closedHandle;
             await using (await EnterGateAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? found))
                 {
-                    return invalidHandle;
+                    return invalidHandle(FileHandleError(context, fileHandle, invalidStatus));
                 }
                 entry = found;
+                closedHandle = invalidHandle(FileHandleError(context, fileHandle, invalidStatus));
             }
             return await entry.ExecuteAsync(async () =>
             {
@@ -1614,11 +1626,11 @@ namespace Opc.Ua.XRegistry.Server
                     if (!TryGetHandle(resource, fileHandle, context, out ResourceFileHandle? current) ||
                         !ReferenceEquals(current, entry))
                     {
-                        return invalidHandle;
+                        return invalidHandle(FileHandleError(context, fileHandle, invalidStatus));
                     }
                 }
                 return await action(entry).ConfigureAwait(false);
-            }, invalidHandle, cancellationToken).ConfigureAwait(false);
+            }, closedHandle, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1644,7 +1656,10 @@ namespace Opc.Ua.XRegistry.Server
             {
                 if (!TryGetHandle(resource, fileHandle, context, out entry))
                 {
-                    return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                    return new CloseMethodStateResult
+                    {
+                        ServiceResult = FileHandleError(context, fileHandle, StatusCodes.BadInvalidState)
+                    };
                 }
                 if (Find(entry.ResourceNodeId) is not ResourceState registered ||
                     !TryGetResourceKeyLocked(registered, out ResourceKey baselineKey))
@@ -2174,6 +2189,33 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Distinguishes authenticated remote sessionless requests from trusted in-process operations.
+        /// </summary>
+        private static bool IsRemoteSessionless(ISystemContext context)
+        {
+            return context is not SystemContext { OperationContext: null } &&
+                context is not ServerSystemContext { OperationContext: null } &&
+                SessionIdOf(context).IsNull;
+        }
+
+        /// <summary>
+        /// Returns an ownership failure without disclosing or modifying handle contents. The caller holds the gate.
+        /// </summary>
+        private ServiceResult FileHandleError(ISystemContext context, uint fileHandle, StatusCode otherwise)
+        {
+            if (IsRemoteSessionless(context))
+            {
+                return StatusCodes.BadSessionIdInvalid;
+            }
+            if (m_fileHandles.TryGetValue(fileHandle, out ResourceFileHandle? entry) &&
+                entry.SessionId != SessionIdOf(context))
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+            return otherwise;
+        }
+
+        /// <summary>
         /// Resolves a file handle for a call made on <paramref name="resource"/>. The handle has to
         /// belong to that resource: handles are server-wide and sequential, so without this check a
         /// caller could drive another resource's document — or another caller's in-flight upload —
@@ -2189,6 +2231,11 @@ namespace Opc.Ua.XRegistry.Server
             ISystemContext context,
             [NotNullWhen(true)] out ResourceFileHandle? entry)
         {
+            if (IsRemoteSessionless(context))
+            {
+                entry = null;
+                return false;
+            }
             if (!m_fileHandles.TryGetValue(fileHandle, out entry) || entry.Closing)
             {
                 return false;

@@ -805,6 +805,13 @@ namespace Opc.Ua.Schema.Model
 
             model.Items = [.. nodes];
 
+            // Permission names belong to this model, even when structural
+            // validation must wait for the rest of the dependency graph.
+            foreach (NodeDesign node in model.Items)
+            {
+                ResolvePermissions(model, node);
+            }
+
             // Validate node in target dictionary. Skipped when the model is
             // being loaded only as a dependency (its nodes are registered in
             // m_nodes so the primary target can resolve cross-model refs, but

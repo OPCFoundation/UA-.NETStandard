@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -56,6 +57,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             var mockMasterNodeManager = new Mock<IMasterNodeManager>();
             var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
+            NamespaceMetadataState? noMetadata = null;
+            mockConfigurationNodeManager.As<INamespaceMetadataSnapshot>()
+                .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
+                .Returns(true);
             var mockCoreNodeManager = new Mock<ICoreNodeManager>();
 
             var namespaceTable = new NamespaceTable();
@@ -83,6 +88,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             mockServer.Setup(s => s.DefaultSystemContext).Returns(serverSystemContext);
 
             return mockServer;
+        }
+
+        /// <summary>
+        /// Makes the same namespace policy available to synchronous and asynchronous node-manager paths.
+        /// </summary>
+        public static void SetNamespaceMetadata(
+            Mock<IServerInternal> server,
+            ushort namespaceIndex,
+            NamespaceMetadataState? metadata)
+        {
+            Mock<IConfigurationNodeManager> configuration = Mock.Get(
+                server.Object.NodeManager.ConfigurationNodeManager!);
+            configuration.As<INamespaceMetadataSnapshot>()
+                .Setup(manager => manager.TryGetNamespaceMetadataState(namespaceIndex, out metadata))
+                .Returns(true);
+            configuration.Setup(manager => manager.GetNamespaceMetadataStateAsync(
+                    namespaceIndex, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NamespaceMetadataState?>(metadata));
         }
 
         /// <summary>

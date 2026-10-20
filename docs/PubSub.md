@@ -593,6 +593,12 @@ Server-side address space — see
 
 ### UDP / UADP
 
+Unicast publications remain pinned to the configured destination. Receiving a
+datagram never changes that destination, even on bidirectional connections.
+Discovery and DTLS can send explicit source-specific replies without affecting
+the next general publication. Datagram allow-list and size policies apply to
+the actual destination of each send.
+
 Implemented in `Opc.Ua.PubSub.Udp`. Wire profile
 [`PubSub UDP UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp).
 Supports unicast, IPv4 multicast, IPv6 multicast and limited
@@ -851,6 +857,12 @@ var options = new MqttConnectionOptions
 ```
 
 #### MQTT TLS configuration
+
+Secure endpoint schemes (`mqtts://` and `wss://`) always require TLS. Supplying
+`MqttTlsOptions` only to configure trusted issuers does not turn TLS off when
+`UseTls` is left at its default `false`. `UseTls = true` can additionally enable
+TLS for an otherwise plaintext endpoint. Intentional plaintext `mqtt://` remains
+supported, subject to the separate credentials-over-plaintext policy.
 
 `MqttConnectionOptions.Tls` (`MqttTlsOptions`) controls the TLS handshake for `mqtts://`
 and `wss://` endpoints. The broker certificate chain can be validated against a configured
@@ -1115,7 +1127,14 @@ Use `ValueTransform` for lightweight per-field value conversion. Prefer `Variant
 
 ### Security
 
-`TranscodeSecurity` is the frame-level security policy used by `PubSubTranscoder`. It can hold a target-side `UadpSecurityWrapper` and `UadpSecurityWrapOptions` so transcoded UADP output is re-secured with the target connection's SKS-backed security context. If no target wrapper is configured, target output is emitted without message-layer security.
+`TranscodeSecurity` is the frame-level security policy used by `PubSubTranscoder`. It can hold a target-side `UadpSecurityWrapper` and `UadpSecurityWrapOptions` so transcoded UADP output is re-secured with the target connection's SKS-backed security context. Standalone transcoders without a target wrapper emit output without message-layer security; a secured target connection refuses that output.
+
+Bridge activation uses the target connection's effective security context, including
+application-builder resolver overrides, rather than resolving its configuration again
+through DI. Target egress authenticates the entire result before sending any frame
+or chunk and rejects protection weaker than the target's required mode with
+`BadSecurityModeInsufficient`. `AllowInsecureCrossEncoding` never overrides the
+target connection's security requirement.
 
 OPC UA PubSub message-layer security is defined for UADP only ([§7.2.4.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4)); JSON output cannot carry that UADP security envelope. For this reason, a secured source frame is refused when the target output would be unsecured unless `AllowInsecureCrossEncoding` is set. In the fluent API this is `.AllowInsecureCrossEncoding()`. Use that option only when the deployment intentionally relies on transport-layer protection such as DTLS, TLS, or MQTT TLS for the target hop.
 
@@ -1127,7 +1146,7 @@ A secured UADP source can be re-published as secured UADP when the target connec
 
 `PubSubTranscodingBridge` implements `IReceivedNetworkMessageSink`. It registers on the source connection when `Start()` is called, builds a `TranscodeInput`, invokes `ITranscoder.TranscodeAsync`, and sends non-dropped results to an `IPubSubTranscodeEgress`. `ConnectionTranscodeEgress` sends each output frame through a target `PubSubConnection` transport and applies UADP chunking when needed by the connection.
 
-The DI bridge is started as a hosted service after the PubSub application is available. `PubSubTranscodingBridgeHostedService` resolves source and target connections by `Name` from `IPubSubApplication.Connections`, builds the shared `TranscodeContext`, resolves registered `INetworkMessageEncoder` instances, resolves target security through `IPubSubSecurityWrapperResolver`, and starts the bridge.
+The DI bridge is started as a hosted service after the PubSub application is available. `PubSubTranscodingBridgeHostedService` resolves source and target connections by `Name` from `IPubSubApplication.Connections`, builds the shared `TranscodeContext`, resolves registered `INetworkMessageEncoder` instances, reuses the target connection's security context, and starts the bridge.
 
 ### Fluent `AddTranscodingBridge` walkthrough
 
@@ -1357,6 +1376,13 @@ enforced via `SecurityTokenWindow` ([§8.2](https://reference.opcfoundation.org/
 nonce reuse is detected by `RandomNonceProvider` /
 `AesCtrNonceLayout` ([§A.2.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.1.6)).
 
+`RandomNonceProvider` can be shared across publishing connections. It retains
+independent counters for each complete `(SecurityTokenId, KeyNonce)` identity;
+switching to another live identity and back never resets an earlier counter.
+The per-key cap applies independently to each identity. Accounting is not evicted:
+after 65,536 distinct identities the provider refuses new identities. Replace it
+only when provisioning fresh keys, never to restart counters for reused keys.
+
 ## Security Key Service (SKS)
 
 `Opc.Ua.PubSub.Security.Sks` implements both sides of
@@ -1404,6 +1430,15 @@ The push model (Part 14 §8.3/§8.4) is available alongside the pull client.
 Register a `PushSecurityKeyProvider` for each SecurityGroup that should accept
 remote `SetSecurityKeys` calls, and expose `PubSubKeyPushTargets` through the
 server address space when hosting a server-side PubSub configuration.
+
+Each accepted push replaces the current/future schedule rather than accumulating
+historical keys. Future keys become usable only at their scheduled start; keys
+expire at the exact end of their lifetime. At most one previous token is retained,
+and only until its original expiry: there is no additional late-arrival grace.
+`TimeToNextKey = 0` retains the existing convention of a full current-key lifetime.
+Retired material is zeroized. The UADP wrapper acquires an owned snapshot during
+each operation so rotation cannot zeroize keys in use, then clears the snapshot.
+Pushes are limited to 4,095 future keys; token rollover skips reserved token zero.
 
 ```csharp
 builder.Services.AddOpcUa()

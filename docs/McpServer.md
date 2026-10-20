@@ -104,7 +104,12 @@ confused with Boolean false or numeric zero. See the
 Key export, decode and replay are disabled until the host opts in. Treat
 capture/key-log output as secret material, not ordinary logs. Caller-supplied
 paths stay within the capture root; replay does not grant arbitrary outbound
-access. For registration, selectors, paths and output formats, see the
+access. Retained captures and implicitly loaded key material are scoped to the
+host and authenticated caller; another caller or embedding host cannot reuse
+that state. Failed PubSub capture startup detaches its observer before a retry.
+Loaded PubSub keys are copied on storage and retrieval; disposing a returned
+copy or clearing another caller's keys does not change the owner's retained
+material. For registration, selectors, paths and output formats, see the
 [Diagnostics package reference](../tools/Opc.Ua.Mcp.Diagnostics/NugetREADME.md).
 
 ## Tool Profiles
@@ -644,6 +649,10 @@ contracts and examples.
 The host exposes connected sessions as MCP resources for inspection of status,
 security and namespace tables. URI templates and protocol details are in the
 [Core reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results).
+Resource listing and reading use the authenticated transport caller's request
+scope. A caller sees only sessions it owns or sessions granted to that exact
+caller by the host; an unauthenticated request does not inherit the embedding
+host's local identity. A named read outside that scope is denied.
 
 ### Multi-Session Support
 

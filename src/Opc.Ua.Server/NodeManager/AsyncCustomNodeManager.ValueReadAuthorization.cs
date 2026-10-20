@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rechecks current channel restrictions and uncached binding policy after the caller's role-permission check.
+        /// Rechecks the exact source's permissions, current channel restrictions and uncached binding policy.
         /// </summary>
         internal async ValueTask<ServiceResult> ValidateMonitoredReadAsync(
             ServerSystemContext context,
@@ -124,8 +124,9 @@ namespace Opc.Ua.Server
                 permissionsOnly: true,
                 logger: null,
                 validateAccessRestrictions: true,
-                validateRolePermissions: false,
-                cancellationToken).ConfigureAwait(false);
+                validateRolePermissions: true,
+                cancellationToken,
+                exactSource: true).ConfigureAwait(false);
             if (!handled)
             {
                 return StatusCodes.BadNodeIdUnknown;
@@ -297,6 +298,45 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Refreshes stale background grants using the accepted endpoint before capturing authorization.
+        /// </summary>
+        internal static bool TryRefreshIdentity(IServerInternal server, ISession? session)
+        {
+            if (session?.IsIdentityStale != true)
+            {
+                return true;
+            }
+            using OperationContext context = CreateContext(session);
+            return server.SessionManager is SessionManager manager &&
+                manager.TryRefreshEffectiveIdentity(session, context.ChannelContext);
+        }
+
+        /// <summary>
+        /// Applies the notifier's current channel restrictions to event delivery on its exact source.
+        /// </summary>
+        internal static async ValueTask<ServiceResult> ValidateEventRestrictionsAsync(
+            IServerInternal server,
+            NodeState notifier,
+            OperationContext context,
+            CancellationToken cancellationToken)
+        {
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                server, new ServerSystemContext(server, context), notifier.NodeId.NamespaceIndex, cancellationToken)
+                .ConfigureAwait(false);
+            if (ServiceResult.IsBad(defaults.Status))
+            {
+                return defaults.Status;
+            }
+            var metadata = new NodeMetadata(notifier, notifier.NodeId)
+            {
+                AccessRestrictions = notifier.AccessRestrictions ?? AccessRestrictionType.None,
+                DefaultAccessRestrictions = notifier.AccessRestrictions.HasValue
+                    ? AccessRestrictionType.None : defaults.DefaultAccessRestrictions
+            };
+            return MasterNodeManager.ValidateAccessRestrictions(context, metadata, PermissionType.ReceiveEvents);
+        }
+
+        /// <summary>
         /// Identifies encryption supplied by the accepted channel's message security or known TLS transport profile.
         /// </summary>
         public static bool IsConfidential(EndpointDescription? endpoint)
@@ -331,13 +371,17 @@ namespace Opc.Ua.Server
         {
             if (GetEndpoint(session) is not EndpointDescription endpoint)
             {
-                return new OperationContext(session, diagnostics);
+                var context = new OperationContext(session, diagnostics);
+                context.DisableDefaultPermissionCache();
+                return context;
             }
             var channel = new SecureChannelContext(
                 session.SecureChannelId ?? string.Empty, endpoint, RequestEncoding.Binary);
-            return new OperationContext(
+            var operationContext = new OperationContext(
                 new RequestHeader { ReturnDiagnostics = (uint)diagnostics },
                 channel, RequestType.Read, RequestLifetime.None, session);
+            operationContext.DisableDefaultPermissionCache();
+            return operationContext;
         }
 
         /// <summary>
@@ -426,6 +470,10 @@ namespace Opc.Ua.Server
             {
                 return await custom.ValidateMonitoredReadAsync(context, node, attributeId, cancellationToken)
                     .ConfigureAwait(false);
+            }
+            if (manager is AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 synchronous })
+            {
+                return synchronous.ValidateMonitoredRead(context, node, attributeId);
             }
 
             var metadata = new NodeMetadata(node, node.NodeId)

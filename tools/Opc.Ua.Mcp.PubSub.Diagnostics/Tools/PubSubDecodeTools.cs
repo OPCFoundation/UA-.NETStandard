@@ -33,6 +33,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -85,9 +86,10 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentNullException.ThrowIfNull(manager);
 
             string allowedRoot = GetPcapAllowedRoot(services);
-            IPubSubCaptureSource source = await PubSubCaptureTools.GetLastStoppedSourceAsync(manager, ct)
-                .ConfigureAwait(false);
-            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, allowedRoot, ct)
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(services);
+            IPubSubCaptureSource source = await GetLastStoppedSourceAsync(manager, ownerKey, ct).ConfigureAwait(false);
+            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(
+                manager, ownerKey, keyLogPath, allowedRoot, ct)
                 .ConfigureAwait(false);
             PubSubOfflineDissector dissector = CreateDissector(resolver);
             return await FormatAsync(source.ReadCapturedFramesAsync(maxFrames, ct), dissector, format, ct)
@@ -113,8 +115,12 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(pcapPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(services);
             pcapPath = McpCapturePath.ResolveAndValidate(pcapPath, allowedRoot);
-            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(keyLogPath, allowedRoot, ct)
+            PubSubCaptureSessionManager? manager =
+                services.GetService(typeof(PubSubCaptureSessionManager)) as PubSubCaptureSessionManager;
+            using CapturedKeyLogKeyResolver? resolver = await CreateKeyResolverAsync(
+                manager, ownerKey, keyLogPath, allowedRoot, ct)
                 .ConfigureAwait(false);
             PubSubOfflineDissector dissector = CreateDissector(resolver);
             return await FormatAsync(ReadPubSubFramesFromPcapAsync(pcapPath, maxFrames, ct), dissector, format, ct)
@@ -136,15 +142,31 @@ namespace Opc.Ua.Mcp.Tools
             ArgumentException.ThrowIfNullOrWhiteSpace(keyLogPath);
 
             string allowedRoot = GetPcapAllowedRoot(services);
+            string ownerKey = PubSubDiagnosticsCaller.GetOwnerKey(services);
             keyLogPath = McpCapturePath.ResolveAndValidate(keyLogPath, allowedRoot);
             List<PubSubKeyMaterial> keys = await ReadKeyMaterialAsync(keyLogPath, allowedRoot, ct)
                 .ConfigureAwait(false);
-            await StoreLoadedKeyMaterialAsync(keys, ct).ConfigureAwait(false);
-            return new PubSubKeyLogInfo
+            try
             {
-                FilePath = keyLogPath,
-                KeyCount = keys.Count
-            };
+                PubSubCaptureSessionManager manager =
+                    services.GetService(typeof(PubSubCaptureSessionManager)) as PubSubCaptureSessionManager ??
+                    throw new PcapDiagnosticsException(
+                        "The host capture manager is unavailable; loaded keys cannot be retained safely.");
+                await manager.StoreKeyMaterialForCallerAsync(
+                    ownerKey, new ArrayOf<PubSubKeyMaterial>(keys.ToArray()), ct).ConfigureAwait(false);
+                return new PubSubKeyLogInfo
+                {
+                    FilePath = keyLogPath,
+                    KeyCount = keys.Count
+                };
+            }
+            finally
+            {
+                foreach (PubSubKeyMaterial key in keys)
+                {
+                    key.Dispose();
+                }
+            }
         }
 
         private static async Task<IList<ContentBlock>> FormatAsync(
@@ -173,12 +195,17 @@ namespace Opc.Ua.Mcp.Tools
         }
 
         private static async ValueTask<CapturedKeyLogKeyResolver?> CreateKeyResolverAsync(
+            PubSubCaptureSessionManager? manager,
+            string ownerKey,
             string? keyLogPath,
             string allowedRoot,
             CancellationToken ct)
         {
             List<PubSubKeyMaterial> keys = string.IsNullOrWhiteSpace(keyLogPath)
-                ? await CopyLoadedKeyMaterialAsync(ct).ConfigureAwait(false)
+                ? manager is null
+                    ? []
+                    : new List<PubSubKeyMaterial>(
+                        (await manager.CopyKeyMaterialForCallerAsync(ownerKey, ct).ConfigureAwait(false)).ToArray() ?? [])
                 : await ReadKeyMaterialAsync(keyLogPath!, allowedRoot, ct).ConfigureAwait(false);
             if (keys.Count == 0)
             {
@@ -196,6 +223,23 @@ namespace Opc.Ua.Mcp.Tools
                     key.Dispose();
                 }
             }
+
+        }
+
+        private static async ValueTask<IPubSubCaptureSource> GetLastStoppedSourceAsync(
+            PubSubCaptureSessionManager manager,
+            string ownerKey,
+            CancellationToken ct)
+        {
+            if (manager.GetActiveSourceForCaller(ownerKey) is not null)
+            {
+                throw new PcapDiagnosticsException(
+                    "A PubSub capture is still active; stop it with pubsub_stop_capture before dissecting it.");
+            }
+            IPubSubCaptureSource? source = await manager.GetStoppedSourceForCallerAsync(ownerKey, ct)
+                .ConfigureAwait(false);
+            return source ?? throw new PcapDiagnosticsException(
+                "No stopped PubSub capture is available. Start and stop a capture first.");
         }
 
         private static PubSubOfflineDissector CreateDissector(IPubSubKeyResolver? resolver)
@@ -243,45 +287,6 @@ namespace Opc.Ua.Mcp.Tools
                 }
 
                 throw;
-            }
-        }
-
-        private static async ValueTask StoreLoadedKeyMaterialAsync(
-            List<PubSubKeyMaterial> keys,
-            CancellationToken ct)
-        {
-            await m_loadedKeyGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                foreach (PubSubKeyMaterial key in m_loadedKeyMaterial)
-                {
-                    key.Dispose();
-                }
-
-                m_loadedKeyMaterial = [.. keys];
-            }
-            finally
-            {
-                m_loadedKeyGate.Release();
-            }
-        }
-
-        private static async ValueTask<List<PubSubKeyMaterial>> CopyLoadedKeyMaterialAsync(CancellationToken ct)
-        {
-            await m_loadedKeyGate.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                List<PubSubKeyMaterial> keys = [];
-                foreach (PubSubKeyMaterial key in m_loadedKeyMaterial)
-                {
-                    keys.Add(CopyKeyMaterial(key));
-                }
-
-                return keys;
-            }
-            finally
-            {
-                m_loadedKeyGate.Release();
             }
         }
 
@@ -399,8 +404,6 @@ namespace Opc.Ua.Mcp.Tools
                 key.KeyNonce.ToArray());
         }
 
-        private static readonly SemaphoreSlim m_loadedKeyGate = new(1, 1);
-        private static IReadOnlyList<PubSubKeyMaterial> m_loadedKeyMaterial = [];
     }
 
     /// <summary>
