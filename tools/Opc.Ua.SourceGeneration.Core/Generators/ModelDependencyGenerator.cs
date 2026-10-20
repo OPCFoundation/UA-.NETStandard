@@ -382,6 +382,8 @@ namespace Opc.Ua.SourceGeneration
                                     effectiveVariable.HistorizingSpecified;
                                 entryChild.DefaultValueXml =
                                     effectiveVariable.DefaultValue?.OuterXml;
+                                entryChild.NodeSetValueIsNull =
+                                    effectiveVariable.NodeSetValueIsNull;
                                 entryChild.DefaultValueNamespaceUris =
                                     GetDefaultValueNamespaceUris(effectiveVariable);
                             }

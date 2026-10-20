@@ -313,6 +313,9 @@ namespace Opc.Ua
             /// <returns></returns>
             private async Task WorkerLoopAsync(CancellationToken ct)
             {
+                // Stopping disposes the fair queue, which ends every parked wait, so a parked
+                // worker does not register on the shared stop token every time it parks.
+                WorkerWakeSignal.Waiter? waiter = m_fairQueue?.CreateWaiter();
                 try
                 {
                     while (!ct.IsCancellationRequested && !Volatile.Read(ref m_stopped))
@@ -323,7 +326,8 @@ namespace Opc.Ua
                         {
                             try
                             {
-                                entry = await m_fairQueue.DequeueAsync(ct).ConfigureAwait(false);
+                                entry = await m_fairQueue.DequeueAsync(waiter!, CancellationToken.None)
+                                    .ConfigureAwait(false);
                             }
                             catch (Exception ex) when (ex is not OperationCanceledException)
                             {

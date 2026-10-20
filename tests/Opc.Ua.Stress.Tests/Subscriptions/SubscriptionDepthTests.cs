@@ -457,14 +457,13 @@ namespace Opc.Ua.Stress.Tests.Subscriptions
         }
 
         [Test]
-        public Task RepublishWithInvalidSubscriptionId()
+        public async Task RepublishWithInvalidSubscriptionId()
         {
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () => await Session.RepublishAsync(
                     null, 999999u, 1,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
-            return Task.CompletedTask;
         }
 
         [Test]

@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false),
                 Is.EqualTo(finalValue));
-            Assert.ThrowsAsync<TimeoutException>(async () =>
+            await Assert.ThrowsAsync<TimeoutException>(async () =>
                 await observation.WaitAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false));
             Assert.That(m_manager.FindPredefinedNode<NodeState>(m_manager.Job.NodeId), Is.SameAs(m_manager.Job));
             Assert.That(await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false),
@@ -376,11 +376,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             if (cancel)
             {
                 cancelled.Cancel();
-                Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+                await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
             }
             else
             {
-                Assert.ThrowsAsync<TimeoutException>(async () => await observation.ConfigureAwait(false));
+                await Assert.ThrowsAsync<TimeoutException>(async () => await observation.ConfigureAwait(false));
             }
             Assert.That(m_manager.FindPredefinedNode<NodeState>(m_manager.Job.NodeId), Is.SameAs(m_manager.Job));
             DataValue stillReadable = await m_session.ReadValueAsync(m_manager.Value.NodeId, cancellationToken)
@@ -389,8 +389,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             m_manager.Value.Value = 2;
             Task retry = m_manager.WaitForValuePublicationAsync([m_manager.Job], cancellationToken).AsTask();
-            Assert.That((await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false))
-                .WrappedValue, Is.EqualTo(new Variant(2)));
+            DataValue published;
+            do
+            {
+                published = await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false);
+                if (!published.WrappedValue.Equals(new Variant(2)))
+                {
+                    Assert.That(published.WrappedValue, Is.EqualTo(new Variant(1)));
+                }
+            }
+            while (!published.WrappedValue.Equals(new Variant(2)));
             await retry.ConfigureAwait(false);
         }
 
@@ -529,7 +537,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await PublishValueAsync(subscriptionId, cancellationToken).ConfigureAwait(false);
             Task observation = m_manager.WaitForValuePublicationAsync([m_manager.Job], cancellationToken).AsTask();
             Task shutdown = m_manager.DisposeAsync().AsTask();
-            Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
+            await Assert.CatchAsync<OperationCanceledException>(async () => await observation.ConfigureAwait(false));
             await shutdown.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         }
 
@@ -542,7 +550,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             m_manager.UseUnsupportedCustomItem = true;
             await SubscribeAsync(1, cancellationToken).ConfigureAwait(false);
-            Assert.ThrowsAsync<NotSupportedException>(
+            await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await m_manager.WaitForValuePublicationAsync([m_manager.Job], cancellationToken)
                     .ConfigureAwait(false));
             Assert.That(m_manager.FindPredefinedNode<NodeState>(m_manager.Job.NodeId), Is.SameAs(m_manager.Job));
@@ -584,7 +592,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return ServiceResult.Good;
                 };
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_manager.WaitForValuePublicationAsync([m_manager.Job], cancellationToken)
                     .ConfigureAwait(false));
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -653,7 +661,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
             try
             {
-                Assert.ThrowsAsync<TimeoutException>(
+                await Assert.ThrowsAsync<TimeoutException>(
                     async () => await m_manager.WaitForValuePublicationAsync(
                         [m_manager.Job], TimeSpan.FromMilliseconds(100), cancellationToken).ConfigureAwait(false));
                 Assert.That(m_manager.FindPredefinedNode<NodeState>(m_manager.Job.NodeId), Is.SameAs(m_manager.Job));

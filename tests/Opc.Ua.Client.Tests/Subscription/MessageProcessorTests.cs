@@ -84,11 +84,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// entirely if that assertion were ever loosened.
         /// </summary>
         [Test]
-        public void WaitForQueuedAckAsyncShouldThrowWhenTheAckNeverArrives()
+        public async Task WaitForQueuedAckAsyncShouldThrowWhenTheAckNeverArrives()
         {
             var queue = new FakeMessageAckQueue();
 
-            TimeoutException ex = Assert.ThrowsAsync<TimeoutException>(
+            TimeoutException ex = await Assert.ThrowsAsync<TimeoutException>(
                 async () => await queue.WaitForQueuedAckAsync(1, 200).ConfigureAwait(false));
 
             Assert.That(ex.Message, Does.Contain("only 0 arrived"));
@@ -1600,7 +1600,7 @@ namespace Opc.Ua.Client.Subscriptions
                     sut.Block.Release();
                     blockHeld = false;
 
-                    Assert.ThrowsAsync<OperationCanceledException>(
+                    await Assert.ThrowsAsync<OperationCanceledException>(
                         async () => await recoverTask.ConfigureAwait(false));
                     Assert.That(sut.LastSequenceNumberProcessed, Is.EqualTo(10));
                     Assert.That(sut.RepublishMessageCount, Is.EqualTo(1));

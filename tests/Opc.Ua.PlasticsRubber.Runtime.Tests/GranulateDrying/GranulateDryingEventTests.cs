@@ -97,7 +97,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             });
             Assert.That((await operation.HighestActiveAlarmSeverity.ReadAsync().ConfigureAwait(false)).Value,
                 Is.EqualTo((ushort)710));
-            AssertUaFailure(async () => await operation.Proxy.ResetErrorByIdAsync("unknown").ConfigureAwait(false),
+            await AssertUaFailure(async () => await operation.Proxy.ResetErrorByIdAsync("unknown").ConfigureAwait(false),
                 StatusCodes.BadNotFound);
             authority.Execute = (_, _) => new ValueTask<GranulateDryingResult>(new GranulateDryingResult(
                 StatusCodes.Good, authority.Next() with { Errors = [fault.Errors[1]] }));
@@ -353,7 +353,7 @@ namespace Opc.Ua.GranulateDrying.Tests
                         1, () => produced++, () => disposed++, null, token));
             await using IAsyncEnumerator<BaseEventTypeRecord> iterator =
                 Events(peer.Client, stream.Object, alarm, cancellation.Token).GetAsyncEnumerator(cancellation.Token);
-            GranulateDryingClientPeer.AssertFailure(async () =>
+            await GranulateDryingClientPeer.AssertFailure(async () =>
                 await iterator.MoveNextAsync().ConfigureAwait(false), StatusCodes.BadDecodingError);
             Assert.That(produced, Is.EqualTo(1));
             Assert.That(disposed, Is.EqualTo(1), "A rejected record must dispose the upstream iterator.");
@@ -400,7 +400,7 @@ namespace Opc.Ua.GranulateDrying.Tests
             {
                 if (ending == "PreCancelled")
                 {
-                    OperationCanceledException? error = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                    OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                         await iterator.MoveNextAsync().ConfigureAwait(false));
                     Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));
                 }
@@ -420,12 +420,12 @@ namespace Opc.Ua.GranulateDrying.Tests
                             Assert.That(await iterator.MoveNextAsync().ConfigureAwait(false), Is.False);
                             break;
                         case "Failure":
-                            Assert.That(Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                            Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                                 await iterator.MoveNextAsync().ConfigureAwait(false)), Is.SameAs(failure));
                             break;
                         case "Cancel":
                             cancellation.Cancel();
-                            OperationCanceledException? error = Assert.ThrowsAsync<OperationCanceledException>(async
+                            OperationCanceledException? error = await Assert.ThrowsAsync<OperationCanceledException>(async
                                 () =>
                                 await iterator.MoveNextAsync().ConfigureAwait(false));
                             Assert.That(error!.CancellationToken, Is.EqualTo(cancellation.Token));

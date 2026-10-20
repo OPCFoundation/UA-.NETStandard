@@ -294,5 +294,70 @@ namespace Opc.Ua.Types.Tests.Nodes
                     throw new ArgumentOutOfRangeException(nameof(operation));
             }
         }
+
+        /// <summary>
+        /// Verifies that releasing the owner preserves the last published hierarchy, is idempotent,
+        /// and allows a later owner to acquire the table.
+        /// </summary>
+        [Test]
+        public void ViewOwnerReleasePreservesHierarchyAndAllowsReacquire()
+        {
+            TypeTable selected = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable.ViewOwner owner = m_typeTable.SetViewSelector(() => selected);
+            NodeId child = new(5100);
+            m_typeTable.AddSubtype(child, s_childTypeId);
+            Assert.That(m_typeTable.HasViewOwner, Is.True);
+
+            owner.Release(selected);
+            owner.Release(selected);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m_typeTable.HasViewOwner, Is.False);
+                Assert.That(m_typeTable.FindSuperType(child), Is.EqualTo(s_childTypeId));
+                Assert.That(selected.IsKnown(child), Is.True);
+            }
+            TypeTable next = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable.ViewOwner? second = m_typeTable.TryAcquireViewOwner(() => next);
+            Assert.That(second, Is.Not.Null);
+            second!.Release(next);
+        }
+
+        /// <summary>
+        /// Verifies that an already owned table rejects another owner and a stale token never
+        /// clears the later owner's selector.
+        /// </summary>
+        [Test]
+        public void StaleViewOwnerDoesNotClearLaterOwner()
+        {
+            TypeTable first = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable.ViewOwner stale = m_typeTable.SetViewSelector(() => first);
+            Assert.That(m_typeTable.TryAcquireViewOwner(() => first), Is.Null);
+            Assert.Throws<InvalidOperationException>(() => m_typeTable.SetViewSelector(() => first));
+            stale.Release(first);
+
+            TypeTable second = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable.ViewOwner current = m_typeTable.SetViewSelector(() => second);
+            stale.Release(first);
+
+            Assert.That(m_typeTable.HasViewOwner, Is.True);
+            current.Release(second);
+            Assert.That(m_typeTable.HasViewOwner, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that releasing with the table itself only clears the selector.
+        /// </summary>
+        [Test]
+        public void ViewOwnerReleaseWithSameImageOnlyClearsSelector()
+        {
+            TypeTable.ViewOwner owner = m_typeTable.SetViewSelector(() => null);
+            owner.Release(m_typeTable);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(m_typeTable.HasViewOwner, Is.False);
+                Assert.That(m_typeTable.IsKnown(s_childTypeId), Is.True);
+            }
+        }
     }
 }

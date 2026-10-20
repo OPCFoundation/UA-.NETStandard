@@ -114,8 +114,8 @@ namespace Opc.Ua.MachineTool.Tests
                     identity.ProductInstanceUri = "urn:notification-validation";
                 }).WithNotifications(options);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
 
             StatusCode expected = scenario switch
             {
@@ -162,8 +162,8 @@ namespace Opc.Ua.MachineTool.Tests
                     identity.ProductInstanceUri = "urn:notification-limits";
                 }).WithNotifications(options);
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
@@ -188,12 +188,12 @@ namespace Opc.Ua.MachineTool.Tests
                 Revision = 1,
                 Alerts = [alert with { Severity = 800 }, alert with { Key = "Invalid", Severity = 1 }]
             };
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             Assert.That(state.Severity!.Value, Is.EqualTo(500));
             Assert.That(state.EventId.Value, Is.EqualTo(eventId));
             provider.Snapshot = new MachineToolNotificationSnapshot { Revision = 1 };
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             Assert.That(runtime.Notifications.TryGetAlert(alert.Key, out _), Is.True);
             provider.Snapshot = new MachineToolNotificationSnapshot
@@ -203,7 +203,7 @@ namespace Opc.Ua.MachineTool.Tests
             };
             await runtime.RefreshNotificationsAsync().ConfigureAwait(false);
             provider.Snapshot = new MachineToolNotificationSnapshot { Alerts = [alert] };
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await runtime.RefreshNotificationsAsync().ConfigureAwait(false));
             Assert.That(state.Severity.Value, Is.EqualTo(800));
         }

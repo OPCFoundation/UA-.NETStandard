@@ -204,22 +204,22 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
         }
 
         [Test]
-        public void EncodeBodyAsyncThrowsForNullValue()
+        public async Task EncodeBodyAsyncThrowsForNullValue()
         {
             using var stream = new MemoryStream();
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .EncodeBodyAsync<ReadRequest>(null!, stream, m_context)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void EncodeBodyAsyncThrowsForNullDestination()
+        public async Task EncodeBodyAsyncThrowsForNullDestination()
         {
             var request = new ReadRequest { RequestHeader = new RequestHeader() };
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .EncodeBodyAsync(request, null!, m_context)
                     .ConfigureAwait(false));
@@ -365,20 +365,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
         // ─────────────────── DecodeBodyAsync (stream, generic) ──────────────
 
         [Test]
-        public void DecodeBodyAsyncThrowsForNullBody()
+        public async Task DecodeBodyAsyncThrowsForNullBody()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .DecodeBodyAsync<ReadRequest>(null!, m_context)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void DecodeBodyAsyncThrowsForNullContext()
+        public async Task DecodeBodyAsyncThrowsForNullContext()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .DecodeBodyAsync<ReadRequest>(stream, null!)
                     .ConfigureAwait(false));
@@ -472,20 +472,20 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests.Codec
         }
 
         [Test]
-        public void NonGenericDecodeBodyAsyncThrowsForNullBody()
+        public async Task NonGenericDecodeBodyAsyncThrowsForNullBody()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .DecodeBodyAsync(typeof(ReadRequest), null!, m_context)
                     .ConfigureAwait(false));
         }
 
         [Test]
-        public void NonGenericDecodeBodyAsyncThrowsForNullContext()
+        public async Task NonGenericDecodeBodyAsyncThrowsForNullContext()
         {
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WebApiBodyCodec
                     .DecodeBodyAsync(typeof(ReadRequest), stream, null!)
                     .ConfigureAwait(false));

@@ -68,7 +68,7 @@ namespace Opc.Ua.Extrusion.Tests
                 Assert.That(await ExtrusionClientPeer.CollectAsync(peer.Client.DiscoverAsync(cancellationToken:
                     cancellation.Token))
                     .ConfigureAwait(false), Is.Empty);
-                ExtrusionClientPeer.AssertFailure(async () =>
+                await ExtrusionClientPeer.AssertFailure(async () =>
                     await extruder.IsPresentVariable().ReadAsync(cancellation.Token).ConfigureAwait(false),
                         StatusCodes.BadNotFound);
                 peer.VerifyNoServices();
@@ -196,7 +196,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             if (maximum == 1)
             {
-                ExtrusionClientPeer.AssertFailure(EnumerateAsync, StatusCodes.BadEncodingLimitsExceeded);
+                await ExtrusionClientPeer.AssertFailure(EnumerateAsync, StatusCodes.BadEncodingLimitsExceeded);
             }
             else
             {
@@ -238,13 +238,13 @@ namespace Opc.Ua.Extrusion.Tests
             }
             if (shape == "Denied")
             {
-                ExtrusionClientPeer.AssertFailure(async () => await ExtrusionClientPeer.CollectAsync(
+                await ExtrusionClientPeer.AssertFailure(async () => await ExtrusionClientPeer.CollectAsync(
                     peer.Client.DiscoverAsync(root, cancellationToken: cancellation.Token)).ConfigureAwait(false),
                     StatusCodes.BadUserAccessDenied);
             }
             else if (shape is "PreCancelled" or "CancelType")
             {
-                OperationCanceledException? failure = Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                OperationCanceledException? failure = await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                     await ExtrusionClientPeer.CollectAsync(peer.Client.DiscoverAsync(
                         root, cancellationToken: cancellation.Token)).ConfigureAwait(false));
                 Assert.That(failure!.CancellationToken, Is.EqualTo(cancellation.Token));
@@ -384,7 +384,7 @@ namespace Opc.Ua.Extrusion.Tests
             }
             else if (outcome == "TranslationFailure")
             {
-                Assert.That(Assert.ThrowsAsync<ServiceResultException>(InvokeAsync), Is.SameAs(transportFailure));
+                Assert.That(await Assert.ThrowsAsync<ServiceResultException>(InvokeAsync), Is.SameAs(transportFailure));
                 Assert.That(transportFailure.StatusCode, Is.EqualTo(StatusCodes.BadCommunicationError));
             }
             else
@@ -395,7 +395,7 @@ namespace Opc.Ua.Extrusion.Tests
                     "EmptyTranslation" => StatusCodes.BadUnexpectedError,
                     _ => StatusCodes.BadNotFound
                 };
-                ExtrusionClientPeer.AssertFailure(InvokeAsync, expected);
+                await ExtrusionClientPeer.AssertFailure(InvokeAsync, expected);
             }
             peer.Verify();
         }
@@ -405,10 +405,10 @@ namespace Opc.Ua.Extrusion.Tests
         [TestCase("ProductionDatasets")]
         [TestCase("ResetMaintenance")]
         [TestCase("Jobs")]
-        public void ExtrusionOptionalWorkflowsRejectNullOwners(string workflow)
+        public async Task ExtrusionOptionalWorkflowsRejectNullOwners(string workflow)
         {
             var peer = new ExtrusionClientPeer();
-            ArgumentNullException? failure = Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            ArgumentNullException? failure = await Assert.ThrowsAsync<ArgumentNullException>(async () =>
             {
                 switch (workflow)
                 {
@@ -439,7 +439,7 @@ namespace Opc.Ua.Extrusion.Tests
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
-        public void ExtrusionHostingPreservesSingletonRegistrations(bool existingFactory, bool existingDelegate)
+        public async Task ExtrusionHostingPreservesSingletonRegistrations(bool existingFactory, bool existingDelegate)
         {
             using var cancellation = new CancellationTokenSource();
             var peer = new ExtrusionClientPeer();
@@ -513,7 +513,7 @@ namespace Opc.Ua.Extrusion.Tests
                 {
                     Assert.That(create, Is.SameAs(retainedDelegate));
                 }
-                Assert.That(Assert.ThrowsAsync<InvalidOperationException>(
+                Assert.That(await Assert.ThrowsAsync<InvalidOperationException>(
                     async () => await create(cancellation.Token).ConfigureAwait(false)),
                     Is.SameAs(existingDelegate ? delegateFailure : existingFactory ? retainedFailure : defaultFailure));
             }

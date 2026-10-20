@@ -181,6 +181,12 @@ Common controllers are supplied through `ExtrusionDeviceOptions.Common`:
 The common package owns their protocols. Selecting a command-bearing capability
 without its authority fails creation.
 
+A line's MaterialList is bound to `ExtrusionDeviceOptions.Common.Materials`.
+OPC 40083 declares its `DensityUnit` without a value, so a bound catalogue also
+needs `Common.MaterialDensityUnit`, the unit every material density is given in;
+creation fails without it. An unbound list publishes the configured unit, or a
+null `DensityUnit` when none is configured.
+
 Observation publication is independent of an awaited hardware command, allowing
 an authoritative coordinator to deliver its committed state before replying to
 a forwarded command.

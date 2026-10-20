@@ -106,7 +106,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
             }).ConfigureAwait(false);
             var client = new MaterialListTypeClient(
                 fixture.Session, binding!.Node.NodeId, fixture.Session.MessageContext.Telemetry);
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.AddMaterialAsync("invalid", new LocalizedText("Invalid"), double.NaN)
                     .ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadOutOfRange));
@@ -114,7 +114,7 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
 
             await client.AddMaterialAsync("in-use", new LocalizedText("In use"), 1000).ConfigureAwait(false);
             provider.InUse = "in-use";
-            error = Assert.ThrowsAsync<ServiceResultException>(
+            error = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await client.RemoveMaterialByIdAsync("in-use").ConfigureAwait(false));
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(RequireMaterial(fixture, binding.Node, 1).Id!.Value, Is.EqualTo("in-use"));
@@ -138,9 +138,9 @@ namespace Opc.Ua.PlasticsRubber.Runtime.Tests
                 await binding.PublishAsync(new MaterialListSnapshot(5, Time(5),
                     [new MaterialListEntry(1, "polymer", new LocalizedText("Polymer"), 900)])).ConfigureAwait(false);
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await binding!.PublishAsync(new MaterialListSnapshot(4, Time(4), [])).ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await binding!.PublishAsync(new MaterialListSnapshot(5, Time(5),
                     [new MaterialListEntry(1, "polymer", new LocalizedText("Polymer"), 901)])).ConfigureAwait(false));
             Assert.That(RequireMaterial(fixture, binding!.Node, 1).Density!.Value, Is.EqualTo(900));

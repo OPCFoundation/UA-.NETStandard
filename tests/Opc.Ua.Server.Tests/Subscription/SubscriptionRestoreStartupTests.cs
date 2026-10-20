@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests
             try
             {
                 // 41 fails and 42 is restored, so the restore and the startup fail.
-                Assert.ThrowsAsync<ServiceResultException>(
+                await Assert.ThrowsAsync<ServiceResultException>(
                     async () => await fixture.StartAsync().ConfigureAwait(false));
 
                 Assert.That(state.SessionManagers, Has.Count.EqualTo(1));

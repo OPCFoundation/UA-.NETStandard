@@ -282,13 +282,13 @@ namespace Opc.Ua.MachineTool.Tests
             await using var facade = new MachineToolClient(session, telemetry);
             for (int i = 0; i < 12; i++)
             {
-                ServiceResultException limit = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await facade.ReadEquipmentAsync(first.NodeId, maximumTools: 1).ConfigureAwait(false))!;
+                ServiceResultException limit = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await facade.ReadEquipmentAsync(first.NodeId, maximumTools: 1).ConfigureAwait(false)))!;
                 Assert.That(limit.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             }
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await facade.ReadEquipmentAsync(first.NodeId, maximumTools: 0).ConfigureAwait(false));
-            Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await facade.ReadEquipmentAsync(first.NodeId, maximumLifeEntries: 65537).ConfigureAwait(false));
             using var cancelled = new CancellationTokenSource();
             cancelled.Cancel();
@@ -305,7 +305,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(absent.Tools, Is.Empty);
             Assert.That(absent.NodeVersion.IsNull, Is.True);
             await facade.DisposeAsync().ConfigureAwait(false);
-            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+            await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
                 await facade.ReadEquipmentAsync(first.NodeId).ConfigureAwait(false));
             Assert.That(session.Connected, Is.True);
             await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
@@ -345,7 +345,7 @@ namespace Opc.Ua.MachineTool.Tests
                     Tools = [initial.Equipment!.Tools[0], MachineToolEquipmentLifetimeTests.Tool("Other", 2)]
                 }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(fixture.Context.Manager.FindPredefinedNode(existing!.NodeId), Is.SameAs(existing));
             Assert.That(resource.Disposals, Is.Zero);
             Assert.That(resource.WorkCompleted, Is.False);
@@ -385,7 +385,7 @@ namespace Opc.Ua.MachineTool.Tests
                     CreateToolAsync = (_, _, _, _, _) => new ValueTask<MachineToolEquipmentNode<ToolState>>(
                         new MachineToolEquipmentNode<ToolState>(foreign!, resource))
                 });
-            Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await builder.BuildAsync().ConfigureAwait(false));
             Assert.That(resource.Disposals, Is.Zero);
             Assert.That(resource.WorkCompleted, Is.False);
             Assert.That(fixture.Context.Manager.FindPredefinedNode(foreign!.NodeId), Is.SameAs(foreign));
@@ -428,7 +428,7 @@ namespace Opc.Ua.MachineTool.Tests
                     ]
                 }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<AggregateException>(async () => await controller.DisposeAsync().ConfigureAwait(false));
+            await Assert.ThrowsAsync<AggregateException>(async () => await controller.DisposeAsync().ConfigureAwait(false));
             Assert.That(resources, Has.Count.EqualTo(2));
             foreach (EquipmentResource resource in resources)
             {

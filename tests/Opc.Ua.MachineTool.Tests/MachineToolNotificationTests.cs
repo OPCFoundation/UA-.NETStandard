@@ -71,8 +71,8 @@ namespace Opc.Ua.MachineTool.Tests
                 })
                 .WithNotifications(new MachineToolNotificationOptions());
 
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await builder.BuildAsync().ConfigureAwait(false))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await builder.BuildAsync().ConfigureAwait(false)))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
             Assert.That(factoryCalled, Is.False);
@@ -228,7 +228,7 @@ namespace Opc.Ua.MachineTool.Tests
                 ActiveProgram = new MachineToolProgram { Name = "Rejected" },
                 Operation = new MachineToolOperation { Mode = MachineOperationMode.Automatic }
             }).ConfigureAwait(false);
-            Assert.ThrowsAsync<ArgumentException>(async () =>
+            await Assert.ThrowsAsync<ArgumentException>(async () =>
                 await runtime.RefreshAsync().ConfigureAwait(false));
             Assert.That(runtime.State.Production!.ActiveProgram!.Name!.Value, Is.EqualTo("Initial"));
             Assert.That(runtime.State.Monitoring!.MachineTool!.OperationMode!.Value,

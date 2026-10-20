@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -148,8 +149,8 @@ namespace Opc.Ua.Server.Tests
             OperationContext oldChannel = CreateContext("old");
             OperationContext newChannel = CreateContext("new");
             CreateSessionResult created = await CreateAsync(oldChannel).ConfigureAwait(false);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => ActivateAsync(created, newChannel))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => ActivateAsync(created, newChannel)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid));
             Assert.That(m_manager.HasSession("old"), Is.False);
             Assert.That(m_manager.HasSession("new"), Is.False);
@@ -158,7 +159,7 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, oldChannel).ConfigureAwait(false);
             SessionBindingContext original = GetBinding(created, oldChannel);
             m_manager.RejectAuthentication = true;
-            error = Assert.ThrowsAsync<ServiceResultException>(() => ActivateAsync(created, newChannel))!;
+            error = (await Assert.ThrowsAsync<ServiceResultException>(() => ActivateAsync(created, newChannel)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(GetBinding(created, oldChannel), Is.SameAs(original));
             Assert.That(m_manager.HasSession("old"), Is.True);
@@ -619,6 +620,7 @@ namespace Opc.Ua.Server.Tests
             int closed = 0;
             int checks = 0;
             int confirmed = 0;
+            int readersLive = 0;
             var errors = new ConcurrentQueue<string>();
             using var stop = new CancellationTokenSource();
 
@@ -629,6 +631,7 @@ namespace Opc.Ua.Server.Tests
                 readers[r] = Task.Run(() =>
                 {
                     int attempt = 0;
+                    bool seenLive = false;
                     while (!stop.IsCancellationRequested)
                     {
                         OperationContext channel = channels[(reader + attempt++) & 1];
@@ -650,6 +653,11 @@ namespace Opc.Ua.Server.Tests
                                 break;
                             }
                             Interlocked.Increment(ref confirmed);
+                            if (!seenLive)
+                            {
+                                seenLive = true;
+                                Interlocked.Increment(ref readersLive);
+                            }
                             if (closedBefore || binding.ActivationSequence < floor)
                             {
                                 errors.Enqueue(
@@ -662,6 +670,18 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
+                // let every reader confirm the live session once before the race starts, so the
+                // positive check does not depend on the pool scheduling readers during transfers
+                var deadline = Stopwatch.StartNew();
+                while (Volatile.Read(ref readersLive) < kReaders && errors.IsEmpty)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(30))
+                    {
+                        Assert.Fail(
+                            $"Only {Volatile.Read(ref readersLive)} of {kReaders} readers confirmed the live session.");
+                    }
+                    await Task.Delay(1).ConfigureAwait(false);
+                }
                 for (int i = 1; i <= kTransfers; i++)
                 {
                     await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
@@ -693,8 +713,8 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, channel).ConfigureAwait(false);
             m_clock.Advance(TimeSpan.FromMilliseconds(60_001));
             AssertNoBinding(created.AuthenticationToken, channel);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => ActivateAsync(created, channel))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => ActivateAsync(created, channel)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(m_manager.HasSession("one"), Is.False);
             Assert.That(m_manager.GetSession(created.AuthenticationToken), Is.Null);
@@ -712,7 +732,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<ServerSystemContext>(), It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Throws(new InvalidOperationException("Injected diagnostics cleanup failure."));
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await m_manager.CloseSessionAsync(created.SessionId).ConfigureAwait(false));
             Assert.That(membershipAtClose, Is.False);
             Assert.That(m_manager.HasSession("one"), Is.False);
@@ -787,7 +807,7 @@ namespace Opc.Ua.Server.Tests
             await m_manager.ShutdownAsync().ConfigureAwait(false);
             Assert.That(m_manager.HasSession("one"), Is.False);
             m_manager.ReleaseAuthentication.TrySetResult(true);
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() => activation)!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() => activation))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
             Assert.That(m_manager.HasSession("one"), Is.False);
             AssertNoBinding(created.AuthenticationToken, channel);
@@ -801,8 +821,8 @@ namespace Opc.Ua.Server.Tests
             AssertNoBinding(authenticationToken, channel);
             m_manager.RestoreEnabled = true;
             m_manager.RejectAuthentication = true;
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(
-                () => ActivateTokenAsync(authenticationToken, channel))!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                () => ActivateTokenAsync(authenticationToken, channel)))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(m_manager.HasSession("restored"), Is.False);
             AssertNoBinding(authenticationToken, channel);
@@ -862,7 +882,7 @@ namespace Opc.Ua.Server.Tests
             // fails while adding mandatory roles must not replace the mapping of the identity
             // that stays active.
             m_manager.ThrowFromMandatoryRoles = true;
-            Assert.CatchAsync(ActivateUserAsync);
+            await Assert.CatchAsync(ActivateUserAsync);
             m_manager.ThrowFromMandatoryRoles = false;
 
             created.Session.MarkIdentityStale();
@@ -915,7 +935,7 @@ namespace Opc.Ua.Server.Tests
             {
                 m_manager.ReleaseRestore.TrySetResult(true);
             }
-            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(() => activation)!;
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(() => activation))!;
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServerHalted));
             Assert.That(m_manager.GetSession(token), Is.Null);
             Assert.That(m_manager.HasSession("restored"), Is.False);

@@ -40,9 +40,9 @@ namespace Opc.Ua.Server
     /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
     /// address space. A NodeManager is first prepared, which builds its address space without
     /// making it reachable. It is then published or swapped in for the NodeManager it replaces,
-    /// and finally committed, which is the point at which Clients observe the change. Every stage
-    /// that fails is undone by the matching rollback, and only a committed NodeManager is
-    /// destroyed.
+    /// and finally committed, which is the point at which Clients observe the change.
+    /// Preparation and staging failures use the matching rollback. A failure after
+    /// client-visible commit may retain the live generation for recovery or removal.
     /// </para>
     /// </summary>
     internal interface IDynamicNodeManagerHost
@@ -126,6 +126,8 @@ namespace Opc.Ua.Server
         /// Destroys the address space of a NodeManager that is no longer reachable. This method
         /// does not remove external references discovered during deletion and does not dispose the
         /// NodeManager. The lifecycle checkpoints this stage before performing either later action.
+        /// The caller must retain exclusive ownership of the detached generation throughout
+        /// deletion; the callback may perform lifecycle operations on its dependencies.
         /// </summary>
         /// <param name="nodeManager">The NodeManager whose address space is torn down.</param>
         /// <param name="ct">The token used to cancel the operation.</param>

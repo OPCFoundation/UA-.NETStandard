@@ -754,7 +754,7 @@ namespace Opc.Ua.Server.Tests
             // Extract the DataValue arguments from the recorded QueueValue invocations
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
 
             // Assert – every change was delivered, none dropped
@@ -842,7 +842,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – snapshots reflect the values at enqueue time (100, 200), not the final value (999)
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
             Assert.That(deliveredValues, Is.EqualTo(new object[] { 100, 200 }));
@@ -899,7 +899,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => (DataValue)i.Arguments[0])
+                .Select(i => (DataValue)i.Arguments[0]!)
                 .ToList();
 
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
@@ -1142,7 +1142,7 @@ namespace Opc.Ua.Server.Tests
         {
             var queued = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0], (ServiceResult)i.Arguments[1]))
+                .Select(i => ((DataValue)i.Arguments[0]!, (ServiceResult)i.Arguments[1]!))
                 .ToList();
             Assert.That(queued, Has.Count.EqualTo(expectedCount));
             foreach ((DataValue value, ServiceResult error) in queued)
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Server.Tests
             // Assert – both value changes must have been delivered
             var deliveredValues = monitoredItemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(2));
             Assert.That(deliveredValues, Is.EqualTo(new object[] { 10, 20 }));
@@ -1731,7 +1731,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(1));
             Assert.That(deliveredValues[0], Is.EqualTo(777));
@@ -1811,7 +1811,7 @@ namespace Opc.Ua.Server.Tests
 
             var deliveredValues = itemMock.Invocations
                 .Where(i => i.Method.Name == nameof(IDataChangeMonitoredItem2.QueueValue))
-                .Select(i => ((DataValue)i.Arguments[0]).WrappedValue.AsBoxedObject())
+                .Select(i => ((DataValue)i.Arguments[0]!).WrappedValue.AsBoxedObject())
                 .ToList();
             Assert.That(deliveredValues, Has.Count.EqualTo(1));
             Assert.That(deliveredValues[0], Is.EqualTo(555));

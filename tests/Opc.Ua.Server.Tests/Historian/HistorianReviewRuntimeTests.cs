@@ -253,7 +253,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 handle = token.WaitHandle;
                 Task disposing = capture.DisposeAsync().AsTask();
                 clock.Advance(TimeSpan.FromSeconds(5));
-                Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
+                await Assert.ThrowsAsync<TimeoutException>(async () => await disposing.ConfigureAwait(false));
                 Assert.That(token.IsCancellationRequested, Is.True);
                 Assert.That(handle.SafeWaitHandle.IsClosed, Is.False,
                     "An in-flight provider still owns access to the cancellation token's resources.");

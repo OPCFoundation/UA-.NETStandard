@@ -18,8 +18,8 @@ dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
-Device Integration, ISA-95, Positioning, MachineTool (with bundled WMTP), GMS,
-CranesHoists, WoT and xRegistry profiles. Profiles compose, for example
+AutoID, Device Integration, ISA-95, Positioning, MachineTool (with bundled WMTP),
+GMS, CranesHoists, WoT and xRegistry profiles. Profiles compose, for example
 `--profile machinery,isa95`, `--profile machinetool,gms,craneshoists`, or
 `--profile core,wot,xregistry,wot-documents`. `wot-documents` needs no UA connection.
 Additional profiles expose GDS/credential issuance, roles/users, files, alarms,
@@ -120,7 +120,7 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
 - **CranesHoists**: observed topology and raw measurements with authorized
   standard speed-limit requests, never physical motion commands
 - **Industrial companions**: asset management, machinery, weighing, pumps,
-  device integration, ISA-95 jobs and relative/global positioning. See the
+  AutoID readers, device integration, ISA-95 jobs and relative/global positioning. See the
   [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools).
 - **WoT and xRegistry**: explicit asset/registry/version/label operations,
   bounded events and content transfers, document validation, binding planning
@@ -173,6 +173,7 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` | Machine monitoring, process values, energy and results |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products and recipes |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps` | Pump values, supervision and maintenance |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.AutoID` | AutoID reader scans, tag reads and RTLS locations |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device integration, locking and updates |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |

@@ -181,12 +181,12 @@ namespace Opc.Ua.AMB.Tests
             AlarmConditionState condition = await server.FindNodeAsync<AlarmConditionState>(servicing.NodeId)
                 .ConfigureAwait(false);
 
-            ServiceResultException finishTooEarly = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await servicing.FinishAsync().ConfigureAwait(false))!;
+            ServiceResultException finishTooEarly = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await servicing.FinishAsync().ConfigureAwait(false)))!;
             await servicing.StartAsync().ConfigureAwait(false);
             ConditionSnapshot executing = Capture(servicing, condition);
-            ServiceResultException startTwice = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await servicing.StartAsync().ConfigureAwait(false))!;
+            ServiceResultException startTwice = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await servicing.StartAsync().ConfigureAwait(false)))!;
 
             await servicing.FinishAsync(new LocalizedText("The seals did not fit; the servicing failed."))
                 .ConfigureAwait(false);
@@ -286,7 +286,7 @@ namespace Opc.Ua.AMB.Tests
                 Assert.That(condition.EventId.Value, Is.Not.EqualTo(before), "the update is reported");
                 Assert.That(repair.State, Is.EqualTo(MaintenanceStateKind.Planned));
             });
-            Assert.ThrowsAsync<ArgumentNullException>(async () => await repair.UpdateAsync(null!).ConfigureAwait(false));
+            await Assert.ThrowsAsync<ArgumentNullException>(async () => await repair.UpdateAsync(null!).ConfigureAwait(false));
         }
 
         [Test]
@@ -315,8 +315,8 @@ namespace Opc.Ua.AMB.Tests
                 return ServiceResult.Good;
             };
 
-            ServiceResultException refused = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await improvement.StartAsync().ConfigureAwait(false))!;
+            ServiceResultException refused = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await improvement.StartAsync().ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {
@@ -422,8 +422,8 @@ namespace Opc.Ua.AMB.Tests
                 return ServiceResult.Good;
             };
 
-            ServiceResultException refused = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await improvement.StartAsync().ConfigureAwait(false))!;
+            ServiceResultException refused = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await improvement.StartAsync().ConfigureAwait(false)))!;
 
             Assert.Multiple(() =>
             {

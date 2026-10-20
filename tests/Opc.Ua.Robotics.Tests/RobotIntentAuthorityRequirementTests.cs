@@ -68,7 +68,7 @@ namespace Opc.Ua.Robotics.Tests
         }
 
         [Test]
-        public void RequireAuthorityThrowsWithCurrentOwnerWhenRefused()
+        public async Task RequireAuthorityThrowsWithCurrentOwnerWhenRefused()
         {
             NodeId owner = new("other-session", 2);
             Mock<IRobotIntentTransport> transport = CreateAuthorityTransport(
@@ -76,8 +76,8 @@ namespace Opc.Ua.Robotics.Tests
                 owner);
             RobotIntentControllerClient controller = new(transport.Object);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await controller.RequireAuthorityAsync())!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await controller.RequireAuthorityAsync()))!;
 
             Assert.Multiple(() =>
             {

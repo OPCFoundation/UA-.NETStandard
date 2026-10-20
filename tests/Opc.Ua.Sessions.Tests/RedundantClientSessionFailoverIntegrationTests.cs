@@ -86,7 +86,6 @@ namespace Opc.Ua.Sessions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(120_000)]
         public async Task FacadeBlocksUntilLeaderThenSurvivesHandoffAsync(CancellationToken ct)
         {

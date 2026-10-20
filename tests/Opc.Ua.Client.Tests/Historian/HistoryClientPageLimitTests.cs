@@ -92,13 +92,13 @@ namespace Opc.Ua.Client.Tests.Historian
                 MaxDecodedPageItems = 2
             });
             int yielded = 0;
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
                 await foreach (int value in ReadAsync(client, kind).ConfigureAwait(false))
                 {
                     yielded += value + 1;
                 }
-            })!;
+            }))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.That(yielded, Is.Zero);
             Assert.That(fixture.Requests, Has.Count.EqualTo(2));
@@ -132,8 +132,8 @@ namespace Opc.Ua.Client.Tests.Historian
             {
                 MaxDecodedPageItems = 1
             });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CollectAsync(ReadAsync(client, 1)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(ReadAsync(client, 1)).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -162,8 +162,8 @@ namespace Opc.Ua.Client.Tests.Historian
             {
                 MaxDecodedPageItems = 1
             });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CollectAsync(ReadAsync(client, 1)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(ReadAsync(client, 1)).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
@@ -190,8 +190,8 @@ namespace Opc.Ua.Client.Tests.Historian
             {
                 MaxDecodedPageItems = 1
             });
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await CollectAsync(ReadAsync(client, 0)).ConfigureAwait(false))!;
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await CollectAsync(ReadAsync(client, 0)).ConfigureAwait(false)))!;
             Assert.That(failure.StatusCode, Is.EqualTo(serviceFailure
                 ? StatusCodes.BadUserAccessDenied : StatusCodes.BadHistoryOperationUnsupported));
         }

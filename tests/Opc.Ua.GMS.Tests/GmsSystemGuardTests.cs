@@ -27,6 +27,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
@@ -102,14 +103,14 @@ namespace Opc.Ua.GMS.Tests
         /// In-memory providers refuse missing inherited observations before attempting revision assignment.
         /// </summary>
         [Test]
-        public void ProviderRejectsMissingSnapshotsAndInheritedObservations()
+        public async Task ProviderRejectsMissingSnapshotsAndInheritedObservations()
         {
             Assert.Throws<ArgumentNullException>(() => new InMemoryGmsProvider(null!));
             Assert.Throws<ArgumentException>(() =>
                 new InMemoryGmsProvider(new GmsSystemSnapshot { MachineTool = null! }));
             var provider = new InMemoryGmsProvider(new GmsSystemSnapshot());
-            Assert.ThrowsAsync<ArgumentNullException>(() => provider.SetSnapshotAsync(null!).AsTask());
-            Assert.ThrowsAsync<ArgumentException>(() =>
+            await Assert.ThrowsAsync<ArgumentNullException>(() => provider.SetSnapshotAsync(null!).AsTask());
+            await Assert.ThrowsAsync<ArgumentException>(() =>
                 provider.SetSnapshotAsync(new GmsSystemSnapshot { MachineTool = null! }).AsTask());
         }
 

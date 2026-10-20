@@ -613,15 +613,15 @@ namespace Opc.Ua.Scales.Tests
             Assert.That(registered!.Gross, Is.EqualTo(2.0).Within(1e-9));
             Assert.That(registered.WeightId, Is.Not.Null.And.Not.Empty);
 
-            ServiceResultException? error = Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SetZeroAsync(id));
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SetZeroAsync(id));
             Assert.That(error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
             Assert.That(await m_client.ReadRegisteredWeightAsync(Id("Hopper")), Is.Not.Null);
             Assert.That(await m_client.TryReadCurrentWeightAsync(id), Is.Not.Null);
             Assert.That(await m_client.TryReadCurrentWeightAsync(m_system!.NodeId), Is.Null, "a scale system has no CurrentWeight");
-            ServiceResultException? notFound = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? notFound = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ReadCurrentWeightAsync(m_system.NodeId));
             Assert.That(notFound!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
-            ServiceResultException? missing = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? missing = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.InvokeAsync(id, BrowseNames.DischargeStart));
             Assert.That(missing!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotSupported));
         }
@@ -649,10 +649,10 @@ namespace Opc.Ua.Scales.Tests
             await m_client.RemoveProductAsync(id, "Plums");
             Assert.That((await m_client.ReadProductsAsync(id)).Contains(p => p.ProductId == "Plums"), Is.False);
 
-            ServiceResultException? notFound = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? notFound = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.SelectProductAsync(id, "Nope"));
             Assert.That(notFound!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotFound));
-            Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SelectProductAsync(Id("Lab"), "x"));
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await m_client.SelectProductAsync(Id("Lab"), "x"));
             Assert.That(await m_client.ReadProductsAsync(Id("Lab")), Is.Empty);
         }
 
@@ -675,7 +675,7 @@ namespace Opc.Ua.Scales.Tests
             await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Reset);
             await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Abort);
             Assert.That(await m_client.ReadPackMLStateAsync(id), Is.EqualTo(PackMLStateNumbers.Aborted));
-            ServiceResultException? invalid = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? invalid = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.ExecutePackMLCommandAsync(id, PackMLCommand.Start));
             // The controller clears Executable on the methods whose cause is not
             // permitted, so the server rejects the call before it reaches the
@@ -724,7 +724,7 @@ namespace Opc.Ua.Scales.Tests
 
             ScaleHandle checker = m_system!.Scales[0];
             await m_client.SetFeederSpeedAsync(checker.Modules[0].NodeId, 1.5f, ScalesTestUnits.MetrePerSecond);
-            ServiceResultException? tooFast = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException? tooFast = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_client.SetFeederSpeedAsync(checker.Modules[0].NodeId, 9f, ScalesTestUnits.MetrePerSecond));
             Assert.That(tooFast!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadOutOfRange));
             await m_client.InvokeAsync(m_system.NodeId, BrowseNames.ResetGlobalStatistics);

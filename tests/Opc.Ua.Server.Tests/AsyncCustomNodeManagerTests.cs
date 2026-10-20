@@ -2430,7 +2430,7 @@ namespace Opc.Ua.Server.Tests
                 ResultMask = BrowseResultMask.All
             };
 
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await manager.BrowseAsync(
                     new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
                     continuationPoint,
@@ -4843,7 +4843,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 20);
             variable.ThrowOnRead = true;
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await ModifySingleMonitoredItemAsync(
                     manager,
                     monitoredItem,
@@ -5257,7 +5257,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueValue(live, ServiceResult.Good);
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await modification.ConfigureAwait(false));
             calculator.Verify(
                 value => value.QueueRawValue(
@@ -5342,7 +5342,7 @@ namespace Opc.Ua.Server.Tests
                 TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             cancellation.Cancel();
 
-            Assert.CatchAsync<OperationCanceledException>(
+            await Assert.CatchAsync<OperationCanceledException>(
                 async () => await modification.ConfigureAwait(false));
             Assert.Multiple(() =>
             {
@@ -5401,7 +5401,7 @@ namespace Opc.Ua.Server.Tests
             samplingGroupManager.ResetCounts();
             samplingGroupManager.ThrowOnModify = true;
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await ModifySingleMonitoredItemAsync(
                     manager,
                     monitoredItem,
@@ -5521,7 +5521,7 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult.Good);
             page.SetResult(new HistorianPage<HistoricalDataValue>([]));
 
-            Assert.ThrowsAsync<InvalidOperationException>(
+            await Assert.ThrowsAsync<InvalidOperationException>(
                 async () => await modification.ConfigureAwait(false));
 
             monitoredItem.QueueValue(

@@ -263,7 +263,7 @@ namespace Opc.Ua.Client.Subscriptions
             sut.AppendPreloadedPartition(secondary);
             try
             {
-                Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await Assert.ThrowsAsync<InvalidOperationException>(async () =>
                     await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false));
 
                 await ((ISubscription)sut).RecreateAsync().ConfigureAwait(false);

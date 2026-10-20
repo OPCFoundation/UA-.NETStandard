@@ -118,14 +118,14 @@ namespace Opc.Ua.MachineTool.Tests
         /// Missing report output is an explicit bad response, not a successful empty record set.
         /// </summary>
         [Test]
-        public void WorkCycleProxyRejectsMissingReportOutput()
+        public async Task WorkCycleProxyRejectsMissingReportOutput()
         {
             ServiceMessageContext context = ModelTestContext.CreateMessageContext(MachineToolParts.Wmtp);
             Mock<ISessionClient> session = CreateSession(context, []);
             var proxy = new WMTPWorkCycleDataTypeClient(
                 session.Object, new NodeId("work-cycle", 1), NUnitTelemetryContext.Create());
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
-                async () => await proxy.CombinedReportAllAsync().ConfigureAwait(false))!;
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await proxy.CombinedReportAllAsync().ConfigureAwait(false)))!;
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
         }
 

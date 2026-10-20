@@ -674,6 +674,74 @@ namespace Opc.Ua.Vision.Tests
         }
 
         [Test]
+        public async Task MandatoryPropertiesTheConfigurationLeavesUnsetHaveAValue()
+        {
+            await using var fixture = new VisionServerFixture();
+            await fixture.StartAsync().ConfigureAwait(false);
+            IVisionBuildContext context = fixture.CreateBuildContext();
+
+            context.Nodes
+                .AddFrame("Frame1", f => f.WithFrameId("frame1"))
+                .AddImageSensor(
+                    "Cam1",
+                    s => s
+                        .WithSensorId("SN-CAM")
+                        .AddIntrinsicCalibration("Intr", _ => { })
+                        .AddExtrinsicCalibration("Extr", _ => { })
+                        .AddStreamEndpoint("Stream", _ => { })
+                        .AddClipEndpoint("Clip", _ => { }))
+                .AddPipeline("Pipe1", _ => { });
+
+            var frame = (CoordinateFrameState)FindChild(fixture.Manager.Root.Frames!, "Frame1")!;
+            var camera = (ImageSensorState)FindChild(fixture.Manager.Root.Sensors!, "Cam1")!;
+            var intrinsic = (IntrinsicCalibrationState)FindChild(camera.Calibrations!, "Intr")!;
+            var extrinsic = (ExtrinsicCalibrationState)FindChild(camera.Calibrations!, "Extr")!;
+            var stream = (StreamEndpointState)FindChild(camera.Media!.StreamEndpoints!, "Stream")!;
+            var clip = (ClipEndpointState)FindChild(camera.Media!.ClipEndpoints!, "Clip")!;
+            var pipeline = (InferencePipelineState)FindChild(fixture.Manager.Root.Pipelines!, "Pipe1")!;
+            BaseVariableState[] published =
+            [
+                frame.Role!,
+                camera.RealityKind!,
+                camera.Modality!,
+                intrinsic.PerformedAt!,
+                intrinsic.Valid!,
+                extrinsic.PerformedAt!,
+                extrinsic.Valid!,
+                extrinsic.SourceFrame!,
+                extrinsic.TargetFrame!,
+                stream.State!,
+                stream.Authentication!,
+                stream.SecureTransport!,
+                clip.State!,
+                clip.Authentication!,
+                clip.SecureTransport!,
+                pipeline.State!,
+                pipeline.Sensor!,
+                pipeline.Deployment!
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (BaseVariableState variable in published)
+                {
+                    Assert.That(variable.WrappedValue.IsNull, Is.False, variable.BrowseName.Name);
+                }
+                Assert.That(frame.Role!.Value, Is.EqualTo(VisionFrameRoleEnum.Other));
+                Assert.That(camera.RealityKind!.Value, Is.EqualTo(VisionRealityKindEnum.Physical));
+                Assert.That(camera.Modality!.Value, Is.EqualTo(VisionSensorModalityEnum.Area2D));
+                Assert.That(intrinsic.PerformedAt!.Value, Is.EqualTo(DateTimeUtc.MinValue));
+                Assert.That(intrinsic.Valid!.Value, Is.True);
+                Assert.That(extrinsic.Valid!.Value, Is.True);
+                Assert.That(extrinsic.SourceFrame!.Value, Is.EqualTo(NodeId.Null));
+                Assert.That(stream.State!.Value, Is.EqualTo(VisionEndpointStateEnum.Inactive));
+                Assert.That(clip.Authentication!.Value, Is.EqualTo(VisionEndpointAuthenticationEnum.None));
+                Assert.That(pipeline.State!.Value, Is.EqualTo(VisionEndpointStateEnum.Inactive));
+                Assert.That(pipeline.Deployment!.Value, Is.EqualTo(NodeId.Null));
+            });
+        }
+
+        [Test]
         public async Task BuildContextExposesVisionAndInstanceNamespaceIndexes()
         {
             await using var fixture = new VisionServerFixture();

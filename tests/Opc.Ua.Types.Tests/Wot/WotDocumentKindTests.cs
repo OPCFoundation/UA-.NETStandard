@@ -87,13 +87,13 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that native mapping classification honors cancellation.
         /// </summary>
         [Test]
-        public void NativeMappingClassificationHonorsCancellation()
+        public async Task NativeMappingClassificationHonorsCancellation()
         {
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes("""{"@type":"uav:object"}"""));
             using var cancellation = new CancellationTokenSource();
             cancellation.Cancel();
 
-            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+            await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 await WotNodeSetConverter.RequiresNativeMappingAsync(document, cancellationToken: cancellation.Token));
         }
 
@@ -101,9 +101,9 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that native mapping classification rejects null document.
         /// </summary>
         [Test]
-        public void NativeMappingClassificationRejectsNullDocument()
+        public async Task NativeMappingClassificationRejectsNullDocument()
         {
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await WotNodeSetConverter.RequiresNativeMappingAsync(null!));
         }
 

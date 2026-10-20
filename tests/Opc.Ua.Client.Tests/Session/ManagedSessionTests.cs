@@ -1214,8 +1214,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.That(completedTask, Is.SameAs(creation));
 
             OperationCanceledException exception =
-                Assert.CatchAsync<OperationCanceledException>(async () =>
-                    await creation.ConfigureAwait(false))!;
+                (await Assert.CatchAsync<OperationCanceledException>(async () =>
+                    await creation.ConfigureAwait(false)))!;
             Assert.That(exception.CancellationToken, Is.EqualTo(cancellation.Token));
 
             Task stoppedTask = await Task.WhenAny(
@@ -1226,7 +1226,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void CreateAsyncThrowsOnNullConfiguration()
+        public async Task CreateAsyncThrowsOnNullConfiguration()
         {
             var mockFactory = new Mock<ISessionFactory>();
             mockFactory.Setup(f => f.Telemetry)
@@ -1236,7 +1236,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 null!,
                 new EndpointDescription("opc.tcp://localhost:4840"));
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await Client.ManagedSession.CreateAsync(
                     configuration: null!,
                     endpoint: endpoint,
@@ -1244,7 +1244,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void CreateAsyncThrowsOnNullEndpoint()
+        public async Task CreateAsyncThrowsOnNullEndpoint()
         {
             var mockFactory = new Mock<ISessionFactory>();
             mockFactory.Setup(f => f.Telemetry)
@@ -1260,7 +1260,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 }
             };
 
-            Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await Client.ManagedSession.CreateAsync(
                     configuration: config,
                     endpoint: null!,
@@ -1268,7 +1268,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ConnectConsultsTheProviderWhenNoTokenPoliciesAndNoFallbackIdentityExist()
+        public async Task ConnectConsultsTheProviderWhenNoTokenPoliciesAndNoFallbackIdentityExist()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
@@ -1292,7 +1292,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             var provider = new Mock<IClientIdentityProvider>();
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Client.ManagedSession.CreateAsync(
                     configuration,
                     endpoint,
@@ -1318,7 +1318,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ConnectKeepsTheConfiguredIdentityWhenTheEndpointAdvertisesNoTokenPolicies()
+        public async Task ConnectKeepsTheConfiguredIdentityWhenTheEndpointAdvertisesNoTokenPolicies()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
@@ -1343,7 +1343,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             var provider = new Mock<IClientIdentityProvider>(MockBehavior.Strict);
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Client.ManagedSession.CreateAsync(
                     configuration,
                     endpoint,
@@ -1397,7 +1397,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void CreateAsyncThrowsInitialConnectErrorInsteadOfReturningUnconnectedSession()
+        public async Task CreateAsyncThrowsInitialConnectErrorInsteadOfReturningUnconnectedSession()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
@@ -1432,7 +1432,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 MaxTotalReconnectTime = TimeSpan.FromSeconds(10)
             };
 
-            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Client.ManagedSession.CreateAsync(
                     configuration,
                     endpoint,
@@ -1454,7 +1454,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         [Test]
         [TestCase(false)]
         [TestCase(true)]
-        public void CreateAsyncConnectsThroughAFactoryThatCarriesTheSubscriptionEngine(
+        public async Task CreateAsyncConnectsThroughAFactoryThatCarriesTheSubscriptionEngine(
             bool engineConfigured)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -1494,7 +1494,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 MaxTotalReconnectTime = TimeSpan.FromSeconds(10)
             };
 
-            Assert.ThrowsAsync<ServiceResultException>(
+            await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await Client.ManagedSession.CreateAsync(
                     configuration,
                     endpoint,
@@ -1591,7 +1591,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Task.Delay(TimeSpan.FromSeconds(5)))
                 .ConfigureAwait(false);
             Assert.That(completedTask, Is.SameAs(createTask));
-            Assert.CatchAsync<OperationCanceledException>(() => createTask);
+            await Assert.CatchAsync<OperationCanceledException>(() => createTask);
             Assert.That(fetchCompletion.Task.IsCanceled, Is.True);
             Assert.That(managedSession, Is.Not.Null);
             Assert.That(
@@ -1687,7 +1687,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 managedSession.StateMachine.State,
                 Is.EqualTo(ConnectionState.Closed));
 
-            Assert.CatchAsync<ServiceResultException>(() => createTask);
+            await Assert.CatchAsync<ServiceResultException>(() => createTask);
         }
 
         [Test]
@@ -1927,7 +1927,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Task.Delay(TimeSpan.FromSeconds(5)))
                 .ConfigureAwait(false);
             Assert.That(completedTask, Is.SameAs(createTask));
-            Assert.CatchAsync<OperationCanceledException>(() => createTask);
+            await Assert.CatchAsync<OperationCanceledException>(() => createTask);
 #pragma warning disable CA1873 // Moq Verify on ILogger.Log is an expression tree, not an executed logging call.
             logger.Verify(
                 l => l.Log(

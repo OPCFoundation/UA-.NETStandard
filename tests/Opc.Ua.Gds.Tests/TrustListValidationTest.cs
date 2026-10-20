@@ -93,7 +93,6 @@ namespace Opc.Ua.Gds.Tests
         /// Test that normal-sized trust lists work correctly.
         /// </summary>
         [Test]
-        [Order(100)]
         public async Task NormalSizeTrustListAsync()
         {
             // Create a normal-sized trust list
@@ -135,8 +134,8 @@ namespace Opc.Ua.Gds.Tests
         /// Test that writing a trust list exceeding the size limit fails.
         /// </summary>
         [Test]
-        [Order(200)]
-        public void WriteTrustListExceedsSizeLimit()
+        [DependsOnTest(nameof(NormalSizeTrustListAsync), AllowFailure = true)]
+        public async Task WriteTrustListExceedsSizeLimit()
         {
             // Create a trust list with a few certificates
             var oversizedTrustList = new TrustListDataType
@@ -168,7 +167,7 @@ namespace Opc.Ua.Gds.Tests
             TestContext.Out.WriteLine($"Client MaxTrustListSize set to: {maxTrustListSize}");
 
             // This should throw ServiceResultException with BadEncodingLimitsExceeded
-            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+            ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(
                 async () => await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList, maxTrustListSize).ConfigureAwait(false));
 
             Assert.That(ex, Is.Not.Null);
@@ -180,7 +179,7 @@ namespace Opc.Ua.Gds.Tests
         /// Test boundary condition - trust list just under the limit.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(WriteTrustListExceedsSizeLimit), AllowFailure = true)]
         public async Task TrustListJustUnderLimitAsync()
         {
             var boundaryTrustList = new TrustListDataType
@@ -230,7 +229,7 @@ namespace Opc.Ua.Gds.Tests
         /// Test reading and writing with a custom MaxTrustListSize set in the ServerConfiguration.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(TrustListJustUnderLimitAsync), AllowFailure = true)]
         public async Task ReadWriteWithCustomServerMaxTrustListSizeAsync()
         {
             // Define a custom size limit for the server
@@ -267,7 +266,7 @@ namespace Opc.Ua.Gds.Tests
                 }
                 TestContext.Out.WriteLine($"Oversized trust list created with {certCount} certs and size {currentSize}");
 
-                ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException ex = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList).ConfigureAwait(false));
                 // The server rejects the Write (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTooLarge));
@@ -297,7 +296,7 @@ namespace Opc.Ua.Gds.Tests
                 TestContext.Out.WriteLine("Successfully wrote valid trust list to server.");
 
                 // 3. Test reading the trust list with a client limit that is too small
-                ServiceResultException exRead = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                ServiceResultException exRead = await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.ReadTrustListAsync(TrustListMasks.TrustedCertificates, (uint)validSize - 1).ConfigureAwait(false));
                 Assert.That(exRead.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
                 TestContext.Out.WriteLine("Successfully caught exception for reading trust list with small client limit.");

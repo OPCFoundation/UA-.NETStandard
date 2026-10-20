@@ -233,10 +233,10 @@ namespace Opc.Ua.WotCon.Samples.Tests
             NodeId acknowledge = await TranslateAsync(session, first, "Acknowledge", timeout.Token)
                 .ConfigureAwait(false);
 
-            ServiceResultException failure = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session.CallAsync(
                     first, acknowledge, timeout.Token, Variant.From(wrongEventId), Variant.From(LocalizedText.Null))
-                    .ConfigureAwait(false))!;
+                    .ConfigureAwait(false)))!;
 
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
             Assert.That(await ReadTwoStateAsync(session, first, "AckedState", timeout.Token).ConfigureAwait(false),

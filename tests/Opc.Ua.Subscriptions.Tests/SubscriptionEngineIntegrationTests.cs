@@ -83,7 +83,6 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(100)]
         [CancelAfter(60_000)]
         public async Task V2EngineSessionHasV2EngineAsync(CancellationToken ct)
         {
@@ -105,8 +104,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(200)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(V2EngineSessionHasV2EngineAsync), AllowFailure = true)]
         public async Task V2EngineCreateAndDeleteSubscriptionAsync(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(
@@ -169,8 +168,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(300)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(V2EngineCreateAndDeleteSubscriptionAsync), AllowFailure = true)]
         public async Task V2EnginePublishRequestCountScalesAsync(CancellationToken ct)
         {
             const int subscriptionCount = 3;
@@ -231,8 +230,8 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        [Order(400)]
         [CancelAfter(60_000)]
+        [DependsOnTest(nameof(V2EnginePublishRequestCountScalesAsync), AllowFailure = true)]
         public async Task V2EngineSubscriptionReceivesKeepAliveAsync(CancellationToken ct)
         {
             ManagedSession session = await ConnectV2Async(

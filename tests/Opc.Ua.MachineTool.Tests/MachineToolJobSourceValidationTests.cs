@@ -350,14 +350,14 @@ namespace Opc.Ua.MachineTool.Tests
                 new MachineToolJobSourcePartCounts(2, 1, new MachineToolSampleInfo(default, StatusCodes.Good))
             })
             {
-                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await source.RecordPartsAsync("Job-1", invalid).ConfigureAwait(false));
             }
             Assert.That((await source.TransitionAsync("Job-1", Isa95JobExecutionTransition.Complete)
                 .ConfigureAwait(false)).ReturnStatus, Is.EqualTo(Isa95JobReturnStatus.UnableToAccept));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await source.CompleteRunAsync("Job-1").ConfigureAwait(false));
-            Assert.ThrowsAsync<ServiceResultException>(async () =>
+            await Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await source.RecordPartsAsync("Unknown", new MachineToolJobSourcePartCounts()).ConfigureAwait(false));
             Assert.That(await source.ReadAsync().ConfigureAwait(false), Is.SameAs(before));
         }
@@ -395,7 +395,7 @@ namespace Opc.Ua.MachineTool.Tests
             Assert.That(current.EdmGenerators, Is.EqualTo(monitoring.EdmGenerators));
             Assert.That(current.Stacklights, Is.EqualTo(monitoring.Stacklights));
             Assert.That(current.Production.Statistics, Is.SameAs(monitoring.Production.Statistics));
-            Assert.ThrowsAsync<ServiceResultException>(async () => await source.SetMonitoringAsync(monitoring with
+            await Assert.ThrowsAsync<ServiceResultException>(async () => await source.SetMonitoringAsync(monitoring with
             {
                 Operation = monitoring.Operation with { PartsProducedInLifetime = 41 },
                 Production = monitoring.Production with
