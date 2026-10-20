@@ -506,9 +506,15 @@ function Get-TestProjectShards([string] $project, [string] $framework)
                     hangTimeout = ''
                 }
                 @{
-                    id = 'wot-other'
-                    name = 'wot-other'
-                    filter = "FullyQualifiedName!~${materialization}"
+                    id = 'wot-other-core'
+                    name = 'wot-other-core'
+                    filter = "FullyQualifiedName!~${materialization}&TestCategory!=Integration"
+                    hangTimeout = ''
+                }
+                @{
+                    id = 'wot-other-integration'
+                    name = 'wot-other-integration'
+                    filter = "FullyQualifiedName!~${materialization}&TestCategory=Integration"
                     hangTimeout = ''
                 }
             )

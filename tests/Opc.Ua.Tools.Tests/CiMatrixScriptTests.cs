@@ -520,7 +520,12 @@ namespace Opc.Ua.Tools.Tests
                 .GroupBy(entry => entry.Profile))
             {
                 string[] expectedShards = profile.First().Framework == "net48"
-                    ? ["wot-materialization-core", "wot-materialization-integration", "wot-other"]
+                    ? [
+                        "wot-materialization-core",
+                        "wot-materialization-integration",
+                        "wot-other-core",
+                        "wot-other-integration"
+                    ]
                     : ["wot-materialization", "wot-other"];
                 Assert.That(
                     profile.Select(entry => entry.Shard),
@@ -565,7 +570,9 @@ namespace Opc.Ua.Tools.Tests
                         .Select(entry => entry.Shard)
                         .ToArray();
                     string expectedShard = !materialization
-                        ? "wot-other"
+                        ? profile.First().Framework != "net48"
+                            ? "wot-other"
+                            : integration ? "wot-other-integration" : "wot-other-core"
                         : profile.First().Framework != "net48"
                             ? "wot-materialization"
                             : integration ? "wot-materialization-integration" : "wot-materialization-core";
