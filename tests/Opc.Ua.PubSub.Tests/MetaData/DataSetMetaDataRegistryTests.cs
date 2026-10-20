@@ -64,10 +64,10 @@ namespace Opc.Ua.PubSub.Tests.MetaData
             Assert.That(scope.RegisterReceived(in key, forged, authenticated: false), Is.False);
             Assert.That(scope.Keys, Has.Count.EqualTo(1));
 
-            DataSetMetaDataType authenticated = NewMeta(name: "Authenticated");
-            Assert.That(scope.RegisterReceived(in key, authenticated, authenticated: true), Is.True);
+            DataSetMetaDataType connectionAnnouncement = NewMeta(name: "ConnectionAnnouncement");
+            Assert.That(scope.RegisterReceived(in key, connectionAnnouncement, authenticated: true), Is.True);
             Assert.That(scope.TryGet(in key, out stored), Is.EqualTo(MetaDataMatchResult.Match));
-            Assert.That(stored, Is.SameAs(authenticated));
+            Assert.That(stored, Is.SameAs(connectionAnnouncement));
             Assert.That(host.TryGet(in key, out stored), Is.EqualTo(MetaDataMatchResult.Match));
             Assert.That(stored, Is.SameAs(configured),
                 "Even an authenticated connection announcement must not mutate the host or sibling scopes.");

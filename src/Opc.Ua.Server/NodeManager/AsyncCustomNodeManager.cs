@@ -8589,6 +8589,8 @@ namespace Opc.Ua.Server
 
                 MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
 
+                // The node resolved; cancellation during admission must not retain the lookup placeholder.
+                errors[handle.Index] = ServiceResult.Good;
                 (errors[handle.Index], filterResult, monitoredItem) = await CreateMonitoredItemAsync(
                     systemContext,
                     handle,

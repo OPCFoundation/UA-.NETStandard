@@ -135,8 +135,8 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                     await cancellation.CancelAsync().ConfigureAwait(false);
-                    await Assert.ThatAsync(async () => await admission.ConfigureAwait(false),
-                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                    await admission.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                     Assert.That(items[0], Is.Null);
                 }
                 finally
