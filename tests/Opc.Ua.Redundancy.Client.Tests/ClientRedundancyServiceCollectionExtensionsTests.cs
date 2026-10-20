@@ -101,6 +101,37 @@ namespace Opc.Ua.Client.Redundancy.Tests
         }
 
         [Test]
+        public async Task CompactionIntervalReachesTheClientRaftStoreAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddRaftClientSharedStore(null, compactionInterval: 5);
+            await using (ServiceProvider provider = services.BuildServiceProvider())
+            {
+                ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+                bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+                Assert.That(created, Is.True);
+            }
+
+            // A consensus without snapshots cannot compact: the interval reaches the store, which refuses it.
+            var raft = new ServiceCollection();
+            raft.AddRaftClientSharedStore(_ => new InProcessRaftConsensus(), compactionInterval: 5);
+            var redundant = new ServiceCollection();
+            redundant.AddRedundantClientSharedStore(
+                RedundancyConsistencyMode.Strong,
+                ReplicaId.New(),
+                null,
+                _ => new InProcessRaftConsensus(),
+                raftCompactionInterval: 5);
+            await using ServiceProvider raftProvider = raft.BuildServiceProvider();
+            await using ServiceProvider redundantProvider = redundant.BuildServiceProvider();
+            Assert.Multiple(() =>
+            {
+                Assert.That(() => raftProvider.GetRequiredService<ISharedKeyValueStore>(), Throws.ArgumentException);
+                Assert.That(() => redundantProvider.GetRequiredService<ISharedKeyValueStore>(), Throws.ArgumentException);
+            });
+        }
+
+        [Test]
         public void AddRaftClientSharedStoreThrowsWhenServicesNull()
         {
             Assert.That(

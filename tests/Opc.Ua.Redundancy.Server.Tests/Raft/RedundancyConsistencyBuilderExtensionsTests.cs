@@ -70,6 +70,35 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         [Test]
+        public async Task RaftCompactionIntervalReachesTheRaftStoreAsync()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(options =>
+                {
+                    options.Mode = RedundancyConsistencyMode.Strong;
+                    options.RaftCompactionInterval = 5;
+                });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+            bool created = await store.CompareAndSwapAsync("k", default, ByteString.From(new byte[] { 1 })).ConfigureAwait(false);
+            Assert.That(created, Is.True);
+
+            // A consensus without snapshots cannot compact: the interval reaches the store, which refuses it.
+            var refusing = new ServiceCollection();
+            refusing.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(options =>
+                {
+                    options.Mode = RedundancyConsistencyMode.Strong;
+                    options.RaftConsensusFactory = _ => new InProcessRaftConsensus();
+                    options.RaftCompactionInterval = 5;
+                });
+            await using ServiceProvider refusingProvider = refusing.BuildServiceProvider();
+            Assert.That(() => refusingProvider.GetRequiredService<ISharedKeyValueStore>(), Throws.ArgumentException);
+        }
+
+        [Test]
         public async Task EventualModeRegistersHybridStoreAsync()
         {
             var services = new ServiceCollection();

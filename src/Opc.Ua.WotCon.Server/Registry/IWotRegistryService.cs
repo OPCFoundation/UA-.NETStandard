@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Server;
 
 namespace Opc.Ua.WotCon.Server.Registry
 {
@@ -89,6 +90,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets or sets the document format tag.
         /// </summary>
         public string Format { get; set; } = "WoT-TD/1.1";
+
+        /// <summary>
+        /// Gets or sets whether an authored projection role selects the projection Format and
+        /// ContentType before validation. Defaults to <c>false</c>, preserving explicit format admission.
+        /// This does not enable legacy projection syntax or change the requested document kind.
+        /// </summary>
+        public bool DetectProjectionFormat { get; set; }
 
         /// <summary>
         /// Gets or sets an optional resource display name.
@@ -216,6 +224,14 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotRegistryMutationResult
     {
+        /// <summary>
+        /// Captures a registry mutation outcome, affected resource, generation, and diagnostics.
+        /// </summary>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="resource">The registry resource to classify or return in the result.</param>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
+        /// <param name="diagnostics">The diagnostics associated with the result.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         internal WotRegistryMutationResult(
             WoTOutcomeEnum outcome,
             WotResource? resource,
@@ -256,6 +272,12 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string Message { get; }
 
         /// <summary>
+        /// Gets the precise service status when the mutation rejected invalid source authority.
+        /// Good leaves the established outcome-to-status mapping to the caller.
+        /// </summary>
+        public StatusCode StatusCode { get; init; }
+
+        /// <summary>
         /// Gets whether the mutation changed the registry contents.
         /// </summary>
         public bool Changed => Outcome is WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning;
@@ -270,16 +292,33 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// </summary>
     public sealed class WotRegistryChangedEventArgs : EventArgs
     {
+        /// <summary>
+        /// Initializes a new <c>WotRegistryChangedEventArgs</c> instance.
+        /// </summary>
+        /// <param name="previous">The previous used to initialize the instance.</param>
+        /// <param name="current">The current used to initialize the instance.</param>
+        /// <param name="changedResourceXids">The changed resource xids used to initialize the instance.</param>
+        /// <param name="projectionOnly">
+        /// The projection-only flag used to initialize <c>WotRegistryChangedEventArgs</c>.
+        /// </param>
+        /// <param name="materializationHandled">
+        /// The materialization-handled flag used to initialize <c>WotRegistryChangedEventArgs</c>.
+        /// </param>
+        /// <param name="validation">The validation used to initialize the instance.</param>
         internal WotRegistryChangedEventArgs(
             WotRegistrySnapshot previous,
             WotRegistrySnapshot current,
             IReadOnlyList<string> changedResourceXids,
-            bool projectionOnly)
+            bool projectionOnly,
+            bool materializationHandled = false,
+            WotValidationChange? validation = null)
         {
             Previous = previous;
             Current = current;
             ChangedResourceXids = changedResourceXids;
             ProjectionOnly = projectionOnly;
+            MaterializationHandled = materializationHandled;
+            Validation = validation;
         }
 
         /// <summary>
@@ -302,7 +341,25 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// re-trigger materialization).
         /// </summary>
         public bool ProjectionOnly { get; }
+
+        /// <summary>
+        /// Gets whether the mutation's required runtime changes were included in the same publication.
+        /// Such a change still reconciles registry content but must not trigger another automatic refresh.
+        /// </summary>
+        public bool MaterializationHandled { get; }
+
+        /// <summary>
+        /// Gets the validation for <c>WotRegistryChangedEventArgs</c>.
+        /// </summary>
+        internal WotValidationChange? Validation { get; }
     }
+
+    /// <summary>
+    /// Carries the WoT validation change data.
+    /// </summary>
+    /// <param name="ResourceXid">The resource xid.</param>
+    /// <param name="VersionId">The version ID.</param>
+    internal sealed record WotValidationChange(string ResourceXid, string VersionId);
 
     /// <summary>
     /// The projection state recorded back into the registry snapshot by the
@@ -396,6 +453,52 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets or initializes the Version whose validation state this projection records.
         /// </summary>
         public string? VersionId { get; init; }
+
+        /// <summary>
+        /// Gets the committed dependency graph, when this projection actually activated.
+        /// </summary>
+        public WotDependencySnapshot? DependencySnapshot { get; init; }
+
+        /// <summary>
+        /// Gets the completed actual dependency attempt for the exact Version.
+        /// </summary>
+        public WotDependencySnapshot? LastDependencyAttempt { get; init; }
+
+        /// <summary>
+        /// Gets or sets the committed inputs for <c>WotResourceProjection</c>.
+        /// </summary>
+        internal ArrayOf<WotResource> CommittedInputs { get; init; }
+
+        /// <summary>
+        /// Copies the projection state with the resolution inputs retained by its committed publication.
+        /// </summary>
+        /// <param name="inputs">The captured resource versions required to resolve the active publication.</param>
+        internal WotResourceProjection WithCommittedInputs(ArrayOf<WotResource> inputs)
+        {
+            return new WotResourceProjection(
+                GroupId, ResourceId, LoadState, ActiveVersionId, RefreshGeneration,
+                MaterializedNodeCount, RootNodeId, Validation, Diagnostics, LastRefreshTime)
+            {
+                RetainPreviousActiveVersion = RetainPreviousActiveVersion,
+                VersionId = VersionId,
+                DependencySnapshot = DependencySnapshot,
+                LastDependencyAttempt = LastDependencyAttempt,
+                CommittedInputs = inputs
+            };
+        }
+    }
+
+    /// <summary>
+    /// Optional registry-owner capability for retaining committed and attempted
+    /// exact-Version dependency observations in its immutable snapshots.
+    /// </summary>
+    public interface IWotRegistryDependencySnapshotProvider
+    {
+        /// <summary>
+        /// Gets whether projection results preserve both dependency observations.
+        /// This does not by itself supply an authoritative runtime registry origin.
+        /// </summary>
+        bool SupportsDependencySnapshots { get; }
     }
 
     /// <summary>
@@ -453,10 +556,17 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes a group and every resource it contains.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="expectedEpoch">The expected group epoch, or <c>null</c> to skip the epoch check.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
             string groupId,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Gets, or creates, a content-less placeholder resource. The resource is
@@ -516,11 +626,19 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes a resource and all of its versions.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
             string groupId,
             string resourceId,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Sets the default (and desired) version of a resource.
@@ -535,12 +653,21 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Enables or disables a resource for projection.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="enabled">Whether the resource is eligible for projection.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> SetEnabledAsync(
             string groupId,
             string resourceId,
             bool enabled,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Adds or updates a registry-level xRegistry label (attribute). The
@@ -707,25 +834,44 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Deletes one exact Version.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
             string groupId,
             string resourceId,
             string versionId,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Atomically verifies that a projected node still has the caller-observed
         /// logical Resource or exact Version role, then deletes that entity. Logical
         /// Resource deletion applies the implementation's default dependency policy.
         /// </summary>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The projected version ID.</param>
+        /// <param name="deleteLogicalResource">Whether to delete the resource rather than only the version.</param>
+        /// <param name="expectedEpoch">The expected resource epoch, or <c>null</c> to skip the epoch check.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> for an external or background caller.
+        /// </param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         ValueTask<WotRegistryMutationResult> DeleteProjectedEntityAsync(
             string groupId,
             string resourceId,
             string versionId,
             bool deleteLogicalResource,
-            long? expectedEpoch = null,
-            CancellationToken cancellationToken = default);
+            long? expectedEpoch,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Adds or updates a label on one exact Version.
@@ -749,5 +895,113 @@ namespace Opc.Ua.WotCon.Server.Registry
             string key,
             long? expectedEpoch = null,
             CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// External-caller conveniences for the registry delete and enable contracts. Each forwards a
+    /// <c>null</c> request context for a caller that does not run inside a server request.
+    /// </summary>
+    public static class WotRegistryServiceExtensions
+    {
+        /// <summary>
+        /// Deletes a group for an external caller.
+        /// </summary>
+        /// <param name="registry">The registry service.</param>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<WotRegistryMutationResult> DeleteGroupAsync(
+            this IWotRegistryService registry,
+            string groupId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (registry ?? throw new ArgumentNullException(nameof(registry)))
+                .DeleteGroupAsync(groupId, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a resource for an external caller.
+        /// </summary>
+        /// <param name="registry">The registry service.</param>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<WotRegistryMutationResult> DeleteResourceAsync(
+            this IWotRegistryService registry,
+            string groupId,
+            string resourceId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (registry ?? throw new ArgumentNullException(nameof(registry)))
+                .DeleteResourceAsync(groupId, resourceId, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Enables or disables a resource for an external caller.
+        /// </summary>
+        /// <param name="registry">The registry service.</param>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="enabled">The enabled flag supplied by the caller.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<WotRegistryMutationResult> SetEnabledAsync(
+            this IWotRegistryService registry,
+            string groupId,
+            string resourceId,
+            bool enabled,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (registry ?? throw new ArgumentNullException(nameof(registry)))
+                .SetEnabledAsync(groupId, resourceId, enabled, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes one exact Version for an external caller.
+        /// </summary>
+        /// <param name="registry">The versioned registry service.</param>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<WotRegistryMutationResult> DeleteVersionAsync(
+            this IWotVersionedRegistryService registry,
+            string groupId,
+            string resourceId,
+            string versionId,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (registry ?? throw new ArgumentNullException(nameof(registry)))
+                .DeleteVersionAsync(groupId, resourceId, versionId, expectedEpoch, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deletes a projected entity for an external caller.
+        /// </summary>
+        /// <param name="registry">The versioned registry service.</param>
+        /// <param name="groupId">The group ID.</param>
+        /// <param name="resourceId">The resource ID.</param>
+        /// <param name="versionId">The version ID.</param>
+        /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
+        /// <param name="expectedEpoch">The expected epoch.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+        public static ValueTask<WotRegistryMutationResult> DeleteProjectedEntityAsync(
+            this IWotVersionedRegistryService registry,
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool deleteLogicalResource,
+            long? expectedEpoch = null,
+            CancellationToken cancellationToken = default)
+        {
+            return (registry ?? throw new ArgumentNullException(nameof(registry))).DeleteProjectedEntityAsync(
+                groupId, resourceId, versionId, deleteLogicalResource, expectedEpoch, null, cancellationToken);
+        }
     }
 }

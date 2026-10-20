@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Redaction;
+using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
 
@@ -51,7 +52,7 @@ namespace Opc.Ua.WotCon.Server.Assets
     /// each other. Per-asset I/O (read/write/observe via the provider)
     /// runs outside the lock.
     /// </remarks>
-    internal sealed class AssetRegistry : IAsyncDisposable
+    internal sealed partial class AssetRegistry : IAsyncDisposable
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="AssetRegistry"/> class.
@@ -76,17 +77,20 @@ namespace Opc.Ua.WotCon.Server.Assets
         {
             get
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     return [.. m_byName.Keys];
                 }
             }
         }
 
-        /// <summary>Looks up an asset by NodeId. Returns <c>null</c> when missing.</summary>
+        /// <summary>
+        /// Looks up an asset by NodeId. Returns <c>null</c> when missing.
+        /// </summary>
+        /// <param name="nodeId">The node identifier.</param>
         public AssetEntry? FindByNodeId(NodeId nodeId)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 return m_byNodeId.TryGetValue(nodeId, out AssetEntry? entry) ? entry : null;
             }
@@ -95,13 +99,17 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Looks up the asset entry that owns the specified property variable node.
         /// </summary>
+        /// <param name="variableId">The variable identifier.</param>
+        /// <param name="entry">The asset entry.</param>
+        /// <param name="variable">The base data variable state.</param>
+        /// <param name="tag">The WoT property tag.</param>
         public bool TryGetProperty(
             NodeId variableId,
             out AssetEntry entry,
             out BaseDataVariableState variable,
             out WotPropertyTag tag)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 foreach (AssetEntry candidate in m_byNodeId.Values)
                 {
@@ -125,13 +133,17 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Looks up the asset entry that owns the specified action method node.
         /// </summary>
+        /// <param name="methodId">The method identifier.</param>
+        /// <param name="entry">The asset entry.</param>
+        /// <param name="method">The method state.</param>
+        /// <param name="tag">The WoT action tag.</param>
         public bool TryGetAction(
             NodeId methodId,
             out AssetEntry entry,
             out MethodState method,
             out WotActionTag tag)
         {
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 foreach (AssetEntry candidate in m_byNodeId.Values)
                 {
@@ -157,6 +169,8 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// Returns <see cref="StatusCodes.BadBrowseNameDuplicated"/> if
         /// <paramref name="assetName"/> is already in use.
         /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="assetName">The asset name.</param>
         public async ValueTask<(ServiceResult Status, NodeId AssetId)> CreateAssetAsync(
             string assetName,
             CancellationToken ct)
@@ -170,7 +184,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     if (m_byName.ContainsKey(assetName))
                     {
@@ -189,9 +203,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                     m_options.MaxThingDescriptionSize,
                     (td, token) => RebuildAsync(entry, td, persistOnSuccess: true, token),
                     m_logger,
-                    m_manager.EnforceManagementAccess);
+                    m_manager.EnforceManagementAccess,
+                    updateDocument: (td, content, token) =>
+                        RebuildAsync(entry, td, content, persistOnSuccess: true, token));
 
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     m_byName[assetName] = entry;
                     m_byNodeId[entry.Asset.NodeId] = entry;
@@ -207,41 +223,118 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <summary>
         /// Deletes the asset and removes all of its nodes.
         /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="assetId">The asset identifier.</param>
+        /// <param name="callerContext">
+        /// The executing request's context, or <c>null</c> when called outside a server request.
+        /// </param>
         public async ValueTask<ServiceResult> DeleteAssetAsync(
             NodeId assetId,
-            CancellationToken ct)
+            CancellationToken ct,
+            IOperationContext? callerContext = null)
         {
             await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
             AssetEntry? entry;
             try
             {
-                lock (m_byName)
+                lock (m_assetsLock)
                 {
                     if (!m_byNodeId.TryGetValue(assetId, out entry))
                     {
                         return ServiceResult.Create(StatusCodes.BadNotFound, "Asset not found.");
                     }
-                    m_byName.Remove(entry.Name);
-                    m_byNodeId.Remove(assetId);
                 }
-
-                if (entry.Provider != null)
+                ServiceResult decision;
+                try
                 {
-                    try
+                    if (entry.DeletionStatus is { } previousDecision)
                     {
-                        await entry.Provider.DisposeAsync().ConfigureAwait(false);
+                        decision = previousDecision;
                     }
-                    catch (Exception ex)
+                    else
                     {
-                        m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                        await PersistDeletionIntentAsync(entry, ct).ConfigureAwait(false);
+                        decision = await RemoveFromRegistryAsync(entry, callerContext, ct).ConfigureAwait(false);
                     }
                 }
-                entry.FileManager?.Dispose();
+                catch (OperationCanceledException)
+                {
+                    if (!entry.RegistryDeleteRequiresRecovery)
+                    {
+                        entry.RegistryDeleteRequiresRecovery = ServiceResult.IsBad(
+                            DeleteTdFromDisk(entry.Name, DeletionIntentSuffix));
+                    }
+                    throw;
+                }
+                catch (ServiceResultException exception)
+                {
+                    return exception.Result;
+                }
+                if (ServiceResult.IsBad(decision))
+                {
+                    if (!entry.RegistryDeleteRequiresRecovery)
+                    {
+                        entry.RegistryDeleteRequiresRecovery = ServiceResult.IsBad(
+                            DeleteTdFromDisk(entry.Name, DeletionIntentSuffix));
+                    }
+                    return decision;
+                }
+                entry.DeletionStatus = decision;
 
-                await m_manager.DeleteAssetNodeAsync(entry.Asset, ct).ConfigureAwait(false);
-                DeleteTdFromDisk(entry.Name);
-                await RemoveFromRegistryAsync(entry.Name, ct).ConfigureAwait(false);
-                return ServiceResult.Good;
+                // A confirmed backing decision cannot be undone by cancellation during local cleanup.
+                try
+                {
+                    entry.EventGeneration = new object();
+                    if (entry.NativeGraph is { } graph)
+                    {
+                        await ClearNativeReferencesAsync(entry, graph, deletingOwner: false, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    await ClearDynamicChildrenAsync(entry, CancellationToken.None).ConfigureAwait(false);
+                    await ClearNativeGraphAsync(entry, deletingOwner: true, CancellationToken.None).ConfigureAwait(false);
+                    await m_manager.DeleteAssetNodeAsync(entry.Asset, CancellationToken.None).ConfigureAwait(false);
+                    ServiceResult fileDeleted = DeleteTdFromDisk(entry.Name);
+                    if (ServiceResult.IsBad(fileDeleted))
+                    {
+                        return ServiceResult.Create(fileDeleted.StatusCode,
+                            "Asset deletion was accepted, but local document cleanup is incomplete. Retry DeleteAsset.");
+                    }
+                    ServiceResult intentDeleted = DeleteTdFromDisk(entry.Name, DeletionIntentSuffix);
+                    if (ServiceResult.IsBad(intentDeleted))
+                    {
+                        return ServiceResult.Create(intentDeleted.StatusCode,
+                            "Asset deletion was accepted, but its recovery record still requires cleanup. Retry DeleteAsset.");
+                    }
+
+                    if (entry.Provider is { } provider)
+                    {
+                        try
+                        {
+                            await provider.DisposeAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
+                        {
+                            m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                            decision = ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                                "The asset was deleted, but its provider reported a cleanup warning.");
+                        }
+                        entry.Provider = null;
+                    }
+                    entry.FileManager?.Dispose();
+                    entry.FileManager = null;
+                    lock (m_assetsLock)
+                    {
+                        m_byName.Remove(entry.Name);
+                        m_byNodeId.Remove(assetId);
+                    }
+                    return decision;
+                }
+                catch (Exception ex) when (ex is not OutOfMemoryException)
+                {
+                    m_logger.AssetDeletionCleanupFailed(ex, entry.Name);
+                    return ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "Asset deletion was accepted, but local cleanup is incomplete. Retry DeleteAsset.");
+                }
             }
             finally
             {
@@ -278,12 +371,20 @@ namespace Opc.Ua.WotCon.Server.Assets
                 m_logger.CreateAssetForEndpointRejected(policyCheck.StatusCode);
                 return (policyCheck, NodeId.Null);
             }
-            (ServiceResult createResult, NodeId assetId) = await CreateAssetAsync(assetName, ct)
-                .ConfigureAwait(false);
-            if (ServiceResult.IsBad(createResult))
+            ServiceResult nameCheck = WotAssetNameValidator.Validate(assetName);
+            if (ServiceResult.IsBad(nameCheck))
             {
-                return (createResult, assetId);
+                return (nameCheck, NodeId.Null);
             }
+            lock (m_assetsLock)
+            {
+                if (m_byName.ContainsKey(assetName))
+                {
+                    return (ServiceResult.Create(StatusCodes.BadBrowseNameDuplicated,
+                        "An asset with this name already exists."), NodeId.Null);
+                }
+            }
+            NodeId assetId = NodeId.Null;
             try
             {
                 ThingDescription td = await RunWithPolicyTimeoutAsync(
@@ -299,36 +400,67 @@ namespace Opc.Ua.WotCon.Server.Assets
                 // was chosen by the caller, so neither is a trusted source.
                 if (!ThingDescriptionFormatValidator.HasIdentifyingMember(td))
                 {
-                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                     m_logger.GeneratedThingDescriptionFailedFormatValidation(assetName);
                     return (ServiceResult.Create(StatusCodes.BadDecodingError,
                         "The Thing Description generated for this endpoint is not a Thing " +
-                        "Description: it must carry a 'name' or 'title'."),
+                        "Description: it must carry a 'name' or 'title' and must not be an unresolved projection plan."),
                         NodeId.Null);
                 }
 
+                ByteString content = ByteString.From(
+                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
+                var candidate = new AssetEntry(assetName, new IWoTAssetState(null)
+                {
+                    NodeId = m_manager.AllocateAssetNodeId(assetName)
+                });
+                WotLegacyPreparedGraph? native = await PrepareNativeGraphAsync(candidate, content, ct)
+                    .ConfigureAwait(false);
+                (ServiceResult createResult, NodeId createdId) = await CreateAssetAsync(assetName, ct)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(createResult))
+                {
+                    return (createResult, NodeId.Null);
+                }
+                assetId = createdId;
                 AssetEntry entry = FindByNodeId(assetId)
                     ?? throw new InvalidOperationException("Asset disappeared after creation.");
 
-                ServiceResult rebuild = await RebuildAsync(entry, td, persistOnSuccess: true, ct)
+                ServiceResult rebuild = await RebuildPreparedAsync(entry, td, content, native, persistOnSuccess: true, ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsBad(rebuild))
                 {
                     await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
                     return (rebuild, NodeId.Null);
                 }
+                entry.FileManager?.UpdatePersistedContent(content.Span.ToArray());
                 return (ServiceResult.Good, assetId);
+            }
+            catch (ServiceResultException exception)
+            {
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
+                m_logger.NativePreparationRejected(exception, assetName);
+                return (ServiceResult.Create(exception.StatusCode,
+                    "The discovered native declarations or type binding could not be prepared."), NodeId.Null);
             }
             catch (NotSupportedException ex)
             {
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointProviderRejected(ex, assetName);
                 return (ToClientStatus(ex, StatusCodes.BadNotSupported, "CreateAssetForEndpoint"), NodeId.Null);
             }
             catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
             {
                 // Policy timeout fired; caller's token is still alive.
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointTimedOut(
                     ex,
                     m_options.AssetEndpointPolicy.MaxOperationTimeout,
@@ -339,7 +471,10 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                if (!assetId.IsNull)
+                {
+                    await DeleteAssetAsync(assetId, ct).ConfigureAwait(false);
+                }
                 m_logger.CreateAssetForEndpointFailed(ex, assetName);
                 return (ToClientStatus(ex, MapToStatusCode(ex), "CreateAssetForEndpoint"), NodeId.Null);
             }
@@ -485,9 +620,28 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <exception cref="ArgumentNullException">
         /// <paramref name="td"/> is null.
         /// </exception>
-        public async ValueTask<ServiceResult> RebuildAsync(
+        public ValueTask<ServiceResult> RebuildAsync(
             AssetEntry entry,
             ThingDescription td,
+            bool persistOnSuccess,
+            CancellationToken ct)
+        {
+            return RebuildAsync(entry, td, default, persistOnSuccess, ct);
+        }
+
+        /// <summary>
+        /// Rebuilds an asset while retaining its authoritative source document.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="entry">The asset entry.</param>
+        /// <param name="td">The thing description.</param>
+        /// <param name="content">The byte string.</param>
+        /// <param name="persistOnSuccess">The persist-on-success flag supplied by the caller.</param>
+        internal async ValueTask<ServiceResult> RebuildAsync(
+            AssetEntry entry,
+            ThingDescription td,
+            ByteString content,
             bool persistOnSuccess,
             CancellationToken ct)
         {
@@ -499,6 +653,38 @@ namespace Opc.Ua.WotCon.Server.Assets
             {
                 throw new ArgumentNullException(nameof(td));
             }
+            if (entry.DeletionStatus is not null || entry.RegistryDeleteRequiresRecovery)
+            {
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "The asset has an unfinished deletion. Resolve and complete that deletion before replacing it.");
+            }
+            if (content.IsNull)
+            {
+                content = ByteString.From(
+                    JsonSerializer.SerializeToUtf8Bytes(td, ThingDescriptionJsonContext.Default.ThingDescription));
+            }
+            WotLegacyPreparedGraph? native;
+            try
+            {
+                native = await PrepareNativeGraphAsync(entry, content, ct).ConfigureAwait(false);
+            }
+            catch (ServiceResultException exception)
+            {
+                m_logger.NativePreparationRejected(exception, entry.Name);
+                return ServiceResult.Create(exception.StatusCode,
+                    "The legacy asset's native declarations or type binding could not be prepared.");
+            }
+            return await RebuildPreparedAsync(entry, td, content, native, persistOnSuccess, ct).ConfigureAwait(false);
+        }
+
+        private async ValueTask<ServiceResult> RebuildPreparedAsync(
+            AssetEntry entry,
+            ThingDescription td,
+            ByteString content,
+            WotLegacyPreparedGraph? native,
+            bool persistOnSuccess,
+            CancellationToken ct)
+        {
             IWotAssetProviderFactory? factory = null;
             foreach (IWotAssetProviderFactory candidate in m_options.Bindings)
             {
@@ -525,10 +711,18 @@ namespace Opc.Ua.WotCon.Server.Assets
                 return ToClientStatus(ex, MapToStatusCode(ex), "Asset rebuild");
             }
 
-            await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+            bool acquired = false;
+            bool adopted = false;
             int skippedAffordances = 0;
             try
             {
+                await m_writeLock.WaitAsync(ct).ConfigureAwait(false);
+                acquired = true;
+                if (entry.DeletionStatus is not null || entry.RegistryDeleteRequiresRecovery)
+                {
+                    return ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The asset has an unfinished deletion. Resolve and complete that deletion before replacing it.");
+                }
                 if (entry.Provider != null)
                 {
                     // Retire the outgoing generation before the provider goes
@@ -547,15 +741,24 @@ namespace Opc.Ua.WotCon.Server.Assets
                     }
                 }
                 entry.Provider = provider;
+                adopted = true;
 
-                ClearDynamicChildren(entry);
+                await ClearDynamicChildrenAsync(entry, ct).ConfigureAwait(false);
+                await ClearNativeGraphAsync(entry, deletingOwner: false, ct).ConfigureAwait(false);
+
+                entry.Asset.TypeDefinitionId = native is null
+                    ? entry.UnboundTypeDefinitionId : native.Root.TypeDefinitionId;
+                if (native is not null)
+                {
+                    await PublishNativeGraphAsync(entry, native, td, ct).ConfigureAwait(false);
+                }
 
                 // An affordance the TD declares but this Server cannot
                 // materialise is skipped so the rest of the asset stays usable.
                 // Skipping is not the same as succeeding, though: reporting a
                 // plain Good would tell an operator the whole TD was applied
                 // while an alarm they authored had silently vanished.
-                if (td.Properties != null)
+                if (native is null && td.Properties != null)
                 {
                     var seen = new HashSet<string>(
                         StringComparer.Ordinal);
@@ -578,7 +781,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                         BuildPropertyNode(entry, kv.Key, kv.Value);
                     }
                 }
-                if (td.Actions != null)
+                if (native is null && td.Actions != null)
                 {
                     var seen = new HashSet<string>(
                         StringComparer.Ordinal);
@@ -648,14 +851,28 @@ namespace Opc.Ua.WotCon.Server.Assets
 
                 if (persistOnSuccess)
                 {
-                    PersistTdToDisk(entry.Name, td);
+                    await PersistTdToDiskAsync(entry.Name, content, ct).ConfigureAwait(false);
                 }
 
-                await MirrorToRegistryAsync(entry.Name, td, ct).ConfigureAwait(false);
+                await MirrorToRegistryAsync(entry, content, ct).ConfigureAwait(false);
             }
             finally
             {
-                m_writeLock.Release();
+                if (acquired)
+                {
+                    m_writeLock.Release();
+                }
+                if (!adopted)
+                {
+                    try
+                    {
+                        await provider.DisposeAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    {
+                        m_logger.ProviderForAssetThrewOnDisposal(ex, entry.Name);
+                    }
+                }
             }
 
             // Still Good - the asset is usable and IsGood callers are
@@ -670,17 +887,31 @@ namespace Opc.Ua.WotCon.Server.Assets
                     skippedAffordances);
         }
 
-        private void ClearDynamicChildren(AssetEntry entry)
+        private async ValueTask ClearDynamicChildrenAsync(AssetEntry entry, CancellationToken ct)
         {
             foreach (KeyValuePair<NodeId, (BaseDataVariableState Variable, WotPropertyTag _)> kv in entry.Properties)
             {
-                entry.Asset.RemoveChild(kv.Value.Variable);
+                BaseDataVariableState variable = kv.Value.Variable;
+                variable.OnSimpleReadValueAsync = null;
+                variable.OnSimpleWriteValueAsync = null;
+                variable.StatusCode = StatusCodes.BadNodeIdUnknown;
+                entry.Asset.RemoveReference(variable.ReferenceTypeId, isInverse: false, variable.NodeId);
+                variable.RemoveReference(variable.ReferenceTypeId, isInverse: true, entry.Asset.NodeId);
+                await m_manager.DeleteNodeAsync(m_manager.SystemContext, variable.NodeId, ct).ConfigureAwait(false);
+                entry.Asset.RemoveChild(variable);
             }
             entry.Properties.Clear();
 
             foreach (KeyValuePair<NodeId, (MethodState Method, WotActionTag _)> kv in entry.Actions)
             {
-                entry.Asset.RemoveChild(kv.Value.Method);
+                MethodState method = kv.Value.Method;
+                method.OnCallMethod2Async = null;
+                method.Executable = false;
+                method.UserExecutable = false;
+                entry.Asset.RemoveReference(method.ReferenceTypeId, isInverse: false, method.NodeId);
+                method.RemoveReference(method.ReferenceTypeId, isInverse: true, entry.Asset.NodeId);
+                await m_manager.DeleteNodeAsync(m_manager.SystemContext, method.NodeId, ct).ConfigureAwait(false);
+                entry.Asset.RemoveChild(method);
             }
             entry.Actions.Clear();
 
@@ -720,7 +951,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             bool mapped = WotPropertyMapper.TryMap(property, out NodeId dataType, out int valueRank);
             ushort ns = m_manager.AssetNamespaceIndex;
             NodeId nodeId = m_manager.AllocateChildNodeId(entry.Name, "props", name);
-            var hasWotComponent = ExpandedNodeId.ToNodeId(
+            NodeId hasWotComponent = ExpandedNodeId.ToNodeId(
                 ReferenceTypeIds.HasWoTComponent,
                 m_manager.Server.NamespaceUris);
 
@@ -773,6 +1004,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
             }
 
+            m_manager.AddAssetInteractionNode(variable);
             entry.Properties[nodeId] = (variable, tag);
         }
 
@@ -813,7 +1045,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 var inputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-                inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_in");
+                inputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "/InputArguments");
                 inputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.InputArguments);
                 inputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.InputArguments);
                 inputProperty.DataType = Ua.DataTypeIds.Argument;
@@ -833,7 +1065,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 var outputProperty =
                     PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
-                outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "_out");
+                outputProperty.NodeId = m_manager.AllocateChildNodeId(entry.Name, "actions", name + "/OutputArguments");
                 outputProperty.BrowseName = new QualifiedName(Ua.BrowseNames.OutputArguments);
                 outputProperty.DisplayName = new LocalizedText(Ua.BrowseNames.OutputArguments);
                 outputProperty.DataType = Ua.DataTypeIds.Argument;
@@ -864,6 +1096,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 ct) =>
                 InvokeActionAsync(entry, tag, inputArguments, outputArguments, ct);
 
+            m_manager.AddAssetInteractionNode(method);
             entry.Actions[nodeId] = (method, tag);
         }
 
@@ -1096,10 +1329,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                     IReadOnlyList<Variant> fields,
                     LocalizedText? message,
                     ushort? severity,
-                    DateTime timestamp)
-                {
-                    ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
-                }
+                    DateTime timestamp) => ReportWotEvent(entry, generation, t, fields, message, severity, timestamp);
 
                 try
                 {
@@ -1273,61 +1503,105 @@ namespace Opc.Ua.WotCon.Server.Assets
             }
         }
 
-        private void PersistTdToDisk(string name, ThingDescription td)
+        private async ValueTask PersistTdToDiskAsync(
+            string name, ByteString content, CancellationToken ct, string suffix = "")
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder))
             {
                 return;
             }
+            if (!WotAssetNameValidator.TryGetSafeFileName(name, folder, out string? path))
+            {
+                m_logger.RefusingToPersistTd(name, folder);
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Invalid persisted asset name.");
+            }
+            path += suffix;
+            string stagedPath = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 Directory.CreateDirectory(folder);
-                if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
+                byte[] bytes = content.Span.ToArray();
+                using (var stream = new FileStream(
+                    stagedPath,
+                    FileMode.CreateNew,
+                    FileAccess.Write,
+                    FileShare.None,
+                    bufferSize: 4096,
+                    options: FileOptions.Asynchronous | FileOptions.WriteThrough))
                 {
-                    m_logger.RefusingToPersistTd(name, folder);
-                    return;
+#if NETSTANDARD2_1_OR_GREATER || NET
+                    await stream.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
+#else
+                    await stream.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
+#endif
+                    await stream.FlushAsync(ct).ConfigureAwait(false);
                 }
-                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
-                    td,
-                    ThingDescriptionJsonContext.Default.ThingDescription);
-                File.WriteAllBytes(path, bytes);
+                ct.ThrowIfCancellationRequested();
+                if (File.Exists(path))
+                {
+                    File.Replace(stagedPath, path, destinationBackupFileName: null);
+                }
+                else
+                {
+                    File.Move(stagedPath, path);
+                }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
                 m_logger.FailedToPersistTd(ex, name);
+                throw new ServiceResultException(
+                    ToClientStatus(ex, StatusCodes.BadUnexpectedError, "Persisting Thing Description"));
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                m_logger.FailedToPersistTd(ex, name);
+                throw new ServiceResultException(
+                    ToClientStatus(ex, StatusCodes.BadUnexpectedError, "Persisting Thing Description"));
+            }
+            finally
+            {
+                if (File.Exists(stagedPath))
+                {
+                    File.Delete(stagedPath);
+                }
             }
         }
 
-        private void DeleteTdFromDisk(string name)
+        private ServiceResult DeleteTdFromDisk(string name, string suffix = "")
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
             if (string.IsNullOrEmpty(folder))
             {
-                return;
+                return ServiceResult.Good;
             }
             try
             {
                 if (!WotAssetNameValidator.TryGetSafeFileName(name, folder!, out string? path))
                 {
                     m_logger.RefusingToDeleteTd(name, folder);
-                    return;
+                    return ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                        "The asset's persisted document path is invalid.");
                 }
+                path += suffix;
                 if (File.Exists(path))
                 {
                     File.Delete(path);
                 }
+                return ServiceResult.Good;
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 m_logger.FailedToDeleteTd(ex, name);
+                return ToClientStatus(ex, StatusCodes.BadResourceUnavailable, "Deleting the persisted Thing Description");
             }
         }
 
         private async ValueTask MirrorToRegistryAsync(
-            string name, ThingDescription td, CancellationToken ct)
+            AssetEntry entry, ByteString content, CancellationToken ct)
         {
-            IWotRegistryService? registry = m_options.RegistryBridge;
+            AssetRegistryMirror? previous = entry.RegistryMirror;
+            IWotRegistryService? registry = previous?.Registry ?? m_options.RegistryBridge;
             if (registry is null)
             {
                 return;
@@ -1335,55 +1609,101 @@ namespace Opc.Ua.WotCon.Server.Assets
 
             try
             {
-                byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(
-                    td,
-                    ThingDescriptionJsonContext.Default.ThingDescription);
                 WotRegistryMutationResult result = await registry.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {
-                        GroupId = m_options.RegistryBridgeGroupId,
-                        ResourceId = name,
+                        GroupId = previous?.GroupId ?? m_options.RegistryBridgeGroupId,
+                        ResourceId = previous?.ResourceId ?? entry.Name,
                         Kind = WoTDocumentKindEnum.ThingDescription,
-                        Content = ByteString.From(bytes),
+                        Content = content,
                         ContentType = "application/td+json",
                         Format = "WoT-TD/1.1",
-                        Name = name,
+                        Name = entry.Name,
                         SetAsDefault = true
                     },
                     ct).ConfigureAwait(false);
                 if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
                 {
-                    m_logger.RegistryBridgeMirrorRejected(name, result.Outcome, result.Message);
+                    m_logger.RegistryBridgeMirrorRejected(entry.Name, result.Outcome, result.Message);
+                }
+                else if (result.Resource is not null)
+                {
+                    entry.RegistryMirror = new AssetRegistryMirror(
+                        registry, result.Resource.GroupId, result.Resource.ResourceId, result.Generation);
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                m_logger.RegistryBridgeMirrorFailed(ex, name);
+                m_logger.RegistryBridgeMirrorFailed(ex, entry.Name);
             }
         }
 
-        private async ValueTask RemoveFromRegistryAsync(string name, CancellationToken ct)
+        private async ValueTask<ServiceResult> RemoveFromRegistryAsync(
+            AssetEntry entry,
+            IOperationContext? callerContext,
+            CancellationToken ct)
         {
-            IWotRegistryService? registry = m_options.RegistryBridge;
-            if (registry is null)
+            ct.ThrowIfCancellationRequested();
+            AssetRegistryMirror? mirror = entry.RegistryMirror;
+            if (mirror is null)
             {
-                return;
+                return ServiceResult.Good;
             }
 
             try
             {
-                WotRegistryMutationResult result = await registry.DeleteResourceAsync(
-                    m_options.RegistryBridgeGroupId,
-                    name,
-                    cancellationToken: ct).ConfigureAwait(false);
-                if (result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed)
+                if (entry.RegistryDeleteRequiresRecovery &&
+                    mirror.Registry is WotRegistryService registry &&
+                    await registry.IsRecoveredDeletionConfirmedAsync(
+                        mirror.GroupId, mirror.ResourceId, mirror.Generation, ct).ConfigureAwait(false))
                 {
-                    m_logger.RegistryBridgeDeleteRejected(name, result.Outcome, result.Message);
+                    entry.RegistryDeleteRequiresRecovery = false;
+                    return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                        "The backing deletion was confirmed by registry recovery; local cleanup will complete.");
                 }
+                WotRegistryMutationResult result = await mirror.Registry.DeleteResourceAsync(
+                    mirror.GroupId, mirror.ResourceId, null, callerContext, ct).ConfigureAwait(false);
+                if (result.Outcome is not (WoTOutcomeEnum.Success or WoTOutcomeEnum.Warning or WoTOutcomeEnum.Unchanged))
+                {
+                    m_logger.RegistryBridgeDeleteRejected(entry.Name, result.Outcome, result.Message);
+                    return ServiceResult.Create(
+                        StatusCode.IsBad(result.StatusCode) ? result.StatusCode : StatusCodes.BadInvalidState,
+                        "The backing registry refused asset deletion. The legacy asset was retained.");
+                }
+                entry.RegistryDeleteRequiresRecovery = false;
+                if (result.Outcome == WoTOutcomeEnum.Warning)
+                {
+                    m_logger.RegistryBridgeDeleteCommittedWarning(null, entry.Name);
+                    return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                        "The backing deletion committed with a warning.");
+                }
+                return ServiceResult.Good;
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (WotRegistryCommitDurabilityUncertainException ex)
             {
-                m_logger.RegistryBridgeDeleteFailed(ex, name);
+                entry.RegistryDeleteRequiresRecovery = false;
+                m_logger.RegistryBridgeDeleteCommittedWarning(ex, entry.Name);
+                return ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                    "The backing deletion committed, but its completion reported a warning.");
+            }
+            catch (WotRegistryCommitIndeterminateException ex)
+            {
+                entry.RegistryDeleteRequiresRecovery = true;
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ServiceResult.Create(StatusCodes.BadInvalidState,
+                    "The backing deletion requires authoritative registry recovery. The legacy asset was retained.");
+            }
+            catch (WotRegistryCommitNotCommittedException ex)
+            {
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ToClientStatus(ex, StatusCodes.BadResourceUnavailable, "Deleting the backing registry Resource");
+            }
+            catch (Exception ex) when (ex is not (OperationCanceledException or OutOfMemoryException))
+            {
+                entry.RegistryDeleteRequiresRecovery = true;
+                m_logger.RegistryBridgeDeleteFailed(ex, entry.Name);
+                return ToClientStatus(ex, ex is ServiceResultException service ? service.StatusCode : MapToStatusCode(ex),
+                    "Deleting the backing registry Resource");
             }
         }
 
@@ -1397,6 +1717,39 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <see cref="ThingDescription"/>.
         /// </returns>
         public async IAsyncEnumerable<(string Name, ThingDescription Description)> EnumeratePersistedAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+        {
+            await foreach ((string name, ThingDescription description, _) in
+                EnumeratePersistedDocumentsAsync(ct).ConfigureAwait(false))
+            {
+                yield return (name, description);
+            }
+        }
+
+        /// <summary>
+        /// Releases a closing session's handles across the registered assets.
+        /// </summary>
+        /// <param name="sessionId">The session identifier.</param>
+        internal void CloseSession(NodeId sessionId)
+        {
+            AssetEntry[] entries;
+            lock (m_assetsLock)
+            {
+                entries = [.. m_byNodeId.Values];
+            }
+            foreach (AssetEntry entry in entries)
+            {
+                entry.FileManager?.CloseSession(sessionId);
+            }
+        }
+
+        /// <summary>
+        /// Loads persisted descriptions together with their authoritative document bytes.
+        /// </summary>
+        /// <exception cref="EndOfStreamException"></exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        internal async IAsyncEnumerable<(string Name, ThingDescription Description, ByteString Content)>
+            EnumeratePersistedDocumentsAsync(
             [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
         {
             string? folder = m_options.ThingDescriptionStorageFolder;
@@ -1454,13 +1807,43 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
 
                 ThingDescription? td;
+                byte[] content;
                 try
                 {
-                    using FileStream stream = File.OpenRead(file);
+                    using var stream = new FileStream(
+                        file,
+                        FileMode.Open,
+                        FileAccess.Read,
+                        FileShare.Read,
+                        bufferSize: 4096,
+                        options: FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    long length = stream.Length;
+                    long maximum = sizeLimit > 0 ? sizeLimit : int.MaxValue;
+                    if (length > maximum)
+                    {
+                        m_logger.SkippingPersistedTdTooLarge(file, length, maximum);
+                        continue;
+                    }
+                    content = new byte[checked((int)length)];
+                    int offset = 0;
+                    while (offset < content.Length)
+                    {
+#if NETSTANDARD2_1_OR_GREATER || NET
+                        int read = await stream.ReadAsync(content.AsMemory(offset), ct).ConfigureAwait(false);
+#else
+                        int read = await stream.ReadAsync(content, offset, content.Length - offset, ct)
+                            .ConfigureAwait(false);
+#endif
+                        if (read == 0)
+                        {
+                            throw new EndOfStreamException("The persisted Thing Description was truncated while reading.");
+                        }
+                        offset += read;
+                    }
+                    ct.ThrowIfCancellationRequested();
+                    using var documentStream = new MemoryStream(content, writable: false);
                     td = await JsonSerializer.DeserializeAsync(
-                        stream,
-                        jsonContext.ThingDescription,
-                        ct).ConfigureAwait(false);
+                        documentStream, jsonContext.ThingDescription, ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -1478,7 +1861,7 @@ namespace Opc.Ua.WotCon.Server.Assets
                 }
                 if (td != null)
                 {
-                    yield return (name, td);
+                    yield return (name, td, ByteString.From(content));
                 }
             }
         }
@@ -1513,14 +1896,17 @@ namespace Opc.Ua.WotCon.Server.Assets
         public async ValueTask DisposeAsync()
         {
             AssetEntry[] entries;
-            lock (m_byName)
+            lock (m_assetsLock)
             {
                 entries = [.. m_byNodeId.Values];
-                m_byName.Clear();
-                m_byNodeId.Clear();
             }
             foreach (AssetEntry entry in entries)
             {
+                if (entry.NativeGraph is { } graph)
+                {
+                    await ClearNativeReferencesAsync(entry, graph, deletingOwner: true, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
                 if (entry.Provider != null)
                 {
                     try
@@ -1533,6 +1919,11 @@ namespace Opc.Ua.WotCon.Server.Assets
                     }
                 }
                 entry.FileManager?.Dispose();
+            }
+            lock (m_assetsLock)
+            {
+                m_byName.Clear();
+                m_byNodeId.Clear();
             }
             m_writeLock.Dispose();
         }
@@ -1630,34 +2021,86 @@ namespace Opc.Ua.WotCon.Server.Assets
         private readonly WotConnectivityServerOptions m_options;
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_writeLock = new(1, 1);
+        private readonly Lock m_assetsLock = new();
         private readonly Dictionary<string, AssetEntry> m_byName = new(StringComparer.Ordinal);
         private readonly Dictionary<NodeId, AssetEntry> m_byNodeId = [];
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for asset registry.
+    /// </summary>
     internal static partial class AssetRegistryLog
     {
+        /// <summary>
+        /// Writes the log event: <c>Shared native preparation rejected legacy asset {AssetName}.</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="exception">The exception attached to the event.</param>
+        /// <param name="assetName">The asset name included in the event message.</param>
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 40, Level = LogLevel.Warning,
+            Message = "Shared native preparation rejected legacy asset {AssetName}.")]
+        public static partial void NativePreparationRejected(
+            this ILogger logger, Exception exception, string assetName);
+
+        /// <summary>
+        /// Logs an asset event skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 37, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD event '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdEvent(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs failure to subscribe to an asset event.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="eventName">The asset event name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 38, Level = LogLevel.Warning,
             Message = "Failed to subscribe asset {AssetName} event '{EventName}'.")]
         public static partial void EventSubscribeFailed(
             this ILogger logger, Exception exception, string assetName, string eventName);
 
+        /// <summary>
+        /// Logs failure to unsubscribe from an asset event.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="eventName">The asset event name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 39, Level = LogLevel.Warning,
             Message = "Failed to unsubscribe asset {AssetName} event '{EventName}'.")]
         public static partial void EventUnsubscribeFailed(
             this ILogger logger, Exception exception, string assetName, string eventName);
 
+        /// <summary>
+        /// Logs an asset provider exception during disposal.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 0, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on disposal")]
         public static partial void ProviderForAssetThrewOnDisposal(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs asset endpoint creation rejected by the configured endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 1, Level = LogLevel.Warning,
             Message = "CreateAssetForEndpoint rejected by AssetEndpointPolicy: {Status}")]
         public static partial void CreateAssetForEndpointRejected(this ILogger logger, StatusCode status);
 
+        /// <summary>
+        /// Logs an endpoint rejected by the asset provider during asset creation.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 2, Level = LogLevel.Error,
             Message = "CreateAssetForEndpoint failed for asset {AssetName}: provider rejected the endpoint")]
         public static partial void CreateAssetForEndpointProviderRejected(
@@ -1665,6 +2108,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             Exception ex,
             string assetName);
 
+        /// <summary>
+        /// Logs timeout of asset creation for an endpoint.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="timeout">The timeout applied to the operation.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 3, Level = LogLevel.Warning,
             Message = "CreateAssetForEndpoint timed out after {Timeout} for {AssetName}")]
         public static partial void CreateAssetForEndpointTimedOut(
@@ -1673,45 +2123,99 @@ namespace Opc.Ua.WotCon.Server.Assets
             TimeSpan timeout,
             string assetName);
 
+        /// <summary>
+        /// Logs failure to create an asset for an endpoint.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 4, Level = LogLevel.Error,
             Message = "CreateAssetForEndpoint failed for asset {AssetName}")]
         public static partial void CreateAssetForEndpointFailed(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs that the configured provider does not support asset discovery.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 5, Level = LogLevel.Warning,
             Message = "DiscoverAssets not supported by configured provider")]
         public static partial void DiscoverAssetsNotSupported(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs an asset discovery failure.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 6, Level = LogLevel.Error,
             Message = "DiscoverAssets failed")]
         public static partial void DiscoverAssetsFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs the number of discovered endpoints withheld by the asset endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="count">The number of affected items.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 35, Level = LogLevel.Warning,
             Message = "DiscoverAssets withheld {Count} endpoint(s) the asset endpoint policy forbids")]
         public static partial void DiscoveredEndpointsFilteredByPolicy(
             this ILogger logger, int count);
 
+        /// <summary>
+        /// Logs a generated Thing Description rejected before materialization because format validation failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 36, Level = LogLevel.Warning,
             Message = "Thing description generated for asset {AssetName} failed format validation " +
                 "and materialized nothing")]
         public static partial void GeneratedThingDescriptionFailedFormatValidation(
             this ILogger logger, string assetName);
 
+        /// <summary>
+        /// Logs a connection test rejected by the asset endpoint policy.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="status">The status returned by the failed operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 7, Level = LogLevel.Warning,
             Message = "ConnectionTest rejected by AssetEndpointPolicy: {Status}")]
         public static partial void ConnectionTestRejected(this ILogger logger, StatusCode status);
 
+        /// <summary>
+        /// Logs that the configured provider does not support connection testing.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 8, Level = LogLevel.Warning,
             Message = "ConnectionTest not supported by configured provider")]
         public static partial void ConnectionTestNotSupported(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs failure of a client-requested endpoint connection test.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 9, Level = LogLevel.Error,
             Message = "ConnectionTest failed for endpoint provided by client")]
         public static partial void ConnectionTestFailed(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs a connection test exceeding its timeout.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="timeout">The timeout applied to the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 10, Level = LogLevel.Warning,
             Message = "ConnectionTest timed out after {Timeout}")]
         public static partial void ConnectionTestTimedOut(this ILogger logger, Exception ex, TimeSpan timeout);
 
+        /// <summary>
+        /// Logs a binding factory failing to connect an asset.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="factory">The binding factory involved in the operation.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 11, Level = LogLevel.Error,
             Message = "Binding factory {Factory} failed to connect asset {AssetName}")]
         public static partial void BindingFactoryFailedToConnectAsset(
@@ -1720,18 +2224,44 @@ namespace Opc.Ua.WotCon.Server.Assets
             string factory,
             string assetName);
 
+        /// <summary>
+        /// Logs disposal failure of a replaced asset provider.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 12, Level = LogLevel.Warning,
             Message = "Previous provider for {AssetName} threw on disposal")]
         public static partial void PreviousProviderThrewOnDisposal(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs an asset property skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 13, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD property '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdProperty(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs an asset action skipped because its Thing Description name is duplicated.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 14, Level = LogLevel.Warning,
             Message = "Skipping duplicate TD action '{ChildName}' for asset {AssetName}.")]
         public static partial void SkippingDuplicateTdAction(this ILogger logger, string childName, string assetName);
 
+        /// <summary>
+        /// Logs a Thing Description affordance skipped with a supplied reason.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="kind">The Thing Description affordance kind being skipped.</param>
+        /// <param name="childName">The Thing Description affordance name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="reason">The reason the affordance was skipped.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 15, Level = LogLevel.Warning,
             Message = "Skipping TD {Kind} '{ChildName}' on asset {AssetName}: {Reason}")]
         public static partial void SkippingTd(
@@ -1741,18 +2271,45 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             string? reason);
 
+        /// <summary>
+        /// Logs failure to read an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 16, Level = LogLevel.Warning,
             Message = "Read failed for asset {AssetName} property {Property}")]
         public static partial void ReadFailed(this ILogger logger, Exception ex, string assetName, string property);
 
+        /// <summary>
+        /// Logs failure to write an asset property.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="property">The asset property name.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 17, Level = LogLevel.Warning,
             Message = "Write failed for asset {AssetName} property {Property}")]
         public static partial void WriteFailed(this ILogger logger, Exception ex, string assetName, string property);
 
+        /// <summary>
+        /// Logs an exception thrown by an asset action.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="action">The asset action name.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 18, Level = LogLevel.Warning,
             Message = "Action {Action} on asset {AssetName} threw")]
         public static partial void ActionThrew(this ILogger logger, Exception ex, string action, string assetName);
 
+        /// <summary>
+        /// Logs refusal to persist a Thing Description whose asset name does not resolve to a safe path.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 19, Level = LogLevel.Warning,
             Message = "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
@@ -1761,10 +2318,22 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             [FilePath] string folder);
 
+        /// <summary>
+        /// Logs failure to persist an asset's Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 20, Level = LogLevel.Warning,
             Message = "Failed to persist TD for asset {AssetName}")]
         public static partial void FailedToPersistTd(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs refusal to delete a Thing Description whose asset name does not resolve to a safe path.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 21, Level = LogLevel.Warning,
             Message = "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
@@ -1773,14 +2342,32 @@ namespace Opc.Ua.WotCon.Server.Assets
             string assetName,
             [FilePath] string folder);
 
+        /// <summary>
+        /// Logs failure to delete a persisted Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 22, Level = LogLevel.Warning,
             Message = "Failed to delete TD for asset {AssetName}")]
         public static partial void FailedToDeleteTd(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs that the configured file limit disables loading persisted Thing Descriptions.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 23, Level = LogLevel.Information,
             Message = "MaxPersistedThingDescriptionFiles is {Limit}; no persisted TDs will be loaded from {Folder}.")]
         public static partial void NoPersistedTdsLoaded(this ILogger logger, int limit, [FilePath] string folder);
 
+        /// <summary>
+        /// Logs that the persisted Thing Description loading limit has been reached.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
+        /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 24, Level = LogLevel.Warning,
             Message = "Reached MaxPersistedThingDescriptionFiles ({Limit}); skipping the remaining " +
                 "persisted TDs in {Folder}.")]
@@ -1789,10 +2376,21 @@ namespace Opc.Ua.WotCon.Server.Assets
             int limit,
             [FilePath] string folder);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because its asset name is invalid.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 25, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: name does not pass asset-name validation.")]
         public static partial void SkippingPersistedTdNameValidation(this ILogger logger, [FilePath] string file);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because its file metadata cannot be read.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 26, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: file metadata could not be read.")]
         public static partial void SkippingPersistedTdMetadata(
@@ -1800,6 +2398,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             Exception ex,
             [FilePath] string file);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because it exceeds the document size limit.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
+        /// <param name="bytes">The content size reported by the operation.</param>
+        /// <param name="limit">The configured bound associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 27, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: size {Bytes} exceeds MaxThingDescriptionSize ({Limit}).")]
         public static partial void SkippingPersistedTdTooLarge(
@@ -1808,6 +2413,13 @@ namespace Opc.Ua.WotCon.Server.Assets
             long bytes,
             long limit);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because JSON deserialization failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
+        /// <param name="depth">The configured maximum JSON nesting depth.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 28, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: JSON deserialization failed (likely exceeds " +
                 "MaxThingDescriptionJsonDepth={Depth} or is otherwise malformed).")]
@@ -1817,6 +2429,12 @@ namespace Opc.Ua.WotCon.Server.Assets
             [FilePath] string file,
             int depth);
 
+        /// <summary>
+        /// Logs a persisted Thing Description skipped because reading its file failed.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 29, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: I/O failure while reading.")]
         public static partial void SkippingPersistedTdIoFailure(
@@ -1824,10 +2442,23 @@ namespace Opc.Ua.WotCon.Server.Assets
             Exception ex,
             [FilePath] string file);
 
+        /// <summary>
+        /// Logs an asset provider exception during shutdown.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 30, Level = LogLevel.Warning,
             Message = "Provider for asset {AssetName} threw on shutdown")]
         public static partial void ProviderForAssetThrewOnShutdown(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs a registry rejection when mirroring an asset's Thing Description.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 31, Level = LogLevel.Warning,
             Message = "Registry bridge rejected mirrored Thing Description for asset {AssetName}: {Outcome} {Message}")]
         public static partial void RegistryBridgeMirrorRejected(
@@ -1836,10 +2467,23 @@ namespace Opc.Ua.WotCon.Server.Assets
             WoTOutcomeEnum outcome,
             string message);
 
+        /// <summary>
+        /// Logs failure to mirror an asset's Thing Description into the registry.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 32, Level = LogLevel.Warning,
             Message = "Registry bridge failed to mirror Thing Description for asset {AssetName}")]
         public static partial void RegistryBridgeMirrorFailed(this ILogger logger, Exception ex, string assetName);
 
+        /// <summary>
+        /// Logs a registry rejection when deleting a mirrored asset resource.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
+        /// <param name="outcome">The registry mutation outcome.</param>
+        /// <param name="message">The message describing the operation outcome.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 33, Level = LogLevel.Warning,
             Message = "Registry bridge rejected resource delete for asset {AssetName}: {Outcome} {Message}")]
         public static partial void RegistryBridgeDeleteRejected(
@@ -1848,8 +2492,45 @@ namespace Opc.Ua.WotCon.Server.Assets
             WoTOutcomeEnum outcome,
             string message);
 
+        /// <summary>
+        /// Logs failure to delete a mirrored asset resource from the registry.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="ex">The exception that caused the failure.</param>
+        /// <param name="assetName">The asset name associated with the operation.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 34, Level = LogLevel.Warning,
             Message = "Registry bridge failed to delete resource for asset {AssetName}")]
         public static partial void RegistryBridgeDeleteFailed(this ILogger logger, Exception ex, string assetName);
+
+        /// <summary>
+        /// Writes the log event: <c>Registry bridge deletion committed with a warning for asset {AssetName}</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="ex">The exception attached to the event.</param>
+        /// <param name="assetName">The asset name included in the event message.</param>
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 41, Level = LogLevel.Warning,
+            Message = "Registry bridge deletion committed with a warning for asset {AssetName}")]
+        public static partial void RegistryBridgeDeleteCommittedWarning(
+            this ILogger logger, Exception? ex, string assetName);
+
+        /// <summary>
+        /// Writes the log event: <c>Accepted deletion of asset {AssetName} requires another local cleanup attempt</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="ex">The exception attached to the event.</param>
+        /// <param name="assetName">The asset name included in the event message.</param>
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 42, Level = LogLevel.Warning,
+            Message = "Accepted deletion of asset {AssetName} requires another local cleanup attempt")]
+        public static partial void AssetDeletionCleanupFailed(this ILogger logger, Exception ex, string assetName);
+
+        /// <summary>
+        /// Writes the log event: <c>Legacy asset {AssetName} has a pending backing deletion; its provider was not
+        /// restored</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="assetName">The asset name included in the event message.</param>
+        [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 43, Level = LogLevel.Warning,
+            Message = "Legacy asset {AssetName} has a pending backing deletion; its provider was not restored")]
+        public static partial void RestoredPendingAssetDeletion(this ILogger logger, string assetName);
     }
 }

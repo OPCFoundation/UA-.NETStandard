@@ -53,10 +53,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// A native EventNotifier publisher whose registering node manager exposes
+    /// generated out-of-band metadata and requires captured Condition actions.
+    /// Headless/custom consumers retain the original publisher contract.
+    /// </summary>
+    public interface IWotNativeProjectionEventPublisher : IWotProjectionEventPublisher
+    {
+    }
+
+    /// <summary>
     /// Uses the existing fluent event-source registry, including ancestor
     /// monitoring, cancellation, reporting and error telemetry.
     /// </summary>
-    public sealed class WotProjectionEventPublisher : IWotProjectionEventPublisher
+    public sealed class WotProjectionEventPublisher : IWotNativeProjectionEventPublisher
     {
         /// <inheritdoc/>
         public void Register(
@@ -99,9 +108,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public int MaxQueuedEvents { get; init; } = 1024;
 
         /// <summary>
-        /// Gets the maximum retained occurrence routes per event declaration.
-        /// An evicted occurrence fails subsequent actions with BadEventIdUnknown.
+        /// Gets the maximum pending observation updates per projected variable.
+        /// Overflow faults the source instead of silently discarding values.
         /// </summary>
+        public int MaxQueuedPropertyValues { get; init; } = 1024;
+
+        /// <summary>
+        /// Gets the maximum accepted occurrences per event declaration in one
+        /// generation, including private identity, provenance and action routes.
+        /// Exhaustion faults availability with BadTooManyOperations rather than
+        /// evicting evidence. Exact replays do not consume another slot.
+        /// </summary>
+        /// <remarks>
+        /// Evidence remains owned until generation disposal after lifecycle drain.
+        /// Recovery requires explicit generation replacement or removal; restarting
+        /// a subscription does not reset the budget. The same limit separately
+        /// bounds the number of materialized source Condition instances.
+        /// </remarks>
         public int MaxEventRoutes { get; init; } = 4096;
     }
 }

@@ -1337,6 +1337,28 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Captures a routing snapshot for the rest of the calling async method, like
+        /// <see cref="Capture"/> without the scope.
+        /// </summary>
+        /// <remarks>
+        /// An async method's changes to the execution context end when it returns: its builder
+        /// restores the caller's context, also when it completes synchronously. A capture that
+        /// lasts until the method returns therefore needs no restore, which would change the
+        /// execution context a second time per service call. Only for async methods; a capture
+        /// that must end earlier uses <see cref="Capture"/>.
+        /// </remarks>
+        /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
+        internal void CaptureUntilReturn(RoutingSnapshot? snapshot = null)
+        {
+            RoutingSnapshot? previous = m_readSnapshot.Value;
+            RoutingSnapshot captured = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
+            if (!ReferenceEquals(captured, previous))
+            {
+                m_readSnapshot.Value = captured;
+            }
+        }
+
+        /// <summary>
         /// Reads the live routing in the current asynchronous flow until the scope is disposed.
         /// </summary>
         /// <returns>The scope that restores the previous snapshot when disposed.</returns>

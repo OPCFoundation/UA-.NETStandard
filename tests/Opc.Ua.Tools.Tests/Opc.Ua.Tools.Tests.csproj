@@ -24,6 +24,8 @@
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Opc.Ua.WotCon.Tests\Registry\RecordingLeasedResourceStore.cs"
+             Link="Mcp\WotCon\Support\RecordingLeasedResourceStore.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
     <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestHttpServer.cs"
              Link="Mcp\WotCon\Support\TestHttpServer.cs" Condition="'$(TargetFramework)' == 'net10.0'" />
     <Compile Include="..\Opc.Ua.WotCon.Bindings.Tests\Support\TestModbusServer.cs"

@@ -50,6 +50,9 @@ namespace Opc.Ua.WotCon.Tests.Client
     /// </summary>
     internal sealed class WotRegistrySessionMock
     {
+        /// <summary>
+        /// Initializes a strict session mock with WoT and XRegistry namespaces and registry resource state.
+        /// </summary>
         public WotRegistrySessionMock()
         {
             var telemetryMock = new Mock<ITelemetryContext>();
@@ -185,12 +188,24 @@ namespace Opc.Ua.WotCon.Tests.Client
             m_methods[new NodeId(Ua.Methods.FileType_Read, 0)] = OnRead;
         }
 
+        /// <summary>
+        /// Gets the mocked session exposed to registry clients.
+        /// </summary>
         public ISession Session => m_sessionMock.Object;
 
+        /// <summary>
+        /// Gets the namespace index assigned to the WoT connectivity model.
+        /// </summary>
         public ushort WotConNs { get; }
 
+        /// <summary>
+        /// Gets the namespace index assigned to the XRegistry model.
+        /// </summary>
         public ushort XRegistryNs { get; }
 
+        /// <summary>
+        /// Gets the node identifier of the mocked WoT registry.
+        /// </summary>
         public NodeId RegistryNodeId { get; }
 
         /// <summary>
@@ -263,6 +278,10 @@ namespace Opc.Ua.WotCon.Tests.Client
             return ExpandedNodeId.ToNodeId(methodId, Session.NamespaceUris);
         }
 
+        /// <summary>
+        /// Gets the stored content of the resource identified by its registry node.
+        /// </summary>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
         public ByteString ContentFor(NodeId resourceNodeId)
         {
             (_, ResourceState resource) = FindResource(resourceNodeId);
@@ -307,6 +326,10 @@ namespace Opc.Ua.WotCon.Tests.Client
             }
             foreach (GroupState candidate in m_groups.Values)
             {
+                if (parent == candidate.NodeId && name == "GroupId")
+                {
+                    return candidate.IdentifierNodeId;
+                }
                 if (parent == candidate.NodeId &&
                     candidate.Resources.TryGetValue(name, out ResourceState? resource))
                 {
@@ -314,6 +337,10 @@ namespace Opc.Ua.WotCon.Tests.Client
                 }
                 foreach (ResourceState versionResource in candidate.Versions)
                 {
+                    if (parent == versionResource.NodeId && name == "ResourceId")
+                    {
+                        return versionResource.IdentifierNodeId;
+                    }
                     if (ExposeContentDigest &&
                         parent == versionResource.NodeId &&
                         string.Equals(
@@ -332,8 +359,16 @@ namespace Opc.Ua.WotCon.Tests.Client
         {
             foreach (GroupState group in m_groups.Values)
             {
+                if (request.NodeId == group.IdentifierNodeId && request.AttributeId == Attributes.Value)
+                {
+                    return new DataValue(Variant.From(group.GroupId), StatusCodes.Good);
+                }
                 foreach (ResourceState resource in group.Versions)
                 {
+                    if (request.NodeId == resource.IdentifierNodeId && request.AttributeId == Attributes.Value)
+                    {
+                        return new DataValue(Variant.From(resource.ResourceId), StatusCodes.Good);
+                    }
                     if (ExposeContentDigest &&
                         request.NodeId == resource.ContentDigestNodeId &&
                         request.AttributeId == Attributes.Value)
@@ -465,6 +500,7 @@ namespace Opc.Ua.WotCon.Tests.Client
                 group = new GroupState
                 {
                     NodeId = new NodeId("WoTRegistry/groups/" + groupId, WotConNs),
+                    IdentifierNodeId = new NodeId("WoTRegistry/groups/" + groupId + "/GroupId", WotConNs),
                     GroupId = groupId,
                     Kind = kind
                 };
@@ -548,13 +584,30 @@ namespace Opc.Ua.WotCon.Tests.Client
             var resource = new ResourceState
             {
                 NodeId = new NodeId(
-                    "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
-                    "/versions/" + versionId,
+                    "WoTRegistry/groups/" +
+                    group.GroupId +
+                    "/resources/" +
+                    resourceId +
+                    "/versions/" +
+                    versionId,
                     group.NodeId.NamespaceIndex),
                 ContentDigestNodeId = new NodeId(
-                    "WoTRegistry/groups/" + group.GroupId + "/resources/" + resourceId +
-                    "/versions/" + versionId + "/ContentDigest",
+                    "WoTRegistry/groups/" +
+                    group.GroupId +
+                    "/resources/" +
+                    resourceId +
+                    "/versions/" +
+                    versionId +
+                    "/ContentDigest",
                     group.NodeId.NamespaceIndex),
+                IdentifierNodeId = new NodeId(
+                    "WoTRegistry/groups/" +
+                    group.GroupId +
+                    "/resources/" +
+                    resourceId +
+                    "/versions/" +
+                    versionId +
+                    "/ResourceId", group.NodeId.NamespaceIndex),
                 ResourceId = resourceId,
                 VersionId = versionId
             };
@@ -783,6 +836,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         private sealed class GroupState
         {
             public NodeId NodeId;
+
+            /// <summary>
+            /// The identifier node ID used by <c>GroupState</c>.
+            /// </summary>
+            public NodeId IdentifierNodeId;
             public string GroupId = string.Empty;
             public WoTDocumentKindEnum Kind;
             public readonly Dictionary<string, ResourceState> Resources = new(StringComparer.Ordinal);
@@ -792,6 +850,11 @@ namespace Opc.Ua.WotCon.Tests.Client
         private sealed class ResourceState
         {
             public NodeId NodeId;
+
+            /// <summary>
+            /// The identifier node ID used by <c>ResourceState</c>.
+            /// </summary>
+            public NodeId IdentifierNodeId;
             public NodeId ContentDigestNodeId;
             public string ResourceId = string.Empty;
             public string VersionId = string.Empty;

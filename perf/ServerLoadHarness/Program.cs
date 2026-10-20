@@ -683,7 +683,16 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
             Process server = Process.Start(startInfo)!;
             var lines = new BlockingCollection<string>();
-            _ = Task.Run(() => PumpServerOutput(server, lines));
+            // LongRunning runs the pump on a dedicated thread: it blocks in ReadLine for the whole
+            // run, and on a pool thread it occupies the only minimum worker of a one-processor
+            // client, so every other work item waits for the pool's starvation injection
+            // (~0.5-1 s stalls). The task keeps a pump exception at shutdown (the collection or
+            // process disposed under it) from terminating the harness.
+            _ = Task.Factory.StartNew(
+                () => PumpServerOutput(server, lines),
+                CancellationToken.None,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
             return (server, lines);
         }
 
