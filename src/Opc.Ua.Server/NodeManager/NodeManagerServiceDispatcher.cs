@@ -199,7 +199,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             bool diagnosticsExist = false;
             var results = new List<BrowsePathResult>(browsePaths.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
@@ -613,7 +613,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -832,7 +832,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ByteString> continuationPoints,
                 CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1064,7 +1064,7 @@ namespace Opc.Ua.Server
 
             ContinuationPoint? currentCp = cp;
             NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? m_nodeManagers.CapturedRevision;
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture(snapshot);
+            m_nodeManagers.CaptureUntilReturn(snapshot);
             bool saved = false;
             try
             {
@@ -1335,7 +1335,7 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             if (maxAge < 0)
             {
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
@@ -1489,7 +1489,7 @@ namespace Opc.Ua.Server
             List<HistoryReadResult> results,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             // validate history details parameter.
             if (historyReadDetails.IsNull)
             {
@@ -1714,7 +1714,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -1840,7 +1840,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             var detailTypes = new List<Type>();
             var nodesToUpdate = new List<HistoryUpdateDetails>();
             var inputErrors = new List<ServiceResult?>();
@@ -1998,7 +1998,7 @@ namespace Opc.Ua.Server
                 ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             if (context == null)
             {
                 throw new ArgumentNullException(nameof(context));
@@ -2164,7 +2164,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             await CreateMonitoredItemsCoreAsync(
                 context,
                 subscriptionId,
