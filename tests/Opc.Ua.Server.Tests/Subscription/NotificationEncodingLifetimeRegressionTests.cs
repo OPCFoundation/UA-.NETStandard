@@ -178,7 +178,10 @@ namespace Opc.Ua.Server.Tests
                     Is.True);
                 Assert.That(value!.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
                 Assert.That(value.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
-                Assert.That(item.ClientHandle, Is.Zero);
+
+                // data change notifications are not pooled by the server; they are left to the GC.
+                Assert.That(item.ClientHandle, Is.EqualTo(77u));
+                item.Reuse();
                 eventItem.Reuse();
             }
             queue.Clear();
@@ -212,7 +215,9 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(message.ReuseCount, Is.EqualTo(1));
-                Assert.That(item.ReuseCount, Is.EqualTo(1));
+
+                // data change notifications are not pooled by the server and never reused.
+                Assert.That(item.ReuseCount, Is.Zero);
             });
         }
 
