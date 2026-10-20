@@ -60,7 +60,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// document is converted. The ReferenceType index of Section 5.3, which
     /// carries both of the names OPC 10000-3 gives a ReferenceType, is built
     /// the same way and independently, so a conversion that names no relation
-    /// never pays for it.
+    /// never pays for it. Held namespaces are also captured once per resolver,
+    /// independently of the name indexes, from all four loaded type hierarchies.
     /// </para>
     /// </remarks>
     public sealed class AddressSpaceWotNodeResolver
@@ -95,27 +96,37 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return false;
             }
-            var loaded = new Dictionary<string, List<WotResolvedNode>>(StringComparer.Ordinal);
-            await AddSubTypesAsync(Ua.ObjectTypeIds.BaseObjectType, loaded, cancellationToken).ConfigureAwait(false);
-            await AddSubTypesAsync(Ua.VariableTypeIds.BaseVariableType, loaded, cancellationToken)
-                .ConfigureAwait(false);
-            await AddSubTypesAsync(Ua.DataTypeIds.BaseDataType, loaded, cancellationToken).ConfigureAwait(false);
-            await AddSubTypesAsync(Ua.ReferenceTypeIds.References, loaded, cancellationToken).ConfigureAwait(false);
-            foreach (List<WotResolvedNode> nodes in loaded.Values)
+            HashSet<string>? heldNamespaces = m_heldNamespaces;
+            if (heldNamespaces is null)
             {
-                foreach (WotResolvedNode node in nodes)
+                var loaded = new Dictionary<string, List<WotResolvedNode>>(StringComparer.Ordinal);
+                await AddSubTypesAsync(Ua.ObjectTypeIds.BaseObjectType, loaded, cancellationToken).ConfigureAwait(false);
+                await AddSubTypesAsync(Ua.VariableTypeIds.BaseVariableType, loaded, cancellationToken)
+                    .ConfigureAwait(false);
+                await AddSubTypesAsync(Ua.DataTypeIds.BaseDataType, loaded, cancellationToken).ConfigureAwait(false);
+                await AddSubTypesAsync(Ua.ReferenceTypeIds.References, loaded, cancellationToken).ConfigureAwait(false);
+                heldNamespaces = new HashSet<string>(StringComparer.Ordinal);
+                foreach (List<WotResolvedNode> nodes in loaded.Values)
                 {
-                    NodeId identity = TryToLocalNodeId(node.NodeId);
-                    if (!identity.IsNull &&
-                        m_server.NamespaceUris.GetString(identity.NamespaceIndex) == namespaceUri &&
-                        node.NodeClass is WotExpectedNodeClass.ObjectType or WotExpectedNodeClass.VariableType or
-                            WotExpectedNodeClass.DataType or WotExpectedNodeClass.ReferenceType)
+                    foreach (WotResolvedNode node in nodes)
                     {
-                        return true;
+                        NodeId identity = TryToLocalNodeId(node.NodeId);
+                        if (!identity.IsNull &&
+                            node.NodeClass is WotExpectedNodeClass.ObjectType or WotExpectedNodeClass.VariableType or
+                                WotExpectedNodeClass.DataType or WotExpectedNodeClass.ReferenceType)
+                        {
+                            string? heldNamespace = m_server.NamespaceUris.GetString(identity.NamespaceIndex);
+                            if (!string.IsNullOrEmpty(heldNamespace))
+                            {
+                                heldNamespaces.Add(heldNamespace);
+                            }
+                        }
                     }
                 }
+                cancellationToken.ThrowIfCancellationRequested();
+                m_heldNamespaces = heldNamespaces;
             }
-            return false;
+            return heldNamespaces.Contains(namespaceUri);
         }
 
         /// <inheritdoc/>
@@ -1048,6 +1059,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 NodeClass.ObjectType => WotExpectedNodeClass.ObjectType,
                 NodeClass.VariableType => WotExpectedNodeClass.VariableType,
+                NodeClass.DataType => WotExpectedNodeClass.DataType,
                 NodeClass.ReferenceType => WotExpectedNodeClass.ReferenceType,
                 _ => WotExpectedNodeClass.Any
             };
@@ -1131,6 +1143,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private const int MaxReportedFaults = 5;
 
         private readonly IServerInternal m_server;
+
+        /// <summary>The held namespaces for this resolver's loaded AddressSpace, published only after a complete walk.</summary>
+        private volatile HashSet<string>? m_heldNamespaces;
+
         private volatile Dictionary<string, List<WotResolvedNode>>? m_index;
         private volatile Dictionary<string, List<WotResolvedReferenceType>>? m_referenceTypes;
     }
