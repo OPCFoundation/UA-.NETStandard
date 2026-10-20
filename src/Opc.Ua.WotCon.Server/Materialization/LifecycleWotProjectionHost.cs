@@ -48,7 +48,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// so the previous generation keeps serving its existing monitored items
     /// until they drain. The stable WoT registry NodeManager is never touched.
     /// </summary>
-    public sealed class LifecycleWotProjectionHost : IWotProjectionHost
+    public sealed partial class LifecycleWotProjectionHost : IWotInvocationProjectionHost
     {
         /// <summary>
         /// Initializes a new host over the supplied lifecycle.
@@ -57,11 +57,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="runtimeFactory">
         /// The optional projection binding runtime factory. When supplied, each
         /// runtime NodeSet generation created for a document that carries
-        /// prepared <see cref="WotProjectionDocument.BindingPlans"/> owns its own
+        /// prepared binding work in <see cref="WotProjectionDocument.BindingPlans"/> owns its own
         /// binding runtime: it is created after the NodeSet is imported (via
         /// <see cref="RuntimeNodeSetOptions.ConfigureAsync"/>) and disposed with
         /// the generation. When <c>null</c>, no binding runtime is wired (the
-        /// NodeSet is materialized as data only).
+        /// NodeSet is materialized as data only). The stock factory skips data-only
+        /// plans that need no fluent configuration or default namespace. Custom
+        /// factories retain their configuration callback for every generation.
         /// </param>
         public LifecycleWotProjectionHost(
             INodeManagerLifecycle lifecycle,
@@ -72,14 +74,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        /// <param name="document">The WoT projection document.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration registration = await m_lifecycle
                 .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
                 .ConfigureAwait(false);
+            publication.Publish(registration.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 registration.Generation,
@@ -89,6 +95,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        /// <param name="current">The WoT projection handle.</param>
+        /// <param name="document">The WoT projection document.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotProjectionHandle> ShadowReloadAsync(
             WotProjectionHandle current,
             WotProjectionDocument document,
@@ -100,6 +109,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration next;
             string warning = string.Empty;
             try
@@ -114,6 +124,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 warning = "The replacement is active, but prior-generation cleanup is pending: " +
                     ex.Message;
             }
+            publication.Publish(next.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
@@ -124,6 +135,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <inheritdoc/>
+        /// <param name="current">The WoT projection handle.</param>
+        /// <param name="document">The WoT projection document.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<WotProjectionHandle> ImmediateReloadAsync(
             WotProjectionHandle current,
             WotProjectionDocument document,
@@ -134,6 +148,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return await AddAsync(document, cancellationToken).ConfigureAwait(false);
             }
             RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration next;
             string warning = string.Empty;
             try
@@ -148,6 +163,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 warning = "The replacement is active, but prior-generation cleanup is pending: " +
                     ex.Message;
             }
+            publication.Publish(next.Generation);
             return new WotProjectionHandle(
                 document.ClosureKey,
                 next.Generation,
@@ -193,7 +209,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Sources = new ArrayOf<RuntimeNodeSetSource>(sources),
                 AllowLifecycleFromRequestCallback = true
             };
-            if (m_runtimeFactory is { } runtimeFactory)
+            if (m_runtimeFactory is { } runtimeFactory &&
+                (runtimeFactory is not WotProjectionBindingRuntimeFactory ||
+                 document.BindingPlans.Contains(plan => plan is not null &&
+                    (!plan.CompiledForms.IsEmpty ||
+                     !plan.ProjectedAffordances.IsEmpty ||
+                     !plan.UnsupportedForms.IsEmpty))))
             {
                 ArrayOf<WotBindingPlan> bindingPlans = document.BindingPlans;
                 options.ConfigureAsync = (builder, cancellationToken)

@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using Opc.Ua.WotCon.Server.Assets;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 
 namespace Opc.Ua.WotCon.Server
@@ -102,7 +103,7 @@ namespace Opc.Ua.WotCon.Server
         /// <see cref="IWotAssetProviderFactory.CanHandle"/> returns
         /// <c>true</c> is selected.
         /// </summary>
-        public IList<IWotAssetProviderFactory> Bindings { get; } = [];
+        public IList<IWotAssetProviderFactory> Bindings { get; private set; } = [];
 
         /// <summary>
         /// Optional server-level discovery provider backing the three
@@ -110,6 +111,13 @@ namespace Opc.Ua.WotCon.Server
         /// (Discover / CreateForEndpoint / ConnectionTest).
         /// </summary>
         public IWotAssetDiscoveryProvider? Discovery { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared converter used to prepare native declarations
+        /// and existing-type bindings before a legacy provider is connected.
+        /// Null selects the stock converter with the running AddressSpace context.
+        /// </summary>
+        public IWotDocumentConverter? DocumentConverter { get; set; }
 
         /// <summary>
         /// Optional registry service that mirrors materialized asset Thing
@@ -143,7 +151,7 @@ namespace Opc.Ua.WotCon.Server
         /// (OPC 10100-1 §6.3.7). When empty the Configuration object is
         /// not created.
         /// </summary>
-        public IDictionary<string, WotConfigurationParameter> Configuration { get; }
+        public IDictionary<string, WotConfigurationParameter> Configuration { get; private set; }
             = new Dictionary<string, WotConfigurationParameter>(StringComparer.Ordinal);
 
         /// <summary>
@@ -163,6 +171,18 @@ namespace Opc.Ua.WotCon.Server
         /// </summary>
         public WotManagementAccessPolicy ManagementAccess { get; set; }
             = new WotManagementAccessPolicy();
+
+        /// <summary>
+        /// Copies all settings without sharing the collections extended by hosting.
+        /// </summary>
+        internal WotConnectivityServerOptions Clone()
+        {
+            var copy = (WotConnectivityServerOptions)MemberwiseClone();
+            copy.Bindings = new List<IWotAssetProviderFactory>(Bindings);
+            copy.Configuration = new Dictionary<string, WotConfigurationParameter>(
+                Configuration, StringComparer.Ordinal);
+            return copy;
+        }
     }
 
     /// <summary>

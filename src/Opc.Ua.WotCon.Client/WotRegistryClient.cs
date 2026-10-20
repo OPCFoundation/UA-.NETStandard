@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Client
     /// proxy is reused directly rather than re-resolved per call.
     /// </para>
     /// </summary>
-    public sealed class WotRegistryClient : XRegistryClient
+    public sealed partial class WotRegistryClient : XRegistryClient
     {
         /// <summary>
         /// The well-known reserved group id that always holds Thing
@@ -85,6 +85,9 @@ namespace Opc.Ua.WotCon.Client
                 ValidateRegistryObjectId(registryObjectId),
                 telemetry)
         {
+            IEncodeableFactoryBuilder types = session.MessageContext.Factory.Builder;
+            types.AddOpcUaXRegistry().AddOpcUaWotCon();
+            types.Commit();
             Proxy = new WoTRegistryTypeClient(session, registryObjectId, telemetry);
         }
 
@@ -94,7 +97,9 @@ namespace Opc.Ua.WotCon.Client
         /// fetched the server namespace table yet, so this appends rather than failing — matching
         /// what <see cref="ForServerAsync"/> does.
         /// </summary>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="session"/> is <c>null</c>.
+        /// </exception>
         private static string EnsureRegistryNamespace(ISession session)
         {
             if (session is null)
@@ -109,7 +114,9 @@ namespace Opc.Ua.WotCon.Client
         /// Rejects a null registry root. The WoT registry root is server-specific and discovered by
         /// Browse, so unlike the base model there is no well-known identifier to fall back to.
         /// </summary>
-        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentException">
+        /// <paramref name="registryObjectId"/> is null.
+        /// </exception>
         private static NodeId ValidateRegistryObjectId(NodeId registryObjectId)
         {
             if (registryObjectId.IsNull)
@@ -178,6 +185,8 @@ namespace Opc.Ua.WotCon.Client
         /// naming convention.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="groupId"/> is null or empty.</exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="groupId">The group ID.</param>
         public async ValueTask<WotRegistryGroupClient> CreateGroupAsync(
             string groupId,
             CancellationToken ct = default)
@@ -187,6 +196,8 @@ namespace Opc.Ua.WotCon.Client
                 throw new ArgumentException("Group id is required.", nameof(groupId));
             }
             NodeId groupNodeId = await Proxy.CreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             return await OpenGroupClientAsync(Session, groupNodeId, groupId, Telemetry, ct, distinct)
                 .ConfigureAwait(false);
@@ -198,6 +209,8 @@ namespace Opc.Ua.WotCon.Client
         /// newly created.
         /// </summary>
         /// <exception cref="ArgumentException"><paramref name="groupId"/> is null or empty.</exception>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="groupId">The group ID.</param>
         public async ValueTask<(WotRegistryGroupClient Group, bool Created)> GetOrCreateGroupAsync(
             string groupId,
             CancellationToken ct = default)
@@ -208,6 +221,8 @@ namespace Opc.Ua.WotCon.Client
             }
             (NodeId groupNodeId, bool created) = await Proxy
                 .GetOrCreateGroupAsync(groupId, ct).ConfigureAwait(false);
+            groupId = await WotProvisioningContract.ReadAssignedIdentifierAsync(Session, groupNodeId, "GroupId", ct)
+                .ConfigureAwait(false);
             bool distinct = await UsesDistinctHierarchyAsync(ct).ConfigureAwait(false);
             WotRegistryGroupClient group = await OpenGroupClientAsync(
                 Session, groupNodeId, groupId, Telemetry, ct, distinct).ConfigureAwait(false);
@@ -290,7 +305,14 @@ namespace Opc.Ua.WotCon.Client
         /// generation.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
-        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejects Refresh or returns invalid output arguments.
+        /// </exception>
+        /// <param name="selection">The resource selectors to refresh.</param>
+        /// <param name="options">The wo t refresh options data type.</param>
+        /// <param name="expectedGeneration">The expected generation.</param>
+        /// <param name="requestId">The request ID.</param>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
         public async ValueTask<WotRegistryRefreshResult> RefreshAsync(
             ArrayOf<WoTResourceSelectorDataType> selection,
             WoTRefreshOptionsDataType options,
@@ -670,7 +692,7 @@ namespace Opc.Ua.WotCon.Client
             {
                 throw new ArgumentException("Document content is required.", nameof(content));
             }
-            Kind = kind;
+            Kind = WotDocumentKinds.RequireDocument(kind, nameof(kind));
             GroupId = groupId;
             ResourceId = resourceId;
             Content = content;
@@ -709,6 +731,13 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryDocumentLoadOutcome
     {
+        /// <summary>
+        /// Captures the uploaded document, resource identity, version, and resource-creation outcome.
+        /// </summary>
+        /// <param name="document">The WoT document associated with the operation.</param>
+        /// <param name="resourceNodeId">The OPC UA node identifier of the registry resource.</param>
+        /// <param name="versionId">The uploaded resource version identifier.</param>
+        /// <param name="created">Whether the upload created the registry resource.</param>
         internal WotRegistryDocumentLoadOutcome(
             WotRegistryDocument document,
             NodeId resourceNodeId,
@@ -747,6 +776,11 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryBulkLoadResult
     {
+        /// <summary>
+        /// Captures document upload outcomes and the optional refresh result for a bulk load.
+        /// </summary>
+        /// <param name="uploaded">The document upload outcomes collected by the bulk load.</param>
+        /// <param name="refresh">The optional refresh result produced after uploading documents.</param>
         internal WotRegistryBulkLoadResult(
             ArrayOf<WotRegistryDocumentLoadOutcome> uploaded,
             WotRegistryRefreshResult? refresh)
@@ -774,6 +808,13 @@ namespace Opc.Ua.WotCon.Client
     /// </summary>
     public sealed class WotRegistryRefreshResult
     {
+        /// <summary>
+        /// Captures the refresh summary, resource outcomes, generation, and method status.
+        /// </summary>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="newGeneration">The registry generation resulting from the refresh.</param>
+        /// <param name="methodStatus">The OPC UA status returned by the refresh method.</param>
         internal WotRegistryRefreshResult(
             WoTRefreshSummaryDataType summary,
             ArrayOf<WoTResourceLoadResultDataType> results,

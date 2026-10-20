@@ -74,6 +74,7 @@ namespace Opc.Ua
             Action<IEndpointIncomingRequest, StatusCode> complete)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            m_reservations = provider as IResourceIsolationReservations;
             if (maxQueuedRequests <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(maxQueuedRequests));
@@ -160,42 +161,28 @@ namespace Opc.Ua
             }
 
             ResourceIsolationOwner owner = Classify(request, out ResourceIsolationAdmissionEvidence? evidence);
-            if (!m_provider.TryAcquire(
-                ResourceIsolationStage.RequestQueue, owner, 1, out IDisposable? queueLease, out _))
-            {
-                error = StatusCodes.BadServerTooBusy;
-                return false;
-            }
 
-            IDisposable? costLease = null;
-            IDisposable? parkedLease = null;
-            Entry? pending = null;
+            // The admission owns the entry until it is published: a rejected or interrupted
+            // admission disposes it in the finally block, which returns the stages it holds,
+            // a published one leaves it to the queue.
+            var entry = new Entry(this, request, owner, cancellationToken);
+            Entry? pending = entry;
             try
             {
-                if (!m_provider.TryAcquire(
-                    ResourceIsolationStage.RequestQueueBytes, owner, m_requestCost, out costLease, out _))
+                if (!TryAcquire(ResourceIsolationStage.RequestQueue, owner, 1, ref entry.QueueHold) ||
+                    !TryAcquire(ResourceIsolationStage.RequestQueueBytes, owner, m_requestCost, ref entry.CostHold))
                 {
                     error = StatusCodes.BadServerTooBusy;
                     return false;
                 }
                 if (m_decoupleHeldPublishRequests &&
                     request is IParkableIncomingRequest { ParkSink: not null } &&
-                    !m_provider.TryAcquire(
-                        ResourceIsolationStage.ParkedRequest, owner, 1, out parkedLease, out _))
+                    !TryAcquire(ResourceIsolationStage.ParkedRequest, owner, 1, ref entry.ParkedHold))
                 {
                     error = StatusCodes.BadServerTooBusy;
                     return false;
                 }
 
-                // The admission owns the entry until it is published: a rejected or interrupted
-                // admission disposes it in the finally block, a published one leaves it to the
-                // queue.
-                var entry = new Entry(
-                    this, request, owner, queueLease, costLease!, parkedLease, cancellationToken);
-                pending = entry;
-                queueLease = null;
-                costLease = null;
-                parkedLease = null;
                 entry.AdmissionEvidence = evidence;
                 entry.RegisterCancellation();
 
@@ -242,9 +229,6 @@ namespace Opc.Ua
             finally
             {
                 pending?.Dispose();
-                parkedLease?.Dispose();
-                costLease?.Dispose();
-                queueLease?.Dispose();
             }
         }
 
@@ -264,7 +248,6 @@ namespace Opc.Ua
             int attempts = -1;
             while (TrySelect(ref attempts, out Entry? candidate, out long version))
             {
-                IDisposable? executionLease = null;
                 StatusCode error = StatusCodes.Good;
                 bool acquired = false;
                 try
@@ -278,19 +261,18 @@ namespace Opc.Ua
                         error = GetRevalidationStatus(candidate);
                         if (!StatusCode.IsBad(error))
                         {
-                            acquired = m_provider.TryAcquire(
+                            // the entry holds the execution stage from here on
+                            acquired = TryAcquire(
                                 ResourceIsolationStage.RequestExecution,
                                 candidate.Owner,
                                 1,
-                                out executionLease,
-                                out _);
+                                ref candidate.ExecutionHold);
                         }
                     }
                 }
                 catch
                 {
                     EndSelection();
-                    executionLease?.Dispose();
                     Pulse();
                     candidate.Dispose();
                     m_complete(candidate.Request, StatusCodes.BadInternalError);
@@ -299,8 +281,6 @@ namespace Opc.Ua
 
                 if (acquired)
                 {
-                    candidate.SetExecutionLease(executionLease!);
-                    executionLease = null;
                     EndSelection();
                     Pulse();
                     candidate.ReleaseQueueLease();
@@ -321,7 +301,6 @@ namespace Opc.Ua
                     result = candidate;
                     return true;
                 }
-                executionLease?.Dispose();
 
                 if (StatusCode.IsBad(error))
                 {
@@ -438,6 +417,35 @@ namespace Opc.Ua
                 entry.Dispose();
                 m_complete(entry.Request, StatusCodes.BadServerHalted);
             }
+        }
+
+        /// <summary>
+        /// Admits one stage into an entry's hold: by value when the provider returns
+        /// reservations, otherwise as a provider lease.
+        /// </summary>
+        private bool TryAcquire(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            ref StageHold hold)
+        {
+            if (m_reservations != null)
+            {
+                if (!m_reservations.TryReserve(stage, owner, amount, out ResourceIsolationReservation reservation))
+                {
+                    return false;
+                }
+                hold.Set(reservation);
+                return true;
+            }
+#pragma warning disable CA2000 // Ownership transfers to the hold, which the entry releases.
+            if (!m_provider.TryAcquire(stage, owner, amount, out IDisposable? lease, out _))
+            {
+                return false;
+            }
+#pragma warning restore CA2000
+            hold.Set(lease);
+            return true;
         }
 
         /// <summary>
@@ -1095,25 +1103,39 @@ namespace Opc.Ua
         internal sealed class Entry : QueueNode, IDisposable
         {
             /// <summary>
-            /// Takes ownership of a request's acquired admission leases.
+            /// Creates an entry for a request; the admission acquires its stages into the holds.
             /// </summary>
             internal Entry(
                 FairRequestQueue queue,
                 IEndpointIncomingRequest request,
                 ResourceIsolationOwner owner,
-                IDisposable queueLease,
-                IDisposable costLease,
-                IDisposable? parkedLease,
                 CancellationToken cancellationToken)
             {
                 m_queue = queue;
                 Request = request;
                 Owner = owner;
                 CancellationToken = cancellationToken;
-                m_queueLease = queueLease;
-                m_costLease = costLease;
-                m_parkedLease = parkedLease;
             }
+
+            /// <summary>
+            /// Retained queue slot.
+            /// </summary>
+            internal StageHold QueueHold;
+
+            /// <summary>
+            /// Retained decoded-request cost.
+            /// </summary>
+            internal StageHold CostHold;
+
+            /// <summary>
+            /// Active execution capacity, released on park or completion.
+            /// </summary>
+            internal StageHold ExecutionHold;
+
+            /// <summary>
+            /// Reserved parked-request slot.
+            /// </summary>
+            internal StageHold ParkedHold;
 
             /// <summary>
             /// Gets the admitted request.
@@ -1190,7 +1212,7 @@ namespace Opc.Ua
             /// </summary>
             public void ReleaseExecution()
             {
-                Interlocked.Exchange(ref m_executionLease, null)?.Dispose();
+                ExecutionHold.Release(m_queue, ResourceIsolationStage.RequestExecution, Owner, 1);
             }
 
             /// <summary>
@@ -1210,16 +1232,8 @@ namespace Opc.Ua
                 }
                 ReleaseQueueLease();
                 ReleaseExecution();
-                Interlocked.Exchange(ref m_parkedLease, null)?.Dispose();
-                Interlocked.Exchange(ref m_costLease, null)?.Dispose();
-            }
-
-            /// <summary>
-            /// Takes execution lease ownership before the entry leaves the queue gate.
-            /// </summary>
-            internal void SetExecutionLease(IDisposable executionLease)
-            {
-                m_executionLease = executionLease;
+                ParkedHold.Release(m_queue, ResourceIsolationStage.ParkedRequest, Owner, 1);
+                CostHold.Release(m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
             }
 
             /// <summary>
@@ -1227,7 +1241,7 @@ namespace Opc.Ua
             /// </summary>
             internal void ReleaseQueueLease()
             {
-                Interlocked.Exchange(ref m_queueLease, null)?.Dispose();
+                QueueHold.Release(m_queue, ResourceIsolationStage.RequestQueue, Owner, 1);
             }
 
             /// <summary>
@@ -1267,26 +1281,6 @@ namespace Opc.Ua
             private OwnerQueue? m_ownerQueue;
 
             /// <summary>
-            /// Retained queue-slot lease.
-            /// </summary>
-            private IDisposable? m_queueLease;
-
-            /// <summary>
-            /// Retained decoded-request cost lease.
-            /// </summary>
-            private IDisposable? m_costLease;
-
-            /// <summary>
-            /// Active execution lease, exchanged on park or completion.
-            /// </summary>
-            private IDisposable? m_executionLease;
-
-            /// <summary>
-            /// Reserved parked-request lease.
-            /// </summary>
-            private IDisposable? m_parkedLease;
-
-            /// <summary>
             /// Registration owned until disposal starts; published by
             /// <see cref="m_registrationState"/>.
             /// </summary>
@@ -1318,6 +1312,63 @@ namespace Opc.Ua
                 /// </summary>
                 Disposed
             }
+        }
+
+        /// <summary>
+        /// One admission stage held by an entry: a reservation of a provider that admits by
+        /// value, or the lease of any other provider. The stage, owner and amount are the
+        /// entry's. Released exactly once, also when releases race. Lives in a field of its
+        /// entry and is never copied.
+        /// </summary>
+        internal struct StageHold
+        {
+            /// <summary>
+            /// Holds a reservation. The entry is not shared while a stage is set.
+            /// </summary>
+            public void Set(in ResourceIsolationReservation reservation)
+            {
+                m_reserved = reservation.Reserved;
+                m_accountingClass = reservation.AccountingClass;
+                Volatile.Write(ref m_state, reservation.Accounting);
+            }
+
+            /// <summary>
+            /// Holds a provider lease. The entry is not shared while a stage is set.
+            /// </summary>
+            public void Set(IDisposable lease)
+            {
+                Volatile.Write(ref m_state, lease);
+            }
+
+            /// <summary>
+            /// Returns the stage if it is still held; only the first call releases it.
+            /// </summary>
+            public void Release(
+                FairRequestQueue queue,
+                ResourceIsolationStage stage,
+                ResourceIsolationOwner owner,
+                long amount)
+            {
+                object? state = Interlocked.Exchange(ref m_state, null);
+                if (state == null)
+                {
+                    return;
+                }
+                if (queue.m_reservations == null)
+                {
+                    ((IDisposable)state).Dispose();
+                    return;
+                }
+                queue.m_reservations.Release(
+                    stage, owner, amount, new ResourceIsolationReservation(state, m_accountingClass, m_reserved));
+            }
+
+            /// <summary>
+            /// The provider's accounting state of a reservation or the lease, null once released.
+            /// </summary>
+            private object? m_state;
+            private long m_reserved;
+            private ResourceIsolationClass m_accountingClass;
         }
 
         /// <summary>
@@ -1530,6 +1581,12 @@ namespace Opc.Ua
         /// Shared admission provider borrowed for the lifetime of this queue.
         /// </summary>
         private readonly IServerResourceIsolationProvider m_provider;
+
+        /// <summary>
+        /// The provider when it admits by value, so that an entry holds its stages without
+        /// one lease object each.
+        /// </summary>
+        private readonly IResourceIsolationReservations? m_reservations;
 
         /// <summary>
         /// Physical queue count envelope.

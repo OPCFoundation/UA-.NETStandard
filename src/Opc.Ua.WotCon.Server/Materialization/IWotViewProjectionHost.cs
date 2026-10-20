@@ -95,6 +95,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the plan describing the View's membership.
         /// </summary>
         public WotViewProjectionPlan Plan { get; }
+
+        /// <summary>
+        /// Gets or sets the captured namespace URIs for <c>WotViewProjectionRequest</c>.
+        /// </summary>
+        internal ArrayOf<string> CapturedNamespaceUris { get; init; }
     }
 
     /// <summary>
