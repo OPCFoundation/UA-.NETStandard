@@ -188,6 +188,22 @@ namespace Opc.Ua.Security.Pkcs11
         /// <returns>The key handle, or <c>null</c> when there is no match.</returns>
         public IObjectHandle? FindPrivateKey(CKK keyType, byte[]? ckaId)
         {
+            List<IObjectHandle> handles = FindPrivateKeys(keyType, ckaId);
+
+            return handles.Count > 0 ? handles[0] : null;
+        }
+
+        /// <summary>
+        /// Finds every private key whose CKA_ID matches: several keys of a token
+        /// may share a CKA_ID.
+        /// </summary>
+        /// <param name="keyType">The key type to look for.</param>
+        /// <param name="ckaId">
+        /// The CKA_ID to match, or an empty value to fall back to the options.
+        /// </param>
+        /// <returns>The key handles in the order the token returns them.</returns>
+        public List<IObjectHandle> FindPrivateKeys(CKK keyType, byte[]? ckaId)
+        {
             lock (m_lock)
             {
                 ThrowIfDisposed();
@@ -207,9 +223,7 @@ namespace Opc.Ua.Security.Pkcs11
                     AddObjectFilters(search);
                 }
 
-                List<IObjectHandle> handles = m_session.FindAllObjects(search);
-
-                return handles.Count > 0 ? handles[0] : null;
+                return m_session.FindAllObjects(search);
             }
         }
 
@@ -242,6 +256,35 @@ namespace Opc.Ua.Security.Pkcs11
         /// </returns>
         public IReadOnlyList<KeyValuePair<byte[], byte[]?>> FindCertificatesWithIds()
         {
+            return FindCertificatesWithIds(applyObjectId: true);
+        }
+
+        /// <summary>
+        /// Finds the certificate objects whose CKA_ID is empty, subject to the
+        /// object label filter in the options but not to the object id filter,
+        /// which such a certificate cannot match. Only for loading a key whose
+        /// pairing with the certificate is proven by possession; enumeration and
+        /// deletion keep both filters.
+        /// </summary>
+        /// <returns>The DER encoded certificates found.</returns>
+        public IReadOnlyList<byte[]> FindCertificatesWithoutId()
+        {
+            var certificates = new List<byte[]>();
+
+            foreach (KeyValuePair<byte[], byte[]?> entry in FindCertificatesWithIds(applyObjectId: false))
+            {
+                // An unreadable CKA_ID (null) is not an empty one.
+                if (entry.Value is { Length: 0 })
+                {
+                    certificates.Add(entry.Key);
+                }
+            }
+
+            return certificates;
+        }
+
+        private List<KeyValuePair<byte[], byte[]?>> FindCertificatesWithIds(bool applyObjectId)
+        {
             lock (m_lock)
             {
                 ThrowIfDisposed();
@@ -251,7 +294,7 @@ namespace Opc.Ua.Security.Pkcs11
                     m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, CKO.CKO_CERTIFICATE)
                 ];
 
-                AddObjectFilters(search);
+                AddObjectFilters(search, applyObjectId);
 
                 var results = new List<KeyValuePair<byte[], byte[]?>>();
 
@@ -358,21 +401,25 @@ namespace Opc.Ua.Security.Pkcs11
         }
 
         /// <summary>
-        /// Finds the CKA_ID of a key object whose attributes hold all the given
-        /// public values, for example the modulus and the public exponent of an
-        /// RSA key, or the point and the curve of an EC key.
+        /// Finds the distinct CKA_IDs of every key object whose attributes hold
+        /// all the given public values, for example the modulus and the public
+        /// exponent of an RSA key, or the point and the curve of an EC key, in
+        /// the order the token returns the objects: several objects may carry
+        /// the same public key, and an id may be stale.
         /// </summary>
         /// <remarks>
-        /// The token searches by the first attribute; the others are read back
-        /// and compared, and a key whose value of such an attribute cannot be
-        /// read does not match. The big integers CKA_MODULUS and
-        /// CKA_PUBLIC_EXPONENT are compared without leading zero bytes.
+        /// The token searches by the first attribute unless it is one of the
+        /// big integers CKA_MODULUS and CKA_PUBLIC_EXPONENT, which a token may
+        /// store with leading zero bytes; the other attributes are read back and
+        /// compared, and a key whose value of such an attribute cannot be read
+        /// does not match. The big integers are compared without leading zero
+        /// bytes. An object with an empty CKA_ID is skipped.
         /// </remarks>
         /// <param name="objectClass">The class of key object to search.</param>
         /// <param name="keyType">The key type to search.</param>
         /// <param name="match">The attributes and the public values they must hold.</param>
-        /// <returns>The CKA_ID, or <c>null</c> when no key matches.</returns>
-        public byte[]? FindKeyId(CKO objectClass, CKK keyType, params (CKA Attribute, byte[] Value)[] match)
+        /// <returns>The CKA_IDs; empty when no key matches.</returns>
+        public List<byte[]> FindKeyIds(CKO objectClass, CKK keyType, params (CKA Attribute, byte[] Value)[] match)
         {
             if (match == null || match.Length == 0)
             {
@@ -383,36 +430,43 @@ namespace Opc.Ua.Security.Pkcs11
             {
                 ThrowIfDisposed();
 
+                int compareFrom = IsUnsignedInteger(match[0].Attribute) ? 0 : 1;
                 List<IObjectAttribute> search =
                 [
                     m_factories.ObjectAttributeFactory.Create(CKA.CKA_CLASS, objectClass),
-                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType),
-                    m_factories.ObjectAttributeFactory.Create(match[0].Attribute, match[0].Value)
+                    m_factories.ObjectAttributeFactory.Create(CKA.CKA_KEY_TYPE, keyType)
                 ];
-                var read = new List<ulong>(match.Length) { (ulong)CKA.CKA_ID };
-                for (int ii = 1; ii < match.Length; ii++)
+                if (compareFrom == 1)
+                {
+                    search.Add(m_factories.ObjectAttributeFactory.Create(match[0].Attribute, match[0].Value));
+                }
+
+                var read = new List<ulong>(match.Length + 1) { (ulong)CKA.CKA_ID };
+                for (int ii = compareFrom; ii < match.Length; ii++)
                 {
                     read.Add((ulong)match[ii].Attribute);
                 }
+
+                var ids = new List<byte[]>();
 
                 foreach (IObjectHandle handle in m_session.FindAllObjects(search))
                 {
                     List<IObjectAttribute> values = m_session.GetAttributeValue(handle, read);
 
-                    if (!HoldsValues(values, match))
+                    if (!HoldsValues(values, match, compareFrom))
                     {
                         continue;
                     }
 
                     byte[]? id = ReadBytes(values[0]);
 
-                    if (id is { Length: > 0 })
+                    if (id is { Length: > 0 } && !ids.Exists(known => known.AsSpan().SequenceEqual(id)))
                     {
-                        return id;
+                        ids.Add(id);
                     }
                 }
 
-                return null;
+                return ids;
             }
         }
 
@@ -556,7 +610,7 @@ namespace Opc.Ua.Security.Pkcs11
             }
         }
 
-        private void AddObjectFilters(List<IObjectAttribute> search)
+        private void AddObjectFilters(List<IObjectAttribute> search, bool applyObjectId = true)
         {
             if (!string.IsNullOrEmpty(Options.ObjectLabel))
             {
@@ -565,7 +619,7 @@ namespace Opc.Ua.Security.Pkcs11
                     Options.ObjectLabel));
             }
 
-            if (!Options.ObjectId.IsNull && Options.ObjectId.Length > 0)
+            if (applyObjectId && !Options.ObjectId.IsNull && Options.ObjectId.Length > 0)
             {
                 search.Add(m_factories.ObjectAttributeFactory.Create(
                     CKA.CKA_ID,
@@ -621,18 +675,26 @@ namespace Opc.Ua.Security.Pkcs11
             }
         }
 
-        private static bool HoldsValues(List<IObjectAttribute> values, (CKA Attribute, byte[] Value)[] match)
+        /// <summary>
+        /// Whether the read values (the CKA_ID first, then the match attributes
+        /// from <paramref name="compareFrom"/> on) hold the match values; an
+        /// unsigned integer attribute is compared without leading zero bytes.
+        /// </summary>
+        private static bool HoldsValues(
+            List<IObjectAttribute> values,
+            (CKA Attribute, byte[] Value)[] match,
+            int compareFrom)
         {
-            for (int ii = 1; ii < match.Length; ii++)
+            for (int ii = compareFrom; ii < match.Length; ii++)
             {
-                byte[]? actual = ReadBytes(values[ii]);
+                byte[]? actual = ReadBytes(values[1 + ii - compareFrom]);
 
                 if (actual == null || actual.Length == 0)
                 {
                     return false;
                 }
 
-                bool equal = match[ii].Attribute is CKA.CKA_MODULUS or CKA.CKA_PUBLIC_EXPONENT
+                bool equal = IsUnsignedInteger(match[ii].Attribute)
                     ? TrimLeadingZeros(actual).SequenceEqual(TrimLeadingZeros(match[ii].Value))
                     : actual.AsSpan().SequenceEqual(match[ii].Value);
 
@@ -643,6 +705,11 @@ namespace Opc.Ua.Security.Pkcs11
             }
 
             return true;
+        }
+
+        private static bool IsUnsignedInteger(CKA attribute)
+        {
+            return attribute is CKA.CKA_MODULUS or CKA.CKA_PUBLIC_EXPONENT;
         }
 
         /// <summary>
