@@ -683,7 +683,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
             Process server = Process.Start(startInfo)!;
             var lines = new BlockingCollection<string>();
-            _ = Task.Run(() => PumpServerOutput(server, lines));
+            // a dedicated thread: the pump blocks in ReadLine for the whole run, and on a pool
+            // thread it occupies the only minimum worker of a one-processor client, so every
+            // other work item waits for the pool's starvation injection (~0.5-1 s stalls)
+            new Thread(() => PumpServerOutput(server, lines)) { IsBackground = true, Name = "ServerOutput" }.Start();
             return (server, lines);
         }
 
