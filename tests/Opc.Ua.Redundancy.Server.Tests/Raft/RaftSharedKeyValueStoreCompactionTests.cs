@@ -715,7 +715,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 await m_gate.WaitAsync(ct);
                 try
                 {
-                    await m_items.Writer.WriteAsync(new RaftCommittedItem(false, ++m_index, command.ToArray()), ct);
+                    await m_items.Writer.WriteAsync(new RaftCommittedItem(false, ++m_index, ByteString.From(command.Span)), ct);
                 }
                 finally
                 {
@@ -728,7 +728,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 return default;
             }
 
-            public ValueTask CompactAsync(ulong appliedIndex, ReadOnlyMemory<byte> snapshot, CancellationToken ct = default)
+            public ValueTask CompactAsync(ulong appliedIndex, ByteString snapshot, CancellationToken ct = default)
             {
                 lock (m_compactionsLock)
                 {
@@ -750,7 +750,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 try
                 {
                     m_index = Math.Max(m_index, index);
-                    await m_items.Writer.WriteAsync(new RaftCommittedItem(true, index, snapshot));
+                    await m_items.Writer.WriteAsync(new RaftCommittedItem(true, index, new ByteString(snapshot)));
                 }
                 finally
                 {
@@ -763,7 +763,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 await m_gate.WaitAsync();
                 try
                 {
-                    await m_items.Writer.WriteAsync(new RaftCommittedItem(false, ++m_index, command));
+                    await m_items.Writer.WriteAsync(new RaftCommittedItem(false, ++m_index, new ByteString(command)));
                 }
                 finally
                 {

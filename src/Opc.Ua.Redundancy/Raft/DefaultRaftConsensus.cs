@@ -245,10 +245,10 @@ namespace Opc.Ua.Redundancy
         /// <exception cref="NotSupportedException">The node's storage does not keep snapshots.</exception>
         public async ValueTask CompactAsync(
             ulong appliedIndex,
-            ReadOnlyMemory<byte> snapshot,
+            ByteString snapshot,
             CancellationToken ct = default)
         {
-            await m_node.CreateSnapshotAsync(appliedIndex, snapshot, ct).ConfigureAwait(false);
+            await m_node.CreateSnapshotAsync(appliedIndex, snapshot.Memory, ct).ConfigureAwait(false);
             await m_node.CompactAsync(appliedIndex, ct).ConfigureAwait(false);
         }
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.Redundancy
             {
                 if (m_items.TryRead(out CommittedItem? next))
                 {
-                    item = new RaftCommittedItem(next.Kind == CommittedItemKind.Snapshot, next.Index, next.Data);
+                    item = new RaftCommittedItem(next.Kind == CommittedItemKind.Snapshot, next.Index, new ByteString(next.Data));
                     return true;
                 }
                 item = null!;

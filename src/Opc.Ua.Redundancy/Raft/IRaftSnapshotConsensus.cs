@@ -59,6 +59,6 @@ namespace Opc.Ua.Redundancy
         /// </param>
         /// <param name="snapshot">The encoded state of the state machine at <paramref name="appliedIndex"/>.</param>
         /// <param name="ct">Cancellation token.</param>
-        ValueTask CompactAsync(ulong appliedIndex, ReadOnlyMemory<byte> snapshot, CancellationToken ct = default);
+        ValueTask CompactAsync(ulong appliedIndex, ByteString snapshot, CancellationToken ct = default);
     }
 }

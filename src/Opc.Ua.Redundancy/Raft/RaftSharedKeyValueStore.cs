@@ -777,7 +777,7 @@ namespace Opc.Ua.Redundancy
                     }
                     snapshot = EncodeEngineSnapshotLocked();
                 }
-                await consensus.CompactAsync(index, snapshot, ct).ConfigureAwait(false);
+                await consensus.CompactAsync(index, new ByteString(snapshot), ct).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)

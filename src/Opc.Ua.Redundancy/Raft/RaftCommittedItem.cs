@@ -43,7 +43,7 @@ namespace Opc.Ua.Redundancy
         /// <param name="isSnapshot">Whether the item is a snapshot rather than a command.</param>
         /// <param name="index">The log index of the item.</param>
         /// <param name="data">The command, or the encoded state of a snapshot.</param>
-        public RaftCommittedItem(bool isSnapshot, ulong index, ReadOnlyMemory<byte> data)
+        public RaftCommittedItem(bool isSnapshot, ulong index, ByteString data)
         {
             IsSnapshot = isSnapshot;
             Index = index;
@@ -64,6 +64,6 @@ namespace Opc.Ua.Redundancy
         /// <summary>
         /// The command, or the encoded state of a snapshot.
         /// </summary>
-        public ReadOnlyMemory<byte> Data { get; }
+        public ByteString Data { get; }
     }
 }
