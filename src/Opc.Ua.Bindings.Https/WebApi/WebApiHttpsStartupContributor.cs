@@ -252,7 +252,9 @@ namespace Opc.Ua.Bindings.WebApi
             // been wired by HttpsTransportListener.Open(...).
             // A shared Kestrel host also shares its DI root. Keep remote authority
             // in the listener branch, never in the application's mutable dispatcher.
-            var server = new WebApiServer(listener);
+            WebApiServer server = listener.MessageContext == null
+                ? m_server
+                : new WebApiServer(listener);
             appBuilder.Use((context, next) =>
             {
                 context.Features.Set(server);

@@ -94,17 +94,26 @@ namespace Opc.Ua.Bindings
         {
             m_listenerBound = true;
             m_callback = listener.Callback;
+            EndpointDescription? fallbackEndpoint = null;
             foreach (EndpointDescription endpoint in listener.Descriptions ??
                 throw new InvalidOperationException("The listener has no configured endpoints."))
             {
-                if (endpoint.SecurityMode == MessageSecurityMode.None &&
-                    endpoint.EndpointUrl != null && Utils.IsUriHttpsScheme(endpoint.EndpointUrl) &&
-                    Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri))
+                if (endpoint.SecurityMode != MessageSecurityMode.None ||
+                    endpoint.EndpointUrl == null ||
+                    !Utils.IsUriHttpsScheme(endpoint.EndpointUrl))
+                {
+                    continue;
+                }
+
+                if (Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri))
                 {
                     m_defaultEndpoint = CoreUtils.Clone(endpoint);
                     break;
                 }
+
+                fallbackEndpoint ??= endpoint;
             }
+            m_defaultEndpoint ??= fallbackEndpoint == null ? null : CoreUtils.Clone(fallbackEndpoint);
         }
 
         /// <inheritdoc/>

@@ -809,12 +809,6 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
-                {
-                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
-                    return;
-                }
-
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
 
@@ -887,6 +881,12 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         return;
                     }
+                }
+
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                {
+                    await WriteServiceResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 var secureChannelContext = new SecureChannelContext(
@@ -992,12 +992,6 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
-                {
-                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
-                    return;
-                }
-
                 input.RequestHeader ??= new RequestHeader();
                 if (input.RequestHeader.AuthenticationToken.IsNull &&
                     !authenticationToken.IsNull &&
@@ -1031,6 +1025,12 @@ namespace Opc.Ua.Bindings
                             StatusCodes.BadSecurityPolicyRejected,
                             "Channel can only be used for discovery."));
                     await WriteJsonResponseAsync(context, discoveryFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                if (GetClientCertificateAdmissionFault(context, input) is { } admissionFault)
+                {
+                    await WriteJsonResponseAsync(context, admissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 

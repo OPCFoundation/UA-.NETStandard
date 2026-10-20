@@ -128,7 +128,7 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 ITelemetryContext telemetry = sp.GetRequiredService<ITelemetryContext>();
                 IServiceMessageContext context = sp.GetService<IServiceMessageContext>()
-                    ?? ServiceMessageContext.CreateEmpty(telemetry);
+                    ?? ServiceMessageContext.Create(telemetry);
                 return new WebApiServer(context, listenerId: "rest-api");
             });
             services.TryAddSingleton<IWebApiServer>(sp => sp.GetRequiredService<WebApiServer>());

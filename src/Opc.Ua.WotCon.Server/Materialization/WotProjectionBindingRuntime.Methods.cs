@@ -359,6 +359,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 ArrayOf<Variant> upstreamArguments = arguments;
                 WotCapturedEvent? capturedOccurrence = null;
                 WotCapturedConditionAction? capturedAction = null;
+                IDisposable? actionCall = null;
                 if (occurrenceAction)
                 {
                     if (!arguments[eventIdIndex].TryGetValue(out ByteString eventId))
@@ -370,7 +371,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     if (condition!.TryGetAction(conditionAction!, out _))
                     {
                         routing = condition.ResolveAction(
-                            eventId, conditionAction!, out capturedOccurrence, out capturedAction);
+                            eventId, conditionAction!, out capturedOccurrence, out capturedAction, out actionCall);
                         originalEventId = capturedOccurrence is null ? default : capturedOccurrence.EventId;
                     }
                     else if (m_eventPublisher is not IWotNativeProjectionEventPublisher)
@@ -399,6 +400,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     return new MethodInvocationResult(StatusCodes.BadNotSupported);
                 }
+                using IDisposable? heldActionCall = actionCall;
                 WotInvokeResult response;
                 var localContext = new ServiceMessageContext(context.Telemetry, context.EncodeableFactory)
                 {
