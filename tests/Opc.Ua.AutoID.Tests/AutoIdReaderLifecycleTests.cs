@@ -466,6 +466,52 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        [TestCase("Identification")]
+        [TestCase("Component")]
+        [TestCase("DuplicateName")]
+        public async Task AFailedBuildDisposesAnOwnedProviderNoReaderTookOverAsync(string failure)
+        {
+            await using AutoIdManagerFixture own = await StartOwnFixtureAsync().ConfigureAwait(false);
+            if (failure == "DuplicateName")
+            {
+                await own.Runtime.CreateReaderAsync(own.Name("Dock"), new FakeProvider()).ConfigureAwait(false);
+            }
+            var provider = new FakeProvider();
+            IAutoIdReaderBuilder builder = own.Runtime.Reader(own.Name("Dock"), provider).OwnsProvider();
+            if (failure == "Identification")
+            {
+                builder.WithIdentification(_ => throw new InvalidOperationException("injected"));
+            }
+            else if (failure == "Component")
+            {
+                builder.AsComponentOf(new BaseObjectState(null)
+                {
+                    BrowseName = own.Name("Press"),
+                    NodeId = new NodeId("Press", own.Manager.InstanceNamespaceIndex)
+                });
+            }
+            int readersBefore = own.Runtime.Readers.Count;
+
+            Exception error = (await Assert.CatchAsync<Exception>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error, failure == "Identification"
+                    ? Is.InstanceOf<InvalidOperationException>()
+                    : Is.InstanceOf<ServiceResultException>());
+                Assert.That(provider.Disposed, Is.True, "the build owned the provider and no reader took it");
+                Assert.That(provider.AttachCalls, Is.Zero);
+                Assert.That(own.Runtime.Readers.Count, Is.EqualTo(readersBefore), "nothing was registered");
+            });
+            if (failure != "DuplicateName")
+            {
+                AutoIdReader retried = await own.Runtime.CreateReaderAsync(own.Name("Dock"), new FakeProvider())
+                    .ConfigureAwait(false);
+                Assert.That(retried.Name, Is.EqualTo(own.Name("Dock")), "the failed build left the name free");
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task DisposingTheRuntimeDetachesProvidersAndDisposesOnlyOwnedOnesAsync(bool owned)

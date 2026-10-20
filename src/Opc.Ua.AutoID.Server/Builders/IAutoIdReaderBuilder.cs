@@ -162,8 +162,9 @@ namespace Opc.Ua.AutoID.Server.Builders
 
         /// <summary>
         /// Transfers ownership of the provider to the reader: it is disposed with the reader when it
-        /// implements <see cref="IAsyncDisposable"/> or <see cref="IDisposable"/>. Without this the
-        /// caller owns the provider.
+        /// implements <see cref="IAsyncDisposable"/> or <see cref="IDisposable"/>, and also when
+        /// <see cref="BuildAsync"/> fails while creating the reader. Without this the caller owns
+        /// the provider.
         /// </summary>
         IAutoIdReaderBuilder OwnsProvider();
 

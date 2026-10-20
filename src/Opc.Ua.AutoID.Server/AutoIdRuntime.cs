@@ -319,81 +319,30 @@ namespace Opc.Ua.AutoID.Server
             AutoIdReaderBuilder builder,
             CancellationToken cancellationToken)
         {
-            AutoIdReaderKind kind = builder.Provider.Kind;
-            ISystemContext context = SystemContext;
             QualifiedName name = builder.BrowseName;
-            DeviceIdentificationData? nameplate = null;
-            if (builder.Identification != null)
-            {
-                nameplate = new DeviceIdentificationData();
-                builder.Identification(nameplate);
-            }
-            NodeState? requestedParent = builder.Parent;
-            if (builder.Machine != null)
-            {
-                // Checked before anything is registered: a reader that cannot be a component of
-                // the machine is not created at all.
-                requestedParent = m_placement.ResolveComponents(builder.Machine, name);
-                AutoIdReaderPlacement.ValidateComponentNameplate(nameplate, name);
-            }
             AutoIdDeviceState device;
             Action applyIdentification;
-            switch (kind)
+            NodeState parentNode;
+            try
             {
-                case AutoIdReaderKind.Rfid:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        requestedParent,
-                        nameplate,
-                        ObjectTypeIds.RfidReaderDeviceType,
-                        parent => context.CreateInstanceOfRfidReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Ocr:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        requestedParent,
-                        nameplate,
-                        ObjectTypeIds.OcrReaderDeviceType,
-                        parent => context.CreateInstanceOfOcrReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Optical:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        requestedParent,
-                        nameplate,
-                        ObjectTypeIds.OpticalReaderDeviceType,
-                        parent => context.CreateInstanceOfOpticalReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.OpticalVerifier:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        requestedParent,
-                        nameplate,
-                        ObjectTypeIds.OpticalVerifierDeviceType,
-                        parent => context.CreateInstanceOfOpticalVerifierDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Rtls:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        requestedParent,
-                        nameplate,
-                        ObjectTypeIds.RtlsDeviceType,
-                        parent => context.CreateInstanceOfRtlsDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(builder), kind, "Unknown reader kind.");
+                (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
+                    .ConfigureAwait(false);
+                parentNode = device.Parent ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The reader '{0}' has no parent.",
+                        name);
             }
-
-            NodeState parentNode = device.Parent ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "The reader '{0}' has no parent.",
-                    name);
+            catch
+            {
+                if (builder.OwnsProviderOnDispose)
+                {
+                    // No reader took ownership of the provider: the identification delegate, the
+                    // component checks or the device creation failed first.
+                    await DisposeProviderQuietlyAsync(builder.Provider, name.Name).ConfigureAwait(false);
+                }
+                throw;
+            }
             AutoIdReader? reader = null;
             NodeState? organizedBy = null;
             try
@@ -438,6 +387,78 @@ namespace Opc.Ua.AutoID.Server
                 }
                 await RemoveUnregisteredDeviceAsync(parentNode, device).ConfigureAwait(false);
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// Runs the builder's identification delegate once, checks a component of a machine before
+        /// anything is registered, and creates the device of the provider's reader kind.
+        /// </summary>
+        private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceOfKindAsync(
+            AutoIdReaderBuilder builder,
+            CancellationToken cancellationToken)
+        {
+            AutoIdReaderKind kind = builder.Provider.Kind;
+            ISystemContext context = SystemContext;
+            QualifiedName name = builder.BrowseName;
+            DeviceIdentificationData? nameplate = null;
+            if (builder.Identification != null)
+            {
+                nameplate = new DeviceIdentificationData();
+                builder.Identification(nameplate);
+            }
+            NodeState? requestedParent = builder.Parent;
+            if (builder.Machine != null)
+            {
+                // Checked before anything is registered: a reader that cannot be a component of
+                // the machine is not created at all.
+                requestedParent = m_placement.ResolveComponents(builder.Machine, name);
+                AutoIdReaderPlacement.ValidateComponentNameplate(nameplate, name);
+            }
+            switch (kind)
+            {
+                case AutoIdReaderKind.Rfid:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.RfidReaderDeviceType,
+                        parent => context.CreateInstanceOfRfidReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Ocr:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OcrReaderDeviceType,
+                        parent => context.CreateInstanceOfOcrReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Optical:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OpticalReaderDeviceType,
+                        parent => context.CreateInstanceOfOpticalReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.OpticalVerifier:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OpticalVerifierDeviceType,
+                        parent => context.CreateInstanceOfOpticalVerifierDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Rtls:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.RtlsDeviceType,
+                        parent => context.CreateInstanceOfRtlsDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(builder), kind, "Unknown reader kind.");
             }
         }
 
