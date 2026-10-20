@@ -70,7 +70,7 @@ namespace Opc.Ua.AutoID.Server
         /// </summary>
         /// <exception cref="ServiceResultException">
         /// <c>Bad_ConfigurationError</c>: the owner has no Machinery model, the machine is not a
-        /// node of the owner or it publishes no <c>Components</c> add-in.
+        /// node of the owner or it publishes no <c>Components</c> add-in, or more than one.
         /// </exception>
         public NodeState ResolveComponents(BaseObjectState machine, QualifiedName readerName)
         {
@@ -96,11 +96,11 @@ namespace Opc.Ua.AutoID.Server
                     machine.BrowseName,
                     readerName);
             }
-            NodeState? components = machine.FindChild(
-                context,
-                new QualifiedName(Machinery.BrowseNames.Components, (ushort)machineryNamespace));
-            if (components is not BaseObjectState componentsObject ||
-                !m_manager.Server.TypeTree.IsTypeOf(componentsObject.TypeDefinitionId, componentsTypeId))
+            List<BaseObjectState> components = FindComponentsAddIns(
+                machine,
+                (ushort)machineryNamespace,
+                componentsTypeId);
+            if (components.Count == 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadConfigurationError,
@@ -109,7 +109,83 @@ namespace Opc.Ua.AutoID.Server
                     machine.BrowseName,
                     readerName);
             }
-            return componentsObject;
+            if (components.Count > 1)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The machine '{0}' publishes more than one Components add-in; the reader '{1}' cannot " +
+                    "tell which one to become a component of.",
+                    machine.BrowseName,
+                    readerName);
+            }
+            return components[0];
+        }
+
+        /// <summary>
+        /// Finds the <c>Components</c> add-ins of <paramref name="machine"/> the way Machinery binds
+        /// them: the <c>MachineComponentsType</c> objects its <c>MachineryBuildingBlocks</c> folder
+        /// references with <c>HasAddIn</c> (OPC 40001-1 7.1), wherever they are placed and whatever
+        /// their browse name. A machine without that folder is searched for a hierarchically
+        /// referenced child of the type instead.
+        /// </summary>
+        private List<BaseObjectState> FindComponentsAddIns(
+            BaseObjectState machine,
+            ushort machineryNamespace,
+            NodeId componentsTypeId)
+        {
+            ServerSystemContext context = m_manager.SystemContext;
+            TypeTable typeTree = m_manager.Server.TypeTree;
+            var found = new List<BaseObjectState>();
+            NodeState? buildingBlocks = machine.FindChild(
+                context,
+                new QualifiedName(MachineryBuildingBlocksBrowseName, machineryNamespace));
+            if (buildingBlocks != null)
+            {
+                var references = new List<IReference>();
+                buildingBlocks.GetReferences(context, references);
+                foreach (IReference reference in references)
+                {
+                    if (reference.IsInverse ||
+                        reference.TargetId.IsAbsolute ||
+                        !typeTree.IsTypeOf(reference.ReferenceTypeId, Opc.Ua.Types.ReferenceTypeIds.HasAddIn))
+                    {
+                        continue;
+                    }
+                    var targetId = ExpandedNodeId.ToNodeId(reference.TargetId, context.NamespaceUris);
+                    if (!targetId.IsNull &&
+                        m_manager.FindPredefinedNode(targetId) is BaseObjectState block &&
+                        typeTree.IsTypeOf(block.TypeDefinitionId, componentsTypeId) &&
+                        !found.Contains(block))
+                    {
+                        found.Add(block);
+                    }
+                }
+            }
+            if (found.Count == 0)
+            {
+                var children = new List<BaseInstanceState>();
+                machine.GetChildren(context, children);
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child is BaseObjectState block &&
+                        IsHierarchical(typeTree, child) &&
+                        typeTree.IsTypeOf(block.TypeDefinitionId, componentsTypeId))
+                    {
+                        found.Add(block);
+                    }
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="child"/> is referenced from its parent with a
+        /// hierarchical reference, rather than for example <c>HasCondition</c>.
+        /// </summary>
+        private static bool IsHierarchical(TypeTable typeTree, BaseInstanceState child)
+        {
+            return !child.ReferenceTypeId.IsNull &&
+                typeTree.IsTypeOf(child.ReferenceTypeId, Opc.Ua.Types.ReferenceTypeIds.HierarchicalReferences);
         }
 
         /// <summary>
@@ -306,6 +382,12 @@ namespace Opc.Ua.AutoID.Server
                 yield return device.ComponentName;
             }
         }
+
+        /// <summary>
+        /// The browse name OPC 40001-1 7.1 gives the building-block organizer of a machine; the
+        /// model declares no type for it, so there is no generated constant.
+        /// </summary>
+        private const string MachineryBuildingBlocksBrowseName = "MachineryBuildingBlocks";
 
         private readonly DiNodeManager m_manager;
     }

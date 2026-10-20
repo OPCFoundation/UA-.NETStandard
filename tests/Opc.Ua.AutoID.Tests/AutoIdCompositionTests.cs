@@ -509,6 +509,126 @@ namespace Opc.Ua.AutoID.Tests
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AReaderBecomesAComponentOfABoundCompanionComponentsAddInAsync(bool nested)
+        {
+            await using var fixture = new ComposedOwner();
+            await fixture.StartAsync();
+            AutoIdRuntime runtime = fixture.Manager.CreateAutoIdRuntime();
+            IMachineryBuildContext build = fixture.Manager.CreateMachineryBuildContext();
+            IMachineBuilder<BaseObjectState> press = build.AddMachine(fixture.Name("Press1"))
+                .WithIdentification(identification =>
+                {
+                    identification.Manufacturer = new LocalizedText("Contoso");
+                    identification.SerialNumber = "PR-1";
+                    identification.ProductInstanceUri = "urn:tests:autoid:press:1";
+                });
+            NodeState container = press.State;
+            if (nested)
+            {
+                BaseObjectState assembly = build.Context.CreateInstanceOfBaseObjectType(
+                    press.State, fixture.Name("Assembly"));
+                assembly.ReferenceTypeId = Types.ReferenceTypeIds.HasComponent;
+                press.State.AddChild(assembly);
+                container = assembly;
+            }
+            // Named in the companion's namespace, as a companion model declares it.
+            var companionName = new QualifiedName(
+                Machinery.BrowseNames.Components,
+                (ushort)build.Context.NamespaceUris.GetIndex(AutoIdModel.NamespaceUri));
+            Machinery.MachineComponentsState bound = Machinery.OpcUaMachineryExtensions
+                .CreateInstanceOfMachineComponentsType(build.Context, container, companionName);
+            bound.ReferenceTypeId = Types.ReferenceTypeIds.HasAddIn;
+            container.AddChild(bound);
+            await press.WithComponents(bound, _ => { }).BuildAsync();
+
+            AutoIdReader reader = await runtime.Reader(fixture.Name("Infeed"), new FakeProvider())
+                .AsComponentOf(press.State)
+                .WithIdentification(Nameplate)
+                .BuildAsync();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(bound.Parent, Is.SameAs(container), "the binding keeps its parent");
+                Assert.That(bound.BrowseName, Is.EqualTo(companionName), "the binding keeps its name");
+                Assert.That(reader.Device.Parent, Is.SameAs(bound));
+                Assert.That(fixture.DeviceSet.ReferenceExists(
+                    Types.ReferenceTypeIds.Organizes, false, reader.NodeId), Is.True);
+                Assert.That(reader.Device.FindChild(
+                    fixture.Manager.SystemContext,
+                    new QualifiedName(Di.BrowseNames.Identification, fixture.Manager.DiNamespaceIndex)), Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task AMachineWithoutBuildingBlocksOffersItsOnlyComponentsChildAsync()
+        {
+            await using var fixture = new ComposedOwner();
+            await fixture.StartAsync();
+            AutoIdRuntime runtime = fixture.Manager.CreateAutoIdRuntime();
+            BaseObjectState cell = await AddBareMachineAsync(fixture, "Cell", "Components");
+            BaseObjectState line = await AddBareMachineAsync(fixture, "Line", "Components", "MoreComponents");
+
+            AutoIdReader reader = await runtime.Reader(fixture.Name("Infeed"), new FakeProvider())
+                .AsComponentOf(cell)
+                .WithIdentification(Nameplate)
+                .BuildAsync();
+            var provider = new FakeProvider();
+            ServiceResultException ambiguous = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await runtime
+                    .Reader(fixture.Name("Outfeed"), provider)
+                    .AsComponentOf(line)
+                    .WithIdentification(Nameplate)
+                    .BuildAsync()))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(((BaseInstanceState)reader.Device.Parent!).Parent, Is.SameAs(cell));
+                Assert.That(ambiguous.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Assert.That(ambiguous.Message, Does.Contain("more than one Components add-in"));
+                Assert.That(provider.AttachCalls, Is.Zero);
+                Assert.That(runtime.Readers.ToArray(), Is.EqualTo(new[] { reader }));
+            });
+        }
+
+        /// <summary>
+        /// Registers a machine built without the Machinery builders: no <c>MachineryBuildingBlocks</c>
+        /// folder, and <c>MachineComponentsType</c> children named in the companion's namespace.
+        /// </summary>
+        private static async Task<BaseObjectState> AddBareMachineAsync(
+            ComposedOwner fixture,
+            string name,
+            params string[] componentsNames)
+        {
+            ServerSystemContext context = fixture.Manager.SystemContext;
+            ushort companion = (ushort)context.NamespaceUris.GetIndex(AutoIdModel.NamespaceUri);
+            var machine = new BaseObjectState(null)
+            {
+                SymbolicName = name,
+                BrowseName = fixture.Name(name),
+                DisplayName = new LocalizedText(name),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType,
+                NodeId = new NodeId(name, fixture.Manager.MachineryInstanceNamespaceIndex)
+            };
+            foreach (string componentsName in componentsNames)
+            {
+                machine.AddChild(new BaseObjectState(machine)
+                {
+                    SymbolicName = componentsName,
+                    BrowseName = new QualifiedName(componentsName, companion),
+                    DisplayName = new LocalizedText(componentsName),
+                    TypeDefinitionId = ExpandedNodeId.ToNodeId(
+                        Machinery.ObjectTypeIds.MachineComponentsType,
+                        context.NamespaceUris),
+                    ReferenceTypeId = Types.ReferenceTypeIds.HasAddIn,
+                    NodeId = new NodeId(name + "." + componentsName, fixture.Manager.MachineryInstanceNamespaceIndex)
+                });
+            }
+            await fixture.Manager.AddPredefinedNodeAsync(machine);
+            return machine;
+        }
+
         private static void Nameplate(DeviceIdentificationData nameplate)
         {
             nameplate.Manufacturer = new LocalizedText("Contoso");
