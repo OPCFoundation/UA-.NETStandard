@@ -710,8 +710,19 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
-                    m_session ??= items[0].Session;
+                    bool admitted = MasterNodeManager.TryCaptureSourceEmission(
+                        m_server, m_nodeManager, out var emission);
+                    using var emissionLease = emission;
+                    if (!admitted)
+                    {
+                        return;
+                    }
+                    using var emissionScope = emission?.EnterSourceEmission();
+                    if (m_session == null)
+                    {
+                        // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
+                        m_session = items[0].Session;
+                    }
 
                     // TransferSubscriptions moves items to another session without regrouping them,
                     // so every item is read and permission-checked as its current owner.

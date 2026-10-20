@@ -35,6 +35,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
+    /// <summary>
+    /// Coordinates atomic node-manager batches and captured read images.
+    /// </summary>
     public partial class MasterNodeManager : IDynamicNodeManagerBatchHost, INodeManagerReadImageSource
     {
         /// <inheritdoc/>
@@ -181,6 +184,8 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
+                        using PreparedSourceEmissionCutoff emissions =
+                            PrepareSourceEmissionCutoff(immediateRetirements);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (decideAsync is null)
                         {
@@ -195,7 +200,7 @@ namespace Opc.Ua.Server
                         {
                             RetainRetiredGenerationNotifications(manager);
                         }
-                        routes.Publish();
+                        emissions.Publish(routes);
                         types.Complete();
                         registrations.Complete();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)

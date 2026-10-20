@@ -142,7 +142,8 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger);
+                m_logger,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -340,7 +341,8 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage);
+                storedSubscription.LastSentMessage,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -1115,15 +1117,16 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Adds the monitored items of this subscription to the process-wide count that sizes
-        /// the notification pools, and raises the pool bounds when the count grew.
+        /// the event field list pool, and raises the pool bound when the count grew.
         /// </summary>
         /// <remarks>
-        /// The activator pools are process-wide and retain 1024 instances by default. A
-        /// notification is recycled after its message was sent and acknowledged, so about two
-        /// publishing cycles of notifications are in flight; with more items than the bound
-        /// most notifications would be allocated again. The bound follows twice the number of
+        /// The activator pool is process-wide and retains 1024 instances by default. An
+        /// event field list is recycled after its message was sent and acknowledged, so about
+        /// two publishing cycles of event field lists are in flight; with more items than the
+        /// bound most of them would be allocated again. The bound follows twice the number of
         /// monitored items of all subscriptions in the process, capped at
-        /// <see cref="kMaxPooledNotifications"/>, and is never lowered.
+        /// <see cref="kMaxPooledNotifications"/>, and is never lowered. Data change
+        /// notifications are not pooled (see <see cref="MonitoredItem"/>).
         /// </remarks>
         private void CountPooledItems(int delta)
         {
@@ -1139,7 +1142,6 @@ namespace Opc.Ua.Server
                 int bound = (int)Math.Min(
                     kMaxPooledNotifications,
                     Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
-                MonitoredItemNotificationActivator.Instance.EnsureMaximumRetained(bound);
                 EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
             }
         }
@@ -2472,7 +2474,9 @@ namespace Opc.Ua.Server
                 var eventList = new EventFieldList[eventCount];
                 for (int ii = 0; ii < eventList.Length; ii++)
                 {
-                    eventList[ii] = events.Dequeue();
+                    EventFieldList fields = events.Dequeue();
+                    m_server.EventManager?.AdmitEventFields(fields);
+                    eventList[ii] = fields;
                 }
                 notificationCount += eventCount;
                 var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();

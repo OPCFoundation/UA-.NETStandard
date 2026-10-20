@@ -995,7 +995,11 @@ namespace Opc.Ua.Redundancy.Server
                     {
                         m_topologyState.Remove(nodeId);
                     }
-                    m_pendingValues.Remove(nodeId);
+                    if (m_pendingValues.TryGetValue(nodeId, out PendingValue pending) &&
+                        pending.Sequence <= sequence)
+                    {
+                        m_pendingValues.Remove(nodeId);
+                    }
                     DetachTrackedNode(nodeId);
                 }
             }

@@ -1801,6 +1801,14 @@ and also support typed-variable and virtual builders. Multiple handoff handlers
 run in registration order. A graceful `ShadowReloadAsync` instead lets existing
 subscribers drain on the old manager; it does not migrate them to the new source.
 
+The acquisition mode is retained in `MonitoredItemTypeMask.ExternalValueSource`
+and the existing persisted `IStoredMonitoredItem.TypeMask`. Stores must preserve
+all type bits. Test the `DataChange` or `Events` bit rather than comparing the
+entire mask for equality. After restart, the node manager must register the
+source lifecycle again; the persisted bit prevents restoration from silently
+switching to Node reads. Source-managed items also stop accepting values when
+disposed or detached, while preserving the Core missing-Node notification.
+
 An initial read that rejects the attribute or data encoding removes the
 unaccepted monitored item from registration, sampling, and any newly
 acquired component-cache entry. Existing items on that node remain valid.

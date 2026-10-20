@@ -324,6 +324,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(connections, Is.EqualTo(1));
         }
 
+        /// Verifies that an event without a selection compiles the implicit default.
+        /// </summary>
         [Test]
         public void AnEventWithoutASelectionCompilesTheImplicitDefault()
         {
@@ -368,6 +370,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a compact path element resolves through the document context.
+        /// </summary>
         [Test]
         public void ACompactPathElementResolvesThroughTheDocumentContext()
         {
@@ -439,6 +444,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a nested path of slash carrying namespaces resolves element by element.
+        /// </summary>
         [Test]
         public void ANestedPathOfSlashCarryingNamespacesResolvesElementByElement()
         {
@@ -492,6 +500,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a namespace containing a slash and a bare field name resolve to the same member.
+        /// </summary>
         [Test]
         public void ASlashCarryingNamespaceAndABareNameStillMaterializeOneMember()
         {
@@ -521,6 +532,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a path element namespace is escaped so it survives the separator.
+        /// </summary>
         [Test]
         public void APathElementNamespaceIsEscapedSoItSurvivesTheSeparator()
         {
@@ -541,6 +555,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "other nsu= producer escapes it.");
         }
 
+        /// <summary>
+        /// Verifies that two clauses normalizing to one path are rejected.
+        /// </summary>
         [Test]
         public void TwoClausesNormalizingToOnePathAreRejected()
         {
@@ -565,6 +582,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that qualified and bare select clauses targeting the same member are rejected.
+        /// </summary>
         [Test]
         public void AQualifiedAndABareNameMaterializeOneMemberAndAreRejected()
         {
@@ -596,6 +616,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a state variable and its name member cannot both populate the same event member.
+        /// </summary>
         [Test]
         public void AStateVariableAndItsNameMemberMaterializeOneMemberAndAreRejected()
         {
@@ -614,6 +637,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "data.EnabledState.Name. " + Describe(result));
         }
 
+        /// <summary>
+        /// Verifies duplicate-member rejection for a companion state variable and its name member.
+        /// </summary>
         [Test]
         public void ACompanionStateAndItsNameMemberAreRejectedToo()
         {
@@ -640,6 +666,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "LatchState.Name. " + Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that nested paths that reach distinct members compile.
+        /// </summary>
         [Test]
         public void NestedPathsThatReachDistinctMembersCompile()
         {
@@ -692,6 +721,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that prefixes bound to the same namespace collide after event-path normalization.
+        /// </summary>
         [Test]
         public void TwoPrefixesForOneNamespaceCollideOnTheNormalizedPath()
         {
@@ -714,6 +746,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "path even when their prefixes differ. " + Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that a security floor on a scheme referenced by a combination is honored.
+        /// </summary>
         [Test]
         public void AFloorOnASchemeACombinationReferencesIsHonoured()
         {
@@ -742,6 +777,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 result.Entries[0].SecurityFloor!.SecurityMode, Is.EqualTo("SignAndEncrypt"));
         }
 
+        /// <summary>
+        /// Verifies that an unbound path prefix fails the form.
+        /// </summary>
         [Test]
         public void AnUnboundPathPrefixFailsTheForm()
         {
@@ -816,6 +854,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that select clauses authored on a form fail the form.
+        /// </summary>
         [Test]
         public void SelectClausesAuthoredOnAFormFailTheForm()
         {
@@ -840,6 +881,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that select clauses on a property affordance fail the form.
+        /// </summary>
         [Test]
         public void SelectClausesOnAPropertyAffordanceFailTheForm()
         {
@@ -859,6 +903,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Describe(result));
         }
 
+        /// <summary>
+        /// Verifies that the standard term wins over the superseded spelling and the conflict is reported.
+        /// </summary>
         [Test]
         public void TheStandardTermWinsOverTheSupersededSpellingAndTheConflictIsReported()
         {
@@ -890,6 +937,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that the superseded spelling alone is read and reported.
+        /// </summary>
         [Test]
         public void TheSupersededSpellingAloneIsReadAndReported()
         {
@@ -912,6 +962,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a form referencing an auto scheme carries its floor.
+        /// </summary>
         [Test]
         public void AFormReferencingAnAutoSchemeCarriesItsFloor()
         {
@@ -938,6 +991,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that a floor on a non auto scheme fails the form.
+        /// </summary>
         [Test]
         public void AFloorOnANonAutoSchemeFailsTheForm()
         {
@@ -965,6 +1021,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that an unconstrained document carries no floor.
+        /// </summary>
         [Test]
         public void AnUnconstrainedDocumentCarriesNoFloor()
         {
@@ -984,6 +1043,40 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].SecurityFloor, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that separate event teardown forms are supported without duplicating subscription.
+        /// </summary>
+        [Test]
+        public void SeparateEventTeardownFormsAreSupportedWithoutDuplicatingSubscription()
+        {
+            WotBindingPlanRequest request = RequestFrom("""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Separate teardown",
+                  "events": {
+                    "alarm": {
+                      "forms": [
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "subscribeevent" },
+                        { "href": "opc.tcp://server.example:4840/?id=i%3D2253", "op": "unsubscribeevent" }
+                      ]
+                    }
+                  }
+                }
+                """);
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()], []);
+
+            WotBindingPlan plan = registry.Prepare(request);
+
+            Assert.That(plan.UnsupportedForms, Is.Empty);
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.SubscribeEvent),
+                Is.EqualTo(1));
+            Assert.That(plan.CompiledForms.Count(form => form.Operation == WoTBindingCapabilityEnum.UnsubscribeEvent),
+                Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that endpoint selection excludes every endpoint below the authored security floor.
+        /// </summary>
         [Test]
         public void EndpointSelectionDiscardsEverythingBelowTheFloor()
         {
@@ -1000,6 +1093,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "A client shall fail rather than fall back below a stated floor.");
         }
 
+        /// <summary>
+        /// Verifies that endpoint selection takes the strongest mode then policy.
+        /// </summary>
         [Test]
         public void EndpointSelectionTakesTheStrongestModeThenPolicy()
         {
@@ -1019,6 +1115,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://b"));
         }
 
+        /// <summary>
+        /// Verifies that endpoint selection breaks a tie by security level then URL then position.
+        /// </summary>
         [Test]
         public void EndpointSelectionBreaksATieBySecurityLevelThenUrlThenPosition()
         {
@@ -1052,6 +1151,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             });
         }
 
+        /// <summary>
+        /// Verifies that an unnamed security policy ranks below every named policy.
+        /// </summary>
         [Test]
         public void AnUnnamedPolicyRanksBelowEveryNamedOne()
         {
@@ -1067,6 +1169,31 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://named"));
         }
 
+        /// <summary>
+        /// Verifies that a policy name suffix does not establish standard policy identity.
+        /// </summary>
+        /// <param name="policyUri">The policy URI used by this test case.</param>
+        [TestCase("https://vendor.example/policy#Aes256_Sha256_RsaPss")]
+        [TestCase("https://vendor.example/Aes256_Sha256_RsaPss")]
+        [TestCase("Aes256_Sha256_RsaPss")]
+        public void APolicyNameSuffixDoesNotEstablishStandardPolicyIdentity(string policyUri)
+        {
+            EndpointDescription unknown = Endpoint(
+                "opc.tcp://unknown", MessageSecurityMode.SignAndEncrypt, policyUri, 255);
+            EndpointDescription known = Endpoint(
+                "opc.tcp://known", MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256, 1);
+            var floor = new WotSecurityFloor("SignAndEncrypt", "Basic256Sha256");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(OpcUaWotEndpointSelector.Satisfies(unknown, floor), Is.False);
+                Assert.That(OpcUaWotEndpointSelector.Select([unknown, known], null), Is.SameAs(known));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that activate fails closed when the selected endpoint is below the floor.
+        /// </summary>
         [Test]
         public void ActivateFailsClosedWhenTheSelectedEndpointIsBelowTheFloor()
         {
@@ -1087,6 +1214,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             session.Verify(s => s.Dispose(), Times.Once, "A rejected session is not leaked.");
         }
 
+        /// <summary>
+        /// Verifies that activate accepts an endpoint at or above the floor.
+        /// </summary>
         [Test]
         public async Task ActivateAcceptsAnEndpointAtOrAboveTheFloorAsync()
         {
@@ -1110,6 +1240,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that the built in selection takes the strongest eligible endpoint.
+        /// </summary>
         [Test]
         public async Task TheBuiltInSelectionTakesTheStrongestEligibleEndpointAsync()
         {
@@ -1154,6 +1287,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that the built in selection fails when no endpoint is eligible.
+        /// </summary>
         [Test]
         public void TheBuiltInSelectionFailsWhenNoEndpointIsEligible()
         {
@@ -1183,6 +1319,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(connected, Is.False, "No session is opened below the floor.");
         }
 
+        /// <summary>
+        /// Verifies that the built in selection breaks a tie deterministically.
+        /// </summary>
         [Test]
         public async Task TheBuiltInSelectionBreaksATieDeterministicallyAsync()
         {
@@ -1222,6 +1361,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a floor with only the legacy factory is a configuration error.
+        /// </summary>
         [Test]
         public void AFloorWithOnlyTheLegacyFactoryIsAConfigurationError()
         {
@@ -1248,6 +1390,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(connected, Is.False, "No session is opened it could not have chosen.");
         }
 
+        /// <summary>
+        /// Verifies that the legacy session factory remains usable when no minimum security floor is authored.
+        /// </summary>
         [Test]
         public async Task WithoutAFloorTheLegacyFactoryStillConnectsAsync()
         {
@@ -1268,6 +1413,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that the constrained factory receives the floor.
+        /// </summary>
         [Test]
         public async Task TheConstrainedFactoryReceivesTheFloorAsync()
         {
@@ -1296,6 +1444,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             await channel.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that activate fails closed when the session cannot state its endpoint.
+        /// </summary>
         [Test]
         public void ActivateFailsClosedWhenTheSessionCannotStateItsEndpoint()
         {
@@ -1327,6 +1478,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                     SecurityPolicyUri = policyUri
                 },
                 null));
+            session.SetupGet(s => s.NamespaceUris).Returns(new NamespaceTable());
             return session;
         }
 

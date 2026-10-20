@@ -65,6 +65,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets or sets an opaque request id echoed in the summary.
         /// </summary>
         public string RequestId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the executing request's operation context, or <c>null</c> for an
+        /// external or background caller that does not run inside a server request.
+        /// </summary>
+        public IOperationContext? CallerContext { get; set; }
     }
 
     /// <summary>
@@ -73,6 +79,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotRefreshResult
     {
+        /// <summary>
+        /// Captures the summary, per-resource outcomes, and generation produced by a refresh.
+        /// </summary>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="newGeneration">The registry generation resulting from the refresh.</param>
         internal WotRefreshResult(
             WoTRefreshSummaryDataType summary,
             ImmutableArray<WoTResourceLoadResultDataType> results,
@@ -131,6 +143,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets or sets an opaque request id echoed in the summary.
         /// </summary>
         public string RequestId { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Gets or sets the executing request's operation context, or <c>null</c> for an
+        /// external or background caller that does not run inside a server request.
+        /// </summary>
+        public IOperationContext? CallerContext { get; set; }
     }
 
     /// <summary>
@@ -139,6 +157,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     public sealed class WotDeleteOutcome
     {
+        /// <summary>
+        /// Captures the deletion result together with refresh outcomes and the resulting generation.
+        /// </summary>
+        /// <param name="delete">The registry deletion result.</param>
+        /// <param name="summary">The aggregate refresh summary.</param>
+        /// <param name="results">The per-resource outcomes returned by the refresh.</param>
+        /// <param name="generation">The generation assigned to the committed publication.</param>
         internal WotDeleteOutcome(
             WotDeleteResult delete,
             WoTRefreshSummaryDataType summary,
@@ -206,12 +231,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
     /// <summary>
     /// The payload the coordinator raises for each material event. The NodeManager
-    /// maps it to the generated <c>WoTResourceEventType</c> /
-    /// <c>WoTValidationFailureEventType</c> / <c>WoTLoadFailureEventType</c> /
-    /// <c>WoTBindingFailureEventType</c> / <c>WoTRefreshCompletedEventType</c>.
+    /// maps failures and refresh completion to their concrete generated EventTypes.
+    /// Resource notifications remain available to application subscribers without
+    /// instantiating the abstract <c>WoTResourceEventType</c> on the server.
     /// </summary>
     public sealed class WotMaterializationEventArgs : EventArgs
     {
+        /// <summary>
+        /// Creates event arguments identifying the materialization event kind.
+        /// </summary>
+        /// <param name="kind">The materialization event kind to report.</param>
         internal WotMaterializationEventArgs(WotMaterializationEventKind kind)
         {
             Kind = kind;
@@ -298,15 +327,25 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// documents from a registry snapshot, so a Thing Description synthesized by
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
-    internal sealed class SnapshotThingResolver : IWotThingResolver, IWotArchiveContextProvider
+    internal sealed class SnapshotThingResolver :
+        IWotThingResolver, IWotCapturedDataTypeDefinitions, IWotArchiveContextProvider
     {
+        /// <summary>
+        /// Initializes a new <c>SnapshotThingResolver</c> instance.
+        /// </summary>
+        /// <param name="snapshot">The WoT registry snapshot used to initialize the instance.</param>
+        /// <param name="contents">The contents used to initialize the instance.</param>
+        /// <param name="dataTypeDefinitions">The data type definitions used to initialize the instance.</param>
+        /// <param name="archiveContexts">The factory for the captured archive context index, if available.</param>
         public SnapshotThingResolver(
             WotRegistrySnapshot snapshot,
             IReadOnlyDictionary<string, ByteString> contents,
+            ArrayOf<WotDataTypeDefinitionSource> dataTypeDefinitions = default,
             Func<WotNodeSetConverter.ArchiveContextIndex>? archiveContexts = null)
         {
             m_snapshot = snapshot;
             m_contents = contents ?? throw new ArgumentNullException(nameof(contents));
+            DataTypeDefinitions = dataTypeDefinitions.IsNull ? [] : dataTypeDefinitions;
             m_archiveContexts = archiveContexts;
         }
 
@@ -315,6 +354,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return m_archiveContexts?.Invoke().Find(document);
         }
+
+        /// <summary>
+        /// Gets the data type definitions for <c>SnapshotThingResolver</c>.
+        /// </summary>
+        public ArrayOf<WotDataTypeDefinitionSource> DataTypeDefinitions { get; }
 
         /// <summary>
         /// Resolves a Thing Description or Thing Model reference from the registry snapshot.

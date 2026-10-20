@@ -1174,6 +1174,60 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Retains a value newer than an invalid topology update until a valid repair arrives.
+        /// </summary>
+        [Test]
+        public async Task NewerPendingValueSurvivesMalformedTopologyUpdateAsync()
+        {
+            var store = new ScriptedNodeStateStore();
+            var local = new DictionaryAddressSpace(m_systemContext);
+            await using var synchronizer = new AddressSpaceSynchronizer(store, local, () => false);
+            synchronizer.Start();
+            var nodeId = new NodeId("repaired", NamespaceIndex);
+            DataValue newerValue = new(new Variant(14.0), StatusCodes.Good, DateTimeUtc.Now);
+
+            Task<bool> valueReceived = WaitForInboundAsync(
+                synchronizer, change => change.Sequence == 14);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Value,
+                NodeId = nodeId,
+                Value = newerValue,
+                Sequence = 14
+            });
+            await AwaitWithTimeoutAsync(valueReceived).ConfigureAwait(false);
+
+            Task<bool> malformedTopologyReceived = WaitForInboundAsync(
+                synchronizer, change => change.Sequence == 12);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Upsert,
+                NodeId = nodeId,
+                Node = new StoredNode(nodeId, ByteString.From(new byte[] { 1, 2, 3 })),
+                Sequence = 12
+            });
+            await AwaitWithTimeoutAsync(malformedTopologyReceived).ConfigureAwait(false);
+            Assert.That(local.TryGetNode(nodeId, out _), Is.False);
+
+            Task<bool> repairedTopologyReceived = WaitForInboundAsync(
+                synchronizer, change => change.Sequence == 13);
+            store.Publish(new NodeStateChange
+            {
+                Kind = NodeStateChangeKind.Upsert,
+                NodeId = nodeId,
+                Node = new StoredNode(
+                    nodeId,
+                    NodeStateSerializer.Serialize(m_systemContext, NewVariable("repaired", 13.0))),
+                Sequence = 13
+            });
+            await AwaitWithTimeoutAsync(repairedTopologyReceived).ConfigureAwait(false);
+
+            Assert.That(local.TryGetNode(nodeId, out NodeState? repaired), Is.True);
+            Assert.That(((BaseVariableState)repaired!).Value, Is.EqualTo(newerValue.WrappedValue));
+            Assert.That(((BaseVariableState)repaired).Timestamp, Is.EqualTo(newerValue.SourceTimestamp));
+        }
+
+        /// <summary>
         /// Rejects stale topology and values after the largest sequence without wrapping the sequence guard.
         /// </summary>
         [Test]

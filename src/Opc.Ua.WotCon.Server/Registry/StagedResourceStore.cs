@@ -63,7 +63,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     /// manifest only names promoted entries.
     /// </para>
     /// </remarks>
-    internal sealed class StagedResourceStore : IXRegistryResourceStore, IDisposable
+    internal sealed class StagedResourceStore : IWotRegistryContentLeaseProvider, IDisposable
     {
         /// <summary>
         /// Initializes a staged store over a committed and a staging area.
@@ -90,6 +90,33 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// Gets the area that receives writes until they are promoted.
         /// </summary>
         public IXRegistryResourceStore Staging { get; }
+
+        /// <summary>
+        /// Gets whether leases protect the authoritative resource-key mapping and bytes against
+        /// overwrite, replacement and deletion until disposal, including other storage writers.
+        /// Providers that cannot establish this guarantee must return false.
+        /// </summary>
+        /// <inheritdoc/>
+        public bool SupportsImmutableContentLeases =>
+            Committed is IWotRegistryContentLeaseProvider { SupportsImmutableContentLeases: true };
+
+        /// <summary>
+        /// Acquires the immutable content version currently addressed by the resource key.
+        /// A missing resource is an error; an old digest or mutable byte copy is not a substitute.
+        /// </summary>
+        /// <inheritdoc/>
+        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="resourceKey">The resource key.</param>
+        public ValueTask<IWotRegistryContentLease> AcquireContentLeaseAsync(
+            string resourceKey,
+            CancellationToken cancellationToken = default)
+        {
+            if (Committed is not IWotRegistryContentLeaseProvider { SupportsImmutableContentLeases: true } provider)
+            {
+                throw new NotSupportedException("The committed byte provider does not support immutable leases.");
+            }
+            return provider.AcquireContentLeaseAsync(resourceKey, cancellationToken);
+        }
 
         /// <summary>
         /// Disposes both areas when they own disposable resources.

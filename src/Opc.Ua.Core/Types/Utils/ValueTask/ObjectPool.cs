@@ -47,6 +47,11 @@ namespace Opc.Ua
     /// <typeparam name="T">The type of object to pool.</typeparam>
     internal class ObjectPool<T> where T : class
     {
+        /// <summary>
+        /// The number of objects a pool may retain regardless of the processor count.
+        /// </summary>
+        internal const int MinRetainedCap = 256;
+
         private readonly Func<T> m_objectGenerator;
         private readonly T?[] m_items;
         private T? m_firstItem;
@@ -55,7 +60,8 @@ namespace Opc.Ua
         /// Initializes a new instance of the <see cref="ObjectPool{T}"/> class.
         /// </summary>
         /// <param name="objectGenerator">The function to generate new objects.</param>
-        /// <param name="maxSize">The maximum number of retained objects (capped at four per processor).</param>
+        /// <param name="maxSize">The maximum number of retained objects (capped at four per
+        /// processor, but at least <see cref="MinRetainedCap"/>).</param>
         public ObjectPool(Func<T> objectGenerator, int maxSize)
         {
             m_objectGenerator = objectGenerator ?? throw new ArgumentNullException(nameof(objectGenerator));
@@ -63,9 +69,13 @@ namespace Opc.Ua
             {
                 throw new ArgumentOutOfRangeException(nameof(maxSize));
             }
-            // Retained objects only need to cover the concurrently outstanding ones;
-            // more slots would only lengthen the scan when the pool runs dry.
-            m_items = new T?[Math.Max(Math.Min(maxSize, Environment.ProcessorCount * 4), 1) - 1];
+            // Retained objects only need to cover the ones returned before they are taken
+            // again; more slots would only lengthen the scan when the pool runs dry. Requests
+            // complete in bursts (a writer completes a batch of responses), so a small machine
+            // with many requests in flight keeps a floor: otherwise each burst drops objects
+            // that the next requests allocate again.
+            int cap = Math.Max(Environment.ProcessorCount * 4, MinRetainedCap);
+            m_items = new T?[Math.Max(Math.Min(maxSize, cap), 1) - 1];
         }
 
         /// <summary>

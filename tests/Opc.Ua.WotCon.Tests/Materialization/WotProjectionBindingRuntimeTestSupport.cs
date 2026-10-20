@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Moq;
+using Opc.Ua.Export;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
@@ -46,33 +47,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class FakeWotBindingChannelFactory : IWotBindingChannelFactory
     {
+        /// <summary>
+        /// Gets the number of binding channels opened by the factory.
+        /// </summary>
         public int OpenCount { get; private set; }
 
+        /// <summary>
+        /// Gets the compiled forms supplied when opening binding channels.
+        /// </summary>
         public List<WotCompiledForm> OpenedForms { get; } = [];
 
+        /// <summary>
+        /// Registers the channel returned when the form is opened.
+        /// </summary>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="channel">The WoT binding channel.</param>
         public void SetChannel(WotCompiledForm form, IWotBindingChannel channel)
         {
-            m_openers[form] = () => new ValueTask<IWotBindingChannel>(channel);
+            m_openers[form] = _ => new ValueTask<IWotBindingChannel>(channel);
         }
 
+        /// <summary>
+        /// Registers a parameterless opener that produces the channel when the form is opened.
+        /// </summary>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="opener">The delegate that opens the channel.</param>
         public void SetOpener(WotCompiledForm form, Func<ValueTask<IWotBindingChannel>> opener)
+        {
+            m_openers[form] = _ => opener();
+        }
+
+        /// <summary>
+        /// Registers a cancellable opener that produces the channel when the form is opened.
+        /// </summary>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="opener">The delegate that opens the channel.</param>
+        public void SetOpener(
+            WotCompiledForm form, Func<CancellationToken, ValueTask<IWotBindingChannel>> opener)
         {
             m_openers[form] = opener;
         }
 
+        /// <inheritdoc/>
+        /// <param name="form">The WoT compiled form.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotBindingChannel> OpenChannelAsync(
             WotCompiledForm form, CancellationToken cancellationToken = default)
         {
             OpenCount++;
             OpenedForms.Add(form);
-            if (m_openers.TryGetValue(form, out Func<ValueTask<IWotBindingChannel>>? opener))
+            if (m_openers.TryGetValue(form, out Func<CancellationToken, ValueTask<IWotBindingChannel>>? opener))
             {
-                return opener();
+                return opener(cancellationToken);
             }
             throw new InvalidOperationException($"No fake channel configured for form '{form.AffordanceName}'.");
         }
 
-        private readonly Dictionary<WotCompiledForm, Func<ValueTask<IWotBindingChannel>>> m_openers = [];
+        private readonly Dictionary<WotCompiledForm, Func<CancellationToken, ValueTask<IWotBindingChannel>>> m_openers =
+            [];
     }
 
     /// <summary>
@@ -80,33 +112,79 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class FakeWotBindingChannel : IWotBindingChannel
     {
+        /// <summary>
+        /// Creates a controllable test channel for the supplied compiled form.
+        /// </summary>
+        /// <param name="form">The compiled form defining the protocol binding.</param>
         public FakeWotBindingChannel(WotCompiledForm form)
         {
             Form = form;
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.Form"/>
         public WotCompiledForm Form { get; }
 
+        /// <summary>
+        /// Gets or sets the callback used to provide a property read result.
+        /// </summary>
         public Func<CancellationToken, ValueTask<WotReadResult>>? OnRead { get; set; }
 
+        /// <summary>
+        /// Gets or sets the callback used to handle a property write.
+        /// </summary>
         public Func<DataValue, CancellationToken, ValueTask<WotWriteResult>>? OnWrite { get; set; }
 
+        /// <summary>
+        /// Gets or sets the callback used to handle an action invocation.
+        /// </summary>
         public Func<IReadOnlyList<Variant>, CancellationToken, ValueTask<WotInvokeResult>>? OnInvoke { get; set; }
 
+        /// <summary>
+        /// Gets or sets the callback used to establish an event subscription.
+        /// </summary>
         public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnSubscribeEvent { get; set; }
 
+        /// <summary>
+        /// Gets or sets the on observe for <c>FakeWotBindingChannel</c>.
+        /// </summary>
+        public Func<Action<WotNotification>, CancellationToken, ValueTask<IWotSubscription>>? OnObserve { get; set; }
+
+        /// <summary>
+        /// Gets or sets the asynchronous callback invoked when the channel is disposed.
+        /// </summary>
         public Func<ValueTask>? OnDispose { get; set; }
 
+        /// <summary>
+        /// Gets the number of property read requests received by the channel.
+        /// </summary>
         public int ReadCount { get; private set; }
 
+        /// <summary>
+        /// Gets the number of property write requests received by the channel.
+        /// </summary>
         public int WriteCount { get; private set; }
 
+        /// <summary>
+        /// Gets the number of action invocations received by the channel.
+        /// </summary>
         public int InvokeCount { get; private set; }
 
+        /// <summary>
+        /// Gets the number of event subscription requests received by the channel.
+        /// </summary>
         public int SubscribeEventCount { get; private set; }
 
+        /// <summary>
+        /// Gets or sets the observe count for <c>FakeWotBindingChannel</c>.
+        /// </summary>
+        public int ObserveCount { get; private set; }
+
+        /// <summary>
+        /// Gets the number of channel disposal calls.
+        /// </summary>
         public int DisposeCount { get; private set; }
 
+        /// <inheritdoc cref="IWotBindingChannel.ReadAsync"/>
         public ValueTask<WotReadResult> ReadAsync(CancellationToken cancellationToken = default)
         {
             ReadCount++;
@@ -114,6 +192,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? new ValueTask<WotReadResult>(new WotReadResult(StatusCodes.Good, new DataValue(Variant.Null)));
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.WriteAsync"/>
         public ValueTask<WotWriteResult> WriteAsync(DataValue value, CancellationToken cancellationToken = default)
         {
             WriteCount++;
@@ -121,6 +200,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.InvokeAsync"/>
         public ValueTask<WotInvokeResult> InvokeAsync(
             IReadOnlyList<Variant> inputs, CancellationToken cancellationToken = default)
         {
@@ -129,12 +209,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? throw new NotSupportedException();
         }
 
+        /// <inheritdoc/>
+        /// <param name="onNotification">The on notification.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public ValueTask<IWotSubscription> ObserveAsync(
             Action<WotNotification> onNotification, CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            ObserveCount++;
+            return OnObserve?.Invoke(onNotification, cancellationToken) ?? throw new NotSupportedException();
         }
 
+        /// <inheritdoc cref="IWotBindingChannel.SubscribeEventAsync"/>
         public ValueTask<IWotSubscription> SubscribeEventAsync(
             Action<WotNotification> onEvent, CancellationToken cancellationToken = default)
         {
@@ -143,6 +228,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ?? throw new NotSupportedException();
         }
 
+        /// <inheritdoc />
         public async ValueTask DisposeAsync()
         {
             DisposeCount++;
@@ -158,37 +244,49 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class TestChildStructure : IEncodeable, IStructure
     {
+        /// <summary>
+        /// Gets or sets the integer field of the child test structure.
+        /// </summary>
         public int X { get; set; }
 
+        /// <inheritdoc />
         public ExpandedNodeId TypeId => TestChildType.EncodingId;
 
+        /// <inheritdoc />
         public ExpandedNodeId BinaryEncodingId => TestChildType.EncodingId;
 
+        /// <inheritdoc />
         public ExpandedNodeId XmlEncodingId => TestChildType.EncodingId;
 
+        /// <inheritdoc />
         public void Encode(IEncoder encoder)
         {
         }
 
+        /// <inheritdoc />
         public void Decode(IDecoder decoder)
         {
         }
 
+        /// <inheritdoc />
         public bool IsEqual(IEncodeable? encodeable)
         {
             return encodeable is TestChildStructure other && other.X == X;
         }
 
+        /// <inheritdoc />
         public object Clone()
         {
             return new TestChildStructure { X = X };
         }
 
+        /// <inheritdoc />
         public IReadOnlyList<IStructureField> GetFields()
         {
             return [];
         }
 
+        /// <inheritdoc />
         public Variant this[int index]
         {
             get => index == 0 ? new Variant(X) : throw new ArgumentOutOfRangeException(nameof(index));
@@ -201,6 +299,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <inheritdoc />
         public Variant this[string name]
         {
             get => name == "X" ? new Variant(X) : throw new ArgumentOutOfRangeException(nameof(name));
@@ -219,17 +318,26 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class TestChildType : EncodeableType<TestChildStructure>
     {
+        /// <summary>
+        /// The numeric identifier used by the child test structure type.
+        /// </summary>
         public const uint NumericId = 9101;
 
+        /// <summary>
+        /// Gets the portable encoding identifier used for child test structures.
+        /// </summary>
         public static ExpandedNodeId EncodingId { get; } = new ExpandedNodeId(NumericId, TestStructureNamespace.Uri);
 
+        /// <inheritdoc />
         public override XmlQualifiedName XmlName => new("TestChildStructure", Ua.Namespaces.OpcUaXsd);
 
+        /// <inheritdoc />
         public override IEncodeable CreateInstance()
         {
             return new TestChildStructure();
         }
 
+        /// <inheritdoc />
         public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
         {
             return new StructureDefinition
@@ -256,41 +364,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class TestRootStructure : IEncodeable, IStructure
     {
+        /// <summary>
+        /// Gets or sets the scalar integer field of the root test structure.
+        /// </summary>
         public int A { get; set; }
 
+        /// <summary>
+        /// Gets or sets the nested structure value used by field-path mapping tests.
+        /// </summary>
         public Variant ChildValue { get; set; } = Variant.Null;
 
+        /// <summary>
+        /// Gets or sets the array field value used by field-path mapping tests.
+        /// </summary>
         public Variant ArrayValue { get; set; } = Variant.Null;
 
+        /// <summary>
+        /// Gets or sets the node ID for <c>TestRootStructure</c>.
+        /// </summary>
+        public NodeId Target { get; set; }
+
+        /// <inheritdoc />
         public ExpandedNodeId TypeId => TestRootType.EncodingId;
 
+        /// <inheritdoc />
         public ExpandedNodeId BinaryEncodingId => TestRootType.EncodingId;
 
+        /// <inheritdoc />
         public ExpandedNodeId XmlEncodingId => TestRootType.EncodingId;
 
+        /// <inheritdoc />
         public void Encode(IEncoder encoder)
         {
         }
 
+        /// <inheritdoc />
         public void Decode(IDecoder decoder)
         {
         }
 
+        /// <inheritdoc />
         public bool IsEqual(IEncodeable? encodeable)
         {
             return ReferenceEquals(this, encodeable);
         }
 
+        /// <inheritdoc />
         public object Clone()
         {
-            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue };
+            return new TestRootStructure { A = A, ChildValue = ChildValue, ArrayValue = ArrayValue, Target = Target };
         }
 
+        /// <inheritdoc />
         public IReadOnlyList<IStructureField> GetFields()
         {
             return [];
         }
 
+        /// <inheritdoc />
         public Variant this[int index]
         {
             get => index switch
@@ -298,6 +429,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 0 => new Variant(A),
                 1 => ChildValue,
                 2 => ArrayValue,
+                3 => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(index))
             };
             set
@@ -316,10 +448,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     case 2:
                         ArrayValue = value;
                         break;
+                    case 3:
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
+                        break;
                 }
             }
         }
 
+        /// <inheritdoc />
         public Variant this[string name]
         {
             get => name switch
@@ -327,6 +466,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A" => new Variant(A),
                 "Child" => ChildValue,
                 "ArrayField" => ArrayValue,
+                "Target" => new Variant(Target),
                 _ => throw new ArgumentOutOfRangeException(nameof(name))
             };
             set
@@ -345,6 +485,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     case "ArrayField":
                         ArrayValue = value;
                         break;
+                    case "Target":
+                        if (value.TryGetValue(out NodeId target))
+                        {
+                            Target = target;
+                        }
+                        break;
                 }
             }
         }
@@ -355,17 +501,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class TestRootType : EncodeableType<TestRootStructure>
     {
+        /// <summary>
+        /// The numeric identifier used by the root test structure type.
+        /// </summary>
         public const uint NumericId = 9100;
 
+        /// <summary>
+        /// Gets the portable encoding identifier used for root test structures.
+        /// </summary>
         public static ExpandedNodeId EncodingId { get; } = new ExpandedNodeId(NumericId, TestStructureNamespace.Uri);
 
+        /// <inheritdoc />
         public override XmlQualifiedName XmlName => new("TestRootStructure", Ua.Namespaces.OpcUaXsd);
 
+        /// <inheritdoc />
         public override IEncodeable CreateInstance()
         {
             return new TestRootStructure();
         }
 
+        /// <inheritdoc/>
+        /// <param name="namespaceUris">The namespace URIs.</param>
         public override DataTypeDefinition GetDataTypeDefinition(NamespaceTable namespaceUris)
         {
             return new StructureDefinition
@@ -391,6 +547,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         Name = "ArrayField",
                         DataType = Ua.DataTypeIds.Int32,
                         ValueRank = ValueRanks.OneDimension
+                    },
+                    new StructureField
+                    {
+                        Name = "Target",
+                        DataType = Ua.DataTypeIds.NodeId,
+                        ValueRank = ValueRanks.Scalar
                     }
                 ]
             };
@@ -402,6 +564,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal static class TestStructureNamespace
     {
+        /// <summary>
+        /// The namespace URI identifying the test structure model.
+        /// </summary>
         public const string Uri = "http://test.org/UA/WotProjectionBindingRuntimeTests/";
     }
 
@@ -413,16 +578,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     /// </summary>
     internal sealed class WotProjectionBindingRuntimeTestHarness
     {
+        /// <summary>
+        /// Gets the fluent node-manager builder used to register test bindings.
+        /// </summary>
         public NodeManagerBuilder Builder { get; }
 
+        /// <summary>
+        /// Gets the namespace index assigned to the test nodes and structure types.
+        /// </summary>
         public ushort Ns { get; }
 
+        /// <summary>
+        /// Gets the scalar variable targeted by property binding tests.
+        /// </summary>
         public BaseDataVariableState ScalarVar { get; }
 
+        /// <summary>
+        /// Gets the structured variable targeted by field-path mapping tests.
+        /// </summary>
         public BaseDataVariableState StructVar { get; }
 
+        /// <summary>
+        /// Gets the root object used to organize test methods and variables.
+        /// </summary>
         public BaseObjectState Root { get; }
 
+        /// <summary>
+        /// Gets the controllable channel factory used by the binding runtime.
+        /// </summary>
         public FakeWotBindingChannelFactory ChannelFactory { get; } = new();
 
         /// <summary>
@@ -530,12 +713,43 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 });
         }
 
+        /// <summary>
+        /// Gets the textual node identifier of the scalar test variable.
+        /// </summary>
         public string ScalarNodeIdText => $"ns={Ns};s=Scalar";
 
+        /// <summary>
+        /// Gets the textual node identifier of the structured test variable.
+        /// </summary>
         public string StructNodeIdText => $"ns={Ns};s=Struct";
 
+        /// <summary>
+        /// Gets the textual node identifier of the root test structure data type.
+        /// </summary>
         public string StructTypeNodeIdText => $"ns={Ns};i={TestRootType.NumericId}";
 
+        /// <summary>
+        /// Imports the node set into the harness and tracks the imported nodes.
+        /// </summary>
+        /// <param name="nodeSet">The node set.</param>
+        public void Import(UANodeSet nodeSet)
+        {
+            Builder.Context.EncodeableFactory.Builder.AddOpcUa().Commit();
+            var imported = new NodeStateCollection();
+            nodeSet.Import(Builder.Context, imported);
+            foreach (NodeState node in imported)
+            {
+                m_nodes.Add(node.NodeId, node);
+            }
+        }
+
+        /// <summary>
+        /// Adds an executable test method with the supplied input and output argument definitions.
+        /// </summary>
+        /// <param name="name">The name assigned to the node or field used by the operation.</param>
+        /// <param name="inputs">The input argument definitions for the test method.</param>
+        /// <param name="outputs">The output argument definitions for the test method.</param>
+        /// <param name="parent">The optional parent object; the test root is used when omitted.</param>
         public MethodState AddMethod(
             string name, ArrayOf<Argument> inputs, ArrayOf<Argument> outputs, BaseObjectState? parent = null)
         {
@@ -555,6 +769,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return method;
         }
 
+        /// <summary>
+        /// Registers a concrete test event type with the supplied supertype.
+        /// </summary>
+        /// <param name="name">The name assigned to the node or field used by the operation.</param>
+        /// <param name="superTypeId">The supertype identifier assigned to the test event type.</param>
         public BaseObjectTypeState AddEventType(string name, NodeId superTypeId)
         {
             var type = new BaseObjectTypeState
@@ -568,6 +787,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return type;
         }
 
+        /// <summary>
+        /// Registers a test object without attaching it to an address-space parent.
+        /// </summary>
+        /// <param name="name">The name assigned to the node or field used by the operation.</param>
         public BaseObjectState AddDetachedObject(string name)
         {
             var node = new BaseObjectState(null)
@@ -625,11 +848,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private int m_nextId = 10000;
         }
 
+        /// <summary>
+        /// Creates a compiled form for the operation that targets the given mapping.
+        /// </summary>
+        /// <param name="operation">The wo t binding capability enum.</param>
+        /// <param name="mapping">The WoT target mapping descriptor.</param>
+        /// <param name="affordanceName">The affordance name.</param>
+        /// <param name="formIndex">The form index.</param>
+        /// <param name="executable">The executable flag supplied by the caller.</param>
         public static WotCompiledForm Form(
             WoTBindingCapabilityEnum operation,
             WotTargetMappingDescriptor mapping,
             bool executable = true,
-            string affordanceName = "value")
+            string affordanceName = "value",
+            int formIndex = 0)
         {
             string opToken = operation switch
             {
@@ -643,7 +875,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 new WotBindingIdentity("test", "1.0", "urn:test"),
                 WotAffordanceKind.Property,
                 affordanceName,
-                "/properties/" + affordanceName + "/forms/0",
+                "/properties/" + affordanceName + "/forms/" +
+                    formIndex.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 operation,
                 opToken,
                 new WotEndpointDescriptor("test", null, -1, "test://x"),
@@ -655,6 +888,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 targetMapping: mapping);
         }
 
+        /// <summary>
+        /// Creates a test resource binding plan containing the supplied compiled forms.
+        /// </summary>
+        /// <param name="forms">The compiled forms to include in the test binding plan.</param>
         public static WotBindingPlan Plan(params WotCompiledForm[] forms)
         {
             return new(

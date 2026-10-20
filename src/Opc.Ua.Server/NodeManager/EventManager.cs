@@ -40,7 +40,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// An object that manages all events raised within the server.
     /// </summary>
-    public class EventManager : IDisposable
+    public partial class EventManager : IDisposable
     {
         /// <summary>
         /// The queue size used for an event monitored item that requests the
@@ -56,9 +56,37 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="maxQueueSize">The max queue size used to initialize the instance.</param>
+        /// <param name="maxDurableQueueSize">The max durable queue size used to initialize the instance.</param>
         public EventManager(IServerInternal server, uint maxQueueSize, uint maxDurableQueueSize)
+            : this(server, maxQueueSize, maxDurableQueueSize, new EventIdentityAdmissionOptions())
+        {
+        }
+
+        /// <summary>
+        /// Creates an event manager with a bounded server-wide occurrence admission domain.
+        /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="maxQueueSize">The max queue size used to initialize the instance.</param>
+        /// <param name="maxDurableQueueSize">The max durable queue size used to initialize the instance.</param>
+        /// <param name="identityOptions">The identity options used to initialize the instance.</param>
+        public EventManager(
+            IServerInternal server,
+            uint maxQueueSize,
+            uint maxDurableQueueSize,
+            EventIdentityAdmissionOptions identityOptions)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            if (identityOptions is null)
+            {
+                throw new ArgumentNullException(nameof(identityOptions));
+            }
+            if (identityOptions.MaxEventIdentities <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(identityOptions));
+            }
+            m_maxEventIdentities = identityOptions.MaxEventIdentities;
             m_monitoredItems = [];
             m_maxEventQueueSize = maxQueueSize;
             m_maxDurableEventQueueSize = maxDurableQueueSize;
@@ -86,6 +114,7 @@ namespace Opc.Ua.Server
                     monitoredItems = [.. m_monitoredItems.Values];
                     m_monitoredItems.Clear();
                 }
+                DisposeIdentityAdmission();
 
                 foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
@@ -402,8 +431,17 @@ namespace Opc.Ua.Server
         private readonly uint m_maxDurableEventQueueSize;
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for event manager.
+    /// </summary>
     internal static partial class EventManagerLog
     {
+        /// <summary>
+        /// Logs an event delivery failure isolated to one monitored-item receiver.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="monitoredItemId">The identifier of the affected monitored item.</param>
         [LoggerMessage(EventId = ServerEventIds.EventManager, Level = LogLevel.Error,
             Message = "Event delivery to monitored item {MonitoredItemId} failed; other receivers will continue.")]
         public static partial void EventReceiverFailed(

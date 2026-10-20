@@ -345,6 +345,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        /// <param name="context">The server system context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="monitoringMode">The monitoring mode.</param>
+        /// <param name="handle">The node handle.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -381,7 +386,9 @@ namespace Opc.Ua.Server
             // need to provide an immediate update after enabling. For an item whose node
             // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
             // node must not override it with a Good value.
-            if (enabled && monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
+            if (enabled &&
+                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true } &&
+                monitoredItem is not MonitoredItem { UsesExternalValueSource: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,

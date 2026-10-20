@@ -32,6 +32,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
+using Opc.Ua.SpecTraceability;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings.Planners;
 
@@ -56,6 +57,92 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static WotBindingPlanContext DefaultContext()
         {
             return new WotBindingPlanContext();
+        }
+
+        /// <summary>
+        /// Verifies that published URI target vectors match OPC UA planning.
+        /// </summary>
+        [Test]
+        public void PublishedUriTargetVectorsMatchOpcUaPlanning()
+        {
+            foreach (JsonElement test in WotSpecVectors.Cases("uriTargets"))
+            {
+                var form = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["href"] = test.GetProperty("href").GetString(),
+                    ["op"] = "readproperty"
+                };
+                var affordance = new System.Text.Json.Nodes.JsonObject();
+                if (test.TryGetProperty("browsePath", out JsonElement path))
+                {
+                    affordance["uav:browsePath"] = path.GetString();
+                    affordance["uav:browsePathAnchor"] = test.GetProperty("anchor").GetString();
+                }
+                WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                    MakePropertyForm(form.ToJsonString(), affordanceJson: affordance.ToJsonString(),
+                        ops: ["readproperty"]),
+                    new WotBindingPlanContext(baseUri: test.GetProperty("base").GetString()));
+
+                Assert.That(result.IsSupported, Is.True,
+                    test.GetProperty("id").GetString() + ": " + string.Join("; ", result.Diagnostics));
+                Assert.That(result.Entries, Has.Length.EqualTo(1));
+                WotCompiledForm compiled = result.Entries[0];
+                Assert.That(compiled.Endpoint.BaseUri, Is.EqualTo(test.GetProperty("endpoint").GetString()),
+                    test.GetProperty("id").GetString());
+                string? expected = test.GetProperty("nodeId").GetString();
+                Assert.That(compiled.Addressing.Metadata.TryGetValue("nodeId", out string? actual),
+                    Is.EqualTo(expected is not null));
+                Assert.That(actual, Is.EqualTo(expected));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that duplicate node ID queries return diagnostics for href and base URI.
+        /// </summary>
+        [Test]
+        public void DuplicateNodeIdQueriesReturnDiagnosticsForHrefAndBaseUri()
+        {
+            foreach (string uri in new[]
+            {
+                "opc.tcp://host:4840/UA?id=i%3D1&id=i%3D2",
+                "opc.tcp://host:4840/UA?%69d=i%3D1&id=i%3D2"
+            })
+            {
+                foreach (bool inBase in new[] { false, true })
+                {
+                    WotAffordanceForm form = MakePropertyForm(
+                        inBase ? """{"uav:id":"i=2258","op":"readproperty"}""" :
+                            "{\"href\":" + JsonSerializer.Serialize(uri) + ",\"op\":\"readproperty\"}",
+                        ops: ["readproperty"]);
+                    WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                        form, new WotBindingPlanContext(baseUri: inBase ? uri : null));
+
+                    Assert.That(result.IsSupported, Is.False);
+                    Assert.That(result.Entries, Is.Empty);
+                    Assert.That(result.Diagnostics.Any(diagnostic =>
+                        diagnostic.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that encoded node ID query names resolve from absolute and relative hrefs.
+        /// </summary>
+        [Test]
+        public void EncodedNodeIdQueryNamesResolveFromAbsoluteAndRelativeHrefs()
+        {
+            foreach (bool relative in new[] { false, true })
+            {
+                string href = relative ? "?%69d=i%3D2258" : "opc.tcp://host:4840/UA?%69d=i%3D2258";
+                WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                    MakePropertyForm("{\"href\":" + JsonSerializer.Serialize(href) + ",\"op\":\"readproperty\"}",
+                        ops: ["readproperty"]),
+                    new WotBindingPlanContext(baseUri: relative ? "opc.tcp://host:4840/UA" : null));
+
+                Assert.That(result.IsSupported, Is.True, string.Join("; ", result.Diagnostics));
+                Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Is.EqualTo("i=2258"));
+                Assert.That(result.Entries[0].Endpoint.BaseUri, Is.EqualTo("opc.tcp://host:4840/UA"));
+            }
         }
 
         private static WotAffordanceForm MakePropertyForm(
@@ -128,6 +215,35 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 default);
         }
 
+        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "action")
+        {
+            using var formDoc = JsonDocument.Parse(formJson);
+            JsonElement formElement = formDoc.RootElement.Clone();
+
+            string? href = null;
+            if (formElement.ValueKind == JsonValueKind.Object &&
+                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
+                hrefEl.ValueKind == JsonValueKind.String)
+            {
+                href = hrefEl.GetString();
+            }
+
+            return new WotAffordanceForm(
+                WotAffordanceKind.Action,
+                affordanceName,
+                ["invokeaction"],
+                href,
+                null,
+                null,
+                [],
+                "/actions/" + affordanceName + "/forms/0",
+                formElement,
+                default);
+        }
+
+        /// <summary>
+        /// Verifies that MQTT planner compiles valid property form.
+        /// </summary>
         [Test]
         public void MqttPlannerCompilesValidPropertyForm()
         {
@@ -183,6 +299,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Is.EqualTo(2));
         }
 
+        /// Verifies that MQTT planner extracts topic from href.
+        /// </summary>
         [Test]
         public void MqttPlannerExtractsTopicFromHref()
         {
@@ -198,6 +316,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Target, Is.EqualTo("my/topic"));
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner uses explicit topic.
+        /// </summary>
         [Test]
         public void MqttPlannerUsesExplicitTopic()
         {
@@ -213,6 +334,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Target, Is.EqualTo("custom/topic"));
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects form with no href.
+        /// </summary>
         [Test]
         public void MqttPlannerRejectsFormWithNoHref()
         {
@@ -228,6 +352,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.HasErrors, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects non MQTT scheme.
+        /// </summary>
         [Test]
         public void MqttPlannerRejectsNonMqttScheme()
         {
@@ -242,6 +369,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects empty topic.
+        /// </summary>
         [Test]
         public void MqttPlannerRejectsEmptyTopic()
         {
@@ -258,6 +388,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects invalid qos.
+        /// </summary>
         [Test]
         public void MqttPlannerRejectsInvalidQos()
         {
@@ -274,6 +407,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects topic exceeding max length.
+        /// </summary>
         [Test]
         public void MqttPlannerRejectsTopicExceedingMaxLength()
         {
@@ -290,13 +426,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.BoundsExceeded), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner rejects wildcard topic by default.
+        /// </summary>
         [TestCase("#")]
         [TestCase("tenant/+/temperature")]
         public void MqttPlannerRejectsWildcardTopicByDefault(string topic)
         {
             var planner = new MqttBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
-                "{\"href\":\"mqtt://broker.example.com:1883\",\"mqv:topic\":\"" + topic +
+                "{\"href\":\"mqtt://broker.example.com:1883\",\"mqv:topic\":\"" +
+                topic +
                 "\",\"op\":\"observeproperty\"}",
                 ops: ["observeproperty"]);
 
@@ -307,6 +447,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner allows wildcard topic when policy opts in.
+        /// </summary>
         [Test]
         public void MqttPlannerAllowsWildcardTopicWhenPolicyOptsIn()
         {
@@ -323,6 +466,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Target, Is.EqualTo("tenant/+"));
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner warns on unknown control packet.
+        /// </summary>
         [Test]
         public void MqttPlannerWarnsOnUnknownControlPacket()
         {
@@ -340,6 +486,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.UnknownVocabularyTerm), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner accepts mqtts scheme.
+        /// </summary>
         [Test]
         public void MqttPlannerAcceptsMqttsScheme()
         {
@@ -354,6 +503,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that MQTT planner sets retain flag when true.
+        /// </summary>
         [Test]
         public void MqttPlannerSetsRetainFlagWhenTrue()
         {
@@ -372,6 +524,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies the MQTT planner identity exposed to binding selection.
+        /// </summary>
         [Test]
         public void MqttPlannerIdentity()
         {
@@ -379,6 +534,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(planner.Identity.Id, Is.EqualTo("w3c.mqtt"));
         }
 
+        /// <summary>
+        /// Verifies that HTTP planner rejects unsafe content type.
+        /// </summary>
         [Test]
         public void HttpPlannerRejectsUnsafeContentType()
         {
@@ -395,6 +553,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that HTTP planner accepts safe content type.
+        /// </summary>
         [Test]
         public void HttpPlannerAcceptsSafeContentType()
         {
@@ -410,6 +571,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/json; charset=utf-8"));
         }
 
+        /// <summary>
+        /// Verifies that coap planner compiles valid property form.
+        /// </summary>
         [Test]
         public void CoapPlannerCompilesValidPropertyForm()
         {
@@ -425,6 +589,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Operation, Is.EqualTo(WoTBindingCapabilityEnum.ReadProperty));
         }
 
+        /// <summary>
+        /// Verifies that coap planner accepts coaps scheme.
+        /// </summary>
         [Test]
         public void CoapPlannerAcceptsCoapsScheme()
         {
@@ -439,6 +606,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that coap planner rejects invalid scheme.
+        /// </summary>
         [Test]
         public void CoapPlannerRejectsInvalidScheme()
         {
@@ -453,6 +623,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that coap planner rejects invalid method.
+        /// </summary>
         [Test]
         public void CoapPlannerRejectsInvalidMethod()
         {
@@ -469,6 +642,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that coap planner accepts valid method.
+        /// </summary>
         [Test]
         public void CoapPlannerAcceptsValidMethod()
         {
@@ -484,6 +660,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].OperationInfo.Method, Is.EqualTo("PUT"));
         }
 
+        /// <summary>
+        /// Verifies that coap planner rejects form with no href.
+        /// </summary>
         [Test]
         public void CoapPlannerRejectsFormWithNoHref()
         {
@@ -498,6 +677,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a compiled CoAP form is not marked executable.
+        /// </summary>
         [Test]
         public void CoapPlannerIsNotExecutable()
         {
@@ -505,6 +687,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(planner.Capability.IsExecutable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that bacnet planner compiles valid form.
+        /// </summary>
         [Test]
         public void BacnetPlannerCompilesValidForm()
         {
@@ -519,6 +704,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that bacnet planner rejects missing object type.
+        /// </summary>
         [Test]
         public void BacnetPlannerRejectsMissingObjectType()
         {
@@ -535,6 +723,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that bacnet planner rejects missing instance number.
+        /// </summary>
         [Test]
         public void BacnetPlannerRejectsMissingInstanceNumber()
         {
@@ -549,6 +740,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that bacnet planner rejects missing property identifier.
+        /// </summary>
         [Test]
         public void BacnetPlannerRejectsMissingPropertyIdentifier()
         {
@@ -563,6 +757,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the BACnet planner rejects a write priority outside the supported range.
+        /// </summary>
         [Test]
         public void BacnetPlannerRejectsUsePriorityOutOfRange()
         {
@@ -579,6 +776,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the BACnet planner accepts write priorities at the supported range boundaries.
+        /// </summary>
         [Test]
         public void BacnetPlannerAcceptsUsePriorityAtBoundary()
         {
@@ -593,6 +793,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a compiled BACnet form is not marked executable.
+        /// </summary>
         [Test]
         public void BacnetPlannerIsNotExecutable()
         {
@@ -600,6 +803,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(planner.Capability.IsExecutable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner compiles valid form.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerCompilesValidForm()
         {
@@ -615,6 +821,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("devEui"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner rejects missing dev eui.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerRejectsMissingDevEUI()
         {
@@ -631,6 +840,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner rejects invalid dev eui.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerRejectsInvalidDevEUI()
         {
@@ -647,6 +859,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner rejects too short dev eui.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerRejectsTooShortDevEUI()
         {
@@ -661,6 +876,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner rejects invalid f port.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerRejectsInvalidFPort()
         {
@@ -677,6 +895,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner rejects f port above max.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerRejectsFPortAboveMax()
         {
@@ -691,6 +912,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that lo ra wan planner accepts f port at boundary.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerAcceptsFPortAtBoundary()
         {
@@ -705,6 +929,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a compiled LoRaWAN form is not marked executable.
+        /// </summary>
         [Test]
         public void LoRaWanPlannerIsNotExecutable()
         {
@@ -712,6 +939,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(planner.Capability.IsExecutable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner compiles valid form with href.
+        /// </summary>
         [Test]
         public void OpcUaPlannerCompilesValidFormWithHref()
         {
@@ -727,6 +957,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Is.EqualTo("ns=2;i=1001"));
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner extracts node ID from href path.
+        /// </summary>
         [Test]
         public void OpcUaPlannerExtractsNodeIdFromHrefPath()
         {
@@ -742,6 +975,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Does.Contain("ns=2"));
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner rejects non OPC scheme.
+        /// </summary>
         [Test]
         public void OpcUaPlannerRejectsNonOpcScheme()
         {
@@ -758,6 +994,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 d.Code == WotBindingDiagnosticCode.UnsupportedScheme), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner rejects form with no node ID.
+        /// </summary>
         [Test]
         public void OpcUaPlannerRejectsFormWithNoNodeId()
         {
@@ -773,6 +1012,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner uses context base URI when no href.
+        /// </summary>
         [Test]
         public void OpcUaPlannerUsesContextBaseUriWhenNoHref()
         {
@@ -790,6 +1032,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Is.EqualTo("ns=2;i=2000"));
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner rejects form with no href and no base URI.
+        /// </summary>
         [Test]
         public void OpcUaPlannerRejectsFormWithNoHrefAndNoBaseUri()
         {
@@ -804,6 +1049,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner accepts OPC HTTPS scheme.
+        /// </summary>
         [Test]
         public void OpcUaPlannerAcceptsOpcHttpsScheme()
         {
@@ -818,6 +1066,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner accepts OPC wss scheme.
+        /// </summary>
         [Test]
         public void OpcUaPlannerAcceptsOpcWssScheme()
         {
@@ -832,6 +1083,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the OPC UA planner carries the component-of target into compiled metadata.
+        /// </summary>
         [Test]
         public void OpcUaPlannerAddsComponentOfToMetadata()
         {
@@ -848,6 +1102,91 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("componentOf"), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner carries the explicit call receiver separately from local placement.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerCarriesTheExplicitCallReceiverSeparatelyFromLocalPlacement()
+        {
+            var planner = new OpcUaBindingPlanner();
+            WotAffordanceForm form = MakeActionForm(
+                /*lang=json,strict*/
+                                     """
+                {
+                  "href": "opc.tcp://source:4840",
+                  "uav:id": "nsu=urn:source;s=Run",
+                  "uav:callObjectId": "nsu=urn:source;s=Device",
+                  "uav:componentOf": "nsu=urn:local;s=Projection",
+                  "op": "invokeaction"
+                }
+                """);
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries.Single().Addressing.Metadata.TryGetValue("callObjectId", out string? receiver),
+                Is.True);
+            Assert.That(receiver, Is.EqualTo("nsu=urn:source;s=Device"));
+            Assert.That(result.Entries.Single().Addressing.Target, Is.EqualTo("nsu=urn:source;s=Run"));
+        }
+
+        /// <summary>
+        /// Verifies that OPC UA planner rejects an invalid explicit receiver instead of using a legacy fallback.
+        /// </summary>
+        [TestCase("null")]
+        [TestCase("[]")]
+        [TestCase("\"\"")]
+        [TestCase("\"not-a-node-id\"")]
+        [TestCase("\"ns=1;s=Device\"")]
+        [TestCase("\"svr=1;i=1\"")]
+        [TestCase("\"i=0\"")]
+        public void OpcUaPlannerRejectsAnInvalidExplicitReceiverInsteadOfUsingALegacyFallback(string receiver)
+        {
+            var planner = new OpcUaBindingPlanner();
+            WotAffordanceForm form = MakeActionForm(
+                "{\"href\":\"opc.tcp://source:4840\",\"uav:id\":\"nsu=urn:source;s=Run\"," +
+                "\"uav:callObjectId\":" +
+                receiver +
+                "," +
+                "\"uav:componentOf\":\"nsu=urn:source;s=Device\",\"op\":\"invokeaction\"}");
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Entries, Is.Empty);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotBindingDiagnosticCode.InvalidFieldValue), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that OPC UA planner rejects local placement arrays as call receiver authority.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerRejectsLocalPlacementArraysAsCallReceiverAuthority()
+        {
+            var planner = new OpcUaBindingPlanner();
+            WotAffordanceForm form = MakeActionForm(
+                /*lang=json,strict*/
+                                     """
+                {
+                  "href": "opc.tcp://source:4840",
+                  "uav:id": "nsu=urn:source;s=Run",
+                  "uav:componentOf": ["nsu=urn:local;s=Projection"],
+                  "op": "invokeaction"
+                }
+                """);
+
+            WotBindingCompilation result = planner.Compile(form, DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Entries, Is.Empty);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that legacy event fields are compiled onto the documented default event selection.
+        /// </summary>
         [Test]
         public void OpcUaPlannerCompilesLegacyEventFieldsOntoTheDocumentedDefault()
         {
@@ -869,6 +1208,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "The superseded spelling adds to the implicit BaseEventType default and never repeats it.");
         }
 
+        /// <summary>
+        /// Verifies that OPC UA planner extracts node ID from query string.
+        /// </summary>
         [Test]
         public void OpcUaPlannerExtractsNodeIdFromQueryString()
         {
@@ -884,6 +1226,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries[0].Addressing.Metadata["nodeId"], Does.Contain("ns=2"));
         }
 
+        /// <summary>
+        /// Verifies the OPC UA planner identifier exposed to binding selection.
+        /// </summary>
         [Test]
         public void OpcUaPlannerIdentityId()
         {

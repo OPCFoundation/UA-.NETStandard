@@ -198,16 +198,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task CreatingMonitoredItemsRaisesTheNotificationPoolBoundAsync()
+        public async Task CreatingMonitoredItemsRaisesTheEventFieldListPoolBoundAsync()
         {
             // the pools are process-wide and other tests may only raise them further.
             using var scenario = new Scenario(withScanItem: false, maxNotificationsPerPublish: 0, maxMessageCount: 100);
             await scenario.CreateAsync(itemCount: 1200).ConfigureAwait(false);
-            Assert.Multiple(() =>
-            {
-                Assert.That(MonitoredItemNotificationActivator.Instance.MaximumRetained, Is.GreaterThanOrEqualTo(2400));
-                Assert.That(EventFieldListActivator.Instance.MaximumRetained, Is.GreaterThanOrEqualTo(2400));
-            });
+            Assert.That(EventFieldListActivator.Instance.MaximumRetained, Is.GreaterThanOrEqualTo(2400));
         }
 
         private static async Task AssertSameAsScanAsync(

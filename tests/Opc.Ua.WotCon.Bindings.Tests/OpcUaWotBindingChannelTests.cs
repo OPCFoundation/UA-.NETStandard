@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     /// failed subscription creation.
     /// </summary>
     [TestFixture]
-    public sealed class OpcUaWotBindingChannelTests
+    public sealed partial class OpcUaWotBindingChannelTests
     {
         private const string ReferenceServerNamespace =
             "http://opcfoundation.org/Quickstarts/ReferenceServer";
@@ -184,6 +184,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a read with a malformed node identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task ReadAsyncWithMalformedNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -201,6 +204,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that reading a nonexistent node preserves the server's bad status.
+        /// </summary>
         [Test]
         public async Task ReadAsyncWithNonExistentNodeIdPreservesServerBadStatusAsync()
         {
@@ -218,6 +224,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a write with a malformed node identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task WriteAsyncWithMalformedNodeIdReturnsBadNodeIdInvalidAsync()
         {
@@ -236,12 +245,20 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that invoke async without component of metadata returns bad node ID invalid.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithoutComponentOfMetadataReturnsBadNodeIdInvalidAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
                 f => f.AffordanceName == "nocomponentof" &&
-                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+                    f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+            form = new WotCompiledForm(
+                form.Binding, form.AffordanceKind, form.AffordanceName, form.JsonPointer,
+                form.Operation, form.OpToken, form.Endpoint,
+                new WotAddressingDescriptor(form.Addressing.Target),
+                form.OperationInfo, form.Payload, form.Security, form.IsExecutable, form.TargetMapping);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
@@ -255,12 +272,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an invalid action parent identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithInvalidComponentOfNodeIdReturnsBadNodeIdInvalidAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
                 f => f.AffordanceName == "badcomponentof" &&
-                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+                    f.Operation == WoTBindingCapabilityEnum.InvokeAction);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
@@ -273,12 +293,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that an invalid action method identifier returns BadNodeIdInvalid.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithInvalidMethodNodeIdReturnsBadNodeIdInvalidAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
                 f => f.AffordanceName == "badmethodid" &&
-                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+                    f.Operation == WoTBindingCapabilityEnum.InvokeAction);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
@@ -291,12 +314,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that null action inputs become empty arguments and server invocation errors are mapped.
+        /// </summary>
         [Test]
         public async Task InvokeAsyncWithNullInputsPassesEmptyArgumentsAndMapsServerErrorAsync()
         {
             WotCompiledForm form = m_plan.CompiledForms.First(
                 f => f.AffordanceName == "nullinputs" &&
-                     f.Operation == WoTBindingCapabilityEnum.InvokeAction);
+                    f.Operation == WoTBindingCapabilityEnum.InvokeAction);
 
             IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
@@ -310,6 +336,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation rejects a null callback with ArgumentNullException.
+        /// </summary>
         [Test]
         public async Task ObserveAsyncWithNullCallbackThrowsArgumentNullExceptionAsync()
         {
@@ -325,6 +354,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation rejects a malformed node identifier with ServiceResultException.
+        /// </summary>
         [Test]
         public async Task ObserveAsyncWithMalformedNodeIdThrowsServiceResultExceptionAsync()
         {
@@ -340,6 +372,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscription rejects a null callback with ArgumentNullException.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithNullCallbackThrowsArgumentNullExceptionAsync()
         {
@@ -355,6 +390,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscription rejects a malformed node identifier with ServiceResultException.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithMalformedNodeIdThrowsServiceResultExceptionAsync()
         {
@@ -370,6 +408,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that explicitly selected extra event fields are present in the notification.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncWithExtraEventFieldsIncludesFieldInNotificationAsync()
         {
@@ -414,6 +455,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that event subscriptions select exactly the clauses authored by the document.
+        /// </summary>
         [Test]
         public async Task SubscribeEventAsyncSelectsExactlyTheAuthoredSelectClausesAsync()
         {
@@ -489,47 +533,90 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "\"properties\":{" +
                 // badid: malformed NodeId for ReadProperty / WriteProperty / ObserveProperty
                 "\"badid\":{\"type\":\"integer\",\"observable\":true,\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                InvalidNodeId +
+                "\"," +
                 "\"op\":[\"readproperty\"]}," +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                InvalidNodeId +
+                "\"," +
                 "\"op\":[\"writeproperty\"]}," +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                InvalidNodeId +
+                "\"," +
                 "\"op\":[\"observeproperty\"]}" +
                 "]}," +
                 // nonexistent: valid NodeId format but no such node on the server
                 "\"nonexistent\":{\"type\":\"integer\",\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"i=99999999\",\"op\":[\"readproperty\"]}" +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"i=99999999\",\"op\":[\"readproperty\"]}" +
                 "]}}," +
                 "\"actions\":{" +
-                // nocomponentof: missing uav:componentOf → InvokeAsync returns BadNodeIdInvalid
+                // The runtime test removes the receiver from this valid compiled template.
                 "\"nocomponentof\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"i=2258\",\"op\":[\"invokeaction\"]}" +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"i=2258\"," +
+                "\"uav:componentOf\":\"" +
+                MethodsObjectNodeId +
+                "\",\"op\":[\"invokeaction\"]}" +
                 "]}," +
                 // badcomponentof: uav:componentOf is an invalid NodeId string
                 "\"badcomponentof\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"i=2258\"," +
-                "\"uav:componentOf\":\"" + InvalidNodeId + "\",\"op\":[\"invokeaction\"]}" +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"i=2258\"," +
+                "\"uav:componentOf\":\"" +
+                InvalidNodeId +
+                "\",\"op\":[\"invokeaction\"]}" +
                 "]}," +
                 // badmethodid: valid componentOf but invalid method NodeId
                 "\"badmethodid\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
-                "\"uav:componentOf\":\"" + MethodsObjectNodeId + "\",\"op\":[\"invokeaction\"]}" +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                InvalidNodeId +
+                "\"," +
+                "\"uav:componentOf\":\"" +
+                MethodsObjectNodeId +
+                "\",\"op\":[\"invokeaction\"]}" +
                 "]}," +
                 // nullinputs: real method invoked with null inputs → empty args → server error
                 "\"nullinputs\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + AddMethodNodeId + "\"," +
-                "\"uav:componentOf\":\"" + MethodsObjectNodeId + "\",\"op\":[\"invokeaction\"]}" +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                AddMethodNodeId +
+                "\"," +
+                "\"uav:componentOf\":\"" +
+                MethodsObjectNodeId +
+                "\",\"op\":[\"invokeaction\"]}" +
                 "]}}," +
                 "\"events\":{" +
                 // badevent: malformed NodeId for SubscribeEvent
                 "\"badevent\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + InvalidNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                InvalidNodeId +
+                "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}," +
                 // extrafields: real event notifier with uav:eventFields → exercises the
                 // superseded spelling, which adds to the implicit BaseEventType default
                 "\"extrafields\":{\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                ServerObjectNodeId +
+                "\"," +
                 "\"op\":[\"subscribeevent\"],\"uav:eventFields\":[\"LocalTime\"]}" +
                 "]}," +
                 // selectclauses: the standardized uav:eventSelectClauses list, which
@@ -542,7 +629,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"SourceName\"}," +
                 "{\"tm:ref\":\"./base-event.tm.jsonld\",\"uav:browsePath\":\"\"}]," +
                 "\"forms\":[" +
-                "{\"href\":\"" + endpoint + "\",\"uav:id\":\"" + ServerObjectNodeId + "\"," +
+                "{\"href\":\"" +
+                endpoint +
+                "\",\"uav:id\":\"" +
+                ServerObjectNodeId +
+                "\"," +
                 "\"op\":[\"subscribeevent\"]}" +
                 "]}}}";
         }
@@ -570,10 +661,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// </remarks>
         private sealed class BaseEventTypeResolver : IWotThingResolver
         {
+            /// <inheritdoc/>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
             public ValueTask<WotResolverResult> ResolveThingAsync(
                 string reference,
                 WotResolutionContext context,
-                System.Threading.CancellationToken cancellationToken)
+                CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return new ValueTask<WotResolverResult>(
