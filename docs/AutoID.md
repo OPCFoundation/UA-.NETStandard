@@ -153,8 +153,9 @@ services.AddOpcUa()
 The builder materialises exactly the components the provider supports (a reader
 without a `Scan` provider has no `Scan` method), registers the device, makes it
 an event notifier and attaches the provider. A failure at any step is rolled
-back, so the browse name can be used again, and concurrent builds of one name
-admit exactly one. Disposing the runtime (the node manager does so on shutdown)
+back, so the browse name can be used again, a provider the build owns
+(`OwnsProvider()`) is disposed, and concurrent builds of one name admit exactly
+one. Disposing the runtime (the node manager does so on shutdown)
 stops every reader's scans, detaches its provider and, for a provider the reader
 owns (`OwnsProvider()`), disposes it.
 
@@ -264,7 +265,9 @@ The SDK applies them as follows:
 | `AsComponentOf(machine)` | Below the machine's `Components` (`HasComponent`), with an `Identification` add-in | As for `WithParent` with the `Components` object as parent: usually `Organizes`, because a machine in `Machines` is not necessarily reachable from `DeviceSet` |
 
 Whether `DeviceSet` reaches the parent is decided when the reader is built, by
-following the forward hierarchical references of the owner's nodes.
+following the forward hierarchical references of the owner's nodes. A child
+attached by a non-hierarchical reference, such as a condition by `HasCondition`,
+is no path from `DeviceSet`.
 
 Where OPC 30010 is silent, these are SDK decisions: a reader is not added to the
 `Machines` folder, because no specification classifies an AutoID device as a
@@ -274,7 +277,11 @@ reader is a component of a machine only when the application asks for it.
 `AsComponentOf` needs AutoID composed into the Machinery owner
 (`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
 machine of that owner that publishes the `Components` add-in, here built with
-`WithComponents`:
+`WithComponents`. The runtime takes the add-in the machine's
+`MachineryBuildingBlocks` folder references with `HasAddIn` (OPC 40001-1 7.1),
+so a container a companion model declares and `WithComponents(existing, ...)`
+binds is found below whatever parent and with whatever browse name it keeps; a
+machine without that folder offers its `MachineComponentsType` child:
 
 ```csharp
 IMachineHandle<BaseObjectState>? press = null;
@@ -314,7 +321,8 @@ functional group". It references
 `ComponentName` when the reader publishes them; `DeviceManual` and
 `RevisionCounter` are left out as OPC 40001-1 10.2 recommends. A missing
 `Manufacturer` or `SerialNumber`, a machine of another node manager, a machine
-without `Components`, or a server without the Machinery model fail the build with
+without `Components` or with more than one, or a server without the Machinery
+model fail the build with
 `Bad_ConfigurationError` before anything is registered. `WithParent` and
 `AsComponentOf` exclude each other. The runtime does not add Machinery
 conformance units; the Machinery owner advertises them for what its builders
