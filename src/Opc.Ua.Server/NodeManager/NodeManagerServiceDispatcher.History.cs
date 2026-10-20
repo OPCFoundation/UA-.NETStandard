@@ -93,7 +93,7 @@ namespace Opc.Ua.Server
             {
                 return ServiceResult.Good;
             }
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture();
+            m_nodeManagers.CaptureUntilReturn();
             (object? handle, IAsyncNodeManager? source) = await m_owner.GetManagerHandleAsync(
                 state.OriginNodeId, cancellationToken).ConfigureAwait(false);
             if (handle is null || source is null)
@@ -196,7 +196,7 @@ namespace Opc.Ua.Server
                 return (result, StatusCodes.BadContinuationPointInvalid);
             }
             var state = use.Point as HistorianContinuationState;
-            using NodeManagerRoutingTable.ReadScope routing = m_nodeManagers.Capture(state?.Ownership.RoutingSnapshot);
+            m_nodeManagers.CaptureUntilReturn(state?.Ownership.RoutingSnapshot);
             ServiceResult? error = await ValidateHistoryReadRequestAsync(context, node, cancellationToken)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(error))

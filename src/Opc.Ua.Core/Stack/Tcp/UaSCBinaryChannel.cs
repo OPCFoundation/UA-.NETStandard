@@ -682,7 +682,9 @@ namespace Opc.Ua.Bindings
                             if (m_partialMessageChunks == null)
                             {
                                 // most messages are a single, final chunk
-                                m_partialMessageChunks = isFinal ? new BufferCollection(1) : [];
+                                m_partialMessageChunks = isFinal
+                                    ? Interlocked.Exchange(ref m_spareMessageChunks, null) ?? new BufferCollection(1)
+                                    : [];
                                 m_partialMessageStartedAt = TimeProvider.GetTimestamp();
                                 m_partialMessageOwner = owner;
                             }
@@ -843,6 +845,18 @@ namespace Opc.Ua.Bindings
             }
             // a chunk over the limits takes the path that reports them.
             return !MessageLimitsExceeded(isServerContext, chunk.Count, 1);
+        }
+
+        /// <summary>
+        /// Keeps the collection of a processed message, after its chunks were released, to
+        /// assemble the next message in. The caller holds no other reference to it.
+        /// </summary>
+        private protected void ReuseMessageChunks(BufferCollection chunks)
+        {
+            if (chunks.Count == 0)
+            {
+                Volatile.Write(ref m_spareMessageChunks, chunks);
+            }
         }
 
         /// <summary>
@@ -2805,6 +2819,12 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+
+        /// <summary>
+        /// An empty collection a received message was assembled in, kept to assemble the
+        /// next message (see <see cref="ReuseMessageChunks"/>).
+        /// </summary>
+        private BufferCollection? m_spareMessageChunks;
         private long m_partialMessageStartedAt;
         private long m_partialMessageReservedBytes;
         private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
