@@ -373,9 +373,12 @@ guide describes its current limitations.
   task-level motion commands. Does not require the Robotics model.
 - [OpenUSD](OpenUsd.md) (draft models; preview package) — bind values to OpenUSD
   scenes and materialize scenes in the address space.
-- [WoT Connectivity 1.1 registry](WoTConnectivity.md#11-wot-connectivity-11-registry-and-materialization-preview)
-  (draft model; preview package) — registry and materialization. Read WoT
-  connectivity first.
+- [WoT Connectivity registry](WoTConnectivity.md#hosting-the-registry)
+  (draft model; preview package) — hosting, document provisioning, and refresh.
+- [WoT-Con 1.02 compatibility](WoTConnectivity.md#wot-con-102-compatibility) —
+  existing-type bindings, declarations, and original document preservation.
+- [WoT design and provider contracts](WoT.md) — exact-Version dependencies and
+  leases, prepared storage/publication, and recovery.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
 - [Data Channels](DataChannels.md) (experimental) - complete-message flows over

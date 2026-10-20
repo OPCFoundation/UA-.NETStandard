@@ -942,7 +942,8 @@ namespace Opc.Ua.Bindings
                 const int headerSize = TcpMessageLimits.SymmetricHeaderSize +
                     TcpMessageLimits.SequenceHeaderSize;
 
-                var chunksToSend = new BufferCollection(chunksToProcess.Count);
+                // the chunks are secured in place: each body segment is replaced by the
+                // segment to send, which covers the headers in the same buffer.
                 int lastChunk = chunksToProcess.Count - 1;
 
                 for (int ii = 0; ii < chunksToProcess.Count; ii++)
@@ -1031,13 +1032,12 @@ namespace Opc.Ua.Bindings
                             position);
                     }
 
-                    // add the header into chunk.
-                    chunksToSend.Add(dataToSend);
+                    chunksToProcess[ii] = dataToSend;
                 }
 
                 // ensure the buffers don't get cleaned up on exit.
                 success = true;
-                return chunksToSend;
+                return chunksToProcess;
             }
             finally
             {

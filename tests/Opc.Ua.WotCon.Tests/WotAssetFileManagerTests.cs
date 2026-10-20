@@ -53,10 +53,9 @@ namespace Opc.Ua.WotCon.Tests
         private const byte ModeRead = 1;
         private const byte ModeWriteErase = 6;
 
-        // ----------------------------------------------------------------
-        // Open: mode restriction (§6.3.10) — Read (1) and Write|EraseExisting (6) only.
-        // ----------------------------------------------------------------
-
+        /// <summary>
+        /// Verifies that open with unsupported mode returns bad not supported.
+        /// </summary>
         [TestCase((byte)0)]
         [TestCase((byte)2)]   // Write only
         [TestCase((byte)3)]   // Read+Write
@@ -76,6 +75,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(handle, Is.Zero, "No handle is allocated for a rejected mode.");
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for reading.
+        /// </summary>
         [Test]
         public void OpenWithReadModeSucceeds()
         {
@@ -88,6 +90,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that a FileType handle can be opened for writing with content erasure.
+        /// </summary>
         [Test]
         public void OpenWithWriteEraseModeSucceeds()
         {
@@ -99,19 +104,72 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(handle, Is.GreaterThan(0u));
         }
 
-        [Test]
-        public void OpenSecondWriterWhileFirstStillOpenReturnsBadInvalidState()
+        /// <summary>
+        /// Verifies that open enforces reader writer exclusion.
+        /// </summary>
+        /// <param name="firstMode">The first mode used by this test case.</param>
+        /// <param name="secondMode">The second mode used by this test case.</param>
+        [TestCase(ModeWriteErase, ModeWriteErase)]
+        [TestCase(ModeRead, ModeWriteErase)]
+        [TestCase(ModeWriteErase, ModeRead)]
+        public void OpenEnforcesReaderWriterExclusion(byte firstMode, byte secondMode)
         {
             using var harness = new Harness();
             uint first = 0;
-            harness.Open(ModeWriteErase, ref first);
+            Assert.That(ServiceResult.IsGood(harness.Open(firstMode, ref first)), Is.True);
             uint second = 0;
-            ServiceResult result = harness.Open(ModeWriteErase, ref second);
+            ServiceResult result = harness.Open(secondMode, ref second);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(second, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
         }
 
+        /// <summary>
+        /// Verifies that close and update retains exclusive writer until callback completes.
+        /// </summary>
+        /// <param name="nextMode">The next mode used by this test case.</param>
+        [TestCase(ModeRead)]
+        [TestCase(ModeWriteErase)]
+        public async Task CloseAndUpdateRetainsExclusiveWriterUntilCallbackCompletes(byte nextMode)
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = new Harness(materialise: async (_, _) =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                return ServiceResult.Good;
+            });
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
+            harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """{"name":"pending"}""")));
+            Task<ServiceResult> close = harness.CloseAndUpdateAsync(handle).AsTask();
+            try
+            {
+                Task ready = await Task.WhenAny(entered.Task, Task.Delay(TimeSpan.FromSeconds(10)))
+                    .ConfigureAwait(false);
+                Assert.That(ready, Is.SameAs(entered.Task));
+                uint next = 0;
+                ServiceResult opened = harness.Open(nextMode, ref next);
+
+                Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(next, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await close.ConfigureAwait(false);
+            }
+
+            uint reopened = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(nextMode, ref reopened)), Is.True);
+            harness.Close(reopened);
+        }
+
+        /// <summary>
+        /// Verifies that opening beyond the FileType handle bound returns BadTooManyOperations.
+        /// </summary>
         [Test]
         public void OpenBeyondMaxHandlesReturnsBadTooManyOperations()
         {
@@ -126,10 +184,53 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
         }
 
-        // ----------------------------------------------------------------
-        // Read / Write / position primitives.
-        // ----------------------------------------------------------------
+        /// <summary>
+        /// Verifies that read rejects non positive lengths without closing the handle.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(-1)]
+        public void ReadRejectsNonPositiveLengthsWithoutClosingTheHandle(int length)
+        {
+            using var harness = new Harness();
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeRead, ref handle)), Is.True);
+            ByteString data = default;
 
+            ServiceResult result = harness.Read(handle, length, ref data);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(harness.File.OpenCount!.Value, Is.EqualTo((ushort)1));
+        }
+
+        /// <summary>
+        /// Verifies that set position beyond the file clamps to its end.
+        /// </summary>
+        [TestCase(ModeRead, 4ul)]
+        [TestCase(ModeRead, ulong.MaxValue)]
+        [TestCase(ModeWriteErase, 4ul)]
+        [TestCase(ModeWriteErase, ulong.MaxValue)]
+        public void SetPositionBeyondTheFileClampsToItsEnd(byte mode, ulong requested)
+        {
+            using var harness = new Harness();
+            harness.Upload([1, 2, 3]);
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(mode, ref handle)), Is.True);
+            if (mode == ModeWriteErase)
+            {
+                Assert.That(ServiceResult.IsGood(harness.Write(handle, ByteString.From([1, 2, 3]))), Is.True);
+            }
+
+            ServiceResult result = harness.SetPosition(handle, requested);
+            ulong position = 0;
+            harness.GetPosition(handle, ref position);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(position, Is.EqualTo(3ul));
+        }
+
+        /// <summary>
+        /// Verifies that write then read round trips bytes.
+        /// </summary>
         [Test]
         public void WriteThenReadRoundTripsBytes()
         {
@@ -142,6 +243,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(downloaded, Is.EqualTo(payload));
         }
 
+        /// <summary>
+        /// Verifies that reading an empty file returns no bytes.
+        /// </summary>
         [Test]
         public void ReadOnEmptyFileReturnsEmpty()
         {
@@ -156,6 +260,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(data.IsNull || data.Span.Length == 0, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a read handle supports querying and changing its position.
+        /// </summary>
         [Test]
         public void GetPositionAndSetPositionWorkOnReadHandle()
         {
@@ -182,8 +289,11 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that read after seeking beyond length returns eof.
+        /// </summary>
         [Test]
-        public void SetPositionBeyondLengthReturnsBadInvalidArgument()
+        public void ReadAfterSeekingBeyondLengthReturnsEof()
         {
             using var harness = new Harness();
             harness.Upload([1, 2, 3]);
@@ -192,8 +302,10 @@ namespace Opc.Ua.WotCon.Tests
             try
             {
                 ServiceResult result = harness.SetPosition(handle, 100);
-                Assert.That(result.StatusCode,
-                    Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                ByteString data = default;
+                Assert.That(ServiceResult.IsGood(harness.Read(handle, 4, ref data)), Is.True);
+                Assert.That(data.IsEmpty, Is.True);
             }
             finally
             {
@@ -201,6 +313,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that reading through a write-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public void ReadOnWriteHandleReturnsBadInvalidState()
         {
@@ -220,6 +335,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that writing through a read-only handle returns BadInvalidState.
+        /// </summary>
         [Test]
         public void WriteOnReadHandleReturnsBadInvalidState()
         {
@@ -238,6 +356,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a write exceeding the file size bound returns BadOutOfMemory.
+        /// </summary>
         [Test]
         public void WriteBeyondMaxSizeReturnsBadOutOfMemory()
         {
@@ -257,6 +378,9 @@ namespace Opc.Ua.WotCon.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that operations on unknown FileType handles return BadInvalidArgument.
+        /// </summary>
         [Test]
         public void OperationsOnUnknownHandleReturnBadInvalidArgument()
         {
@@ -274,10 +398,9 @@ namespace Opc.Ua.WotCon.Tests
                 Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
-        // ----------------------------------------------------------------
-        // Close vs CloseAndUpdate semantics.
-        // ----------------------------------------------------------------
-
+        /// <summary>
+        /// Verifies that close after write discards pending content.
+        /// </summary>
         [Test]
         public void CloseAfterWriteDiscardsPendingContent()
         {
@@ -293,6 +416,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.LastMaterialisedTd, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that close and update with valid td invokes materialise callback and persists content.
+        /// </summary>
         [Test]
         public async Task CloseAndUpdateWithValidTdInvokesMaterialiseCallbackAndPersistsContent()
         {
@@ -304,7 +430,7 @@ namespace Opc.Ua.WotCon.Tests
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(tdBytes));
-            ServiceResult result = harness.CloseAndUpdate(handle);
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(harness.MaterialiseCallCount, Is.EqualTo(1));
@@ -316,17 +442,19 @@ namespace Opc.Ua.WotCon.Tests
             // Subsequent Read returns the persisted TD bytes.
             byte[] downloaded = harness.Download();
             Assert.That(downloaded, Is.EqualTo(tdBytes));
-            await Task.CompletedTask.ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that close and update with malformed JSON returns bad decoding error.
+        /// </summary>
         [Test]
-        public void CloseAndUpdateWithMalformedJsonReturnsBadDecodingError()
+        public async Task CloseAndUpdateWithMalformedJsonReturnsBadDecodingError()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes("{not json")));
-            ServiceResult result = harness.CloseAndUpdate(handle);
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadDecodingError));
@@ -335,13 +463,43 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that close and update rejects projection plans at the td only gate.
+        /// </summary>
+        [TestCase("\"uav:projection\"")]
+        [TestCase("[\"Thing\",\"uav:projection\"]")]
+        [TestCase("[\"tm:ThingModel\",\"uav:projection\"]")]
+        public async Task CloseAndUpdateRejectsProjectionPlansAtTheTdOnlyGate(string types)
+        {
+            using var harness = new Harness();
+            string payload = "{\"name\":\"projection\",\"title\":\"Projection plan\",\"@type\":" +
+                types +
+                ",\"uav:scenario\":\"urn:scenario:projection\"," +
+                "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
+                "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
+            Assert.That(ServiceResult.IsGood(harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(payload)))),
+                Is.True);
+
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that close and update with well formed JSON that is not a thing description materializes nothing.
+        /// </summary>
         [Test]
         [TestCase("[1, 2, 3]", TestName = "CloseAndUpdateRejectsJsonThatIsNotAnObject")]
         [TestCase("{}", TestName = "CloseAndUpdateRejectsAnObjectWithoutATitle")]
         [TestCase(
-            "{\"description\":\"no title here\"}",
+            /*lang=json,strict*/ "{\"description\":\"no title here\"}",
             TestName = "CloseAndUpdateRejectsAnObjectWithOnlyOptionalMembers")]
-        public void CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing(
+        public async Task CloseAndUpdateWithWellFormedJsonThatIsNotAThingDescriptionMaterializesNothing(
             string payload)
         {
             // Wot-Con 1.02 requires an uploaded document to be format validated
@@ -355,7 +513,7 @@ namespace Opc.Ua.WotCon.Tests
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(payload)));
-            ServiceResult result = harness.CloseAndUpdate(handle);
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode,
                 Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
@@ -363,20 +521,26 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that close and update on read handle returns bad invalid state.
+        /// </summary>
         [Test]
-        public void CloseAndUpdateOnReadHandleReturnsBadInvalidState()
+        public async Task CloseAndUpdateOnReadHandleReturnsBadInvalidState()
         {
             using var harness = new Harness();
             uint handle = 0;
             harness.Open(ModeRead, ref handle);
-            ServiceResult result = harness.CloseAndUpdate(handle);
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadInvalidState));
         }
 
+        /// <summary>
+        /// Verifies that close and update propagates callback failure.
+        /// </summary>
         [Test]
-        public void CloseAndUpdatePropagatesCallbackFailure()
+        public async Task CloseAndUpdatePropagatesCallbackFailure()
         {
             using var harness = new Harness(
                 materialise: (_, _) => new ValueTask<ServiceResult>(
@@ -384,7 +548,7 @@ namespace Opc.Ua.WotCon.Tests
             uint handle = 0;
             harness.Open(ModeWriteErase, ref handle);
             harness.Write(handle, ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """{"name":"x"}""")));
-            ServiceResult result = harness.CloseAndUpdate(handle);
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
 
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadConfigurationError));
@@ -392,10 +556,9 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.Size!.Value, Is.Zero);
         }
 
-        // ----------------------------------------------------------------
-        // Open-count bookkeeping.
-        // ----------------------------------------------------------------
-
+        /// <summary>
+        /// Verifies that open count increases and decreases with handles.
+        /// </summary>
         [Test]
         public void OpenCountIncreasesAndDecreasesWithHandles()
         {
@@ -411,10 +574,6 @@ namespace Opc.Ua.WotCon.Tests
             harness.Close(h2);
             Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
-
-        // ----------------------------------------------------------------
-        // Test harness — owns the WoTAssetFileState and the file manager.
-        // ----------------------------------------------------------------
 
         private sealed class Harness : IDisposable
         {
@@ -495,10 +654,19 @@ namespace Opc.Ua.WotCon.Tests
                                 Context, File.SetPosition, _objectId, fileHandle, position);
             }
 
-            public ServiceResult CloseAndUpdate(uint fileHandle)
+            /// <summary>
+            /// Calls the file CloseAndUpdate method for the file handle.
+            /// </summary>
+            /// <param name="fileHandle">The file handle.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> CloseAndUpdateAsync(
+                uint fileHandle,
+                CancellationToken cancellationToken = default)
             {
-                return File.CloseAndUpdate!.OnCall!.Invoke(
-                                Context, File.CloseAndUpdate, _objectId, fileHandle);
+                CloseAndUpdateIWoTAssetTypeWoTFileMethodStateResult result =
+                    await File.CloseAndUpdate!.OnCallAsync!.Invoke(
+                        Context, File.CloseAndUpdate, _objectId, fileHandle, cancellationToken).ConfigureAwait(false);
+                return result.ServiceResult ?? ServiceResult.Good;
             }
 
             public void Upload(byte[] content)

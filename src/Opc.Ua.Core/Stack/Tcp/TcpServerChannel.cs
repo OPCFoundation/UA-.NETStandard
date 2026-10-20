@@ -547,7 +547,12 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    dispatch.Chunks?.Release(BufferManager, "ProcessRequestMessage");
+                    if (dispatch.Chunks != null)
+                    {
+                        dispatch.Chunks.Release(BufferManager, "ProcessRequestMessage");
+                        // decoding copied the request: nothing references the collection
+                        ReuseMessageChunks(dispatch.Chunks);
+                    }
                 }
             }
 

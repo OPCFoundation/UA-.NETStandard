@@ -31,8 +31,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Opc.Ua.Server;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry;
 using Opc.Ua.XRegistry.Server;
@@ -42,8 +46,14 @@ namespace Opc.Ua.WotCon.Server
     /// <summary>
     /// Adapts the WoT Connectivity registry service to the shared xRegistry projection engine.
     /// </summary>
-    internal sealed class WotRegistryProjection : IDisposable
+    internal sealed partial class WotRegistryProjection : IDisposable
     {
+        /// <summary>
+        /// Initializes a new <c>WotRegistryProjection</c> instance.
+        /// </summary>
+        /// <param name="manager">The manager used to initialize the instance.</param>
+        /// <param name="registry">The registry used to initialize the instance.</param>
+        /// <param name="options">The WoT registry server options used to initialize the instance.</param>
         public WotRegistryProjection(
             WotRegistryNodeManager manager,
             IWotRegistryService registry,
@@ -52,41 +62,80 @@ namespace Opc.Ua.WotCon.Server
             m_manager = manager ?? throw new ArgumentNullException(nameof(manager));
             m_registry = registry ?? throw new ArgumentNullException(nameof(registry));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
+            m_logger = manager.Server.Telemetry.CreateLogger<WotRegistryProjection>();
             m_modelNs = (ushort)manager.Server.NamespaceUris.GetIndex(Namespaces.WotCon);
             var context = new XRegistryProjectionContext(
                 manager.SystemContext,
                 manager.Server.NamespaceUris,
                 m_modelNs,
-                async (node, ct) =>
-                {
-                    await manager.AddPredefinedNodeAsync(node, ct).ConfigureAwait(false);
-                },
-                async (nodeId, ct) =>
-                {
-                    await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct).ConfigureAwait(false);
-                },
+                manager.AddPredefinedNodeAsync,
+                async (nodeId, ct) => await manager.DeleteNodeAsync(manager.SystemContext, nodeId, ct)
+                    .ConfigureAwait(false),
                 manager.CheckManagementAccess,
-                options.XRegistryEvents);
-            m_strategy = registry is IWotVersionedRegistryService
+                options.XRegistryEvents)
+            {
+                ProjectionDispatcher = manager.DispatchProjectionAsync
+            };
+            m_strategy = UsesVersionedProjection
                 ? new VersionedStrategy(this)
                 : new Strategy(this);
             m_engine = new XRegistryProjectionEngine(context, m_strategy, RegistryNodeIdPath);
         }
 
+        private bool UsesVersionedProjection => m_registry is IWotVersionedRegistryService or IWotTypedRegistryService;
+
         /// <summary>
         /// Binds the projection to the well-known registry Object.
         /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="registryNode">The registry node.</param>
         public ValueTask AttachAsync(BaseObjectState registryNode, CancellationToken ct)
         {
+            WireTypedRegistryMethods(registryNode);
             return m_engine.AttachAsync(registryNode, ct);
         }
 
         /// <summary>
-        /// Finds the browseable resource node used as an event source.
+        /// Finds the exact Version used as a WoT failure source without substituting an ancestor.
         /// </summary>
-        public NodeState EventSourceFor(string? xid)
+        /// <param name="xid">The resource identifier.</param>
+        /// <param name="versionId">The version ID.</param>
+        public NodeState EventSourceForFailure(string? xid, string? versionId)
         {
-            return m_engine.EventSourceFor(xid);
+            if (!UsesVersionedProjection)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "WoT failure events require an exact-Version registry projection.");
+            }
+            if (string.IsNullOrEmpty(xid) || string.IsNullOrEmpty(versionId))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "A WoT failure event requires both Resource Xid and VersionId.");
+            }
+            NodeState source = m_engine.EventSourceFor($"{xid}/versions/{versionId}");
+            if (source is not ResourceState)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdUnknown,
+                    "The exact Version for the WoT failure event is not projected.");
+            }
+            return source;
+        }
+
+        /// <summary>
+        /// Gets the node identifier of a resource version in the projection.
+        /// </summary>
+        /// <param name="resource">The WoT resource.</param>
+        /// <param name="version">The WoT resource version.</param>
+        internal ExpandedNodeId GetVersionNodeId(WotResource resource, WotResourceVersion version)
+        {
+            if (!UsesVersionedProjection)
+            {
+                return ExpandedNodeId.Null;
+            }
+            NodeId nodeId = ResourceNodeId(resource.GroupId, resource.ResourceId, version.VersionId);
+            return m_manager.FindPredefinedNode<WoTDocumentState>(nodeId) is null
+                ? ExpandedNodeId.Null
+                : NodeId.ToExpandedNodeId(nodeId, m_manager.Server.NamespaceUris);
         }
 
         /// <summary>
@@ -109,6 +158,16 @@ namespace Opc.Ua.WotCon.Server
         }
 
         /// <summary>
+        /// Discards the closing Session's Version handles and logical Resource pins without committing writes.
+        /// </summary>
+        /// <param name="ct">The cancellation token passed to the asynchronous operation.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct)
+        {
+            return m_engine.DiscardSessionAsync(sessionId, ct);
+        }
+
+        /// <summary>
         /// Reconciles the exact immutable registry transition supplied by a change event.
         /// </summary>
         public ValueTask ReconcileAsync(
@@ -128,6 +187,11 @@ namespace Opc.Ua.WotCon.Server
             m_engine.Dispose();
         }
 
+        /// <summary>
+        /// Links projected method argument properties using the XRegistry projection implementation.
+        /// </summary>
+        /// <param name="node">The source node associated with the registration or view check.</param>
+        /// <param name="context">The system context used for the operation.</param>
         internal static void LinkMethodArguments(NodeState? node, ISystemContext context)
         {
             XRegistryProjectionEngine.LinkMethodArguments(node, context);
@@ -167,6 +231,15 @@ namespace Opc.Ua.WotCon.Server
             {
                 return;
             }
+            concreteVersion &= document.Versions is null;
+
+            if (document.Versions is { } versions)
+            {
+                versions.TypeDefinitionId = ExpandedNodeId.ToNodeId(
+                    resource.Kind == WoTDocumentKindEnum.ThingModel
+                        ? ObjectTypeIds.ThingModelVersionsType : ObjectTypeIds.ThingDescriptionVersionsType,
+                    m_manager.Server.NamespaceUris);
+            }
 
             document.AddDesiredVersionId(m_manager.SystemContext)
                 .AddActiveVersionId(m_manager.SystemContext)
@@ -176,10 +249,12 @@ namespace Opc.Ua.WotCon.Server
                 .AddMaterializedNodeCount(m_manager.SystemContext)
                 .AddRootNodeId(m_manager.SystemContext)
                 .AddRefreshGeneration(m_manager.SystemContext)
-                .AddLastRefreshTime(m_manager.SystemContext);
-            document.AddValidate(m_manager.SystemContext);
-            document.AddSetEnabled(m_manager.SystemContext);
-            document.AddSetDefaultVersion(m_manager.SystemContext);
+                .AddLastRefreshTime(m_manager.SystemContext)
+                .AddDependencySnapshot(m_manager.SystemContext)
+                .AddLastDependencyAttempt(m_manager.SystemContext)
+                .AddValidate(m_manager.SystemContext)
+                .AddSetEnabled(m_manager.SystemContext)
+                .AddSetDefaultVersion(m_manager.SystemContext);
 
             if (document is ThingDescriptionFileState td)
             {
@@ -210,33 +285,135 @@ namespace Opc.Ua.WotCon.Server
                 (c, m, o, i, ot, t) => OnSetEnabledAsync(groupId, resourceId, c, i, t);
             document.SetDefaultVersion?.OnCallMethod2Async =
                 (c, m, o, i, ot, t) => OnSetDefaultVersionAsync(groupId, resourceId, c, i, t);
+            document.DependencySnapshot!.OnSimpleReadValueAsync =
+                (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, false, ct);
+            document.LastDependencyAttempt!.OnSimpleReadValueAsync =
+                (context, _, ct) => ReadDependencyObservationAsync(context, groupId, resourceId, versionId, true, ct);
+            BindPublishedResourceProperties(document, resource, versionId);
 
-            ApplyWotResourceProperties(document, resource);
+            // The versioned strategy supplies a Version adapter for the logical Resource too.
+            if (!concreteVersion || document.Versions is not null)
+            {
+                document.AddProjectionMembershipDigest(m_manager.SystemContext);
+                document.ProjectionMembershipDigest!.OnSimpleReadValueAsync =
+                    (context, _, ct) => ReadProjectionMembershipDigestAsync(context, document.NodeId, resource.Xid, ct);
+            }
+
+            ApplyWotResourceProperties(document, resource, version, concreteVersion);
         }
 
-        private void ApplyWotResourceProperties(WoTDocumentState node, WotResource resource)
+        private ValueTask<AttributeSimpleReadResult> ReadProjectionMembershipDigestAsync(
+            ISystemContext context, NodeId resourceNodeId, string resourceXid, CancellationToken cancellationToken)
         {
-            ApplyWotResourceProperties(node, resource, resource.DefaultVersion);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (context is ServerSystemContext { OperationContext: not null })
+            {
+                foreach (IAsyncNodeManager manager in m_manager.Server.NodeManager.AsyncNodeManagers)
+                {
+                    if (manager is IWotCanonicalViewReadImage image &&
+                        image.TryGetMembershipDigest(resourceNodeId, out ByteString capturedDigest))
+                    {
+                        return new ValueTask<AttributeSimpleReadResult>(
+                            new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(capturedDigest)));
+                    }
+                }
+                return new ValueTask<AttributeSimpleReadResult>(
+                    new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null));
+            }
+            WotRegistrySnapshot snapshot = m_registry.Current;
+            ByteString payload = snapshot.CanonicalViewGraphState;
+            if (!payload.IsNull && payload.Length != 0)
+            {
+                ImmutableDictionary<string, ByteString> digests = m_membershipDigests.GetValue(
+                    snapshot, static current => new Lazy<ImmutableDictionary<string, ByteString>>(
+                        () => CreateMembershipDigestLookup(current.CanonicalViewGraphState),
+                        LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+                if (digests.TryGetValue(resourceXid, out ByteString digest))
+                {
+                    return new ValueTask<AttributeSimpleReadResult>(
+                        new AttributeSimpleReadResult(ServiceResult.Good, Variant.From(digest)));
+                }
+            }
+            return new ValueTask<AttributeSimpleReadResult>(
+                new AttributeSimpleReadResult(StatusCodes.BadWaitingForInitialData, Variant.Null));
+        }
+
+        private static ImmutableDictionary<string, ByteString> CreateMembershipDigestLookup(ByteString payload)
+        {
+            var digests = ImmutableDictionary.CreateBuilder<string, ByteString>(StringComparer.Ordinal);
+            foreach (WotCanonicalViewPublication view in WotCanonicalViewState.Parse(payload).Views)
+            {
+                if (view.Active)
+                {
+                    digests.Add(view.ResourceXid, view.MembershipDigest);
+                }
+            }
+            return digests.ToImmutable();
+        }
+
+        private ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(
+            ISystemContext context,
+            string groupId,
+            string resourceId,
+            string versionId,
+            bool attempt,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ServiceResult status = m_manager.CheckManagementAccess(
+                context, attempt ? "ReadLastDependencyAttempt" : "ReadDependencySnapshot");
+            Variant value = Variant.Null;
+            if (ServiceResult.IsGood(status))
+            {
+                if (!m_manager.Coordinator.SupportsDependencySnapshots)
+                {
+                    status = StatusCodes.BadNotSupported;
+                }
+                else
+                {
+                    WotResource? resource = m_registry.Current.FindResource(groupId, resourceId);
+                    WotResourceVersion? version = string.IsNullOrEmpty(versionId)
+                        ? resource?.DefaultVersion
+                        : resource?.FindVersion(versionId);
+                    if (version is null)
+                    {
+                        status = StatusCodes.BadNodeIdUnknown;
+                    }
+                    else
+                    {
+                        WotDependencySnapshot? observation = attempt
+                            ? version.LastDependencyAttempt : version.DependencySnapshot;
+                        if (observation is null)
+                        {
+                            status = StatusCodes.BadWaitingForInitialData;
+                        }
+                        else
+                        {
+                            value = Variant.FromStructure(observation.ToDataType());
+                        }
+                    }
+                }
+            }
+            return new ValueTask<AttributeSimpleReadResult>(new AttributeSimpleReadResult(status, value));
         }
 
         private void ApplyWotResourceProperties(
             WoTDocumentState node,
             WotResource resource,
-            WotResourceVersion? version)
+            WotResourceVersion? version,
+            bool concreteVersion)
         {
-
             XRegistryProjectionEngine.SetValue(node.DocumentKind, resource.Kind);
             XRegistryProjectionEngine.SetValue(node.Enabled, resource.Enabled);
-            XRegistryProjectionEngine.SetValue(node.LoadState, resource.LoadState);
+            XRegistryProjectionEngine.SetValue(node.LoadState,
+                concreteVersion && node.Versions is null && version?.HasValidationFailure == true
+                    ? WoTLoadStateEnum.Failed : resource.LoadState);
             XRegistryProjectionEngine.SetValue(node.DesiredVersionId, resource.DesiredVersionId ?? string.Empty);
             XRegistryProjectionEngine.SetValue(node.ActiveVersionId, resource.ActiveVersionId ?? string.Empty);
             XRegistryProjectionEngine.SetValue(node.IsDefault, version is not null &&
                 string.Equals(version.VersionId, resource.DefaultVersionId, StringComparison.Ordinal));
             XRegistryProjectionEngine.SetValue(node.ContentDigest, version is null ? ByteString.Empty : version.Digest);
-            if (node.ValidationOutcome is not null)
-            {
-                node.ValidationOutcome.Value = version?.Validation!;
-            }
+            node.ValidationOutcome?.Value = version?.Validation!;
             XRegistryProjectionEngine.SetValue(node.MaterializedNodeCount, (uint)resource.MaterializedNodeCount);
             XRegistryProjectionEngine.SetValue(node.RootNodeId, resource.RootNodeId);
             XRegistryProjectionEngine.SetValue(node.RefreshGeneration, resource.RefreshGeneration);
@@ -245,18 +422,18 @@ namespace Opc.Ua.WotCon.Server
             if (node is ThingDescriptionFileState td)
             {
                 bool useResourceDocumentId =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.DocumentId));
                 bool useResourceTitle =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
                     td.ThingId,
+                    resource.SourceId ??
                     SelectVersionMetadata(
-                        version?.DocumentId,
-                        useResourceDocumentId ? resource.ThingId : null));
+                        version?.DocumentId, useResourceDocumentId ? resource.ThingId : null));
                 XRegistryProjectionEngine.SetValue(
                     td.ThingTitle,
                     SelectVersionMetadata(
@@ -268,8 +445,9 @@ namespace Opc.Ua.WotCon.Server
             }
             else if (node is ThingModelFileState tmNode)
             {
+                XRegistryProjectionEngine.SetValue(tmNode.ModelId, resource.SourceId ?? string.Empty);
                 bool useResourceTitle =
-                    m_registry is not IWotVersionedRegistryService ||
+                    !UsesVersionedProjection ||
                     resource.Versions.All(candidate =>
                         string.IsNullOrWhiteSpace(candidate.Title));
                 XRegistryProjectionEngine.SetValue(
@@ -293,11 +471,6 @@ namespace Opc.Ua.WotCon.Server
                     : string.Empty;
         }
 
-        private WotResourceFileManager CreateResourceFile(WoTDocumentState node, WotResource resource)
-        {
-            return CreateResourceFile(node, resource, resource.DefaultVersion);
-        }
-
         private WotResourceFileManager CreateResourceFile(
             WoTDocumentState node,
             WotResource resource,
@@ -312,7 +485,7 @@ namespace Opc.Ua.WotCon.Server
                 m_options.Bounds.MaxOpenFileHandles,
                 m_options.Bounds.MaxDocumentBytes,
                 m_manager.CheckManagementAccess,
-                (key, offset, count, token) => m_registry.ReadContentChunkAsync(key, offset, count, token),
+                m_registry.ReadContentChunkAsync,
                 (bytes, baseline, baselineIncarnation, session, token) => CommitDocumentAsync(
                     groupId,
                     resourceId,
@@ -321,7 +494,10 @@ namespace Opc.Ua.WotCon.Server
                     bytes,
                     baseline,
                     baselineIncarnation,
-                    token));
+                    token),
+                acquireVersionLease: m_registry is IWotRegistryVersionLeaseProvider leases
+                    ? (snapshot, token) => leases.AcquireVersionLeaseAsync(groupId, resourceId, snapshot, token)
+                    : null);
         }
 
         private async ValueTask<ServiceResult> OnValidateAsync(
@@ -338,15 +514,18 @@ namespace Opc.Ua.WotCon.Server
                 return access;
             }
             WoTValidationOutcomeDataType outcome;
+            ServiceResult status = ServiceResult.Good;
+            string selectedVersionId = string.IsNullOrEmpty(versionId)
+                ? m_registry.Current.FindResource(groupId, resourceId)?.DefaultVersionId ?? string.Empty : versionId;
             try
             {
                 if (m_registry is IWotVersionedRegistryService versioned &&
-                    !string.IsNullOrEmpty(versionId))
+                    !string.IsNullOrEmpty(selectedVersionId))
                 {
                     outcome = await versioned.ValidateVersionAsync(
                             groupId,
                             resourceId,
-                            versionId,
+                            selectedVersionId,
                             ct)
                         .ConfigureAwait(false);
                 }
@@ -371,10 +550,23 @@ namespace Opc.Ua.WotCon.Server
             {
                 return ex.Result;
             }
-            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
+            catch (WotRegistryCommitDurabilityUncertainException ex)
+            {
+                m_logger.ValidationCommittedWithWarning(ex);
+                WotResource? committed = ex.CommittedSnapshot.FindResource(groupId, resourceId);
+                WotResourceVersion? validated = ex.ValidatedVersionXid is { } validatedXid
+                    ? committed?.Versions.FirstOrDefault(version =>
+                        WotDependencyGraph.VersionXid(committed, version) == validatedXid)
+                    : m_registry is IWotVersionedRegistryService ? committed?.FindVersion(selectedVersionId) : null;
+                outcome = validated?.Validation ??
+                    throw new InvalidOperationException("Committed validation has no outcome for the addressed Version.", ex);
+                status = ServiceResult.Create(StatusCodes.GoodResultsMayBeIncomplete,
+                    "The validation outcome was committed, but completion reported a warning.");
+            }
+            await ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
             output.Clear();
             output.Add(Variant.FromStructure(outcome));
-            return ServiceResult.Good;
+            return status;
         }
 
         private async ValueTask<ServiceResult> OnSetEnabledAsync(
@@ -394,8 +586,8 @@ namespace Opc.Ua.WotCon.Server
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument, "The Enabled argument is required.");
             }
-            WotRegistryMutationResult result = await m_registry
-                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct)
+            WotRegistryMutationResult result = await m_manager.Coordinator
+                .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), context.GetOperationContext(), ct)
                 .ConfigureAwait(false);
             await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return ToServiceResult(result);
@@ -444,6 +636,7 @@ namespace Opc.Ua.WotCon.Server
                 ExpectedVersionDigestHex = baselineContentKey,
                 ExpectedVersionIncarnation = baselineVersionIncarnation,
                 Kind = kind,
+                DetectProjectionFormat = true,
                 Content = ByteString.From(content),
                 ContentType = kind == WoTDocumentKindEnum.ThingModel
                     ? "application/tm+json"
@@ -455,7 +648,9 @@ namespace Opc.Ua.WotCon.Server
                 .UpsertResourceAsync(request, ct).ConfigureAwait(false);
             ServiceResult serviceResult =
                 result.Outcome is WoTOutcomeEnum.Rejected or WoTOutcomeEnum.Failed
-                ? ServiceResult.Create(StatusCodes.BadInvalidState, result.Message)
+                ? ServiceResult.Create(
+                    StatusCode.IsBad(result.StatusCode) ? result.StatusCode.Code : StatusCodes.BadInvalidState,
+                    result.Message)
                 : ServiceResult.Good;
             WotResource? committedResource = ServiceResult.IsGood(serviceResult)
                 ? result.Resource ?? m_registry.Current.FindResource(groupId, resourceId)
@@ -474,9 +669,20 @@ namespace Opc.Ua.WotCon.Server
 
         private WoTDocumentKindEnum KindForGroup(string groupId)
         {
-            return string.Equals(NormalizeId(groupId), WotRegistryGroups.ThingModels, StringComparison.Ordinal)
-                ? WoTDocumentKindEnum.ThingModel
-                : WoTDocumentKindEnum.ThingDescription;
+            WotResourceGroup? group = m_registry.Current.FindGroup(groupId);
+            if (group is not null)
+            {
+                return group.Kind;
+            }
+            foreach (WotRegistryGroupIdentity identity in m_options.IdentityBindings.Groups)
+            {
+                if (string.Equals(identity.GroupId, groupId, StringComparison.Ordinal))
+                {
+                    return identity.Kind;
+                }
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadInvalidArgument, "A new generic group requires explicit kind and catalogue authority.");
         }
 
         private static string NormalizeId(string id)
@@ -486,13 +692,13 @@ namespace Opc.Ua.WotCon.Server
 
         private static string? GetString(ArrayOf<Variant> input, int index)
         {
-            return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is string s
+            return index < input.Count && input[index].TryGetValue(out string s)
                 ? s : null;
         }
 
         private static bool? GetBoolOrNull(ArrayOf<Variant> input, int index)
         {
-            return index < input.Count && input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) is bool b
+            return index < input.Count && input[index].TryGetValue(out bool b)
                 ? b : null;
         }
 
@@ -502,13 +708,15 @@ namespace Opc.Ua.WotCon.Server
             {
                 return null;
             }
-            return input[index].AsBoxedObject(Variant.BoxingBehavior.Legacy) switch
+            if (input[index].TryGetValue(out uint unsigned))
             {
-                uint u => u == 0 ? null : u,
-                int i => i == 0 ? null : i,
-                long l => l == 0 ? null : l,
-                _ => null
-            };
+                return unsigned == 0 ? null : unsigned;
+            }
+            if (input[index].TryGetValue(out int signed))
+            {
+                return signed == 0 ? null : signed;
+            }
+            return input[index].TryGetValue(out long epoch) && epoch != 0 ? epoch : null;
         }
 
         private static ServiceResult ToServiceResult(WotRegistryMutationResult result)
@@ -528,7 +736,8 @@ namespace Opc.Ua.WotCon.Server
         private class Strategy :
             IXRegistryProjectionStrategy,
             IXRegistryProjectionGenerationProvider,
-            IXRegistryProjectionEventMetadataProvider
+            IXRegistryProjectionEventMetadataProvider,
+            IXRegistryProjectionContextualDelete
         {
             public Strategy(WotRegistryProjection projection)
             {
@@ -557,13 +766,16 @@ namespace Opc.Ua.WotCon.Server
                 return CreateEventSnapshot(m_projection.m_registry.Current);
             }
 
+            /// <summary>
+            /// Creates the event snapshot of the registry projection.
+            /// </summary>
+            /// <param name="snapshot">The WoT registry snapshot.</param>
             public XRegistryProjectionEventSnapshot CreateEventSnapshot(
                 WotRegistrySnapshot snapshot)
             {
-                ImmutableArray<XRegistryProjectionEventGroup> groups = snapshot.Groups.Values
+                ImmutableArray<XRegistryProjectionEventGroup> groups = [.. snapshot.Groups.Values
                     .OrderBy(group => group.GroupId, StringComparer.Ordinal)
-                    .Select(CreateEventGroup)
-                    .ToImmutableArray();
+                    .Select(CreateEventGroup)];
                 return new XRegistryProjectionEventSnapshot(
                     "/",
                     checked((uint)snapshot.Generation),
@@ -579,10 +791,9 @@ namespace Opc.Ua.WotCon.Server
                     checked((uint)group.Epoch),
                     group.Labels,
                     false,
-                    group.Resources.Values
+                    [.. group.Resources.Values
                         .OrderBy(resource => resource.ResourceId, StringComparer.Ordinal)
-                        .Select(CreateEventResource)
-                        .ToImmutableArray())
+                        .Select(CreateEventResource)])
                 {
                     SourceNodeId = m_projection.GroupNodeId(group.GroupId),
                     SourceName = group.Name
@@ -601,9 +812,7 @@ namespace Opc.Ua.WotCon.Server
                     resource.MetaLabels,
                     false,
                     resource.DefaultVersionId,
-                    resource.Versions
-                        .Select(version => CreateEventVersion(resource, version))
-                        .ToImmutableArray())
+                    [.. resource.Versions.Select(version => CreateEventVersion(resource, version))])
                 {
                     SourceNodeId = defaultVersion is null
                         ? NodeId.Null
@@ -673,10 +882,21 @@ namespace Opc.Ua.WotCon.Server
                     ((IResourceAdapter)resource).Resource);
             }
 
+            /// <summary>
+            /// Configures a group node from its projection group.
+            /// </summary>
+            /// <param name="node">The group state.</param>
+            /// <param name="group">The x registry projection group.</param>
             public void ConfigureGroupNode(GroupState node, IXRegistryProjectionGroup group)
             {
+                m_projection.ConfigureTypedGroupNode(node, ((GroupAdapter)group).Group);
             }
 
+            /// <summary>
+            /// Configures a resource node from its projection resource.
+            /// </summary>
+            /// <param name="node">The resource state.</param>
+            /// <param name="resource">The x registry projection resource.</param>
             public void ConfigureResourceNode(ResourceState node, IXRegistryProjectionResource resource)
             {
                 var adapter = (IResourceAdapter)resource;
@@ -690,7 +910,8 @@ namespace Opc.Ua.WotCon.Server
                     m_projection.ApplyWotResourceProperties(
                         document,
                         adapter.Resource,
-                        adapter.Version);
+                        adapter.Version,
+                        adapter.IsConcreteVersion);
                 }
             }
 
@@ -712,23 +933,44 @@ namespace Opc.Ua.WotCon.Server
                     adapter.Version?.VersionId ?? string.Empty);
             }
 
-            protected bool SupportsVersions =>
-                m_projection.m_registry is IWotVersionedRegistryService;
+            protected bool SupportsVersions => m_projection.UsesVersionedProjection;
 
+            /// <summary>
+            /// Creates a group through the registry coordinator.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<IXRegistryProjectionGroup?> CreateGroupAsync(
                 string groupId,
                 CancellationToken ct)
             {
+                if (m_projection.m_registry is WotRegistryService stock)
+                {
+                    WotDocumentGroupResult created = await stock.ProvisionConfiguredGroupAsync(
+                        groupId, false, ct).ConfigureAwait(false);
+                    return new GroupAdapter(created.Group);
+                }
                 WotResourceGroup? group = await m_projection.m_registry
                     .TryCreateGroupAsync(groupId, m_projection.KindForGroup(groupId), cancellationToken: ct)
                     .ConfigureAwait(false);
                 return group is null ? null : new GroupAdapter(group);
             }
 
+            /// <summary>
+            /// Gets a group, creating it when it does not exist.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<(IXRegistryProjectionGroup Group, bool Created)> GetOrCreateGroupAsync(
                 string groupId,
                 CancellationToken ct)
             {
+                if (m_projection.m_registry is WotRegistryService stock)
+                {
+                    WotDocumentGroupResult result = await stock.ProvisionConfiguredGroupAsync(
+                        groupId, true, ct).ConfigureAwait(false);
+                    return (new GroupAdapter(result.Group), result.Created);
+                }
                 bool existed = m_projection.m_registry.Current.FindGroup(NormalizeId(groupId)) is not null;
                 WotResourceGroup group = await m_projection.m_registry
                     .GetOrCreateGroupAsync(groupId, m_projection.KindForGroup(groupId), cancellationToken: ct)
@@ -751,12 +993,32 @@ namespace Opc.Ua.WotCon.Server
                 return resource is null ? null : new LegacyResourceAdapter(resource);
             }
 
+            /// <summary>
+            /// Creates a resource and its version through the registry service.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="versionId">The version ID.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
                 string groupId,
                 string resourceId,
                 string versionId,
                 CancellationToken ct)
             {
+                if (m_projection.m_registry is WotRegistryService stock)
+                {
+                    try
+                    {
+                        WotDocumentResourceResult result = await stock.ProvisionConfiguredResourceAsync(
+                            groupId, resourceId, versionId, false, ct).ConfigureAwait(false);
+                        return new ResourceAdapter(result.Resource, result.Version);
+                    }
+                    catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNodeIdExists)
+                    {
+                        return null;
+                    }
+                }
                 WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
                 if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
                 {
@@ -791,6 +1053,13 @@ namespace Opc.Ua.WotCon.Server
                 return (new LegacyResourceAdapter(resource), created);
             }
 
+            /// <summary>
+            /// Gets a resource and its version, creating them when they do not exist.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="versionId">The version ID.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
             public async ValueTask<(IXRegistryProjectionResource Resource, bool Created)>
                 GetOrCreateResourceAsync(
                     string groupId,
@@ -798,6 +1067,12 @@ namespace Opc.Ua.WotCon.Server
                     string versionId,
                     CancellationToken ct)
             {
+                if (m_projection.m_registry is WotRegistryService stock)
+                {
+                    WotDocumentResourceResult result = await stock.ProvisionConfiguredResourceAsync(
+                        groupId, resourceId, versionId, true, ct).ConfigureAwait(false);
+                    return (new ResourceAdapter(result.Resource, result.Version), result.CreatedVersion);
+                }
                 WotResourceGroup? group = m_projection.m_registry.Current.FindGroup(groupId);
                 if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
                 {
@@ -816,28 +1091,75 @@ namespace Opc.Ua.WotCon.Server
                 return (new ResourceAdapter(resource, version), created);
             }
 
-            public async ValueTask<ServiceResult> DeleteGroupAsync(
+            public ValueTask<ServiceResult> DeleteGroupAsync(
                 string groupId,
                 long? epoch,
                 CancellationToken ct)
             {
+                return DeleteGroupAsync(groupId, epoch, null, ct);
+            }
+
+            /// <summary>
+            /// Deletes a group, handing the executing request's context to the generic lifecycle.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="epoch">The expected epoch of the group, if any.</param>
+            /// <param name="context">The system context of the executing request, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
                 WotRegistryMutationResult result = await m_projection.m_registry
-                    .DeleteGroupAsync(groupId, epoch, ct).ConfigureAwait(false);
+                    .DeleteGroupAsync(groupId, epoch, context?.GetOperationContext(), ct).ConfigureAwait(false);
                 return ToServiceResult(result);
             }
 
-            public async ValueTask<ServiceResult> DeleteResourceAsync(
+            /// <summary>
+            /// Deletes a logical resource through the delete coordinator.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="epoch">The expected epoch of the resource, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public ValueTask<ServiceResult> DeleteResourceAsync(
                 string groupId,
                 string resourceId,
                 long? epoch,
                 CancellationToken ct)
             {
-                WotRegistryMutationResult result = await m_projection.m_registry
-                    .DeleteResourceAsync(groupId, resourceId, epoch, ct).ConfigureAwait(false);
-                return ToServiceResult(result);
+                return DeleteResourceAsync(groupId, resourceId, epoch, null, ct);
             }
 
-            public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+            private async ValueTask<ServiceResult> DeleteResourceAsync(
+                string groupId,
+                string resourceId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                WotDeleteOutcome result = await m_projection.m_manager.Coordinator.DeleteAsync(new WotDeleteRequest
+                {
+                    GroupId = groupId, ResourceId = resourceId, ExpectedEpoch = epoch,
+                    Policy = m_projection.m_manager.Coordinator.DeletePolicy,
+                    CallerContext = context?.GetOperationContext()
+                }, ct).ConfigureAwait(false);
+                return ToServiceResult(new WotRegistryMutationResult(
+                    result.Delete.Outcome, null, result.Delete.Generation, [], result.Delete.Message));
+            }
+
+            /// <summary>
+            /// Deletes a projected version or, when requested, the whole logical resource.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="versionId">The version ID.</param>
+            /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
+            /// <param name="epoch">The expected epoch of the entity, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public ValueTask<ServiceResult> DeleteProjectedEntityAsync(
                 string groupId,
                 string resourceId,
                 string versionId,
@@ -845,6 +1167,34 @@ namespace Opc.Ua.WotCon.Server
                 long? epoch,
                 CancellationToken ct)
             {
+                return DeleteProjectedEntityAsync(
+                    groupId, resourceId, versionId, deleteLogicalResource, epoch, null, ct);
+            }
+
+            /// <summary>
+            /// Deletes a projected version or the logical resource, handing the executing request's
+            /// context to the generic lifecycle.
+            /// </summary>
+            /// <param name="groupId">The group ID.</param>
+            /// <param name="resourceId">The resource ID.</param>
+            /// <param name="versionId">The version ID.</param>
+            /// <param name="deleteLogicalResource">The delete-logical-resource flag supplied by the caller.</param>
+            /// <param name="epoch">The expected epoch of the entity, if any.</param>
+            /// <param name="context">The system context of the executing request, if any.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public async ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                if (deleteLogicalResource)
+                {
+                    return await DeleteResourceAsync(groupId, resourceId, epoch, context, ct).ConfigureAwait(false);
+                }
                 if (m_projection.m_registry is not IWotVersionedRegistryService versioned)
                 {
                     return StatusCodes.BadNotSupported;
@@ -855,6 +1205,7 @@ namespace Opc.Ua.WotCon.Server
                         versionId,
                         deleteLogicalResource,
                         epoch,
+                        context?.GetOperationContext(),
                         ct)
                     .ConfigureAwait(false);
                 return ToServiceResult(result);
@@ -1074,7 +1425,7 @@ namespace Opc.Ua.WotCon.Server
             string versionId)
         {
             string path = $"{RegistryNodeIdPath}/groups/{groupId}/resources/{resourceId}";
-            if (m_registry is not IWotVersionedRegistryService)
+            if (!UsesVersionedProjection)
             {
                 return new NodeId(path, m_modelNs);
             }
@@ -1155,19 +1506,36 @@ namespace Opc.Ua.WotCon.Server
             IXRegistryProjectionResourceMeta,
             IResourceAdapter
         {
-            public ResourceAdapter(WotResource resource, WotResourceVersion version)
+            /// <summary>
+            /// Initializes a new <c>ResourceAdapter</c> instance.
+            /// </summary>
+            /// <param name="resource">The WoT resource used to initialize the instance.</param>
+            /// <param name="version">The version used to initialize the instance.</param>
+            /// <param name="preparedLease">The prepared lease used to initialize the instance.</param>
+            public ResourceAdapter(
+                WotResource resource, WotResourceVersion version, IWotRegistryVersionLease? preparedLease = null)
             {
                 Resource = resource;
                 Version = version;
+                PreparedLease = preparedLease;
             }
 
             public WotResource Resource { get; }
             public WotResourceVersion Version { get; }
+
+            /// <summary>
+            /// Gets the prepared lease for <c>ResourceAdapter</c>.
+            /// </summary>
+            public IWotRegistryVersionLease? PreparedLease { get; }
             public bool IsConcreteVersion => true;
             public string GroupId => Resource.GroupId;
             public string ResourceId => Resource.ResourceId;
             public string Xid => $"{Resource.Xid}/versions/{Version.VersionId}";
-            public string Name => Resource.Name;
+
+            public string Name => string.IsNullOrWhiteSpace(Version.Title)
+                ? Resource.SourceId ?? Resource.Name
+                : Version.Title!;
+
             public string Description => Resource.Description;
             public string VersionId => Version.VersionId;
             public string Format => Version.Format;
@@ -1180,6 +1548,7 @@ namespace Opc.Ua.WotCon.Server
             public ImmutableSortedDictionary<string, string> MetaLabels => Resource.MetaLabels;
             public DateTime MetaCreatedAt => Resource.MetaCreatedAt;
             public DateTime MetaModifiedAt => Resource.MetaModifiedAt;
+
             public bool IsDefaultVersion => string.Equals(
                 Resource.DefaultVersionId,
                 Version.VersionId,
@@ -1221,8 +1590,10 @@ namespace Opc.Ua.WotCon.Server
 
         private sealed class ResourceFileAdapter :
             IXRegistryProjectedResourceFile,
-            IXRegistryProjectedContentlessResourceFile,
-            IXRegistryProjectedResourceFileHandleForwarder
+            IXRegistryPreparedResourceFile,
+            IXRegistryAsyncProjectedContentlessResourceFile,
+            IXRegistryAsyncProjectedResourceFileHandleForwarder,
+            IXRegistryProjectedResourceSessionDiscard
         {
             public ResourceFileAdapter(
                 WotResourceFileManager file,
@@ -1245,6 +1616,33 @@ namespace Opc.Ua.WotCon.Server
                 return m_file.TryOpenWriteHandle(sessionId, out fileHandle);
             }
 
+            /// <summary>
+            /// Opens the file for a write that preserves the existing content.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                return m_file.OpenPreservingWriteAsync(context, cancellationToken);
+            }
+
+            /// <summary>
+            /// Opens the file of a specific resource for a write that preserves the existing content.
+            /// </summary>
+            /// <param name="resource">The x registry projection resource.</param>
+            /// <param name="context">The system context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public ValueTask<(ServiceResult Status, uint FileHandle)> OpenPreservingWriteAsync(
+                IXRegistryProjectionResource resource,
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                return m_file.OpenPreservingWriteAsync(
+                    context, cancellationToken, (resource as ResourceAdapter)?.PreparedLease);
+            }
+
             public ServiceResult TryOpenContentlessWriteHandle(
                 ISystemContext context,
                 out uint fileHandle)
@@ -1253,6 +1651,18 @@ namespace Opc.Ua.WotCon.Server
                     ? sessionContext.SessionId.GetValueOrDefault()
                     : NodeId.Null;
                 return m_file.TryOpenContentlessWriteHandle(sessionId, out fileHandle);
+            }
+
+            /// <summary>
+            /// Opens the file for a write that starts without the existing content.
+            /// </summary>
+            /// <param name="context">The system context.</param>
+            /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
+            public ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                return m_file.OpenContentlessWriteAsync(context, cancellationToken);
             }
 
             public void ApplyResource(IXRegistryProjectionResource resource)
@@ -1269,7 +1679,17 @@ namespace Opc.Ua.WotCon.Server
                 m_file.Dispose();
             }
 
-            // --- IXRegistryProjectedResourceFileHandleForwarder ---
+            /// <summary>
+            /// Discards the write handles held by a closing session.
+            /// </summary>
+            /// <param name="sessionId">The session identifier.</param>
+            /// <param name="ct">The cancellation token supplied by the caller.</param>
+            public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+            {
+                ct.ThrowIfCancellationRequested();
+                m_file.CloseSession(sessionId);
+                return default;
+            }
 
             ServiceResult IXRegistryProjectedResourceFileHandleForwarder.ForwardOpen(
                 ISystemContext context, MethodState method, NodeId objectId,
@@ -1277,6 +1697,15 @@ namespace Opc.Ua.WotCon.Server
             {
                 return ((IXRegistryProjectedResourceFileHandleForwarder)m_file)
                     .ForwardOpen(context, method, objectId, mode, ref fileHandle);
+            }
+
+            ValueTask<OpenMethodStateResult>
+                IXRegistryAsyncProjectedResourceFileHandleForwarder.ForwardOpenAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                byte mode, CancellationToken cancellationToken)
+            {
+                return ((IXRegistryAsyncProjectedResourceFileHandleForwarder)m_file)
+                    .ForwardOpenAsync(context, method, objectId, mode, cancellationToken);
             }
 
             ValueTask<ServiceResult> IXRegistryProjectedResourceFileHandleForwarder.ForwardCloseAsync(
@@ -1327,8 +1756,26 @@ namespace Opc.Ua.WotCon.Server
         private readonly WotRegistryNodeManager m_manager;
         private readonly IWotRegistryService m_registry;
         private readonly WotRegistryServerOptions m_options;
+        private readonly ILogger m_logger;
         private readonly ushort m_modelNs;
         private readonly Strategy m_strategy;
         private readonly XRegistryProjectionEngine m_engine;
+        private readonly ConditionalWeakTable<WotRegistrySnapshot, Lazy<ImmutableDictionary<string, ByteString>>>
+            m_membershipDigests = new();
+    }
+
+    /// <summary>
+    /// Contains the source-generated log-event declarations for <c>WotRegistryProjectionLog</c>.
+    /// </summary>
+    internal static partial class WotRegistryProjectionLog
+    {
+        /// <summary>
+        /// Writes the log event: <c>The exact-Version validation outcome committed with a completion warning</c>.
+        /// </summary>
+        /// <param name="logger">The logger receiving this event.</param>
+        /// <param name="exception">The exception attached to the event.</param>
+        [LoggerMessage(EventId = WotConServerEventIds.WotRegistryProjection, Level = LogLevel.Warning,
+            Message = "The exact-Version validation outcome committed with a completion warning")]
+        public static partial void ValidationCommittedWithWarning(this ILogger logger, Exception exception);
     }
 }

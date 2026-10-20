@@ -546,6 +546,65 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
+        /// Verifies that full corpus samples have an isolated bounded budget.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task FullCorpusSamplesHaveAnIsolatedBoundedBudgetAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] samples = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal)).ToArray();
+
+            Assert.That(samples, Is.Not.Empty);
+            foreach (MatrixEntry sample in samples)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sample.Projects, Does.Not.Contain(";"));
+                    Assert.That(sample.PerProjectTimeout, Is.EqualTo(240));
+                    Assert.That(sample.TimeoutMinutes, Is.EqualTo(260));
+                    Assert.That(sample.HangTimeout, Is.EqualTo("65m"));
+                });
+            }
+            Assert.That(matrix.Tests.Where(entry =>
+                !entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) &&
+                !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)),
+                Is.All.Matches<MatrixEntry>(entry => entry != null && entry.PerProjectTimeout == 45));
+        }
+
+        /// <summary>
+        /// Verifies that integration projects retain their whole run after cold compilation.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task IntegrationProjectsRetainTheirWholeRunAfterColdCompilationAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+            MatrixEntry[] integration = matrix.Tests.Where(entry =>
+                entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) ||
+                entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) ||
+                entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)).ToArray();
+            Assert.That(integration, Is.Not.Empty);
+            foreach (MatrixEntry entry in integration)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(entry.Projects, Does.Not.Contain(";"));
+                    int budget = entry.Framework == "net48" &&
+                        entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) ? 150 : 90;
+                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(budget));
+                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(budget + 20));
+                    Assert.That(entry.HangTimeout, Is.EqualTo(
+                        entry.Tier == "mainline" &&
+                        !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal) ? "10m" : "30m"));
+                });
+            }
+        }
+
+        /// <summary>
         /// The per-project ceiling the matrix budgets once must also be spent
         /// once. Handing it separately to the build and to the test would let a
         /// project burn twice what its job was given, so both invocations share
@@ -665,6 +724,15 @@ namespace Opc.Ua.Tools.Tests
 
         private static string FindRepositoryRoot()
         {
+            string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                if (!File.Exists(Path.Combine(configuredRoot, ".github", "scripts", "get-ci-matrix.ps1")))
+                {
+                    throw new DirectoryNotFoundException("The configured root has no CI matrix script.");
+                }
+                return configuredRoot;
+            }
             string? current = TestContext.CurrentContext.TestDirectory;
             while (!string.IsNullOrWhiteSpace(current))
             {
@@ -688,6 +756,18 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// One expanded test matrix entry. Deserialized by reflection, hence public.
         /// </summary>
+        /// <param name="PerProjectTimeout">The per project timeout.</param>
+        /// <param name="TimeoutMinutes">The timeout minutes.</param>
+        /// <param name="PackedMinutes">The packed minutes.</param>
+        /// <param name="HangTimeout">The hang timeout.</param>
+        /// <param name="Id">The matrix entry identifier.</param>
+        /// <param name="Os">The operating system of the runner.</param>
+        /// <param name="Profile">The test profile of the entry.</param>
+        /// <param name="Tier">The test tier of the entry.</param>
+        /// <param name="Framework">The target framework of the entry.</param>
+        /// <param name="Filter">The test filter expression of the entry.</param>
+        /// <param name="Coverage">The coverage flag supplied by the caller.</param>
+        /// <param name="Projects">The test projects run by the entry.</param>
         public sealed record MatrixEntry(
             string Id,
             string Os,
@@ -699,7 +779,8 @@ namespace Opc.Ua.Tools.Tests
             string Projects,
             int PerProjectTimeout,
             int TimeoutMinutes,
-            int PackedMinutes);
+            int PackedMinutes,
+            string HangTimeout);
 
         /// <summary>
         /// One expanded solution build matrix entry.

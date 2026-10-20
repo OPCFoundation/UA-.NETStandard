@@ -54,6 +54,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
     [SetUICulture("en-us")]
     public sealed class WotAggregationDocumentGeneratorTests
     {
+        /// <summary>
+        /// Verifies that manifest rejects missing logical dependencies.
+        /// </summary>
+        /// <param name="referenceTerm">The dependency reference term selected by the test case.</param>
         [TestCase("tm:ref")]
         [TestCase("uav:componentOf")]
         [TestCase("href")]
@@ -70,6 +74,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "'dependent' references missing sample document 'missing'."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects dependency cycles.
+        /// </summary>
         [Test]
         public void ManifestRejectsDependencyCycles()
         {
@@ -89,6 +96,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Cyclic sample document dependency at 'a': a -> b -> c -> a."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects duplicate resources even when their paths and kinds differ.
+        /// </summary>
         [Test]
         public void ManifestRejectsDuplicateResourcesEvenWhenTheirPathsAndKindsDiffer()
         {
@@ -104,6 +114,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Duplicate sample resource 'duplicate'."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects duplicate document paths.
+        /// </summary>
         [Test]
         public void ManifestRejectsDuplicateDocumentPaths()
         {
@@ -119,6 +132,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Ambiguous sample document alias 'sample/sample-member.json'."));
         }
 
+        /// <summary>
+        /// Verifies that manifest order is stable without chaining independent documents.
+        /// </summary>
+        /// <param name="inputOrder">The input order used by this test case.</param>
         [TestCase(0)]
         [TestCase(1)]
         [TestCase(2)]
@@ -133,7 +150,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             ];
             ArrayOf<SampleDocument> documents = inputOrder switch
             {
-                1 => Enumerable.Reverse(input).ToArrayOf(),
+                1 => input.AsEnumerable().Reverse().ToArrayOf(),
                 2 => input.OrderBy(document => document.ResourceId, StringComparer.Ordinal).ToArrayOf(),
                 _ => input.ToArrayOf()
             };
@@ -151,6 +168,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest uses nested logical references but not transport addresses or self references.
+        /// </summary>
         [Test]
         public void ManifestUsesNestedLogicalReferencesButNotTransportAddressesOrSelfReferences()
         {
@@ -193,6 +213,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn.IsEmpty, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the generated manifest preserves logical identities, URI paths, document kinds, and groups.
+        /// </summary>
+        /// <param name="kind">The Thing Description affordance kind being skipped.</param>
+        /// <param name="group">The registry group selected by the test case.</param>
         [TestCase(WoTDocumentKindEnum.ThingModel, "thingmodels")]
         [TestCase(WoTDocumentKindEnum.ThingDescription, "thingdescriptions")]
         public void ManifestPreservesLogicalIdsUriPathsKindsAndGroups(WoTDocumentKindEnum kind, string group)
@@ -213,11 +238,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entry.GetProperty("dependsOn").GetArrayLength(), Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that generated manifest uses indented lf JSON.
+        /// </summary>
         [Test]
         public void GeneratedManifestUsesIndentedLfJson()
         {
             ByteString generated = WotAggregationDocumentGenerator.GenerateManifest([CreateDocument("resource")]);
-            string expected = """
+            string expected = /*lang=json,strict*/ """
                 [
                   {
                     "dependsOn": [],
@@ -227,11 +255,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "resourceId": "resource"
                   }
                 ]
-                """.Replace("\r\n", "\n", StringComparison.Ordinal) + "\n";
+                """.Replace("\r\n", "\n", StringComparison.Ordinal) +
+                "\n";
 
             Assert.That(Encoding.UTF8.GetString(generated.ToArray()), Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Verifies that generated filenames normalize hyphens without altering resource identifiers.
+        /// </summary>
+        /// <param name="browseName">The browse name used by the operation.</param>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="fileName">The file name used by the test case.</param>
         [TestCase("<CPIdentifier>", "sample-pump--cpidentifier", "sample-pump-cpidentifier.json")]
         [TestCase("Pump--Controller", "sample-pump-pump--controller", "sample-pump-pump-controller.json")]
         [TestCase("Pump-", "sample-pump-pump", "sample-pump-pump.json")]
@@ -266,6 +301,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(json.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo("nsu=urn:sample;i=2"));
         }
 
+        /// <summary>
+        /// Verifies that manifest maps portable type references to their actual documents.
+        /// </summary>
         [Test]
         public void ManifestMapsPortableTypeReferencesToTheirActualDocuments()
         {
@@ -314,6 +352,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entry.DependsOn.ToList(), Does.Not.Contain("model-header").And.Not.Contain("transport-only"));
         }
 
+        /// <summary>
+        /// Verifies that manifest resolves qualified model type and reference names.
+        /// </summary>
         [Test]
         public void ManifestResolvesQualifiedModelTypeAndReferenceNames()
         {
@@ -340,6 +381,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(s_namedDependencies));
         }
 
+        /// <summary>
+        /// Verifies that manifest uses definitive reference pins or rejects ambiguous names.
+        /// </summary>
+        /// <param name="pinned">Whether the test case uses a pinned resource version.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void ManifestUsesDefinitiveReferencePinsOrRejectsAmbiguousNames(bool pinned)
@@ -373,6 +418,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest does not turn forward object references into parent dependency cycles.
+        /// </summary>
         [Test]
         public void ManifestDoesNotTurnForwardObjectReferencesIntoParentDependencyCycles()
         {
@@ -399,6 +447,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn.ToList(), Is.EqualTo(s_parentDependency));
         }
 
+        /// <summary>
+        /// Verifies that manifest does not treat an inverse interface edge as a type prerequisite.
+        /// </summary>
         [Test]
         public void ManifestDoesNotTreatAnInverseInterfaceEdgeAsATypePrerequisite()
         {
@@ -433,6 +484,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(entries[1].DependsOn[0], Is.EqualTo("interface"));
         }
 
+        /// <summary>
+        /// Verifies that manifest does not depend on data types already declared in the document.
+        /// </summary>
         [Test]
         public void ManifestDoesNotDependOnDataTypesAlreadyDeclaredInTheDocument()
         {
@@ -476,6 +530,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that manifest preserves hash characters in node IDs and logical document identities.
+        /// </summary>
         [Test]
         public void ManifestPreservesHashCharactersInNodeIdsAndLogicalDocumentIdentities()
         {
@@ -497,6 +554,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(s_hashIdentityDependencies));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects a referenced type without an owner.
+        /// </summary>
         [Test]
         public void ManifestRejectsAReferencedTypeWithoutAnOwner()
         {
@@ -511,6 +571,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "'consumer' references node 'nsu=urn:missing;i=42' without a document owner."));
         }
 
+        /// <summary>
+        /// Verifies that manifest rejects multiple roots claiming one node.
+        /// </summary>
         [Test]
         public void ManifestRejectsMultipleRootsClaimingOneNode()
         {
@@ -526,6 +589,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "Multiple root documents own the local node 'nsu=urn:model;i=1001'."));
         }
 
+        /// <summary>
+        /// Verifies that affordance references use local identities and escape nested JSON pointer tokens.
+        /// </summary>
         [Test]
         public void AffordanceReferenceUsesLocalIdentityAndEscapesNestedJsonPointerTokens()
         {
@@ -571,6 +637,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(ReadDeclaration(documents, reference)["uav:id"]!.GetValue<string>(), Is.EqualTo(nodeId));
         }
 
+        /// <summary>
+        /// Verifies that affordance reference rejects missing or ambiguous local declarations.
+        /// </summary>
+        /// <param name="mapName">The map name used by this test case.</param>
+        /// <param name="declarations">The number of local declarations in the document.</param>
         [TestCase("properties", 0)]
         [TestCase("properties", 2)]
         [TestCase("actions", 0)]
@@ -580,7 +651,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
         public void AffordanceReferenceRejectsMissingOrAmbiguousLocalDeclarations(string mapName, int declarations)
         {
             const string nodeId = "nsu=urn:local;s=Pump1.Member";
-            ArrayOf<SampleDocument> documents = Enumerable.Range(0, declarations).Select(index =>
+            var documents = Enumerable.Range(0, declarations).Select(index =>
                 CreateDocument(index == 0 ? "first" : "second", new JsonObject
                 {
                     [mapName] = new JsonObject { ["Member"] = new JsonObject { ["uav:id"] = nodeId } }
@@ -592,6 +663,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     $"Expected exactly one '{mapName}' declaration for '{nodeId}'; found {declarations}."));
         }
 
+        /// <summary>
+        /// Verifies that generated pump root titles retain the display names of their source nodes.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="resourceId">The resource identifier selected by the operation.</param>
+        /// <param name="displayName">The display name used by the operation.</param>
         [TestCase("Pump1", "sample-pump", "Pump #1")]
         [TestCase("Pump2", "sample-pump-pump-2", "Pump #2")]
         public async Task GeneratedPumpRootTitlesPreserveSourceDisplayNames(
@@ -608,6 +685,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Is.EqualTo(WotAggregationDocumentGenerator.LocalNodeId(pumpName, string.Empty)));
         }
 
+        /// <summary>
+        /// Verifies that pump source XML range bodies use the standard XML encoding.
+        /// </summary>
         [Test]
         public void PumpSourceXmlRangeBodiesUseTheStandardXmlEncoding()
         {
@@ -617,11 +697,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 .Where(extension => extension.Element(types + "Body")?.Element(types + "Range") is not null)];
 
             Assert.That(ranges, Is.Not.Empty, "The source must exercise XML-bodied Range values.");
-            NodeId expected = global::Opc.Ua.ObjectIds.Range_Encoding_DefaultXml;
+            NodeId expected = Ua.ObjectIds.Range_Encoding_DefaultXml;
             foreach (XElement range in ranges)
             {
                 string origin = range.Ancestors().Select(element => (string?)element.Attribute("NodeId"))
-                    .FirstOrDefault(nodeId => nodeId is not null) ?? PumpSourcePath;
+                    .FirstOrDefault(nodeId => nodeId is not null) ??
+                    PumpSourcePath;
                 XElement? identifier = range.Element(types + "TypeId")?.Element(types + "Identifier");
                 Assert.That(identifier, Is.Not.Null, origin);
                 Assert.That(NodeId.TryParse(identifier!.Value, out NodeId encodingId), Is.True, origin);
@@ -629,6 +710,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that generated pump source files use LF line endings.
+        /// </summary>
         [Test]
         public void GeneratedPumpSourceUsesLfLineEndings()
         {
@@ -638,6 +722,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(generated.Span[generated.Length - 1], Is.EqualTo((byte)'\n'));
         }
 
+        /// <summary>
+        /// Verifies that generated pump source rebuilds missing declarations and the second pump.
+        /// </summary>
         [Test]
         public void GeneratedPumpSourceRebuildsMissingDeclarationsAndTheSecondPump()
         {
@@ -680,7 +767,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 {
                     UANode root = restored.Items!.Single(node => node.NodeId == $"ns=1;s={pumpName}");
                     Assert.That(root.References!.Any(reference => reference.ReferenceType == "i=35" &&
-                        !reference.IsForward && reference.Value == "i=85"), Is.True, pumpName);
+                        !reference.IsForward &&
+                        reference.Value == "i=85"), Is.True, pumpName);
                     Assert.That(restored.Items!.Select(node => node.NodeId),
                         Is.SupersetOf(ownedNames.Select(name => $"ns=1;s={pumpName}.{name}")), pumpName);
                 }
@@ -699,11 +787,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment preserves source declarations and property schemas.
+        /// </summary>
         [Test]
         public async Task BindingEnrichmentPreservesSourceDeclarationsAndPropertySchemas()
         {
             ArrayOf<SampleDocument> source = await ReadUnboundPumpDocumentsAsync().ConfigureAwait(false);
-            Dictionary<string, byte[]> originalBytes = source.ToList().ToDictionary(
+            var originalBytes = source.ToList().ToDictionary(
                 document => document.ResourceId, document => document.Json.ToArray(), StringComparer.Ordinal);
 
             ArrayOf<SampleDocument> bound = await WotAggregationDocumentGenerator
@@ -712,8 +803,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(bound.ToList().Select(document => (document.ResourceId, document.Path, document.DocumentKind)),
                 Is.EquivalentTo(source.ToList().Select(document =>
                     (document.ResourceId, document.Path, document.DocumentKind))));
-            string[] originalDeclarations = DeclarationInventory(source)
-                .OrderBy(value => value, StringComparer.Ordinal).ToArray();
+            string[] originalDeclarations = [.. DeclarationInventory(source).OrderBy(value => value, StringComparer.Ordinal)];
             Assert.That(originalDeclarations, Is.Not.Empty);
             Assert.That(DeclarationInventory(bound).OrderBy(value => value, StringComparer.Ordinal),
                 Is.EqualTo(originalDeclarations));
@@ -754,6 +844,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
             }
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment rejects missing source declarations.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="mapName">The map name used by this test case.</param>
+        /// <param name="localPath">The local path used by this test case.</param>
         [TestCase("Pump1", "properties", "Identification.Manufacturer")]
         [TestCase("Pump2", "properties", "SourceBRunning")]
         [TestCase("Pump1", "actions", "SourceAStart")]
@@ -772,14 +868,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
             ArrayOf<SampleDocument> incomplete = RemoveDeclaration(source, mapName, nodeId);
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(incomplete).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(incomplete),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
                     $"Expected exactly one '{mapName}' declaration for '{nodeId}'; found 0.")).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment rejects malformed native owners.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="nativeTerm">The native term used by this test case.</param>
         [TestCase("Pump1", "uav:nodes")]
         [TestCase("Pump1", "uav:nodeSet")]
         [TestCase("Pump2", "uav:nodes")]
@@ -791,7 +889,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 pumpName, "Operational.Measurements.DifferentialPressure");
             string reference = WotAggregationDocumentGenerator.AffordanceReference(source, "properties", nodeId);
             string owner = reference[..reference.IndexOf('#', StringComparison.Ordinal)];
-            ArrayOf<SampleDocument> overlaid = source.ToArrayOf(document =>
+            var overlaid = source.ToArrayOf(document =>
             {
                 if (document.ResourceId != owner)
                 {
@@ -803,14 +901,14 @@ namespace Opc.Ua.WotCon.Tests.Samples
             });
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(overlaid).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(overlaid),
                 Throws.TypeOf<InvalidOperationException>().With.Message.Contains(
                     owner)).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that enriching verified pump bindings retains every native projection partition.
+        /// </summary>
         [Test]
         public async Task VerifiedPumpBindingsPreserveEveryNativePartition()
         {
@@ -838,6 +936,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
             Assert.That(nativePartitions, Is.GreaterThan(1));
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment rejects readable members missing from their native partition.
+        /// </summary>
         [Test]
         public async Task BindingEnrichmentRejectsReadableMembersMissingFromTheirNativePartition()
         {
@@ -865,6 +966,48 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     "cannot overlay undeclared Property")).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that binding enrichment validates readable facts after resolving partition ownership.
+        /// </summary>
+        [Test]
+        public async Task BindingEnrichmentValidatesReadableFactsAfterResolvingPartitionOwnership()
+        {
+            UANodeSet source = WotAggregationDocumentGenerator.ReadNodeSet(PumpSourcePath);
+            ArrayOf<SampleDocument> declarations = await WotAggregationDocumentGenerator
+                .GenerateVerifiedDocumentSetAsync(source, "sample-pump").ConfigureAwait(false);
+            string nodeId = WotAggregationDocumentGenerator.LocalNodeId(
+                "Pump1", "Operational.Measurements.DifferentialPressure");
+            string reference = WotAggregationDocumentGenerator.AffordanceReference(declarations, "properties", nodeId);
+            int separator = reference.IndexOf('#', StringComparison.Ordinal);
+            string owner = reference[..separator];
+            ArrayOf<SampleDocument> contradictory = declarations.ConvertAll(document =>
+            {
+                if (document.ResourceId != owner)
+                {
+                    return document;
+                }
+                JsonObject root = JsonNode.Parse(document.Json.Span)!.AsObject();
+                JsonNode value = root;
+                foreach (string token in PointerTokens(reference[(separator + 1)..]))
+                {
+                    value = value[token]!;
+                }
+                value["uav:dataTypeId"] = "i=12";
+                return document with { Json = ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root)) };
+            });
+
+            await Assert.ThatAsync(
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(contradictory),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("readable DataType"))
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Verifies that binding enrichment rejects condition actions separated from their event.
+        /// </summary>
+        /// <param name="pumpName">The pump name used by this test case.</param>
+        /// <param name="actionName">The action name used by this test case.</param>
+        /// <param name="eventName">The event name used by this test case.</param>
         [TestCase("Pump1", "CavitationAcknowledge", "CavitationAlarm")]
         [TestCase("Pump2", "MotorOverheatConfirm", "MotorOverheatAlarm")]
         public async Task BindingEnrichmentRejectsConditionActionsSeparatedFromTheirEvent(
@@ -883,14 +1026,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 }));
 
             await Assert.ThatAsync(
-                async () =>
-                {
-                    await WotAggregationDocumentGenerator.BindPumpDocumentsAsync(separated).ConfigureAwait(false);
-                },
+                () => WotAggregationDocumentGenerator.BindPumpDocumentsAsync(separated),
                 Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(
                     $"'detached-condition' does not contain its '{eventName}' Condition event.")).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that projections never synthesize missing source declarations.
+        /// </summary>
+        /// <param name="pumpName">The sample pump instance name.</param>
+        /// <param name="mapName">The authored target-mapping term selected by the test case.</param>
+        /// <param name="localPath">The local path used by the test case.</param>
         [TestCase("Pump1", "properties", "Identification.SerialNumber")]
         [TestCase("Pump2", "properties", "Operational.Measurements.MassFlow")]
         [TestCase("Pump1", "actions", "SourceBStop")]
@@ -919,7 +1065,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string browseName,
             JsonObject? root = null)
         {
-            root ??= new JsonObject();
+            root ??= [];
             bool isType = type != "uav:object";
             root["@context"] ??= new JsonObject
             {
@@ -942,7 +1088,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string? path = null)
         {
             return new SampleDocument(resourceId, path ?? resourceId + ".json", kind,
-                ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? new JsonObject())));
+                ByteString.From(JsonSerializer.SerializeToUtf8Bytes(root ?? [])));
         }
 
         private static async Task<ArrayOf<SampleDocument>> ReadUnboundPumpDocumentsAsync()
@@ -998,9 +1144,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static string[] PointerTokens(string pointer)
         {
-            return pointer[1..].Split('/').Select(token =>
-                token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))
-                .ToArray();
+            return [.. pointer[1..].Split('/').Select(token =>
+                token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal))];
         }
 
         private static IEnumerable<string> DeclarationInventory(ArrayOf<SampleDocument> documents)
@@ -1029,7 +1174,8 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     {
                         continue;
                     }
-                    string memberPointer = pointer + "/" +
+                    string memberPointer = pointer +
+                        "/" +
                         name.Replace("~", "~0", StringComparison.Ordinal).Replace("/", "~1", StringComparison.Ordinal);
                     if (affordance["uav:id"] is JsonNode id)
                     {
@@ -1053,6 +1199,16 @@ namespace Opc.Ua.WotCon.Tests.Samples
         {
             get
             {
+                string? configuredRoot = Environment.GetEnvironmentVariable("OPCUA_TEST_REPOSITORY_ROOT");
+                if (!string.IsNullOrEmpty(configuredRoot))
+                {
+                    string root = Path.GetFullPath(configuredRoot);
+                    if (!File.Exists(Path.Combine(root, "UA.slnx")))
+                    {
+                        throw new DirectoryNotFoundException("The configured repository root has no UA.slnx.");
+                    }
+                    return root;
+                }
                 DirectoryInfo? directory = new(TestContext.CurrentContext.TestDirectory);
                 while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
                 {
@@ -1067,10 +1223,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
         private static readonly string[] s_modelDependency = ["z-model"];
         private static readonly string[] s_logicalOrder = ["model", "owner", "view"];
         private static readonly string[] s_logicalDependencies = ["model", "owner"];
+
         private static readonly string[] s_manifestFields =
         [
             "resourceId", "path", "documentKind", "groupId", "dependsOn"
         ];
+
         private static readonly string[] s_portableDependencies = ["feeds-type", "pump-type", "reading-type"];
         private static readonly string[] s_namedDependencies = ["feeds-type", "pump-type"];
         private static readonly string[] s_pinnedReferenceDependency = ["second-reference"];

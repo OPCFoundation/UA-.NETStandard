@@ -282,6 +282,12 @@ $BatchFixedMinutes = 6
 # its otherwise healthy test run normally takes about 25 minutes and has
 # exceeded 30 under runner variance.
 $PerProjectTimeoutMinutes = 45
+# Full-corpus sample workflows include generation replacement and two native
+# companion comparisons; retain them in a dedicated, bounded job.
+$SampleProjectTimeoutMinutes = 240
+$IntegrationProjectTimeoutMinutes = 90
+$WotFrameworkProjectTimeoutMinutes = 150
+$DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 $Net48ServerTestsTimeoutMinutes = 60
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
@@ -411,6 +417,16 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     $currentMinutes = 0
     foreach ($project in $projects) {
         $minutes = Get-ProjectMinutes $project
+        $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+        if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedIntegrationProjects -contains $stem) {
+            if ($current.Count -gt 0) {
+                $batches += , @($current)
+                $current = @()
+                $currentMinutes = 0
+            }
+            $batches += , @($project)
+            continue
+        }
         if ($current.Count -gt 0 -and
             ($currentMinutes + $minutes -gt $targetMinutes -or $current.Count -ge $MaxProjectsPerBatch)) {
             $batches += , @($current)
@@ -491,13 +507,30 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
         $batches = @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
-            $perProjectTimeout = $PerProjectTimeoutMinutes
+            $batchTimeout = $perProjectTimeout
+            $batchHangTimeout = $hangTimeout
+            if ($batch.Count -eq 1 -and
+                [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Samples.Tests') {
+                $batchTimeout = $SampleProjectTimeoutMinutes
+                $batchHangTimeout = '65m'
+            }
+            elseif ($batch.Count -eq 1 -and
+                $DedicatedIntegrationProjects -contains [System.IO.Path]::GetFileNameWithoutExtension($batch[0])) {
+                $batchTimeout = $IntegrationProjectTimeoutMinutes
+                if ($testProfile.framework -eq 'net48' -and
+                    [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Tests') {
+                    $batchTimeout = $WotFrameworkProjectTimeoutMinutes
+                }
+                if ([System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.Types.Tests') {
+                    $batchHangTimeout = '30m'
+                }
+            }
             if ($testProfile.framework -eq 'net48' -and
                 $testProfile.os -eq 'windows' -and
                 @($batch | Where-Object {
                     [System.IO.Path]::GetFileNameWithoutExtension($_) -eq 'Opc.Ua.Server.Tests'
                 }).Count -gt 0) {
-                $perProjectTimeout = $Net48ServerTestsTimeoutMinutes
+                $batchTimeout = [System.Math]::Max($batchTimeout, $Net48ServerTestsTimeoutMinutes)
             }
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
             # 20 minutes of fixed cost - checkout, SDK install, restore - plus
@@ -505,7 +538,7 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
             # batch. It has to stay a true upper bound on what the executor can
             # spend, or GitHub cancels the job before run-dotnet-tests.ps1 can
             # attribute the overrun to a project.
-            $jobTimeout = 20 + ($batch.Count * $perProjectTimeout)
+            $jobTimeout = 20 + ($batch.Count * $batchTimeout)
             if ($jobTimeout -gt $MaxJobTimeoutMinutes) {
                 throw ("Batch '$batchId' of $($batch.Count) projects needs $jobTimeout minutes, past the " +
                     "$MaxJobTimeoutMinutes-minute ceiling. Clamping it would let the executor outlive the " +
@@ -523,10 +556,10 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                 framework         = $testProfile.framework
                 configuration     = $testProfile.configuration
                 filter            = $filter
-                hangTimeout       = $hangTimeout
+                hangTimeout       = $batchHangTimeout
                 coverage          = $coverage
                 projects          = $batch -join ';'
-                perProjectTimeout = $perProjectTimeout
+                perProjectTimeout = $batchTimeout
                 timeoutMinutes    = $jobTimeout
                 # The batch's summed weight from the duration table: what the
                 # packer balanced, on top of the fixed per-batch cost.

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,9 +40,17 @@ using Opc.Ua.WotCon.Bindings.Planners;
 
 namespace Opc.Ua.WotCon.Bindings.Tests
 {
+    /// <summary>
+    /// Tests preservation of condition invocation arguments.
+    /// </summary>
     [TestFixture]
     public sealed class WotConditionInvocationTests
     {
+        /// <summary>
+        /// Verifies that omitted optional comment is sent as the second null localized text.
+        /// </summary>
+        /// <param name="action">The condition action under test.</param>
+        /// <param name="contextual">The contextual flag for this test case.</param>
         [TestCase("Acknowledge", false)]
         [TestCase("Acknowledge", true)]
         [TestCase("Confirm", false)]
@@ -84,7 +93,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = contextual
                 ? await channel.InvokeAsync(new WotInvokeRequest([new Variant(eventId)], context))
@@ -97,6 +106,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that required comments and ordinary actions are not defaulted.
+        /// </summary>
+        /// <param name="action">The action under test.</param>
+        /// <param name="required">The required flag for this test case.</param>
         [TestCase("Acknowledge", true)]
         [TestCase("Ordinary", false)]
         public async Task RequiredCommentsAndOrdinaryActionsAreNotDefaulted(string action, bool required)
@@ -118,7 +132,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 });
             var channel = new OpcUaWotBindingChannel(
                 session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
-            await using var owner = channel.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
 
             WotInvokeResult result = await channel.InvokeAsync(
                 [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
@@ -126,6 +140,69 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
         }
 
+        /// <summary>
+        /// Verifies that omitted required comment is rejected before native invocation.
+        /// </summary>
+        [Test]
+        public async Task OmittedRequiredCommentIsRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Acknowledge", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that ordinary required arguments are rejected before native invocation.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryRequiredArgumentsAreRejectedBeforeNativeInvocation()
+        {
+            WotCompiledForm form = Compile("Ordinary", commentRequired: true);
+            ServiceMessageContext context = Context();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(context.NamespaceUris);
+            session.Setup(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CallResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync(
+                [new Variant(new ByteString(new byte[] { 1 }))]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that supplied comment and malformed argument counts are preserved.
+        /// </summary>
         [Test]
         public void SuppliedCommentAndMalformedArgumentCountsArePreserved()
         {
@@ -145,7 +222,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
         private static ServiceMessageContext Context()
         {
-            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+            var context = ServiceMessageContext.CreateEmpty(
                 TelemetryExtensions.InternalOnly__TelemetryHook());
             context.NamespaceUris.Append("urn:source");
             return context;

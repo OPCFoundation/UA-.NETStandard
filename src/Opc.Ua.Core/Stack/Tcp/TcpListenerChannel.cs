@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Bindings
             NotifyChannelClosed();
             try
             {
-                Transport?.Close();
+                CloseTransport(Transport);
             }
             finally
             {
@@ -1145,7 +1145,7 @@ namespace Opc.Ua.Bindings
             NotifyChannelClosed();
             try
             {
-                Transport?.Close();
+                CloseTransport(Transport);
             }
             finally
             {

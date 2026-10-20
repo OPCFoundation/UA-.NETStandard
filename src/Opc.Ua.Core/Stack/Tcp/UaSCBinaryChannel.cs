@@ -324,8 +324,7 @@ namespace Opc.Ua.Bindings
 
                 NotifyChannelClosed();
 
-                IUaSCByteTransport? transport = DetachTransport();
-                transport?.Close();
+                CloseTransport(DetachTransport());
                 DiscardTokens();
 
                 ClosePartialMessage();
@@ -707,7 +706,9 @@ namespace Opc.Ua.Bindings
                             if (m_partialMessageChunks == null)
                             {
                                 // most messages are a single, final chunk
-                                m_partialMessageChunks = isFinal ? new BufferCollection(1) : [];
+                                m_partialMessageChunks = isFinal
+                                    ? Interlocked.Exchange(ref m_spareMessageChunks, null) ?? new BufferCollection(1)
+                                    : [];
                                 m_partialMessageStartedAt = TimeProvider.GetTimestamp();
                                 m_partialMessageOwner = owner;
                             }
@@ -842,6 +843,44 @@ namespace Opc.Ua.Bindings
         {
             SaveChunk(requestId, chunk, isServerContext, gateHeld, isFinal: true);
             return TakeSavedChunks();
+        }
+
+        /// <summary>
+        /// Whether a final chunk is a whole message by itself, which most are: no
+        /// chunks of the message are saved, the partial message is not closed and
+        /// the chunk is within the message limits. The caller then processes the
+        /// chunk directly instead of passing it to <see cref="GetSavedChunks"/>,
+        /// and keeps owning its buffer.
+        /// </summary>
+        /// <param name="chunk">The body of the final chunk.</param>
+        /// <param name="isServerContext">Whether the chunk is part of a request.</param>
+        protected bool IsSingleChunkMessage(ArraySegment<byte> chunk, bool isServerContext)
+        {
+            if (chunk.Array == null)
+            {
+                return false;
+            }
+            lock (m_partialMessageLock)
+            {
+                if (m_partialMessageClosed || m_partialMessageChunks != null)
+                {
+                    return false;
+                }
+            }
+            // a chunk over the limits takes the path that reports them.
+            return !MessageLimitsExceeded(isServerContext, chunk.Count, 1);
+        }
+
+        /// <summary>
+        /// Keeps the collection of a processed message, after its chunks were released, to
+        /// assemble the next message in. The caller holds no other reference to it.
+        /// </summary>
+        private protected void ReuseMessageChunks(BufferCollection chunks)
+        {
+            if (chunks.Count == 0)
+            {
+                Volatile.Write(ref m_spareMessageChunks, chunks);
+            }
         }
 
         /// <summary>
@@ -2066,8 +2105,10 @@ namespace Opc.Ua.Bindings
         /// Reserved for the terminal error message a faulting channel sends
         /// immediately before closing its transport. A queued write would be
         /// discarded by that close, and the peer would see the connection drop
-        /// rather than the reason for it. Starting the send here hands the bytes
-        /// to the socket before the caller's next statement closes it.
+        /// rather than the reason for it. The send is not awaited: it may wait
+        /// for the transport's send lock (a queued write still holds it) or for
+        /// the socket, so the caller closes the transport with
+        /// <see cref="CloseTransport"/>, which waits for this send first.
         /// <para>
         /// This deliberately does not report through
         /// <see cref="HandleWriteComplete"/>, and touches the gate only to
@@ -2087,7 +2128,50 @@ namespace Opc.Ua.Bindings
 
             ReadOnlyMemory<byte> chunk = new(buffer.GetArray(), buffer.Offset, buffer.Count);
 
-            _ = SendInlineAsync(transport, chunk, buffer.GetArray());
+            Volatile.Write(ref m_terminalWrite, SendInlineAsync(transport, chunk, buffer.GetArray()));
+        }
+
+        /// <summary>
+        /// Closes a transport of this channel once the terminal error message
+        /// started by <see cref="WriteMessageInline"/> has been sent.
+        /// </summary>
+        /// <remarks>
+        /// Closing cancels a send that still waits for the transport's send lock
+        /// and disposes the socket under a send in flight, so the peer would see
+        /// the connection drop without the error message (OPC 10000-6 §7.1.5:
+        /// the error is sent, then the connection closed). If no terminal send
+        /// is pending the transport closes at once; otherwise it closes when the
+        /// send completes, after <see cref="s_terminalWriteTimeout"/> at the
+        /// latest.
+        /// </remarks>
+        protected void CloseTransport(IUaSCByteTransport? transport)
+        {
+            if (transport == null)
+            {
+                return;
+            }
+
+            Task? pending = Volatile.Read(ref m_terminalWrite);
+            if (pending == null || pending.IsCompleted)
+            {
+                transport.Close();
+                return;
+            }
+
+            _ = CloseAfterTerminalWriteAsync(transport, pending);
+        }
+
+        private async Task CloseAfterTerminalWriteAsync(IUaSCByteTransport transport, Task pending)
+        {
+            try
+            {
+                // SendInlineAsync never faults; WhenAny never throws.
+                await Task.WhenAny(pending, TimeProvider.Delay(s_terminalWriteTimeout)).ConfigureAwait(false);
+            }
+            finally
+            {
+                transport.Close();
+            }
         }
 
         private async Task SendInlineAsync(
@@ -2710,6 +2794,20 @@ namespace Opc.Ua.Bindings
             }
 
             /// <summary>
+            /// Initializes the object without a timer of its own: the channel
+            /// times it out once <paramref name="timeoutDeadline"/> has passed.
+            /// </summary>
+            internal WriteOperation(
+                AsyncCallback? callback,
+                object? asyncState,
+                ILogger logger,
+                TimeProvider timeProvider,
+                long timeoutDeadline)
+                : base(callback, asyncState, logger, timeProvider, timeoutDeadline)
+            {
+            }
+
+            /// <summary>
             /// The request id associated with the operation.
             /// </summary>
             public uint RequestId { get; set; }
@@ -2832,6 +2930,12 @@ namespace Opc.Ua.Bindings
         private bool m_firstReceivedSequenceNumber = true;
         private uint m_partialRequestId;
         private BufferCollection? m_partialMessageChunks;
+
+        /// <summary>
+        /// An empty collection a received message was assembled in, kept to assemble the
+        /// next message (see <see cref="ReuseMessageChunks"/>).
+        /// </summary>
+        private BufferCollection? m_spareMessageChunks;
         private long m_partialMessageStartedAt;
         private long m_partialMessageReservedBytes;
         private readonly ChunkReassemblyBudget? m_chunkReassemblyBudget;
@@ -2854,6 +2958,17 @@ namespace Opc.Ua.Bindings
         private bool m_partialMessageClosed;
 
         private IUaSCByteTransport? m_transport;
+
+        /// <summary>
+        /// The terminal error message send of <see cref="WriteMessageInline"/>.
+        /// </summary>
+        private Task? m_terminalWrite;
+
+        /// <summary>
+        /// How long <see cref="CloseTransport"/> waits for the terminal error
+        /// message before it closes the transport anyway.
+        /// </summary>
+        private static readonly TimeSpan s_terminalWriteTimeout = TimeSpan.FromSeconds(2);
         private readonly BackgroundTaskScope m_backgroundWork;
         private int m_disposeStarted;
 

@@ -336,6 +336,10 @@ namespace Opc.Ua.Server.Fluent
             return null;
         }
 
+        /// <summary>
+        /// Finds the virtual-node family that owns a node, rejecting matches on multiple attached builders.
+        /// </summary>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         internal VirtualNodeRegistration? FindVirtualNodeRegistration(
             NodeId nodeId)
         {
@@ -1111,7 +1115,7 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
-        /// Signals the registry whenever a notifier's monitored-events
+        /// Reconciles the registry whenever a notifier's monitored-events
         /// ref-count flips so the reconcile loop can start or stop the
         /// matching iterator. Subclasses that further override
         /// <see cref="AsyncCustomNodeManager.OnSubscribeToEventsAsync"/>
@@ -1132,7 +1136,7 @@ namespace Opc.Ua.Server.Fluent
 
             if (unsubscribe)
             {
-                EventSources.SignalReconcile();
+                await EventSources.WaitUntilReconciledAsync(monitoredNode.Node).ConfigureAwait(false);
             }
             else if (nonNullMonitoredNode.Node != null)
             {
@@ -1320,10 +1324,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnCreatedAsync(
+                await MonitoredSources.OnAttachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1342,10 +1347,11 @@ namespace Opc.Ua.Server.Fluent
 
             if (handle?.Node is { } source)
             {
-                await MonitoredSources.OnDeletedAsync(
+                await MonitoredSources.OnDetachedAsync(
                     context,
                     source,
-                    monitoredItem).ConfigureAwait(false);
+                    monitoredItem,
+                    cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -1540,8 +1546,17 @@ namespace Opc.Ua.Server.Fluent
         private readonly List<NodeBehaviorActivation> m_behaviorActivations = [];
     }
 
+    /// <summary>
+    /// Provides source-generated diagnostic messages for fluent node manager base.
+    /// </summary>
     internal static partial class FluentNodeManagerBaseLog
     {
+        /// <summary>
+        /// Logs failure to resolve a virtual node.
+        /// </summary>
+        /// <param name="logger">The logger receiving the diagnostic messages.</param>
+        /// <param name="exception">The exception that caused the failure.</param>
+        /// <param name="nodeId">The identifier of the affected source node.</param>
         [LoggerMessage(EventId = ServerEventIds.FluentNodeManager + 0, Level = LogLevel.Warning,
             Message = "Virtual node resolution failed for {NodeId}.")]
         public static partial void VirtualNodeResolutionFailed(this ILogger logger, Exception exception, NodeId nodeId);
