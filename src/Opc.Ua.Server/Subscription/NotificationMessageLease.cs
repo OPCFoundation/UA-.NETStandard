@@ -36,8 +36,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Counts the owners of a notification message whose payload objects (the
     /// <see cref="NotificationMessage"/>, its notification lists and their
-    /// <see cref="MonitoredItemNotification"/>/<see cref="EventFieldList"/> entries) came
-    /// from their activator pools. The payload is returned to the pools only when the last
+    /// <see cref="EventFieldList"/> entries) came from their activator pools. The payload is returned to the pools only when the last
     /// owner releases it.
     /// </summary>
     /// <remarks>
@@ -126,12 +125,8 @@ namespace Opc.Ua.Server
             {
                 if (data[i].TryGetValue(out DataChangeNotification? dcn))
                 {
-                    ReadOnlySpan<MonitoredItemNotification> items =
-                        dcn.MonitoredItems.Span;
-                    for (int j = 0; j < items.Length; j++)
-                    {
-                        (items[j] as IPooledEncodeable)?.Reuse();
-                    }
+                    // the MonitoredItemNotification entries are not pooled (see
+                    // MonitoredItem.Publish) and are left to the garbage collector.
                     (dcn as IPooledEncodeable)?.Reuse();
                 }
                 else if (data[i].TryGetValue(out EventNotificationList? enl))

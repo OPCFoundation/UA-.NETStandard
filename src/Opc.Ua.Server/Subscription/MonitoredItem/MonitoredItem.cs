@@ -2362,11 +2362,15 @@ namespace Opc.Ua.Server
                 value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            // the notification is pooled; it is returned to the pool when the message that
-            // carries it was acknowledged and sent (NotificationMessageLease).
-            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
-            item.ClientHandle = ClientHandle;
-            item.Value = value;
+            // not pooled: a notification lives until its message was sent and acknowledged, so
+            // a publishing cycle holds all notifications of the cycle at once. Recycling them
+            // through the shared activator pool cost more CPU (pool contention, touching cold
+            // instances again) than allocating them.
+            var item = new MonitoredItemNotification
+            {
+                ClientHandle = ClientHandle,
+                Value = value
+            };
 
             ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
