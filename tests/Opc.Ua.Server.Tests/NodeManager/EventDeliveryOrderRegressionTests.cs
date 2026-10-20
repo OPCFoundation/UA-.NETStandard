@@ -142,11 +142,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var manager = new Mock<IAsyncNodeManager>();
             manager.Setup(value => value.ValidateEventRolePermissionsAsync(
                     It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
-                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken _) =>
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
                 {
-                    if (asyncPermissions && (item.Id + Array.IndexOf(events, target)) % 5 == 0)
+                    int index = Array.IndexOf(events, target);
+                    if (asyncPermissions && (item.Id + index) % 5 == 0)
                     {
-                        await Task.Yield();
+                        // a slow check overtaken by the next event shows as disorder.
+                        if (index % 2 == 0)
+                        {
+                            await Task.Delay(2, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await Task.Yield();
+                        }
                     }
                     return ServiceResult.Good;
                 });
