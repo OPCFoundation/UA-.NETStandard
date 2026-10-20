@@ -76,6 +76,16 @@ namespace Opc.Ua.Tools.Tests
                 }))
                 .WithOpcUaMcpFilters()
                 .WithOpcUaMachineToolTools(McpToolProfile.MachineTool);
+            services.Configure<McpServerOptions>(options =>
+                options.Filters.Message.IncomingFilters.Add(next => async (context, ct) =>
+                {
+                    if (context.JsonRpcMessage is JsonRpcNotification
+                        { Method: NotificationMethods.CancelledNotification })
+                    {
+                        await CancellationDelivery.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    await next(context, ct).ConfigureAwait(false);
+                }));
             Services = services.BuildServiceProvider();
             m_running = Services.GetRequiredService<McpServer>().RunAsync(m_stop.Token);
         }
@@ -114,6 +124,11 @@ namespace Opc.Ua.Tools.Tests
         /// Gets completion of the captured server handler, including its cleanup path.
         /// </summary>
         internal Task LastRequestCompleted { get; private set; } = Task.CompletedTask;
+
+        /// <summary>
+        /// Gets or sets the gate before the server processes a cancellation notification.
+        /// </summary>
+        internal Task CancellationDelivery { get; set; } = Task.CompletedTask;
 
         /// <summary>
         /// Initializes the MCP client and optionally borrows one named OPC UA session.
