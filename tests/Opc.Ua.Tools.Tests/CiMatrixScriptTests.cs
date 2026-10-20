@@ -64,6 +64,8 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(matrix.Tests, Is.Not.Empty);
             Assert.That(matrix.Builds, Is.Not.Empty);
+            Assert.That(matrix.Tests.Select(entry => entry.Id), Is.Unique);
+            Assert.That(matrix.Tests.Select(entry => entry.Name), Is.Unique);
             Assert.That(
                 matrix.Tests.Count + matrix.Builds.Count,
                 Is.LessThanOrEqualTo(256),
@@ -146,8 +148,9 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Packing by duration must never drop or repeat a project: within a
-        /// profile, the batches together hold the profile's tier exactly once.
+        /// Packing by duration and filter sharding must never drop a project:
+        /// each profile schedules every project in its tier, with repeated
+        /// projects limited to their declared, disjoint shards.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
@@ -166,13 +169,24 @@ namespace Opc.Ua.Tools.Tests
                     .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
                     .ToArray();
 
-                Assert.That(projects, Is.Unique, $"Profile '{profile.Key}' schedules a project twice.");
                 if (profile.First().Tier is "mainline" or "long-running")
                 {
                     Assert.That(
-                        projects,
+                        projects.Distinct(StringComparer.Ordinal),
                         Is.EquivalentTo(mainline),
                         $"Profile '{profile.Key}' does not cover the mainline project set.");
+                }
+
+                foreach (IGrouping<string, MatrixEntry> project in profile
+                    .SelectMany(entry => entry.Projects
+                        .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(path => (Path: path, Entry: entry)))
+                    .GroupBy(item => item.Path, item => item.Entry, StringComparer.Ordinal))
+                {
+                    Assert.That(
+                        project.Select(entry => entry.Shard),
+                        Is.Unique,
+                        $"Profile '{profile.Key}' schedules a shard of '{project.Key}' more than once.");
                 }
             }
         }
@@ -210,13 +224,25 @@ namespace Opc.Ua.Tools.Tests
         {
             MatrixResult matrix = await RunMatrixAsync("pr").ConfigureAwait(false);
 
+            string[] isolatedProjects =
+            [
+                "Opc.Ua.Server.Tests",
+                "Opc.Ua.Types.Tests",
+                "Opc.Ua.WotCon.Samples.Tests",
+                "Opc.Ua.WotCon.Tests"
+            ];
             foreach (IGrouping<string, MatrixEntry> profile in matrix.Tests.GroupBy(entry => entry.Profile))
             {
-                int projects = profile.Sum(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
+                MatrixEntry[] packed = profile
+                    .Where(entry => entry.Shard == "all" &&
+                        !isolatedProjects.Any(project => entry.Projects.Contains(project, StringComparison.Ordinal)))
+                    .ToArray();
+                int projects = packed.Sum(entry =>
+                    entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
                 Assert.That(
-                    profile.Count(),
-                    Is.LessThanOrEqualTo(projects / 3),
-                    $"Profile '{profile.Key}' spreads {projects} projects over {profile.Count()} jobs.");
+                    packed,
+                    Has.Length.LessThanOrEqualTo(projects / 3),
+                    $"Profile '{profile.Key}' spreads {projects} packable projects over {packed.Length} jobs.");
             }
         }
 
@@ -285,9 +311,11 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(full.Tests.Any(entry => entry.Tier == "long-running"), Is.True);
             Assert.That(full.Tests.Any(entry => entry.Tier == "durable"), Is.True);
             Assert.That(
-                full.Tests.Where(entry => entry.Tier != "mainline").All(entry => entry.Filter.Length == 0),
+                full.Tests.Where(entry => entry.Tier != "mainline").All(entry =>
+                    !entry.Filter.Contains("TestCategory!=LongRunning", StringComparison.Ordinal) &&
+                    !entry.Filter.Contains("TestCategory!=Stress", StringComparison.Ordinal)),
                 Is.True,
-                "A tier that exists to lift the category filter must not carry one.");
+                "A tier that exists to lift category exclusions must not restore them.");
         }
 
         /// <summary>
@@ -375,17 +403,17 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task JobTimeoutBoundsEveryProjectsCombinedBudgetAsync(string scope)
+        public async Task JobTimeoutIncludesEveryTestBudgetAndBuildOverheadAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
             string[] underBudget = matrix.Tests
                 .Where(entry =>
                     entry.TimeoutMinutes <
-                        entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length *
+                        20 + entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length *
                         entry.PerProjectTimeout)
                 .Select(entry => $"{entry.Id} allows {entry.TimeoutMinutes}min for " +
-                    $"{entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length} x " +
+                    $"20 + {entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length} x " +
                     $"{entry.PerProjectTimeout}min")
                 .ToArray();
 
@@ -394,63 +422,80 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The ceiling covers the build and test together. The net48 server
-        /// project has a roughly five-minute clean build and a roughly
-        /// twenty-minute test run on hosted Windows, so a 30-minute combined
-        /// ceiling has no useful runner-variance margin and has killed a healthy
-        /// run. Every ordinary project receives the established 45-minute
-        /// combined ceiling.
+        /// Every workload, including formerly extended sample and integration
+        /// projects, uses the same 45-minute test-execution ceiling.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task MainlineProjectsHaveACombinedFortyFiveMinuteCeilingAsync(string scope)
+        public async Task EveryProjectUsesTheStandardFortyFiveMinuteCeilingAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
 
-            string[] undersized = matrix.Tests
-                .Where(entry => entry.Tier == "mainline" && entry.PerProjectTimeout < 45)
+            string[] exceptions = matrix.Tests
+                .Where(entry => entry.PerProjectTimeout != 45)
                 .Select(entry => $"{entry.Id}: {entry.PerProjectTimeout}min")
                 .ToArray();
 
-            Assert.That(undersized, Is.Empty);
+            Assert.That(exceptions, Is.Empty);
         }
 
         /// <summary>
-        /// Verifies that full corpus samples have an isolated bounded budget.
+        /// The long sample scenarios run as separate jobs with the standard
+        /// budget, and the filters cover distinct parts of the suite.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task FullCorpusSamplesHaveAnIsolatedBoundedBudgetAsync(string scope)
+        public async Task SampleScenariosAreSplitIntoBoundedWorkloadsAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
             MatrixEntry[] samples = matrix.Tests.Where(entry =>
                 entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal)).ToArray();
 
             Assert.That(samples, Is.Not.Empty);
-            foreach (MatrixEntry sample in samples)
+            foreach (IGrouping<string, MatrixEntry> profile in samples.GroupBy(entry => entry.Profile))
             {
-                Assert.Multiple(() =>
+                string[] expectedShards = profile.First().Framework == "net48"
+                    ? ["all"]
+                    : ["sample-core", "sample-generation", "sample-native-comparisons"];
+                Assert.That(profile.Select(entry => entry.Shard), Is.EquivalentTo(expectedShards));
+                if (profile.First().Framework != "net48")
                 {
-                    Assert.That(sample.Projects, Does.Not.Contain(";"));
-                    Assert.That(sample.PerProjectTimeout, Is.EqualTo(240));
-                    Assert.That(sample.TimeoutMinutes, Is.EqualTo(260));
-                    Assert.That(sample.HangTimeout, Is.EqualTo("65m"));
-                });
+                    MatrixEntry generation = profile.Single(entry => entry.Shard == "sample-generation");
+                    MatrixEntry nativeComparisons = profile.Single(entry => entry.Shard == "sample-native-comparisons");
+                    MatrixEntry core = profile.Single(entry => entry.Shard == "sample-core");
+                    Assert.That(
+                        generation.Filter,
+                        Does.Contain("RealSamplesAggregateSubscribeAndReplaceGenerationAsync"));
+                    Assert.That(nativeComparisons.Filter, Does.Contain("WotPumpInstanceMatchesNativePumpSubsetAsync"));
+                    Assert.That(
+                        nativeComparisons.Filter,
+                        Does.Contain("CompanionTypeDefinitionsMatchNativePumpServerAsync"));
+                    Assert.That(core.Filter, Does.Contain("FullyQualifiedName!~"));
+                }
+                foreach (MatrixEntry sample in profile)
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(sample.Projects, Does.Not.Contain(";"));
+                        Assert.That(sample.PerProjectTimeout, Is.EqualTo(45));
+                        Assert.That(sample.TimeoutMinutes, Is.EqualTo(65));
+                        if (sample.Framework != "net48")
+                        {
+                            Assert.That(sample.Filter, Does.Contain("FullyQualifiedName"));
+                        }
+                    });
+                }
             }
-            Assert.That(matrix.Tests.Where(entry =>
-                !entry.Projects.Contains("Opc.Ua.WotCon.Samples.Tests", StringComparison.Ordinal) &&
-                !entry.Projects.Contains("Opc.Ua.Server.Tests", StringComparison.Ordinal) &&
-                !entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) &&
-                !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal)),
-                Is.All.Matches<MatrixEntry>(entry => entry != null && entry.PerProjectTimeout == 45));
         }
 
         /// <summary>
-        /// Verifies that integration projects retain their whole run after cold compilation.
+        /// Each integration project stays within the standard workload budget,
+        /// and the WoT suite is partitioned by namespace and integration
+        /// category where the framework run is the longest.
         /// </summary>
         [TestCase("pr")]
         [TestCase("full")]
-        public async Task IntegrationProjectsRetainTheirWholeRunAfterColdCompilationAsync(string scope)
+        public async Task IntegrationProjectsUseBoundedWorkloadsAsync(string scope)
         {
             MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
             MatrixEntry[] integration = matrix.Tests.Where(entry =>
@@ -463,25 +508,33 @@ namespace Opc.Ua.Tools.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(entry.Projects, Does.Not.Contain(";"));
-                    int budget = entry.Framework == "net48" &&
-                        entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal) ? 150 : 90;
-                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(budget));
-                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(budget + 20));
+                    Assert.That(entry.PerProjectTimeout, Is.EqualTo(45));
+                    Assert.That(entry.TimeoutMinutes, Is.EqualTo(65));
                     Assert.That(entry.HangTimeout, Is.EqualTo(
-                        entry.Tier == "mainline" &&
-                        !entry.Projects.Contains("Opc.Ua.Types.Tests", StringComparison.Ordinal) ? "10m" : "30m"));
+                        entry.Tier == "mainline" ? "10m" : "30m"));
                 });
+            }
+
+            foreach (IGrouping<string, MatrixEntry> profile in integration
+                .Where(entry => entry.Projects.Contains("Opc.Ua.WotCon.Tests", StringComparison.Ordinal))
+                .GroupBy(entry => entry.Profile))
+            {
+                string[] expectedShards = profile.First().Framework == "net48"
+                    ? ["wot-materialization-core", "wot-materialization-integration", "wot-other"]
+                    : ["wot-materialization", "wot-other"];
+                Assert.That(
+                    profile.Select(entry => entry.Shard),
+                    Is.EquivalentTo(expectedShards));
             }
         }
 
         /// <summary>
-        /// The per-project ceiling the matrix budgets once must also be spent
-        /// once. Handing it separately to the build and to the test would let a
-        /// project burn twice what its job was given, so both invocations share
-        /// a single stopwatch.
+        /// Each test invocation gets its full budget after the build completes;
+        /// build time is instead covered by the fixed overhead in the job
+        /// timeout.
         /// </summary>
         [Test]
-        public async Task ExecutorSpendsOnePerProjectBudgetAcrossBuildAndTestAsync()
+        public async Task ExecutorBudgetsTestExecutionSeparatelyFromBuildAsync()
         {
             string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
             string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
@@ -494,13 +547,21 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.That(invocations, Has.Length.EqualTo(2), "The executor builds once and tests once per project.");
             Assert.That(
-                invocations.All(line => line.Contains("$projectBudget $PerProjectTimeoutMinutes", StringComparison.Ordinal)),
-                Is.True,
-                $"Both invocations must share the one stopwatch: {string.Join(" | ", invocations)}");
+                invocations[0],
+                Does.Contain("$null 0"),
+                "The build is bounded by the job timeout rather than consuming the test budget.");
+            Assert.That(
+                invocations[1],
+                Does.Contain("$testBudget $PerProjectTimeoutMinutes"),
+                "The full project ceiling is applied to test execution.");
             Assert.That(
                 source,
-                Does.Contain("$projectBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
-                "The stopwatch has to be restarted for each project rather than spanning the batch.");
+                Does.Contain("$testBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
+                "The test stopwatch starts after the build completes.");
+            Assert.That(
+                source,
+                Does.Contain("$buildBudget = [System.Diagnostics.Stopwatch]::StartNew()"),
+                "Build duration remains available for reporting.");
         }
 
         private static async Task<MatrixResult> RunMatrixAsync(
@@ -631,6 +692,7 @@ namespace Opc.Ua.Tools.Tests
         /// <param name="PackedMinutes">The packed minutes.</param>
         /// <param name="HangTimeout">The hang timeout.</param>
         /// <param name="Id">The matrix entry identifier.</param>
+        /// <param name="Name">The display name of the matrix entry.</param>
         /// <param name="Os">The operating system of the runner.</param>
         /// <param name="Profile">The test profile of the entry.</param>
         /// <param name="Tier">The test tier of the entry.</param>
@@ -638,8 +700,10 @@ namespace Opc.Ua.Tools.Tests
         /// <param name="Filter">The test filter expression of the entry.</param>
         /// <param name="Coverage">The coverage flag supplied by the caller.</param>
         /// <param name="Projects">The test projects run by the entry.</param>
+        /// <param name="Shard">The workload shard name.</param>
         public sealed record MatrixEntry(
             string Id,
+            string Name,
             string Os,
             string Profile,
             string Tier,
@@ -647,6 +711,7 @@ namespace Opc.Ua.Tools.Tests
             string Filter,
             bool Coverage,
             string Projects,
+            string Shard,
             int PerProjectTimeout,
             int TimeoutMinutes,
             int PackedMinutes,

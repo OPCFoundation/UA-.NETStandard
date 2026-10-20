@@ -5,8 +5,8 @@
  .DESCRIPTION
     Produces the job matrices consumed by .github/workflows/buildandtest.yml
     (pull-request scope) and .github/workflows/nightly.yml (full scope), plus a
-    manifest that records every (project x profile) tuple the run is expected to
-    cover.
+    manifest that records every (project x profile x shard) workload the run is
+    expected to cover.
 
     The workload is described once, here, as a table of profiles. A profile is a
     (runner OS, CustomTestTarget, test-host target framework, configuration,
@@ -56,9 +56,8 @@
     Exceeding it is an error, never a truncation.
 
  .PARAMETER ReservedEntries
-    Entries reserved for the jobs that are not part of these matrices - Native
-    AoT, the fuzz contract and replay jobs, coverage and the summary - plus
-    headroom.
+    Entries reserved for the other full-scope jobs: discovery, four NativeAOT
+    legs, eight crash-corpus replays, coverage, the summary, and one spare.
 
  .PARAMETER MaxJobTimeoutMinutes
     Upper bound on a batch job's 'timeout-minutes', below the 360-minute ceiling
@@ -97,7 +96,7 @@ Param(
     [switch] $ExcludeMacOS,
     [string] $OnlyProject = '',
     [int]    $MaxEntries = 256,
-    [int]    $ReservedEntries = 40,
+    [int]    $ReservedEntries = 16,
     [int]    $MaxJobTimeoutMinutes = 350,
     [int]    $BatchTargetMinutes = 30,
     [string] $DurationsPath = '',
@@ -266,20 +265,13 @@ $BuildProfiles = @(
 # build against 0.4-0.9 minutes for each further project in the same batch.
 $BatchFixedMinutes = 6
 
-# One combined ceiling per project, shared by that project's build and test
-# invocation in run-dotnet-tests.ps1. The job timeout budgets it exactly once
-# per project, so the executor must not spend it twice. Keep 45 minutes for
-# mainline too: on hosted Windows, the net48 Opc.Ua.Server.Tests build plus
-# its otherwise healthy test run normally takes about 25 minutes and has
-# exceeded 30 under runner variance.
+# Test execution gets a consistent 45-minute ceiling for every project. The job
+# timeout adds a fixed 20-minute allowance for checkout, restore, and builds.
+# Keep 45 minutes for mainline too: on hosted Windows, the net48
+# Opc.Ua.Server.Tests run benefits from runner-variance margin within this
+# standard ceiling.
 $PerProjectTimeoutMinutes = 45
-# Full-corpus sample workflows include generation replacement and two native
-# companion comparisons; retain them in a dedicated, bounded job.
-$SampleProjectTimeoutMinutes = 240
-$IntegrationProjectTimeoutMinutes = 90
-$WotFrameworkProjectTimeoutMinutes = 150
-$DedicatedIntegrationProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
-$Net48ServerTestsTimeoutMinutes = 60
+$DedicatedTestProjects = @('Opc.Ua.Server.Tests', 'Opc.Ua.WotCon.Tests', 'Opc.Ua.Types.Tests')
 
 # 20 minutes of fixed cost plus one per-project ceiling for each project has to
 # stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
@@ -409,7 +401,7 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     foreach ($project in $projects) {
         $minutes = Get-ProjectMinutes $project
         $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
-        if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedIntegrationProjects -contains $stem) {
+        if ($stem -eq 'Opc.Ua.WotCon.Samples.Tests' -or $DedicatedTestProjects -contains $stem) {
             if ($current.Count -gt 0) {
                 $batches += , @($current)
                 $current = @()
@@ -435,6 +427,107 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 
 <#
  .SYNOPSIS
+    Returns exhaustive, non-overlapping filters for projects whose full test
+    suite exceeds the per-project execution budget.
+#>
+function Get-TestProjectShards([string] $project, [string] $framework)
+{
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+    switch ($stem) {
+        'Opc.Ua.WotCon.Samples.Tests' {
+            if ($framework -eq 'net48') {
+                return @(
+                    @{
+                        id = 'all'
+                        name = 'all'
+                        filter = ''
+                        hangTimeout = ''
+                    }
+                )
+            }
+            $prefix = 'Opc.Ua.WotCon.Samples.Tests.'
+            $generationScenario = "${prefix}WotSampleEndToEndTests.RealSamplesAggregateSubscribeAndReplaceGenerationAsync"
+            $pumpComparison = "${prefix}WotPumpAddressSpaceComparisonTests.WotPumpInstanceMatchesNativePumpSubsetAsync"
+            $nativeTypes = "${prefix}WotPumpAddressSpaceComparisonTests.CompanionTypeDefinitionsMatchNativePumpServerAsync"
+            return @(
+                @{
+                    id = 'sample-core'
+                    name = 'sample-core'
+                    filter = @(
+                        "FullyQualifiedName!~$generationScenario"
+                        "FullyQualifiedName!~$pumpComparison"
+                        "FullyQualifiedName!~$nativeTypes"
+                    ) -join '&'
+                    hangTimeout = ''
+                }
+                @{
+                    id = 'sample-generation'
+                    name = 'sample-generation'
+                    filter = "FullyQualifiedName~$generationScenario"
+                    hangTimeout = '45m'
+                }
+                @{
+                    id = 'sample-native-comparisons'
+                    name = 'sample-native-comparisons'
+                    filter = "(FullyQualifiedName~$pumpComparison|FullyQualifiedName~$nativeTypes)"
+                    hangTimeout = '30m'
+                }
+            )
+        }
+        'Opc.Ua.WotCon.Tests' {
+            $materialization = 'Opc.Ua.WotCon.Tests.Materialization.'
+            if ($framework -ne 'net48') {
+                return @(
+                    @{
+                        id = 'wot-materialization'
+                        name = 'wot-materialization'
+                        filter = "FullyQualifiedName~${materialization}"
+                        hangTimeout = ''
+                    }
+                    @{
+                        id = 'wot-other'
+                        name = 'wot-other'
+                        filter = "FullyQualifiedName!~${materialization}"
+                        hangTimeout = ''
+                    }
+                )
+            }
+            return @(
+                @{
+                    id = 'wot-materialization-core'
+                    name = 'wot-materialization-core'
+                    filter = "FullyQualifiedName~${materialization}&TestCategory!=Integration"
+                    hangTimeout = ''
+                }
+                @{
+                    id = 'wot-materialization-integration'
+                    name = 'wot-materialization-integration'
+                    filter = "FullyQualifiedName~${materialization}&TestCategory=Integration"
+                    hangTimeout = ''
+                }
+                @{
+                    id = 'wot-other'
+                    name = 'wot-other'
+                    filter = "FullyQualifiedName!~${materialization}"
+                    hangTimeout = ''
+                }
+            )
+        }
+        default {
+            return @(
+                @{
+                    id = 'all'
+                    name = 'all'
+                    filter = ''
+                    hangTimeout = ''
+                }
+            )
+        }
+    }
+}
+
+<#
+ .SYNOPSIS
     Counts the test matrix entries a batch target produces for a scope, ignoring
     which optional runners are enabled so the target is stable.
 #>
@@ -449,7 +542,14 @@ function Measure-TestEntries([string] $scope, [int] $targetMinutes)
         if ($testProfile.ContainsKey('tier')) {
             $tier = $testProfile.tier
         }
-        $total += @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes).Count
+        foreach ($batch in @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)) {
+            if ($batch.Count -eq 1) {
+                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework).Count
+            }
+            else {
+                $total++
+            }
+        }
     }
     return [int]$total
 }
@@ -492,94 +592,101 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
         if ($testProfile.ContainsKey('coverage')) {
             $coverage = [bool]$testProfile.coverage
         }
-        # See $PerProjectTimeoutMinutes for why this is one combined ceiling.
+        # Each project gets one test-execution ceiling; the job timeout also
+        # includes fixed setup/build overhead.
         $perProjectTimeout = $PerProjectTimeoutMinutes
 
         $batches = @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
-            $batchTimeout = $perProjectTimeout
             $batchHangTimeout = $hangTimeout
-            if ($batch.Count -eq 1 -and
-                [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Samples.Tests') {
-                $batchTimeout = $SampleProjectTimeoutMinutes
-                $batchHangTimeout = '65m'
+            $shards = @(@{
+                    id = 'all'
+                    name = 'all'
+                    filter = ''
+                    hangTimeout = ''
+                })
+            if ($batch.Count -eq 1) {
+                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework)
             }
-            elseif ($batch.Count -eq 1 -and
-                $DedicatedIntegrationProjects -contains [System.IO.Path]::GetFileNameWithoutExtension($batch[0])) {
-                $batchTimeout = $IntegrationProjectTimeoutMinutes
-                if ($testProfile.framework -eq 'net48' -and
-                    [System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.WotCon.Tests') {
-                    $batchTimeout = $WotFrameworkProjectTimeoutMinutes
+            foreach ($shard in $shards) {
+                $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))-$($shard.id)"
+                $batchTimeout = $perProjectTimeout
+                $batchFilter = $filter
+                if (-not [string]::IsNullOrWhiteSpace($shard.filter)) {
+                    if ([string]::IsNullOrWhiteSpace($batchFilter)) {
+                        $batchFilter = $shard.filter
+                    }
+                    else {
+                        $batchFilter = "$batchFilter&$($shard.filter)"
+                    }
                 }
-                if ([System.IO.Path]::GetFileNameWithoutExtension($batch[0]) -eq 'Opc.Ua.Types.Tests') {
-                    $batchHangTimeout = '30m'
+                $shardHangTimeout = $batchHangTimeout
+                if (-not [string]::IsNullOrWhiteSpace($shard.hangTimeout)) {
+                    $shardHangTimeout = $shard.hangTimeout
                 }
-            }
-            if ($testProfile.framework -eq 'net48' -and
-                $testProfile.os -eq 'windows' -and
-                @($batch | Where-Object {
-                    [System.IO.Path]::GetFileNameWithoutExtension($_) -eq 'Opc.Ua.Server.Tests'
-                }).Count -gt 0) {
-                $batchTimeout = [System.Math]::Max($batchTimeout, $Net48ServerTestsTimeoutMinutes)
-            }
-            $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
-            # 20 minutes of fixed cost - checkout, SDK install, restore - plus
-            # the combined build-and-test ceiling for every project in the
-            # batch. It has to stay a true upper bound on what the executor can
-            # spend, or GitHub cancels the job before run-dotnet-tests.ps1 can
-            # attribute the overrun to a project.
-            $jobTimeout = 20 + ($batch.Count * $batchTimeout)
-            if ($jobTimeout -gt $MaxJobTimeoutMinutes) {
-                throw ("Batch '$batchId' of $($batch.Count) projects needs $jobTimeout minutes, past the " +
-                    "$MaxJobTimeoutMinutes-minute ceiling. Clamping it would let the executor outlive the " +
-                    'job, so lower the per-project ceiling or raise ReservedEntries so smaller batches fit.')
-            }
-            $entries += [ordered]@{
-                id                = $batchId
-                name              = "$($testProfile.id) ($($index + 1)/$($batches.Count))"
-                os                = $testProfile.os
-                runsOn            = $RunnerImages[$testProfile.os]
-                arch              = $RunnerArchitectures[$testProfile.os]
-                profile           = $testProfile.id
-                tier              = $tier
-                customTestTarget  = $testProfile.customTestTarget
-                framework         = $testProfile.framework
-                configuration     = $testProfile.configuration
-                filter            = $filter
-                hangTimeout       = $batchHangTimeout
-                coverage          = $coverage
-                projects          = $batch -join ';'
-                perProjectTimeout = $batchTimeout
-                timeoutMinutes    = $jobTimeout
-                # The batch's summed weight from the duration table: what the
-                # packer balanced, on top of the fixed per-batch cost.
-                packedMinutes     = [int]($batch | ForEach-Object { Get-ProjectMinutes $_ } | Measure-Object -Sum).Sum
-                dotnet            = (Get-SdkVersions $testProfile.framework) -join "`n"
-            }
+                # Twenty minutes of fixed cost - checkout, SDK install, restore,
+                # and builds - plus the test-execution ceiling for every project
+                # in the batch. This leaves each test its full budget while
+                # keeping the job timeout a true upper bound.
+                $jobTimeout = 20 + ($batch.Count * $batchTimeout)
+                if ($jobTimeout -gt $MaxJobTimeoutMinutes) {
+                    throw ("Batch '$batchId' of $($batch.Count) projects needs $jobTimeout minutes, past the " +
+                        "$MaxJobTimeoutMinutes-minute ceiling. Clamping it would let the executor outlive the " +
+                        'job, so lower the per-project ceiling or raise ReservedEntries so smaller batches fit.')
+                }
+                $name = "$($testProfile.id) ($($index + 1)/$($batches.Count))"
+                if ($shard.id -ne 'all') {
+                    $name = "$name - $($shard.name)"
+                }
+                $entries += [ordered]@{
+                    id                = $batchId
+                    name              = $name
+                    os                = $testProfile.os
+                    runsOn            = $RunnerImages[$testProfile.os]
+                    arch              = $RunnerArchitectures[$testProfile.os]
+                    profile           = $testProfile.id
+                    tier              = $tier
+                    shard             = $shard.name
+                    customTestTarget  = $testProfile.customTestTarget
+                    framework         = $testProfile.framework
+                    configuration     = $testProfile.configuration
+                    filter            = $batchFilter
+                    hangTimeout       = $shardHangTimeout
+                    coverage          = $coverage
+                    projects          = $batch -join ';'
+                    perProjectTimeout = $batchTimeout
+                    timeoutMinutes    = $jobTimeout
+                    # The batch's summed weight from the duration table: what the
+                    # packer balanced, on top of the fixed per-batch cost.
+                    packedMinutes     = [int]($batch | ForEach-Object { Get-ProjectMinutes $_ } | Measure-Object -Sum).Sum
+                    dotnet            = (Get-SdkVersions $testProfile.framework) -join "`n"
+                }
 
-            foreach ($project in $batch) {
-                # Every automatic entry uses the corpus checked into the
-                # repository. The private crash corpus is only ever replayed by
-                # the protected job in nightly.yml.
-                $corpus = 'none'
-                if ($project -like 'fuzzing/*') {
-                    $corpus = 'public-checked-in'
-                }
-                $manifest += [ordered]@{
-                    project          = $project
-                    profile          = $testProfile.id
-                    tier             = $tier
-                    os               = $testProfile.os
-                    runsOn           = $RunnerImages[$testProfile.os]
-                    arch             = $RunnerArchitectures[$testProfile.os]
-                    customTestTarget = $testProfile.customTestTarget
-                    framework        = $testProfile.framework
-                    configuration    = $testProfile.configuration
-                    filter           = $filter
-                    coverage         = $coverage
-                    corpus           = $corpus
-                    batch            = $batchId
+                foreach ($project in $batch) {
+                    # Every automatic entry uses the corpus checked into the
+                    # repository. The private crash corpus is only ever replayed by
+                    # the protected job in nightly.yml.
+                    $corpus = 'none'
+                    if ($project -like 'fuzzing/*') {
+                        $corpus = 'public-checked-in'
+                    }
+                    $manifest += [ordered]@{
+                        project          = $project
+                        profile          = $testProfile.id
+                        tier             = $tier
+                        os               = $testProfile.os
+                        runsOn           = $RunnerImages[$testProfile.os]
+                        arch             = $RunnerArchitectures[$testProfile.os]
+                        customTestTarget = $testProfile.customTestTarget
+                        framework        = $testProfile.framework
+                        configuration    = $testProfile.configuration
+                        filter           = $batchFilter
+                        shard            = $shard.name
+                        coverage         = $coverage
+                        corpus           = $corpus
+                        batch            = $batchId
+                    }
                 }
             }
         }
