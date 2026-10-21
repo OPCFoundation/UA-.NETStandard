@@ -378,6 +378,13 @@ successful-message counter advances only when a message is returned.
 
 ## Publishing during session recovery
 
+V2 Publish workers select at least one queued acknowledgement when the queue is
+non-empty, even when there are more workers than pending acknowledgements.
+Progress does not depend on the worker entering its wait-for-ack path: that wait
+can be skipped when Publish latency exceeds the publishing interval or the server
+reports `MoreNotifications`. A quiet subscription therefore does not need another
+notification or a reduction in the worker count to release its pending acknowledgement.
+
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
 attempt parked at the shared channel's ready gate, without terminating its

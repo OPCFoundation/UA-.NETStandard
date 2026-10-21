@@ -2521,7 +2521,9 @@ namespace Opc.Ua.Client.Subscriptions
 
                 // TODO: Is this something that we can get from ops limit?
                 int available = m_outer.m_acks.Reader.Count;
-                int maxAcks = available / Math.Max(m_outer.PublishWorkerCount, 1);
+                int maxAcks = available == 0
+                    ? 0
+                    : Math.Max(1, available / Math.Max(m_outer.PublishWorkerCount, 1));
                 for (int i = 0; i < maxAcks &&
                     m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
                 {
