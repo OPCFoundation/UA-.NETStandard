@@ -114,7 +114,7 @@ On hybrid processors (Intel performance and efficiency cores, AMD Zen 5 and Zen 
 
 Restricting the server process to the performance cores can therefore cost less CPU for the same work. In one measurement (2026-10-15, 10 clients with 100 Reads each in flight) the server restricted to the performance cores reached the same throughput as on the whole machine at about half the CPU time. This depends on the workload, the processor and the other processes on the machine, so treat it as an option to measure, not a rule.
 
-Processors built from several core complexes (CCX) add a second cost. The Ryzen AI 9 HX 370 has two: CCX0 holds the 4 Zen 5 cores (logical processors 0–7) and CCX1 the 8 Zen 5c cores (logical processors 8–23). An ETW analysis on 2026-10-20 (`master` 014f99a53, the external open62541 benchmark client, 10 clients with 100 single-value Reads each in flight, steady state) recorded:
+Thread hand-offs between core complexes (CCX) added cost in the tested configuration. On this Ryzen AI 9 HX 370, CCX0 held the 4 Zen 5 cores (logical processors 0–7) and CCX1 the 8 Zen 5c cores (logical processors 8–23). An ETW analysis on 2026-10-20 (`master` 014f99a53, the external open62541 benchmark client, 10 clients with 100 single-value Reads each in flight, steady state) recorded:
 
 | Server affinity | Logical processors | Server CPU / Read | Throughput |
 |---|---|--:|--:|
@@ -123,9 +123,9 @@ Processors built from several core complexes (CCX) add a second cost. The Ryzen 
 | `0xFFFF` | 16, across both complexes | 24.5 µs | 586k req/s |
 | none | 24, across both complexes | 27.5 µs | 550k req/s |
 
-Within one complex, the CPU per Read differed roughly by the core-type ratio. Spanning both complexes cost more CPU per Read than the additional cores gained in throughput. The trace attributed most of that cost to hand-offs between threads on different complexes: the receive loop passing a request to a queue worker and the worker passing the response to the writer, the kernel loopback send, and the GC threads joining each collection. Compared with the server pinned to 4 logical processors of one complex, on all 24 the loopback send rose from 0.7 to 4.1 µs per request.
+Within one complex, CPU per Read differed roughly by the core-type ratio. Using both complexes increased CPU per Read without consistently increasing throughput. The trace attributed most of that cost to cross-complex hand-offs: from the receive loop to a queue worker, from that worker to the writer, during kernel loopback sends, and when GC threads joined a collection. Compared with the server pinned to 4 logical processors of one complex, on all 24 the loopback send rose from 0.7 to 4.1 µs per request.
 
-Where the load fits, keep the server within one core complex: start it with an affinity mask of that complex's logical processors, as shown below, and make sure the runtime's processor count matches the mask. Intel processors with performance and efficiency cores split the work in a similar way; this guide has no measurements for them. Measure your own deployment before choosing a mask.
+If measurements favor one complex and it can handle the load, start the server with that complex's affinity mask and match the runtime's processor count to it, as shown below. Identify the topology on the deployment host before choosing a mask; these processor numbers belong to the tested machine. Intel performance/efficiency-core configurations were not measured here.
 
 Set the affinity when the process starts, so the runtime sizes the thread pool and the Server GC heaps for the processors in the mask (`Environment.ProcessorCount` honours the affinity the process starts with):
 
@@ -150,7 +150,7 @@ On a Windows host with one or two processors, such as a small virtual machine, a
 - The thread pool's starvation detection then added workers (45–54 threads instead of about 5), which increased the contention.
 - The waits fell on multiples of the 15.6 ms Windows clock interval.
 
-Turning the boost off for the server process removed most of the tail. Two rounds per configuration on the same setup:
+Disabling priority boost reduced tail latency in this setup. Two rounds per configuration gave:
 
 | Values per Read | Priority boost | p99.9 latency | Throughput |
 |---|---|--:|--:|
@@ -161,7 +161,7 @@ Turning the boost off for the server process removed most of the tail. Two round
 
 With the boost off, the maximum single-value latency was 16–34 ms. Also setting `DOTNET_ThreadPool_UnfairSemaphoreSpinLimit=0`, so that idle thread-pool workers block without spinning, lowered the single-value p99.9 latency to 2.0–2.3 ms; on its own, with the boost on, it barely helped. The .NET 10 thread pool reads this variable (runtime configuration `System.Threading.ThreadPool.UnfairSemaphoreSpinLimit`), but it is not one of the documented [threading settings](https://learn.microsoft.com/dotnet/core/runtime-config/threading) and can change between releases. On 24 logical processors, turning the boost off made no measurable difference to CPU per Read (26.0 against 25.2 µs over 6 paired rounds); latency was not measured there.
 
-Priority boost is a process-wide setting, so the host application decides; the stack does not change it. Turn it off at start-up, before the server starts:
+Priority boost is a process-wide setting, so the host application decides; the stack does not change it. To evaluate disabling it, set it at startup before the server starts:
 
 ```csharp
 using System.Diagnostics;
@@ -232,7 +232,7 @@ Guidance:
 - **Size `MaxQueuedRequestCount` for the pipelining of all clients**: the sum over the clients of the requests each keeps outstanding. For example, 10 clients with 1,000 outstanding Reads each need 10,000. With the Balanced and TrustedReservations profiles the protected bootstrap, reconnect and control entries (one each by default) and the floors of trusted owners are added on top of the configured value, and held Publishes are counted in a separate stage of the same size; see [request and caller limits](ResourceIsolation.md#configuring-request-and-caller-limits). Releases up to 2.0.1 carved the three protected entries out of the configured value, so there size it at clients × outstanding requests + 3.
 - **`MaxRequestThreadCount` bounds concurrent request execution, not threads.** Request handling is asynchronous, so a few busy workers per core are enough for in-memory node managers; the default 100 rarely needs raising. Raise it when node managers block a worker for I/O or locks (synchronous `CustomNodeManager2` code waiting on a device), or when `DecoupleHeldPublishRequests` is off.
 - **Keep `MinRequestThreadCount` moderate.** It pre-warms the pool for connect bursts, but because it also sets the thread pool's minimum, a value far above the processor count lets the pool run many more threads than processors under load. On shared or pinned processors, a preempted thread then delays every GC suspension until it runs again.
-- **On one or two processors, the worker count is not the lever.** On one logical processor, a `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not the CPU per request or the latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for what did. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.
+- **Increasing the minimum worker count did not help the one-processor workload.** A `MinRequestThreadCount` of 4, 16 or 200 changed the number of ready threads but not CPU per request or latency; see [Small Windows machines and thread priority boost](#small-windows-machines-and-thread-priority-boost) for the measured scheduling change. With the FairShare, Balanced and TrustedReservations profiles, an idle worker spins for a few microseconds before it parks only when the runtime reports at least 8 processors (at most one spinning worker per 8 processors); on smaller machines it parks at once.
 - `BadServerTooBusy` responses to established sessions while the processors are not saturated mean that an admission limit, not the CPU, is the limit. With an isolation profile that is not necessarily the queue count: the retained request bytes, the parked-request stage or a per-owner limit reject requests the same way while queue entries are free. Check the `opcua.server.isolation.rejections` metric (its `stage` and `reason` labels) and `opcua.server.isolation.usage` before raising `MaxQueuedRequestCount`; see [transport behavior and overload signals](ResourceIsolation.md#transport-behavior-and-overload-signals).
 
 ## Scaling out

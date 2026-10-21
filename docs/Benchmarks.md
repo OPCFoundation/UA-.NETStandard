@@ -486,8 +486,9 @@ needed to quantify the spread.
 In these runs, restricting the .NET server to 4 logical processors gave a CPU
 cost per Read close to the single-threaded open62541 result. On all 24 logical
 processors, the recorded throughput was about five times higher, while CPU per
-Read was about three times the pinned .NET result. Hand-offs between the two
-core complexes account for most of that scaling cost. See
+Read was about three times the pinned .NET result. A later ETW analysis on this
+host attributed most of that scaling cost to hand-offs between its two core
+complexes. See
 [Hybrid CPUs and processor affinity](ServerScalability.md#hybrid-cpus-and-processor-affinity).
 
 Short runs include JIT warm-up: with the benchmark's default
@@ -580,9 +581,9 @@ Measured on the machine above; check it against your own deployment:
   15–20 µs instead of 24–28 µs of CPU per Read in another; adopt either only
   after measuring your workload. See
   [Hybrid CPUs and processor affinity](ServerScalability.md#hybrid-cpus-and-processor-affinity).
-- **Priority boost off on Windows hosts with one or two processors.** On one
-  logical processor it cut the 99.9th-percentile Read latency from 32–56 ms to
-  about 3 ms; see
+- **Compare priority boost on and off on small Windows hosts.** In the
+  one-logical-processor measurement, disabling it cut the 99.9th-percentile
+  Read latency from 32–56 ms to about 3 ms; see
   [Small Windows machines and thread priority boost](ServerScalability.md#small-windows-machines-and-thread-priority-boost).
 - **Measure at steady state**, after the JIT warm-up.
 
