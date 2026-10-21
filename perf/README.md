@@ -266,6 +266,14 @@ attribution use ETW CPU sampling, which samples at the instruction the processor
 PerfView (`PerfView collect`) or WPR/WPA (`wpr -start CPU`), both from an elevated prompt on
 Windows.
 
+ETW also answers why a thread waited. Context-switch and ready-thread events (`wpr -start CPU`
+records them; open *CPU Usage (Precise)* in WPA) show which thread readied a waiting thread and
+how long the woken thread then waited for a processor. That is how the latency tail on one
+processor was traced to priority boost rather than to timers; see
+[Small Windows machines and thread priority boost](../docs/ServerScalability.md#small-windows-machines-and-thread-priority-boost).
+Record them only at moderate request rates: at about 600k requests per second, context-switch
+recording with stacks loses events, and the lost events make the wait analysis incomplete.
+
 The sampled thread-time profile also samples blocked threads. The `cpu` mode drops samples
 whose leaf frame is a known wait (thread-pool semaphore, I/O completion poll, sleep),
 so the remaining samples approximate on-CPU time. Spin-waiting in `Monitor.Enter_Slowpath` or
