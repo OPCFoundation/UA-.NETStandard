@@ -86,6 +86,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         { get; set; }
 
         /// <summary>
+        /// Optional session acknowledgement policy.
+        /// </summary>
+        public Func<List<SubscriptionAcknowledgement>,
+            (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)>?
+            OnPrepareAcknowledgements
+        { get; set; }
+
+        /// <summary>
         /// Optional override for <see cref="PublishAsync"/>. If null,
         /// returns a default <see cref="PublishResponse"/>.
         /// </summary>
@@ -123,6 +131,13 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IManagedSubscription subscription = CreateSubscriptionFactory(handler, options, queue);
             initialize?.Invoke(subscription);
             return subscription;
+        }
+
+        /// <inheritdoc/>
+        public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+            PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+        {
+            return OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
         }
 
         public ValueTask<PublishResponse> PublishAsync(

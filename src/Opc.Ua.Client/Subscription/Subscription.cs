@@ -1308,7 +1308,17 @@ namespace Opc.Ua.Client.Subscriptions
                 AckQueue.Update();
                 return;
             }
-            await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
+            await AckQueue.RunWithPublishingQuiescedAsync(
+                token => ResetMessageGenerationAsync(async retireToken =>
+                {
+                    uint retiredId = Id;
+                    await DeleteCoreAsync(retireToken).ConfigureAwait(false);
+                    if (AckQueue.OwnsSubscriptionId(this, retiredId))
+                    {
+                        AckQueue.DropPendingForSubscription(retiredId);
+                    }
+                }, _ => default, token),
+                ct).ConfigureAwait(false);
         }
 
         private async ValueTask DeleteCoreAsync(CancellationToken ct)

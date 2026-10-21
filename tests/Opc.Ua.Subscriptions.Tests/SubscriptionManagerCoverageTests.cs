@@ -614,6 +614,13 @@ namespace Opc.Ua.Subscriptions.Tests
                 return subscription;
             }
 
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+            {
+                return (acknowledgements, []);
+            }
+
             public ValueTask<PublishResponse> PublishAsync(
                 RequestHeader? requestHeader,
                 ArrayOf<SubscriptionAcknowledgement> subscriptionAcknowledgements,

@@ -989,6 +989,8 @@ namespace Opc.Ua.Client.Subscriptions
                 await sut.DeleteAsync(default).ConfigureAwait(false);
 
                 // Assert
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.GreaterThanOrEqualTo(1));
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
         }
