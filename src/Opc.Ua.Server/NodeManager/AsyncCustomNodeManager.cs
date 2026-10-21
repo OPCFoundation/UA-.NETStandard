@@ -230,10 +230,7 @@ namespace Opc.Ua.Server
                 // Operations enter without the lock: publish the flag before counting them, so
                 // an operation entering now either is counted here or reads the flag and backs out.
                 Interlocked.MemoryBarrier();
-                if (m_operationCount.Count == 0)
-                {
-                    m_operationsDrained.TrySetResult(true);
-                }
+                CompleteOperationsDrainLocked();
             }
             m_valuePublicationShutdown.Cancel();
             // Cleanup starts inline until its first incomplete await, then publishes the shared
@@ -268,22 +265,37 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         /// <remarks>
-        /// Admission runs per service call and per monitored-item notification on every core, so it
-        /// counts in a per-processor slot instead of taking the operation lifetime lock.
-        /// The operation is counted before the disposal flag is read: disposal either counts it or
-        /// the operation reads the flag, backs out and exits (completing the drain if it was last).
+        /// Admission runs per service call and per monitored-item notification on every core, so
+        /// before disposal it counts in a per-processor slot instead of taking the operation
+        /// lifetime lock. The operation is counted before the disposal flag is read: disposal
+        /// either counts it, or the operation reads the flag and backs out. Once disposal has
+        /// started, the admissions it still allows (nested operations and the teardown callback)
+        /// are counted under the lock, where every drain check sees them; a per-processor slot
+        /// could be entered after a drain check had already summed it.
         /// </remarks>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
             NodeManagerOperationContext? previous = m_operationContext.Value;
+            NodeManagerOperationContext context;
             int slot = m_operationCount.Enter();
-            if (m_disposed && previous?.Active != true &&
-                (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+            if (!m_disposed)
+            {
+                context = new NodeManagerOperationContext(previous, slot);
+            }
+            else
             {
                 ExitNodeManagerOperation(slot);
-                throw new ObjectDisposedException(GetType().Name);
+                lock (m_operationLifetimeLock)
+                {
+                    if (previous?.Active != true &&
+                        (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                    {
+                        throw new ObjectDisposedException(GetType().Name);
+                    }
+                    m_lockedOperationCount++;
+                    context = new NodeManagerOperationContext(previous, kLockedOperationSlot);
+                }
             }
-            var context = new NodeManagerOperationContext(previous, slot);
             m_operationContext.Value = context;
             return new NodeManagerOperation(this, context);
         }
@@ -362,16 +374,41 @@ namespace Opc.Ua.Server
             {
                 m_operationContext.Value = context.Previous;
             }
+            if (context.Slot == kLockedOperationSlot)
+            {
+                lock (m_operationLifetimeLock)
+                {
+                    m_lockedOperationCount--;
+                    CompleteOperationsDrainLocked();
+                }
+                return;
+            }
             ExitNodeManagerOperation(context.Slot);
         }
 
         /// <summary>
-        /// Exits an admitted operation and signals a pending disposal when it was the last one.
+        /// Exits an operation admitted in a per-processor slot and signals a pending disposal when
+        /// it was the last one.
         /// </summary>
         private void ExitNodeManagerOperation(int slot)
         {
             m_operationCount.Exit(slot);
-            if (m_disposed && m_operationCount.Count == 0)
+            if (m_disposed)
+            {
+                lock (m_operationLifetimeLock)
+                {
+                    CompleteOperationsDrainLocked();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Signals the disposal drain once no operation is admitted. No slot admission can stick
+        /// after the disposal flag is published, so a zero sum read under the lock is final.
+        /// </summary>
+        private void CompleteOperationsDrainLocked()
+        {
+            if (m_disposed && m_lockedOperationCount == 0 && m_operationCount.Count == 0)
             {
                 m_operationsDrained.TrySetResult(true);
             }
@@ -11238,6 +11275,16 @@ namespace Opc.Ua.Server
         /// Counts admitted operations until their semaphore work and deferred callbacks finish.
         /// </summary>
         private readonly StripedCounter m_operationCount = new();
+
+        /// <summary>
+        /// Counts the operations admitted under the lock after disposal started.
+        /// </summary>
+        private int m_lockedOperationCount;
+
+        /// <summary>
+        /// The slot of an operation counted in <see cref="m_lockedOperationCount"/>.
+        /// </summary>
+        private const int kLockedOperationSlot = -1;
 
         /// <summary>The admitted operation inherited by nested callbacks.</summary>
         private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();

@@ -1587,10 +1587,19 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Returns <c>true</c> when the exact-source read check of the attribute involves no
-        /// registered Value read authorizer, whose policy must run on every delivery.
+        /// registered Value read authorizer, whose policy must run on every delivery, and no
+        /// read callback for the node's restrictions or permissions, whose answer may change
+        /// without moving any version the cached verdict is keyed on.
         /// </summary>
         private bool CanCacheReadAuthorization(uint attributeId)
         {
+            NodeState node = Node;
+            if (node.OnReadAccessRestrictions != null ||
+                node.OnReadRolePermissions != null ||
+                node.OnReadUserRolePermissions != null)
+            {
+                return false;
+            }
             return NodeManager switch
             {
                 AsyncCustomNodeManager custom => attributeId != Attributes.Value ||

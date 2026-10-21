@@ -186,6 +186,76 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A restriction served by a read callback is checked on every delivery, also after a cached grant.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29TightenedRestrictionCallbackAppliesAfterGrantAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            AccessRestrictionType? served = AccessRestrictionType.None;
+            harness.Node.OnReadAccessRestrictions =
+                (ISystemContext _, NodeState _, ref AccessRestrictionType? value) =>
+                {
+                    value = served;
+                    return ServiceResult.Good;
+                };
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            served = AccessRestrictionType.EncryptionRequired;
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertDenied(values[1], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
+        /// A grant reused across deliveries is withdrawn when the node's restrictions or the
+        /// subscriber's channel change.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29ReusedGrantFollowsRestrictionAndChannelChangesAsync(bool downgradeChannel)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            if (downgradeChannel)
+            {
+                harness.Node.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+            }
+            else
+            {
+                harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            if (downgradeChannel)
+            {
+                harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            }
+            else
+            {
+                harness.Node.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
         /// A channel downgrade while an asynchronous policy is suspended invalidates its earlier approval.
         /// </summary>
         [Test]
