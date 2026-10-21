@@ -68,9 +68,10 @@ namespace Opc.Ua.Client
         ///     <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>
         ///     — call
         ///     <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
-        ///     and trigger a reconnect so the new client cert takes
-        ///     effect immediately rather than at the next SecurityToken
-        ///     renewal (OPC UA Part 4 §5.5.2).
+        ///     and request a reconnect rather than waiting for the next
+        ///     security-token renewal (OPC UA Part 4 §5.5.2). Completion
+        ///     time depends on connection availability, in-flight work
+        ///     and the reconnect policy.
         ///   </item>
         ///   <item>
         ///     <see cref="CertificateChangeKind.TrustListUpdated"/> or

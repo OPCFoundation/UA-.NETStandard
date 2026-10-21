@@ -32,7 +32,7 @@ namespace Pumps
     /// <summary>
     /// The published characteristics of the simulated SimPump Corp
     /// PumpX-2000, exactly as documented in
-    /// <see href="https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/DI/PumpDeviceIntegrationServer/DATASHEET.md">DATASHEET.md</see>.
+    /// <see href="https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/Di/PumpDeviceIntegrationServer/DATASHEET.md">DATASHEET.md</see>.
     /// Every value the server publishes - nameplate, engineering ranges,
     /// alarm trip points and simulated process values - is derived from
     /// these constants, so the datasheet and the running address space

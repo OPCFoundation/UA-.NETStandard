@@ -88,6 +88,21 @@ All four worked read-only; no repository files were modified. Each produced five
 interface, usage example, what the implementation hides, dependency strategy and adapters,
 and trade-offs. Their designs are reproduced below **verbatim and in full**.
 
+> **Editorial note:** The reproduced submissions include unverified population
+> estimates, including "95% of authors," "the 99% case" and "the 90% used only".
+> No sampling method is supplied for those figures; treat them as the designers'
+> assumptions, not measured usage statistics. Repository inventory counts are
+> separate evidence.
+>
+> The synthesis below preserves its original historical conclusions, not current
+> validated guidance. Agreement between proposals does not prove necessity or
+> sufficiency. In particular, the claim that `commoncase` does not address HA
+> overlooks its HA-backed providers and reuse of `ILocalAddressSpace`. Separating
+> data from delegates does not alone prove correct replication or failover; state
+> capture, restoration and behavior binding still need validation. The rejection
+> of per-node `ReadAsync` likewise needs workload measurements: a session-count
+> limit does not establish the cost of an await.
+
 ## The problem space as briefed
 
 ### Measured surface
@@ -1966,7 +1981,7 @@ re-implement continuation handling.
 
 ### Seam placement
 
-This separated them most sharply, because it is where a designer can quietly cheat.
+The designs differed most in whether each proposed seam had a second adapter.
 
 `ports` was the only one to **refuse seams it was invited to sell**:
 
@@ -1988,7 +2003,7 @@ double, which is the thinnest of the four justifications.
 ### Four answers to one defect
 
 The clearest evidence the exercise did its job. One defect — `object? GetManagerHandle(NodeId)` —
-produced four genuinely different resolutions:
+produced four different resolutions:
 
 | Design | Resolution | Trade-off |
 |---|---|---|
@@ -2092,12 +2107,11 @@ Steps 1 and 2 are worth doing regardless of whether the rest is ever taken.
 
 ## Appendix — verified facts each designer independently confirmed
 
-Facts the designers checked against the tree during their investigation, useful because several
-are load-bearing for the recommendation and were verified more than once independently:
+The designers independently verified the following facts against the tree:
 
 - `BaseVariableState` carries **both** `OnReadValue` (sync, line 559) and `OnReadValueAsync`
   (async, line 578); the async family runs **without** `lock(this)`. Confirmed by `commoncase`
-  and `ports` separately. This is what makes a genuine sync read path possible.
+  and `ports` separately. This permits a genuine sync read path.
 - Today's fluent `Variable<T>(...)` overloads **only resolve** an existing node and throw
   `ServiceResultException` if absent — they cannot mint a node. Confirmed by `commoncase` from
   the interface doc comments.

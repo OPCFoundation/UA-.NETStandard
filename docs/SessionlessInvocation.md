@@ -11,6 +11,7 @@ to enable it on a server built with this stack.
 - [Which Services](#which-services)
 - [Enabling it](#enabling-it)
 - [Caller identity](#caller-identity)
+  - [Anonymous requests and the channel](#anonymous-requests-and-the-channel)
 - [Answers without the feature](#answers-without-the-feature)
 - [Limiting concurrent requests](#limiting-concurrent-requests)
 - [Taking over completely](#taking-over-completely)

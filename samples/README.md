@@ -2,6 +2,12 @@
 
 ## Additional samples
 
+- [Device Integration](Di/README.md) — a simulated pump line with alarms,
+  history, software update and OpenUSD assets.
+- [Fluent API](FluentApi/README.md) — a Generic Host server and fluent node manager.
+- [ISA-95](ISA95/README.md) — Common Model and Job Control V1/V2.
+- [Local Discovery Server](Lds/README.md) — console LDS and multicast discovery.
+- [PubSub](PubSub/README.md) — publisher, subscriber and external-server adapter modes.
 - [MachineTool and wireless peripherals](MachineTool/) — independently selected
   machine/peripheral models, per-instance simulation, typed clients, jobs/files,
   measurements and record/configuration workflows.

@@ -758,7 +758,7 @@ namespace Opc.Ua.Server
             m_namespaceMetadata.Attach(systemContext);
 
             // Bind ServerConfiguration.UserManagement (i=24290) per Part 18 §5
-            // if an IUserManagement was injected via IServerInternal.SetUserManagement.
+            // if startup supplied an IUserManagement through CreateUserManagement.
             if (Server is IServerInternal serverInternal && serverInternal.UserManagement != null)
             {
                 m_userManagementBinding?.Dispose();

@@ -6,7 +6,7 @@ hall renders at full fidelity, but it has to be self-contained: material paths
 are rewritten to a local Looks scope.
 
 Run from the repository root:
-    python samples/DI/PumpDeviceIntegrationServer/Assets/generate_pump_assets.py
+    python samples/Di/PumpDeviceIntegrationServer/Assets/generate_pump_assets.py
 """
 
 import pathlib

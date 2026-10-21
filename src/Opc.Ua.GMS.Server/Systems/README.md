@@ -130,9 +130,10 @@ owner. The owner must select Machinery building blocks and results. Model
 loading retains the exact GMS + MachineTool + Machinery Result dependency
 closure; it does not enable WMTP.
 
-`session.CreateGmsClient(telemetry)` creates a caller-session-owned facade.
-`AddGmsClient` registers `IGmsClientFactory`; sessions explicitly opened by that
-factory are disposed with the facade.
+`session.CreateGmsClient(telemetry)` and `IGmsClientFactory.CreateAsync` create
+facades that borrow their sessions. `AddGmsClient` registers the factory.
+Disposing a facade drains its own workflows without closing or disposing the
+borrowed session; the application or DI container remains responsible for that session.
 
 ```csharp
 await using GmsClient gms = session.CreateGmsClient(telemetry);

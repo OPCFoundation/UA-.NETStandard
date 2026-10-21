@@ -1363,8 +1363,11 @@ Take **Option A wholesale** if all five of `r2-rewrite`'s conditions hold — a 
 maintenance horizon with HA committed, a small or coordinated external node-manager
 population, a release train that can freeze `MasterNodeManager`/`IServerInternal`/
 `Subscription`, funding for the ~19,720-line test rewrite inside the same train, and the
-`NodeState` re-cut kept out of scope. Note the last one: *both* the rewrite designer and the
-`NodeState` designer independently insist the two programmes must not be combined.
+full `NodeState` re-cut kept out of scope. Option A excludes a full `NodeState` re-cut
+from its release train while allowing the data/behaviour split. The `NodeState` proposal
+recommends adopting that split within the rewrite and retaining typed/behaviour
+inheritance. These are distinct scope positions, not agreement that all `NodeState`
+work must be deferred.
 
 Take **Option B's hard fork** only on `r2-fork`'s single surviving justification — a second,
 structurally-incompatible node-serving engine for a genuinely remote address space, where the

@@ -265,10 +265,11 @@ the `Server` object.
 
 ## 8 Simulation profile
 
-The sample server reproduces the datasheet with a deterministic model driven by
-a single independent variable — volumetric flow. Every other published value is
-derived from the characteristic curves in section 3.2, so the published values
-are mutually consistent at all times. The simulation advances on one shared
+The sample server uses a deterministic simulation. Differential pressure, mass
+flow, efficiency and shaft power are derived from volumetric flow using the
+characteristic curves in section 3.2. Bearing temperature also includes a timed
+cooling-fault excursion; fluid temperature, suction level and the start counter
+follow the time-based models below. The simulation advances on one shared
 250 ms tick; each pump uses a fixed phase offset of 17 ticks per instance so the
 units never move in lockstep.
 

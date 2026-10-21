@@ -183,8 +183,9 @@ namespace Opc.Ua.Client
         public string? SubjectName { get; set; }
 
         /// <summary>
-        /// The PKI root. When omitted, a per-application directory below
-        /// the temporary directory is used.
+        /// The PKI root. When omitted, the running account's
+        /// <c>LocalApplicationData/OPC Foundation/{ApplicationName}/pki</c>
+        /// directory is used.
         /// See <see cref="ApplicationName"/> for combination rules.
         /// </summary>
         public string? PkiRoot { get; set; }

@@ -166,9 +166,11 @@ namespace Opc.Ua.PubSub.Kafka
         public string BootstrapServers { get; set; } = string.Empty;
 
         /// <summary>
-        /// Optional Kafka <c>client.id</c>; when <see langword="null"/>
-        /// the transport derives one from the PubSubConnection's
-        /// PublisherId.
+        /// Optional Kafka <c>client.id</c>; when <see langword="null"/> or
+        /// empty the Kafka client library default is used. Also used as
+        /// the prefix of the generated consumer group id when
+        /// <see cref="GroupId"/> is not set (default prefix
+        /// <c>opcua-pubsub</c>).
         /// </summary>
         public string? ClientId { get; set; }
 

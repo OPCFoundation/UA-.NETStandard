@@ -18,6 +18,6 @@ Reference this package alongside `Opc.Ua.Client` from any tool that manages conn
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the
-[WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
+[WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotCon.md).
 
 The runnable [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotCon/README.md) demonstrates `LoadDocumentsAsync`, dependency ordering, endpoint substitution, registry upload, `Refresh`, browsing, and reads from a runtime-materialized Pump.

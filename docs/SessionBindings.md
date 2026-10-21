@@ -11,6 +11,14 @@ This client capability is distinct from the server's
 provides read-only committed-session membership and classification snapshots through
 `HasSession` and `TryGetSessionContext`. Neither interface requires the other's members.
 
+## Contents
+
+- [Generation-bound session clients](#generation-bound-session-clients)
+  - [Capture and use](#capture-and-use)
+  - [What is captured](#what-is-captured)
+  - [Invalidation, cancellation and support](#invalidation-cancellation-and-support)
+  - [Compatibility and deployment](#compatibility-and-deployment)
+
 ## Capture and use
 
 Establish and authenticate the owning session through the usual direct factory

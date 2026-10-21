@@ -4,14 +4,15 @@
 
 - [Overview](#overview)
 - [Server side](#server-side)
-  - [`IRoleManager`](#irolemanager)
+  - [IRoleManager](#irolemanager)
   - [Authoring an identity-mapping rule with claims](#authoring-an-identity-mapping-rule-with-claims)
-  - [`RoleConfigurationChanged` event](#roleconfigurationchanged-event)
+  - [RoleConfigurationChanged event](#roleconfigurationchanged-event)
   - [Typed-proxy address-space binding](#typed-proxy-address-space-binding)
   - [Default impersonation flow](#default-impersonation-flow)
-  - [User Management](#user-management-part-18-5)
+  - [User Management (Part 18 §5)](#user-management-part-18-5)
   - [User name / password storage](#user-name--password-storage)
 - [Client side](#client-side)
+  - [Bounded role snapshots](#bounded-role-snapshots)
 - [GDS](#gds)
 - [Known limitations](#known-limitations)
 - [References](#references)
@@ -45,7 +46,7 @@ See `src/Opc.Ua.Server/RoleBasedUserManagement/` for the source.
 
 ### IRoleManager
 
-The `IRoleManager` interface (`Opc.Ua.Server.IRoleManager`) is the server-side extensibility surface. The default implementation `Opc.Ua.Server.RoleManager` is fully in-memory; integrators that need persistence implement `IRoleManager` directly and inject the instance via `IServerInternal.SetRoleManager` before the server starts.
+The `IRoleManager` interface (`Opc.Ua.Server.IRoleManager`) is the server-side extensibility surface. The default implementation `Opc.Ua.Server.RoleManager` is fully in-memory; integrators that need persistence implement `IRoleManager` directly. For DI-hosted servers, register the implementation through `AddRoleManager(instance)` or `AddRoleManager<TManager>()` on the server builder before building the host. For a custom non-DI `StandardServer`, override `CreateRoleManager`.
 
 Every mutator returns a `ServiceResult` that mirrors the spec-defined status codes:
 
@@ -164,39 +165,47 @@ and `TrustedApplication` criteria continue to evaluate application identity.
 
 Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedRoles` after authentication. New integrations should expose claims through `IIdentityClaims` and add `IdentityMappingRuleType` entries to the role manager.
 
-Live role changes are reconciled on the session's next request, including
-`Publish`. Event permission-cache entries are bound to the current session,
-effective identity and permission versions, so an earlier `ReceiveEvents`
-approval cannot authorize newly generated events after that reconciliation.
-Events already queued while authorized are not retroactively removed.
+Live role changes are reconciled before the session's next request, including
+`Publish`, and before background event authorization. Event permission-cache
+entries are bound to the current session, effective identity and permission
+versions, so an earlier `ReceiveEvents` approval cannot authorize newly generated
+events after that reconciliation.
+Changed role grants also retire queued events and retransmission messages from
+the previous grants before the session can publish them.
 
 ### User Management (Part 18 §5)
 
 The Part 18 §5 `UserManagementType` is bound to the standard
 `Server.ServerConfiguration.UserManagement` object (NodeId `i=24290`).
-Integrators inject an `IUserManagement` instance via
-`IServerInternal.SetUserManagement` before the configuration node manager
-binds the address space; the default `UserManagement` implementation wraps
+For DI-hosted servers, register `IUserManagement` in the service collection
+before building the host. For a custom non-DI `StandardServer`, override
+`CreateUserManagement`. These startup hooks supply the implementation before
+the configuration node manager binds the address space. The default
+`UserManagement` implementation wraps
 an existing `IUserDatabase` for credential persistence. Built-in
 `LinqUserDatabase` and `JsonUserDatabase` also persist the per-user
-`UserConfigurationMask` and description:
+`UserConfigurationMask` and description.
+
+The `AddSecureServer` DI preset registers `IUserDatabase` as `LinqUserDatabase`
+and `IUserManagement` as `UserManagement` using `TryAddSingleton`. After calling
+that preset (or registering those services explicitly), the following
+replacement changes the password policy while retaining the registered user
+database. Configure it before building the host:
 
 ```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Server.UserDatabase;
 using Opc.Ua.Server.UserManagement;
 
-var users = new LinqUserDatabase();
-users.CreateUser("alice", "secret"u8, [Role.AuthenticatedUser]);
-
-var userManagement = new UserManagement(
-    users,
-    passwordLength: new Range { Low = 8, High = 256 },
-    passwordOptions:
-        PasswordOptionsMask.SupportDisableUser
-        | PasswordOptionsMask.SupportInitialPasswordChange
-        | PasswordOptionsMask.RequiresDigitCharacters);
-
-serverInternal.SetUserManagement(userManagement);
+services.Replace(ServiceDescriptor.Singleton<IUserManagement>(provider =>
+    new UserManagement(
+        provider.GetRequiredService<IUserDatabase>(),
+        passwordLength: new Opc.Ua.Range { Low = 8, High = 256 },
+        passwordOptions:
+            Opc.Ua.PasswordOptionsMask.SupportDisableUser
+            | Opc.Ua.PasswordOptionsMask.SupportInitialPasswordChange
+            | Opc.Ua.PasswordOptionsMask.RequiresDigitCharacters)));
 ```
 
 `IUserDatabase` commits credentials and metadata together, so disabled and
