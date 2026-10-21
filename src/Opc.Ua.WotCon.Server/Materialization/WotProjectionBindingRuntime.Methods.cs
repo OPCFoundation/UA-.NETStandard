@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using Opc.Ua.Server;
 using System.Threading.Tasks;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.WotCon.Bindings;
@@ -132,12 +133,81 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             commentMethod.OnCall = null;
                             commentMethod.OnCallAsync = null;
                         }
-                        m_builder.Node(standard.NodeId).OnCallWithResult(
+                        MethodCalledWithResultEventHandlerAsync aliasHandler = BuildConditionAliasHandler(
+                            ResolveLocalNodeId(local.OwnerNodeId, plan.ResourceXid, local.JsonPointer),
+                            builder.Node, standard,
                             BuildMethodHandler(standard, form, slot, condition, local.ConditionAction));
+                        // Condition initialization can reinstall typed callbacks. The complete-result
+                        // hook takes precedence over them, including after address-space registration.
+                        m_builder.Node(standard.NodeId).OnCallWithResult(aliasHandler);
                     }
                 }
             }
             DisableUnboundConditionMethods(conditionMethods);
+        }
+
+        /// <summary>
+        /// Dispatches remote aliases through the original Call service receiver so
+        /// its live permissions, restrictions and executability remain authoritative.
+        /// </summary>
+        private static MethodCalledWithResultEventHandlerAsync BuildConditionAliasHandler(
+            NodeId receiverId,
+            MethodState original,
+            MethodState alias,
+            MethodCalledWithResultEventHandlerAsync trustedHandler)
+        {
+            NodeId originalMethodId = original.NodeId;
+            ArrayOf<ArgumentSignature> originalInputs = CaptureSignature(original.InputArguments);
+            ArrayOf<ArgumentSignature> aliasInputs = CaptureSignature(alias.InputArguments);
+            return async (context, method, objectId, arguments, cancellationToken) =>
+            {
+                if (context is not SessionSystemContext { OperationContext: OperationContext operation })
+                {
+                    return await trustedHandler(context, method, objectId, arguments, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                if (context is not ServerSystemContext serverContext)
+                {
+                    return new MethodInvocationResult(new ServiceResult(StatusCodes.BadUserAccessDenied));
+                }
+                var inputs = new List<Variant>();
+                foreach (ArgumentSignature input in originalInputs)
+                {
+                    int index = -1;
+                    for (int i = 0; i < aliasInputs.Count; i++)
+                    {
+                        if (aliasInputs[i].Name == input.Name)
+                        {
+                            index = i;
+                            break;
+                        }
+                    }
+                    if (index < 0 || index >= arguments.Count)
+                    {
+                        return new MethodInvocationResult(new ServiceResult(StatusCodes.BadArgumentsMissing));
+                    }
+                    inputs.Add(arguments[index]);
+                }
+                var request = new CallMethodRequest
+                {
+                    ObjectId = receiverId,
+                    MethodId = originalMethodId,
+                    InputArguments = inputs.ToArrayOf()
+                };
+                var (calls, _) = await serverContext.Server.NodeManager.CallAsync(
+                    operation, [request], cancellationToken).ConfigureAwait(false);
+                if (calls.Count != 1)
+                {
+                    return new MethodInvocationResult(new ServiceResult(StatusCodes.BadUnexpectedError));
+                }
+                CallMethodResult response = calls[0];
+                if (StatusCode.IsBad(response.StatusCode))
+                {
+                    return new MethodInvocationResult(new ServiceResult(response.StatusCode));
+                }
+                return new MethodInvocationResult(
+                    new ServiceResult(response.StatusCode), response.OutputArguments);
+            };
         }
 
         private void DisableUnboundConditionMethods(

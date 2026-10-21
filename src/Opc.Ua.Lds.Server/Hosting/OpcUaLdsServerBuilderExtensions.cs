@@ -189,7 +189,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton<IRegisteredServerStore>(sp =>
                 new RegisteredServerStore(
                     sp.GetService<Logging.ILogger<RegisteredServerStore>>(),
-                    sp.GetService<TimeProvider>()));
+                    sp.GetService<TimeProvider>(),
+                    sp.GetService<IFileSystem>() ?? LocalFileSystem.Instance));
             services.AddHostedService<LdsServerHostedService>();
             IOpcUaBuilder opcUa = services.AddOpcUa();
             opcUa.AddApplicationInstance();

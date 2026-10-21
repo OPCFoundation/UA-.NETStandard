@@ -131,7 +131,7 @@ namespace Opc.Ua.PlasticsRubber.Server
         }
 
         /// <summary>
-        /// Reads actual device state rather than exposing stale initialized or optimistically written values.
+        /// Applies the same async policy to direct status reads, monitored admission and subscriber delivery.
         /// </summary>
         private void BindStatusRead(
             BaseVariableState variable,
@@ -144,6 +144,8 @@ namespace Opc.Ua.PlasticsRubber.Server
             {
                 throw new InvalidOperationException("A dataset status property already has a read handler.");
             }
+            m_statusReadAuthorizations.Add(m_owner.RegisterValueReadAuthorization(variable, (context, ct) =>
+                InvokeAsync(context, status.NodeId, status, variable, static (_, _) => default, ct, serialize: false)));
             variable.AccessLevel = AccessLevels.CurrentRead;
             variable.UserAccessLevel = AccessLevels.CurrentRead;
             variable.OnReadValueAsync = async (context, _, range, encoding, ct) =>

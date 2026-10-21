@@ -31,7 +31,13 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+#if !NET8_0_OR_GREATER
+using System.Net.Security;
+#endif
 using System.Runtime.InteropServices;
+#if !NET8_0_OR_GREATER
+using System.Security.Cryptography;
+#endif
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -71,7 +77,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
         public MqttClientAdapter(
             ITelemetryContext telemetry,
             TimeProvider timeProvider,
-            IMqttTrustedIssuerResolver? trustedIssuerResolver = null)
+            IMqttTrustedIssuerResolver? trustedIssuerResolver = null,
+            IMqttClient? client = null)
         {
             if (telemetry is null)
             {
@@ -90,7 +97,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
 #else
             var factory = new MqttFactory();
 #endif
-            m_client = factory.CreateMqttClient();
+            m_client = client ?? factory.CreateMqttClient();
             m_client.ApplicationMessageReceivedAsync += OnApplicationMessageReceivedAsync;
             m_client.ConnectedAsync += OnConnectedAsync;
             m_client.DisconnectedAsync += OnDisconnectedAsync;
@@ -139,7 +146,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 builder = builder.WithClientId(options.ClientId);
             }
-            bool useTls = options.Tls?.UseTls ?? endpoint.UseTls;
+            bool useTls = endpoint.UseTls || options.Tls?.UseTls == true;
             ValidateCredentialTransport(options.UserName, useTls, options.AllowCredentialsOverPlaintext);
             if (!string.IsNullOrEmpty(options.UserName))
             {
@@ -195,6 +202,39 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
 
             return builder.WithTcpServer(endpoint.Host, endpoint.Port);
+        }
+
+        /// <summary>
+        /// Configures broker TLS while retaining identity and certificate-usage validation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="builder"/> is null.
+        /// </exception>
+        internal static MqttClientOptionsBuilder ConfigureTls(
+            MqttClientOptionsBuilder builder,
+            MqttTlsOptions? tls,
+            X509Certificate2Collection? trustChain)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            bool allowUntrusted = tls is not null && !tls.ValidateServerCertificate;
+            return builder.WithTlsOptions(o =>
+            {
+                o.UseTls()
+                    .WithAllowUntrustedCertificates(allowUntrusted);
+                if (trustChain is not null && trustChain.Count > 0)
+                {
+#if NET8_0_OR_GREATER
+                    o.WithTrustChain(trustChain);
+#else
+                    bool validate = tls is null || tls.ValidateServerCertificate;
+                    o.WithCertificateValidationHandler(context =>
+                        ValidateAgainstTrustChain(context, trustChain, validate));
+#endif
+                }
+            });
         }
 
         internal static void ApplyEnhancedAuthentication(
@@ -569,32 +609,12 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
         }
 
-        private static MqttClientOptionsBuilder ConfigureTls(
-            MqttClientOptionsBuilder builder,
-            MqttTlsOptions? tls,
-            X509Certificate2Collection? trustChain)
-        {
-            bool allowUntrusted = tls is not null && !tls.ValidateServerCertificate;
-            return builder.WithTlsOptions(o =>
-            {
-                o.UseTls()
-                    .WithAllowUntrustedCertificates(allowUntrusted);
-                if (trustChain is not null && trustChain.Count > 0)
-                {
-#if NET8_0_OR_GREATER
-                    o.WithTrustChain(trustChain);
-#else
-                    bool validate = tls is null || tls.ValidateServerCertificate;
-                    o.WithCertificateValidationHandler(context =>
-                        ValidateAgainstTrustChain(context.Certificate, trustChain, validate));
-#endif
-                }
-            });
-        }
-
 #if !NET8_0_OR_GREATER
+        /// <summary>
+        /// Overrides only custom trust-anchor errors, not the TLS identity or certificate usage.
+        /// </summary>
         private static bool ValidateAgainstTrustChain(
-            X509Certificate certificate,
+            MqttClientCertificateValidationEventArgs context,
             X509Certificate2Collection trustChain,
             bool validate)
         {
@@ -602,30 +622,29 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             {
                 return true;
             }
-            if (certificate is null)
+            if (context.Certificate is null ||
+                (context.SslPolicyErrors & ~SslPolicyErrors.RemoteCertificateChainErrors) != SslPolicyErrors.None)
+            {
+                return false;
+            }
+            if (context.Chain is not null && !HasOnlyTrustAnchorErrors(context.Chain))
             {
                 return false;
             }
 
-            using var brokerCertificate = new X509Certificate2(certificate);
+            using var brokerCertificate = new X509Certificate2(context.Certificate);
             using var chain = new X509Chain();
             chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
             chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+            chain.ChainPolicy.ApplicationPolicy.Add(new Oid("1.3.6.1.5.5.7.3.1"));
             chain.ChainPolicy.ExtraStore.AddRange(trustChain);
 
             // Build populates ChainStatus/ChainElements; the return value is ignored because
             // MQTTnet v4 (net48) cannot set a custom root trust store and a
             // self-signed configured CA always reports UntrustedRoot.
             _ = chain.Build(brokerCertificate);
-            foreach (X509ChainStatus status in chain.ChainStatus)
+            if (!HasOnlyTrustAnchorErrors(chain))
             {
-                if (status.Status is X509ChainStatusFlags.NoError
-                    or X509ChainStatusFlags.UntrustedRoot
-                    or X509ChainStatusFlags.PartialChain)
-                {
-                    continue;
-                }
-
                 return false;
             }
 
@@ -646,6 +665,23 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Identifies the trust-anchor errors that configured issuers are permitted to resolve.
+        /// </summary>
+        private static bool HasOnlyTrustAnchorErrors(X509Chain chain)
+        {
+            const X509ChainStatusFlags allowedErrors =
+                X509ChainStatusFlags.UntrustedRoot | X509ChainStatusFlags.PartialChain;
+            foreach (X509ChainStatus status in chain.ChainStatus)
+            {
+                if ((status.Status & ~allowedErrors) != X509ChainStatusFlags.NoError)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 #endif
     }

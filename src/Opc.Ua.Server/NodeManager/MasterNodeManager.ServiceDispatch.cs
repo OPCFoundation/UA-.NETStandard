@@ -994,32 +994,29 @@ namespace Opc.Ua.Server
                     AccessRestrictionType.ApplyRestrictionsToBrowse;
 
                 bool browseOperation =
-                    context.RequestType
+                    context?.RequestType
                         is RequestType.Browse
                             or RequestType.BrowseNext
                             or RequestType.TranslateBrowsePathsToNodeIds;
 
-                // Access restriction validation runs while a request is being processed,
-                // which always carries a channel context with an endpoint description.
-                EndpointDescription endpointDescription =
-                    context.ChannelContext!.EndpointDescription!;
+                // Notifications have no incoming request channel. Only the subscriber's
+                // session endpoint can supply their transport security, never the reporter.
+                EndpointDescription? endpointDescription =
+                    context?.ChannelContext?.EndpointDescription ??
+                    MonitoredReadAuthorization.GetEndpoint(context?.Session);
 
                 if ((
                         encryptionRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.Sign &&
-                        endpointDescription.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
-                        endpointDescription.TransportProfileUri !=
-                            Profiles.HttpsBinaryTransport &&
+                        endpointDescription?.SecurityMode != MessageSecurityMode.Sign &&
+                        !MonitoredReadAuthorization.IsConfidential(endpointDescription) &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
-                    (sessionRequired && context.Session == null))
+                    (sessionRequired && context?.Session == null))
                 {
                     serviceResult = ServiceResult.Create(
                         StatusCodes.BadSecurityModeInsufficient,

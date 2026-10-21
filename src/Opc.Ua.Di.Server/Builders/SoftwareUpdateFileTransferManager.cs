@@ -145,6 +145,12 @@ namespace Opc.Ua.Di.Server.Builders
             _ = method;
             _ = objectId;
 
+            if (IsRemoteSessionless(context))
+            {
+                fileNodeId = NodeId.Null;
+                fileHandle = 0;
+                return StatusCodes.BadSessionIdInvalid;
+            }
             NodeId? sessionId = SessionIdOf(context);
             UploadSlot slot;
 
@@ -223,7 +229,7 @@ namespace Opc.Ua.Di.Server.Builders
                     completionStateMachine = NodeId.Null;
                     return StatusCodes.BadInvalidState;
                 }
-                if (!TryGetOwnedSlotLocked(context, fileHandle, out slot, out ServiceResult err))
+                if (!TryGetOwnedSlotLocked(context, fileHandle, null, out slot, out ServiceResult err))
                 {
                     completionStateMachine = NodeId.Null;
                     return err;
@@ -272,6 +278,11 @@ namespace Opc.Ua.Di.Server.Builders
             _ = method;
             _ = objectId;
 
+            if (IsRemoteSessionless(context))
+            {
+                fileHandle = 0;
+                return StatusCodes.BadSessionIdInvalid;
+            }
             if (mode != OpenModeWriteEraseExisting)
             {
                 fileHandle = 0;
@@ -288,9 +299,7 @@ namespace Opc.Ua.Di.Server.Builders
                     return StatusCodes.BadNotFound;
                 }
                 NodeId? sessionId = SessionIdOf(context);
-                if (slot.OwnerSessionId != null &&
-                    sessionId != null &&
-                    slot.OwnerSessionId != sessionId)
+                if (slot.OwnerSessionId != sessionId)
                 {
                     fileHandle = 0;
                     return ServiceResult.Create(
@@ -321,7 +330,8 @@ namespace Opc.Ua.Di.Server.Builders
             _ = objectId;
             lock (m_gate)
             {
-                if (!TryGetOwnedSlotLocked(context, fileHandle, out UploadSlot slot, out ServiceResult err))
+                if (!TryGetOwnedSlotLocked(
+                    context, fileHandle, method.Parent, out UploadSlot slot, out ServiceResult err))
                 {
                     return err;
                 }
@@ -354,13 +364,16 @@ namespace Opc.Ua.Di.Server.Builders
             int length,
             ref ByteString data)
         {
-            _ = context;
-            _ = method;
             _ = objectId;
-            _ = fileHandle;
             _ = length;
-            // Write-only transient files don't support read.
             data = default;
+            lock (m_gate)
+            {
+                if (!TryGetOwnedSlotLocked(context, fileHandle, method.Parent, out _, out ServiceResult error))
+                {
+                    return error;
+                }
+            }
             return ServiceResult.Create(
                 StatusCodes.BadNotSupported,
                 "Transient upload files are write-only.");
@@ -376,7 +389,8 @@ namespace Opc.Ua.Di.Server.Builders
             _ = objectId;
             lock (m_gate)
             {
-                if (!TryGetOwnedSlotLocked(context, fileHandle, out UploadSlot slot, out ServiceResult err))
+                if (!TryGetOwnedSlotLocked(
+                    context, fileHandle, method.Parent, out UploadSlot slot, out ServiceResult err))
                 {
                     return err;
                 }
@@ -402,7 +416,8 @@ namespace Opc.Ua.Di.Server.Builders
             _ = objectId;
             lock (m_gate)
             {
-                if (!TryGetOwnedSlotLocked(context, fileHandle, out UploadSlot slot, out ServiceResult err))
+                if (!TryGetOwnedSlotLocked(
+                    context, fileHandle, method.Parent, out UploadSlot slot, out ServiceResult err))
                 {
                     position = 0;
                     return err;
@@ -423,7 +438,8 @@ namespace Opc.Ua.Di.Server.Builders
             _ = objectId;
             lock (m_gate)
             {
-                if (!TryGetOwnedSlotLocked(context, fileHandle, out UploadSlot slot, out ServiceResult err))
+                if (!TryGetOwnedSlotLocked(
+                    context, fileHandle, method.Parent, out UploadSlot slot, out ServiceResult err))
                 {
                     return err;
                 }
@@ -440,15 +456,31 @@ namespace Opc.Ua.Di.Server.Builders
 
         private static NodeId? SessionIdOf(ISystemContext context)
         {
-            return (context as ISessionSystemContext)?.SessionId;
+            return context is ISessionSystemContext { SessionId: { IsNull: false } sessionId }
+                ? sessionId
+                : null;
+        }
+
+        private static bool IsRemoteSessionless(ISystemContext context)
+        {
+            return context is not SystemContext { OperationContext: null } &&
+                context is not ServerSystemContext { OperationContext: null } &&
+                SessionIdOf(context) == null;
         }
 
         private bool TryGetOwnedSlotLocked(
             ISystemContext context,
             uint fileHandle,
+            NodeState? receiver,
             out UploadSlot slot,
             out ServiceResult error)
         {
+            if (IsRemoteSessionless(context))
+            {
+                slot = null!;
+                error = StatusCodes.BadSessionIdInvalid;
+                return false;
+            }
             if (!m_slots.TryGetValue(fileHandle, out UploadSlot? located))
             {
                 slot = null!;
@@ -458,9 +490,8 @@ namespace Opc.Ua.Di.Server.Builders
                 return false;
             }
             NodeId? expected = SessionIdOf(context);
-            if (located.OwnerSessionId != null &&
-                expected != null &&
-                located.OwnerSessionId != expected)
+            if (located.OwnerSessionId != expected ||
+                (receiver != null && !ReferenceEquals(located.FileObject, receiver)))
             {
                 slot = null!;
                 error = ServiceResult.Create(

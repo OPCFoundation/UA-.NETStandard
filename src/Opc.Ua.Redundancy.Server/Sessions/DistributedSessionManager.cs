@@ -596,6 +596,52 @@ namespace Opc.Ua.Redundancy.Server
             return true;
         }
 
+        /// <inheritdoc/>
+        protected override async ValueTask<bool> AdmitActivationAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            bool isRestoredSession,
+            CancellationToken cancellationToken)
+        {
+            if (isRestoredSession)
+            {
+                return await base.AdmitActivationAsync(
+                    authenticationToken,
+                    session,
+                    context,
+                    isRestoredSession,
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            if (!m_options.EnableFastReconnect)
+            {
+                return true;
+            }
+
+            if (session is not Session localSession)
+            {
+                return false;
+            }
+
+            ByteString previousNonce = localSession.GetServerNonceData();
+            if (!IsValidSessionNonce(previousNonce))
+            {
+                return false;
+            }
+
+            bool consumed = await m_nonceRegistry
+                .TryConsumeAsync(previousNonce, cancellationToken)
+                .ConfigureAwait(false);
+            if (!consumed)
+            {
+                m_logger.DistributedSessionRestoreRejected(
+                    TokenDigest(authenticationToken),
+                    RestoreDecision.NonceReplayed);
+            }
+            return consumed;
+        }
+
         /// <summary>
         /// Completes a restore after its first activation committed: this replica takes
         /// over the entry (the previous owner then drops its stale copy), tracks the

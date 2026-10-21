@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -115,6 +116,55 @@ namespace Opc.Ua.Pcap.Tests.Formats
         }
 
         [Test]
+        public async Task FormatAsyncHonoursMaxFramesLimitForFileBackedPcapNg()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"opcua-{Guid.NewGuid():N}.pcapng");
+            try
+            {
+                using var capture = new MemoryStream();
+                var writer = new PcapNgFileWriter(capture, PcapFileWriter.LinkTypeNull);
+                try
+                {
+                    await writer.WriteAsync(
+                        new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
+                        new byte[] { 0xAA },
+                        CancellationToken.None).ConfigureAwait(false);
+                    await writer.WriteAsync(
+                        new DateTimeOffset(2026, 1, 2, 3, 4, 6, TimeSpan.Zero),
+                        new byte[] { 0xBB },
+                        CancellationToken.None).ConfigureAwait(false);
+                    await writer.WriteAsync(
+                        new DateTimeOffset(2026, 1, 2, 3, 4, 7, TimeSpan.Zero),
+                        new byte[] { 0xCC },
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await writer.DisposeAsync().ConfigureAwait(false);
+                }
+                File.WriteAllBytes(path, capture.ToArray());
+
+                await using var source = new InMemoryCaptureSource(
+                    supportedFormats: [FormatKind.PcapNg],
+                    pcapFilePath: path);
+                var formatter = new PcapNgFormatter();
+
+                FormatResult result = await formatter.FormatAsync(
+                    source, maxFrames: 2, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(result.FramesFormatted, Is.EqualTo(2));
+                Assert.That(CountEnhancedPacketBlocks(result.Bytes), Is.EqualTo(2));
+            }
+            finally
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+        }
+
+        [Test]
         public void FormatAsyncThrowsWhenSourceDoesNotSupportPcapNgAndHasNoPcapFile()
         {
             var formatter = new PcapNgFormatter();
@@ -139,6 +189,23 @@ namespace Opc.Ua.Pcap.Tests.Formats
                 async () => await formatter.FormatAsync(source: null!, maxFrames: null, CancellationToken.None)
                     .ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
+        }
+
+        private static int CountEnhancedPacketBlocks(byte[] bytes)
+        {
+            int count = 0;
+            int offset = 0;
+            while (offset < bytes.Length)
+            {
+                uint blockType = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset, 4));
+                int blockLength = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4, 4)));
+                if (blockType == 0x00000006)
+                {
+                    count++;
+                }
+                offset += blockLength;
+            }
+            return count;
         }
     }
 }

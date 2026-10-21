@@ -303,7 +303,7 @@ namespace Opc.Ua.Machinery.Tests
             var argumentErrors = new List<ServiceResult>();
             ServiceResult status = method
                 .CallAsync(
-                    fixture.Manager.SystemContext,
+                    fixture.SessionContext,
                     call.ObjectId,
                     call.InputArguments,
                     argumentErrors,

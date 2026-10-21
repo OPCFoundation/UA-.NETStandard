@@ -239,6 +239,15 @@ current server accepts inline payloads only. It returns `BadNotSupported` for
 URI-only input rather than accepting it and running a backend with no request
 body.
 
+Inference transfers belong to their creating session and identity. Every file
+operation, including a new `Open`, checks that ownership; a file handle alone is
+not authority. `Execute` also rechecks the original deployment and invocation
+method's current permissions before backend dispatch. Authenticated job owners
+can recover their retained jobs after reconnect within the same stable identity
+domain; anonymous jobs remain session-bound. Other callers cannot read or modify
+their payloads or receive their notifications. Server-produced response and
+provenance properties remain read-only even to the owner.
+
 Both built-in backends accept these parameters:
 
 - `temperature`: 0 through 2

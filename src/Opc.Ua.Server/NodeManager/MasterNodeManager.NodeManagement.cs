@@ -1125,36 +1125,34 @@ namespace Opc.Ua.Server
 
             try
             {
-                NamespaceMetadataState? namespaceMetadata =
-                    await ConfigurationNodeManager.GetNamespaceMetadataStateAsync(
-                        namespaceIndex,
-                        cancellationToken).ConfigureAwait(false);
-                if (namespaceMetadata == null)
+                // the defaults are read for the caller, so OnReadValue callbacks see the
+                // caller's identity and channel, and a failed read or decode denies.
+                NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                    Server,
+                    Server.DefaultSystemContext.Copy(context),
+                    namespaceIndex,
+                    cancellationToken).ConfigureAwait(false);
+                if (StatusCode.IsBad(defaults.Status))
+                {
+                    return ServiceResult.Create(
+                        defaults.Status,
+                        "Cannot read the default permissions of namespace {0}.",
+                        namespaceIndex);
+                }
+
+                if (!defaults.HasDefaultAccessRestrictions &&
+                    !defaults.HasDefaultRolePermissions &&
+                    !defaults.HasDefaultUserRolePermissions)
                 {
                     return StatusCodes.Good;
                 }
 
-                var metadata = new NodeMetadata(
-                    namespaceMetadata,
-                    new NodeId(0u, namespaceIndex));
-
-                if (namespaceMetadata.DefaultAccessRestrictions != null)
+                var metadata = new NodeMetadata(ConfigurationNodeManager, new NodeId(0u, namespaceIndex))
                 {
-                    metadata.DefaultAccessRestrictions =
-                        (AccessRestrictionType)namespaceMetadata.DefaultAccessRestrictions.Value;
-                }
-
-                if (namespaceMetadata.DefaultRolePermissions != null)
-                {
-                    metadata.DefaultRolePermissions =
-                        namespaceMetadata.DefaultRolePermissions.Value;
-                }
-
-                if (namespaceMetadata.DefaultUserRolePermissions != null)
-                {
-                    metadata.DefaultUserRolePermissions =
-                        namespaceMetadata.DefaultUserRolePermissions.Value;
-                }
+                    DefaultAccessRestrictions = defaults.DefaultAccessRestrictions,
+                    DefaultRolePermissions = defaults.DefaultRolePermissions,
+                    DefaultUserRolePermissions = defaults.DefaultUserRolePermissions
+                };
 
                 return m_serviceDispatch.ValidatePermissionMetadata(context, metadata, PermissionType.AddNode);
             }

@@ -354,6 +354,22 @@ its application URI, else `OPC UA client`. The results of an asynchronous scan
 name the client that called `ScanStart`; scans the device reports on its own name
 `AutoID device`.
 
+Generic `ReadTag` and `WriteTag` access events do not automatically broadcast tag
+memory. The injected RFID provider may also implement `IAutoIdRfidAccessEventPolicy`
+to approve an entire `(codeType, region, offset, length)` byte range as non-secret
+telemetry. Missing, rejected or failing classifications omit both `RWData` and
+`CodeTypeRWData`, including their encoding-mask bits; identifiers and command
+metadata remain available. Unsuccessful operations and empty results omit data.
+EPC Gen2 reserved-bank ranges overlapping password bytes 0 through 7 are always
+omitted, even if a policy approves them. The in-memory EPC provider approves
+ordinary banks 1 through 3 and never approves the reserved bank.
+
+This projection does not redact an authorized caller's direct `ReadTag` result,
+change provider arguments, or disable access events. Password-management commands
+never include passwords in their access events. Applications whose existing RFID
+providers need ordinary memory in events must opt in through this provider policy;
+only approve known layouts and never credential-bearing or unclassified memory.
+
 ## Conformance
 
 The runtime contributes the OPC 30010 conformance units and server facets

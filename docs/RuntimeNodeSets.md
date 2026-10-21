@@ -28,6 +28,7 @@ signature, retaining the declared Property NodeIds, argument order, and values.
 - [Dependency sorting](#dependency-sorting)
   - [Referencing a Node another NodeManager owns](#referencing-a-node-another-nodemanager-owns)
 - [Complex types](#complex-types)
+- [Imported security policy](#imported-security-policy)
 - [Comparison with source-generated NodeManagers](#comparison-with-source-generated-nodemanagers)
 - [Related documentation](#related-documentation)
 
@@ -40,6 +41,23 @@ Use `AddRuntimeNodeSet` when:
 - You are prototyping or testing a new NodeSet2 design.
 
 Use the [source-generated path](NodeManagers.md#source-generated-node-managers) when you want compile-time safety, strong typing, and AOT-safe named constants for every node in your model. The runtime path gives you generic `NodeState` objects and untyped browse-path wiring.
+
+## Imported security policy
+
+Runtime import retains node-local `RolePermissions` and `AccessRestrictions`.
+When a node omits either attribute, import applies the corresponding default
+from its owning `Models/Model` entry. Ownership follows the node's namespace
+URI, not its BrowseName, the order of model entries, or the server's namespace
+index. Defaults are materialized before the nodes enter the address space, so
+ordinary Read, Write, Call and subscription authorization use the same policy.
+
+An explicit empty node ACL or `AccessRestrictions="0"` remains an explicit
+local override; it does not inherit the model setting. An omitted model
+restriction has the NodeSet schema's default of zero and does not manufacture
+a node-local restriction. Normal namespace defaults and application permission
+callbacks still apply. Type-hierarchy visibility exemptions are enforced by the
+server, not by removing imported policy: metadata remains available for
+operations that require authorization.
 
 ## Startup and live lifecycle semantics
 

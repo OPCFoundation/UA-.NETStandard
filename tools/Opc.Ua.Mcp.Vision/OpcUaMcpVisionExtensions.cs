@@ -66,6 +66,7 @@ namespace Opc.Ua.Mcp
             McpToolProfile toolProfile = McpToolProfile.Full)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             switch (toolProfile)
             {

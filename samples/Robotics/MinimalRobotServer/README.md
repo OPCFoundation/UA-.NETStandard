@@ -28,7 +28,8 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
   canned pose list.
 - A cell **EmergencyStop** safety state driving a beacon and per-robot warning halo
   visibility (`UaAlarmToUsd`, `Visibility`).
-- An opt-in **SpeedOverride** command (`UsdToUaCommand`, fail-closed).
+- An opt-in **SpeedOverride** command on R1 (`UsdToUaCommand`, fail-closed).
+  R2's speed override is read-only and cannot redirect a write into R1.
 - A **gripper tool** on each robot's flange, plus one mounted on R1 at runtime (`One` / `Reference`,
   `Dynamic = true`) via a model-change event. R1 carries a `NodeVersion` property so that
   mounting it is reportable at all — see [Dynamic components need a NodeVersion](#dynamic-components-need-a-nodeversion).

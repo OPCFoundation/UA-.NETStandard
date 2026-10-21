@@ -123,7 +123,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreAddAndGetRoundTripViaPhysicalProvider()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -165,7 +165,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreListReturnsKnownPackages()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -200,7 +200,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreDeleteRemovesPackage()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -229,7 +229,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreRejectsIdWithPathSeparator()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -258,7 +258,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreRejectsDotSegmentId(string packageId)
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -287,7 +287,7 @@ namespace Opc.Ua.Di.Tests
         public void FileSystemStoreRejectsRootWithDotSegment(string rootPath)
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try
@@ -314,7 +314,7 @@ namespace Opc.Ua.Di.Tests
         public async Task FileSystemStoreCanonicalizesProviderRelativeRootAsync()
         {
             string tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-pkg-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempRoot);
             try

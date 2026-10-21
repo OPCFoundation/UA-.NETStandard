@@ -254,6 +254,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             notifier.NodeId = new NodeId("EventNotifier", nsIdx);
             notifier.BrowseName = new QualifiedName("EventNotifier", nsIdx);
             notifier.EventNotifier = EventNotifiers.HistoryRead | EventNotifiers.SubscribeToEvents;
+            Historian.HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                h.Context, [ObjectTypeIds.BaseEventType]);
 
             await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
 

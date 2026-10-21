@@ -477,7 +477,7 @@ namespace Opc.Ua.Gds.Client
                         endpointDescription,
                         endpointConfiguration);
 
-                    await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, false, new Uri(endpointUrl), ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when (
@@ -512,7 +512,7 @@ namespace Opc.Ua.Gds.Client
             {
                 try
                 {
-                    await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, true, expectedEndpoint: null, ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when (
@@ -955,14 +955,37 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
-        private async Task ConnectInternalAsync(
+        /// <exception cref="ServiceResultException">
+        /// The advertised endpoint URL is missing, or discovery changed the requested transport.
+        /// </exception>
+        internal async Task ConnectInternalAsync(
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
+            Uri? expectedEndpoint,
             CancellationToken ct)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                Uri advertisedEndpoint = endpoint.EndpointUrl ??
+                    throw new ServiceResultException(StatusCodes.BadTcpEndpointUrlInvalid);
+                expectedEndpoint ??= advertisedEndpoint;
+                if (!string.Equals(
+                    expectedEndpoint.Scheme, advertisedEndpoint.Scheme, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The discovered endpoint changed the requested transport.");
+                }
+                endpoint = CoreUtils.Clone(endpoint)!;
+                // Refresh discovery at the configured host, not a server-advertised replacement.
+                endpoint.Description.EndpointUrl = new UriBuilder(advertisedEndpoint)
+                {
+                    Host = expectedEndpoint.IdnHost,
+                    Port = expectedEndpoint.Port
+                }.Uri.AbsoluteUri;
+                endpoint.Description.Server.DiscoveryUrls = [expectedEndpoint.AbsoluteUri];
+
                 Session?.Dispose();
                 Session = null;
                 m_directory = null;
@@ -972,7 +995,7 @@ namespace Opc.Ua.Gds.Client
                     Configuration,
                     endpoint,
                     updateBeforeConnect,
-                    false,
+                    checkDomain: true,
                     Configuration.ApplicationName!,
                     (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
@@ -1007,7 +1030,6 @@ namespace Opc.Ua.Gds.Client
                     MessageContext.Telemetry);
 
                 m_endpoint = Session.ConfiguredEndpoint;
-
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }

@@ -77,6 +77,8 @@ namespace Opc.Ua.Server.Tests
             m_subscriptionManagerMock = new Mock<ISubscriptionManager>();
 
             var masterNodeManagerMock = new Mock<IMasterNodeManager>();
+            masterNodeManagerMock.SetupGet(m => m.ConfigurationNodeManager)
+                .Returns(Mock.Of<IConfigurationNodeManager>());
             masterNodeManagerMock.Setup(m => m.RemoveReferencesAsync(It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask());
 

@@ -350,10 +350,10 @@ namespace Opc.Ua.MachineTool.Tests
         public Uri Endpoint => new($"opc.tcp://localhost:{m_fixture!.Port}");
 
         /// <summary>
-        /// Gets the artifact root used for this fixture's certificate stores.
+        /// Gets the physical artifact root used for this fixture's certificate stores and file bindings.
         /// </summary>
         public string Root { get; } = Path.Combine(
-            Path.GetTempPath(), "opc-mt", Guid.NewGuid().ToString("N"));
+            AppContext.BaseDirectory, "opc-mt", Guid.NewGuid().ToString("N"));
 
         /// <summary>
         /// Starts an isolated real server and a direct build context.

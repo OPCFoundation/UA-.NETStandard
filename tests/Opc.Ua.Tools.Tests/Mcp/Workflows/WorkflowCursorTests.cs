@@ -218,10 +218,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
             await using WorkflowTestContext fixture =
                 await WorkflowTestContext.CreateAsync().ConfigureAwait(false);
             Seed(fixture);
-            using IDisposable caller = fixture.Enter();
-            string cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
+            string cursor;
+            using (fixture.Enter())
+            {
+                cursor = Handle(await ReadAsync(fixture, true).ConfigureAwait(false));
+            }
             await fixture.Manager.RegisterExistingSessionAsync("selected", fixture.Remote.Session.Object, "Anonymous")
                 .ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
             RemoteModelTestSession.Error(await fixture.History.NextAsync(cursor).ConfigureAwait(false),
                 StatusCodes.BadContinuationPointInvalid);
             AssertRelease(fixture, kPoint);

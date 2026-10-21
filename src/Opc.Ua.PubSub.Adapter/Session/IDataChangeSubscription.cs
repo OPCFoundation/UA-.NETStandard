@@ -91,4 +91,27 @@ namespace Opc.Ua.PubSub.Adapter.Session
         /// </param>
         ValueTask ApplyChangesAsync(CancellationToken ct = default);
     }
+
+    /// <summary>
+    /// Optional subscription capability for monitoring a server-side index-range projection.
+    /// Providers without this capability remain usable for whole-value subscriptions.
+    /// </summary>
+    public interface IRangedDataChangeSubscription : IDataChangeSubscription
+    {
+        /// <summary>
+        /// Adds a monitored item whose notifications contain only the requested range.
+        /// </summary>
+        /// <param name="nodeId">The node to monitor.</param>
+        /// <param name="attributeId">The attribute to monitor.</param>
+        /// <param name="indexRange">The OPC UA numeric range, or null for the complete value.</param>
+        /// <param name="samplingIntervalMs">The requested sampling interval in milliseconds.</param>
+        /// <param name="ct">A token used to cancel the operation.</param>
+        /// <returns>The client handle identifying this exact projection.</returns>
+        ValueTask<uint> AddMonitoredItemAsync(
+            NodeId nodeId,
+            uint attributeId,
+            string? indexRange,
+            double samplingIntervalMs,
+            CancellationToken ct = default);
+    }
 }

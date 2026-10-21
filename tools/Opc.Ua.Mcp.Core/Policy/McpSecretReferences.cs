@@ -111,7 +111,7 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
-        /// Creates an exact model-resource binding from an actual registered session and namespace-qualified root.
+        /// Creates an immutable registration/endpoint binding for a strictly host-approved session and model root.
         /// Tool callers cannot substitute a store path, claimed server URI or ownership identity.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
@@ -128,9 +128,25 @@ namespace Opc.Ua.Mcp
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
                     "The resource namespace is not present in the registered session.");
             }
-            string? serverUri = session.Endpoint.Server.ApplicationUri;
+            McpSessionAuthority? authority = session.Authority;
+            if (authority is null ||
+                !authority.Active ||
+                authority.Owner is not null ||
+                authority.AutoAccepted ||
+                authority.TargetIdentity != McpSessionAuthority.GetTargetIdentity(session.Endpoint) ||
+                authority.TargetIdentity != McpSessionAuthority.GetTargetIdentity(
+                    session.Session.ConfiguredEndpoint.Description))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                    "Protected secrets require the current, strictly validated host-approved registration.");
+            }
+            string? serverUri = session.Endpoint.Server?.ApplicationUri;
             ValidateText(serverUri, 2048);
-            string resource = "opcua:" +
+            string resource = "opcua-registration:" +
+                authority.RegistrationId +
+                ":" +
+                authority.TargetIdentity +
+                ":opcua:" +
                 serverUri +
                 "#" +
                 NodeId.ToExpandedNodeId(root, session.Session.NamespaceUris);
@@ -332,7 +348,7 @@ namespace Opc.Ua.Mcp
                 string name = reference["alias:".Length..];
                 _ = m_policy.RequireSecret(capability, name);
                 if (!m_aliases.TryGetValue(name, out McpSecretAlias? alias) ||
-                    !string.Equals(alias.Resource, resource, StringComparison.Ordinal))
+                    !MatchesAlias(name, alias, resource))
                 {
                     throw Refused();
                 }
@@ -582,6 +598,40 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
+        /// Keeps legacy host aliases usable on their first approved registration, then pins them to that
+        /// immutable registration and endpoint. A replacement never inherits an earlier alias's eligibility.
+        /// </summary>
+        private bool MatchesAlias(string name, McpSecretAlias alias, string resource)
+        {
+            bool matches = string.Equals(alias.Resource, resource, StringComparison.Ordinal);
+            const string prefix = "opcua-registration:";
+            const int identityLength = 32 + 1 + 64 + 1;
+            if (!matches &&
+                resource.StartsWith(prefix, StringComparison.Ordinal) &&
+                resource.Length > prefix.Length + identityLength &&
+                Guid.TryParseExact(resource.AsSpan(prefix.Length, 32), "N", out _) &&
+                resource[prefix.Length + 32] == ':' &&
+                resource[prefix.Length + identityLength - 1] == ':')
+            {
+                matches = string.Equals(
+                    alias.Resource, resource[(prefix.Length + identityLength)..], StringComparison.Ordinal);
+            }
+            if (!matches)
+            {
+                return false;
+            }
+            lock (m_state)
+            {
+                if (m_aliasBindings.TryGetValue(name, out string? bound))
+                {
+                    return string.Equals(bound, resource, StringComparison.Ordinal);
+                }
+                m_aliasBindings.Add(name, resource);
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Removes a generated key, retaining its identity on any known storage failure.
         /// </summary>
         private async ValueTask RemoveOwnedAsync(string reference, Issued entry, CancellationToken ct)
@@ -723,6 +773,9 @@ namespace Opc.Ua.Mcp
         private readonly int m_maxReferences;
         private readonly int m_maxSecretBytes;
         private readonly Dictionary<string, McpSecretAlias> m_aliases;
+
+        /// <summary>Immutable registration/target first used for each host alias.</summary>
+        private readonly Dictionary<string, string> m_aliasBindings = new(StringComparer.Ordinal);
         private readonly Dictionary<string, Issued> m_issued = new(StringComparer.Ordinal);
         private readonly HashSet<McpSecretReservation> m_reservations = [];
         private readonly Lock m_state = new();

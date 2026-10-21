@@ -29,8 +29,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Tests.NodeManager;
@@ -406,6 +408,184 @@ namespace Opc.Ua.Server.Tests
         {
             return new NamespaceMetadataRegistry(host, s_telemetry.CreateLogger<NamespaceMetadataRegistry>());
         }
+
+        /// <summary>
+        /// A namespace-only policy change invalidates a warm subscriber before the next background value.
+        /// </summary>
+        [TestCase(MessageSecurityMode.None)]
+        [TestCase(MessageSecurityMode.Sign)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR28TightenedNamespaceEncryptionBlocksNextNotificationAsync(MessageSecurityMode mode)
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            IServerInternal server = host.SystemContext.Server;
+            using var queues = (MonitoredItemQueueFactory)server.MonitoredItemQueueFactory;
+            NamespaceMetadataState metadata = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            metadata.AddDefaultAccessRestrictions(host.SystemContext);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            registry.Attach(host.SystemContext);
+            var configuration = new Mock<IConfigurationNodeManager>();
+            configuration.Setup(value => value.GetNamespaceMetadataStateAsync(
+                    It.IsAny<ushort>(), It.IsAny<CancellationToken>()))
+                .Returns((ushort index, CancellationToken cancellationToken) =>
+                    registry.GetAsync(index, cancellationToken));
+            Mock.Get(server).SetupGet(value => value.ConfigurationNodeManager).Returns(configuration.Object);
+            Mock.Get(server.NodeManager).SetupGet(value => value.ConfigurationNodeManager)
+                .Returns(configuration.Object);
+            registry.DefaultPermissionsChanged += (_, _) =>
+                configuration.Raise(value => value.DefaultPermissionsChanged += null, EventArgs.Empty);
+            await using var owner = new TestableAsyncCustomNodeManager(
+                server, new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+            var node = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("NamespaceNotification", owner.NamespaceIndex),
+                BrowseName = new QualifiedName("NamespaceNotification", owner.NamespaceIndex),
+                DataType = DataTypeIds.Int32,
+                Value = 42,
+                AccessLevel = AccessLevels.CurrentRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            await owner.AddNodeAsync(owner.SystemContext, NodeId.Null, node).ConfigureAwait(false);
+            Mock.Get(server.NodeManager)
+                .Setup(value => value.GetManagerHandleAsync(node.NodeId, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<(object? Handle, IAsyncNodeManager? Manager)>(
+                    (new NodeHandle(node.NodeId, node), owner)));
+            var weakValues = new ConcurrentQueue<DataValue>();
+            var encryptedValues = new ConcurrentQueue<DataValue>();
+            await using var monitored = new MonitoredNode2(owner, server, node);
+            monitored.Add(CreateNamespaceReceiver(1, mode, weakValues).Object);
+            monitored.Add(CreateNamespaceReceiver(2, MessageSecurityMode.SignAndEncrypt, encryptedValues).Object);
+            try
+            {
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(weakValues, Has.Count.EqualTo(1));
+                Assert.That(encryptedValues, Has.Count.EqualTo(1));
+                Assert.That(weakValues.ToArray()[0].WrappedValue, Is.EqualTo(new Variant(42)));
+                Assert.That(encryptedValues.ToArray()[0].WrappedValue, Is.EqualTo(new Variant(42)));
+                metadata.DefaultAccessRestrictions!.Value = (ushort)AccessRestrictionType.EncryptionRequired;
+                metadata.ClearChangeMasks(host.SystemContext, true);
+                node.Value = 99;
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(weakValues, Has.Count.EqualTo(2));
+                Assert.That(encryptedValues, Has.Count.EqualTo(2));
+                DataValue denied = weakValues.ToArray()[1];
+                Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeInsufficient));
+                Assert.That(denied.WrappedValue.IsNull, Is.True);
+                Assert.That(encryptedValues.ToArray()[1].WrappedValue, Is.EqualTo(new Variant(99)));
+
+                metadata.DefaultAccessRestrictions.Value = 0;
+                metadata.ClearChangeMasks(host.SystemContext, true);
+                node.Value = 100;
+                await ReportAsync().ConfigureAwait(false);
+                Assert.That(weakValues, Has.Count.EqualTo(3));
+                Assert.That(encryptedValues, Has.Count.EqualTo(3));
+                Assert.That(weakValues.ToArray()[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(weakValues.ToArray()[2].WrappedValue, Is.EqualTo(new Variant(100)));
+                Assert.That(encryptedValues.ToArray()[2].WrappedValue, Is.EqualTo(new Variant(100)));
+            }
+            finally
+            {
+                registry.Detach();
+            }
+
+            async Task ReportAsync()
+            {
+                await monitored.OnMonitoredNodeChangedAsync(
+                    host.SystemContext, node, NodeStateChangeMasks.Value).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await monitored.WaitForPendingNotificationsAsync(timeout.Token).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Restriction observers follow replacement, removal and registry lifetime rather than the original property.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityR28RestrictionReplacementRemovalAndDetachInvalidateCorrectly()
+        {
+            var host = new FakeHost(withNamespacesNode: true);
+            using var queues = (MonitoredItemQueueFactory)host.SystemContext.Server.MonitoredItemQueueFactory;
+            NamespaceMetadataState metadata = host.AddMetadataNode(DeterministicServerMock.TestNamespaceUri);
+            metadata.AddDefaultAccessRestrictions(host.SystemContext);
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            NamespaceMetadataRegistry registry = CreateRegistry(host);
+            int raised = 0;
+            registry.DefaultPermissionsChanged += (_, _) => raised++;
+            registry.Attach(host.SystemContext);
+            registry.Attach(host.SystemContext);
+            metadata.DefaultAccessRestrictions!.Value = (ushort)AccessRestrictionType.EncryptionRequired;
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(1));
+            PropertyState<ushort> retired = metadata.DefaultAccessRestrictions;
+            metadata.DefaultAccessRestrictions = new PropertyState<ushort>.Implementation<VariantBuilder>(metadata)
+            {
+                BrowseName = new QualifiedName(BrowseNames.DefaultAccessRestrictions),
+                Value = (ushort)AccessRestrictionType.SigningRequired
+            };
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(2));
+            int beforeRetiredChange = raised;
+            retired.Value = 0;
+            retired.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(beforeRetiredChange));
+            metadata.DefaultAccessRestrictions = null;
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(3));
+            registry.Detach();
+            metadata.AddDefaultAccessRestrictions(host.SystemContext);
+            metadata.DefaultAccessRestrictions!.Value = (ushort)AccessRestrictionType.EncryptionRequired;
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(3));
+            registry.Attach(host.SystemContext);
+            metadata.DefaultAccessRestrictions.Value = 0;
+            metadata.ClearChangeMasks(host.SystemContext, true);
+            Assert.That(raised, Is.EqualTo(4));
+            registry.Detach();
+        }
+
+        /// <summary>
+        /// Creates an independent subscriber retaining its own endpoint and received values.
+        /// </summary>
+        private static Mock<IDataChangeMonitoredItem2> CreateNamespaceReceiver(
+            uint id, MessageSecurityMode mode, ConcurrentQueue<DataValue> values)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([ObjectIds.WellKnownRole_Anonymous]);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Id).Returns(new NodeId(id, 1));
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+            session.SetupGet(value => value.EndpointDescription).Returns(new EndpointDescription
+            {
+                SecurityMode = mode,
+                TransportProfileUri = Profiles.UaTcpTransport
+            });
+            var item = new Mock<IDataChangeMonitoredItem2>();
+            item.SetupGet(value => value.Id).Returns(id);
+            item.SetupGet(value => value.Session).Returns(session.Object);
+            item.SetupGet(value => value.EffectiveIdentity).Returns(identity.Object);
+            item.SetupGet(value => value.AttributeId).Returns(Attributes.Value);
+            item.SetupGet(value => value.IndexRange).Returns(NumericRange.Null);
+            item.SetupGet(value => value.DataEncoding).Returns(QualifiedName.Null);
+            item.Setup(value => value.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
+                .Callback(new NamespaceQueueValueCallback((in value, _) => values.Enqueue(value)));
+            item.Setup(value => value.QueueValue(
+                    It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>(), It.IsAny<bool>()))
+                .Callback(new NamespaceFilteredQueueValueCallback((in value, _, _) => values.Enqueue(value)));
+            return item;
+        }
+
+        /// <summary>
+        /// Captures the actual ref-readonly notification without boxing it.
+        /// </summary>
+        private delegate void NamespaceQueueValueCallback(in DataValue value, ServiceResult? error);
+
+        /// <summary>
+        /// Captures the production enqueue overload that explicitly selects monitored-item filter handling.
+        /// </summary>
+        private delegate void NamespaceFilteredQueueValueCallback(
+            in DataValue value, ServiceResult? error, bool ignoreFilters);
 
         /// <summary>
         /// Writes a new, distinct permission set so a <c>Value</c> change mask

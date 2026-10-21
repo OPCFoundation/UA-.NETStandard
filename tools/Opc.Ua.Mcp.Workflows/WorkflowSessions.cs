@@ -99,14 +99,7 @@ namespace Opc.Ua.Mcp
             {
                 Registration = registration;
                 m_context = context;
-                Access = new OpcUaSessionManager.SessionInfo
-                {
-                    Name = registration.Name,
-                    Session = context.Session,
-                    Endpoint = context.Session.ConfiguredEndpoint.Description,
-                    AuthType = registration.AuthType,
-                    ConnectedAt = registration.ConnectedAt
-                };
+                Access = registration.WithSession(context.Session);
             }
 
             /// <inheritdoc/>

@@ -178,8 +178,8 @@ namespace Opc.Ua.Scales.Server
             ScaleDeviceState scale = ScaleNodes.CreateScale(SystemContext, kind, effectiveParent, browseName);
             scale.DisplayName = new LocalizedText(browseName.Name);
             scale.ReferenceTypeId = isDeviceSet
-                ? Opc.Ua.Types.ReferenceTypeIds.Organizes
-                : Opc.Ua.Types.ReferenceTypeIds.HasComponent;
+                ? Types.ReferenceTypeIds.Organizes
+                : Types.ReferenceTypeIds.HasComponent;
             var builder = new ScaleBuilder(services, scale, kind);
             configure(builder);
             builder.Finish();
@@ -221,7 +221,7 @@ namespace Opc.Ua.Scales.Server
 
             ScaleSystemState system = SystemContext.CreateInstanceOfScaleSystemType(parent, browseName);
             system.DisplayName = new LocalizedText(browseName.Name);
-            system.ReferenceTypeId = Opc.Ua.Types.ReferenceTypeIds.Organizes;
+            system.ReferenceTypeId = Types.ReferenceTypeIds.Organizes;
             var builder = new ScaleSystemBuilder(services, system);
             configure(builder);
             builder.Finish();
@@ -325,10 +325,7 @@ namespace Opc.Ua.Scales.Server
                         units.Add(unit);
                     }
                 }
-                void Add(string name)
-                {
-                    AddUnit(new QualifiedName(name, ns));
-                }
+                void Add(string name) => AddUnit(new QualifiedName(name, ns));
                 lock (m_scaleLock)
                 {
                     bool packMl = false;
@@ -472,7 +469,7 @@ namespace Opc.Ua.Scales.Server
                         m_options,
                         Register,
                         (nodeId, ct) => Manager.DeleteNodeAsync(Manager.SystemContext, nodeId, ct),
-                        (type, baseType) => Manager.Server.TypeTree.IsTypeOf(type, baseType),
+                        Manager.Server.TypeTree.IsTypeOf,
                         m_lockService,
                         m_scalesLogger);
                     Volatile.Write(ref m_services, services);
@@ -560,6 +557,7 @@ namespace Opc.Ua.Scales.Server
                 parent.AddChild(node);
                 try
                 {
+                    Services.BindProductWriteGuards(node);
                     // A scale reports scale events and alarms, so it has to be a
                     // notifier before a client can subscribe to it.
                     node.EventNotifier |= EventNotifiers.SubscribeToEvents;
@@ -657,10 +655,10 @@ namespace Opc.Ua.Scales.Server
                 {
                     var source = (BaseObjectState)child;
                     source.EventNotifier |= EventNotifiers.SubscribeToEvents;
-                    if (!notifier.ReferenceExists(Opc.Ua.ReferenceTypeIds.HasNotifier, false, source.NodeId))
+                    if (!notifier.ReferenceExists(Ua.ReferenceTypeIds.HasNotifier, false, source.NodeId))
                     {
-                        notifier.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, false, source.NodeId);
-                        source.AddReference(Opc.Ua.ReferenceTypeIds.HasNotifier, true, notifier.NodeId);
+                        notifier.AddReference(Ua.ReferenceTypeIds.HasNotifier, false, source.NodeId);
+                        source.AddReference(Ua.ReferenceTypeIds.HasNotifier, true, notifier.NodeId);
                     }
                     next = source;
                 }
@@ -681,7 +679,7 @@ namespace Opc.Ua.Scales.Server
                 throw new ArgumentException("A browse name is required.", nameof(browseName));
             }
             NodeState effective = parent ?? Manager.FindPredefinedNode(NodeId.Create(
-                Opc.Ua.Di.Objects.DeviceSet,
+                Di.Objects.DeviceSet,
                 DiNodeManager.DiNamespaceUri,
                 SystemContext.NamespaceUris))
                 ?? throw ServiceResultException.Create(
