@@ -53,7 +53,7 @@ namespace Opc.Ua.Features.Tests
         [SetUp]
         public async Task SetUpAsync()
         {
-            m_directory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            m_directory = Path.Combine(AppContext.BaseDirectory, Path.GetRandomFileName());
             m_providerDirectory = Path.Combine(m_directory, "files");
             Directory.CreateDirectory(m_providerDirectory);
             await WritePayloadAsync(10240).ConfigureAwait(false);

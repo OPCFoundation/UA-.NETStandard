@@ -44,8 +44,9 @@ namespace Opc.Ua.Identity
     /// </summary>
     /// <remarks>
     /// The resolver fetches keys on first use, caches them, and refreshes on
-    /// <c>kid</c> misses no more frequently than the configured minimum refresh
-    /// interval. Only RSA and EC public signing keys are materialized.
+    /// <c>kid</c> misses or keyset expiry, no more frequently than the configured
+    /// minimum refresh interval. Expired snapshots fail closed after a failed or
+    /// throttled refresh. Only RSA and EC public signing keys are materialized.
     /// Published keys are collected with their underlying cryptographic handles
     /// after the last reader releases them; refresh and disposal do not invalidate
     /// an already returned key.
@@ -53,11 +54,13 @@ namespace Opc.Ua.Identity
     public sealed class JwksIssuerKeyResolver : IIssuerKeyResolver, IDisposable
     {
         private static readonly TimeSpan s_defaultMinRefreshInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan s_defaultMaxKeysetAge = TimeSpan.FromMinutes(5);
 
         private readonly Uri m_jwksUri;
         private readonly HttpClient m_httpClient;
         private readonly TimeProvider m_timeProvider;
         private readonly TimeSpan m_minRefreshInterval;
+        private readonly TimeSpan m_maxKeysetAge;
         private readonly HashSet<string>? m_allowedAlgorithms;
         private readonly SemaphoreSlim m_refreshLock = new(1, 1);
         private readonly Lock m_lifetimeLock = new();
@@ -102,6 +105,23 @@ namespace Opc.Ua.Identity
             TimeProvider timeProvider,
             TimeSpan minRefreshInterval,
             IEnumerable<string>? allowedAlgorithms)
+            : this(issuerUri, jwksUri, httpClient, timeProvider, minRefreshInterval,
+                allowedAlgorithms, s_defaultMaxKeysetAge)
+        {
+        }
+
+        /// <summary>
+        /// Creates a JWKS resolver with independently bounded refresh attempts and keyset trust age.
+        /// Previously returned keys remain usable by in-flight readers after expiry.
+        /// </summary>
+        public JwksIssuerKeyResolver(
+            string issuerUri,
+            string jwksUri,
+            HttpClient httpClient,
+            TimeProvider timeProvider,
+            TimeSpan minRefreshInterval,
+            IEnumerable<string>? allowedAlgorithms,
+            TimeSpan maxKeysetAge)
         {
             if (string.IsNullOrEmpty(issuerUri))
             {
@@ -128,12 +148,17 @@ namespace Opc.Ua.Identity
                     nameof(minRefreshInterval),
                     "Minimum refresh interval must not be negative.");
             }
+            if (maxKeysetAge <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maxKeysetAge));
+            }
 
             IssuerUri = issuerUri;
             m_jwksUri = parsedJwksUri;
             m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_minRefreshInterval = minRefreshInterval;
+            m_maxKeysetAge = maxKeysetAge;
 
             if (allowedAlgorithms != null)
             {
@@ -166,6 +191,16 @@ namespace Opc.Ua.Identity
 
                 ThrowIfDisposed();
                 KeyCache cache = Volatile.Read(ref m_cache);
+                if (cache.HasValue && !IsCurrent(cache))
+                {
+                    await RefreshAfterMissAsync(cache.RefreshTime, ct).ConfigureAwait(false);
+                    ThrowIfDisposed();
+                    cache = Volatile.Read(ref m_cache);
+                }
+                if (!IsCurrent(cache))
+                {
+                    return [];
+                }
                 IReadOnlyList<IssuerVerificationKey> keys = cache.Get(keyId);
                 if (keyId == null || keys.Count != 0)
                 {
@@ -176,7 +211,8 @@ namespace Opc.Ua.Identity
                 {
                     await RefreshAfterMissAsync(cache.RefreshTime, ct).ConfigureAwait(false);
                     ThrowIfDisposed();
-                    keys = Volatile.Read(ref m_cache).Get(keyId);
+                    cache = Volatile.Read(ref m_cache);
+                    keys = IsCurrent(cache) ? cache.Get(keyId) : [];
                 }
 
                 return keys;
@@ -498,6 +534,11 @@ namespace Opc.Ua.Identity
                 ? cache.RefreshTime
                 : m_lastRefreshAttempt;
             return lastAttempt + m_minRefreshInterval <= m_timeProvider.GetUtcNow();
+        }
+
+        private bool IsCurrent(KeyCache cache)
+        {
+            return cache.HasValue && m_timeProvider.GetUtcNow() - cache.RefreshTime < m_maxKeysetAge;
         }
 
         private void ThrowIfDisposed()

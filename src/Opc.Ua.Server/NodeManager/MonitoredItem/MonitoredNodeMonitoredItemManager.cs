@@ -60,6 +60,37 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
+        /// <summary>
+        /// Queues a semantic force-resample for the exact node and sampled item owned by this manager.
+        /// </summary>
+        internal bool TryQueueSemanticResample(NodeState source, ISampledDataChangeMonitoredItem item)
+        {
+            if (source == null ||
+                item == null ||
+                item is not IDataChangeMonitoredItem2 dataChangeItem ||
+                item.ManagerHandle is not NodeHandle handle ||
+                !ReferenceEquals(handle.Node, source) ||
+                !MonitoredNodes.TryGetValue(source.NodeId, out MonitoredNode2? monitoredNode))
+            {
+                return false;
+            }
+
+            return monitoredNode.TryQueueSemanticResample(source, dataChangeItem);
+        }
+
+        /// <summary>
+        /// Waits for all node-consumer work pending when this method is called.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the wait.</param>
+        /// <returns>A task that completes when the current consumer queues have drained.</returns>
+        internal async ValueTask WaitForPendingSemanticResamplesAsync(CancellationToken cancellationToken)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                await monitoredNode.WaitForPendingNotificationsAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         /// <inheritdoc/>
         public ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,

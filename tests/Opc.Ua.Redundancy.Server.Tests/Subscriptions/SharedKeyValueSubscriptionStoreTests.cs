@@ -86,6 +86,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             AssertMonitoredItem((StoredMonitoredItem)actual.MonitoredItems.Single(), NewItem(100, 10));
         }
 
+        /// <summary>
+        /// Verifies that a snapshot cannot replay the same subscription identifier from an older generation.
+        /// </summary>
         [Test]
         public async Task SubscriptionSnapshotCannotReplaySameIdFromOlderGenerationAsync()
         {
@@ -123,6 +126,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 restored.Subscriptions!.Single().PublishingInterval, Is.EqualTo(replacement.PublishingInterval));
         }
 
+        /// <summary>
+        /// Verifies that subscription manifests reject an empty persistence context.
+        /// </summary>
         [Test]
         public async Task SubscriptionManifestRejectsEmptyContextAsync()
         {
@@ -144,6 +150,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that retransmission state and messages cannot be loaded under different persistence keys.
+        /// </summary>
         [Test]
         public async Task RetransmissionStateAndMessagesRejectDifferentKeysAsync()
         {
@@ -257,6 +266,32 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         /// <summary>
         /// Verifies that stored subscriptions preserve filtered retained-condition identifiers.
+        /// </summary>
+        [Test]
+        public async Task StoreAndRestorePreservesExternalValueSourceAcquisitionMode()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore active = CreateStore(kv);
+            SharedKeyValueSubscriptionStore backup = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(106, 16);
+            var expectedItem = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            expectedItem.TypeMask = MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource;
+            expectedItem.SourceSamplingInterval = 0;
+
+            bool stored = await active.StoreSubscriptionsAsync([expected]).ConfigureAwait(false);
+            RestoreSubscriptionResult result = await backup.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(stored, Is.True);
+            Assert.That(result.Success, Is.True);
+            var actual = (StoredMonitoredItem)result.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.TypeMask,
+                Is.EqualTo(MonitoredItemTypeMask.DataChange | MonitoredItemTypeMask.ExternalValueSource));
+            Assert.That(actual.SourceSamplingInterval, Is.Zero);
+            AssertMonitoredItem(actual, expectedItem);
+        }
+
+        /// <summary>
+        /// Verifies that store and restore round trips filtered retain condition IDs.
         /// </summary>
         [Test]
         public async Task StoreAndRestoreRoundTripsFilteredRetainConditionIdsAsync()

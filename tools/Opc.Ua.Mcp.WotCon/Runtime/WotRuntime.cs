@@ -301,13 +301,7 @@ namespace Opc.Ua.Mcp
                 return;
             }
             ISession session = m_sessionContext.Session;
-            var bound = new OpcUaSessionManager.SessionInfo
-            {
-                Name = m_sessionInfo.Name,
-                Session = session,
-                Endpoint = session.ConfiguredEndpoint.Description,
-                AuthType = m_sessionInfo.AuthType
-            };
+            OpcUaSessionManager.SessionInfo bound = m_sessionInfo.WithSession(session);
             var node = ExpandedNodeId.ToNodeId(
                 ExpandedNodeId.Parse(operation.Form.Addressing.Target), session.NamespaceUris);
             bool method = operation.Form.OpToken == "invokeaction";

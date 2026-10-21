@@ -220,6 +220,7 @@ namespace Opc.Ua.Schema.Model
             }
             return other is not null &&
                 ArrayEqualityComparer<Permissions>.Default.Equals(Permission, other.Permission) &&
+                RoleId == other.RoleId &&
                 XmlQualifiedNameEqualityComparer.Default.Equals(Role, other.Role);
         }
 
@@ -228,6 +229,7 @@ namespace Opc.Ua.Schema.Model
         {
             var hash = new HashCode();
             hash.Add(Permission, ArrayEqualityComparer<Permissions>.Default);
+            hash.Add(RoleId);
             hash.Add(Role, XmlQualifiedNameEqualityComparer.Default);
             return hash.ToHashCode();
         }
@@ -888,6 +890,8 @@ namespace Opc.Ua.Schema.Model
                 GuidIdSpecified == other.GuidIdSpecified &&
                 ArrayEqualityComparer<byte>.Default.Equals(OpaqueId, other.OpaqueId) &&
                 WriteAccess == other.WriteAccess &&
+                UserWriteAccess == other.UserWriteAccess &&
+                UserWriteAccessSpecified == other.UserWriteAccessSpecified &&
                 PartNo == other.PartNo &&
                 Category == other.Category &&
                 NotInAddressSpace == other.NotInAddressSpace &&
@@ -922,6 +926,8 @@ namespace Opc.Ua.Schema.Model
             hash.Add(GuidIdSpecified);
             hash.Add(OpaqueId, ArrayEqualityComparer<byte>.Default);
             hash.Add(WriteAccess);
+            hash.Add(UserWriteAccess);
+            hash.Add(UserWriteAccessSpecified);
             hash.Add(PartNo);
             hash.Add(Category);
             hash.Add(NotInAddressSpace);
@@ -1219,7 +1225,9 @@ namespace Opc.Ua.Schema.Model
                 ArrayEqualityComparer<Parameter>.Default.Equals(InputArguments, other.InputArguments) &&
                 ArrayEqualityComparer<Parameter>.Default.Equals(OutputArguments, other.OutputArguments) &&
                 NonExecutable == other.NonExecutable &&
-                NonExecutableSpecified == other.NonExecutableSpecified;
+                NonExecutableSpecified == other.NonExecutableSpecified &&
+                UserExecutable == other.UserExecutable &&
+                UserExecutableSpecified == other.UserExecutableSpecified;
         }
 
         /// <inheritdoc/>
@@ -1231,6 +1239,8 @@ namespace Opc.Ua.Schema.Model
             hash.Add(OutputArguments, ArrayEqualityComparer<Parameter>.Default);
             hash.Add(NonExecutable);
             hash.Add(NonExecutableSpecified);
+            hash.Add(UserExecutable);
+            hash.Add(UserExecutableSpecified);
             return hash.ToHashCode();
         }
 

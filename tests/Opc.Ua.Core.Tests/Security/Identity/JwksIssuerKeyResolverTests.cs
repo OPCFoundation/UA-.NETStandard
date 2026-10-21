@@ -49,6 +49,153 @@ namespace Opc.Ua.Core.Tests.Security.Identity
     [Parallelizable]
     public class JwksIssuerKeyResolverTests
     {
+        /// <summary>
+        /// Every lookup observes the keyset age, including a cached kid and a request without a kid.
+        /// </summary>
+        [TestCase(false, -1)]
+        [TestCase(false, 0)]
+        [TestCase(false, 1)]
+        [TestCase(true, -1)]
+        [TestCase(true, 0)]
+        [TestCase(true, 1)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR16KeysetAgeAndRefreshThrottleFailClosedAtBoundariesAsync(
+            bool noKid, int secondsFromExpiry)
+        {
+            using var first = RSA.Create(2048);
+            var clock = new FakeTimeProvider();
+            using var handler = new QueueMessageHandler(
+                CreateJwks(CreateRsaJwk(first, "old", "sig")), HttpStatusCode.ServiceUnavailable);
+            using var client = new HttpClient(handler, false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                client, clock, TimeSpan.FromMinutes(5));
+            string? keyId = noKid ? null : "old";
+            Assert.That(await resolver.GetKeysAsync(keyId).ConfigureAwait(false), Has.Count.EqualTo(1));
+            clock.Advance(TimeSpan.FromMinutes(5) + TimeSpan.FromSeconds(secondsFromExpiry));
+
+            IReadOnlyList<IIssuerVerificationKey> result = await resolver.GetKeysAsync(keyId).ConfigureAwait(false);
+            IReadOnlyList<IIssuerVerificationKey> retry = await resolver.GetKeysAsync(keyId).ConfigureAwait(false);
+
+            Assert.That(result, Has.Count.EqualTo(secondsFromExpiry < 0 ? 1 : 0));
+            Assert.That(retry, Has.Count.EqualTo(result.Count));
+            Assert.That(handler.RequestCount, Is.EqualTo(secondsFromExpiry < 0 ? 1 : 2),
+                "A failed refresh must be throttled without extending stale trust.");
+        }
+
+        /// <summary>
+        /// Throttling longer than trust age cannot extend a withdrawn key's authority.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR16ExpiredSnapshotCannotBorrowRefreshThrottleAsync()
+        {
+            using var rsa = RSA.Create(2048);
+            var clock = new FakeTimeProvider();
+            using var handler = new QueueMessageHandler(
+                CreateJwks(CreateRsaJwk(rsa, "old", "sig")), CreateJwks());
+            using var client = new HttpClient(handler, false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                client, clock, TimeSpan.FromMinutes(10), null, TimeSpan.FromMinutes(5));
+            Assert.That(await resolver.GetKeysAsync("old").ConfigureAwait(false), Has.Count.EqualTo(1));
+            clock.Advance(TimeSpan.FromMinutes(5));
+            Assert.That(await resolver.GetKeysAsync("old").ConfigureAwait(false), Is.Empty);
+            Assert.That(await resolver.GetKeysAsync(null).ConfigureAwait(false), Is.Empty);
+            Assert.That(handler.RequestCount, Is.EqualTo(1));
+            clock.Advance(TimeSpan.FromMinutes(5));
+            Assert.That(await resolver.GetKeysAsync("old").ConfigureAwait(false), Is.Empty);
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// A refreshed lookup retires a key without breaking readers that already borrowed it.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR16CurrentKeyAndInFlightSnapshotRemainVerifiableAsync()
+        {
+            using var first = RSA.Create(2048);
+            using var second = RSA.Create(2048);
+            var clock = new FakeTimeProvider();
+            using var handler = new QueueMessageHandler(
+                CreateJwks(CreateRsaJwk(first, "old", "sig")),
+                CreateJwks(CreateRsaJwk(second, "new", "sig")));
+            using var client = new HttpClient(handler, false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                client, clock, TimeSpan.FromMinutes(5));
+            IReadOnlyList<IIssuerVerificationKey> borrowed = await resolver.GetKeysAsync("old").ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMinutes(5) - TimeSpan.FromSeconds(1));
+            Assert.That(await resolver.GetKeysAsync("old").ConfigureAwait(false), Is.SameAs(borrowed));
+            Assert.That(handler.RequestCount, Is.EqualTo(1));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Assert.That(await resolver.GetKeysAsync("old").ConfigureAwait(false), Is.Empty);
+            IReadOnlyList<IIssuerVerificationKey> current = await resolver.GetKeysAsync(null).ConfigureAwait(false);
+            Assert.That(current, Has.Count.EqualTo(1));
+            Assert.That(current[0].KeyId, Is.EqualTo("new"));
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+            byte[] input = Encoding.ASCII.GetBytes("in-flight-r16");
+            byte[] signature = first.SignData(input, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            Assert.That(borrowed[0].VerifySignature(input, signature), Is.True);
+            Assert.That(current[0].VerifySignature(input, signature), Is.False);
+        }
+
+        /// <summary>
+        /// Expired concurrent lookups share refresh, preserve cancellation and never return retired keys.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR16ConcurrentExpiryRefreshAndCancellationNeverReturnStaleKeysAsync(bool dispose)
+        {
+            using var first = RSA.Create(2048);
+            using var second = RSA.Create(2048);
+            var clock = new FakeTimeProvider();
+            using var handler = new ExpiryRefreshHandler(
+                CreateJwks(CreateRsaJwk(first, "old", "sig")),
+                CreateJwks(CreateRsaJwk(second, "new", "sig")));
+            using var client = new HttpClient(handler, false);
+            using var resolver = new JwksIssuerKeyResolver(
+                "https://issuer.example.test", "https://issuer.example.test/keys",
+                client, clock, TimeSpan.FromMinutes(5));
+            IReadOnlyList<IIssuerVerificationKey> borrowed = await resolver.GetKeysAsync("old").ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMinutes(5));
+            Task<IReadOnlyList<IIssuerVerificationKey>> refresh = resolver.GetKeysAsync("old").AsTask();
+            using var cancelled = new CancellationTokenSource();
+            try
+            {
+                await handler.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                Task<IReadOnlyList<IIssuerVerificationKey>> waiter =
+                    resolver.GetKeysAsync(null, cancelled.Token).AsTask();
+                cancelled.Cancel();
+                await Assert.ThatAsync(() => waiter,
+                    Throws.InstanceOf<OperationCanceledException>());
+                Assert.That(handler.RequestCount, Is.EqualTo(2));
+                if (dispose)
+                {
+                    resolver.Dispose();
+                }
+            }
+            finally
+            {
+                handler.Release.TrySetResult(true);
+            }
+            if (dispose)
+            {
+                await Assert.ThatAsync(() => refresh,
+                    Throws.TypeOf<ObjectDisposedException>());
+            }
+            else
+            {
+                Assert.That(await refresh.ConfigureAwait(false), Is.Empty);
+                Assert.That((await resolver.GetKeysAsync(null).ConfigureAwait(false))[0].KeyId, Is.EqualTo("new"));
+            }
+            byte[] input = Encoding.ASCII.GetBytes("borrowed-before-expiry");
+            Assert.That(borrowed[0].VerifySignature(
+                input, first.SignData(input, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1)), Is.True);
+        }
+
         [Test]
         public async Task GetKeysAsyncFetchesAndCachesInitialKeys()
         {
@@ -402,6 +549,45 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
                     Content = new StringContent(jwks, Encoding.UTF8, "application/json")
+                };
+            }
+        }
+
+        /// <summary>
+        /// Suspends only the age-triggered refresh, leaving initial acquisition deterministic.
+        /// </summary>
+        private sealed class ExpiryRefreshHandler(string initial, string replacement) : HttpMessageHandler
+        {
+            /// <summary>
+            /// Gets the refresh-start barrier.
+            /// </summary>
+            public TaskCompletionSource<bool> Entered { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the refresh-completion barrier.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Gets the exact request count.
+            /// </summary>
+            public int RequestCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                RequestCount++;
+                if (RequestCount > 1)
+                {
+                    Entered.TrySetResult(true);
+                    await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                }
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(RequestCount == 1 ? initial : replacement)
                 };
             }
         }

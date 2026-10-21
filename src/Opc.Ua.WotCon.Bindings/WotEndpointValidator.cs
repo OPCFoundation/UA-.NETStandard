@@ -120,8 +120,8 @@ namespace Opc.Ua.WotCon.Bindings
         /// <returns>The bare IPv6 literal.</returns>
         internal static string Unbracket(string host)
         {
-            return host.Length > 1 && host[0] == '[' && host[host.Length - 1] == ']'
-                ? host.Substring(1, host.Length - 2)
+            return host.Length > 1 && host[0] == '[' && host[^1] == ']'
+                ? host[1..^1]
                 : host;
         }
 
@@ -173,6 +173,13 @@ namespace Opc.Ua.WotCon.Bindings
 
             string host = uri.Host ?? string.Empty;
             string asciiHost = ToAsciiHost(uri);
+            if (string.IsNullOrWhiteSpace(asciiHost) &&
+                uri.Scheme is "mqtt" or "mqtts" or "modbus" or "modbus+tcp")
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "The network endpoint must include a host.");
+            }
             if (policy.AllowedHosts.Count > 0 &&
                 !policy.AllowedHosts.Contains(asciiHost) &&
                 !policy.AllowedHosts.Contains(host))

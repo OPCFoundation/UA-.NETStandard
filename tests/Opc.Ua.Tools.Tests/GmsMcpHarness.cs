@@ -57,7 +57,21 @@ namespace Opc.Ua.Tools.Tests
         private GmsMcpHarness(GmsClientOptions? options)
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "gms-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity("gms-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["gms", "second"]
+                        }
+                    ]
+                }
+            });
             if (options != null)
             {
                 services.AddSingleton(options);

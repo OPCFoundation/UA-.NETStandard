@@ -39,6 +39,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// </summary>
     internal sealed class WotNativeOwnershipIndex
     {
+        /// <summary>
+        /// Initializes a native ownership index with bounded node and edge capacity.
+        /// </summary>
+        /// <param name="maxNodes">The maximum number of nodes retained in the native ownership index.</param>
         public WotNativeOwnershipIndex(int maxNodes)
         {
             if (maxNodes <= 0)
@@ -49,7 +53,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
             m_maxEdges = (long)maxNodes * 8;
         }
 
-        public ExpandedNodeId Add(UANodeSet nodeSet, string? rootIdentifier, ExpandedNodeId fallbackRoot)
+        /// <summary>
+        /// Adds the nodes of a node set to the index under a root and returns the root node identifier.
+        /// </summary>
+        /// <param name="nodeSet">The node set.</param>
+        /// <param name="rootIdentifier">The root identifier.</param>
+        /// <param name="fallbackRoot">The fallback root.</param>
+        /// <param name="partitionNodes">The partition nodes.</param>
+        public ExpandedNodeId Add(
+            UANodeSet nodeSet, string? rootIdentifier, ExpandedNodeId fallbackRoot,
+            HashSet<ExpandedNodeId>? partitionNodes = null)
         {
             if (nodeSet.Aliases is { Length: var aliasCount } && aliasCount > m_maxNodes)
             {
@@ -65,6 +78,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     throw new ServiceResultException(
                         StatusCodes.BadNodeIdInvalid, "A native ownership node has no id.");
                 }
+                partitionNodes?.Add(id);
                 NodeClass nodeClass = ClassOf(node);
                 if (!m_nodes.TryGetValue(id, out NodeEvidence? evidence))
                 {
@@ -87,11 +101,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 foreach (Reference reference in node.References ?? [])
                 {
+                    ExpandedNodeId referenceType = identities.Resolve(reference.ReferenceType);
                     if (reference.IsForward)
                     {
+                        if (referenceType == Ua.ReferenceTypeIds.HasTypeDefinition)
+                        {
+                            AddEdge(evidence.TypeDefinitions, new OwnershipEdge(
+                                identities.Resolve(reference.Value), referenceType));
+                        }
+                        else if (referenceType == Ua.ReferenceTypeIds.GeneratesEvent)
+                        {
+                            AddEdge(evidence.Events, new OwnershipEdge(
+                                identities.Resolve(reference.Value), referenceType));
+                        }
                         continue;
                     }
-                    ExpandedNodeId referenceType = identities.Resolve(reference.ReferenceType);
+                    if (node is UAObjectType && referenceType == Ua.ReferenceTypeIds.HasSubtype)
+                    {
+                        AddEdge(evidence.TypeParents, new OwnershipEdge(
+                            identities.Resolve(reference.Value), referenceType));
+                    }
                     if (node is UAReferenceType && referenceType == Ua.ReferenceTypeIds.HasSubtype)
                     {
                         AddEdge(evidence.ReferenceParents, new OwnershipEdge(
@@ -112,6 +141,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 : identities.Resolve(rootIdentifier);
         }
 
+        /// <summary>
+        /// Determines whether a node belongs to an object-type or variable-type declaration through ownership edges.
+        /// </summary>
+        /// <param name="root">The root node to classify through native ownership edges.</param>
         public bool IsDeclaration(ExpandedNodeId root)
         {
             if (root.IsNull)
@@ -138,6 +171,50 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         pending.Push(edge.Target);
                     }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Determines whether the root node can generate events of the given event type.
+        /// </summary>
+        /// <param name="root">The root.</param>
+        /// <param name="eventType">The event type.</param>
+        public bool CanGenerateEvent(ExpandedNodeId root, ExpandedNodeId eventType)
+        {
+            if (!m_nodes.TryGetValue(eventType, out NodeEvidence? target) ||
+                target.NodeClass != NodeClass.ObjectType ||
+                !m_nodes.TryGetValue(root, out NodeEvidence? source) ||
+                source.NodeClass is not (NodeClass.Object or NodeClass.ObjectType))
+            {
+                return false;
+            }
+            var pending = new Stack<ExpandedNodeId>();
+            var seen = new HashSet<ExpandedNodeId>();
+            pending.Push(root);
+            while (pending.Count > 0)
+            {
+                ExpandedNodeId current = pending.Pop();
+                if (!seen.Add(current) || !m_nodes.TryGetValue(current, out NodeEvidence? node) ||
+                    node.NodeClass is not (NodeClass.Object or NodeClass.ObjectType))
+                {
+                    continue;
+                }
+                foreach (OwnershipEdge edge in node.Events)
+                {
+                    if (edge.Target == eventType)
+                    {
+                        return true;
+                    }
+                }
+                foreach (OwnershipEdge edge in node.TypeDefinitions)
+                {
+                    pending.Push(edge.Target);
+                }
+                foreach (OwnershipEdge edge in node.TypeParents)
+                {
+                    pending.Push(edge.Target);
                 }
             }
             return false;
@@ -219,6 +296,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public NodeClass NodeClass { get; init; }
             public HashSet<OwnershipEdge> Parents { get; } = [];
             public HashSet<OwnershipEdge> ReferenceParents { get; } = [];
+
+            /// <summary>
+            /// Gets the type definitions for <c>NodeEvidence</c>.
+            /// </summary>
+            public HashSet<OwnershipEdge> TypeDefinitions { get; } = [];
+
+            /// <summary>
+            /// Gets the type parents for <c>NodeEvidence</c>.
+            /// </summary>
+            public HashSet<OwnershipEdge> TypeParents { get; } = [];
+
+            /// <summary>
+            /// Gets the events for <c>NodeEvidence</c>.
+            /// </summary>
+            public HashSet<OwnershipEdge> Events { get; } = [];
         }
 
         private readonly record struct OwnershipEdge(ExpandedNodeId Target, ExpandedNodeId ReferenceType);

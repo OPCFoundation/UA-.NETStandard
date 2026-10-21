@@ -1467,7 +1467,10 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private async ValueTask<CheckRevocationStatusMethodStateResult> OnCheckRevocationStatusAsync(
+        /// <summary>
+        /// Checks a caller certificate using only configured issuer certificates and local CRLs.
+        /// </summary>
+        internal async ValueTask<CheckRevocationStatusMethodStateResult> OnCheckRevocationStatusAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1482,14 +1485,6 @@ namespace Opc.Ua.Gds.Server
                 ValidityTime = DateTime.MinValue
             };
 
-            // Per OPC 10000-12 §7.6.11, ValidityTime indicates when the
-            // CertificateStatus result expires and should be rechecked.
-            // We compute it as the earliest NextUpdate across the CRLs in
-            // the trusted-issuer store after the chain has validated; for
-            // Bad results the field remains DateTime.MinValue so callers
-            // re-check immediately.
-            DateTime computedValidityTime = DateTime.MinValue;
-
             Certificate x509;
             try
             {
@@ -1503,176 +1498,285 @@ namespace Opc.Ua.Gds.Server
                 return result;
             }
 
-            // Caller-owned X509Certificate2 copies of the issuer store for the
-            // chains' ExtraStore; X509Chain does not dispose them.
-            X509Certificate2Collection? extraCerts = null;
-            try
+            using (x509)
             {
-                //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
-                using ICertificateStore store = m_configuration.SecurityConfiguration
-                    .TrustedIssuerCertificates
-                    .OpenStore(Server.Telemetry);
-                using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
-                    store,
-                    cancellationToken).ConfigureAwait(false);
-                if (store != null)
+                try
                 {
-                    X509CRLCollection crls = await store
-                        .EnumerateCRLsAsync(cancellationToken)
-                        .ConfigureAwait(false);
-                    DateTime nextUpdate = DateTime.MaxValue;
-                    foreach (X509CRL crl in crls)
+                    using ICertificateStore store = m_configuration.SecurityConfiguration
+                        .TrustedIssuerCertificates
+                        .OpenStore(Server.Telemetry);
+                    using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
+                        store,
+                        cancellationToken).ConfigureAwait(false);
+                    using var localChain = new CertificateCollection();
+                    result.CertificateStatus = BuildOfflineIssuerChain(x509, issuerCerts, localChain);
+                    if (StatusCode.IsBad(result.CertificateStatus))
                     {
-                        if (crl.NextUpdate != DateTime.MinValue &&
-                            crl.NextUpdate < nextUpdate)
-                        {
-                            nextUpdate = crl.NextUpdate;
-                        }
+                        return result;
                     }
-                    if (nextUpdate != DateTime.MaxValue)
+                    if (store == null || !store.SupportsCRLs)
                     {
-                        computedValidityTime = nextUpdate;
-                    }
-                }
-
-                using X509Certificate2 x509Cert = x509.AsX509Certificate2();
-                extraCerts = issuerCerts.AsX509Certificate2Collection();
-
-                // A certificate issued by a CA of this GDS is checked offline
-                // against the CRLs the GDS publishes in its issuer store: the
-                // GDS CA is normally not in the OS root store, so a platform
-                // chain reports UntrustedRoot for a good certificate and does
-                // not know the GDS CRLs.
-                using var chain = new X509Chain();
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
-                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
-                chain.Build(x509Cert);
-
-                if (store != null &&
-                    chain.ChainElements.Count > 1 &&
-                    IsKnownIssuer(issuerCerts, chain.ChainElements[chain.ChainElements.Count - 1].Certificate))
-                {
-                    StatusCode chainStatus = GetFirstChainError(chain, ignoreUntrustedRoot: true);
-                    if (StatusCode.IsBad(chainStatus))
-                    {
-                        result.CertificateStatus = chainStatus;
+                        result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
                         return result;
                     }
 
-                    result.CertificateStatus = await CheckRevocationWithGdsCrlsAsync(
-                        store,
-                        chain,
-                        cancellationToken).ConfigureAwait(false);
-                    if (StatusCode.IsGood(result.CertificateStatus))
+                    X509CRLCollection crls = await store.EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    (StatusCode status, DateTime validityTime) = CheckRevocationWithGdsCrls(localChain, crls);
+                    result.CertificateStatus = status;
+                    if (StatusCode.IsGood(status))
                     {
-                        result.ValidityTime = computedValidityTime;
+                        result.ValidityTime = validityTime;
                     }
-                    return result;
                 }
-
-                // A certificate of another CA: validate against the platform
-                // trust with online revocation (CRL distribution point / OCSP).
-                using var onlineChain = new X509Chain();
-                onlineChain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-                onlineChain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
-                onlineChain.ChainPolicy.ExtraStore.AddRange(extraCerts);
-                if (onlineChain.Build(x509Cert))
-                {
-                    result.CertificateStatus = StatusCodes.Good;
-                    result.ValidityTime = computedValidityTime;
-                    return result;
-                }
-
-                // CertificateStatus is the first error encountered.
-                result.CertificateStatus = GetFirstChainError(onlineChain, ignoreUntrustedRoot: false);
-                if (StatusCode.IsGood(result.CertificateStatus))
+                catch (CryptographicException)
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateInvalid;
                 }
-            }
-            catch (CryptographicException)
-            {
-                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
-            }
-            finally
-            {
-                if (extraCerts != null)
-                {
-                    foreach (X509Certificate2 extraCert in extraCerts)
-                    {
-                        extraCert.Dispose();
-                    }
-                }
-                x509.Dispose();
             }
 
             return result;
         }
 
+        /// <summary>
+        /// Enumerates caller-owned references from the configured local issuer store.
+        /// </summary>
         private static async Task<CertificateCollection> EnumerateCertificatesAsync(
             ICertificateStore? store,
             CancellationToken cancellationToken)
         {
             if (store == null)
             {
-                return new CertificateCollection();
+                return [];
             }
             return await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        private static bool IsKnownIssuer(CertificateCollection issuerCerts, X509Certificate2 root)
+        /// <summary>
+        /// Resolves and verifies a complete chain without consulting caller-controlled issuer URLs.
+        /// </summary>
+        private static StatusCode BuildOfflineIssuerChain(
+            Certificate certificate,
+            CertificateCollection issuerCerts,
+            CertificateCollection localChain)
         {
-            foreach (Certificate issuer in issuerCerts)
+            if (localChain.Any(existing => existing.Thumbprint == certificate.Thumbprint))
             {
-                if (string.Equals(issuer.Thumbprint, root.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                return StatusCodes.BadCertificateChainIncomplete;
+            }
+            localChain.Add(certificate);
+            bool complete = false;
+            try
+            {
+                DateTime now = DateTime.UtcNow;
+                if (certificate.NotBefore > now || certificate.NotAfter < now)
                 {
-                    return true;
+                    return localChain.Count == 1
+                        ? StatusCodes.BadCertificateTimeInvalid
+                        : StatusCodes.BadCertificateIssuerTimeInvalid;
+                }
+                HashAlgorithmName hash = certificate.HashAlgorithmName;
+                if (hash != HashAlgorithmName.SHA256 &&
+                    hash != HashAlgorithmName.SHA384 &&
+                    hash != HashAlgorithmName.SHA512)
+                {
+                    return StatusCodes.BadCertificatePolicyCheckFailed;
+                }
+                X509BasicConstraintsExtension? constraints = certificate.FindExtension<X509BasicConstraintsExtension>();
+                if (localChain.Count > 1 &&
+                    constraints is { HasPathLengthConstraint: true } &&
+                    localChain.Count - 2 > constraints.PathLengthConstraint)
+                {
+                    return StatusCodes.BadCertificateInvalid;
+                }
+                if (X509Utils.IsSelfSigned(certificate))
+                {
+                    if (localChain.Count == 1 ||
+                        !issuerCerts.Any(issuer => Utils.IsEqual(issuer.RawData, certificate.RawData)))
+                    {
+                        return StatusCodes.BadCertificateUntrusted;
+                    }
+                    if (!X509Utils.VerifySelfSigned(certificate))
+                    {
+                        return StatusCodes.BadCertificateInvalid;
+                    }
+                    StatusCode status = ValidateOfflineIssuerChain(localChain);
+                    complete = StatusCode.IsGood(status);
+                    return status;
+                }
+
+                StatusCode missingIssuerStatus = StatusCodes.BadCertificateChainIncomplete;
+                foreach (Certificate issuer in issuerCerts)
+                {
+                    if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, issuer.SubjectName))
+                    {
+                        continue;
+                    }
+                    if (!X509Utils.IsIssuerAllowed(issuer) ||
+                        (X509Utils.GetKeyUsage(issuer) & X509KeyUsageFlags.KeyCertSign) == 0)
+                    {
+                        missingIssuerStatus = StatusCodes.BadCertificateIssuerUseNotAllowed;
+                        continue;
+                    }
+
+                    using X509Certificate2 issuerCertificate = issuer.AsX509Certificate2();
+                    if (!new X509Signature(certificate.RawData).Verify(issuerCertificate))
+                    {
+                        missingIssuerStatus = StatusCodes.BadCertificateInvalid;
+                        continue;
+                    }
+                    missingIssuerStatus = BuildOfflineIssuerChain(issuer, issuerCerts, localChain);
+                    if (StatusCode.IsGood(missingIssuerStatus))
+                    {
+                        complete = true;
+                        return missingIssuerStatus;
+                    }
+                }
+                return missingIssuerStatus;
+            }
+            finally
+            {
+                if (!complete)
+                {
+                    Certificate removed = localChain[^1];
+                    localChain.RemoveAt(localChain.Count - 1);
+                    removed.Dispose();
                 }
             }
-            return false;
+        }
+
+        /// <summary>
+        /// Validates path constraints without platform issuer or revocation retrieval.
+        /// </summary>
+        private static StatusCode ValidateOfflineIssuerChain(CertificateCollection localChain)
+        {
+#if NETFRAMEWORK
+            // .NET Framework has no DisableCertificateDownloads. Never give its chain engine
+            // caller certificates, even with NoCheck or a short URL timeout.
+            var parser = new Org.BouncyCastle.X509.X509CertificateParser();
+            var certificates = new List<Org.BouncyCastle.X509.X509Certificate>();
+            for (int ii = 0; ii < localChain.Count - 1; ii++)
+            {
+                certificates.Add(parser.ReadCertificate(localChain[ii].RawData));
+            }
+            var anchors = new HashSet<Org.BouncyCastle.Pkix.TrustAnchor>
+            {
+                new(
+                    parser.ReadCertificate(localChain[^1].RawData),
+                    localChain[^1].Extensions["2.5.29.30"]?.RawData)
+            };
+            var parameters = new Org.BouncyCastle.Pkix.PkixParameters(anchors)
+            {
+                IsRevocationEnabled = false
+            };
+            try
+            {
+                var validator = new Org.BouncyCastle.Pkix.PkixCertPathValidator();
+                validator.Validate(new Org.BouncyCastle.Pkix.PkixCertPath(certificates), parameters);
+                return StatusCodes.Good;
+            }
+            catch (Org.BouncyCastle.Pkix.PkixCertPathValidatorException)
+            {
+                return StatusCodes.BadCertificateInvalid;
+            }
+#else
+            using var chain = new X509Chain();
+            chain.ChainPolicy.DisableCertificateDownloads = true;
+            chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+            chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+            X509Certificate2Collection extraCerts = localChain.AsX509Certificate2Collection();
+            try
+            {
+                chain.ChainPolicy.CustomTrustStore.Add(extraCerts[^1]);
+                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                if (!chain.Build(extraCerts[0]))
+                {
+                    StatusCode status = GetFirstChainError(chain);
+                    return StatusCode.IsBad(status) ? status : StatusCodes.BadCertificateInvalid;
+                }
+                if (chain.ChainElements.Count != localChain.Count)
+                {
+                    return StatusCodes.BadCertificateChainIncomplete;
+                }
+                for (int ii = 0; ii < localChain.Count; ii++)
+                {
+                    if (!Utils.IsEqual(chain.ChainElements[ii].Certificate.RawData, localChain[ii].RawData))
+                    {
+                        return StatusCodes.BadCertificateUntrusted;
+                    }
+                }
+                return StatusCodes.Good;
+            }
+            finally
+            {
+                foreach (X509Certificate2 extraCert in extraCerts)
+                {
+                    extraCert.Dispose();
+                }
+            }
+#endif
         }
 
         /// <summary>
         /// Checks every certificate of the chain against the CRL of its issuer
-        /// in the GDS issuer store.
+        /// in the local GDS issuer-store snapshot.
         /// </summary>
-        private static async Task<StatusCode> CheckRevocationWithGdsCrlsAsync(
-            ICertificateStore store,
-            X509Chain chain,
-            CancellationToken cancellationToken)
+        private static (StatusCode Status, DateTime ValidityTime) CheckRevocationWithGdsCrls(
+            CertificateCollection localChain,
+            X509CRLCollection crls)
         {
-            for (int ii = 0; ii < chain.ChainElements.Count - 1; ii++)
+            DateTime now = DateTime.UtcNow;
+            DateTime validityTime = localChain.Min(certificate => certificate.NotAfter);
+            for (int ii = 0; ii < localChain.Count - 1; ii++)
             {
-                using var subject = Certificate.FromRawData(chain.ChainElements[ii].Certificate.RawData);
-                using var issuer = Certificate.FromRawData(chain.ChainElements[ii + 1].Certificate.RawData);
-                StatusCode status = await store
-                    .IsRevokedAsync(issuer, subject, cancellationToken)
-                    .ConfigureAwait(false);
-                if (status == StatusCodes.BadCertificateRevoked)
+                Certificate subject = localChain[ii];
+                Certificate issuer = localChain[ii + 1];
+                bool currentCrl = false;
+                foreach (X509CRL crl in crls)
                 {
-                    return ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked;
+                    if (!X509Utils.CompareDistinguishedName(crl.IssuerName, issuer.SubjectName) ||
+                        !crl.VerifySignature(issuer, false))
+                    {
+                        continue;
+                    }
+                    if (crl.IsRevoked(subject))
+                    {
+                        return (
+                            ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked,
+                            DateTime.MinValue);
+                    }
+                    if (crl.ThisUpdate <= now &&
+                        (crl.NextUpdate == DateTime.MinValue || crl.NextUpdate >= now))
+                    {
+                        currentCrl = true;
+                        if (crl.NextUpdate != DateTime.MinValue && crl.NextUpdate < validityTime)
+                        {
+                            validityTime = crl.NextUpdate;
+                        }
+                    }
                 }
-                if (StatusCode.IsBad(status))
+                if (!currentCrl)
                 {
-                    return ii == 0
-                        ? StatusCodes.BadCertificateRevocationUnknown
-                        : StatusCodes.BadCertificateIssuerRevocationUnknown;
+                    return (
+                        ii == 0
+                            ? StatusCodes.BadCertificateRevocationUnknown
+                            : StatusCodes.BadCertificateIssuerRevocationUnknown,
+                        DateTime.MinValue);
                 }
             }
-            return StatusCodes.Good;
+            return (StatusCodes.Good, validityTime);
         }
 
+#if !NETFRAMEWORK
         /// <summary>
         /// Maps the first chain error to a StatusCode, or returns Good.
         /// </summary>
-        private static StatusCode GetFirstChainError(X509Chain chain, bool ignoreUntrustedRoot)
+        private static StatusCode GetFirstChainError(X509Chain chain)
         {
             foreach (X509ChainStatus chainStatus in chain.ChainStatus)
             {
                 X509ChainStatusFlags status = chainStatus.Status;
-                if (status == X509ChainStatusFlags.NoError ||
-                    (ignoreUntrustedRoot && status == X509ChainStatusFlags.UntrustedRoot))
+                if (status == X509ChainStatusFlags.NoError)
                 {
                     continue;
                 }
@@ -1707,6 +1811,7 @@ namespace Opc.Ua.Gds.Server
             }
             return StatusCodes.Good;
         }
+#endif
 
         private ServiceResult OnGetCertificates(
             ISystemContext context,
@@ -2688,7 +2793,7 @@ namespace Opc.Ua.Gds.Server
             {
                 // Guarantee a valid, non-null output even for a detached Method
                 // node: a null array cannot round-trip through the Method call.
-                userTokenPolicies = ArrayOf<UserTokenPolicy>.Empty;
+                userTokenPolicies = [];
             }
 
             return ServiceResult.Good;
@@ -2714,7 +2819,7 @@ namespace Opc.Ua.Gds.Server
                 return serverConfiguration.UserTokenPolicies;
             }
 
-            return ArrayOf<UserTokenPolicy>.Empty;
+            return [];
         }
 
         /// <summary>

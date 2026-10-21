@@ -22,9 +22,12 @@
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Client.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Gds.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.OpenUsd.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes" />
     <InternalsVisibleTo Include="Opc.Ua.Client.ComplexTypes.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Client.TestFramework" />
+    <InternalsVisibleTo Include="Opc.Ua.WotCon.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Machinery.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />

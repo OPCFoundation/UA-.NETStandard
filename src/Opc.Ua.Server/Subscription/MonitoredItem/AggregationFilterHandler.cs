@@ -293,6 +293,16 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Drops raw samples and historical priming buffered for a previous notification identity.
+        /// </summary>
+        internal void ClearNotifications()
+        {
+            ClearInitialValueState();
+            m_preparedModification = null;
+            m_calculator = Filter is ServerAggregateFilter filter ? CreateCalculator(filter) : null;
+        }
+
         private Modification CreateModification(ServerAggregateFilter filter)
         {
             IAggregateCalculator? calculator = CreateCalculator(filter);

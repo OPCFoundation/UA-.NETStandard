@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerDisposalRegressionTests
     {
         /// <summary>
-        /// Verifies that shutdown rejects new writes but retains address-space nodes until admitted writes unwind.
+        /// Verifies that shutdown rejects new writes but lets already-admitted writes drain before releasing nodes.
         /// </summary>
         [Test]
         // TODO: Remove when CA2025 can represent a two-phase shutdown race test.
@@ -82,8 +82,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await first.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 if (queued != null && !cancelQueued)
                 {
-                    Assert.That(() => queued.WaitAsync(TimeSpan.FromSeconds(5)),
-                        Throws.InstanceOf<ObjectDisposedException>());
+                    await queued.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 }
                 if (disposal != null)
                 {
@@ -130,11 +129,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that diagnostics work queued before shutdown is rejected without using a disposed semaphore.
+        /// Verifies that diagnostics work admitted before shutdown drains without using a disposed semaphore.
         /// </summary>
         [TestCase("m_modifyAddressSpaceSemaphoreSlim")]
         [TestCase("m_diagnosticsTransitionSemaphore")]
-        public async Task QueuedDiagnosticsMutationCannotReleaseOrUseADisposedGateAsync(string field)
+        public async Task AdmittedDiagnosticsMutationDrainsBeforeItsGateIsDisposedAsync(string field)
         {
             IServerInternal server = NewServer();
             var manager = new DiagnosticsNodeManager(server,
@@ -148,18 +147,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 Assert.That(disposal.IsCompleted, Is.False);
+                Assert.That(queued.IsCompleted, Is.False);
+                Assert.That(() => manager.SetDiagnosticsEnabledAsync(
+                    server.DefaultSystemContext, true, cancellation.Token).AsTask(),
+                    Throws.InstanceOf<ObjectDisposedException>());
                 gate.Release();
-                ObjectDisposedException? failure = null;
-                try
-                {
-                    await queued.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException error)
-                {
-                    failure = error;
-                }
-                Assert.That(failure, Is.Not.Null);
+                await queued.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(() => gate.Wait(0), Throws.InstanceOf<ObjectDisposedException>());
             }
             finally
             {

@@ -456,14 +456,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private void ValidateRemoteState(LWWMap<string, ByteString> remote)
         {
-            if (m_identity == null)
-            {
-                return;
-            }
             foreach (string key in remote.Keys)
             {
                 if (!TryParseKey(key, out bool isValue, out NodeId nodeId) ||
-                    !m_identity.IsShared(nodeId) ||
+                    (m_identity != null && !m_identity.IsShared(nodeId)) ||
                     !remote.TryGetValue(key, out ByteString payload))
                 {
                     throw new ServiceResultException(StatusCodes.BadConfigurationError,
@@ -471,7 +467,7 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 if (isValue)
                 {
-                    m_identity.ValidateValue(m_addressSpace.Context, DecodeValue(payload));
+                    m_identity?.ValidateValue(m_addressSpace.Context, DecodeValue(payload));
                 }
                 else
                 {
@@ -481,7 +477,7 @@ namespace Opc.Ua.Redundancy.Server
                         throw new ServiceResultException(StatusCodes.BadNodeIdInvalid,
                             "The peer topology does not match its shared identity key.");
                     }
-                    m_identity.AuthorizeReplicatedTree(m_addressSpace.Context, node);
+                    m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, node);
                 }
             }
         }
@@ -627,12 +623,14 @@ namespace Opc.Ua.Redundancy.Server
             {
                 HashSet<NodeId> removedChildren =
                     NodeStateSerializer.GetDescendantNodeIds(m_addressSpace.Context, previousNode);
-                reconstructed = NodeStateSerializer.UpdateExisting(m_addressSpace.Context, previousNode, reconstructed);
+                reconstructed = NodeStateSerializer.UpdateExisting(
+                    m_addressSpace.Context, previousNode, reconstructed);
                 removedChildren.ExceptWith(
                     NodeStateSerializer.GetDescendantNodeIds(m_addressSpace.Context, reconstructed));
                 foreach (NodeId removedChild in removedChildren)
                 {
                     await m_addressSpace.RemoveNodeAsync(removedChild, ct).ConfigureAwait(false);
+                    DetachStateChanged(removedChild);
                 }
                 m_identity?.AuthorizeReplicatedTree(m_addressSpace.Context, reconstructed);
             }
@@ -796,11 +794,7 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
-            NodeState root = node;
-            while (root is BaseInstanceState { Parent: { } parent } && m_ownsNode(parent.NodeId))
-            {
-                root = parent;
-            }
+            NodeState root = GetReplicationRoot(node);
             AttachStateChanged(root);
             byte[] snapshot;
             lock (m_lock)
@@ -843,6 +837,15 @@ namespace Opc.Ua.Redundancy.Server
                 return;
             }
 
+            NodeState root = GetReplicationRoot(node);
+            bool topologyChanged = (changes &
+                (NodeStateChangeMasks.NonValue |
+                    NodeStateChangeMasks.Children |
+                    NodeStateChangeMasks.References)) != 0;
+            if (topologyChanged)
+            {
+                AttachStateChanged(root);
+            }
             byte[] snapshot;
             lock (m_lock)
             {
@@ -851,16 +854,25 @@ namespace Opc.Ua.Redundancy.Server
                     CaptureValueLocked(variable);
                 }
 
-                if ((changes &
-                    (NodeStateChangeMasks.NonValue |
-                        NodeStateChangeMasks.Children |
-                        NodeStateChangeMasks.References)) != 0)
+                if (topologyChanged)
                 {
-                    CaptureUpsertLocked(node);
+                    CaptureUpsertLocked(root);
                 }
                 snapshot = SerializeLocked();
             }
             Broadcast(snapshot);
+        }
+
+        /// <summary>
+        /// Keeps descendant policy changes in the same topology record as their owning root.
+        /// </summary>
+        private NodeState GetReplicationRoot(NodeState node)
+        {
+            while (node is BaseInstanceState { Parent: { } parent } && m_ownsNode(parent.NodeId))
+            {
+                node = parent;
+            }
+            return node;
         }
 
         private void CaptureUpsertLocked(NodeState node)
@@ -1008,20 +1020,55 @@ namespace Opc.Ua.Redundancy.Server
 
         private void AttachStateChanged(NodeState node)
         {
+            var desired = new Dictionary<NodeId, NodeState>();
+            CollectAttachments(node, desired);
             lock (m_lock)
             {
-                if (m_attached.TryGetValue(node.NodeId, out NodeState? existing))
+                var removed = new List<NodeId>();
+                foreach ((NodeId trackedId, NodeId rootId) in m_attachmentRoots)
                 {
-                    if (ReferenceEquals(existing, node))
+                    if (rootId == node.NodeId && !desired.ContainsKey(trackedId))
                     {
-                        return;
+                        removed.Add(trackedId);
                     }
-
-                    existing.StateChanged -= m_onChanged;
                 }
+                foreach (NodeId removedId in removed)
+                {
+                    DetachTrackedNode(removedId);
+                }
+                foreach ((NodeId desiredId, NodeState desiredNode) in desired)
+                {
+                    if (m_attached.TryGetValue(desiredId, out NodeState? existing))
+                    {
+                        if (ReferenceEquals(existing, desiredNode))
+                        {
+                            m_attachmentRoots[desiredId] = node.NodeId;
+                            continue;
+                        }
 
-                m_attached[node.NodeId] = node;
-                node.StateChanged += m_onChanged;
+                        existing.StateChanged -= m_onChanged;
+                    }
+                    m_attached[desiredId] = desiredNode;
+                    m_attachmentRoots[desiredId] = node.NodeId;
+                    desiredNode.StateChanged += m_onChanged;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Includes descendants whose authorization changes must trigger a root topology update.
+        /// </summary>
+        private void CollectAttachments(NodeState node, Dictionary<NodeId, NodeState> desired)
+        {
+            if (!node.NodeId.IsNull && m_ownsNode(node.NodeId))
+            {
+                desired[node.NodeId] = node;
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(m_addressSpace.Context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                CollectAttachments(child, desired);
             }
         }
 
@@ -1029,11 +1076,35 @@ namespace Opc.Ua.Redundancy.Server
         {
             lock (m_lock)
             {
-                if (m_attached.TryRemove(nodeId, out NodeState? node))
+                var removed = new HashSet<NodeId> { nodeId };
+                if (m_attached.TryGetValue(nodeId, out NodeState? node))
                 {
-                    node.StateChanged -= m_onChanged;
+                    removed.UnionWith(NodeStateSerializer.GetDescendantNodeIds(m_addressSpace.Context, node));
+                }
+                foreach ((NodeId trackedId, NodeId rootId) in m_attachmentRoots)
+                {
+                    if (rootId == nodeId)
+                    {
+                        removed.Add(trackedId);
+                    }
+                }
+                foreach (NodeId removedId in removed)
+                {
+                    DetachTrackedNode(removedId);
                 }
             }
+        }
+
+        /// <summary>
+        /// Detaches one tracked node while its caller holds the private tracking lock.
+        /// </summary>
+        private void DetachTrackedNode(NodeId nodeId)
+        {
+            if (m_attached.TryRemove(nodeId, out NodeState? node))
+            {
+                node.StateChanged -= m_onChanged;
+            }
+            m_attachmentRoots.Remove(nodeId);
         }
 
         private void DetachAll()
@@ -1045,6 +1116,7 @@ namespace Opc.Ua.Redundancy.Server
                     node.StateChanged -= m_onChanged;
                 }
                 m_attached.Clear();
+                m_attachmentRoots.Clear();
             }
         }
 
@@ -1137,6 +1209,11 @@ namespace Opc.Ua.Redundancy.Server
         private readonly LWWMap<string, ByteString> m_map = new();
         private readonly Dictionary<string, byte[]> m_lastApplied = [];
         private readonly NodeIdDictionary<NodeState> m_attached = [];
+
+        /// <summary>
+        /// Maps each tracked descendant to its topology record's root.
+        /// </summary>
+        private readonly NodeIdDictionary<NodeId> m_attachmentRoots = [];
         private readonly HashSet<NodeId> m_removedTopology = [];
         private readonly SemaphoreSlim m_applyGate = new(1, 1);
         private readonly List<(long ObservedCount, TaskCompletionSource<bool> Waiter)> m_inboundApplyWaiters = [];

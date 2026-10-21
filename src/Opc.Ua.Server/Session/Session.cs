@@ -348,6 +348,35 @@ namespace Opc.Ua.Server
         /// </summary>
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
+        /// <summary>
+        /// Gets the current authorization epoch without taking a subscription or monitored-item dependency.
+        /// </summary>
+        internal NotificationAuthorization? NotificationAuthorization => Volatile.Read(ref m_notificationAuthorization);
+
+        /// <summary>
+        /// Captures a request's effective identity and notification epoch together.
+        /// </summary>
+        internal (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext()
+        {
+            lock (m_lock)
+            {
+                return (EffectiveIdentity, m_notificationAuthorization);
+            }
+        }
+
+        /// <summary>
+        /// Completes notification delivery in the current identity context.
+        /// The caller already owns its subscription; identity commits never enter subscriptions.
+        /// </summary>
+        /// <typeparam name="T">The operation's result type.</typeparam>
+        internal T ExecuteNotificationOperation<T>(Func<T> operation)
+        {
+            lock (m_notificationAuthorizationLock)
+            {
+                return operation();
+            }
+        }
+
         /// <inheritdoc/>
         public bool IsIdentityStale
         {
@@ -372,9 +401,13 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            lock (m_lock)
+            lock (m_notificationAuthorizationLock)
             {
-                m_identityGeneration++;
+                lock (m_lock)
+                {
+                    m_identityGeneration++;
+                    Volatile.Write(ref m_notificationAuthorization, null);
+                }
             }
         }
 
@@ -386,10 +419,14 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
-            lock (m_lock)
+            lock (m_notificationAuthorizationLock)
             {
-                EffectiveIdentity = effectiveIdentity;
-                m_identityRefreshGeneration = m_identityGeneration;
+                lock (m_lock)
+                {
+                    UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
+                    EffectiveIdentity = effectiveIdentity;
+                    m_identityRefreshGeneration = m_identityGeneration;
+                }
             }
         }
 
@@ -408,18 +445,34 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(effectiveIdentity));
             }
 
+            lock (m_notificationAuthorizationLock)
+            {
+                lock (m_lock)
+                {
+                    if (!ReferenceEquals(Identity, expectedIdentity) ||
+                        m_identityGeneration != expectedGeneration ||
+                        m_identityRefreshGeneration == m_identityGeneration)
+                    {
+                        return false;
+                    }
+
+                    UpdateNotificationAuthorization(IdentityToken, Identity, effectiveIdentity);
+                    EffectiveIdentity = effectiveIdentity;
+                    m_identityRefreshGeneration = m_identityGeneration;
+                    return true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets a detached copy of the current application nonce while holding the
+        /// session state lock.
+        /// </summary>
+        internal ByteString GetServerNonceData()
+        {
             lock (m_lock)
             {
-                if (!ReferenceEquals(Identity, expectedIdentity) ||
-                    m_identityGeneration != expectedGeneration ||
-                    m_identityRefreshGeneration == m_identityGeneration)
-                {
-                    return false;
-                }
-
-                EffectiveIdentity = effectiveIdentity;
-                m_identityRefreshGeneration = m_identityGeneration;
-                return true;
+                return m_serverNonce.Data.ToByteString();
             }
         }
 
@@ -749,6 +802,12 @@ namespace Opc.Ua.Server
         /// Returns the session's endpoint
         /// </summary>
         public EndpointDescription EndpointDescription { get; } = null!;
+
+        /// <summary>
+        /// Gets the endpoint of the channel accepted by the latest activation without changing the original endpoint.
+        /// </summary>
+        internal EndpointDescription BoundEndpointDescription =>
+            Volatile.Read(ref m_boundEndpointDescription) ?? EndpointDescription;
 
         /// <summary>
         /// Returns the session's SecureChannelId
@@ -1145,16 +1204,56 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
+            return ExecuteNotificationOperation(() =>
+                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce, null));
+        }
+
+        /// <summary>
+        /// Commits activation without clearing invalidation that occurred during role resolution.
+        /// </summary>
+        internal bool ActivateWithRoleGeneration(
+            OperationContext context,
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity identity,
+            IUserIdentity effectiveIdentity,
+            ArrayOf<string> localeIds,
+            Nonce serverNonce,
+            long expectedIdentityGeneration)
+        {
+            return ExecuteNotificationOperation(() =>
+                ActivateCore(context, identityToken, identity, effectiveIdentity, localeIds, serverNonce,
+                    expectedIdentityGeneration));
+        }
+
+        /// <summary>
+        /// Commits activation while notification publication cannot observe an intermediate identity.
+        /// </summary>
+        private bool ActivateCore(
+            OperationContext context,
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity identity,
+            IUserIdentity effectiveIdentity,
+            ArrayOf<string> localeIds,
+            Nonce serverNonce,
+            long? expectedIdentityGeneration)
+        {
             Nonce? retiredUserTokenNonce = null;
             Nonce? unusedUserTokenNonce = null;
             bool changed = false;
             lock (m_lock)
             {
+                bool rolesChanged = expectedIdentityGeneration.HasValue &&
+                    expectedIdentityGeneration.Value != m_identityGeneration;
                 // update user identity.
                 if (identityToken != null &&
                     UpdateUserIdentity(identityToken, identity, effectiveIdentity))
                 {
                     changed = true;
+                }
+                if (rolesChanged)
+                {
+                    m_identityGeneration++;
+                    Volatile.Write(ref m_notificationAuthorization, null);
                 }
 
                 // update local ids.
@@ -1177,6 +1276,11 @@ namespace Opc.Ua.Server
                     SecureChannelId = context.ChannelContext!.SecureChannelId;
 
                     TraceState("RE-ACTIVATION");
+                }
+
+                if (context.ChannelContext?.EndpointDescription is EndpointDescription boundEndpoint)
+                {
+                    Volatile.Write(ref m_boundEndpointDescription, boundEndpoint);
                 }
 
                 // update server nonce.
@@ -1741,6 +1845,8 @@ namespace Opc.Ua.Server
                     changed = !EffectiveIdentity.Equals(effectiveIdentity);
                 }
 
+                UpdateNotificationAuthorization(identityToken, identity, effectiveIdentity!);
+
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
@@ -1781,6 +1887,28 @@ namespace Opc.Ua.Server
                 }
 
                 return changed;
+            }
+        }
+
+        /// <summary>
+        /// Invalidates every pending and retained notification atomically with an identity commit.
+        /// Equivalent reactivation keeps the epoch, including retransmission sequence numbers.
+        /// </summary>
+        private void UpdateNotificationAuthorization(
+            IUserIdentityTokenHandler identityToken,
+            IUserIdentity identity,
+            IUserIdentity effectiveIdentity)
+        {
+            if (identityToken == null)
+            {
+                return;
+            }
+            var authorization = new NotificationAuthorization(
+                identityToken, identity, effectiveIdentity, ClientApplicationUri);
+            if (m_notificationAuthorization == null ||
+                !m_notificationAuthorization.IsEquivalentTo(authorization))
+            {
+                Volatile.Write(ref m_notificationAuthorization, authorization);
             }
         }
 
@@ -2019,6 +2147,12 @@ namespace Opc.Ua.Server
         }
         private readonly Lock m_lock = new();
 
+        /// <summary>Serializes identity commits and notification delivery before entering the session state.</summary>
+        private readonly Lock m_notificationAuthorizationLock = new();
+
+        /// <summary>The current notification epoch; null while effective grants require refresh.</summary>
+        private NotificationAuthorization? m_notificationAuthorization;
+
         /// <summary>
         /// Guards the session and security diagnostics, and the last-contact tick count that
         /// is updated alongside them. Never exposed: callers reach the diagnostics through
@@ -2031,6 +2165,9 @@ namespace Opc.Ua.Server
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
+
+        /// <summary>The most recently accepted channel endpoint, published with activation's channel binding.</summary>
+        private EndpointDescription? m_boundEndpointDescription;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;

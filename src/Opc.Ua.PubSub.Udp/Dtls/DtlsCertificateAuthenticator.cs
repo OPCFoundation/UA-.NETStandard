@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -230,6 +231,74 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 .ValidateAsync(peerCertificate, ct: cancellationToken)
                 .ConfigureAwait(false);
             result.ThrowIfInvalid();
+        }
+
+        /// <summary>
+        /// Binds the server certificate's subject alternative name to the originally configured DNS or IP identity.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="DtlsHandshakeException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static void ValidateServerIdentity(Certificate certificate, UdpEndpoint endpoint)
+        {
+            if (certificate is null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            string expectedHost;
+            if (endpoint.OriginalUrl is null)
+            {
+                // A directly constructed endpoint has only its configured IP identity, not a DNS name.
+                expectedHost = endpoint.Address?.ToString()
+                    ?? throw new DtlsHandshakeException(
+                        "DTLS server authentication requires a configured peer identity.");
+            }
+            else
+            {
+                if (!Uri.TryCreate(endpoint.OriginalUrl, UriKind.Absolute, out Uri? configuredEndpoint) ||
+                    !string.Equals(configuredEndpoint.Scheme, "opc.dtls", StringComparison.OrdinalIgnoreCase) ||
+                    configuredEndpoint.HostNameType is not (
+                        UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6))
+                {
+                    throw new DtlsHandshakeException(
+                        "DTLS server authentication requires a valid configured DNS name or IP address.");
+                }
+
+                // Never substitute the resolved transport address for an originally configured DNS identity.
+                expectedHost = configuredEndpoint.IdnHost;
+            }
+
+            X509SubjectAltNameExtension? subjectAltName = certificate.FindExtension<X509SubjectAltNameExtension>();
+            if (subjectAltName is not null)
+            {
+                if (IPAddress.TryParse(expectedHost, out IPAddress? expectedAddress))
+                {
+                    foreach (string address in subjectAltName.IPAddresses)
+                    {
+                        if (IPAddress.TryParse(address, out IPAddress? certificateAddress) &&
+                            expectedAddress.Equals(certificateAddress))
+                        {
+                            return;
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (string dnsName in subjectAltName.DomainNames)
+                    {
+                        if (string.Equals(expectedHost, dnsName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadCertificateHostNameInvalid,
+                "The configured DTLS peer identity '{0}' is not listed in the certificate's subject alternative name.",
+                expectedHost);
         }
 
         private static byte[] BuildCertificateVerifyContent(bool isServer, ReadOnlySpan<byte> transcriptHash)

@@ -201,8 +201,35 @@ namespace Opc.Ua.PubSub.Adapter.DependencyInjection
 
             if (start)
             {
-                await coordinator.StartAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await coordinator.StartAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    await RemoveCoordinatorAsync(coordinator).ConfigureAwait(false);
+                    throw;
+                }
             }
+        }
+
+        /// <summary>
+        /// Retires a replaced coordinator and releases the runtime's reference to its caches and subscriptions.
+        /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="coordinator"/> is null.
+        /// </exception>
+        public async ValueTask RemoveCoordinatorAsync(SubscriptionCoordinator coordinator)
+        {
+            if (coordinator is null)
+            {
+                throw new ArgumentNullException(nameof(coordinator));
+            }
+            lock (m_gate)
+            {
+                m_coordinators.Remove(coordinator);
+            }
+            await coordinator.DisposeAsync().ConfigureAwait(false);
         }
 
         /// <summary>

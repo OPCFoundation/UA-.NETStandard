@@ -34,6 +34,22 @@ using System.Threading.Tasks;
 namespace Opc.Ua.AutoID.Server
 {
     /// <summary>
+    /// Optional provider policy classifying tag memory safe for broadcast access-event telemetry.
+    /// </summary>
+    /// <remarks>
+    /// Implement on the injected RFID provider. Without this policy, generic ReadTag and WriteTag
+    /// events omit data while direct method results remain unchanged. Never approve credentials
+    /// or unknown memory layouts. EPC reserved password bytes are always excluded by the runtime.
+    /// </remarks>
+    public interface IAutoIdRfidAccessEventPolicy
+    {
+        /// <summary>
+        /// Returns whether the entire byte range is known to contain only non-secret telemetry.
+        /// </summary>
+        bool CanPublishData(string codeType, ushort region, uint offset, uint length);
+    }
+
+    /// <summary>
     /// The RFID tag access methods of <c>RfidReaderDeviceType</c> (OPC 30010 6.5.3).
     /// </summary>
     [Flags]

@@ -88,11 +88,18 @@ namespace Opc.Ua.AutoID.Tests
     /// A scriptable provider that records the calls the runtime makes.
     /// </summary>
     internal sealed class FakeProvider : IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider,
+        IAutoIdRfidAccessEventPolicy,
         IAsyncDisposable
     {
         public AutoIdReaderKind Kind { get; set; } = AutoIdReaderKind.Rfid;
 
         public AutoIdRfidOperations SupportedOperations { get; set; } = AutoIdRfidOperations.All;
+
+        /// <inheritdoc/>
+        public bool CanPublishData(string codeType, ushort region, uint offset, uint length)
+        {
+            return codeType == "EPC" && region is >= 1 and <= 3;
+        }
 
         public IAutoIdReaderSink? Sink { get; private set; }
 

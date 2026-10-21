@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests
                 .Returns(m_timeProvider);
             m_mockLogger = new Mock<ILogger>();
             m_mockMasterNodeManager = new Mock<IMasterNodeManager>();
-            var mockConfigurationNodeManager = new Mock<IConfigurationNodeManager>();
+            Mock<IConfigurationNodeManager> mockConfigurationNodeManager = CreateUnrestrictedConfigurationNodeManager();
 
             m_mockSession = new Mock<ISession>();
             m_mockSession.Setup(s => s.EffectiveIdentity).Returns(new Mock<IUserIdentity>().Object);
@@ -1353,7 +1353,7 @@ namespace Opc.Ua.Server.Tests
                 });
             var factory = new Mock<IMainNodeManagerFactory>();
             factory.Setup(value => value.CreateConfigurationNodeManager())
-                .Returns(new Mock<IConfigurationNodeManager>().Object);
+                .Returns(CreateUnrestrictedConfigurationNodeManager().Object);
             factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
                 .Returns(new Mock<ICoreNodeManager>().Object);
             m_mockServer.Setup(value => value.MainNodeManagerFactory).Returns(factory.Object);
@@ -3089,7 +3089,6 @@ namespace Opc.Ua.Server.Tests
                 diagnostics,
                 10,
                 m_mockLogger.Object);
-
             Assert.That(hadMore, Is.False);
             if (!m_useSamplingGroups)
             {
@@ -3180,6 +3179,13 @@ namespace Opc.Ua.Server.Tests
             var monitoredItem = monitoredItems[0] as IDataChangeMonitoredItem;
             Assert.That(monitoredItem, Is.Not.Null);
 
+            for (int retry = 0; retry < 5 && !monitoredItem!.IsReadyToPublish; retry++)
+            {
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+
+            Assert.That(monitoredItem!.IsReadyToPublish, Is.True);
+
             var writeValue = new WriteValue
             {
                 NodeId = propertyNodeID,
@@ -3198,6 +3204,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
             Assert.That(euProperty.Value, Is.EqualTo(123));
 
+            if (manager.MonitoredNodes.TryGetValue(variable.NodeId, out MonitoredNode2? monitoredNode))
+            {
+                await monitoredNode.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+
             Assert.That(monitoredItem.IsReadyToPublish, Is.True);
 
             var notifications = new Queue<MonitoredItemNotification>();
@@ -3209,7 +3220,6 @@ namespace Opc.Ua.Server.Tests
                 diagnostics,
                 10,
                 m_mockLogger.Object);
-
             Assert.That(hadMore, Is.False);
             // For MonitoredNodeMonitoredItemManager the write value is propagated immediately
             if (!m_useSamplingGroups)
@@ -3229,7 +3239,11 @@ namespace Opc.Ua.Server.Tests
                 s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
                 Times.Once);
 
-            Assert.That(monitoredItem.IsReadyToPublish, Is.False);
+            // Sampling-group work can enqueue the next periodic sample as Publish drains this batch.
+            if (!m_useSamplingGroups)
+            {
+                Assert.That(monitoredItem.IsReadyToPublish, Is.False);
+            }
         }
 
         /// <summary>
@@ -10872,6 +10886,19 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(await manager.DeleteNodeAsync(
                     manager.SystemContext, nodeId, cancellationToken).ConfigureAwait(false), Is.True);
             }
+        }
+
+        /// <summary>
+        /// Supplies a known-absent namespace policy for both asynchronous and synchronous manager paths.
+        /// </summary>
+        private static Mock<IConfigurationNodeManager> CreateUnrestrictedConfigurationNodeManager()
+        {
+            var configuration = new Mock<IConfigurationNodeManager>();
+            NamespaceMetadataState? noMetadata = null;
+            configuration.As<INamespaceMetadataSnapshot>()
+                .Setup(manager => manager.TryGetNamespaceMetadataState(It.IsAny<ushort>(), out noMetadata))
+                .Returns(true);
+            return configuration;
         }
 
         private ITestNodeManager CreateManager(bool asynchronousLegacyCall = false)

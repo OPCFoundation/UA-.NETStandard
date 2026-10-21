@@ -27,51 +27,36 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
-using Opc.Ua.OpenUsd.Client;
-
-namespace Opc.Ua.OpenUsd.Connector
+namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Forwards live values to a viewport stage whose structural composition was
-    /// prepared before its retained renderer was created.
+    /// Bounds the optional server-wide event identity guarantee.
     /// </summary>
-    internal sealed class UsdViewportValueSink : IUsdSink
+    public sealed record EventIdentityAdmissionOptions
     {
-        public UsdViewportValueSink(IUsdSink inner)
-        {
-            m_inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        }
+        /// <summary>
+        /// Gets the maximum simultaneously tracked EventIds, including native
+        /// publications, generation reservations and queued or retained occurrences.
+        /// Native evidence is reclaimable after its event targets and notification
+        /// references drain. Generation evidence also retains its active reservations.
+        /// Reclamation can lag until unowned targets are collected.
+        /// Exhaustion never evicts a live occurrence.
+        /// </summary>
+        public int MaxEventIdentities { get; init; } = 65_536;
+    }
 
-        public void SetAttribute(string primPath, string propertyName, Variant value)
-        {
-            m_inner.SetAttribute(primPath, propertyName, value);
-        }
-
-        public void SetTimeSample(
-            string primPath,
-            string propertyName,
-            DateTime time,
-            Variant value)
-        {
-            m_inner.SetTimeSample(primPath, propertyName, time, value);
-        }
-
-        public void ComposePrim(
-            string primPath,
-            OpenUsdCompositionArc arc,
-            string? assetReference,
-            bool active)
-        {
-            // OpenUSD 0.12 retained renderers do not rebuild reliably after live
-            // composition edits. The file sink still persists these changes.
-        }
-
-        public IDisposable BeginBatch()
-        {
-            return m_inner.BeginBatch();
-        }
-
-        private readonly IUsdSink m_inner;
+    /// <summary>
+    /// Trusted provider evidence identifying one occurrence, independently of its
+    /// EventId. Matching bytes or fields from different authorities are not evidence.
+    /// </summary>
+    public interface IEventIdentitySource
+    {
+        /// <summary>
+        /// Determines whether both providers demonstrably describe the same occurrence.
+        /// Admission requires agreement in both directions. Implementations must not
+        /// perform I/O or call back into event publication.
+        /// </summary>
+        /// <param name="other">The event identity source.</param>
+        bool IsSameOccurrence(IEventIdentitySource other);
     }
 }

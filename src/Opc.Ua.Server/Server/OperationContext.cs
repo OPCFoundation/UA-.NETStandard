@@ -105,7 +105,7 @@ namespace Opc.Ua.Server
 
             ChannelContext = secureChannelContext;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            UserIdentity = session.EffectiveIdentity;
+            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = (DiagnosticsMasks)requestHeader.ReturnDiagnostics;
             AuditEntryId = requestHeader.AuditEntryId!;
@@ -133,7 +133,7 @@ namespace Opc.Ua.Server
         {
             ChannelContext = null!;
             Session = session ?? throw new ArgumentNullException(nameof(session));
-            UserIdentity = session.EffectiveIdentity;
+            (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(session);
             PreferredLocales = session.PreferredLocales;
             DiagnosticsMask = diagnosticsMasks;
             AuditEntryId = null!;
@@ -169,7 +169,7 @@ namespace Opc.Ua.Server
 
             if (Session != null)
             {
-                UserIdentity = Session.EffectiveIdentity;
+                (UserIdentity, NotificationAuthorization) = CaptureNotificationContext(Session);
                 PreferredLocales = Session.PreferredLocales;
             }
 
@@ -193,6 +193,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The session.</value>
         public ISession Session { get; } = null!;
+
+        /// <summary>
+        /// Gets the authorization epoch captured with the request identity.
+        /// </summary>
+        internal NotificationAuthorization? NotificationAuthorization { get; }
 
         /// <summary>
         /// The lifetime of the request.
@@ -491,6 +496,17 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
 
+        /// <summary>
+        /// Captures built-in Session identity and epoch atomically, retaining support for custom sessions.
+        /// </summary>
+        private static (IUserIdentity Identity, NotificationAuthorization? Authorization) CaptureNotificationContext(
+            ISession session)
+        {
+            return session is Session concreteSession
+                ? concreteSession.CaptureNotificationContext()
+                : (session.EffectiveIdentity, Opc.Ua.Server.NotificationAuthorization.Capture(session));
+        }
+
         private int m_tableSlot = RequestTable<OperationContext>.kNoSlot;
 
         /// <summary>
@@ -544,9 +560,10 @@ namespace Opc.Ua.Server
             NamespaceDefaultPermissions[]? entries = m_defaultPermissions;
             if (entries != null)
             {
+                long generation = NamespaceDefaultPermissionReader.Generation;
                 foreach (NamespaceDefaultPermissions entry in entries)
                 {
-                    if (entry.NamespaceIndex == namespaceIndex)
+                    if (entry.NamespaceIndex == namespaceIndex && entry.Generation == generation)
                     {
                         permissions = entry;
                         return true;
@@ -563,7 +580,10 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void SetDefaultPermissions(NamespaceDefaultPermissions permissions)
         {
-            if (RequestType == RequestType.Unknown)
+            if (RequestType == RequestType.Unknown ||
+                m_defaultPermissionCacheDisabled ||
+                !StatusCode.IsGood(permissions.Status) ||
+                permissions.Generation != NamespaceDefaultPermissionReader.Generation)
             {
                 return;
             }
@@ -583,35 +603,140 @@ namespace Opc.Ua.Server
             m_defaultPermissions = updated;
         }
 
+        /// <summary>
+        /// Stops this context from remembering namespace defaults. Contexts that outlive a
+        /// single service request, such as subscriber contexts created with a request type,
+        /// call it so dynamic namespace defaults are read again on every check.
+        /// </summary>
+        internal void DisableDefaultPermissionCache()
+        {
+            m_defaultPermissionCacheDisabled = true;
+            m_defaultPermissions = null;
+        }
+
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
+        private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
     }
 
     /// <summary>
-    /// The default permissions of a namespace, read from its NamespaceMetadata.
+    /// The default permissions of a namespace, read from its NamespaceMetadata by
+    /// <see cref="NamespaceDefaultPermissionReader"/>.
     /// </summary>
     internal readonly struct NamespaceDefaultPermissions
     {
+        /// <summary>
+        /// Creates a good result of the current generation; a non-default value counts as present.
+        /// </summary>
         public NamespaceDefaultPermissions(
             ushort namespaceIndex,
             AccessRestrictionType defaultAccessRestrictions,
             ArrayOf<RolePermissionType> defaultRolePermissions,
             ArrayOf<RolePermissionType> defaultUserRolePermissions)
+            : this(
+                namespaceIndex,
+                defaultAccessRestrictions,
+                defaultRolePermissions,
+                defaultUserRolePermissions,
+                NamespaceDefaultPermissionReader.Generation)
+        {
+        }
+
+        /// <summary>
+        /// Creates a good result of the given generation; a non-default value counts as present.
+        /// </summary>
+        public NamespaceDefaultPermissions(
+            ushort namespaceIndex,
+            AccessRestrictionType defaultAccessRestrictions,
+            ArrayOf<RolePermissionType> defaultRolePermissions,
+            ArrayOf<RolePermissionType> defaultUserRolePermissions,
+            long generation)
+            : this(
+                namespaceIndex,
+                defaultAccessRestrictions,
+                defaultRolePermissions,
+                defaultUserRolePermissions,
+                generation,
+                StatusCodes.Good,
+                defaultAccessRestrictions != AccessRestrictionType.None,
+                !defaultRolePermissions.IsNull,
+                !defaultUserRolePermissions.IsNull)
+        {
+        }
+
+        /// <summary>
+        /// Creates a result with explicit status and presence.
+        /// </summary>
+        public NamespaceDefaultPermissions(
+            ushort namespaceIndex,
+            AccessRestrictionType defaultAccessRestrictions,
+            ArrayOf<RolePermissionType> defaultRolePermissions,
+            ArrayOf<RolePermissionType> defaultUserRolePermissions,
+            long generation,
+            StatusCode status,
+            bool hasDefaultAccessRestrictions,
+            bool hasDefaultRolePermissions,
+            bool hasDefaultUserRolePermissions)
         {
             NamespaceIndex = namespaceIndex;
             DefaultAccessRestrictions = defaultAccessRestrictions;
             DefaultRolePermissions = defaultRolePermissions;
             DefaultUserRolePermissions = defaultUserRolePermissions;
+            Generation = generation;
+            Status = status;
+            HasDefaultAccessRestrictions = hasDefaultAccessRestrictions;
+            HasDefaultRolePermissions = hasDefaultRolePermissions;
+            HasDefaultUserRolePermissions = hasDefaultUserRolePermissions;
         }
 
+        /// <summary>
+        /// The namespace index.
+        /// </summary>
         public ushort NamespaceIndex { get; }
+
+        /// <summary>
+        /// The decoded DefaultAccessRestrictions, None when absent or failed.
+        /// </summary>
         public AccessRestrictionType DefaultAccessRestrictions { get; }
+
+        /// <summary>
+        /// The DefaultRolePermissions, default when absent or failed.
+        /// </summary>
         public ArrayOf<RolePermissionType> DefaultRolePermissions { get; }
+
+        /// <summary>
+        /// The DefaultUserRolePermissions, default when absent or failed.
+        /// </summary>
         public ArrayOf<RolePermissionType> DefaultUserRolePermissions { get; }
+
+        /// <summary>
+        /// The namespace default generation the values were read in.
+        /// </summary>
+        public long Generation { get; }
+
+        /// <summary>
+        /// Good, or the Bad code of a failed read/decode. A Bad status must deny the operation.
+        /// </summary>
+        public StatusCode Status { get; }
+
+        /// <summary>
+        /// Whether DefaultAccessRestrictions is configured (an explicit zero counts as configured).
+        /// </summary>
+        public bool HasDefaultAccessRestrictions { get; }
+
+        /// <summary>
+        /// Whether DefaultRolePermissions is configured (an explicit empty array counts as configured).
+        /// </summary>
+        public bool HasDefaultRolePermissions { get; }
+
+        /// <summary>
+        /// Whether DefaultUserRolePermissions is configured (an explicit empty array counts as configured).
+        /// </summary>
+        public bool HasDefaultUserRolePermissions { get; }
     }
 }

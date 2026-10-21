@@ -115,6 +115,49 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         /// <summary>
+        /// Result-transfer handles cannot be generated without a session owner.
+        /// </summary>
+        [Test]
+        public async Task SessionlessCallerCannotGenerateResultTransferHandle()
+        {
+            await using var harness = new Harness(capacity: 1);
+            await harness.InitializeAsync();
+
+            GeneratedFile generated = await harness.GenerateAsync(harness.Manager.SystemContext);
+
+            Assert.That(generated.Status.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(harness.TransientFiles(), Is.Empty);
+            harness.Store.Verify(
+                value => value.GetResultByIdAsync("result", It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// A sessionless caller cannot read a result-transfer handle owned by a session.
+        /// </summary>
+        [Test]
+        public async Task SessionlessCallerCannotReadAnotherSessionsResultFile()
+        {
+            await using var harness = new Harness(capacity: 1);
+            await harness.InitializeAsync();
+            GeneratedFile generated = await harness.GenerateAsync(harness.FirstContext);
+            FileState file = harness.File(generated);
+            ByteString bytes = default;
+
+            ServiceResult denied = file.Read!.OnCall!(
+                harness.Manager.SystemContext,
+                file.Read,
+                file.NodeId,
+                generated.Handle,
+                3,
+                ref bytes);
+
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(bytes.IsNull, Is.True);
+            Assert.That(harness.Read(generated, harness.FirstContext), Is.EqualTo(ByteString.From(1, 2, 3)));
+        }
+
+        /// <summary>
         /// Timeout sweeping reclaims only inactive handles and finishes before granting a replacement.
         /// </summary>
         [Test]

@@ -30,6 +30,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Opc.Ua.WotCon.Tests\Registry\RecordingLeasedResourceStore.cs"
+      Link="Registry\RecordingLeasedResourceStore.cs" />
     <ProjectReference Include="..\..\samples\WotCon\FlatTagServer\FlatTagServer.csproj" />
     <ProjectReference Include="..\..\samples\WotCon\AggregationServer\AggregationServer.csproj" />
     <ProjectReference Include="..\..\samples\WotCon\AggregationClient\AggregationClient.csproj" />

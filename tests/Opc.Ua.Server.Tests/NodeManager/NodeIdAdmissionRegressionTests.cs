@@ -78,6 +78,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 detachable.QueueNodeIdUnknown();
                 var master = new Mock<IMasterNodeManager>();
                 Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+                master.SetupGet(value => value.ConfigurationNodeManager)
+                    .Returns(server.Object.NodeManager.ConfigurationNodeManager);
                 master.SetupGet(value => value.CoreNodeManager).Returns(server.Object.CoreNodeManager);
                 server.SetupGet(value => value.NodeManager).Returns(master.Object);
                 recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(

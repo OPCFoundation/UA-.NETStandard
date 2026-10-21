@@ -857,9 +857,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(requestTask, 30).ConfigureAwait(false),
                 Is.True,
                 "the request did not time out");
-            ServiceResultException? requestError = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await requestTask.ConfigureAwait(false)).ConfigureAwait(false);
-            Assert.That(requestError!.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
+            ServiceResultException requestError = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await requestTask.ConfigureAwait(false)).ConfigureAwait(false)
+                ?? throw new AssertionException("Expected the request to time out.");
+            Assert.That(requestError.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
             Assert.That(connectTask.IsCompleted, Is.False);
 
             timeProvider.Advance(TimeSpan.FromMilliseconds(3998));
@@ -870,9 +871,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 await CompletesWithinAsync(connectTask, 30).ConfigureAwait(false),
                 Is.True,
                 "the connect did not time out");
-            ServiceResultException? connectError = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await connectTask.ConfigureAwait(false)).ConfigureAwait(false);
-            Assert.That(connectError!.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
+            ServiceResultException connectError = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await connectTask.ConfigureAwait(false)).ConfigureAwait(false)
+                ?? throw new AssertionException("Expected the connection to time out.");
+            Assert.That(connectError.StatusCode, Is.EqualTo((uint)StatusCodes.BadRequestTimeout));
         }
 
         /// <summary>

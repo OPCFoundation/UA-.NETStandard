@@ -197,8 +197,10 @@ namespace Opc.Ua.XRegistry.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(invalidGet.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
-                Assert.That(invalidSet.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(invalidGet.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(foreignSession ? StatusCodes.BadUserAccessDenied : StatusCodes.BadInvalidArgument));
+                Assert.That(invalidSet.ServiceResult.StatusCode.Code,
+                    Is.EqualTo(foreignSession ? StatusCodes.BadUserAccessDenied : StatusCodes.BadInvalidArgument));
                 Assert.That(ownerPosition.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
                 Assert.That(ownerPosition.Position, Is.EqualTo(1UL));
                 Assert.That(read.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.Good));

@@ -39,9 +39,11 @@ using Microsoft.Extensions.DependencyInjection;
 using ModelContextProtocol.Protocol;
 using NUnit.Framework;
 using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Server.FileSystem;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
@@ -101,7 +103,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
                     ]
                 }
             }).AddOpcUaMcpWorkflows();
-            services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "client-pki"), "WorkflowMcpLiveClient")
+                .ConfigureAwait(false);
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
             m_services = services.BuildServiceProvider();
             using var startup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await Sessions.ConnectAsync("workflow-live",
@@ -124,6 +129,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
             if (m_fixture is not null)
             {
                 await m_fixture.StopAsync().ConfigureAwait(false);
+            }
+            if (m_client is not null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
             }
             if (m_root is not null && Directory.Exists(m_root))
             {
@@ -243,6 +252,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
         private ServiceProvider m_services = null!;
         private ServerFixture<ReferenceServer> m_fixture = null!;
         private string m_root = null!;
+        /// <summary>The fixture-owned client configuration and application certificates.</summary>
+        private ClientFixture? m_client;
     }
 }
 #endif

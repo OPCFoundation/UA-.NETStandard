@@ -121,10 +121,10 @@ namespace Opc.Ua.SourceGeneration
 
             NodesetFileCollection collection = Create((older, "1.0.0"), (newer, "2.0.0"));
 
-            Assert.That(collection.Files.Values, Is.EquivalentTo(new[] { newer }));
+            Assert.That(collection.Files.Values, Is.EquivalentTo([newer]));
             Assert.That(
                 collection.AllFilePaths,
-                Is.EquivalentTo(new[] { newer, older }),
+                Is.EquivalentTo([newer, older]),
                 "a superseded NodeSet is still a NodeSet input");
         }
 
@@ -144,8 +144,8 @@ namespace Opc.Ua.SourceGeneration
 
             NodesetFileCollection collection = Create((valid, null), (malformed, null));
 
-            Assert.That(collection.Files.Values, Is.EquivalentTo(new[] { valid }));
-            Assert.That(collection.AllFilePaths, Is.EquivalentTo(new[] { valid, malformed }));
+            Assert.That(collection.Files.Values, Is.EquivalentTo([valid]));
+            Assert.That(collection.AllFilePaths, Is.EquivalentTo([valid, malformed]));
         }
 
         /// <summary>
@@ -360,7 +360,7 @@ namespace Opc.Ua.SourceGeneration
                 m_fileSystem,
                 NUnitTelemetryContext.Create(logLevel: LogLevel.Error));
 
-            Assert.That(collection.ModelUris, Is.EqualTo(new[] { ModelUri }));
+            Assert.That(collection.ModelUris, Is.EqualTo([ModelUri]));
             Assert.That(
                 collection.GetDesignFileListForModel(ModelUri, out NodesetFile nodeset),
                 Is.Not.Null);
@@ -391,7 +391,54 @@ namespace Opc.Ua.SourceGeneration
 
             Assert.That(
                 files!.Select(f => f.Split(',')[0]),
-                Is.EqualTo(new[] { root, other }));
+                Is.EqualTo([root, other]));
+        }
+
+        /// <summary>
+        /// Runtime role identities do not require model types, but must not hide real missing dependencies.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [Category("SecurityRegression")]
+        public void SecurityF35RuntimeRoleNamespacesDoNotHideRealDependencies(bool realReference, bool useAlias)
+        {
+            const string path = "memory://roles.NodeSet2.xml";
+            string roleId = useAlias ? "RuntimeRole" : "ns=2;i=7001";
+            string reference = realReference
+                ? "<Reference ReferenceType=\"i=47\">ns=2;i=9000</Reference>"
+                : string.Empty;
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(
+                $$"""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris>
+                    <Uri>{{ModelUri}}</Uri>
+                    <Uri>urn:test:runtime-roles</Uri>
+                  </NamespaceUris>
+                  <Models><Model ModelUri="{{ModelUri}}" Version="1.0.0" /></Models>
+                  <Aliases><Alias Alias="RuntimeRole">ns=2;i=7001</Alias></Aliases>
+                  <UAObject NodeId="ns=1;i=5000" BrowseName="1:Protected">
+                    <References><Reference ReferenceType="i=40">i=58</Reference>{{reference}}</References>
+                    <RolePermissions><RolePermission Permissions="32">{{roleId}}</RolePermission></RolePermissions>
+                  </UAObject>
+                </UANodeSet>
+                """));
+            var collection = new NodesetFileCollection(
+                [(path, new NodesetFileOptions())], [], m_fileSystem,
+                NUnitTelemetryContext.Create(logLevel: LogLevel.Error));
+
+            List<string>? files = collection.GetDesignFileListForModel(ModelUri, out _);
+
+            if (realReference)
+            {
+                Assert.That(files, Is.Null, "A role ACL cannot satisfy an ordinary external node reference.");
+            }
+            else
+            {
+                Assert.That(files, Is.Not.Null);
+                Assert.That(files!.Select(file => file.Split(',')[0]), Is.EqualTo([path]));
+            }
         }
 
         /// <summary>

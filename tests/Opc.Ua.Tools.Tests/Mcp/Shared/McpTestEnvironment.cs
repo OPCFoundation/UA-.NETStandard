@@ -37,9 +37,12 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
+using Opc.Ua.Client;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Pcap.DependencyInjection;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.Tools.Tests.Mcp
@@ -100,7 +103,30 @@ namespace Opc.Ua.Tools.Tests.Mcp
             var services = new ServiceCollection();
             McpHostBuilder.ConfigureServices(
                 services,
-                new PcapOptions { BaseFolder = PcapBaseFolder });
+                new PcapOptions { BaseFolder = PcapBaseFolder },
+                new OpcUaMcpOptions
+                {
+                    Execution = new McpExecutionOptions
+                    {
+                        LocalCallerId = "mcp-tests",
+                        EnabledCapabilities = [McpCapability.CertificateAdministration],
+                        CallerGrants =
+                        [
+                            new McpCallerGrant
+                            {
+                                Caller = new McpCallerIdentity(
+                                    "mcp-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                                Capabilities = [McpCapability.CertificateAdministration],
+                                SessionNames = [SessionName]
+                            }
+                        ]
+                    }
+                });
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(pkiRoot, "client"), "McpTestClient")
+                .ConfigureAwait(false);
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
+            services.AddSingleton(NUnitTelemetryContext.Create());
             Services = services.BuildServiceProvider();
 
             SessionManager = Services.GetRequiredService<OpcUaSessionManager>();
@@ -135,7 +161,15 @@ namespace Opc.Ua.Tools.Tests.Mcp
             {
                 await ServerFixture.StopAsync().ConfigureAwait(false);
             }
+
+            if (m_client != null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
+            }
         }
+
+        /// <summary>The shared client's isolated application configuration and certificate stores.</summary>
+        private ClientFixture? m_client;
     }
 }
 #endif

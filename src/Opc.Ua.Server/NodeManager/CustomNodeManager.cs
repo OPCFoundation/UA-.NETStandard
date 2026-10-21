@@ -667,7 +667,16 @@ namespace Opc.Ua.Server
                     RemoveNodeFromComponentCache);
                 if (ServiceResult.IsGood(result) && changed && !isEvent)
                 {
-                    sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                    if (sampledMonitoredItem is MonitoredItem concreteItem &&
+                        context.OperationContext is OperationContext operationContext)
+                    {
+                        concreteItem.QueueValueIfCurrent(
+                            operationContext, initialValue, readResult, ignoreFilters: true);
+                    }
+                    else
+                    {
+                        sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                    }
                 }
                 else if (ServiceResult.IsGood(result) &&
                     changed &&
@@ -3106,22 +3115,7 @@ namespace Opc.Ua.Server
                     propertyState.NodeId == property.NodeId &&
                     (hasSemanticChangeFlag || AsyncCustomNodeManager.IsSemanticChangeProperty(node, propertyName)))
                 {
-                    monitoredItem.SetSemanticsChanged();
-
-                    // re-read in the context of the session owning the monitored item,
-                    // not in the context of the writer.
-                    ServerSystemContext itemContext = SystemContext.Copy(
-                        new OperationContext(kvp.Value));
-                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
-
-                    ServiceResult readResult = node.ReadAttribute(
-                        itemContext,
-                        Attributes.Value,
-                        monitoredItem.IndexRange,
-                        monitoredItem.DataEncoding,
-                        ref value);
-
-                    monitoredItem.QueueValue(value, readResult, true);
+                    m_monitoredItemManager.TryQueueSemanticResample(node, monitoredItem);
 
                     changedNode ??= node;
                 }
@@ -4944,7 +4938,15 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    monitoredItem.QueueEvent(events[jj]);
+                    if (monitoredItem is MonitoredItem concreteItem)
+                    {
+                        concreteItem.QueueEventIfCurrent(
+                            context.Session, context.NotificationAuthorization, events[jj], null, null);
+                    }
+                    else
+                    {
+                        monitoredItem.QueueEvent(events[jj]);
+                    }
                 }
             }
 
@@ -5425,7 +5427,15 @@ namespace Opc.Ua.Server
                 monitoredItem.DataEncoding,
                 ref initialValue);
 
-            monitoredItem.QueueValue(initialValue, error, true);
+            if (monitoredItem is MonitoredItem concreteItem &&
+                context is ServerSystemContext { OperationContext: OperationContext operationContext })
+            {
+                concreteItem.QueueValueIfCurrent(operationContext, initialValue, error, ignoreFilters: true);
+            }
+            else
+            {
+                monitoredItem.QueueValue(initialValue, error, true);
+            }
 
             return error;
         }
@@ -5477,6 +5487,36 @@ namespace Opc.Ua.Server
                 operationContext,
                 nodeMetadata!,
                 requestedPermission);
+        }
+
+        /// <summary>
+        /// Validates the retained monitored source without consulting replacement-generation routing.
+        /// </summary>
+        internal ServiceResult ValidateMonitoredRead(
+            ServerSystemContext context,
+            NodeState source,
+            uint attributeId)
+        {
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            var metadata = new NodeMetadata(source, source.NodeId)
+            {
+                IsPartOfTypeHierarchy = source.IsPartOfTypeHierarchy
+            };
+            SetAccessAndRolePermissions(ReadValidationAttributes(context, source), metadata);
+            try
+            {
+                SetDefaultPermissions(context, source, metadata);
+            }
+            catch (ServiceResultException error)
+            {
+                return error.Result;
+            }
+            PermissionType permission = MonitoredReadAuthorization.PermissionFor(attributeId);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
+                context.OperationContext!, metadata, permission);
+            return ServiceResult.IsBad(result)
+                ? result
+                : MasterNodeManager.ValidateAccessRestrictions(context.OperationContext!, metadata, permission);
         }
 
         /// <summary>
@@ -6395,84 +6435,16 @@ namespace Opc.Ua.Server
             NodeState target,
             NodeMetadata metadata)
         {
-            // the defaults are read once per namespace and service request, like
-            // AsyncCustomNodeManager does: every read takes two server-wide locks and
-            // copies the role permission array.
-            ushort namespaceIndex = target.NodeId.NamespaceIndex;
-            OperationContext? operationContext = systemContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            NamespaceDefaultPermissions defaults = NamespaceDefaultPermissionReader.Read(
+                Server, systemContext, target.NodeId.NamespaceIndex);
+            if (!StatusCode.IsGood(defaults.Status))
             {
-                metadata.DefaultAccessRestrictions = cached.DefaultAccessRestrictions;
-                metadata.DefaultRolePermissions = cached.DefaultRolePermissions;
-                metadata.DefaultUserRolePermissions = cached.DefaultUserRolePermissions;
-                return;
+                throw new ServiceResultException(defaults.Status);
             }
-
-            ReadDefaultPermissions(systemContext, target, metadata);
-
-            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
-                namespaceIndex,
-                metadata.DefaultAccessRestrictions,
-                metadata.DefaultRolePermissions,
-                metadata.DefaultUserRolePermissions));
-        }
-
-        /// <summary>
-        /// Reads the namespace default permissions of the node's namespace into the metadata.
-        /// </summary>
-        private void ReadDefaultPermissions(
-            ServerSystemContext systemContext,
-            NodeState target,
-            NodeMetadata metadata)
-        {
-            // check if NamespaceMetadata is defined for NamespaceUri
-            string? namespaceUri = Server.NamespaceUris.GetString(target.NodeId.NamespaceIndex);
-            NamespaceMetadataState namespaceMetadataState =
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceUri!).AsTask().GetAwaiter().GetResult()!;
-
-            if (namespaceMetadataState != null)
-            {
-                ArrayOf<Variant> namespaceMetadataValues;
-
-                if (namespaceMetadataState.DefaultAccessRestrictions != null)
-                {
-                    // get DefaultAccessRestrictions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultAccessRestrictions
-                        .ReadAttributes(systemContext, Attributes.Value);
-
-                    if (namespaceMetadataValues[0].TryGetValue(out AccessRestrictionType accessRestrictions))
-                    {
-                        metadata.DefaultAccessRestrictions = accessRestrictions;
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultRolePermissions != null)
-                {
-                    // get DefaultRolePermissions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultRolePermissions
-                        .ReadAttributes(systemContext, Attributes.Value);
-
-                    if (namespaceMetadataValues[0].TryGetStructure(
-                            out ArrayOf<RolePermissionType> rolePermissions))
-                    {
-                        metadata.DefaultRolePermissions = rolePermissions;
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultUserRolePermissions != null)
-                {
-                    // get DefaultUserRolePermissions for Namespace
-                    namespaceMetadataValues = namespaceMetadataState.DefaultUserRolePermissions
-                        .ReadAttributes(systemContext, Attributes.Value);
-
-                    if (namespaceMetadataValues[0].TryGetStructure(
-                            out ArrayOf<RolePermissionType> rolePermissions))
-                    {
-                        metadata.DefaultUserRolePermissions = rolePermissions;
-                    }
-                }
-            }
+            metadata.DefaultAccessRestrictions = target.AccessRestrictions.HasValue
+                ? AccessRestrictionType.None : defaults.DefaultAccessRestrictions;
+            metadata.DefaultRolePermissions = defaults.DefaultRolePermissions;
+            metadata.DefaultUserRolePermissions = defaults.DefaultUserRolePermissions;
         }
 
         /// <summary>

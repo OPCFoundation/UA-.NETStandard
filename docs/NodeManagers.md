@@ -435,6 +435,28 @@ is also revalidated at least once per second, which bounds the delay for
 permissions a node manager computes without such a change, for example through
 `OnReadRolePermissions`.
 
+For an asynchronous, caller-specific Value read policy, register
+`AsyncCustomNodeManager.RegisterValueReadAuthorization(node, authorize)` and keep
+its disposable registration for the binding's lifetime. The policy runs at
+monitored-item admission and each subscriber delivery, independently of cached
+role verdicts. It receives the subscriber's current identity and session context,
+not the context that reported a change. Endpoint access restrictions are also
+rechecked around awaited reads and authorization. An `OnReadValue` check alone
+does not authorize a shared notification snapshot.
+
+The default session retains its original endpoint contract separately from the
+last successfully accepted channel's transport evidence. Reactivation cannot
+reduce effective confidentiality merely by retaining the same UA security mode
+and policy: an HTTPS-to-plaintext-TCP downgrade is rejected before rebinding,
+protecting values already queued for Publish as well as future notifications.
+Confidential HTTPS-to-HTTPS or HTTPS-to-WSS transitions retain their supported
+behavior; this is not a blanket transport-profile equality rule.
+
+Retiring the registration denies further reads with `BadShutdown`, including
+work already awaiting the policy; a replacement registration can authorize new
+work. Binding shutdown must cancel and drain its admitted asynchronous work
+before releasing callback resources.
+
 #### Sampling interval revision
 
 When a client creates or modifies a monitored item the node manager revises the
@@ -650,6 +672,19 @@ nodes opting into parallel event consumers deliver each event concurrently
 to independent monitored items, then complete that event before advancing
 the shared queue. A slow permission check cannot let a later event overtake
 an earlier one; the bounded queue still applies backpressure.
+
+Background event and value delivery use the subscriber's current effective
+identity and accepted channel, not the identity that reported a change.
+Role invalidation is reconciled before authorization; an asynchronous check
+cannot enqueue a result after its captured authorization context changes.
+
+Changes to semantic properties such as `EURange` resample the exact monitored
+source under each subscriber's read permissions and channel restrictions.
+The semantic-property writer's permission does not authorize reading the
+parent value. Both monitored-node and sampling-group consumers own this work
+for their lifetime and recheck authorization before queuing the result.
+Namespace defaults and registered value-read authorizers apply to these reads
+as they do to ordinary monitored delivery.
 
 Monitored-item deletion and mode changes isolate failures by owner.
 Already completed results are retained, remaining items for a failed
@@ -1765,6 +1800,14 @@ Register these hooks when maintaining source membership across compatible
 and also support typed-variable and virtual builders. Multiple handoff handlers
 run in registration order. A graceful `ShadowReloadAsync` instead lets existing
 subscribers drain on the old manager; it does not migrate them to the new source.
+
+The acquisition mode is retained in `MonitoredItemTypeMask.ExternalValueSource`
+and the existing persisted `IStoredMonitoredItem.TypeMask`. Stores must preserve
+all type bits. Test the `DataChange` or `Events` bit rather than comparing the
+entire mask for equality. After restart, the node manager must register the
+source lifecycle again; the persisted bit prevents restoration from silently
+switching to Node reads. Source-managed items also stop accepting values when
+disposed or detached, while preserving the Core missing-Node notification.
 
 An initial read that rejects the attribute or data encoding removes the
 unaccepted monitored item from registration, sampling, and any newly

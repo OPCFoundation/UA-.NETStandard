@@ -17,6 +17,15 @@ Action target additions and mapping changes are applied by registering updated
 handlers; target removal currently requires a host restart because the core
 PubSub action responder API has no unregister operation.
 
+The fallback client configuration requires explicit peer/issuer trust and
+matching server hostname; it does not auto-accept untrusted certificates.
+Subscription reload compares complete dataset definitions and retires old
+sources before replacement, so removed fields are no longer sampled/exported.
+Configured `IndexRange` is preserved through monitoring, cache and publication.
+Custom providers must implement `IRangedDataChangeSubscription` for ranged
+fields; otherwise those fields fail before data access instead of disclosing
+whole values.
+
 ```csharp
 services.AddOpcUa()
     .AddPubSub(pubsub => pubsub

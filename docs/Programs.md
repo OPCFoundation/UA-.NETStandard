@@ -80,6 +80,13 @@ Invalid outputs roll back the new invocation rather than leaking capacity.
 
 ## Execution and lifetime
 
+`ProgramDiagnostic2` and its diagnostic value descendants are readable only by
+the creating session or a SecurityAdmin, over a confidential channel.
+Monitoring applies the same authorization as direct reads. Diagnostic
+value-read authorizers are registered with the owning node manager and released
+with the Program runtime; unrelated subscribers cannot retain access through a
+previously authorized subscription.
+
 | Control | Allowed transition |
 | --- | --- |
 | Start | Ready to Running |

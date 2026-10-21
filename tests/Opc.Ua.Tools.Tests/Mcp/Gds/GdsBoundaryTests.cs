@@ -170,9 +170,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         public async Task UngrantedRegistrationCannotBorrowTheSameManagedSessionThroughAnotherNameAsync()
         {
             await using GdsTestContext fixture = await GdsTestContext.CreateAsync().ConfigureAwait(false);
-            using IDisposable caller = fixture.Enter();
             await fixture.Manager.RegisterExistingSessionAsync("ungranted", fixture.Connection.Managed, "Anonymous")
                 .ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
 
             CallToolResult result = await fixture.Services.GetRequiredService<GdsDirectoryTools>()
                 .UnregisterApplicationAsync(fixture.Remote.Id("directory").ToString(),

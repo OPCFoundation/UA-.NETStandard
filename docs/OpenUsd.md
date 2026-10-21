@@ -280,6 +280,12 @@ renderer needs geometry it can resolve. Closing the window stops the session; `-
 For fetched stages, the connector resolves and writes structural component composition before the viewport opens.
 Live streaming then updates values in the rendered stage while continuing to persist later structural changes in
 `live.usda`; reload the viewport to apply a structural model change that occurs after startup.
+The viewer session callback and both Robotics sample viewport connectors enforce a shared
+`UsdViewportValueSink` boundary: remote structural updates never reach native composition, regardless of the
+asset's spelling or command enablement. Values, history samples and batch scopes continue to flow.
+This prevents live metadata from initiating external asset resolution with the viewer's ambient credentials.
+Host-controlled initial stages and file sinks retain composition support. Operators must still trust initial-stage
+content and its resolver: delivered-file digest verification does not authorize external dependencies.
 
 The renderer itself lives in a separate, optional assembly, `Opc.Ua.OpenUsd.Connector.Viewer`
 (`OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer`), which the connector loads on demand from its own
@@ -365,6 +371,13 @@ The specification is emphatic that an importer must not discard what it does not
 - an **unknown value type** is carried opaquely as `BaseDataType`, with the exact
   `SdfValueTypeName` preserved in `UsdTypeName`.
 
+Opaque materialized Values remain remotely read-only even when their authored attribute is live:
+their UA String transport is not a validated USD value schema. Server-side value maintenance,
+subscriptions and configured history remain available. Known typed live Values remain writable.
+On export, complete supported opaque scalar/tuple/array literals retain their spelling; incomplete or
+trailing syntax is encoded as quoted data rather than emitted as layer structure. Exported liveness,
+which is inferred from write access, is not retained for these read-only opaque Values.
+
 ### Types carry USD roles
 
 USD's `color3f`, `normal3f`, `point3f` and `vector3f` all decompose to three floats and differ
@@ -421,6 +434,12 @@ attribute-for-attribute (name, `SdfValueTypeName`, resolved value and array shap
 relationship-for-relationship (ordered targets), metadata-, variant-selection-, kind- and
 specifier-equivalent to the input's *composed* result, and the recorded composition arc list is
 preserved.
+
+Textual, token and asset array elements, including nested composite values, are
+encoded as data in their USDA context. Quotes, delimiters and newlines in a
+writable attribute cannot introduce prims or composition arcs during export.
+The reader likewise keeps escaped strings and metadata literals separate from
+USDA structure, while retaining explicitly authored composition.
 
 It is deliberately **not** authoring-layer lossless: the input's per-layer opinion stack, sublayer
 structure and value clips are summarised as provenance under `Composition/` and

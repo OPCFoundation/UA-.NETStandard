@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -119,6 +121,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                m_semanticResampleWork.Dispose();
                 List<SamplingGroup>? samplingGroups;
                 List<ISampledDataChangeMonitoredItem>? monitoredItems;
                 lock (m_lock)
@@ -159,6 +162,209 @@ namespace Opc.Ua.Server
                 m_samplingGroups.Clear();
                 m_sampledItems.Clear();
             }
+        }
+
+        /// <summary>
+        /// Schedules one subscriber-specific sample through work owned by this manager's lifetime.
+        /// </summary>
+        /// <param name="source">The exact source node whose semantics changed.</param>
+        /// <param name="item">The monitored item that must be resampled.</param>
+        /// <returns><c>true</c> when the current lifecycle owns and scheduled the request.</returns>
+        internal bool TryQueueSemanticResample(
+            NodeState source,
+            ISampledDataChangeMonitoredItem item)
+        {
+            if (source == null || item == null || !IsExactSource(source, item))
+            {
+                return false;
+            }
+
+            long id;
+            TaskCompletionSource<bool> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            lock (m_lock)
+            {
+                if (!m_sampledItems.ContainsKey(item) ||
+                    item.MonitoringMode == MonitoringMode.Disabled)
+                {
+                    return false;
+                }
+
+                id = Interlocked.Increment(ref m_nextSemanticResampleId);
+                m_semanticResamples.Add(id, completion);
+                item.SetSemanticsChanged();
+            }
+
+            if (m_semanticResampleWork.Run(
+                nameof(TryQueueSemanticResample),
+                async cancellationToken =>
+                {
+                    try
+                    {
+                        await ResampleSemanticsAsync(source, item, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        lock (m_lock)
+                        {
+                            m_semanticResamples.Remove(id);
+                        }
+                        completion.TrySetResult(true);
+                    }
+                }))
+            {
+                return true;
+            }
+
+            lock (m_lock)
+            {
+                m_semanticResamples.Remove(id);
+            }
+            completion.TrySetResult(true);
+            return false;
+        }
+
+        /// <summary>
+        /// Waits for semantic resamples admitted before this call to finish.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the wait.</param>
+        /// <returns>A task that completes when the admitted work has finished.</returns>
+        internal async ValueTask WaitForPendingSemanticResamplesAsync(CancellationToken cancellationToken)
+        {
+            Task[] pending;
+            lock (m_lock)
+            {
+                pending = m_semanticResamples.Values.Select(completion => completion.Task).ToArray();
+            }
+
+            await Task.WhenAll(pending).WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask ResampleSemanticsAsync(
+            NodeState source,
+            ISampledDataChangeMonitoredItem item,
+            CancellationToken cancellationToken)
+        {
+            while (IsSemanticResampleCurrent(source, item))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ISession? session = item.Session;
+                IUserIdentity? identity = session?.EffectiveIdentity ?? item.EffectiveIdentity;
+                long identityGeneration = session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(session);
+
+                using OperationContext context = MonitoredReadAuthorization.CreateContext(
+                    item,
+                    DiagnosticsMasks.OperationAll);
+                ReadValueId readValueId = item.GetReadValueId();
+                DataValue sampledValue = default;
+                ServiceResult? readError = null;
+                ServiceResult permission = await m_nodeManager.ValidateRolePermissionsAsync(
+                    context,
+                    item.NodeId,
+                    PermissionType.Read,
+                    cancellationToken).ConfigureAwait(false);
+                if (!ServiceResult.IsBad(permission))
+                {
+                    permission = await MonitoredReadAuthorization.ValidateAsync(
+                        m_nodeManager,
+                        source,
+                        new ServerSystemContext(m_server, context),
+                        item.AttributeId,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                if (ServiceResult.IsGood(permission))
+                {
+                    (readError, sampledValue) = await source.ReadAttributeAsync(
+                        new ServerSystemContext(m_server, context),
+                        readValueId.AttributeId,
+                        readValueId.ParsedIndexRange,
+                        readValueId.DataEncoding,
+                        new DataValue(default, StatusCodes.Good, DateTime.MinValue,
+                            m_timeProvider.GetUtcNow().UtcDateTime),
+                        cancellationToken).ConfigureAwait(false);
+
+                    permission = await m_nodeManager.ValidateRolePermissionsAsync(
+                        context, item.NodeId, PermissionType.Read, cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsGood(permission))
+                    {
+                        permission = await MonitoredReadAuthorization.ValidateAsync(
+                            m_nodeManager,
+                            source,
+                            new ServerSystemContext(m_server, context),
+                            item.AttributeId,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                }
+
+                if (!IsSemanticResampleCurrent(source, item))
+                {
+                    return;
+                }
+
+                EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(session);
+                if (!ReferenceEquals(session, item.Session) ||
+                    !ReferenceEquals(identity, session?.EffectiveIdentity ?? item.EffectiveIdentity) ||
+                    identityGeneration != (session?.CaptureIdentityRefreshSnapshot().Generation ?? 0) ||
+                    session?.IsIdentityStale == true ||
+                    !ReferenceEquals(endpoint, currentEndpoint))
+                {
+                    if (session?.IsIdentityStale == true &&
+                        m_server.SessionManager is SessionManager sessionManager)
+                    {
+                        _ = sessionManager.TryRefreshEffectiveIdentity(session, context.ChannelContext);
+                    }
+                    continue;
+                }
+
+                DataValue queuedValue;
+                ServiceResult? queuedError;
+                if (ServiceResult.IsBad(permission))
+                {
+                    queuedValue = DataValue.FromStatusCode(
+                        permission.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime);
+                    queuedError = permission;
+                }
+                else if (sampledValue.IsNull)
+                {
+                    queuedError = readError ?? new ServiceResult(StatusCodes.BadInternalError);
+                    queuedValue = DataValue.FromStatusCode(
+                        queuedError.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime);
+                }
+                else
+                {
+                    queuedValue = sampledValue;
+                    queuedError = readError;
+                }
+                if (item is MonitoredItem concreteItem)
+                {
+                    concreteItem.QueueValueIfCurrent(context, queuedValue, queuedError, ignoreFilters: true);
+                }
+                else
+                {
+                    item.QueueValue(queuedValue, queuedError, ignoreFilters: true);
+                }
+                return;
+            }
+        }
+
+        private bool IsSemanticResampleCurrent(NodeState source, ISampledDataChangeMonitoredItem item)
+        {
+            lock (m_lock)
+            {
+                return m_sampledItems.ContainsKey(item) &&
+                    item.MonitoringMode != MonitoringMode.Disabled &&
+                    IsExactSource(source, item);
+            }
+        }
+
+        private static bool IsExactSource(NodeState source, ISampledDataChangeMonitoredItem item)
+        {
+            return item.ManagerHandle switch
+            {
+                NodeHandle handle => ReferenceEquals(handle.Node, source),
+                NodeState node => ReferenceEquals(node, source),
+                _ => false
+            };
         }
 
         /// <summary>
@@ -508,6 +714,10 @@ namespace Opc.Ua.Server
         private readonly Dictionary<ISampledDataChangeMonitoredItem, SamplingGroup> m_sampledItems;
         private readonly HashSet<ISampledDataChangeMonitoredItem> m_initialValueQueued = [];
         private readonly List<SamplingRateGroup> m_samplingRates;
+        private readonly BackgroundTaskScope m_semanticResampleWork =
+            new(nameof(SamplingGroupManager));
+        private readonly Dictionary<long, TaskCompletionSource<bool>> m_semanticResamples = [];
+        private long m_nextSemanticResampleId;
         private readonly uint m_maxQueueSize;
         private readonly uint m_maxDurableQueueSize;
 

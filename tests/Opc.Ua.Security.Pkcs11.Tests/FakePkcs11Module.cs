@@ -393,18 +393,25 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             if (mechanism.Type == (ulong)CKM.CKM_ECDSA)
             {
                 Assert(target.KeyType == (ulong)CKK.CKK_EC, "an EC mechanism needs an EC key");
-                return m_eccKey.SignHash(data);
+                return (target.Signer as ECDsa ?? m_eccKey).SignHash(data);
             }
+
+            RSA rsaKey = target.Signer as RSA ?? m_rsaKey;
 
             Assert(target.KeyType == (ulong)CKK.CKK_RSA, "an RSA mechanism needs an RSA key");
 
             if (mechanism.Type == (ulong)CKM.CKM_RSA_PKCS)
             {
+                if (RefuseRsaPkcs1Signatures)
+                {
+                    throw new Pkcs11Exception("Sign", CKR.CKR_KEY_FUNCTION_NOT_PERMITTED);
+                }
+
                 // CKM_RSA_PKCS signs whatever it is handed, so the caller must
                 // have wrapped the hash in a DigestInfo. Unwrapping it here is
                 // what makes a wrong prefix visible.
                 (byte[] hash, HashAlgorithmName algorithm) = UnwrapDigestInfo(data);
-                return m_rsaKey.SignHash(hash, algorithm, RSASignaturePadding.Pkcs1);
+                return rsaKey.SignHash(hash, algorithm, RSASignaturePadding.Pkcs1);
             }
 
             if (mechanism.Type == (ulong)CKM.CKM_RSA_PKCS_PSS)
@@ -417,7 +424,7 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                     _ => throw new Pkcs11Exception("Sign", CKR.CKR_DATA_LEN_RANGE)
                 };
 
-                return m_rsaKey.SignHash(data, algorithm, RSASignaturePadding.Pss);
+                return rsaKey.SignHash(data, algorithm, RSASignaturePadding.Pss);
             }
 
             throw new Pkcs11Exception("Sign", CKR.CKR_MECHANISM_INVALID);
@@ -529,6 +536,9 @@ namespace Opc.Ua.Security.Pkcs11.Tests
             public byte[]? EcPoint { get; init; }
 
             public byte[]? EcParams { get; init; }
+
+            /// <summary>The key a private key object signs with, instead of the token's key of its type.</summary>
+            public AsymmetricAlgorithm? Signer { get; init; }
 
             public Dictionary<ulong, byte[]> Extra { get; init; } = [];
         }
@@ -648,6 +658,123 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                     o.Value.SequenceEqual(encoded))?
                 .Id;
         }
+
+        /// <summary>
+        /// Replaces the CKA_ID of the certificate object holding the given encoding.
+        /// </summary>
+        /// <param name="encoded">The DER encoded certificate.</param>
+        /// <param name="id">The new CKA_ID.</param>
+        public void SetCertificateId(byte[] encoded, byte[] id)
+        {
+            int index = m_objects.FindIndex(o =>
+                o.ObjectClass == (ulong)CKO.CKO_CERTIFICATE &&
+                o.Value.SequenceEqual(encoded));
+            m_objects[index] = m_objects[index] with { Id = id };
+        }
+
+        /// <summary>
+        /// Replaces the CKA_ID of every object with the given label.
+        /// </summary>
+        /// <param name="label">The CKA_LABEL of the objects.</param>
+        /// <param name="id">The new CKA_ID.</param>
+        /// <param name="objectClass">Only the objects of this class, or every object when <c>null</c>.</param>
+        public void SetIdsOfLabel(string label, byte[] id, CKO? objectClass = null)
+        {
+            for (int ii = 0; ii < m_objects.Count; ii++)
+            {
+                if (m_objects[ii].Label == label &&
+                    (objectClass == null || m_objects[ii].ObjectClass == (ulong)objectClass.Value))
+                {
+                    m_objects[ii] = m_objects[ii] with { Id = id };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds an RSA private key object after the existing objects.
+        /// </summary>
+        /// <param name="id">The CKA_ID of the object.</param>
+        /// <param name="label">The CKA_LABEL of the object.</param>
+        /// <param name="publicKey">The modulus and public exponent the object states.</param>
+        /// <param name="signer">
+        /// The key the object signs with, or <c>null</c> for the token's RSA key
+        /// whatever public key the object states.
+        /// </param>
+        public void AddRsaPrivateKey(byte[] id, string label, RSAParameters publicKey, RSA? signer = null)
+        {
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_RSA, id, label, [])
+            {
+                Modulus = publicKey.Modulus,
+                PublicExponent = publicKey.Exponent,
+                Signer = signer
+            });
+        }
+
+        /// <summary>
+        /// Stores the modulus of every RSA key object with a leading zero byte,
+        /// an encoding of the same unsigned integer that some tokens use.
+        /// </summary>
+        public void PadRsaModuli()
+        {
+            for (int ii = 0; ii < m_objects.Count; ii++)
+            {
+                if (m_objects[ii].Modulus is { } modulus)
+                {
+                    m_objects[ii] = m_objects[ii] with { Modulus = [0x00, .. modulus] };
+                }
+            }
+        }
+
+        /// <summary>
+        /// Adds an EC private key object that signs with the given P-256 key and
+        /// its public key object after the existing objects.
+        /// </summary>
+        /// <param name="id">The CKA_ID of both objects.</param>
+        /// <param name="label">The CKA_LABEL of both objects.</param>
+        /// <param name="signer">The P-256 key.</param>
+        public void AddEcKeyPair(byte[] id, string label, ECDsa signer)
+        {
+            ECParameters parameters = signer.ExportParameters(false);
+            byte[] point = [0x04, .. parameters.Q.X!, .. parameters.Q.Y!];
+            byte[] curve;
+            using (Certificate eccCertificate = Certificate.FromRawData(EccCertificate))
+            {
+                // The token's ECC key is P-256 too, so its certificate names the same curve.
+                curve = eccCertificate.PublicKey.EncodedParameters!.RawData;
+            }
+
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PRIVATE_KEY, (ulong)CKK.CKK_EC, id, label, [])
+            {
+                Signer = signer
+            });
+            m_objects.Add(new FakeObject(
+                Handle(m_nextHandle++), (ulong)CKO.CKO_PUBLIC_KEY, (ulong)CKK.CKK_EC, id, label, [])
+            {
+                EcPoint = [0x04, (byte)point.Length, .. point],
+                EcParams = curve
+            });
+        }
+
+        /// <summary>
+        /// Inserts before every other object a copy of the token's EC public key
+        /// object with another CKA_ID, for which the token holds no private key:
+        /// a stale object that carries the certificate's public key.
+        /// </summary>
+        /// <param name="id">The CKA_ID of the stale object.</param>
+        public void InsertStaleEcPublicKey(byte[] id)
+        {
+            FakeObject publicKey = m_objects.First(o =>
+                o.ObjectClass == (ulong)CKO.CKO_PUBLIC_KEY && o.KeyType == (ulong)CKK.CKK_EC);
+            m_objects.Insert(0, publicKey with { Handle = Handle(m_nextHandle++), Id = id });
+        }
+
+        /// <summary>
+        /// Set to make the token refuse CKM_RSA_PKCS signatures, as for a key
+        /// that permits only PSS.
+        /// </summary>
+        public bool RefuseRsaPkcs1Signatures { get; set; }
 
         /// <summary>
         /// The value of an attribute of the certificate object holding the given encoding.

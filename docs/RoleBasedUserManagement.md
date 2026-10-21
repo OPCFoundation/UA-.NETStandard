@@ -164,6 +164,12 @@ and `TrustedApplication` criteria continue to evaluate application identity.
 
 Additional identity-mapping rules are evaluated by `IRoleManager.ResolveGrantedRoles` after authentication. New integrations should expose claims through `IIdentityClaims` and add `IdentityMappingRuleType` entries to the role manager.
 
+Live role changes are reconciled on the session's next request, including
+`Publish`. Event permission-cache entries are bound to the current session,
+effective identity and permission versions, so an earlier `ReceiveEvents`
+approval cannot authorize newly generated events after that reconciliation.
+Events already queued while authorized are not retroactively removed.
+
 ### User Management (Part 18 §5)
 
 The Part 18 §5 `UserManagementType` is bound to the standard
@@ -199,6 +205,11 @@ serverInternal.SetUserManagement(userManagement);
 members; each mutation must be one transaction, and a rejected or failed write
 must leave the live and persisted records unchanged.
 
+The reference server rejects disabled accounts during fresh username
+authentication as well as closing their existing sessions. Custom username
+verifiers must check `IUserManagement.IsUserActive` before granting an identity;
+a matching password alone does not authorize a disabled account.
+
 `UserManagementBinding.Bind` (called automatically by
 `ConfigurationNodeManager.CreateServerConfiguration` when an
 `IUserManagement` is injected) wires the typed `AddUser`, `ModifyUser`,
@@ -227,6 +238,12 @@ Spec result codes honoured:
 | `ChangePassword` (§5.2.8) | `Bad_IdentityTokenInvalid`, `Bad_OutOfRange`, `Bad_InvalidState`, `Bad_NotSupported` (NoChangeByUser), `Bad_SecurityModeInsufficient`, `Bad_AlreadyExists` (new == old) |
 
 ### User name / password storage
+
+Client `AddUser`, password-bearing `ModifyUser`, and `ChangePassword` operations
+reject non-confidential channels before sending credentials. Their security
+decision and service Call use the same captured session/channel generation;
+unsupported custom session implementations fail with `BadNotSupported`.
+Non-password metadata edits remain available through their ordinary dispatch path.
 
 The `IUserDatabase` interface (`Opc.Ua.Server.UserDatabase.IUserDatabase`) remains the extension point for username/password storage. The shipped implementations are:
 

@@ -54,6 +54,12 @@ namespace Opc.Ua.PubSub.Encoding
         public string Name { get; init; } = string.Empty;
 
         /// <summary>
+        /// Field identifier resolved from the DataSetMetaData descriptor.
+        /// Empty when no matching metadata is available; never inferred from <see cref="Name"/>.
+        /// </summary>
+        public Uuid DataSetFieldId { get; init; }
+
+        /// <summary>
         /// Field value carried as a <see cref="Variant"/>; the inner
         /// Built-In type matches the metadata declaration.
         /// </summary>
