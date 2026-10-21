@@ -25,7 +25,7 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
   picking is unavailable or unsupported; the fallback watches `/World/IntentCommand` by default and raises the callback
   when its `targetPrim` relationship or attribute changes.
 
-The connector loads this assembly by name from its own directory and never references it, which is what keeps the
+The connector loads this assembly by name from its own directory and never references it, which keeps the
 connector package free of a UI framework and a native payload. Publish both projects into the same directory so the
 assembly, its dependencies, and the USD plugin tree end up where the connector looks for them.
 

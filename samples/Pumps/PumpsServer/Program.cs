@@ -99,7 +99,7 @@ builder.Services
     // AddPumps loads DI, IA, Machinery and Pumps into one node manager and
     // claims the Device Integration address space. A server that already owns
     // DI loads the model into its own manager with nodes.AddOpcUaPumps(context)
-    // instead; see samples/DI/PumpDeviceIntegrationServer.
+    // instead; see samples/Di/PumpDeviceIntegrationServer.
     .AddPumps()
     .ConfigurePumps(context => context.GetRequiredService<PumpFleet>().ConfigureAsync(context));
 

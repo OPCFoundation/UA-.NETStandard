@@ -272,6 +272,10 @@ Numbers use the current locale's decimal separator. Invalid settings remain
 visible with a field-specific explanation.
 
 Publish-worker/request limits are connection settings shared by its subscriptions.
+If the engine rejects a change, UaLens restores the previous live limits and
+keeps the saved settings. A restoration failure is reported explicitly; reconnect
+before changing the pipeline again.
+
 Item settings and identities survive disconnects and engine changes. CSV and JSON
 exports include each sample's recorded name, NodeId and timestamps, including data
 from removed items.
@@ -781,7 +785,7 @@ and sample launch options.
 Inspect device identity and software-update state. Select a package file and
 supply its SHA-256 to prepare an upload. Upload, installation, confirmation and
 offered recovery methods are separate tasks. The
-[pump simulator](../samples/DI/PumpDeviceIntegrationServer/README.md#software-update-simulator)
+[pump simulator](../samples/Di/PumpDeviceIntegrationServer/README.md#software-update-simulator)
 provides a local software-update target.
 
 All update mutations, including Prepare, require a signed and encrypted channel,

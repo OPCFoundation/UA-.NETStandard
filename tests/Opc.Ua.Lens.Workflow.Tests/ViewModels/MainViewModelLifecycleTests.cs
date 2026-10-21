@@ -356,6 +356,34 @@ public sealed class MainViewModelLifecycleTests
         });
     }
 
+    /// <summary>
+    /// Failed live-session updates must not replace the model's saved publishing configuration.
+    /// </summary>
+    [Test]
+    public Task FailedPublishingChangeKeepsTheLiveAndPersistedLimits()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var scenario = new ConnectionScenario();
+            await using MainViewModel model = scenario.CreateModel();
+            await model.Workspace.OpenAsync(() => new LifecycleDocument("Preserved")).ConfigureAwait(true);
+            await scenario.ConnectAsync().ConfigureAwait(true);
+            var previous = new SessionPublishingSettings(2, 15);
+            model.ConfigurePublishingPipeline(previous);
+            Mock<ISession> session = scenario.Sessions[0].Protocol;
+            session.SetupSet(value => value.MinPublishRequestCount = 101)
+                .Throws(new ArgumentOutOfRangeException(nameof(ISession.MinPublishRequestCount)));
+
+            Assert.That(() => model.ConfigurePublishingPipeline(new SessionPublishingSettings(101, 101)),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+
+            Assert.That(session.Object.MinPublishRequestCount, Is.EqualTo(2));
+            Assert.That(session.Object.MaxPublishRequestCount, Is.EqualTo(15));
+            Assert.That(model.PublishingPipeline, Is.SameAs(previous));
+            Assert.That(model.SnapshotSession().PublishingPipeline, Is.EqualTo(previous));
+        });
+    }
+
     [Test]
     public Task ResourceStartupRunsOnceAndTransfersOnlyACompletedHostToTheModel()
     {

@@ -20,6 +20,10 @@ them and reads them back into records.
 - [Quick start - server](#quick-start---server)
 - [Quick start - client](#quick-start---client)
 - [Server hosting](#server-hosting)
+  - [`AddAssetManagement` and `ConfigureAssetManagement`](#addassetmanagement-and-configureassetmanagement)
+  - [Options](#options)
+  - [Persistence](#persistence)
+  - [When to register](#when-to-register)
 - [Builder reference](#builder-reference)
 - [Discovery](#discovery)
 - [Health](#health)
@@ -27,6 +31,8 @@ them and reads them back into records.
 - [Documentation links](#documentation-links)
 - [Locations, version information, classification and structure](#locations-version-information-classification-and-structure)
 - [Conformance matrix](#conformance-matrix)
+  - [Server](#server)
+  - [Client](#client)
 - [Client reference](#client-reference)
 - [Samples](#samples)
 - [Testing](#testing)
@@ -85,11 +91,11 @@ conditions, the DocumentationLinks AddIn, properties - is created in that
 owner. The owner registers each asset with the shared `IAssetManagement`
 registry from its setup; the registry is the meeting point of the managers.
 
-```
-DI / Machinery / Pumps / Scales node manager       AMB node manager (sidecar)
-  DeviceSet/Pump  ---- registered with ---->        Aliases/Assets/AssetsBy...
-    2:DeviceHealth, 2:DeviceHealthAlarms             Locations/HierarchicalLocations
-    AMB:DocumentationLinks, AssetId, ...             server-specific alarm types
+```mermaid
+flowchart LR
+    source["DI / Machinery / Pumps / Scales node manager<br/>DeviceSet/Pump<br/>2:DeviceHealth, 2:DeviceHealthAlarms<br/>AMB:DocumentationLinks, AssetId, ..."]
+    sidecar["AMB node manager (sidecar)<br/>Aliases/Assets/AssetsBy...<br/>Locations/HierarchicalLocations<br/>Server-specific alarm types"]
+    source -->|registered with| sidecar
 ```
 
 ## Quick start - server

@@ -22,6 +22,9 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
 - [Loading the model](#loading-the-model)
 - [Scan data and scan results](#scan-data-and-scan-results)
 - [Hosting readers](#hosting-readers)
+  - [Coexisting with a server that already owns DI](#coexisting-with-a-server-that-already-owns-di)
+  - [Placement](#placement)
+  - [Direct composition and lifetime](#direct-composition-and-lifetime)
 - [Providers](#providers)
 - [Behavior of the methods](#behavior-of-the-methods)
 - [Events](#events)
@@ -153,8 +156,9 @@ services.AddOpcUa()
 The builder materialises exactly the components the provider supports (a reader
 without a `Scan` provider has no `Scan` method), registers the device, makes it
 an event notifier and attaches the provider. A failure at any step is rolled
-back, so the browse name can be used again, and concurrent builds of one name
-admit exactly one. Disposing the runtime (the node manager does so on shutdown)
+back: the browse name can be used again and a provider the build owns
+(`OwnsProvider()`) is disposed. Concurrent builds of one name admit exactly
+one. Disposing the runtime (the node manager does so on shutdown)
 stops every reader's scans, detaches its provider and, for a provider the reader
 owns (`OwnsProvider()`), disposes it.
 
@@ -179,7 +183,7 @@ scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
 `AddMachinery`, `AddPumps` or `AddScales`, so registering it together with
 another DI owner, in either order, throws `InvalidOperationException` while the
 services are registered; the message names the current owner and the
-composition API. The check is what keeps the address space consistent: two DI
+composition API. The check prevents duplicate DI address spaces: two DI
 owners would each load their own copy of `DeviceSet`, the server would route
 `DeviceSet` to the first one, and readers created in the second one would not
 be browsable.
@@ -228,8 +232,8 @@ services.AddOpcUa()
 | Node managers | The `MachineryNodeManager` alone; no `AutoIdNodeManager` is created |
 | Device Integration model, `DeviceSet` | Loaded once by the Machinery owner's core model provider |
 | AutoID model | Added to the owner by `AutoIdMachineryModelProvider`, with `AdditionalNamespaceUris` |
-| Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` places a reader below another node of the owner instead, for example a component of a machine |
-| `Machines` folder | Readers are devices, not machines, and are not added to it |
+| Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` and `AsComponentOf` place a reader elsewhere and keep it reachable from `DeviceSet`, see [Placement](#placement) |
+| `Machines` folder | Readers are devices, not machines, and are not added to it; `AsComponentOf` makes one a component of a machine |
 | Methods, events, providers | As in the stand-alone server; the readers are event notifiers of the owner |
 | Conformance | The runtime contributes the AutoID units and facets to the owner, which publishes them with the DI and Machinery ones |
 | Lifetime | The owner disposes the runtime on shutdown: scans stop, providers detach, owned providers are disposed |
@@ -241,6 +245,91 @@ owner. `ConfigureAutoIdFor<AutoIdNodeManager>` works with `AddAutoId` and
 receives the stand-alone runtime, so configuration code can be shared by both
 hosting paths. `Opc.Ua.AutoID.Server` references `Opc.Ua.Machinery.Server` for
 this; a stand-alone server still loads only the DI and AutoID models.
+
+### Placement
+
+OPC 30010 does not say where readers live in the address space; the rules come
+from the specifications it builds on.
+
+| Rule | Source |
+| --- | --- |
+| "The DeviceSet Object is the starting point to locate Devices. It shall either directly or indirectly reference all instances of a subtype of ComponentType with a Hierarchical Reference." Every AutoID device type derives from DI `DeviceType`, a `ComponentType`. | OPC 10000-100 1.05.0 4.9; OPC 30010 6.1 |
+| "For complex Devices that are composed of various components that are also Devices, only the root instance shall be referenced from the DeviceSet Object." | OPC 10000-100 1.05.0 4.9 |
+| The `Components` object of a machine "directly references all identifiable components of a Machine", with `HasComponent`, and each component carries the `2:Identification` add-in (`HasAddIn`) whose `Manufacturer` and `SerialNumber` are mandatory. | OPC 40001-1 1.04.2 11.1, 11.2 (Tables 27, 28), 8.3 |
+| Machinery and DI place no requirement on each other: a machine need not be in `DeviceSet`, and a device need not be in `Machines`. | OPC 40001-1 1.04.2, OPC 10000-100 1.05.0 |
+
+The SDK applies them as follows:
+
+| Builder call | Where the reader is | Reference from `DeviceSet` |
+| --- | --- | --- |
+| none (default) | Below `DeviceSet` | `Organizes` |
+| `WithParent(parent)`, `DeviceSet` reaches `parent` (for example another reader) | Below `parent` (`HasComponent`) | None: the reader is a component of a composed device whose root `DeviceSet` references |
+| `WithParent(parent)`, `DeviceSet` does not reach `parent` | Below `parent` (`HasComponent`) | `Organizes`, added by the runtime |
+| `AsComponentOf(machine)` | Below the machine's `Components` (`HasComponent`), with an `Identification` add-in | As for `WithParent` with the `Components` object as parent: usually `Organizes`, because a machine in `Machines` is not necessarily reachable from `DeviceSet` |
+
+Whether `DeviceSet` reaches the parent is decided when the reader is built, by
+following the forward hierarchical references of the owner's nodes. A child
+attached by a non-hierarchical reference, such as a condition by `HasCondition`,
+is no path from `DeviceSet`.
+
+Where OPC 30010 is silent, these are SDK decisions: a reader is not added to the
+`Machines` folder, because no specification classifies an AutoID device as a
+machine (OPC 40001-1 11.1 leaves that to the domain specifications), and a
+reader is a component of a machine only when the application asks for it.
+
+`AsComponentOf` needs AutoID composed into the Machinery owner
+(`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
+machine of that owner that publishes the `Components` add-in, here built with
+`WithComponents`. The runtime finds the add-in through the `HasAddIn` reference
+from the machine's `MachineryBuildingBlocks` folder (OPC 40001-1 7.1).
+This also finds a container declared by a companion model and bound with
+`WithComponents(existing, ...)`, regardless of its parent or browse name.
+Without that folder, the runtime uses the machine's `MachineComponentsType` child:
+
+```csharp
+IMachineHandle<BaseObjectState>? press = null;
+builder
+    .ConfigureMachinery(async (machinery, ct) =>
+        press = await machinery.AddMachine(new QualifiedName("Press1", machinery.InstanceNamespaceIndex))
+            .WithIdentification(id =>
+            {
+                id.Manufacturer = new LocalizedText("Acme");
+                id.SerialNumber = "PR-1";
+                id.ProductInstanceUri = "urn:acme:press:1";
+            })
+            .WithComponents(_ => { })
+            .BuildAsync(ct))
+    .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
+        await context.Runtime
+            .Reader(new QualifiedName("PressInfeed", context.Runtime.InstanceNamespaceIndex), hardware)
+            .AsComponentOf(press!.State)
+            .WithIdentification(nameplate =>
+            {
+                nameplate.Manufacturer = new LocalizedText("Acme");
+                nameplate.SerialNumber = "R100-0001";
+            })
+            .BuildAsync(ct));
+```
+
+The reader gets the `2:Identification` add-in typed
+`MachineryComponentIdentificationType`. It holds no copies: it references the
+reader's own DI nameplate properties with `HasProperty`. This follows the
+approach of OPC 40001-1 7.3 ("let several References lead to the same Node,
+rather than duplicating the Node") and of the Robotics example in Annex B.2,
+whose identification Properties "are only referenced from the Identification
+functional group". It references
+`Manufacturer`, `SerialNumber` and those of `Model`, `ManufacturerUri`,
+`ProductCode`, `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
+`DeviceClass` and `ProductInstanceUri` that are set, plus `AssetId` and
+`ComponentName` when the reader publishes them; `DeviceManual` and
+`RevisionCounter` are left out as OPC 40001-1 10.2 recommends. A missing
+`Manufacturer` or `SerialNumber`, a machine of another node manager, a machine
+without `Components` or with more than one, or a server without the Machinery
+model fail the build with
+`Bad_ConfigurationError` before anything is registered. `WithParent` and
+`AsComponentOf` exclude each other. The runtime does not add Machinery
+conformance units; the Machinery owner advertises them for what its builders
+created.
 
 ### Direct composition and lifetime
 
@@ -271,7 +360,7 @@ such pipeline, so a server built on it uses the subclass route.
 
 ## Providers
 
-A reader is the OPC UA face of a hardware provider. The base contract
+A reader exposes a hardware provider through OPC UA. The base contract
 `IAutoIdReaderProvider` (kind, attach, detach) is enough for a device that scans
 on its own (OPC 30010 6.1.1 option 3): the provider reports through the
 `IAutoIdReaderSink` it receives when attached. Capabilities are added by
@@ -296,10 +385,10 @@ locks and kill), `InMemoryScanReaderProvider` (OCR and optical),
 `InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`. Their scan cycle
 defaults to one second (`CycleInterval`), so an unbounded `ScanStart` raises at
 most one scan event per second; pass a `cycleInterval` to the constructor for
-another pace. `InMemoryRtlsProvider` stores each object's location in the type it
+another interval. `InMemoryRtlsProvider` stores each object's location in the type it
 was registered with. A `locationConverter` translates it into the other supported
-types, for example from the local coordinate system the system was configured
-with (OPC 30010 9.3.4) into WGS84:
+types, for example from the configured local coordinate system
+(OPC 30010 9.3.4) into WGS84:
 
 ```csharp
 // A site whose local origin is at 48 N 11 E, X pointing east and Y north, in metres.
@@ -417,11 +506,23 @@ Discovery finds the devices whose type derives from one of the five concrete
 reader types. A browse the server rejects throws `ServiceResultException` rather
 than yielding an empty list, a rejected method call throws with the server's
 status, and every asynchronous member honours cancellation. The status a device
-reports for a tag command is returned as data. `AutoIdReadOptions` narrows
-`ReadDeviceAsync`: `Default` reads everything the device publishes, `StatusOnly`
-reads two variables. Whatever the options, the snapshot carries the NodeIds of
-`DeviceStatus`, `LastScanData`, `LastScanTimestamp` and `DeviceLocation` and the
-browse names of the methods the device publishes, taken from the same browse:
+reports for a tag command is returned as data. `AutoIdReadOptions` limits
+which variables `ReadDeviceAsync` reads: `Default` reads everything the device publishes,
+`StatusOnly` reads `DeviceStatus` and `DeviceName`. Every `ReadDeviceAsync` call
+costs one Browse of the children of the device (and BrowseNext only when the
+server pages the result) and one Read, whatever the options. The snapshot
+carries the NodeIds of `DeviceStatus`, `LastScanData`, `LastScanTimestamp` and
+`DeviceLocation` and the browse names of the methods the device publishes, taken
+from that browse. `RefreshDeviceAsync` takes such a snapshot and reads
+`DeviceStatus`, `LastScanData`, `LastScanTimestamp` and `DeviceLocation` again
+through these NodeIds: one Read of up to four variables and no Browse. The client
+keeps no state, so a poller reads once and then refreshes the snapshot:
+
+| Call | Network cost |
+| --- | --- |
+| `ReadDeviceAsync(reader)` | One Browse, one Read of every published variable |
+| `ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly)` | One Browse, one Read of two variables |
+| `RefreshDeviceAsync(snapshot)` | One Read of up to four variables, no Browse |
 
 ```csharp
 AutoIdDeviceSnapshot device = await autoId.ReadDeviceAsync(reader, AutoIdReadOptions.StatusOnly);
@@ -429,7 +530,18 @@ if (device.HasMethod(BrowseNames.ScanStart))
 {
     // monitor device.DeviceStatusId and device.LastScanDataId, then start the scan
 }
+device = await autoId.RefreshDeviceAsync(device); // poll without browsing
 ```
+
+`RefreshDeviceAsync` copies every other member of the snapshot, including
+`Methods`, and does not check the snapshot against the server. When the snapshot
+no longer matches the device (the device or one of its variables was deleted, or
+the server assigned other NodeIds after a restart), the status of the Read
+surfaces: a bad status for `DeviceStatus`, for example `BadNodeIdUnknown`, is
+thrown as `ServiceResultException`, and a bad status for `LastScanData` is
+returned in `LastScanStatus` with a null value. The caller then reads the device
+again with `ReadDeviceAsync`, which also picks up optional variables and methods
+published after the snapshot was taken.
 
 `Observe*Async` methods (scan, access, presence and log entry events) take a
 streaming subscription the caller owns; the monitored item lives as long as the
@@ -487,4 +599,5 @@ encodings.
 | `AutoIdHostingTests` | `AddAutoId` registration, DI ownership, options, node manager and client factories |
 | `AutoIdCompositionTests` | Stock Machinery owner, ordered providers, DI loaded once, instance ownership, rollback, cancellation, runtime disposal, a second DI owner rejected |
 | `AutoIdMachineryCompositionEndToEndTests` | Machinery, Pumps and AutoID in one hosted server, read back by the AutoID, Machinery and Pumps clients over a real session, with the published profiles and conformance units |
+| `AutoIdPlacementEndToEndTests` | Reader placement over a real session: every reader reachable from `DeviceSet`, only roots organized by it, a reader as a component of a machine with its `Identification`, no reader in `Machines` |
 | `AutoIdReaderEndToEndTests` | The stand-alone server driven by `AutoIdClient` over a real session |

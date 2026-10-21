@@ -83,7 +83,7 @@ $processes = [Collections.Generic.List[Diagnostics.Process]]::new()
 $pumpProject = [IO.Path]::Combine(
     $repoRoot,
     'samples',
-    'DI',
+    'Di',
     'PumpDeviceIntegrationServer',
     'PumpDeviceIntegrationServer.csproj')
 $generatorProject = [IO.Path]::GetFullPath([IO.Path]::Combine(

@@ -183,7 +183,7 @@ without its authority fails creation.
 
 A line's MaterialList is bound to `ExtrusionDeviceOptions.Common.Materials`.
 OPC 40083 declares its `DensityUnit` without a value, so a bound catalogue also
-needs `Common.MaterialDensityUnit`, the unit every material density is given in;
+needs `Common.MaterialDensityUnit`, the unit used for every material density;
 creation fails without it. An unbound list publishes the configured unit, or a
 null `DensityUnit` when none is configured.
 

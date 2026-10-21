@@ -56,6 +56,8 @@ namespace Opc.Ua.AutoID.Server.Builders
 
         internal NodeState? Parent { get; private set; }
 
+        internal BaseObjectState? Machine { get; private set; }
+
         internal string? DeviceName { get; private set; }
 
         internal string? DeviceInfo { get; private set; }
@@ -77,7 +79,32 @@ namespace Opc.Ua.AutoID.Server.Builders
         /// <inheritdoc/>
         public IAutoIdReaderBuilder WithParent(NodeState parent)
         {
-            Parent = parent ?? throw new ArgumentNullException(nameof(parent));
+            if (parent == null)
+            {
+                throw new ArgumentNullException(nameof(parent));
+            }
+            if (Machine != null)
+            {
+                throw new InvalidOperationException(
+                    "A reader that is a component of a machine is placed below its Components add-in.");
+            }
+            Parent = parent;
+            return this;
+        }
+
+        /// <inheritdoc/>
+        public IAutoIdReaderBuilder AsComponentOf(BaseObjectState machine)
+        {
+            if (machine == null)
+            {
+                throw new ArgumentNullException(nameof(machine));
+            }
+            if (Parent != null)
+            {
+                throw new InvalidOperationException(
+                    "A reader placed below an explicit parent cannot also be a component of a machine.");
+            }
+            Machine = machine;
             return this;
         }
 

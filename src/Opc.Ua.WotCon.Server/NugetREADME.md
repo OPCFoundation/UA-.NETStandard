@@ -25,7 +25,7 @@ File-backed registries also expose optional prepared metadata commits using
 validated generation and immutable-content lease evidence. Projection updates
 avoid rereading independent blob content without bypassing manifest conflicts
 or content integrity; unsupported providers do not advertise isolated commits.
-See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoT.md#prepared-registry-store)
+See [prepared registry metadata commits](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotCon.md#prepared-registry-store)
 for capability, platform, lifetime, and persistence-outcome contracts.
 
 ## Target frameworks
@@ -36,6 +36,6 @@ for capability, platform, lifetime, and persistence-outcome contracts.
 ## Additional documentation
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
-and the [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WoTConnectivity.md).
+and the [WoT Connectivity guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotCon.md).
 See also the [WoT protocol bindings guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/WotBindings.md)
 and [WoT aggregation sample](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/samples/WotCon/README.md).

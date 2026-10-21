@@ -33,12 +33,14 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 
 ## Prerequisites
 
-- **.NET SDK 10.0** — the whole repository builds and restores with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Older SDKs are not supported for building `main`. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)), but you build them with the .NET 10 SDK.
+- **.NET SDK 10.0.400 or later** — `global.json` sets this minimum and selects the highest installed stable SDK through `rollForward: latestMajor`; prerelease SDKs are excluded. CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
 - **An IDE (optional but recommended)** — Visual Studio 2026, Visual Studio Code with the C# Dev Kit, or JetBrains Rider. Everything can also be done from the command line with `dotnet`.
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
-The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build, so no extra tooling install is required to get the same diagnostics locally that CI produces.
+The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
+A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
 
 ## Repository layout
 
@@ -453,7 +455,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 The following NuGet packages are released on a monthly cadence (with hot fixes for security issues). The `OPCFoundation` prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
 
-- [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that pulls in everything except PubSub. Prefer referencing the individual packages below to reduce your dependency surface.
+- [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that bundles a default set of stack packages; see its [package inventory](../nuget/MetaPackageREADME.md#what-you-get). Reference PubSub and other optional feature packages separately. Prefer referencing individual packages to reduce your dependency surface.
 - [OPCFoundation.NetStandard.Opc.Ua.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/)
 - [OPCFoundation.NetStandard.Opc.Ua.Core.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core.Types/) — the generated OPC UA NodeSet models and state classes.
 - [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/) and [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/) — required by both client and server projects.
@@ -555,31 +557,28 @@ gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
 ./.github/scripts/update-test-durations.ps1 -ResultsPath ./ci-results -Source 'Run <run-id>'
 ```
 
-GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
+GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) checks that both scopes fit, every `*.Tests.csproj` is scheduled or explicitly excluded, project/profile/shard workloads are unique, and narrowed matrices remain nonempty.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
-The WoT aggregation sample tests keep their complete companion-model corpus in a
-dedicated CI batch. That batch has a finite 240-minute combined build/test budget
-and a 65-minute inactivity limit; ordinary projects retain their 45-minute combined
-budget. The sample's full generation-replacement case includes two complete
-publications and must not be truncated to fit the ordinary project budget.
-The Server, WoT and Types integration projects also run separately, with a 90-minute
-combined budget. Server and WoT keep the 10-minute inactivity guard; Types uses
-30 minutes for complete instrumented companion-model conversions. Hosted cold builds
-have consumed 20-28 minutes before their healthy integration suites start;
-the larger finite budget prevents truncation without hiding an inactive test.
-The .NET Framework WoT profile reserves 150 combined minutes because its complete
-regeneration and server-integration run exceeded an hour after a 27-minute cold
-build. Its per-test inactivity guard remains unchanged.
+Each project or filtered shard has a **45-minute test-execution budget**.
+Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
+of larger project-specific timeouts. For example, the modern WoT sample suite
+separates ordinary cases, full generation replacement, and native comparisons.
+The matrix records each shard and its filter; no test is dropped to fit a budget.
 
-That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
+The executor measures build and test time separately. Builds do not consume the
+test-execution budget, but remain bounded by the overall job timeout. The matrix
+sets that timeout to `20 + projectCount × perProjectTimeout` minutes, including
+20 minutes for setup/build overhead. Per-test hang guards are independent and
+can vary by shard. A batch exceeding the job ceiling fails matrix generation
+rather than having its timeout silently clamped.
 
 The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 
 #### Why a project can be skipped
 
-`RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary, so a project that quietly stops being applicable everywhere is visible rather than invisible.
+`RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary so maintainers can identify projects that are no longer applicable to any profile.
 
 ### Test tiers
 

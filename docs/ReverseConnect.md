@@ -23,15 +23,16 @@ The stack supports Reverse Connect through these components:
 
 ## Contents
 
-- [Overview](#overview)
-- [Reverse Connect Handshake](#reverse-connect-handshake)
-- [Sharing a listener across multiple Servers](#sharing-a-listener-across-multiple-servers)
-- [Server-side dependency injection](#server-side-dependency-injection)
-- [Dependency-injection lifecycle](#dependency-injection-lifecycle)
-- [Configuration Extensions](#configuration-extensions)
-- [WSS reverse-connect](#wss-reverse-connect-opcwss)
-- [Kestrel-hosted opc.tcp reverse-connect](#kestrel-hosted-opctcp-reverse-connect-opt-in)
-- [Known limitations and issues](#known-limitations-and-issues)
+- [Reverse Connect](#reverse-connect)
+  - [Overview](#overview)
+  - [Reverse Connect Handshake](#reverse-connect-handshake)
+  - [Sharing a listener across multiple Servers](#sharing-a-listener-across-multiple-servers)
+  - [Server-side dependency injection](#server-side-dependency-injection)
+  - [Dependency-injection lifecycle](#dependency-injection-lifecycle)
+  - [Configuration Extensions](#configuration-extensions)
+  - [WSS reverse-connect (`opc.wss://`)](#wss-reverse-connect-opcwss)
+  - [Kestrel-hosted opc.tcp reverse-connect (opt-in)](#kestrel-hosted-opctcp-reverse-connect-opt-in)
+  - [Known limitations and issues](#known-limitations-and-issues)
 
 ## Reverse Connect Handshake
 

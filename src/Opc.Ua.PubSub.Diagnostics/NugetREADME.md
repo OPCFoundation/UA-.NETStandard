@@ -9,7 +9,7 @@ captured key log or a live Security Key Service).
 
 ## What it does
 
-- **Capture** PubSub frames in-process via a zero-cost, opt-in tap on the
+- **Capture** PubSub frames in-process via an opt-in tap on the
   `Opc.Ua.PubSub.Udp` / `Opc.Ua.PubSub.Mqtt` transports, or off the wire from a
   network interface.
 - **Dissect** captured UADP and JSON NetworkMessages into DataSetMessages /
@@ -33,5 +33,5 @@ model.
 
 ## Documentation
 
-See `docs/PubSubDiagnostics.md` in the
-[UA-.NETStandard](https://github.com/OPCFoundation/UA-.NETStandard) repository.
+See [PubSub packet capture and dissection](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#5-pubsub-packet-capture-and-dissection)
+in the UA-.NETStandard repository.

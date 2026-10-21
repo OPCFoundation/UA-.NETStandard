@@ -13,9 +13,8 @@ Adapters that bind OPC UA **PubSub** publisher/subscriber/action datasets to an
 Runtime changes to the PubSub configuration store or named adapter options are
 hot-reloaded incrementally: unchanged sources, sinks and external-server sessions
 are reused, while removed datasets/readers release their session references.
-Action target additions and mapping changes are applied by registering updated
-handlers; target removal currently requires a host restart because the core
-PubSub action responder API has no unregister operation.
+Action target additions, removals and mapping changes are applied during reload
+by clearing the previous handlers and registering the currently configured targets.
 
 The fallback client configuration requires explicit peer/issuer trust and
 matching server hostname; it does not auto-accept untrusted certificates.

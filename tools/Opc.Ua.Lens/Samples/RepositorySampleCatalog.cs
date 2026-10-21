@@ -86,7 +86,7 @@ namespace UaLens.Samples
                 RepositorySampleId.PumpSoftwareUpdateSimulator => new(
                     sample,
                     "DI pump software-update simulator (opt-in)",
-                    Path.Combine("samples", "DI", "PumpDeviceIntegrationServer"),
+                    Path.Combine("samples", "Di", "PumpDeviceIntegrationServer"),
                     "PumpDeviceIntegrationServer",
                     "PumpDeviceIntegrationServer",
                     "uri:opcfoundation.org:PumpDeviceIntegrationServer",

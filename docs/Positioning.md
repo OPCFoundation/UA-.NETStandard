@@ -12,13 +12,14 @@ depends on RSL.
 
 ## Contents
 
-- [Packages](#packages)
-- [Minimal standalone server](#minimal-standalone-server)
-- [Server authoring](#server-authoring)
-- [Client](#client)
-- [Transform conventions](#transform-conventions)
-- [UaLens Positioning tool](#ualens-positioning-tool)
-- [Robot and OpenUSD sample](#robot-and-openusd-sample)
+- [OPC UA Relative Spatial Location and Global Positioning](#opc-ua-relative-spatial-location-and-global-positioning)
+  - [Packages](#packages)
+  - [Minimal standalone server](#minimal-standalone-server)
+  - [Server authoring](#server-authoring)
+  - [Client](#client)
+  - [Transform conventions](#transform-conventions)
+  - [UaLens Positioning tool](#ualens-positioning-tool)
+  - [Robot and OpenUSD sample](#robot-and-openusd-sample)
 
 ## Packages
 

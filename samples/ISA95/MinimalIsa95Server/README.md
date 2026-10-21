@@ -7,7 +7,7 @@ It uses the typed common-model builder, a provider-backed `GeoSpatialLocationTyp
 ## Running
 
 ```powershell
-dotnet run --project samples\Isa95\MinimalIsa95Server\MinimalIsa95Server.csproj
+dotnet run --project samples\ISA95\MinimalIsa95Server\MinimalIsa95Server.csproj
 ```
 
 The server listens on `opc.tcp://localhost:62545/MinimalIsa95Server` by default (override with `--port`).

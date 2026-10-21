@@ -2,7 +2,7 @@
   <Import Project="LensTestCommon.props" />
   <ItemGroup>
     <Compile Remove="Desktop\ConnectedProtocolContext.cs" />
-    <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
+    <ProjectReference Include="..\..\samples\Di\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
                       Aliases="PumpUpdateSample" />
     <ProjectReference Include="..\..\src\Opc.Ua.Redundancy.Server\Opc.Ua.Redundancy.Server.csproj" />
     <ProjectReference Include="..\..\samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj"

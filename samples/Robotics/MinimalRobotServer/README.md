@@ -24,7 +24,7 @@ A `MotionDeviceSystem` **"RobotCell"** (prim `/Cell`) composed recursively of:
   drives one joint `xformOp:rotate{Z|Y|X}` on the (pre-authored) `robot.usda`
   kinematic chain — the live articulation (`RenderTargetKind = Rotation`). The axis
   limits are those of the reference robot (see below). The axis values come from an arm
-  solver, so the arm genuinely reaches the slot it is working rather than replaying a
+  solver, so the arm reaches the slot it is working rather than replaying a
   canned pose list.
 - A cell **EmergencyStop** safety state driving a beacon and per-robot warning halo
   visibility (`UaAlarmToUsd`, `Visibility`).
@@ -100,7 +100,7 @@ parts are conserved, and that a carried part sits exactly on the tool centre poi
 ### Where the part actually is
 
 A carried part's pose is computed by forward kinematics from the same six axis values the
-server publishes (`RobotKinematics`), not from the script that produced them. That is what
+server publishes (`RobotKinematics`), not from the script that produced them. This
 keeps it welded to the gripper: if the arm and the part were computed independently they
 would drift apart. `RobotArmSolver` is checked against that same forward kinematics, so the
 arm provably reaches each slot to within a micrometre.
@@ -136,7 +136,7 @@ change — here the robot the tool is mounted on — has to expose `NodeVersion`
 `EnableModelChangeTracking`. Without it the mount is filtered out and no client is ever told
 the gripper appeared.
 
-The failure this caused was quietly asymmetric, which is worth knowing about. **Removal**
+The failure was asymmetric. **Removal**
 kept reporting, because a deleted node is no longer in the manager's index and so takes the
 "not mine, pass it through" branch of the filter; only **addition** was dropped. A connector
 that happened to start while the tool was mounted therefore looked correct and could still
@@ -198,9 +198,10 @@ ROS-Industrial URDF (`ros-industrial/kuka_experimental`, `kuka_kr16_support`):
 | A6 | coincident with A4 | `xformOp:rotateX` | ±350° |
 | Flange | 158 mm past the wrist centre | — | — |
 
-`260 + 680 + 670 = 1611 mm`, the robot's published reach. A4, A5 and A6 are coincident,
+The arm's [published reach is 1611 mm](https://my.kuka.com/s/product/kr-162/01t58000002hnhrAAA?language=en_US);
+the cell's 7.2 × 4.8 m floor is sized around it. A4, A5 and A6 are coincident,
 which is the real spherical wrist. The livery is KUKA orange over dark cast housings, and
-the cell is scaled around that reach: a 7.2 × 4.8 m floor with the guarding at
+the cell has guarding at
 x = ±3.4 m, y = ±2.2 m, plus a controller cabinet, two transfer stations, two charging
 docks and a stack light.
 
