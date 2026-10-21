@@ -77,6 +77,36 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A cutoff that reserves, publishes and releases between the two gate checks of an
+        /// admission rejects it, although the reservation is released again when it is rechecked.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void CutoffRunningBetweenGateChecksRejectsAdmission(bool publish)
+        {
+            MasterNodeManager.NotificationDispatchState state = CreateState();
+
+            bool admitted = state.TryAdmitFast(out _, out bool releaseRequired, () =>
+            {
+                state.EmissionCutoffReservations++;
+                if (publish)
+                {
+                    state.BusinessEmissionsEnabled = false;
+                }
+                state.EmissionCutoffReservations--;
+            });
+
+            Assert.That(admitted, Is.False);
+            Assert.That(releaseRequired, Is.False);
+            Assert.That(state.FastDispatches, Is.Zero);
+            Assert.That(state.TryAdmitFast(out int slot, out _), Is.EqualTo(!publish));
+            if (!publish)
+            {
+                state.ReleaseFast(slot);
+            }
+        }
+
+        /// <summary>
         /// A disabled generation and a waiting drain also close admission without the lock.
         /// </summary>
         [TestCase(false)]
