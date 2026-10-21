@@ -153,8 +153,9 @@ services.AddOpcUa()
 The builder materialises exactly the components the provider supports (a reader
 without a `Scan` provider has no `Scan` method), registers the device, makes it
 an event notifier and attaches the provider. A failure at any step is rolled
-back, so the browse name can be used again, and concurrent builds of one name
-admit exactly one. Disposing the runtime (the node manager does so on shutdown)
+back, so the browse name can be used again, a provider the build owns
+(`OwnsProvider()`) is disposed, and concurrent builds of one name admit exactly
+one. Disposing the runtime (the node manager does so on shutdown)
 stops every reader's scans, detaches its provider and, for a provider the reader
 owns (`OwnsProvider()`), disposes it.
 
@@ -228,8 +229,8 @@ services.AddOpcUa()
 | Node managers | The `MachineryNodeManager` alone; no `AutoIdNodeManager` is created |
 | Device Integration model, `DeviceSet` | Loaded once by the Machinery owner's core model provider |
 | AutoID model | Added to the owner by `AutoIdMachineryModelProvider`, with `AdditionalNamespaceUris` |
-| Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` places a reader below another node of the owner instead, for example a component of a machine |
-| `Machines` folder | Readers are devices, not machines, and are not added to it |
+| Readers | Below the owner's `DeviceSet` (`Organizes`), NodeIds in `MachineryServerOptions.InstanceNamespaceUri`; take browse names from `context.Runtime.InstanceNamespaceIndex`. `WithParent` and `AsComponentOf` place a reader elsewhere and keep it reachable from `DeviceSet`, see [Placement](#placement) |
+| `Machines` folder | Readers are devices, not machines, and are not added to it; `AsComponentOf` makes one a component of a machine |
 | Methods, events, providers | As in the stand-alone server; the readers are event notifiers of the owner |
 | Conformance | The runtime contributes the AutoID units and facets to the owner, which publishes them with the DI and Machinery ones |
 | Lifetime | The owner disposes the runtime on shutdown: scans stop, providers detach, owned providers are disposed |
@@ -241,6 +242,91 @@ owner. `ConfigureAutoIdFor<AutoIdNodeManager>` works with `AddAutoId` and
 receives the stand-alone runtime, so configuration code can be shared by both
 hosting paths. `Opc.Ua.AutoID.Server` references `Opc.Ua.Machinery.Server` for
 this; a stand-alone server still loads only the DI and AutoID models.
+
+### Placement
+
+OPC 30010 does not say where readers live in the address space; the rules come
+from the specifications it builds on.
+
+| Rule | Source |
+| --- | --- |
+| "The DeviceSet Object is the starting point to locate Devices. It shall either directly or indirectly reference all instances of a subtype of ComponentType with a Hierarchical Reference." Every AutoID device type derives from DI `DeviceType`, a `ComponentType`. | OPC 10000-100 1.05.0 4.9; OPC 30010 6.1 |
+| "For complex Devices that are composed of various components that are also Devices, only the root instance shall be referenced from the DeviceSet Object." | OPC 10000-100 1.05.0 4.9 |
+| The `Components` object of a machine "directly references all identifiable components of a Machine", with `HasComponent`, and each component carries the `2:Identification` add-in (`HasAddIn`) whose `Manufacturer` and `SerialNumber` are mandatory. | OPC 40001-1 1.04.2 11.1, 11.2 (Tables 27, 28), 8.3 |
+| Machinery and DI place no requirement on each other: a machine need not be in `DeviceSet`, and a device need not be in `Machines`. | OPC 40001-1 1.04.2, OPC 10000-100 1.05.0 |
+
+The SDK applies them as follows:
+
+| Builder call | Where the reader is | Reference from `DeviceSet` |
+| --- | --- | --- |
+| none (default) | Below `DeviceSet` | `Organizes` |
+| `WithParent(parent)`, `DeviceSet` reaches `parent` (for example another reader) | Below `parent` (`HasComponent`) | None: the reader is a component of a composed device whose root `DeviceSet` references |
+| `WithParent(parent)`, `DeviceSet` does not reach `parent` | Below `parent` (`HasComponent`) | `Organizes`, added by the runtime |
+| `AsComponentOf(machine)` | Below the machine's `Components` (`HasComponent`), with an `Identification` add-in | As for `WithParent` with the `Components` object as parent: usually `Organizes`, because a machine in `Machines` is not necessarily reachable from `DeviceSet` |
+
+Whether `DeviceSet` reaches the parent is decided when the reader is built, by
+following the forward hierarchical references of the owner's nodes. A child
+attached by a non-hierarchical reference, such as a condition by `HasCondition`,
+is no path from `DeviceSet`.
+
+Where OPC 30010 is silent, these are SDK decisions: a reader is not added to the
+`Machines` folder, because no specification classifies an AutoID device as a
+machine (OPC 40001-1 11.1 leaves that to the domain specifications), and a
+reader is a component of a machine only when the application asks for it.
+
+`AsComponentOf` needs AutoID composed into the Machinery owner
+(`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
+machine of that owner that publishes the `Components` add-in, here built with
+`WithComponents`. The runtime takes the add-in the machine's
+`MachineryBuildingBlocks` folder references with `HasAddIn` (OPC 40001-1 7.1),
+so a container a companion model declares and `WithComponents(existing, ...)`
+binds is found below whatever parent and with whatever browse name it keeps; a
+machine without that folder offers its `MachineComponentsType` child:
+
+```csharp
+IMachineHandle<BaseObjectState>? press = null;
+builder
+    .ConfigureMachinery(async (machinery, ct) =>
+        press = await machinery.AddMachine(new QualifiedName("Press1", machinery.InstanceNamespaceIndex))
+            .WithIdentification(id =>
+            {
+                id.Manufacturer = new LocalizedText("Acme");
+                id.SerialNumber = "PR-1";
+                id.ProductInstanceUri = "urn:acme:press:1";
+            })
+            .WithComponents(_ => { })
+            .BuildAsync(ct))
+    .ConfigureAutoIdFor<MachineryNodeManager>(async (context, ct) =>
+        await context.Runtime
+            .Reader(new QualifiedName("PressInfeed", context.Runtime.InstanceNamespaceIndex), hardware)
+            .AsComponentOf(press!.State)
+            .WithIdentification(nameplate =>
+            {
+                nameplate.Manufacturer = new LocalizedText("Acme");
+                nameplate.SerialNumber = "R100-0001";
+            })
+            .BuildAsync(ct));
+```
+
+The reader gets the `2:Identification` add-in typed
+`MachineryComponentIdentificationType`. It holds no copies: it references the
+reader's own DI nameplate properties with `HasProperty`. This follows the
+approach of OPC 40001-1 7.3 ("let several References lead to the same Node,
+rather than duplicating the Node") and of the Robotics example in Annex B.2,
+whose identification Properties "are only referenced from the Identification
+functional group". It references
+`Manufacturer`, `SerialNumber` and those of `Model`, `ManufacturerUri`,
+`ProductCode`, `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
+`DeviceClass` and `ProductInstanceUri` that are set, plus `AssetId` and
+`ComponentName` when the reader publishes them; `DeviceManual` and
+`RevisionCounter` are left out as OPC 40001-1 10.2 recommends. A missing
+`Manufacturer` or `SerialNumber`, a machine of another node manager, a machine
+without `Components` or with more than one, or a server without the Machinery
+model fail the build with
+`Bad_ConfigurationError` before anything is registered. `WithParent` and
+`AsComponentOf` exclude each other. The runtime does not add Machinery
+conformance units; the Machinery owner advertises them for what its builders
+created.
 
 ### Direct composition and lifetime
 
@@ -510,4 +596,5 @@ encodings.
 | `AutoIdHostingTests` | `AddAutoId` registration, DI ownership, options, node manager and client factories |
 | `AutoIdCompositionTests` | Stock Machinery owner, ordered providers, DI loaded once, instance ownership, rollback, cancellation, runtime disposal, a second DI owner rejected |
 | `AutoIdMachineryCompositionEndToEndTests` | Machinery, Pumps and AutoID in one hosted server, read back by the AutoID, Machinery and Pumps clients over a real session, with the published profiles and conformance units |
+| `AutoIdPlacementEndToEndTests` | Reader placement over a real session: every reader reachable from `DeviceSet`, only roots organized by it, a reader as a component of a machine with its `Identification`, no reader in `Machines` |
 | `AutoIdReaderEndToEndTests` | The stand-alone server driven by `AutoIdClient` over a real session |
