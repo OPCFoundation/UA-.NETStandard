@@ -41,7 +41,13 @@ namespace Opc.Ua.Redaction
     /// An application decides per classification what happens to the value by registering
     /// redactors (<c>Microsoft.Extensions.Compliance.Redaction</c>) and enabling redaction on
     /// its logging pipeline (<c>Microsoft.Extensions.Telemetry</c>, <c>EnableRedaction()</c>).
-    /// Without that, values are logged unchanged.
+    /// </para>
+    /// <para>
+    /// Classified values are only written by that redaction-aware pipeline: with
+    /// <c>EnableOpcUaRedaction()</c> (or <c>EnableRedaction()</c>) and no redactor registered
+    /// they are logged unchanged, while a plain <c>ILoggerFactory</c> without it logs
+    /// <c>(null)</c> in their place. <c>AddOpcUa().AddLogging(...)</c> and
+    /// <c>DefaultTelemetry.Create(...)</c> enable the pipeline themselves.
     /// </para>
     /// </remarks>
     public static class OpcUaDataClassifications
