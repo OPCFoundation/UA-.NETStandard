@@ -263,6 +263,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Namespace metadata linked after a grant was reused (without moving the defaults generation,
+        /// as a reference added to Server/Namespaces does) applies its defaults to the next delivery.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29NamespaceMetadataLinkedAfterGrantAppliesItsDefaultsAsync()
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            metadata.DefaultAccessRestrictions!.Value = (ushort)AccessRestrictionType.EncryptionRequired;
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
         /// Revoking read access to a namespace default property fails delivery closed after a grant was
         /// reused, whether a user access level callback revokes it (present from the start or attached
         /// later) or the property's user access level is changed.

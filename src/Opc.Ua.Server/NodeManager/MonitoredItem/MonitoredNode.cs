@@ -1678,7 +1678,14 @@ namespace Opc.Ua.Server
                     bool cacheable = CanCacheReadAuthorization(monitoredItem.AttributeId);
                     if (cacheable &&
                         readVerdict != null &&
-                        readVerdict.Matches(defaultsGeneration, endpoint, securityMode, transport, restrictions))
+                        readVerdict.Matches(
+                            m_server,
+                            Node.NodeId.NamespaceIndex,
+                            defaultsGeneration,
+                            endpoint,
+                            securityMode,
+                            transport,
+                            restrictions))
                     {
                         result = readVerdict.Result;
                     }
@@ -2154,9 +2161,9 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// A good exact-source read verdict and the channel, restriction and namespace-default
-        /// inputs it was computed with. The namespace metadata node is kept so a read callback
-        /// attached to one of its defaults later, or a revoked read access on one (neither moves a
-        /// generation), retires the verdict.
+        /// inputs it was computed with. The namespace metadata node (or its absence) is kept so
+        /// metadata linked later, a read callback attached to one of its defaults later, or a
+        /// revoked read access on one (none of which moves a generation) retires the verdict.
         /// </summary>
         private sealed class ReadAuthorizationVerdict(
             long defaultsGeneration,
@@ -2170,18 +2177,25 @@ namespace Opc.Ua.Server
             public ServiceResult Result { get; } = result;
 
             public bool Matches(
+                IServerInternal server,
+                ushort namespaceIndex,
                 long currentDefaultsGeneration,
                 EndpointDescription? currentEndpoint,
                 MessageSecurityMode? currentSecurityMode,
                 string? currentTransport,
                 AccessRestrictionType? currentRestrictions)
             {
+                // The metadata node (or its absence) is resolved again on every reuse: metadata linked
+                // later through a reference alone moves no generation, and the registry only notices
+                // it on lookup. A cached lookup, hit or miss, does not enumerate the namespaces.
                 return defaultsGeneration == currentDefaultsGeneration &&
                     ReferenceEquals(endpoint, currentEndpoint) &&
                     securityMode == currentSecurityMode &&
                     transport == currentTransport &&
                     restrictions == currentRestrictions &&
-                    NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults);
+                    NamespaceDefaultPermissionReader.TryGetStaticDefaults(
+                        server, namespaceIndex, out NamespaceMetadataState? current) &&
+                    ReferenceEquals(current, defaults);
             }
         }
 
