@@ -77,12 +77,43 @@ public sealed class VariantParserTests
         Assert.That(numbers.ToList(), Is.EqualTo(s_expectedNumbers));
     }
 
+    /// <summary>
+    /// Textual scalar values retain spaces, line endings and empty content exactly.
+    /// </summary>
+    [TestCase(BuiltInType.String, "  recipe name \r\n")]
+    [TestCase(BuiltInType.String, " \t ")]
+    [TestCase(BuiltInType.String, "")]
+    [TestCase(BuiltInType.LocalizedText, "  operator message \r\n")]
+    [TestCase(BuiltInType.LocalizedText, " \t ")]
+    [TestCase(BuiltInType.LocalizedText, "")]
+    public void TextScalarsPreserveTheEnteredContent(BuiltInType type, string text)
+    {
+        foreach (int rank in s_scalarRanks)
+        {
+            bool parsed = VariantParser.TryParse(
+                new NodeId((uint)type), rank, text, out Variant value, out string? error);
+
+            Assert.That(parsed, Is.True, error);
+            if (type == BuiltInType.String)
+            {
+                Assert.That(value.TryGetValue(out string? actual), Is.True);
+                Assert.That(actual, Is.EqualTo(text));
+            }
+            else
+            {
+                Assert.That(value.TryGetValue(out LocalizedText actual), Is.True);
+                Assert.That(actual, Is.EqualTo(new LocalizedText(text)));
+            }
+        }
+    }
+
     [TestCaseSource(nameof(ScalarCases))]
     public void ScalarsUseInvariantSyntaxAndTheDeclaredBuiltInType(BuiltInType type, string text, Variant expected)
     {
         foreach (int rank in s_scalarRanks)
         {
-            bool success = VariantParser.TryParse(new NodeId((uint)type), rank, $"  {text}  ",
+            string input = type is BuiltInType.String or BuiltInType.LocalizedText ? text : $"  {text}  ";
+            bool success = VariantParser.TryParse(new NodeId((uint)type), rank, input,
                 out Variant actual, out string? error);
             Assert.That(success, Is.True, error);
             Assert.That(error, Is.Null);

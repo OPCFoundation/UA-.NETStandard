@@ -55,6 +55,7 @@
                       $(LensTestSourceRoot)StructuredValues\StructuredValueTestContext.cs;
                       $(LensTestSourceRoot)Themes\PaletteEvaluation.cs;
                       $(LensTestSourceRoot)ViewModels\ControlledWorkspaceDispatcher.cs;
+                      $(LensTestSourceRoot)SessionBindingTestHelper.cs;
                       $(LensTestSourceRoot)WorkflowAssertions.cs;
                       $(LensTestSourceRoot)Properties\AssemblyInfo.cs"
              LinkBase="Shared" />
@@ -69,6 +70,7 @@
                       $(LensTestSourceRoot)NodeSets\NodeSetAddressSpaceTests.Shared.cs;
                       $(LensTestSourceRoot)Presentation\NamespaceHighlightTests.Shared.cs;
                       $(LensTestSourceRoot)Themes\PaletteEvaluation.cs;
+                      $(LensTestSourceRoot)SessionBindingTestHelper.cs;
                       $(LensTestSourceRoot)Properties\AssemblyInfo.cs"
              LinkBase="Shared" />
   </ItemGroup>

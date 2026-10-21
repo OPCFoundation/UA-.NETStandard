@@ -49,6 +49,71 @@ namespace UaLens.Tests.Desktop;
 [NonParallelizable]
 public sealed class ValueDialogWorkflowTests
 {
+    /// <summary>
+    /// A write-only scalar has no prefilled value and sends only the operator's explicit replacement.
+    /// </summary>
+    [Test]
+    public Task WriteOnlyScalarShowsItsReadStatusAndAcceptsAnExplicitReplacement()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            using var context = new StructuredValueTestContext();
+            await using var connection = new DesktopConnectionContext();
+            context.Reader = (ids, _) => ValueTask.FromResult(ids[0].AttributeId == Attributes.DataTypeDefinition
+                ? StructuredValueTestContext.Reply(Variant.Null, StatusCodes.BadAttributeIdInvalid)
+                : new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(Variant.From(99)).WithStatus(StatusCodes.BadNotReadable),
+                        new DataValue(Variant.From(DataTypeIds.Int32)),
+                        new DataValue(Variant.From(ValueRanks.Scalar)),
+                        new DataValue(Variant.From(ArrayOf<uint>.Empty))
+                    ]
+                });
+            ArrayOf<WriteValue> sent = [];
+            context.Session.Setup(session => session.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, ArrayOf<WriteValue>, CancellationToken>((_, values, _) => sent = values)
+                .ReturnsAsync(new WriteResponse { Results = [StatusCodes.Good] });
+            var dialog = new WriteValueDialog(
+                Node(connection, NodeClass.Variable), context.Session.Object, context.Service);
+            Task shown = dialog.ShowDialog(DesktopInteraction.Owner);
+            try
+            {
+                TextBox value = DesktopInteraction.Control<TextBox>(dialog, "ValueText");
+                Assert.That(DesktopInteraction.Control<TextBlock>(dialog, "CurrentLabel").Text,
+                    Does.Contain("unavailable").And.Contain("BadNotReadable"));
+                Assert.That(value.Text, Is.Empty);
+                Button ok = DesktopInteraction.Control<Button>(dialog, "OkButton");
+                Assert.That(ok.IsEnabled, Is.True);
+                DesktopInteraction.Click(ok);
+                Assert.That(sent, Is.Empty);
+                Assert.That(DesktopInteraction.Control<TextBlock>(dialog, "ResultLabel").Text,
+                    Does.StartWith("New value:"));
+
+                value.Text = "42";
+                Button acknowledge = DesktopInteraction.Control<Button>(dialog, "CancelButton");
+                await DesktopInteraction.ChangedAsync(
+                    acknowledge, () => Equals(acknowledge.Content, "Acknowledge and close"), () =>
+                    {
+                        DesktopInteraction.Click(ok);
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(true);
+                Assert.That(sent.Count, Is.EqualTo(1));
+                Assert.That(sent[0].Value.WrappedValue, Is.EqualTo(Variant.From(42)));
+                Assert.That(sent[0].Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                DesktopInteraction.Click(acknowledge);
+                await shown.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(true);
+            }
+            finally
+            {
+                dialog.Close();
+                await dialog.StopAsync().ConfigureAwait(true);
+            }
+        });
+    }
+
     [TestCase("Primitive")]
     [TestCase("Structure")]
     [TestCase("Matrix")]
@@ -265,8 +330,12 @@ public sealed class ValueDialogWorkflowTests
                         Variant.From(ValueRanks.Scalar), Variant.From((ArrayOf<uint>)[]));
                 if (failure == "BadAttribute")
                 {
-                    response.Results = [new DataValue(Variant.From(4), StatusCodes.BadUserAccessDenied),
-                        response.Results[1], response.Results[2], response.Results[3]];
+                    response.Results =
+                    [
+                        response.Results[0],
+                        response.Results[1].WithStatus(StatusCodes.BadUserAccessDenied),
+                        response.Results[2], response.Results[3]
+                    ];
                 }
                 return ValueTask.FromResult(response);
             };

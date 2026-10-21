@@ -68,6 +68,7 @@ public sealed class DialogDesktopTests
             await using DesktopWindowScope scope = await DesktopWindowScope.OpenAsync().ConfigureAwait(true);
             var response = new TaskCompletionSource<WriteResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
             var session = new Mock<ISession>(MockBehavior.Strict);
+            SessionBindingTestHelper.Attach(session);
             session.SetupGet(backend => backend.MessageContext)
                 .Returns(new ServiceMessageContext(scope.ViewModel.Telemetry, EncodeableFactory.Create()));
             session.Setup(backend => backend.ReadAsync(

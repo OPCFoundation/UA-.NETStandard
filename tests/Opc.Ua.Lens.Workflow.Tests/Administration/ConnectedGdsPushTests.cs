@@ -52,6 +52,140 @@ namespace UaLens.Tests.Administration;
 [NonParallelizable]
 public sealed class ConnectedGdsPushTests
 {
+    /// <summary>
+    /// Closing during configuration acquisition drains the continuation without creating a secondary client.
+    /// </summary>
+    [Test]
+    public Task ClosingDuringConfigurationPreventsLateSecondaryConnection()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var scenario = new PushScenario();
+            await scenario.Context.ConnectAsync().ConfigureAwait(true);
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var configuration = new TaskCompletionSource<ApplicationConfiguration>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken configurationToken = default;
+            scenario.Context.Desktop.Backend
+                .Setup(backend => backend.CreateConfigurationAsync(It.IsAny<CancellationToken>()))
+                .Returns((CancellationToken token) =>
+                {
+                    configurationToken = token;
+                    started.TrySetResult();
+                    return configuration.Task;
+                });
+            await using GdsPushPlugin plugin = scenario.CreatePlugin();
+            Task refresh = plugin.RefreshCommand.ExecuteAsync(null);
+            try
+            {
+                await started.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+                var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using CancellationTokenRegistration registration =
+                    configurationToken.Register(() => cancelled.SetResult());
+                Task closing = plugin.DisposeAsync().AsTask();
+                bool closedEarly = closing.IsCompleted;
+                await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+                bool closedBeforeConfiguration = closing.IsCompleted;
+                configuration.SetResult(new ApplicationConfiguration(scenario.Context.Desktop.Telemetry));
+                await Task.WhenAll(refresh, closing).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+
+                Assert.That(closedEarly, Is.False);
+                Assert.That(closedBeforeConfiguration, Is.False);
+                Assert.That(configurationToken.IsCancellationRequested, Is.True);
+                Assert.That(scenario.ClientsCreated, Is.Zero);
+                scenario.Client.Verify(client => client.ConnectAsync(
+                    It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Never);
+                Assert.That(scenario.Context.Desktop.Connection.CurrentSession,
+                    Is.SameAs(scenario.Context.Session.Object));
+            }
+            finally
+            {
+                configuration.TrySetResult(new ApplicationConfiguration(scenario.Context.Desktop.Telemetry));
+                await refresh.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            }
+        });
+    }
+
+    /// <summary>
+    /// A connecting client remains owned until its ignored cancellation completes.
+    /// </summary>
+    [Test]
+    public Task ClosingDrainsAnInFlightSecondaryConnectBeforeDisposingItsClient()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var scenario = new PushScenario();
+            await scenario.Context.ConnectAsync().ConfigureAwait(true);
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var connected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken connectToken = default;
+            scenario.Client.Setup(client => client.ConnectAsync(
+                It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Returns((ConfiguredEndpoint _, CancellationToken token) =>
+                {
+                    connectToken = token;
+                    started.TrySetResult();
+                    return new ValueTask(connected.Task);
+                });
+            await using GdsPushPlugin plugin = scenario.CreatePlugin();
+            Task refresh = plugin.RefreshCommand.ExecuteAsync(null);
+            try
+            {
+                await started.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+                var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using CancellationTokenRegistration registration = connectToken.Register(() => cancelled.SetResult());
+                Task closing = plugin.DisposeAsync().AsTask();
+                bool closedEarly = closing.IsCompleted;
+                await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+                bool closedBeforeConnect = closing.IsCompleted;
+                int earlyDisposals = scenario.Disposals;
+                connected.SetResult();
+                await Task.WhenAll(refresh, closing).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+                await plugin.DisposeAsync().ConfigureAwait(true);
+
+                Assert.That(closedEarly, Is.False);
+                Assert.That(closedBeforeConnect, Is.False);
+                Assert.That(earlyDisposals, Is.Zero);
+                Assert.That(connectToken.IsCancellationRequested, Is.True);
+                Assert.That(scenario.Disposals, Is.EqualTo(1));
+                Assert.That(plugin.HasSecondarySession, Is.False);
+                Assert.That(scenario.Context.Desktop.Connection.CurrentSession,
+                    Is.SameAs(scenario.Context.Session.Object));
+            }
+            finally
+            {
+                connected.TrySetResult();
+                await refresh.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(true);
+            }
+        });
+    }
+
+    /// <summary>
+    /// A closed document cannot enter either secondary connection acquisition path again.
+    /// </summary>
+    [Test]
+    public Task ClosedDocumentRejectsSecondaryConnectionAdmission()
+    {
+        return AvaloniaDesktopTestHost.RunAsync(async () =>
+        {
+            await using var scenario = new PushScenario();
+            await scenario.Context.ConnectAsync().ConfigureAwait(true);
+            await using GdsPushPlugin plugin = scenario.CreatePlugin();
+            await plugin.DisposeAsync().ConfigureAwait(true);
+
+            await plugin.RefreshCommand.ExecuteAsync(null).ConfigureAwait(true);
+            Assert.That(plugin.LastOperationResult, Does.Contain("closing"));
+            await plugin.UseDifferentEndpointCommand.ExecuteAsync(null).ConfigureAwait(true);
+
+            Assert.That(plugin.LastOperationResult, Does.Contain("closing"));
+            Assert.That(scenario.ClientsCreated, Is.Zero);
+            Assert.That(plugin.HasSecondarySession, Is.False);
+            scenario.Client.Verify(client => client.ConnectAsync(
+                It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(scenario.Context.Desktop.Connection.CurrentSession, Is.SameAs(scenario.Context.Session.Object));
+        });
+    }
+
     [TestCase(TrustListMasks.None)]
     [TestCase(TrustListMasks.TrustedCertificates)]
     [TestCase(TrustListMasks.IssuerCertificates)]
@@ -370,13 +504,18 @@ public sealed class ConnectedGdsPushTests
         public List<CancellationToken> RejectedTokens { get; } = [];
         public CancellationToken TrustReadToken { get; private set; }
         public int Connects { get; private set; }
+        public int ClientsCreated { get; private set; }
         public int Disposals { get; private set; }
         public int TrustReads { get; private set; }
         public int RejectedReads { get; private set; }
         public TrustListMasks Masks { get; private set; }
         public bool Shutdown { get; set; }
 
-        public GdsPushPlugin CreatePlugin() => new(Context.Host, _ => Client.Object);
+        public GdsPushPlugin CreatePlugin() => new(Context.Host, _ =>
+        {
+            ClientsCreated++;
+            return Client.Object;
+        });
 
         public async ValueTask DisposeAsync()
         {

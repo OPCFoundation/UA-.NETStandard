@@ -46,6 +46,7 @@ using Opc.Ua.Gds.Client;
 using UaLens.Plugins.Gds;
 using UaLens.ViewModels;
 using UaLens.Views;
+using UaLens.Workspace;
 
 namespace UaLens.Plugins.GdsPush;
 
@@ -103,7 +104,6 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     private IServerPushConfigurationClient? m_client;
     private readonly Func<ApplicationConfiguration, IServerPushConfigurationClient> m_createClient;
     private GdsPushView? m_view;
-    private CancellationTokenSource? m_busyCts;
     private readonly Timer m_statusTimer;
     private int m_statusPollInFlight;
     private bool m_statusTimerDisposed;
@@ -120,7 +120,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// the main Connection pane's <see cref="MainViewModel.EndpointUrl"/>.
     /// </summary>
     public string EndpointUrl => m_boundEndpoint?.EndpointUrl
-                                 ?? m_host.Workspace.EndpointUrl;
+        ?? m_host.Workspace.EndpointUrl;
 
     private EndpointDescription? m_boundEndpoint;
 
@@ -330,46 +330,53 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         return new[] { connect, disconnect, refresh, refreshRejected, addCert, removeCert, newCert, apply };
     }
 
-    public void OnActivated() { }
-    public void OnDeactivated() { }
-
-    public async ValueTask DisposeAsync()
+    public void OnActivated()
     {
+    }
+    public void OnDeactivated()
+    {
+    }
+
+    /// <inheritdoc/>
+    public ValueTask DisposeAsync()
+    {
+        lock (m_disposalGate)
+        {
+            m_disposal ??= DisposeCoreAsync();
+            return new ValueTask(m_disposal);
+        }
+    }
+
+    /// <summary>
+    /// Stops connection admission and drains acquisition before releasing the secondary client.
+    /// </summary>
+    private async Task DisposeCoreAsync()
+    {
+        ValueTask connections = m_connectionOperations.DisposeAsync();
         m_host.Workspace.PropertyChanged -= OnWorkspacePropertyChanged;
-        try
-        {
-            m_busyCts?.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
         try
         {
             if (!m_statusTimerDisposed)
             {
                 m_statusTimerDisposed = true;
                 m_statusTimer.Change(Timeout.Infinite, Timeout.Infinite);
-                await m_statusTimer.DisposeAsync().ConfigureAwait(false);
+                await m_statusTimer.DisposeAsync().ConfigureAwait(true);
             }
         }
         catch (Exception ex)
         {
             m_log.GdsPushStatusTimerDisposeThrew(ex, Title);
         }
-        if (m_client is not null)
+        try
         {
-            try
-            {
-                await m_client.DisposeAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                m_log.GdsPushClientDisposeFailed(ex, Title);
-            }
-            m_client = null;
+            await connections.ConfigureAwait(true);
         }
-        m_busyCts?.Dispose();
-        m_busyCts = null;
+        finally
+        {
+            await SafeDisposeClientAsync().ConfigureAwait(true);
+            SetSecondaryConnected(false);
+            m_boundEndpoint = null;
+        }
     }
 
     [RelayCommand]
@@ -406,8 +413,17 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// using <see cref="EnsureSessionAsync"/> use it to decide whether
     /// to proceed.
     /// </summary>
-    private async Task<bool> EstablishOrSwitchSessionAsync(CancellationToken ct)
+    private Task<bool> EstablishOrSwitchSessionAsync(CancellationToken ct)
     {
+        return m_connectionOperations.ExecuteAsync(EstablishOrSwitchSessionCoreAsync, ct).AsTask();
+    }
+
+    /// <summary>
+    /// Acquires the selected endpoint within the document's connection lifetime.
+    /// </summary>
+    private async ValueTask<bool> EstablishOrSwitchSessionCoreAsync(CancellationToken ct)
+    {
+        ThrowIfConnectionStopped(ct);
         Window? owner = GetOwnerWindow();
         if (owner is null)
         {
@@ -437,6 +453,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             ConnectionStatus = IsConnected ? "● Connected" : "● Disconnected";
             return false;
         }
+        ThrowIfConnectionStopped(ct);
         if (pick is null)
         {
             ConnectionStatus = IsConnected ? "● Connected" : "● Disconnected";
@@ -445,19 +462,25 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
         // Reuse path: same endpoint as the existing secondary session →
         // just swap identity via UpdateSessionAsync on the underlying ISession.
-        if (m_client?.Session is { Connected: true } existing
-            && UaLens.Connection.EndpointCredentialsPicker.EndpointsMatch(m_boundEndpoint, pick.Endpoint))
+        if (m_client?.Session is { Connected: true } existing &&
+            UaLens.Connection.EndpointCredentialsPicker.EndpointsMatch(m_boundEndpoint, pick.Endpoint))
         {
             ConnectionStatus = "● Updating credentials…";
             try
             {
                 await existing.UpdateSessionAsync(pick.Identity, default, ct).ConfigureAwait(true);
+                ThrowIfConnectionStopped(ct);
                 m_client.AdminCredentials = pick.Identity;
                 ConnectionStatus = "● Connected";
                 SetResult("Credentials updated on existing session.");
                 await PopulateServerInfoAsync(ct).ConfigureAwait(true);
                 await RefreshAsync(ct).ConfigureAwait(true);
+                ThrowIfConnectionStopped(ct);
                 return true;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested || m_connectionOperations.IsStopped)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -469,10 +492,12 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
 
         // Fresh-connect path: dispose existing client, build a new one.
         await SafeDisposeClientAsync().ConfigureAwait(true);
+        ThrowIfConnectionStopped(ct);
         ConnectionStatus = "● Connecting…";
         try
         {
             ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
+            ThrowIfConnectionStopped(ct);
             IServerPushConfigurationClient client = m_createClient(cfg);
             m_client = client;
             client.AdminCredentialsRequired += OnAdminCredentialsRequired;
@@ -481,13 +506,14 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             var configured = new ConfiguredEndpoint(
                 null, pick.Endpoint, EndpointConfiguration.Create(cfg));
             await client.ConnectAsync(configured, ct).ConfigureAwait(true);
-            m_client = client;
+            ThrowIfConnectionStopped(ct);
             m_boundEndpoint = pick.Endpoint;
             OnPropertyChanged(nameof(EndpointUrl));
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected";
             await PopulateServerInfoAsync(ct).ConfigureAwait(true);
             await RefreshAsync(ct).ConfigureAwait(true);
+            ThrowIfConnectionStopped(ct);
             m_log.GdsPushConnected(Title, pick.Endpoint.EndpointUrl);
             return true;
         }
@@ -512,6 +538,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// </summary>
     private async Task<IServerPushConfigurationClient?> EnsureSessionAsync(CancellationToken ct)
     {
+        ThrowIfConnectionStopped(ct);
         if (m_client is { Session: { Connected: true } } good)
         {
             return good;
@@ -522,14 +549,16 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         // skipping the picker.  UserName outers fall through to the
         // picker because the password is not recoverable from the
         // existing IUserIdentity.
-        if (OuterIsSuitable()
-            && await TryAutoPiggybackAsync(ct).ConfigureAwait(true)
-            && m_client is { Session: { Connected: true } } piggy)
+        if (OuterIsSuitable() &&
+            await TryAutoPiggybackAsync(ct).ConfigureAwait(true) &&
+            m_client is { Session: { Connected: true } } piggy)
         {
+            ThrowIfConnectionStopped(ct);
             return piggy;
         }
         if (await EstablishOrSwitchSessionAsync(ct).ConfigureAwait(true))
         {
+            ThrowIfConnectionStopped(ct);
             return m_client;
         }
         return null;
@@ -542,10 +571,19 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
     /// be cloned because the password isn't exposed).  Sets the
     /// secondary-connected flag on success.
     /// </summary>
-    private async Task<bool> TryAutoPiggybackAsync(CancellationToken ct)
+    private Task<bool> TryAutoPiggybackAsync(CancellationToken ct)
     {
-        if (m_host.Connection.CurrentSession is not { Connected: true } outer
-            || outer.ConfiguredEndpoint?.Description is not { } desc)
+        return m_connectionOperations.ExecuteAsync(TryAutoPiggybackCoreAsync, ct).AsTask();
+    }
+
+    /// <summary>
+    /// Acquires an anonymous secondary connection without outliving the document.
+    /// </summary>
+    private async ValueTask<bool> TryAutoPiggybackCoreAsync(CancellationToken ct)
+    {
+        ThrowIfConnectionStopped(ct);
+        if (m_host.Connection.CurrentSession is not { Connected: true } outer ||
+            outer.ConfiguredEndpoint?.Description is not { } desc)
         {
             return false;
         }
@@ -559,6 +597,7 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         try
         {
             ApplicationConfiguration cfg = await m_host.Connection.GetConfigAsync(ct).ConfigureAwait(true);
+            ThrowIfConnectionStopped(ct);
 #pragma warning disable CA2000
             IUserIdentity identity = new UserIdentity(new AnonymousIdentityToken());
 #pragma warning restore CA2000
@@ -570,12 +609,13 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             var configured = new ConfiguredEndpoint(
                 null, desc, EndpointConfiguration.Create(cfg));
             await client.ConnectAsync(configured, ct).ConfigureAwait(true);
-            m_client = client;
+            ThrowIfConnectionStopped(ct);
             m_boundEndpoint = desc;
             OnPropertyChanged(nameof(EndpointUrl));
             SetSecondaryConnected(true);
             ConnectionStatus = "● Connected (piggyback)";
             await PopulateServerInfoAsync(ct).ConfigureAwait(true);
+            ThrowIfConnectionStopped(ct);
             m_log.GdsPushPiggybacked(Title, desc.EndpointUrl);
             return true;
         }
@@ -588,6 +628,21 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             OnPropertyChanged(nameof(EndpointUrl));
             ConnectionStatus = "● Disconnected";
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Rejects continuations even when an awaited provider ignores cancellation.
+    /// </summary>
+    /// <exception cref="OperationCanceledException">
+    /// The caller cancelled or the document stopped accepting connections.
+    /// </exception>
+    private void ThrowIfConnectionStopped(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (m_connectionOperations.IsStopped)
+        {
+            throw new OperationCanceledException("The GDS Push document is closing.", cancellationToken);
         }
     }
 
@@ -938,10 +993,10 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         {
             bool confirmed = await ConfirmDangerousAsync(owner,
                 "Apply certificate changes",
-                "ApplyChanges activates the certificate and trust-list changes that were pushed to "
-                + "the server.\n\nThe server usually closes this session while it reloads its "
-                + "configuration, so this GDS Push session is expected to disconnect and may need to "
-                + "be re-established afterwards.\n\nApply the pending changes now?",
+                "ApplyChanges activates the certificate and trust-list changes that were pushed to " +
+                "the server.\n\nThe server usually closes this session while it reloads its " +
+                "configuration, so this GDS Push session is expected to disconnect and may need to " +
+                "be re-established afterwards.\n\nApply the pending changes now?",
                 "Apply changes").ConfigureAwait(true);
             if (!confirmed)
             {
@@ -1279,10 +1334,10 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             return;
         }
         Status = $"● Connected · {Trusted.Count} trusted · {Issuers.Count} issuers · " +
-                 $"{Rejected.Count} rejected" +
-                 (string.IsNullOrEmpty(LastOperationResult)
-                     ? string.Empty
-                     : $" · {LastOperationResult}");
+            $"{Rejected.Count} rejected" +
+            (string.IsNullOrEmpty(LastOperationResult)
+                ? string.Empty
+                : $" · {LastOperationResult}");
     }
 
     partial void OnLastOperationResultChanged(string value) => UpdateStatus();
@@ -1375,8 +1430,8 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
             return;
         }
 #pragma warning disable CS8600 // status may be null when TryGetValue returns false; we check below.
-        if (!dv.WrappedValue.TryGetValue(out ServerStatusDataType status, session.MessageContext)
-            || status is null)
+        if (!dv.WrappedValue.TryGetValue(out ServerStatusDataType status, session.MessageContext) ||
+            status is null)
 #pragma warning restore CS8600
         {
             return;
@@ -1447,6 +1502,15 @@ internal sealed partial class GdsPushPlugin : ObservableObject, IPlugin
         }
         return dt.ToDateTime().ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
     }
+
+    /// <summary>Tracks both secondary connection acquisition paths until actual completion.</summary>
+    private readonly OwnedOperationScope m_connectionOperations = new("The GDS Push document is closing.");
+
+    /// <summary>Serializes creation of the shared disposal task.</summary>
+    private readonly Lock m_disposalGate = new();
+
+    /// <summary>The single cancellation, drain and release operation.</summary>
+    private Task? m_disposal;
 }
 
 /// <summary>

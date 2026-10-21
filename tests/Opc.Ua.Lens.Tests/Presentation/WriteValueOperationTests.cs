@@ -129,8 +129,8 @@ namespace UaLens.Tests.Presentation
                 .ReturnsAsync(new ReadResponse
                 {
                     Results = denied
-                        ? [new DataValue().WithStatus(StatusCodes.BadUserAccessDenied),
-                            new DataValue(), new DataValue(), new DataValue()]
+                        ? [new DataValue(), new DataValue().WithStatus(StatusCodes.BadUserAccessDenied),
+                            new DataValue(), new DataValue()]
                         : []
                 });
             await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
@@ -259,9 +259,252 @@ namespace UaLens.Tests.Presentation
                 null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
+        /// <summary>
+        /// A write-only value does not prevent editing when its type metadata is readable.
+        /// </summary>
+        [Test]
+        public async Task UnreadableCurrentValueStillAllowsAnExplicitWriteAsync()
+        {
+            Mock<ISession> session = CreateSession();
+            ReadResponse metadata = Metadata();
+            metadata.Results =
+            [
+                new DataValue().WithStatus(StatusCodes.BadNotReadable),
+                metadata.Results[1], metadata.Results[2], metadata.Results[3]
+            ];
+            session.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(metadata);
+            session.Setup(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WriteResponse { Results = [StatusCodes.Good] });
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+
+            await operation.LoadAsync().ConfigureAwait(false);
+
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Editing));
+            Assert.That(operation.CurrentValue.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+            await operation.WriteAsync(new DataValue(Variant.From(42))).ConfigureAwait(false);
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Succeeded));
+        }
+
+        /// <summary>
+        /// Edits cannot migrate to another authenticated session or namespace mapping.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InvalidatedBindingPreventsScalarWriteAsync(bool duringRead)
+        {
+            Mock<ISession> session = CreateSession();
+            var binding = new Mock<ISessionBinding>(MockBehavior.Strict);
+            bool current = true;
+            binding.SetupGet(value => value.IsCurrent).Returns(() => current);
+            binding.Setup(value => value.Dispose());
+            var response = new TaskCompletionSource<ReadResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            binding.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(response.Task));
+            session.As<ISessionBindingProvider>()
+                .Setup(value => value.CreateBindingAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(binding.Object);
+            session.Setup(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WriteResponse { Results = [StatusCodes.Good] });
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            Task loading = operation.LoadAsync();
+            if (duringRead)
+            {
+                current = false;
+            }
+            response.SetResult(Metadata());
+            await loading.ConfigureAwait(false);
+            current = false;
+
+            await operation.WriteAsync(new DataValue(Variant.From(42))).ConfigureAwait(false);
+
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Failed));
+            Assert.That(operation.WasDispatched, Is.False);
+            Assert.That(operation.Outcome, Does.Contain("changed"));
+            session.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Never);
+            binding.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Missing capture or validity capabilities fail closed rather than using the owning session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task UnverifiableSessionsPreventAnyWriteAsync(bool hasProvider)
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            var unverified = new Mock<ISessionClient>(MockBehavior.Strict);
+            unverified.Setup(value => value.Dispose());
+            if (hasProvider)
+            {
+                session.As<ISessionBindingProvider>()
+                    .Setup(value => value.CreateBindingAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(unverified.Object);
+            }
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+
+            await operation.LoadAsync().ConfigureAwait(false);
+            await operation.WriteAsync(new DataValue(Variant.From(42))).ConfigureAwait(false);
+
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Failed));
+            Assert.That(operation.Outcome, Does.Contain(hasProvider ? "verifiable" : "generation-bound"));
+            Assert.That(operation.WasDispatched, Is.False);
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            unverified.Verify(value => value.Dispose(), hasProvider ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// Both requests use the captured client, which stays alive until a pending write completes.
+        /// </summary>
+        [Test]
+        public async Task BindingOwnsBothRequestsUntilDisposalDrainsAsync()
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            Mock<ISessionBinding> binding = SessionBindingTestHelper.Attach(session);
+            binding.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Metadata());
+            var response = new TaskCompletionSource<WriteResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken requestToken = default;
+            binding.Setup(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .Callback<RequestHeader?, ArrayOf<WriteValue>, CancellationToken>((_, _, token) => requestToken = token)
+                .Returns(new ValueTask<WriteResponse>(response.Task));
+            int disposals = 0;
+            binding.Setup(value => value.Dispose()).Callback(() => disposals++);
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            await operation.LoadAsync().ConfigureAwait(false);
+            Task writing = operation.WriteAsync(new DataValue(Variant.From(42)));
+            Task closing = operation.DisposeAsync().AsTask();
+            bool closedEarly = closing.IsCompleted;
+            int earlyDisposals = disposals;
+            response.SetResult(new WriteResponse { Results = [StatusCodes.Good] });
+            await Task.WhenAll(writing, closing).ConfigureAwait(false);
+            await operation.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(closedEarly, Is.False);
+            Assert.That(earlyDisposals, Is.Zero);
+            Assert.That(requestToken.IsCancellationRequested, Is.True);
+            Assert.That(disposals, Is.EqualTo(1));
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Succeeded));
+            binding.Verify(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            binding.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// A binding rejected at dispatch cannot cause a retry on a replacement session.
+        /// </summary>
+        [Test]
+        public async Task BindingRejectionAtDispatchNeverRetriesOnTheOwningSessionAsync()
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            Mock<ISessionBinding> binding = SessionBindingTestHelper.Attach(session);
+            binding.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(Metadata());
+            binding.Setup(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSecurityChecksFailed));
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            await operation.LoadAsync().ConfigureAwait(false);
+            await operation.WriteAsync(new DataValue(Variant.From(42))).ConfigureAwait(false);
+            await operation.WriteAsync(new DataValue(Variant.From(43))).ConfigureAwait(false);
+
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Uncertain));
+            Assert.That(operation.Outcome, Does.Contain("not rollback"));
+            binding.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(value => value.WriteAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Closing during capture still releases the late client without reading through it.
+        /// </summary>
+        [Test]
+        public async Task ClosingDuringCaptureDisposesTheLateBindingWithoutReadingAsync()
+        {
+            var session = new Mock<ISession>(MockBehavior.Strict);
+            var binding = new Mock<ISessionBinding>(MockBehavior.Strict);
+            binding.Setup(value => value.Dispose());
+            var captured = new TaskCompletionSource<ISessionClient>(TaskCreationOptions.RunContinuationsAsynchronously);
+            session.As<ISessionBindingProvider>()
+                .Setup(value => value.CreateBindingAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ISessionClient>(captured.Task));
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            Task loading = operation.LoadAsync();
+            Task closing = operation.DisposeAsync().AsTask();
+            bool closedEarly = closing.IsCompleted;
+            captured.SetResult(binding.Object);
+            await Task.WhenAll(loading, closing).ConfigureAwait(false);
+
+            Assert.That(closedEarly, Is.False);
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Failed));
+            Assert.That(operation.WasDispatched, Is.False);
+            Assert.That(operation.Outcome, Does.Contain("No write was sent"));
+            binding.Verify(value => value.Dispose(), Times.Once);
+            binding.VerifyNoOtherCalls();
+            session.Verify(value => value.Dispose(), Times.Never);
+        }
+
+        /// <summary>
+        /// Unreadable current values do not relax validation of the three type attributes.
+        /// </summary>
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public async Task UnreadableTypeMetadataPreventsAnyWriteAsync(int deniedIndex)
+        {
+            Mock<ISession> session = CreateSession();
+            ReadResponse metadata = Metadata();
+            DataValue denied = new DataValue().WithStatus(StatusCodes.BadUserAccessDenied);
+            metadata.Results =
+            [
+                metadata.Results[0],
+                deniedIndex == 1 ? denied : metadata.Results[1],
+                deniedIndex == 2 ? denied : metadata.Results[2],
+                deniedIndex == 3 ? denied : metadata.Results[3]
+            ];
+            session.Setup(value => value.ReadAsync(
+                null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(metadata);
+            await using var operation = new WriteValueOperation(new NodeId("test", 1), session.Object);
+            await operation.LoadAsync().ConfigureAwait(false);
+            await operation.WriteAsync(new DataValue(Variant.From(42))).ConfigureAwait(false);
+
+            Assert.That(operation.State, Is.EqualTo(WriteValueState.Failed));
+            Assert.That(operation.Outcome, Does.Contain("BadUserAccessDenied"));
+            Assert.That(operation.WasDispatched, Is.False);
+            session.Verify(value => value.WriteAsync(
+                null, It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static Mock<ISession> CreateSession()
         {
             var session = new Mock<ISession>(MockBehavior.Strict);
+            SessionBindingTestHelper.Attach(session);
             session.Setup(value => value.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(Metadata());

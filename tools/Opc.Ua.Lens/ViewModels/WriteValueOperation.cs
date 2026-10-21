@@ -49,8 +49,8 @@ internal enum WriteValueState
 internal delegate WriteValueOperation WriteValueOperationFactory(NodeId nodeId, ISession session);
 
 /// <summary>
-/// Owns one metadata read and at most one dispatched write. A dispatched request
-/// cannot be rolled back by cancelling its local wait.
+/// Owns one metadata read and at most one write on the same captured session binding.
+/// A dispatched request cannot be rolled back by cancelling its local wait.
 /// </summary>
 internal sealed class WriteValueOperation : IAsyncDisposable
 {
@@ -83,16 +83,28 @@ internal sealed class WriteValueOperation : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Sends a replacement only while the captured session and namespace mappings remain current.
+    /// </summary>
     public Task WriteAsync(in DataValue value)
     {
         lock (m_gate)
         {
-            if (!m_stopping && !m_lifetime.IsCancellationRequested &&
-                State == WriteValueState.Editing && m_work.IsCompleted)
+            if (!m_stopping &&
+                !m_lifetime.IsCancellationRequested &&
+                State == WriteValueState.Editing &&
+                m_work.IsCompleted)
             {
+                if (m_binding is not { IsCurrent: true } binding)
+                {
+                    State = WriteValueState.Failed;
+                    Outcome = "The session or namespace metadata changed. Reopen Write to reload the value. " +
+                        "No write was sent.";
+                    return m_work;
+                }
                 State = WriteValueState.Writing;
                 WasDispatched = true;
-                m_work = WriteCoreAsync(value);
+                m_work = WriteCoreAsync(binding, value);
             }
             return m_work;
         }
@@ -115,25 +127,56 @@ internal sealed class WriteValueOperation : IAsyncDisposable
         }
     }
 
+    /// <inheritdoc/>
     public async ValueTask DisposeAsync()
     {
-        await CancelAndDrainAsync().ConfigureAwait(false);
-        lock (m_gate)
+        try
         {
-            if (!m_disposed)
+            await CancelAndDrainAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            ISessionBinding? binding = null;
+            lock (m_gate)
             {
-                m_disposed = true;
-                m_lifetime.Dispose();
+                if (!m_disposed)
+                {
+                    m_disposed = true;
+                    binding = m_binding;
+                    m_binding = null;
+                    m_lifetime.Dispose();
+                }
             }
+            binding?.Dispose();
         }
     }
 
+    /// <summary>
+    /// Captures a binding and reads the type metadata without requiring read access to the current value.
+    /// </summary>
+    /// <exception cref="ServiceResultException">
+    /// Capture, binding or metadata failures are caught and recorded in <see cref="Outcome"/>.
+    /// </exception>
     private async Task LoadCoreAsync()
     {
         try
         {
             m_lifetime.Token.ThrowIfCancellationRequested();
-            ReadResponse response = await m_session.ReadAsync(
+            if (m_session is not ISessionBindingProvider provider)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The session cannot capture a generation-bound write.");
+            }
+            ISessionClient client = await provider.CreateBindingAsync(m_lifetime.Token).ConfigureAwait(false);
+            if (client is not ISessionBinding binding)
+            {
+                client?.Dispose();
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "The session did not expose a verifiable write binding.");
+            }
+            m_binding = binding;
+            m_lifetime.Token.ThrowIfCancellationRequested();
+            ReadResponse response = await binding.ReadAsync(
                 null, 0, TimestampsToReturn.Neither,
                 [
                     new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.Value },
@@ -142,13 +185,19 @@ internal sealed class WriteValueOperation : IAsyncDisposable
                     new ReadValueId { NodeId = m_nodeId, AttributeId = Attributes.ArrayDimensions }
                 ], m_lifetime.Token).ConfigureAwait(false);
             m_lifetime.Token.ThrowIfCancellationRequested();
+            if (!binding.IsCurrent)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The session or namespace metadata changed during the read.");
+            }
             if (!StatusCode.IsGood(response.ResponseHeader.ServiceResult) || response.Results.Count != 4)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadDecodingError, "The current-value read did not return all requested attributes.");
             }
-            foreach (DataValue attribute in response.Results)
+            for (int index = 1; index < response.Results.Count; index++)
             {
+                DataValue attribute = response.Results[index];
                 if (!StatusCode.IsGood(attribute.StatusCode))
                 {
                     throw new ServiceResultException(attribute.StatusCode);
@@ -184,11 +233,14 @@ internal sealed class WriteValueOperation : IAsyncDisposable
         }
     }
 
-    private async Task WriteCoreAsync(DataValue value)
+    /// <summary>
+    /// Dispatches through the captured client without reconnecting or retrying on another session.
+    /// </summary>
+    private async Task WriteCoreAsync(ISessionBinding binding, DataValue value)
     {
         try
         {
-            WriteResponse response = await m_session.WriteAsync(
+            WriteResponse response = await binding.WriteAsync(
                 null,
                 [new WriteValue { NodeId = m_nodeId, AttributeId = Attributes.Value, Value = value }],
                 m_lifetime.Token).ConfigureAwait(false);
@@ -218,16 +270,28 @@ internal sealed class WriteValueOperation : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Drains the owned request even when a cancellation callback fails.
+    /// </summary>
     private async Task CancelCoreAsync(Task work)
     {
-        await m_lifetime.CancelAsync().ConfigureAwait(false);
-        await work.ConfigureAwait(false);
+        try
+        {
+            await m_lifetime.CancelAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            await work.ConfigureAwait(false);
+        }
     }
 
     private readonly NodeId m_nodeId;
     private readonly ISession m_session;
     private readonly Lock m_gate = new();
     private readonly CancellationTokenSource m_lifetime;
+
+    /// <summary>The captured client is released only after the owned requests drain.</summary>
+    private ISessionBinding? m_binding;
     private Task m_work = Task.CompletedTask;
     private Task? m_shutdown;
     private bool m_started;

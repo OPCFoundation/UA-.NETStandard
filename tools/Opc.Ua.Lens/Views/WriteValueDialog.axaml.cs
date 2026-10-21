@@ -246,10 +246,10 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
             dataTypeLbl.Text = $"{m_dataType}    rank={m_valueRank}";
 
             DataValue current = m_operation.CurrentValue;
-            string formatted = FormatVariant(current.WrappedValue);
-            currentLbl.Text = formatted;
-            // Pre-fill the textbox with the current value so the user has a
-            // concrete starting point.
+            bool readable = StatusCode.IsGood(current.StatusCode);
+            Variant initial = readable ? current.WrappedValue : Variant.Null;
+            string formatted = readable ? FormatVariant(initial) : string.Empty;
+            currentLbl.Text = readable ? formatted : $"(unavailable: {current.StatusCode})";
             valueText.Text = formatted;
 
             m_definition = await m_values.ResolveAsync(m_dataType, m_operation.CancellationToken).ConfigureAwait(true);
@@ -258,10 +258,10 @@ internal sealed partial class WriteValueDialog : Window, IAsyncDisposable
                 return;
             }
             if (m_definition is StructureDefinition or EnumDefinition ||
-                StructuredArrayValue.RequiresEditor(m_valueRank, current.WrappedValue))
+                StructuredArrayValue.RequiresEditor(m_valueRank, initial))
             {
                 await complexEditor.InitializeValueAsync(
-                    m_dataType, m_definition, m_values, current.WrappedValue,
+                    m_dataType, m_definition, m_values, initial,
                     m_valueRank, m_arrayDimensions, m_operation.CancellationToken)
                     .ConfigureAwait(true);
                 if (m_closing)

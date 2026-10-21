@@ -44,6 +44,7 @@ internal sealed class StructuredValueTestContext : IDisposable
 {
     public StructuredValueTestContext()
     {
+        SessionBindingTestHelper.Attach(Session);
         var telemetry = new AppTelemetryContext(new LogRingBuffer(16));
         MessageContext = ServiceMessageContext.Create(telemetry);
         NamespaceIndex = MessageContext.NamespaceUris.GetIndexOrAppend(kNamespaceUri);

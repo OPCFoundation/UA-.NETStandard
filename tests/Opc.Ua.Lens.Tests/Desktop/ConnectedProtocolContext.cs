@@ -48,6 +48,7 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
 {
     public ConnectedProtocolContext()
     {
+        SessionBindingTestHelper.Attach(Session);
         Messages = ServiceMessageContext.Create(Desktop.Telemetry);
         Messages.NamespaceUris.GetIndexOrAppend("urn:fixture:protocol");
         Messages.NamespaceUris.GetIndexOrAppend("urn:fixture:application");

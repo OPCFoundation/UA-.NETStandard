@@ -104,10 +104,19 @@ On macOS, the attribute-copy commands use Cmd. The tab and attribute context
 menus expose the same actions. Escape closes the tool catalog without adding a
 document.
 
-Write reads the variable's type before enabling editing. After sending a value,
-it displays the result until **Acknowledge and close**. **Cancel wait** cancels
-the local wait; the server may already have applied the write. Read the variable
-again if the outcome is unknown.
+Write reads the variable's type before enabling editing. If the type metadata is
+readable but the current value is not, the editor shows the read status and leaves
+the scalar text box blank. Scalar String and LocalizedText input retains its
+leading and trailing whitespace.
+
+The metadata read and write use the same captured session binding. A session or
+namespace-mapping change rejects the pending write; reopen Write to load fresh
+metadata. Custom sessions must implement `ISessionBindingProvider` and return an
+`ISessionBinding`.
+
+After sending a value, Write displays the result until **Acknowledge and close**.
+**Cancel wait** cancels the local wait; the server may already have applied the
+write. Read the variable again if the outcome is unknown.
 
 Closing UaLens waits for owned operations, documents and connection cleanup.
 Shutdown progress and cleanup errors appear in the status and log.

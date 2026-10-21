@@ -65,16 +65,17 @@ internal static class VariantParser
         }
 
         // Scalar.
-        if (valueRank == ValueRanks.Scalar
-            || valueRank == ValueRanks.ScalarOrOneDimension
-            || valueRank == ValueRanks.Any)
+        if (valueRank == ValueRanks.Scalar ||
+            valueRank == ValueRanks.ScalarOrOneDimension ||
+            valueRank == ValueRanks.Any)
         {
-            return TryParseScalar(bi, text.Trim(), out result, out error);
+            string scalar = bi is BuiltInType.String or BuiltInType.LocalizedText ? text : text.Trim();
+            return TryParseScalar(bi, scalar, out result, out error);
         }
 
         // 1-D array.
-        if (valueRank == ValueRanks.OneDimension
-            || valueRank == ValueRanks.OneOrMoreDimensions)
+        if (valueRank == ValueRanks.OneDimension ||
+            valueRank == ValueRanks.OneOrMoreDimensions)
         {
             return TryParseArray(bi, text, out result, out error);
         }
