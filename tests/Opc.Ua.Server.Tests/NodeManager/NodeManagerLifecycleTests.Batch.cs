@@ -34,9 +34,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
-using Opc.Ua.Server.Fluent;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.RuntimeNodeSet;
 using Opc.Ua.Tests;
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                }).ConfigureAwait(false));
+                }).ConfigureAwait(false)).ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
             Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
@@ -700,7 +700,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         decisions++;
                         return default;
                     });
-                });
+                }).ConfigureAwait(false);
 
                 Assert.That(decisions, Is.Zero);
                 Assert.That(prepared.IsCommitted, Is.False);
@@ -755,7 +755,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     decisions++;
                     return default;
                 });
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
@@ -790,7 +790,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await Assert.ThrowsAsync<IOException>(async () =>
             {
                 await prepared.CommitAsync(_ => throw new IOException("Confirmed decision noncommit."));
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(prepared.IsCommitted, Is.False);
             Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(first));
@@ -829,7 +829,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     decisions++;
                     return default;
                 });
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
@@ -861,7 +861,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     decisions++;
                     return default;
                 }, cancellation.Token);
-            });
+            }).ConfigureAwait(false);
 
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
