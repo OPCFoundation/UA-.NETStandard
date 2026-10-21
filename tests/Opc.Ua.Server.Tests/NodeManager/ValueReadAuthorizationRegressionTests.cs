@@ -263,6 +263,65 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Revoking read access to a namespace default property fails delivery closed after a grant was
+        /// reused, whether a user access level callback revokes it (present from the start or attached
+        /// later) or the property's user access level is changed.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29RevokedNamespaceDefaultReadAccessFailsClosedAfterGrantAsync(int revocation)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            BaseVariableState property = metadata.DefaultAccessRestrictions!;
+            property.AccessLevel = AccessLevels.CurrentRead;
+            property.UserAccessLevel = AccessLevels.CurrentRead;
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            bool revoked = false;
+            void AttachCallback()
+            {
+                property.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+                {
+                    if (revoked)
+                    {
+                        value = AccessLevels.None;
+                    }
+                    return ServiceResult.Good;
+                };
+            }
+            if (revocation == 0)
+            {
+                AttachCallback();
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            revoked = true;
+            if (revocation == 1)
+            {
+                AttachCallback();
+            }
+            else if (revocation == 2)
+            {
+                property.UserAccessLevel = AccessLevels.None;
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            Assert.That(StatusCode.IsBad(values[2].StatusCode), Is.True);
+            Assert.That(values[2].WrappedValue.IsNull, Is.True);
+        }
+
+        /// <summary>
         /// A grant reused across deliveries is withdrawn when the node's restrictions or the
         /// subscriber's channel change.
         /// </summary>

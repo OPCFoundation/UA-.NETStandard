@@ -107,6 +107,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Readiness reads the business-emission flag without the lock only while no cutoff is
+        /// reserved; during publication the caller must answer under the lock, and after the cutoff
+        /// released its reservation the cleared flag is observed.
+        /// </summary>
+        [Test]
+        public void ReadinessDuringCutoffPublicationRequiresLock()
+        {
+            MasterNodeManager.NotificationDispatchState state = CreateState();
+            Assert.That(state.TryGetBusinessEmissionsEnabled(out bool enabled), Is.True);
+            Assert.That(enabled, Is.True);
+
+            state.EmissionCutoffReservations++;
+            Assert.That(state.TryGetBusinessEmissionsEnabled(out _), Is.False);
+            state.BusinessEmissionsEnabled = false;
+            Assert.That(state.TryGetBusinessEmissionsEnabled(out _), Is.False);
+
+            state.EmissionCutoffReservations--;
+            Assert.That(state.TryGetBusinessEmissionsEnabled(out enabled), Is.True);
+            Assert.That(enabled, Is.False);
+        }
+
+        /// <summary>
         /// A disabled generation and a waiting drain also close admission without the lock.
         /// </summary>
         [TestCase(false)]
