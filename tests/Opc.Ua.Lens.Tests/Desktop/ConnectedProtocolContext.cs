@@ -101,7 +101,7 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
             It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<WriteValue>>(), It.IsAny<CancellationToken>()))
             .Returns((RequestHeader? _, ArrayOf<WriteValue> values, CancellationToken token) => Write(values, token));
         var live = new Mock<IConnectionSession>();
-        live.SetupGet(connection => connection.Session).Returns(Session.Object);
+        live.SetupGet(connection => connection.Session).Returns(() => m_connectedSession ?? Session.Object);
         live.SetupGet(connection => connection.State).Returns(new ConnectionSessionState(ConnectionPhase.Connected));
         live.Setup(connection => connection.DisposeAsync()).Returns(() =>
         {
@@ -139,12 +139,17 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
     public Func<ArrayOf<CallMethodRequest>, CancellationToken, ValueTask<CallResponse>> Call { get; set; } =
         (_, _) => throw new AssertionException("Unexpected protocol mutation.");
     public Func<ArrayOf<BrowsePath>, CancellationToken, ValueTask<TranslateBrowsePathsToNodeIdsResponse>>
-        Translate { get; set; } = (_, _) => throw new AssertionException("Unexpected browse-path translation.");
+        Translate
+    { get; set; } = (_, _) => throw new AssertionException("Unexpected browse-path translation.");
     public Func<ArrayOf<WriteValue>, CancellationToken, ValueTask<WriteResponse>> Write { get; set; } =
         (_, _) => throw new AssertionException("Unexpected protocol write.");
 
-    public async Task ConnectAsync()
+    /// <summary>
+    /// Connects the controlled host with its mock session or a caller-owned stack session.
+    /// </summary>
+    public async Task ConnectAsync(ISession? session = null)
     {
+        m_connectedSession = session;
         await Desktop.Connection.ConnectAsync(ConnectionProfile.Create(
             Endpoint, Endpoint.UserIdentityTokens[0], SubscriptionEngineKind.ChannelV2)).ConfigureAwait(true);
         await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
@@ -155,4 +160,7 @@ internal sealed class ConnectedProtocolContext : IAsyncDisposable
         await Host.DisposeAsync().ConfigureAwait(true);
         await Desktop.DisposeAsync().ConfigureAwait(true);
     }
+
+    /// <summary>The optional caller-owned session exposed by the controlled connection.</summary>
+    private ISession? m_connectedSession;
 }

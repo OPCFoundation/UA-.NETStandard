@@ -36,8 +36,10 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.LogicalTree;
 using Avalonia.Threading;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua;
+using Opc.Ua.Client;
 using Opc.Ua.Client.UserManagement;
 using UaLens.Plugins.RoleManagement;
 using UaLens.Plugins.UserManagement;
@@ -423,7 +425,8 @@ public sealed class ConnectedAdministrationTests
         return AvaloniaDesktopTestHost.RunAsync(async () =>
         {
             await using var context = new ConnectedProtocolContext();
-            await context.ConnectAsync().ConfigureAwait(true);
+            await using Session session = CreateEncryptedSession(context, out Mock<ITransportChannel> transport);
+            await context.ConnectAsync(session).ConfigureAwait(true);
             ConfigureTranslations(context);
             context.Read = (ids, _) => ValueTask.FromResult(new ReadResponse
             {
@@ -483,7 +486,7 @@ public sealed class ConnectedAdministrationTests
             }
             DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "OkButton"));
             await task.ConfigureAwait(true);
-            Assert.That(sent.Count, Is.EqualTo(1));
+            Assert.That(sent.Count, Is.EqualTo(1), plugin.Status);
             Assert.That(sent[0].ObjectId, Is.EqualTo(new NodeId(Objects.UserManagement)));
             ArrayOf<Variant> args = sent[0].InputArguments;
             if (operation == "Add")
@@ -515,6 +518,8 @@ public sealed class ConnectedAdministrationTests
                 operation == "Add" ? "Added user" : operation == "Modify" ? "Modified user" : "Password changed"));
             Assert.That(selected.UserName, Is.EqualTo("operator"));
             Assert.That(onDesktop, Is.True);
+            Assert.That(session.Connected, Is.True);
+            transport.Verify(channel => channel.CloseAsync(It.IsAny<CancellationToken>()), Times.Never);
         });
     }
 
@@ -554,6 +559,48 @@ public sealed class ConnectedAdministrationTests
             Assert.That(sent[0].InputArguments[1], Is.EqualTo(Variant.From("urn:roles:fixture")));
             Assert.That(plugin.Status, Does.Contain(reject ? "Add role failed:" : "Added role Operator role"));
         });
+    }
+
+    /// <summary>
+    /// Uses real confidential request capture over a scripted encrypted transport, without opening a socket.
+    /// </summary>
+    private static Session CreateEncryptedSession(
+        ConnectedProtocolContext context, out Mock<ITransportChannel> transport)
+    {
+        context.Endpoint.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+        context.Endpoint.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+        var configuration = new ApplicationConfiguration(context.Desktop.Telemetry)
+        {
+            ClientConfiguration = new ClientConfiguration(),
+            SecurityConfiguration = new SecurityConfiguration()
+        };
+        var endpointConfiguration = EndpointConfiguration.Create();
+        var endpoint = new ConfiguredEndpoint(null, context.Endpoint, endpointConfiguration);
+        transport = new Mock<ITransportChannel>();
+        transport.SetupGet(channel => channel.MessageContext).Returns(context.Messages);
+        transport.SetupGet(channel => channel.EndpointDescription).Returns(context.Endpoint);
+        transport.SetupGet(channel => channel.EndpointConfiguration).Returns(endpointConfiguration);
+        transport.SetupGet(channel => channel.OperationTimeout).Returns(10_000);
+        transport.Setup(channel => channel.SendRequestAsync(
+            It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+            .Returns<IServiceRequest, CancellationToken>(async (request, cancellationToken) =>
+            {
+                IServiceResponse response = request switch
+                {
+                    ReadRequest read => await context.Read(read.NodesToRead, cancellationToken).ConfigureAwait(false),
+                    CallRequest call => await context.Call(call.MethodsToCall, cancellationToken).ConfigureAwait(false),
+                    TranslateBrowsePathsToNodeIdsRequest translate =>
+                        await context.Translate(translate.BrowsePaths, cancellationToken).ConfigureAwait(false),
+                    CloseSessionRequest => new CloseSessionResponse(),
+                    _ => throw new AssertionException("Unexpected user-management request: " + request.GetType().Name)
+                };
+                response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+                return response;
+            });
+        var session = new Session(transport.Object, configuration, endpoint,
+            engineFactory: DefaultSubscriptionEngineFactory.Instance);
+        session.SessionCreated(new NodeId(23001u), new NodeId(23002u));
+        return session;
     }
 
     private static void ConfigureTranslations(ConnectedProtocolContext context)
