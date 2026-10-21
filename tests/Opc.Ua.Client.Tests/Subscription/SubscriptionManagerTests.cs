@@ -291,6 +291,77 @@ namespace Opc.Ua.Client.Subscriptions
                 .Count(c => ReferenceEquals(c.Options, so2)), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A single pending acknowledgement must not be rounded down to zero
+        /// when two workers skip the wait-for-ack path.
+        /// </summary>
+        /// <param name="moreNotifications">Whether the server requests immediate publishing.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task SingleAcknowledgementMakesProgressWithMultipleWorkersAsync(
+            bool moreNotifications,
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 1,
+                Created = true,
+                CurrentPublishingInterval = TimeSpan.FromMilliseconds(1),
+                CurrentKeepAliveCount = 1
+            };
+            context.CreateSubscriptionFactory = (_, _, _) => subscription;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            var primed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var acknowledged = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int completed = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    if (acknowledgement.SubscriptionId == 1 && acknowledgement.SequenceNumber == 42)
+                    {
+                        acknowledged.TrySetResult(true);
+                    }
+                }
+                await Task.Delay(20, ct).ConfigureAwait(false);
+                if (Interlocked.Increment(ref completed) >= 4)
+                {
+                    primed.TrySetResult(true);
+                }
+                return new PublishResponse
+                {
+                    SubscriptionId = 1,
+                    NotificationMessage = new NotificationMessage(),
+                    AvailableSequenceNumbers = [],
+                    Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                    MoreNotifications = moreNotifications,
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                };
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            manager.Resume();
+            await primed.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(2));
+
+            await manager.QueueAsync(
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 42 },
+                testCt).ConfigureAwait(false);
+
+            await acknowledged.Task.WaitAsync(TimeSpan.FromSeconds(2), testCt).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(2));
+        }
+
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {
