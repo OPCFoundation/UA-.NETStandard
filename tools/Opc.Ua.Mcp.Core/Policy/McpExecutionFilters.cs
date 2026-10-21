@@ -53,18 +53,9 @@ namespace Opc.Ua.Mcp
                 IServiceProvider services = request.Services ??
                     throw new InvalidOperationException("The MCP request has no service provider.");
                 McpCallerContext callers = services.GetRequiredService<McpCallerContext>();
-                McpExecutionOptions options = services.GetRequiredService<McpExecutionOptions>();
                 try
                 {
-                    McpCallerIdentity? identity = McpCallerContext.FromPrincipal(request.User);
-                    if (request.User is null)
-                    {
-                        identity = services.GetService<IMcpOperationPolicy>() is McpExecutionPolicy policy
-                            ? policy.LocalCaller
-                            : options.LocalCallerId is { } local
-                                ? new McpCallerIdentity(local, McpCallerContext.LocalIssuer, IsLocal: true)
-                                : null;
-                    }
+                    McpCallerIdentity? identity = GetIdentity(request.User, services);
                     using IDisposable scope = callers.EnterRequest(identity);
                     return await next(request, ct).ConfigureAwait(false);
                 }
@@ -79,6 +70,60 @@ namespace Opc.Ua.Mcp
                     });
                 }
             };
+        }
+
+        /// <summary>
+        /// Creates a revocable caller scope for MCP resource-list requests.
+        /// </summary>
+        internal static McpRequestHandler<ListResourcesRequestParams, ListResourcesResult>
+            CaptureCallerForResourceList(
+                McpRequestHandler<ListResourcesRequestParams, ListResourcesResult> next)
+        {
+            ArgumentNullException.ThrowIfNull(next);
+            return async (request, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                IServiceProvider services = request.Services ??
+                    throw new InvalidOperationException("The MCP request has no service provider.");
+                McpCallerContext callers = services.GetRequiredService<McpCallerContext>();
+                using IDisposable scope = callers.EnterRequest(GetIdentity(request.User, services));
+                return await next(request, ct).ConfigureAwait(false);
+            };
+        }
+
+        /// <summary>
+        /// Creates a revocable caller scope for MCP resource-read requests.
+        /// </summary>
+        internal static McpRequestHandler<ReadResourceRequestParams, ReadResourceResult>
+            CaptureCallerForResourceRead(
+                McpRequestHandler<ReadResourceRequestParams, ReadResourceResult> next)
+        {
+            ArgumentNullException.ThrowIfNull(next);
+            return async (request, ct) =>
+            {
+                ct.ThrowIfCancellationRequested();
+                IServiceProvider services = request.Services ??
+                    throw new InvalidOperationException("The MCP request has no service provider.");
+                McpCallerContext callers = services.GetRequiredService<McpCallerContext>();
+                using IDisposable scope = callers.EnterRequest(GetIdentity(request.User, services));
+                return await next(request, ct).ConfigureAwait(false);
+            };
+        }
+
+        private static McpCallerIdentity? GetIdentity(
+            System.Security.Claims.ClaimsPrincipal? principal,
+            IServiceProvider services)
+        {
+            McpExecutionOptions options = services.GetRequiredService<McpExecutionOptions>();
+            if (principal is not null)
+            {
+                return McpCallerContext.FromPrincipal(principal);
+            }
+            return services.GetService<IMcpOperationPolicy>() is McpExecutionPolicy policy
+                ? policy.LocalCaller
+                : options.LocalCallerId is { } local
+                    ? new McpCallerIdentity(local, McpCallerContext.LocalIssuer, IsLocal: true)
+                    : null;
         }
     }
 }

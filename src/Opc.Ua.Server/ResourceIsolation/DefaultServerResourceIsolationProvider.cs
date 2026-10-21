@@ -52,7 +52,8 @@ namespace Opc.Ua.Server
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
         IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource,
-        IResourceIsolationAdmissionEvidence, IRecoverableExecutionResourceIsolationProvider, IDisposable
+        IResourceIsolationAdmissionEvidence, IResourceIsolationReservations,
+        IRecoverableExecutionResourceIsolationProvider, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -384,6 +385,48 @@ namespace Opc.Ua.Server
             [NotNullWhen(true)] out IDisposable? lease,
             out ResourceIsolationFailure failure)
         {
+            ResourceIsolationFailureReason reason = Admit(
+                stage, owner, amount, out ResourceIsolationReservation reservation);
+            failure = new ResourceIsolationFailure(
+                reason, reason == ResourceIsolationFailureReason.None ? TimeSpan.Zero : TimeSpan.FromSeconds(1));
+            if (reason != ResourceIsolationFailureReason.None)
+            {
+                lease = null;
+                return false;
+            }
+            lease = new Lease(this, stage, owner.Class, amount, reservation);
+            return true;
+        }
+
+        /// <inheritdoc/>
+        bool IResourceIsolationReservations.TryReserve(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            out ResourceIsolationReservation reservation)
+        {
+            return Admit(stage, owner, amount, out reservation) == ResourceIsolationFailureReason.None;
+        }
+
+        /// <inheritdoc/>
+        void IResourceIsolationReservations.Release(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            in ResourceIsolationReservation reservation)
+        {
+            Release(stage, owner.Class, amount, reservation);
+        }
+
+        /// <summary>
+        /// Validates the arguments, admits immediately and counts a rejection.
+        /// </summary>
+        private ResourceIsolationFailureReason Admit(
+            ResourceIsolationStage stage,
+            ResourceIsolationOwner owner,
+            long amount,
+            out ResourceIsolationReservation reservation)
+        {
             if (stage is < ResourceIsolationStage.Connection or > ResourceIsolationStage.ParkedRequest)
             {
                 throw new ArgumentOutOfRangeException(nameof(stage));
@@ -397,22 +440,15 @@ namespace Opc.Ua.Server
                 throw new ArgumentOutOfRangeException(nameof(amount));
             }
             ThrowIfDisposed();
-            ResourceIsolationFailureReason reason = Acquire(stage, owner, amount, out lease);
-            failure = new ResourceIsolationFailure(
-                reason, reason == ResourceIsolationFailureReason.None ? TimeSpan.Zero : TimeSpan.FromSeconds(1));
+            ResourceIsolationFailureReason reason = Acquire(stage, owner, amount, out reservation);
             if (reason != ResourceIsolationFailureReason.None)
             {
                 // Only bounded enum values enter metric dimensions; no address, token or owner key.
                 m_rejections.Add(1,
                     new KeyValuePair<string, object?>("stage", stage.ToString()),
                     new KeyValuePair<string, object?>("reason", reason.ToString()));
-                return false;
             }
-            if (lease == null)
-            {
-                throw new InvalidOperationException("Successful admission did not produce a lease.");
-            }
-            return true;
+            return reason;
         }
 
         /// <summary>
@@ -483,9 +519,9 @@ namespace Opc.Ua.Server
             ResourceIsolationStage stage,
             ResourceIsolationOwner owner,
             long amount,
-            out IDisposable? lease)
+            out ResourceIsolationReservation reservation)
         {
-            lease = null;
+            reservation = default;
             if (!m_classifications.TryGetValue(owner, out OwnerIdentity? identity))
             {
                 return ResourceIsolationFailureReason.InvalidOwner;
@@ -512,7 +548,8 @@ namespace Opc.Ua.Server
                     ReleaseClassLease(accounting, accountingClass);
                     return reason;
                 }
-                lease = new Lease(this, accounting, stage, owner.Class, accountingClass, amount, fromReserved);
+                reservation = new ResourceIsolationReservation(
+                    accounting, accountingClass, fromReserved);
                 return ResourceIsolationFailureReason.None;
             }
 
@@ -545,7 +582,8 @@ namespace Opc.Ua.Server
                 {
                     UpdateExclusiveClassLocked(target);
                 }
-                lease = new Lease(this, target, stage, owner.Class, accountingClass, amount, fromReserved);
+                reservation = new ResourceIsolationReservation(
+                    target, accountingClass, fromReserved);
                 return ResourceIsolationFailureReason.None;
             }
         }
@@ -684,12 +722,16 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void Release(Lease lease)
+        private void Release(
+            ResourceIsolationStage stage,
+            ResourceIsolationClass ownerClass,
+            long amount,
+            in ResourceIsolationReservation reservation)
         {
-            Unreserve(
-                m_stages[(int)lease.Stage], lease.Owner, lease.Class, lease.Stage, lease.Amount, lease.Reserved);
-            ReleaseClassLease(lease.Owner, lease.AccountingClass);
-            CapacityAvailable?.Invoke(lease.Stage);
+            var owner = (OwnerState)reservation.Accounting;
+            Unreserve(m_stages[(int)stage], owner, ownerClass, stage, amount, reservation.Reserved);
+            ReleaseClassLease(owner, reservation.AccountingClass);
+            CapacityAvailable?.Invoke(stage);
         }
 
         /// <summary>
@@ -1147,55 +1189,27 @@ namespace Opc.Ua.Server
         /// </summary>
         private sealed class Lease(
             DefaultServerResourceIsolationProvider provider,
-            OwnerState owner,
             ResourceIsolationStage stage,
             ResourceIsolationClass ownerClass,
-            ResourceIsolationClass accountingClass,
             long amount,
-            long reserved) : IDisposable
+            ResourceIsolationReservation reservation) : IDisposable
         {
-            /// <summary>
-            /// The owner whose counters include this reservation.
-            /// </summary>
-            public OwnerState Owner { get; } = owner;
-
-            /// <summary>
-            /// The resource pool charged by this lease.
-            /// </summary>
-            public ResourceIsolationStage Stage { get; } = stage;
-
-            /// <summary>
-            /// The classification used when the capacity was reserved.
-            /// </summary>
-            public ResourceIsolationClass Class { get; } = ownerClass;
-
-            /// <summary>
-            /// The owner-table class; byte-only continuity must not consume a reconnect identity reservation.
-            /// </summary>
-            public ResourceIsolationClass AccountingClass { get; } = accountingClass;
-
-            /// <summary>
-            /// Total capacity held by the lease.
-            /// </summary>
-            public long Amount { get; } = amount;
-
-            /// <summary>
-            /// Portion of the amount taken from a protected floor.
-            /// </summary>
-            public long Reserved { get; } = reserved;
-
             /// <summary>
             /// Releases accounting once, even when disposal races.
             /// </summary>
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_provider, null)?.Release(this);
+                Interlocked.Exchange(ref m_provider, null)?.Release(m_stage, m_class, m_amount, m_reservation);
             }
 
             [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
                 Justification = "The provider is borrowed; leases release accounting but must not dispose it. " +
                     "TODO: remove when the analyzer recognizes borrowed provider ownership.")]
             private DefaultServerResourceIsolationProvider? m_provider = provider;
+            private readonly ResourceIsolationStage m_stage = stage;
+            private readonly ResourceIsolationClass m_class = ownerClass;
+            private readonly long m_amount = amount;
+            private readonly ResourceIsolationReservation m_reservation = reservation;
         }
 
         /// <summary>

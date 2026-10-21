@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Eth.Channels;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Eth
 {
@@ -448,7 +449,7 @@ namespace Opc.Ua.PubSub.Eth
         public static partial void EthernetTransportOpened(
             this ILogger logger,
             string? connection,
-            PhysicalAddress mac,
+            [NetworkAddress] PhysicalAddress mac,
             PubSubTransportDirection direction);
 
         [LoggerMessage(EventId = PubSubEthEventIds.EthernetDatagramTransport + 1, Level = LogLevel.Debug,

@@ -805,6 +805,13 @@ namespace Opc.Ua.Schema.Model
 
             model.Items = [.. nodes];
 
+            // Permission names belong to this model, even when structural
+            // validation must wait for the rest of the dependency graph.
+            foreach (NodeDesign node in model.Items)
+            {
+                ResolvePermissions(model, node);
+            }
+
             // Validate node in target dictionary. Skipped when the model is
             // being loaded only as a dependency (its nodes are registered in
             // m_nodes so the primary target can resolve cross-model refs, but
@@ -1209,11 +1216,11 @@ namespace Opc.Ua.Schema.Model
 
         private static RolePermissionSet? ResolvePermissions(
             ModelDesign dictionary,
-            RolePermissionSet input)
+            RolePermissionSet? input)
         {
-            if (input?.Name != null)
+            if (input is not null && !string.IsNullOrEmpty(input.Name))
             {
-                var permissions = new Dictionary<XmlQualifiedName, Permissions[]>();
+                var permissions = new Dictionary<(XmlQualifiedName Role, string RoleId), RolePermission>();
 
                 if (dictionary.PermissionSets != null)
                 {
@@ -1224,41 +1231,31 @@ namespace Opc.Ua.Schema.Model
                     {
                         foreach (RolePermission jj in template.RolePermission)
                         {
-                            permissions[jj.Role] = jj.Permission;
+                            permissions[(jj.Role ?? XmlQualifiedName.Empty, jj.RoleId ?? string.Empty)] = jj;
                         }
                     }
                 }
 
-                if (input?.RolePermission != null)
+                if (input.RolePermission != null)
                 {
-                    foreach (RolePermission jj in (input?.RolePermission)!)
+                    foreach (RolePermission jj in input.RolePermission)
                     {
-                        permissions[jj.Role] = jj.Permission;
+                        permissions[(jj.Role ?? XmlQualifiedName.Empty, jj.RoleId ?? string.Empty)] = jj;
                     }
                 }
 
                 if (permissions.Count > 0)
                 {
-                    List<RolePermission> combined = [];
-
-                    foreach (KeyValuePair<XmlQualifiedName, Permissions[]> jj in permissions)
-                    {
-                        combined.Add(new RolePermission
-                        {
-                            Role = jj.Key,
-                            Permission = jj.Value
-                        });
-                    }
-
                     return new RolePermissionSet
                     {
-                        RolePermission = [.. combined],
-                        DoNotInheirit = input?.DoNotInheirit ?? false
+                        RolePermission = [.. permissions.Values],
+                        DoNotInheirit = input.DoNotInheirit
                     };
                 }
+                throw new InvalidDataException($"RolePermissions cannot resolve permission set '{input.Name}'.");
             }
 
-            return null;
+            return input;
         }
 
         private void ResolvePermissions(ModelDesign dictionary, NodeDesign input)
@@ -5279,6 +5276,8 @@ namespace Opc.Ua.Schema.Model
             mergedType.DefaultAccessRestrictions = type.DefaultAccessRestrictions;
             mergedType.DefaultAccessRestrictionsSpecified = type.DefaultAccessRestrictionsSpecified;
             mergedType.WriteAccess = type.WriteAccess;
+            mergedType.UserWriteAccess = type.UserWriteAccess;
+            mergedType.UserWriteAccessSpecified = type.UserWriteAccessSpecified;
 
             if (type is VariableTypeDesign variableType)
 
@@ -5572,6 +5571,11 @@ namespace Opc.Ua.Schema.Model
             {
                 mergedInstance!.WriteAccess = source.WriteAccess;
             }
+            if (source.UserWriteAccessSpecified)
+            {
+                mergedInstance!.UserWriteAccess = source.UserWriteAccess;
+                mergedInstance.UserWriteAccessSpecified = true;
+            }
             if (source.AccessRestrictionsSpecified)
             {
                 mergedInstance!.AccessRestrictions = source.AccessRestrictions;
@@ -5784,6 +5788,14 @@ namespace Opc.Ua.Schema.Model
                 mergedVariable.AccessLevel = variable.AccessLevel;
                 mergedVariable.AccessLevelSpecified = true;
             }
+            if (variable.RawAccessLevel.HasValue)
+            {
+                mergedVariable.RawAccessLevel = variable.RawAccessLevel;
+            }
+            if (variable.RawUserAccessLevel.HasValue)
+            {
+                mergedVariable.RawUserAccessLevel = variable.RawUserAccessLevel;
+            }
 
             if (variable.MinimumSamplingIntervalSpecified)
             {
@@ -5866,6 +5878,11 @@ namespace Opc.Ua.Schema.Model
             {
                 mergedMethod.NonExecutable = method.NonExecutable;
                 mergedMethod.NonExecutableSpecified = true;
+            }
+            if (method.UserExecutableSpecified)
+            {
+                mergedMethod.UserExecutable = method.UserExecutable;
+                mergedMethod.UserExecutableSpecified = true;
             }
 
             if (method.DefaultRolePermissions != null)
@@ -7006,15 +7023,6 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, AccessRestrictions?> m_defaultAccessRestrictions = [];
         private Dictionary<string, string> m_designFilePaths = [];
 
-        // ──────────────────────────────────────────────────────────────────
-        // Dependency import — formerly the SnapshotImport partial.
-        // Lets a downstream consumer's source generator ingest the type
-        // table from a referenced assembly's
-        // [assembly: ModelDependencyAttribute(..., payload)] without the
-        // consumer having to re-add the upstream NodeSet2/ModelDesign XML
-        // to AdditionalFiles.
-        // ──────────────────────────────────────────────────────────────────
-
         /// <summary>
         /// Imports a model dependency payload into the validator's node
         /// table. Safe to call multiple times. Stored payloads are
@@ -7181,6 +7189,7 @@ namespace Opc.Ua.Schema.Model
                 : entry.ClassName;
             design.BaseType = baseType;
             design.IsAbstract = entry.IsAbstract;
+            entry.Security?.ApplyTo(design);
             if (entry.NumericId != 0)
             {
                 design.NumericId = entry.NumericId;
@@ -7326,6 +7335,7 @@ namespace Opc.Ua.Schema.Model
                 _ => ModellingRule.None
             };
             instance.ModellingRuleSpecified = c.ModellingRule != 0;
+            c.Security?.ApplyTo(instance);
             instance.DisplayName = new LocalizedText
             {
                 Value = c.BrowseName ?? string.Empty,
@@ -7491,7 +7501,7 @@ namespace Opc.Ua.Schema.Model
             string value)
         {
             using var textReader = new StringReader(value);
-            using XmlReader reader = XmlReader.Create(
+            using var reader = XmlReader.Create(
                 textReader,
                 CoreUtils.DefaultXmlReaderSettings());
             var document = new XmlDocument();

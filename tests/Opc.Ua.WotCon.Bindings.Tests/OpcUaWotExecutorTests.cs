@@ -93,6 +93,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private WotProtocolBinderRegistry m_registry = null!;
         private WotBindingPlan m_plan = null!;
 
+        /// <summary>
+        /// Starts a reference server and connects the OPC UA session used by executor integration tests.
+        /// </summary>
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
@@ -135,6 +138,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 string.Join("; ", m_plan.Diagnostics.Where(d => d.IsError).Select(d => d.Message)));
         }
 
+        /// <summary>
+        /// Closes the OPC UA session and stops the reference server after the executor tests.
+        /// </summary>
         [OneTimeTearDown]
         public async Task OneTimeTearDownAsync()
         {
@@ -149,6 +155,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a bound property read returns the value from the running source server.
+        /// </summary>
         [Test]
         public async Task ReadPropertyReturnsRealServerValueAsync()
         {
@@ -164,6 +173,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that writing a read-only source node preserves its bad status.
+        /// </summary>
         [Test]
         public async Task WritePropertyReadOnlyNodeMapsBadStatusAsync()
         {
@@ -179,6 +191,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies property write and readback using a namespace-portable source node identifier.
+        /// </summary>
         [Test]
         public async Task WritePropertyWithReadbackRoundTripsThroughPortableNodeIdAsync()
         {
@@ -209,6 +224,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that property observation delivers changes through a native OPC UA subscription.
+        /// </summary>
         [Test]
         public async Task ObservePropertyDeliversNotificationViaNativeSubscriptionAsync()
         {
@@ -235,6 +253,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that invoke action real method returns ordered output arguments.
+        /// </summary>
         [Test]
         public async Task InvokeActionRealMethodReturnsOrderedOutputArgumentsAsync()
         {
@@ -247,7 +268,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 WotInvokeResult result = await channel
                     .InvokeAsync([new(2.5f), new(3u)]).ConfigureAwait(false);
                 Assert.That(result.Success, Is.True,
-                    "Invoking the real 'Methods_Add' method (resolved via uav:componentOf) " +
+                    "Invoking the real 'Methods_Add' method with its explicit source receiver " +
                     $"must succeed: {result.Error}");
                 Assert.That(result.Outputs, Has.Count.EqualTo(1));
                 Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
@@ -256,6 +277,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that a running source event notifier delivers the selected event fields.
+        /// </summary>
         [Test]
         public async Task SubscribeEventRealEventNotifierDeliversSelectedFieldsAsync()
         {
@@ -356,11 +380,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 CounterNodeId +
                 "\",\"op\":[\"readproperty\"]}" +
                 "]}}," +
-                "\"actions\":{\"add\":{\"forms\":[{\"href\":\"" +
+                "\"actions\":{\"add\":{" +
+                "\"input\":{\"type\":\"object\",\"uav:argumentLayout\":\"named\"," +
+                "\"uav:fieldOrder\":[\"Left\",\"Right\"],\"required\":[\"Left\",\"Right\"]," +
+                "\"properties\":{\"Left\":{\"type\":\"number\",\"uav:mapToType\":\"i=10\"}," +
+                "\"Right\":{\"type\":\"integer\",\"uav:mapToType\":\"i=7\"}}}," +
+                "\"output\":{\"type\":\"number\",\"uav:mapToType\":\"i=10\"}," +
+                "\"forms\":[{\"href\":\"" +
                 endpoint +
                 "\",\"uav:id\":\"" +
                 AddMethodNodeId +
-                "\",\"uav:componentOf\":\"" +
+                "\",\"uav:callObjectId\":\"" +
                 MethodsObjectNodeId +
                 "\",\"op\":[\"invokeaction\"]}]}}," +
                 "\"events\":{\"trigger\":{\"forms\":[{\"href\":\"" +

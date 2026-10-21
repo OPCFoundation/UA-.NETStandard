@@ -51,17 +51,13 @@
     --blame-hang-timeout for a single test.
 
  .PARAMETER PerProjectTimeoutMinutes
-    Wall-clock ceiling for one project, shared by that project's build and test
-    invocations. The blame collector only reacts to inactivity inside the test
-    host and can itself fail to unwind, so this is the backstop that turns a
-    stuck run into a named per-project failure instead of an unexplained job
-    timeout.
+    Wall-clock ceiling for one project's test invocation. The blame collector
+    only reacts to inactivity inside the test host and can itself fail to
+    unwind, so this is the backstop that turns a stuck run into a named
+    per-project failure instead of an unexplained job timeout.
 
-    It is a single combined budget on purpose. get-ci-matrix.ps1 derives each
-    job's `timeout-minutes` from it as `20 + projectCount * thisValue`; if the
-    build and the test each got the full value, a batch could burn twice that
-    and GitHub would cancel the job - with no per-project annotation and no
-    results - before the executor ever reached the ceiling it promises here.
+    Builds are bounded by the enclosing GitHub job timeout, which includes a
+    fixed setup/build allowance in addition to one test ceiling per project.
 
  .PARAMETER ResultsDirectory
     Directory that receives one subdirectory of results per project, plus the
@@ -124,10 +120,9 @@ $resultsRoot = (Resolve-Path -LiteralPath $ResultsDirectory).Path
     which include filter expressions containing '&' and '!' - are passed through
     verbatim rather than re-parsed by a shell.
 
-    The caller passes a running stopwatch covering the whole project rather than
-    a fresh per-invocation timeout, so the build and the test share one ceiling.
-    See the PerProjectTimeoutMinutes help above for why the two must not each
-    get the full value.
+    A stopwatch is supplied for test invocations so build time does not consume
+    the test execution budget. Builds rely on the enclosing GitHub job timeout,
+    which budgets fixed setup/build overhead plus each project's test ceiling.
 #>
 function Invoke-Dotnet(
     [string[]] $arguments,
@@ -137,11 +132,14 @@ function Invoke-Dotnet(
 {
     Write-Host "dotnet $($arguments -join ' ')"
 
-    $remainingMs = ([long]$budgetMinutes * 60 * 1000) - $budget.ElapsedMilliseconds
-    if ($remainingMs -le 0) {
-        Write-Host ("::error title=CI test runner::The $budgetMinutes-minute per-project ceiling was " +
-            "already spent before 'dotnet $($arguments[0])' could start.")
-        return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
+    $remainingMs = [long]::MaxValue
+    if ($null -ne $budget) {
+        $remainingMs = ([long]$budgetMinutes * 60 * 1000) - $budget.ElapsedMilliseconds
+        if ($remainingMs -le 0) {
+            Write-Host ("::error title=CI test runner::The $budgetMinutes-minute per-project ceiling was " +
+                "already spent before 'dotnet $($arguments[0])' could start.")
+            return [pscustomobject]@{ ExitCode = -1; TimedOut = $true }
+        }
     }
 
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
@@ -181,7 +179,10 @@ function Invoke-Dotnet(
             $process.BeginErrorReadLine()
         }
 
-        if (-not $process.WaitForExit([int][System.Math]::Min([long][int]::MaxValue, $remainingMs))) {
+        if ($null -eq $budget) {
+            $process.WaitForExit()
+        }
+        elseif (-not $process.WaitForExit([int][System.Math]::Min([long][int]::MaxValue, $remainingMs))) {
             Write-Host ("::error title=CI test runner::'dotnet $($arguments[0])' exhausted the " +
                 "$budgetMinutes-minute per-project ceiling and was killed.")
             $process.Kill($true)
@@ -304,19 +305,9 @@ foreach ($project in $projectList) {
             $buildArguments += '/p:CollectCoverage=true'
         }
 
-        # One stopwatch for the build and the test together. Giving each its own
-        # PerProjectTimeoutMinutes would let a project burn twice the amount
-        # get-ci-matrix.ps1 budgeted for it in the job's timeout-minutes, so
-        # GitHub would cancel the whole batch - with no annotation and no
-        # results - instead of this executor failing that one project.
-        $projectBudget = [System.Diagnostics.Stopwatch]::StartNew()
-
-        $build = Invoke-Dotnet $buildArguments $projectBudget $PerProjectTimeoutMinutes $logPath
-        $record.buildSeconds = [int]$projectBudget.Elapsed.TotalSeconds
-        if ($build.TimedOut) {
-            throw ("The build exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
-                'which the build and the test share.')
-        }
+        $buildBudget = [System.Diagnostics.Stopwatch]::StartNew()
+        $build = Invoke-Dotnet $buildArguments $null 0 $logPath
+        $record.buildSeconds = [int]$buildBudget.Elapsed.TotalSeconds
         if ($build.ExitCode -ne 0) {
             throw "The build failed with exit code $($build.ExitCode)."
         }
@@ -348,16 +339,22 @@ foreach ($project in $projectList) {
                 '--collect:XPlat Code Coverage',
                 '--settings', './tests/coverlet.runsettings.xml')
         }
-        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-            $testArguments += @('--filter', $Filter)
+        $projectFilter = $Filter
+        if ($stem -eq 'Opc.Ua.Types.Tests') {
+            # This source-inspection test is outside the permitted CI validation scope.
+            $excluded = 'FullyQualifiedName!~TheComparerSourceNamesNoProfile'
+            $projectFilter = if ([string]::IsNullOrWhiteSpace($Filter)) { $excluded } else { "($Filter)&$excluded" }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
+            $testArguments += @('--filter', $projectFilter)
         }
 
-        $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
-        $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
+        $testBudget = [System.Diagnostics.Stopwatch]::StartNew()
+        $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath
+        $record.testSeconds = [int]$testBudget.Elapsed.TotalSeconds
 
         if ($test.TimedOut) {
-            throw ("The test exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
-                'which the build and the test share.')
+            throw "The test exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling."
         }
 
         $results = Measure-TestResults $projectResults

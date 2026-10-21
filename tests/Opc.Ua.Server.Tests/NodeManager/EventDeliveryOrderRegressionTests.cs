@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -127,8 +128,422 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Every item gets the events of a notifier in the order they were reported when
+        /// the items of each event are queued in ranges on several threads, also when some
+        /// permission checks complete asynchronously.
+        /// </summary>
+        [Test]
+        public async Task SplitEventsKeepTheOrderOfEveryItemAsync([Values(false, true)] bool asyncPermissions)
+        {
+            const int itemCount = 200;
+            const int eventCount = 50;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            IFilterTarget[] events = CreateEvents(eventCount);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    int index = Array.IndexOf(events, target);
+                    if (asyncPermissions && (item.Id + index) % 5 == 0)
+                    {
+                        // a slow check overtaken by the next event shows as disorder.
+                        if (index % 2 == 0)
+                        {
+                            await Task.Delay(2, ct).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await Task.Yield();
+                        }
+                    }
+                    return ServiceResult.Good;
+                });
+            using var monitored = new MonitoredNode2(manager.Object, new Mock<IServerInternal>().Object, node)
+            {
+                ParallelEventDeliveryBudget = -1,
+                MinItemsPerEventDeliveryRange = 8
+            };
+            ConcurrentQueue<int>[] queues = AddRecordingItems(monitored, itemCount, events, null);
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            foreach (IFilterTarget target in events)
+            {
+                await monitored.OnReportEventAsync(context, node, target).ConfigureAwait(false);
+            }
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            int[] expected = [.. Enumerable.Range(0, eventCount)];
+            for (int ii = 0; ii < queues.Length; ii++)
+            {
+                Assert.That(queues[ii].ToArray(), Is.EqualTo(expected), $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// The ranges of an event are queued at the same time on different threads.
+        /// </summary>
+        [Test]
+        public async Task SplitEventIsQueuedOnSeveralThreadsAtOnceAsync()
+        {
+            Assume.That(MonitoredNode2.MaxEventDeliveryRanges, Is.GreaterThan(1), "needs two cores");
+
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            IFilterTarget[] events = CreateEvents(1);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            using var monitored = new MonitoredNode2(manager.Object, new Mock<IServerInternal>().Object, node)
+            {
+                ParallelEventDeliveryBudget = -1,
+                MinItemsPerEventDeliveryRange = 16
+            };
+
+            // the second item queued waits inside QueueEvent until another item is queued
+            // at the same time, which only a delivery on another thread can do.
+            int calls = 0;
+            int inside = 0;
+            int mostInside = 0;
+            bool concurrent = false;
+            AddRecordingItems(monitored, 64, events, () =>
+            {
+                int now = Interlocked.Increment(ref inside);
+                InterlockedMax(ref mostInside, now);
+                try
+                {
+                    if (Interlocked.Increment(ref calls) == 2)
+                    {
+                        concurrent = SpinWait.SpinUntil(
+                            () => Volatile.Read(ref mostInside) > 1,
+                            TimeSpan.FromSeconds(10));
+                    }
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref inside);
+                }
+            });
+
+            await monitored.OnReportEventAsync(Mock.Of<ISystemContext>(), node, events[0]).ConfigureAwait(false);
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            Assert.That(calls, Is.EqualTo(64));
+            Assert.That(concurrent, Is.True);
+        }
+
+        /// <summary>
+        /// An item whose delivery waits for its permission check gets the next event only
+        /// after the previous one, while the other items of the split events go on.
+        /// </summary>
+        [Test]
+        public async Task ItemGetsTheNextEventOnlyAfterThePreviousOneAsync()
+        {
+            const int itemCount = 100;
+            const uint blockedItem = 50;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            IFilterTarget[] events = CreateEvents(2);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    if (item.Id == blockedItem && ReferenceEquals(target, events[0]))
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+            using var monitored = new MonitoredNode2(manager.Object, new Mock<IServerInternal>().Object, node)
+            {
+                ParallelEventDeliveryBudget = -1,
+                MinItemsPerEventDeliveryRange = 8
+            };
+            ConcurrentQueue<int>[] queues = AddRecordingItems(monitored, itemCount, events, null);
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            int[][] beforeRelease;
+            try
+            {
+                await monitored.OnReportEventAsync(context, node, events[0]).ConfigureAwait(false);
+                await monitored.OnReportEventAsync(context, node, events[1]).ConfigureAwait(false);
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                bool othersQueued = SpinWait.SpinUntil(
+                    () => queues.Sum(queue => queue.Count) >= itemCount - 1,
+                    TimeSpan.FromSeconds(10));
+                Assert.That(othersQueued, Is.True, "the other items got the first event");
+
+                // give a wrongly started second event time to arrive.
+                await Task.Delay(100).ConfigureAwait(false);
+                beforeRelease = [.. queues.Select(queue => queue.ToArray())];
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            // the second event may have reached the other items, the blocked item gets
+            // nothing before its first event.
+            Assert.That(beforeRelease[blockedItem - 1], Is.Empty, "blocked item before release");
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                if (ii + 1 != blockedItem)
+                {
+                    Assert.That(
+                        beforeRelease[ii],
+                        Is.EqualTo(s_firstEvent).Or.EqualTo(s_twoEvents),
+                        $"item {ii + 1} before release");
+                }
+                Assert.That(queues[ii].ToArray(), Is.EqualTo(s_twoEvents), $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// Events that wait behind each other for different items, audit events that only
+        /// reach the items of secure sessions between other events, are queued to each item
+        /// in order and none is lost.
+        /// </summary>
+        [Test]
+        public async Task WaitingEventsForDifferentItemsKeepTheOrderOfEveryItemAsync()
+        {
+            const int itemCount = 100;
+            const int eventCount = 30;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            var events = new IFilterTarget[eventCount];
+            for (int ii = 0; ii < eventCount; ii++)
+            {
+                // a snapshot is reported as it is, a node state would be cloned.
+                events[ii] = ii % 3 == 1
+                    ? new InstanceStateSnapshot { Handle = new AuditEventState(null) }
+                    : new Mock<IFilterTarget>().Object;
+            }
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    // holds the first event until the next ones wait in the channel.
+                    if (item.Id == 1 && ReferenceEquals(target, events[0]))
+                    {
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+            var server = new Mock<IServerInternal>();
+            server.SetupGet(value => value.Auditing).Returns(true);
+            using var monitored = new MonitoredNode2(manager.Object, server.Object, node)
+            {
+                ParallelEventDeliveryBudget = -1,
+                MinItemsPerEventDeliveryRange = 8
+            };
+
+            var secureSession = new Mock<ISession>();
+            secureSession.SetupGet(value => value.EndpointDescription)
+                .Returns(new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt });
+            var queues = new ConcurrentQueue<int>[itemCount];
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                var queue = new ConcurrentQueue<int>();
+                queues[ii] = queue;
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns((uint)ii + 1);
+                if (ii % 2 == 0)
+                {
+                    item.SetupGet(value => value.Session).Returns(secureSession.Object);
+                }
+                item.Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                    .Callback<IFilterTarget>(target => queue.Enqueue(Array.IndexOf(events, target)));
+                monitored.Add(item.Object);
+            }
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            await monitored.OnReportEventAsync(context, node, events[0]).ConfigureAwait(false);
+            await monitored.OnReportEventAsync(context, node, events[1]).ConfigureAwait(false);
+            await monitored.OnReportEventAsync(context, node, events[2]).ConfigureAwait(false);
+            release.TrySetResult(true);
+            for (int ii = 3; ii < eventCount; ii++)
+            {
+                await monitored.OnReportEventAsync(context, node, events[ii]).ConfigureAwait(false);
+            }
+            await monitored.WaitForPendingNotificationsAsync(CancellationToken.None)
+                .AsTask().WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            int[] all = [.. Enumerable.Range(0, eventCount)];
+            int[] withoutAudit = [.. all.Where(index => index % 3 != 1)];
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                Assert.That(
+                    queues[ii].ToArray(),
+                    Is.EqualTo(ii % 2 == 0 ? all : withoutAudit),
+                    $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// When the budget of a consumer that keeps up runs out, the items it has not
+        /// queued yet are split, while the delivery to an item it queued itself still
+        /// waits for its permission check. The next event and a notification fence wait for
+        /// that delivery as well as for the ranges, and every item gets every event once,
+        /// in order.
+        /// </summary>
+        [Test]
+        public async Task BudgetHandoffWaitsForTheItemsQueuedBeforeTheSplitAsync()
+        {
+            const int itemCount = 100;
+            var node = new BaseObjectState(null) { NodeId = ObjectIds.Server };
+            IFilterTarget[] events = CreateEvents(2);
+            var entered = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int blocked = 0;
+            var manager = new Mock<IAsyncNodeManager>();
+            manager.Setup(value => value.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem item, IFilterTarget target, CancellationToken ct) =>
+                {
+                    // the first delivery of the first event is queued by the consumer itself.
+                    if (ReferenceEquals(target, events[0]) && Interlocked.Exchange(ref blocked, 1) == 0)
+                    {
+                        entered.TrySetResult(item.Id);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    return ServiceResult.Good;
+                });
+
+            // one tick per reading at a thousand ticks per second: the budget of a
+            // millisecond runs out after the second item the consumer queued itself.
+            var clock = new SteppingTimeProvider();
+            using var monitored = new MonitoredNode2(
+                manager.Object, new Mock<IServerInternal>().Object, node, false, clock)
+            {
+                MinItemsPerEventDeliveryRange = 8
+            };
+            ConcurrentQueue<int>[] queues = AddRecordingItems(monitored, itemCount, events, null);
+
+            ISystemContext context = Mock.Of<ISystemContext>();
+            Task fence;
+            int[][] beforeRelease;
+            uint blockedItem;
+            long readings;
+            try
+            {
+                // no other notification waits, so the consumer starts on its own.
+                await monitored.OnReportEventAsync(context, node, events[0]).ConfigureAwait(false);
+                blockedItem = await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                bool othersQueued = SpinWait.SpinUntil(
+                    () => queues.Sum(queue => queue.Count) >= itemCount - 1,
+                    TimeSpan.FromSeconds(10));
+                Assert.That(othersQueued, Is.True, "the other items got the first event");
+                readings = clock.Readings;
+
+                await monitored.OnReportEventAsync(context, node, events[1]).ConfigureAwait(false);
+                fence = monitored.WaitForPendingNotificationsAsync(CancellationToken.None).AsTask();
+
+                // give a wrongly started second event or fence time to complete.
+                await Task.Delay(100).ConfigureAwait(false);
+                beforeRelease = [.. queues.Select(queue => queue.ToArray())];
+                Assert.That(fence.IsCompleted, Is.False, "the fence waits for the blocked delivery");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+            await fence.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            // the consumer read the clock once to start and once per item it queued
+            // itself, so it split the event after a few items instead of queueing all.
+            Assert.That(readings, Is.LessThan(10), "split after the budget ran out");
+            for (int ii = 0; ii < itemCount; ii++)
+            {
+                int[] expectedBefore = ii + 1 == blockedItem ? [] : s_firstEvent;
+                Assert.That(beforeRelease[ii], Is.EqualTo(expectedBefore), $"item {ii + 1} before release");
+                Assert.That(queues[ii].ToArray(), Is.EqualTo(s_twoEvents), $"item {ii + 1}");
+            }
+        }
+
+        /// <summary>
+        /// A clock that advances one tick, a millisecond, each time it is read.
+        /// </summary>
+        private sealed class SteppingTimeProvider : TimeProvider
+        {
+            public long Readings => Interlocked.Read(ref m_ticks);
+
+            public override long TimestampFrequency => 1000;
+
+            public override long GetTimestamp()
+            {
+                return Interlocked.Increment(ref m_ticks);
+            }
+
+            private long m_ticks;
+        }
+
+        private static IFilterTarget[] CreateEvents(int count)
+        {
+            var events = new IFilterTarget[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                events[ii] = new Mock<IFilterTarget>().Object;
+            }
+            return events;
+        }
+
+        /// <summary>
+        /// Adds items with ids 1 to <paramref name="count"/> that record the index of each
+        /// event queued to them.
+        /// </summary>
+        private static ConcurrentQueue<int>[] AddRecordingItems(
+            MonitoredNode2 monitored,
+            int count,
+            IFilterTarget[] events,
+            Action? onQueued)
+        {
+            var queues = new ConcurrentQueue<int>[count];
+            for (int ii = 0; ii < count; ii++)
+            {
+                var queue = new ConcurrentQueue<int>();
+                queues[ii] = queue;
+                var item = new Mock<IEventMonitoredItem>();
+                item.SetupGet(value => value.Id).Returns((uint)ii + 1);
+                item.Setup(value => value.QueueEvent(It.IsAny<IFilterTarget>()))
+                    .Callback<IFilterTarget>(target =>
+                    {
+                        queue.Enqueue(Array.IndexOf(events, target));
+                        onQueued?.Invoke();
+                    });
+                monitored.Add(item.Object);
+            }
+            return queues;
+        }
+
+        private static void InterlockedMax(ref int location, int value)
+        {
+            int current = Volatile.Read(ref location);
+            while (value > current)
+            {
+                int previous = Interlocked.CompareExchange(ref location, value, current);
+                if (previous == current)
+                {
+                    return;
+                }
+                current = previous;
+            }
+        }
+
+        /// <summary>
         /// Defines the event order that each monitored item must preserve independently.
         /// </summary>
         private static readonly int[] s_order = [1, 2];
+
+        private static readonly int[] s_firstEvent = [0];
+
+        private static readonly int[] s_twoEvents = [0, 1];
     }
 }

@@ -28,7 +28,10 @@
  * ======================================================================*/
 
 using System;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
@@ -46,8 +49,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class WotProjectionBindingRuntimeTests
     {
-        [Test]
-        public async Task DirectReadReturnsChannelValuePreservingStatusAndTimestamp()
+        /// <summary>
+        /// Verifies that direct read returns channel value preserving status and timestamp.
+        /// </summary>
+        /// <param name="uncertainResult">The uncertain-result flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectReadReturnsChannelValuePreservingStatusAndTimestamp(bool uncertainResult)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
@@ -56,7 +64,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var channel = new FakeWotBindingChannel(readForm);
             var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
             channel.OnRead = _ => new ValueTask<WotReadResult>(new WotReadResult(
-                StatusCodes.Good,
+                uncertainResult ? StatusCodes.UncertainInitialValue : StatusCodes.Good,
                 new DataValue(new Variant(42), StatusCodes.UncertainInitialValue, timestamp)));
             h.ChannelFactory.SetChannel(readForm, channel);
 
@@ -78,34 +86,614 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channel.DisposeCount, Is.EqualTo(1));
         }
 
-        [Test]
-        public async Task DirectWriteWritesThroughChannel()
+        /// <summary>
+        /// Verifies that read combines operation and value quality.
+        /// </summary>
+        /// <param name="operationStatus">The operation status used by this test case.</param>
+        /// <param name="valueStatus">The value status used by this test case.</param>
+        /// <param name="expectedStatus">The expected status asserted by the test.</param>
+        /// <param name="structured">The structured flag for this test case.</param>
+        [TestCaseSource(nameof(s_readQualityCases))]
+        public async Task ReadCombinesOperationAndValueQuality(
+            bool structured,
+            StatusCode operationStatus,
+            StatusCode valueStatus,
+            StatusCode expectedStatus)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping);
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(operationStatus, new DataValue(new Variant(42), valueStatus, timestamp)))
+            });
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode.Code, Is.EqualTo(expectedStatus.Code));
+            Assert.That(value.StatusCode.Code, Is.EqualTo(expectedStatus.Code));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(timestamp));
+            if (StatusCode.IsBad(expectedStatus))
+            {
+                Assert.That(value.WrappedValue.IsNull, Is.True);
+            }
+            else if (structured)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject rootValue), Is.True);
+                Assert.That(rootValue.TryGetValue(out IEncodeable? rootEncodeable), Is.True);
+                Assert.That(rootEncodeable, Is.TypeOf<TestRootStructure>());
+                Assert.That(((TestRootStructure)rootEncodeable!).A, Is.EqualTo(42));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out int scalar), Is.True);
+                Assert.That(scalar, Is.EqualTo(42));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that direct write writes through channel.
+        /// </summary>
+        /// <param name="clamped">The clamped flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectWriteWritesThroughChannel(bool clamped)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
                 WoTBindingCapabilityEnum.WriteProperty,
                 new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
             var channel = new FakeWotBindingChannel(writeForm);
+            StatusCode writeStatus = clamped ? StatusCodes.GoodClamped : StatusCodes.Good;
             DataValue? written = null;
             channel.OnWrite = (value, _) =>
             {
                 written = value;
-                return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
+                return new ValueTask<WotWriteResult>(new WotWriteResult(writeStatus));
             };
             h.ChannelFactory.SetChannel(writeForm, channel);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
 
             ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
                 h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(7))).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(writeStatus));
             Assert.That(written, Is.Not.Null);
             Assert.That(written!.Value.WrappedValue.TryGetValue(out int w) && w == 7, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that direct read applies requested index range.
+        /// </summary>
+        [Test]
+        public async Task DirectReadAppliesRequestedIndexRange()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.ValueRank = ValueRanks.OneDimension;
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            ArrayOf<int> sourceValues = [1, 2, 3];
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(new WotReadResult(
+                    StatusCodes.UncertainInitialValue,
+                    new DataValue(new Variant(sourceValues), StatusCodes.UncertainInitialValue, timestamp)))
+            });
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, NumericRange.Parse("1"), QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(value.WrappedValue.TryGetValue(out ArrayOf<int> slice), Is.True);
+            Assert.That(slice.Count, Is.EqualTo(1));
+            Assert.That(slice[0], Is.EqualTo(2));
+
+            (_, DataValue fullValue) = await h.ScalarVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+            Assert.That(fullValue.WrappedValue.TryGetValue(out ArrayOf<int> full), Is.True);
+            Assert.That(full.Count, Is.EqualTo(3));
+            Assert.That(full[0], Is.EqualTo(1));
+            Assert.That(full[1], Is.EqualTo(2));
+            Assert.That(full[2], Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Verifies that indexed write without native capability does not write whole value.
+        /// </summary>
+        [Test]
+        public async Task IndexedWriteWithoutNativeCapabilityDoesNotWriteWholeValue()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.ValueRank = ValueRanks.OneDimension;
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            var channel = new FakeWotBindingChannel(writeForm);
+            h.ChannelFactory.SetChannel(writeForm, channel);
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            ArrayOf<int> replacement = [9];
+
+            ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
+                h.Builder.Context,
+                Attributes.Value,
+                NumericRange.Parse("1"),
+                new DataValue(new Variant(replacement))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(channel.WriteCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that indexed write uses contextual channel without dropping range.
+        /// </summary>
+        [Test]
+        public async Task IndexedWriteUsesContextualChannelWithoutDroppingRange()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.ValueRank = ValueRanks.OneDimension;
+            ArrayOf<int> initial = [1, 2, 3];
+            h.ScalarVar.Value = new Variant(initial);
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            WotWriteRequest? captured = null;
+            var channel = new Mock<IWotPropertyBindingChannel>();
+            channel.SetupGet(c => c.Form).Returns(writeForm);
+            channel.Setup(c => c.WriteAsync(It.IsAny<WotWriteRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((WotWriteRequest request, CancellationToken _) =>
+                {
+                    captured = request;
+                    return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.GoodClamped));
+                });
+            h.ChannelFactory.SetChannel(writeForm, channel.Object);
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            ArrayOf<int> replacement = [9];
+
+            ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
+                h.Builder.Context,
+                Attributes.Value,
+                NumericRange.Parse("1"),
+                new DataValue(new Variant(replacement))).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.IndexRange.ToString(), Is.EqualTo("1"));
+            Assert.That(captured.Context.NamespaceUris, Is.SameAs(h.Builder.Context.NamespaceUris));
+            Assert.That(captured.Value.WrappedValue.TryGetValue(out ArrayOf<int> actual), Is.True);
+            Assert.That(actual.Count, Is.EqualTo(1));
+            Assert.That(actual[0], Is.EqualTo(9));
+            Assert.That(h.ScalarVar.Value.TryGetValue(out ArrayOf<int> cached), Is.True);
+            Assert.That(cached.Count, Is.EqualTo(3));
+            Assert.That(cached[0], Is.EqualTo(1));
+            Assert.That(cached[1], Is.EqualTo(9));
+            Assert.That(cached[2], Is.EqualTo(3));
+            channel.Verify(c => c.WriteAsync(It.IsAny<DataValue>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that indexed read uses native range without applying it twice.
+        /// </summary>
+        [Test]
+        public async Task IndexedReadUsesNativeRangeWithoutApplyingItTwice()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.ValueRank = ValueRanks.OneDimension;
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            WotReadRequest? captured = null;
+            ArrayOf<int> source = [1, 2, 3];
+            ArrayOf<int> slice = [2];
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            var channel = new Mock<IWotPropertyBindingChannel>();
+            channel.SetupGet(c => c.Form).Returns(readForm);
+            channel.Setup(c => c.ReadAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(source)))));
+            channel.Setup(c => c.ReadAsync(It.IsAny<WotReadRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((WotReadRequest request, CancellationToken _) =>
+                {
+                    captured = request;
+                    return new ValueTask<WotReadResult>(new WotReadResult(
+                        StatusCodes.GoodClamped,
+                        new DataValue(new Variant(slice), StatusCodes.GoodClamped, timestamp)));
+                });
+            h.ChannelFactory.SetChannel(readForm, channel.Object);
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, NumericRange.Parse("1"), QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.GoodClamped));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(timestamp));
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.IndexRange.ToString(), Is.EqualTo("1"));
+            Assert.That(captured.Context.NamespaceUris, Is.SameAs(h.Builder.Context.NamespaceUris));
+            Assert.That(value.WrappedValue.TryGetValue(out ArrayOf<int> actual), Is.True);
+            Assert.That(actual.Count, Is.EqualTo(1));
+            Assert.That(actual[0], Is.EqualTo(2));
+            channel.Verify(c => c.ReadAsync(It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that read rejects invalid data encoding name.
+        /// </summary>
+        /// <param name="structured">The structured flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReadRejectsInvalidDataEncodingName(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping);
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(1))))
+            });
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.From("Unsupported"), new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDataEncodingInvalid));
+            Assert.That(value.WrappedValue.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that structured indexed write rejects before writing fields.
+        /// </summary>
+        [Test]
+        public async Task StructuredIndexedWriteRejectsBeforeWritingFields()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A"));
+            var channel = new FakeWotBindingChannel(writeForm);
+            h.ChannelFactory.SetChannel(writeForm, channel);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+
+            ServiceResult result = await h.StructVar.WriteAttributeAsync(
+                h.Builder.Context,
+                Attributes.Value,
+                NumericRange.Parse("1"),
+                new DataValue(new Variant(new ExtensionObject(new TestRootStructure { A = 9 }))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadWriteNotSupported));
+            Assert.That(channel.WriteCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that direct read translates source namespace by URI.
+        /// </summary>
+        /// <param name="qualifiedName">The qualified-name flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectReadTranslatesSourceNamespaceByUri(bool qualifiedName)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.DataType = qualifiedName ? Ua.DataTypeIds.QualifiedName : Ua.DataTypeIds.NodeId;
+            h.Builder.Context.NamespaceUris.Append("urn:aggregate-only");
+            ushort localIndex = h.Builder.Context.NamespaceUris.GetIndexOrAppend("urn:device");
+            ServiceMessageContext source = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+            source.NamespaceUris.Append("urn:source-only");
+            ushort sourceIndex = source.NamespaceUris.GetIndexOrAppend("urn:device");
+            Variant sourceValue = qualifiedName
+                ? new Variant(new QualifiedName("Sensor", sourceIndex))
+                : new Variant(new NodeId("Sensor", sourceIndex));
+            var timestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(new WotReadResult(
+                    StatusCodes.UncertainInitialValue,
+                    new DataValue(sourceValue, StatusCodes.UncertainInitialValue, timestamp)).WithContext(source))
+            });
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(timestamp));
+            if (qualifiedName)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out QualifiedName name), Is.True);
+                Assert.That(name, Is.EqualTo(new QualifiedName("Sensor", localIndex)));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out NodeId nodeId), Is.True);
+                Assert.That(nodeId, Is.EqualTo(new NodeId("Sensor", localIndex)));
+            }
+            Assert.That(source.NamespaceUris.Count, Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Verifies that contextless write rejects session local namespaces before side effects.
+        /// </summary>
+        /// <param name="sessionLocal">The session-local flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ContextlessWriteRejectsSessionLocalNamespacesBeforeSideEffects(bool sessionLocal)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.DataType = Ua.DataTypeIds.NodeId;
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            var channel = new FakeWotBindingChannel(writeForm);
+            h.ChannelFactory.SetChannel(writeForm, channel);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            var nodeId = new NodeId("Sensor", sessionLocal ? h.Ns : (ushort)0);
+
+            ServiceResult result = await h.ScalarVar.WriteAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(nodeId)))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(sessionLocal ? StatusCodes.BadNodeIdInvalid : StatusCodes.Good));
+            Assert.That(channel.WriteCount, Is.EqualTo(sessionLocal ? 0 : 1));
+        }
+
+        /// <summary>
+        /// Verifies that structured read translates each field namespace.
+        /// </summary>
+        /// <param name="contextualChannel">The contextual-channel flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StructuredReadTranslatesEachFieldNamespace(bool contextualChannel)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.Builder.Context.NamespaceUris.Append("urn:aggregate-only");
+            ushort localIndex = h.Builder.Context.NamespaceUris.GetIndexOrAppend("urn:device");
+            ServiceMessageContext source = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+            source.NamespaceUris.Append("urn:source-only");
+            ushort sourceIndex = source.NamespaceUris.GetIndexOrAppend("urn:device");
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(
+                    targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Target"));
+            WotReadResult sourceResult = new WotReadResult(
+                StatusCodes.Good, new DataValue(new Variant(new NodeId("PayloadType", sourceIndex))))
+                .WithContext(source);
+            WotReadRequest? captured = null;
+            if (contextualChannel)
+            {
+                var channel = new Mock<IWotPropertyBindingChannel>();
+                channel.SetupGet(c => c.Form).Returns(readForm);
+                channel.Setup(c => c.ReadAsync(It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<WotReadResult>(
+                        new WotReadResult(StatusCodes.BadNotSupported, DataValue.Null)));
+                channel.Setup(c => c.ReadAsync(It.IsAny<WotReadRequest>(), It.IsAny<CancellationToken>()))
+                    .Returns((WotReadRequest request, CancellationToken _) =>
+                    {
+                        captured = request;
+                        return new ValueTask<WotReadResult>(sourceResult);
+                    });
+                h.ChannelFactory.SetChannel(readForm, channel.Object);
+            }
+            else
+            {
+                h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+                {
+                    OnRead = _ => new ValueTask<WotReadResult>(sourceResult)
+                });
+            }
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), result.ToString());
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject rootValue), Is.True);
+            Assert.That(rootValue.TryGetValue(out IEncodeable? encodeable), Is.True);
+            Assert.That(encodeable, Is.TypeOf<TestRootStructure>());
+            var root = (IStructure)encodeable!;
+            Assert.That(root["Target"].TryGetValue(out NodeId dataType), Is.True);
+            Assert.That(dataType, Is.EqualTo(new NodeId("PayloadType", localIndex)));
+            if (contextualChannel)
+            {
+                Assert.That(captured, Is.Not.Null);
+                Assert.That(captured!.Context.NamespaceUris, Is.SameAs(h.Builder.Context.NamespaceUris));
+                Assert.That(captured.IndexRange.IsNull, Is.True);
+                Assert.That(captured.DataEncoding.IsNull, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that structured write carries each fields namespace context.
+        /// </summary>
+        [Test]
+        public async Task StructuredWriteCarriesEachFieldsNamespaceContext()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            ushort localIndex = h.Builder.Context.NamespaceUris.GetIndexOrAppend("urn:device");
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Target"));
+            WotWriteRequest? captured = null;
+            var channel = new Mock<IWotPropertyBindingChannel>();
+            channel.SetupGet(c => c.Form).Returns(writeForm);
+            channel.Setup(c => c.WriteAsync(It.IsAny<WotWriteRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((WotWriteRequest request, CancellationToken _) =>
+                {
+                    captured = request;
+                    return new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good));
+                });
+            channel.Setup(c => c.WriteAsync(It.IsAny<DataValue>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good)));
+            h.ChannelFactory.SetChannel(writeForm, channel.Object);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            var incoming = new TestRootStructure { Target = new NodeId("Sensor", localIndex) };
+
+            ServiceResult result = await h.StructVar.WriteAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(new ExtensionObject(incoming))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.IndexRange.IsNull, Is.True);
+            Assert.That(captured.Context.NamespaceUris, Is.SameAs(h.Builder.Context.NamespaceUris));
+            Assert.That(captured.Value.WrappedValue.TryGetValue(out NodeId target), Is.True);
+            Assert.That(target, Is.EqualTo(new NodeId("Sensor", localIndex)));
+            channel.Verify(c => c.WriteAsync(It.IsAny<DataValue>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that structured contextless write rejects unknown namespace before writing the field.
+        /// </summary>
+        [Test]
+        public async Task StructuredContextlessWriteRejectsUnknownNamespaceBeforeWritingTheField()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotCompiledForm writeForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Target"));
+            var channel = new FakeWotBindingChannel(writeForm);
+            h.ChannelFactory.SetChannel(writeForm, channel);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeForm)]).ConfigureAwait(false);
+            var incoming = new TestRootStructure { Target = new NodeId("Sensor", h.Ns) };
+
+            ServiceResult result = await h.StructVar.WriteAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, new DataValue(new Variant(new ExtensionObject(incoming))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(channel.WriteCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that contextless read rejects session local namespaces.
+        /// </summary>
+        /// <param name="structured">The structured flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ContextlessReadRejectsSessionLocalNamespaces(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Target")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping);
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(new NodeId("Sensor", h.Ns)))))
+            });
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(value.WrappedValue.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that out of bounds read range returns no data and does not poison full reads.
+        /// </summary>
+        [Test]
+        public async Task OutOfBoundsReadRangeReturnsNoDataAndDoesNotPoisonFullReads()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.ValueRank = ValueRanks.OneDimension;
+            WotCompiledForm readForm = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            ArrayOf<int> source = [1, 2, 3];
+            h.ChannelFactory.SetChannel(readForm, new FakeWotBindingChannel(readForm)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(source))))
+            });
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readForm)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, NumericRange.Parse("7"), QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(value.WrappedValue.IsNull, Is.True);
+            (_, DataValue whole) = await h.ScalarVar.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+            Assert.That(whole.WrappedValue.TryGetValue(out ArrayOf<int> actual), Is.True);
+            Assert.That(actual.Count, Is.EqualTo(3));
+            Assert.That(actual[0], Is.EqualTo(1));
+            Assert.That(actual[1], Is.EqualTo(2));
+            Assert.That(actual[2], Is.EqualTo(3));
+        }
+
+        /// <summary>
+        /// Verifies that forms without target mapping are ignored.
+        /// </summary>
         [Test]
         public async Task FormsWithoutTargetMappingAreIgnored()
         {
@@ -121,6 +709,165 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that ordinary property form reads through its local declaration.
+        /// </summary>
+        [Test]
+        public async Task OrdinaryPropertyFormReadsThroughItsLocalDeclaration()
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            h.ScalarVar.Value = new Variant(7);
+            string localId = NodeId.ToExpandedNodeId(h.ScalarVar.NodeId, h.Builder.Context.NamespaceUris).ToString();
+            string ownerId = NodeId.ToExpandedNodeId(h.Root.NodeId, h.Builder.Context.NamespaceUris).ToString();
+            string document = $$"""
+                {
+                  "@type": "uav:object",
+                  "uav:id": "{{ownerId}}",
+                  "properties": {
+                    "value": {
+                      "uav:id": "{{localId}}",
+                      "type": "integer",
+                      "forms": [{ "href": "test://source/value", "op": "readproperty" }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "res", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document));
+            WotCompiledForm form = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, WotTargetMappingDescriptor.Empty);
+            var channel = new FakeWotBindingChannel(form)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            h.ChannelFactory.SetChannel(form, channel);
+            WotBindingPlan plan = WotProjectionBindingRuntimeTestHarness.Plan(form)
+                .WithProjectedAffordances(request.ProjectedAffordances);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(h.Builder, [plan]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+            Assert.That(actual, Is.EqualTo(42));
+            Assert.That(channel.ReadCount, Is.EqualTo(1));
+            Assert.That(form.TargetMapping.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that property read alternatives select one executable source.
+        /// </summary>
+        /// <param name="structured">The structured flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PropertyReadAlternativesSelectOneExecutableSource(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm unavailable = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, executable: false);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, formIndex: 1);
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty, mapping, formIndex: 2);
+            var selected = new FakeWotBindingChannel(first)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            var alternative = new FakeWotBindingChannel(second)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(99))))
+            };
+            h.ChannelFactory.SetChannel(first, selected);
+            h.ChannelFactory.SetChannel(second, alternative);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(unavailable, first, second)])
+                .ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+
+            (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            if (structured)
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+                Assert.That(extension.TryGetValue(out IEncodeable? encodeable), Is.True);
+                Assert.That(encodeable, Is.TypeOf<TestRootStructure>());
+                Assert.That(((TestRootStructure)encodeable!).A, Is.EqualTo(42));
+            }
+            else
+            {
+                Assert.That(value.WrappedValue.TryGetValue(out int scalar), Is.True);
+                Assert.That(scalar, Is.EqualTo(42));
+            }
+            Assert.That(selected.ReadCount, Is.EqualTo(1));
+            Assert.That(alternative.ReadCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that property write alternatives never fan out or retry another source.
+        /// </summary>
+        /// <param name="structured">The structured flag for this test case.</param>
+        /// <param name="failed">The failed flag for this test case.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task PropertyWriteAlternativesNeverFanOutOrRetryAnotherSource(bool structured, bool failed)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty, mapping);
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.WriteProperty, mapping, formIndex: 1);
+            Variant received = Variant.Null;
+            StatusCode expected = failed ? StatusCodes.BadNotWritable : StatusCodes.GoodClamped;
+            var selected = new FakeWotBindingChannel(first)
+            {
+                OnWrite = (value, _) =>
+                {
+                    received = value.WrappedValue;
+                    return new ValueTask<WotWriteResult>(new WotWriteResult(expected));
+                }
+            };
+            var alternative = new FakeWotBindingChannel(second);
+            h.ChannelFactory.SetChannel(first, selected);
+            h.ChannelFactory.SetChannel(second, alternative);
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(first, second)]).ConfigureAwait(false);
+            BaseDataVariableState variable = structured ? h.StructVar : h.ScalarVar;
+            Variant written = structured
+                ? new Variant(new ExtensionObject(new TestRootStructure { A = 17 }))
+                : new Variant(17);
+
+            ServiceResult result = await variable.WriteAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, new DataValue(written)).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(expected));
+            Assert.That(received.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(17));
+            Assert.That(selected.WriteCount, Is.EqualTo(1));
+            Assert.That(alternative.WriteCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that non-executable forms are ignored.
+        /// </summary>
         [Test]
         public async Task NonExecutableFormsAreIgnored()
         {
@@ -138,23 +885,70 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that combined read observe form keeps read sampling without another source.
+        /// </summary>
         [Test]
-        public async Task ObserveOnlyDoesNotWireASeparateBridge()
+        public async Task CombinedReadObserveFormKeepsReadSamplingWithoutAnotherSource()
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
-            WotCompiledForm form = WotProjectionBindingRuntimeTestHarness.Form(
+            WotCompiledForm read = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
+            WotCompiledForm observe = WotProjectionBindingRuntimeTestHarness.Form(
                 WoTBindingCapabilityEnum.ObserveProperty,
                 new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText));
-
+            var channel = new FakeWotBindingChannel(read)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(StatusCodes.Good, new DataValue(new Variant(42))))
+            };
+            h.ChannelFactory.SetChannel(read, channel);
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
-                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(form)]).ConfigureAwait(false);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(read, observe)]).ConfigureAwait(false);
+            (ServiceResult result, DataValue value) = await h.ScalarVar.ReadAttributeAsync(
+                h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
 
-            Assert.That(h.ScalarVar.OnReadValueAsync, Is.Null);
-            Assert.That(h.ScalarVar.OnWriteValueAsync, Is.Null);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.TryGetValue(out int number), Is.True);
+            Assert.That(number, Is.EqualTo(42));
+            Assert.That(channel.ReadCount, Is.EqualTo(1));
+            Assert.That(channel.ObserveCount, Is.Zero);
+            Assert.That(h.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that distinct declarations cannot observe the same target.
+        /// </summary>
+        /// <param name="structured">The structured flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DistinctDeclarationsCannotObserveTheSameTarget(bool structured)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotTargetMappingDescriptor mapping = structured
+                ? new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A")
+                : new WotTargetMappingDescriptor(targetNodeId: h.ScalarNodeIdText);
+            WotCompiledForm first = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ObserveProperty, mapping, affordanceName: "first");
+            WotCompiledForm second = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ObserveProperty, mapping, affordanceName: "second");
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await factory.CreateAsync(h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(first, second)])
+                    .ConfigureAwait(false));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+            Assert.That(error.Message, Does.Contain("more than one observeproperty"));
             Assert.That(h.ChannelFactory.OpenCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects conflicting direct and structured-field target mappings.
+        /// </summary>
         [Test]
         public async Task ConflictingDirectAndFieldMappingThrowsDuringWire()
         {
@@ -176,6 +970,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate read mappings.
+        /// </summary>
         [Test]
         public async Task DuplicateReadMappingThrowsDuringWire()
         {
@@ -197,6 +994,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate write mappings.
+        /// </summary>
         [Test]
         public async Task DuplicateWriteMappingThrowsDuringWire()
         {
@@ -218,6 +1018,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects an unsupported binding operation.
+        /// </summary>
         [Test]
         public async Task UnsupportedOperationThrowsDuringWire()
         {
@@ -234,6 +1037,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that concurrent first use opens a lazy binding channel only once.
+        /// </summary>
         [Test]
         public async Task LazyOpenConcurrentFirstUseOpensChannelOnce()
         {
@@ -265,6 +1071,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "Concurrent first use must open the shared channel exactly once.");
         }
 
+        /// <summary>
+        /// Verifies that a failed channel open is evicted so a later attempt can succeed.
+        /// </summary>
         [Test]
         public async Task FailedOpenIsEvictedRetrySucceeds()
         {
@@ -306,6 +1115,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(attempt, Is.EqualTo(2), "The faulted open must be evicted so the retry opens again.");
         }
 
+        /// <summary>
+        /// Verifies that runtime disposal releases every opened channel and aggregates disposal failures.
+        /// </summary>
         [Test]
         public async Task DisposeDisposesOpenedChannelsAggregatesFailures()
         {
@@ -345,6 +1157,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(writeChannel.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that separate runtime generations own independent channels and disposal lifetimes.
+        /// </summary>
         [Test]
         public async Task GenerationIsolationTwoRuntimesHaveIndependentChannelsAndDisposal()
         {
@@ -387,6 +1202,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(channel2.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a structured read composes the directly mapped field values.
+        /// </summary>
         [Test]
         public async Task StructuredOneLevelReadComposesFields()
         {
@@ -417,6 +1235,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(root.A, Is.EqualTo(11));
         }
 
+        /// <summary>
+        /// Verifies that a structured write extracts the directly mapped field values.
+        /// </summary>
         [Test]
         public async Task StructuredOneLevelWriteExtractsFields()
         {
@@ -450,6 +1271,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a structured read composes nested field values.
+        /// </summary>
         [Test]
         public async Task StructuredNestedReadComposesNestedStructure()
         {
@@ -483,6 +1307,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(child.X, Is.EqualTo(99));
         }
 
+        /// <summary>
+        /// Verifies that a structured write extracts a nested field value.
+        /// </summary>
         [Test]
         public async Task StructuredNestedWriteExtractsNestedField()
         {
@@ -517,6 +1344,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int x) && x == 77, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the first structured read deterministically rejects an unknown field.
+        /// </summary>
         [Test]
         public async Task StructuredUnknownFieldFirstReadFailsDeterministically()
         {
@@ -539,6 +1369,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that the first structured read rejects a path through an array-valued intermediate field.
+        /// </summary>
         [Test]
         public async Task StructuredArrayValuedIntermediateFieldFirstReadFailsDeterministically()
         {
@@ -559,6 +1392,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that the first structured read rejects a path containing an empty segment.
+        /// </summary>
         [Test]
         public async Task StructuredEmptyPathSegmentFirstReadFailsDeterministically()
         {
@@ -579,6 +1415,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that an unregistered structure type fails the first read but can be retried after registration.
+        /// </summary>
         [Test]
         public async Task StructuredUnregisteredTypeFirstReadFailsDeterministicallyThenRetrySucceedsAfterRegistration()
         {
@@ -631,6 +1470,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(((TestRootStructure)encodeable!).A, Is.EqualTo(11));
         }
 
+        /// <summary>
+        /// Verifies that an unregistered structure type fails the first write but can be retried after registration.
+        /// </summary>
         [Test]
         public async Task StructuredUnregisteredTypeFirstWriteFailsDeterministicallyThenRetrySucceedsAfterRegistration()
         {
@@ -678,6 +1520,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(written.TryGetValue(out int a) && a == 55, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a partial structured read failure produces a bad aggregate status.
+        /// </summary>
         [Test]
         public async Task StructuredPartialReadFailureReturnsBadStatus()
         {
@@ -715,6 +1560,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "A single failing field must fail the whole structured read.");
         }
 
+        /// <summary>
+        /// Verifies that a partial structured read preserves the failing field status and available timestamp.
+        /// </summary>
         [Test]
         public async Task StructuredPartialReadFailureReturnsFailedFieldStatusAndTimestampWhenAvailable()
         {
@@ -756,6 +1604,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(value.SourceTimestamp, Is.EqualTo(staleTimestamp));
         }
 
+        /// <summary>
+        /// Verifies that a structured read preserves a non-default good status and the oldest source timestamp.
+        /// </summary>
         [Test]
         public async Task StructuredReadPreservesNonDefaultGoodStatusAndUsesOldestSourceTimestamp()
         {
@@ -798,8 +1649,71 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "The oldest non-MinValue field timestamp must be used, not the current time.");
         }
 
-        [Test]
-        public async Task StructuredPartialWriteFailureReturnsBadStatus()
+        /// <summary>
+        /// Verifies that structured read keeps uncertain field values and severity.
+        /// </summary>
+        /// <param name="uncertainFirstField">The uncertain-first-field flag for this test case.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StructuredReadKeepsUncertainFieldValuesAndSeverity(bool uncertainFirstField)
+        {
+            var h = new WotProjectionBindingRuntimeTestHarness();
+            WotCompiledForm readA = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "A"),
+                affordanceName: "readA");
+            WotCompiledForm readChildX = WotProjectionBindingRuntimeTestHarness.Form(
+                WoTBindingCapabilityEnum.ReadProperty,
+                new WotTargetMappingDescriptor(targetTypeNodeId: h.StructTypeNodeIdText, fieldPath: "Child/X"),
+                affordanceName: "readChildX");
+            StatusCode statusA = uncertainFirstField ? StatusCodes.UncertainInitialValue : StatusCodes.GoodClamped;
+            StatusCode statusX = uncertainFirstField ? StatusCodes.GoodClamped : StatusCodes.UncertainInitialValue;
+            var newerTimestamp = new DateTimeUtc(2026, 1, 2, 0, 0, 0);
+            var olderTimestamp = new DateTimeUtc(2026, 1, 1, 0, 0, 0);
+            h.ChannelFactory.SetChannel(readA, new FakeWotBindingChannel(readA)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(statusA, new DataValue(new Variant(1), statusA, newerTimestamp)))
+            });
+            h.ChannelFactory.SetChannel(readChildX, new FakeWotBindingChannel(readChildX)
+            {
+                OnRead = _ => new ValueTask<WotReadResult>(
+                    new WotReadResult(statusX, new DataValue(new Variant(2), statusX, olderTimestamp)))
+            });
+
+            var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
+                h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA, readChildX)]).ConfigureAwait(false);
+
+            (ServiceResult result, DataValue value) = await h.StructVar.ReadAttributeAsync(
+                    h.Builder.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                .ConfigureAwait(false);
+
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject rootValue), Is.True);
+            Assert.That(rootValue.TryGetValue(out IEncodeable? rootEncodeable), Is.True);
+            Assert.That(rootEncodeable, Is.TypeOf<TestRootStructure>());
+            var root = (TestRootStructure)rootEncodeable!;
+            Assert.That(root.A, Is.EqualTo(1));
+            Assert.That(root.ChildValue.TryGetValue(out ExtensionObject childValue), Is.True);
+            Assert.That(childValue.TryGetValue(out IEncodeable? childEncodeable), Is.True);
+            Assert.That(childEncodeable, Is.TypeOf<TestChildStructure>());
+            Assert.That(((TestChildStructure)childEncodeable!).X, Is.EqualTo(2));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.UncertainInitialValue));
+            Assert.That(value.SourceTimestamp, Is.EqualTo(olderTimestamp));
+        }
+
+        /// <summary>
+        /// Verifies that structured write returns most severe field status.
+        /// </summary>
+        /// <param name="statusA">The status a used by this test case.</param>
+        /// <param name="statusX">The status x used by this test case.</param>
+        /// <param name="expectedStatus">The expected status asserted by the test.</param>
+        [TestCaseSource(nameof(s_structuredWriteStatusCases))]
+        public async Task StructuredWriteReturnsMostSevereFieldStatus(
+            StatusCode statusA,
+            StatusCode statusX,
+            StatusCode expectedStatus)
         {
             var h = new WotProjectionBindingRuntimeTestHarness();
             WotCompiledForm writeA = WotProjectionBindingRuntimeTestHarness.Form(
@@ -812,18 +1726,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 affordanceName: "writeChildX");
             var channelA = new FakeWotBindingChannel(writeA)
             {
-                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.Good))
+                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(statusA))
             };
             var channelChildX = new FakeWotBindingChannel(writeChildX)
             {
-                OnWrite = (_, _) =>
-                    new ValueTask<WotWriteResult>(new WotWriteResult(StatusCodes.BadNotConnected, "not connected"))
+                OnWrite = (_, _) => new ValueTask<WotWriteResult>(new WotWriteResult(statusX))
             };
             h.ChannelFactory.SetChannel(writeA, channelA);
             h.ChannelFactory.SetChannel(writeChildX, channelChildX);
 
             var factory = new WotProjectionBindingRuntimeFactory(h.ChannelFactory);
-            await factory.CreateAsync(
+            await using IAsyncDisposable? runtime = await factory.CreateAsync(
                 h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(writeA, writeChildX)]).ConfigureAwait(false);
 
             var incomingChild = new TestChildStructure { X = 1 };
@@ -838,10 +1751,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 default,
                 new DataValue(new Variant(new ExtensionObject(incoming)))).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsBad(result), Is.True,
-                "A single failing field write must fail the whole structured write.");
+            Assert.That(result.StatusCode, Is.EqualTo(expectedStatus));
+            Assert.That(channelA.WriteCount, Is.EqualTo(1));
+            Assert.That(channelChildX.WriteCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that wiring rejects duplicate structured-field mappings.
+        /// </summary>
         [Test]
         public async Task StructuredDuplicateFieldMappingThrowsDuringWire()
         {
@@ -862,5 +1779,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     h.Builder, [WotProjectionBindingRuntimeTestHarness.Plan(readA1, readA2)]).ConfigureAwait(false));
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
+
+        private static readonly TestCaseData[] s_readQualityCases =
+        [
+            new(false, StatusCodes.UncertainInitialValue, StatusCodes.Good, StatusCodes.UncertainInitialValue),
+            new(true, StatusCodes.UncertainInitialValue, StatusCodes.Good, StatusCodes.UncertainInitialValue),
+            new(false, StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(true, StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(false, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(true, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(false, StatusCodes.UncertainInitialValue, StatusCodes.BadNoData, StatusCodes.BadNoData),
+            new(true, StatusCodes.UncertainInitialValue, StatusCodes.BadNoData, StatusCodes.BadNoData),
+            new(false, StatusCodes.BadNotConnected, StatusCodes.Good, StatusCodes.BadNotConnected),
+            new(true, StatusCodes.BadNotConnected, StatusCodes.Good, StatusCodes.BadNotConnected)
+        ];
+
+        private static readonly TestCaseData[] s_structuredWriteStatusCases =
+        [
+            new(StatusCodes.Good, StatusCodes.Good, StatusCodes.Good),
+            new(StatusCodes.GoodClamped, StatusCodes.Good, StatusCodes.GoodClamped),
+            new(StatusCodes.Good, StatusCodes.GoodClamped, StatusCodes.GoodClamped),
+            new(StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue, StatusCodes.UncertainInitialValue),
+            new(StatusCodes.UncertainInitialValue, StatusCodes.GoodClamped, StatusCodes.UncertainInitialValue),
+            new(StatusCodes.UncertainInitialValue, StatusCodes.BadNotConnected, StatusCodes.BadNotConnected),
+            new(StatusCodes.BadNotConnected, StatusCodes.UncertainInitialValue, StatusCodes.BadNotConnected),
+            new(StatusCodes.Good, StatusCodes.BadNotConnected, StatusCodes.BadNotConnected)
+        ];
     }
 }

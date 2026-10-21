@@ -181,9 +181,13 @@ namespace Opc.Ua.Mcp.Tools
             return ExecuteAsync("pubsub_configuration_add_writer_group", connectionId,
                 ObjectTypeIds.PubSubConnectionType, async (session, node, token) =>
                 {
-                    _ = Configuration(input, session);
+                    ValidateComponent(input, "Publisher");
+                    PubSubConnectionDataType connection = await McpPubSubRemoteParents.ConnectionAsync(
+                        session, node, input.Connection, false, token).ConfigureAwait(false);
                     WriterGroupDataType group = McpPubSubConfiguration.WriterGroup(input);
                     group.Name = PubSubInputValidation.Text(name, 128);
+                    connection.WriterGroups = [group];
+                    RequireConnection(connection);
                     NodeId added = await new PubSubConnectionTypeClient(session, node, session.MessageContext.Telemetry)
                         .AddWriterGroupAsync(group, token).ConfigureAwait(false);
                     return Added(added, session);
@@ -224,9 +228,13 @@ namespace Opc.Ua.Mcp.Tools
             return ExecuteAsync("pubsub_configuration_add_reader_group", connectionId,
                 ObjectTypeIds.PubSubConnectionType, async (session, node, token) =>
                 {
-                    _ = Configuration(input, session);
+                    ValidateComponent(input, "Subscriber");
+                    PubSubConnectionDataType connection = await McpPubSubRemoteParents.ConnectionAsync(
+                        session, node, input.Connection, false, token).ConfigureAwait(false);
                     ReaderGroupDataType group = McpPubSubConfiguration.ReaderGroup(input, Metadata(input, session));
                     group.Name = PubSubInputValidation.Text(name, 128);
+                    connection.ReaderGroups = [group];
+                    RequireConnection(connection);
                     return Added(await new PubSubConnectionTypeClient(session, node, session.MessageContext.Telemetry)
                         .AddReaderGroupAsync(group, token).ConfigureAwait(false), session);
                 }, sessionName, ct);
@@ -289,9 +297,23 @@ namespace Opc.Ua.Mcp.Tools
             return ExecuteAsync("pubsub_configuration_add_writer", groupId, ObjectTypeIds.WriterGroupType,
                 async (session, node, token) =>
                 {
-                    _ = Configuration(input, session);
+                    ValidateComponent(input, "Publisher");
+                    PubSubConnectionDataType connection = await McpPubSubRemoteParents.ConnectionAsync(
+                        session, node, input.Connection, true, token).ConfigureAwait(false);
                     DataSetWriterDataType writer = McpPubSubConfiguration.WriterGroup(input).DataSetWriters[0];
                     writer.Name = PubSubInputValidation.Text(name, 128);
+                    connection.WriterGroups =
+                    [
+                        new WriterGroupDataType
+                        {
+                            TransportSettings = input.Connection.Transport is
+                                PubSubTransportKind.Mqtt or PubSubTransportKind.Kafka
+                                ? await McpPubSubRemoteParents.WriterTransportAsync(session, node, token)
+                                    .ConfigureAwait(false) : ExtensionObject.Null,
+                            DataSetWriters = [writer]
+                        }
+                    ];
+                    RequireConnection(connection);
                     return Added(await new WriterGroupTypeClient(session, node, session.MessageContext.Telemetry)
                         .AddDataSetWriterAsync(writer, token).ConfigureAwait(false), session);
                 }, sessionName, ct);
@@ -354,10 +376,14 @@ namespace Opc.Ua.Mcp.Tools
             return ExecuteAsync("pubsub_configuration_add_reader", groupId, ObjectTypeIds.ReaderGroupType,
                 async (session, node, token) =>
                 {
-                    _ = Configuration(input, session);
+                    ValidateComponent(input, "Subscriber");
+                    PubSubConnectionDataType connection = await McpPubSubRemoteParents.ConnectionAsync(
+                        session, node, input.Connection, true, token).ConfigureAwait(false);
                     DataSetReaderDataType reader = McpPubSubConfiguration.ReaderGroup(input, Metadata(input, session))
                         .DataSetReaders[0];
                     reader.Name = PubSubInputValidation.Text(name, 128);
+                    connection.ReaderGroups = [new ReaderGroupDataType { DataSetReaders = [reader] }];
+                    RequireConnection(connection);
                     return Added(await new ReaderGroupTypeClient(session, node, session.MessageContext.Telemetry)
                         .AddDataSetReaderAsync(reader, token).ConfigureAwait(false), session);
                 }, sessionName, ct);
@@ -653,14 +679,46 @@ namespace Opc.Ua.Mcp.Tools
         /// <exception cref="ArgumentException"></exception>
         private PubSubConfigurationDataType Configuration(PubSubApplicationInput input, ISession session)
         {
+            ValidateInput(input);
+            PubSubConfigurationDataType configuration = McpPubSubConfiguration.Build(input, Metadata(input, session));
+            McpPubSubRemoteTargets.Require(configuration, m_options, m_network);
+            return configuration;
+        }
+
+        /// <summary>
+        /// Validates the plan without allowing caller-selected Mode to change a component mutation's direction.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ValidateComponent(PubSubApplicationInput input, string mode)
+        {
+            ValidateInput(input);
+            if (input.Mode != mode)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                    "The plan mode does not match the direction of this PubSub configuration operation.");
+            }
+        }
+
+        /// <summary>
+        /// Validates native input and keeps runtime credentials outside remote configuration payloads.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        private void ValidateInput(PubSubApplicationInput input)
+        {
             PubSubInputValidation.Validate(input, m_options);
             if (input.Connection.CredentialReference is not null)
             {
                 throw new ArgumentException("Runtime credential references cannot be deployed through configuration.");
             }
-            PubSubConfigurationDataType configuration = McpPubSubConfiguration.Build(input, Metadata(input, session));
-            McpPubSubRemoteTargets.Require(configuration, m_options, m_network);
-            return configuration;
+        }
+
+        /// <summary>
+        /// Authorizes the exact component payload against its actual remote connection before dispatch.
+        /// </summary>
+        private void RequireConnection(PubSubConnectionDataType connection)
+        {
+            McpPubSubRemoteTargets.Require(
+                new PubSubConfigurationDataType { Connections = [connection] }, m_options, m_network);
         }
 
         /// <summary>

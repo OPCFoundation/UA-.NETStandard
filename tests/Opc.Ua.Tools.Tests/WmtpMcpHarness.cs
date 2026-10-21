@@ -56,7 +56,21 @@ namespace Opc.Ua.Tools.Tests
         private WmtpMcpHarness()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore().AddOpcUaMcpMachineTool();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "wmtp-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity("wmtp-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["wireless", "second"]
+                        }
+                    ]
+                }
+            }).AddOpcUaMcpMachineTool();
             services.AddMcpServer()
                 .WithStreamServerTransport(m_requests.Reader.AsStream(), m_responses.Writer.AsStream())
                 .WithRequestFilters(filters => filters.AddCallToolFilter(next => async (request, ct) =>
@@ -76,6 +90,16 @@ namespace Opc.Ua.Tools.Tests
                 }))
                 .WithOpcUaMcpFilters()
                 .WithOpcUaMachineToolTools(McpToolProfile.MachineTool);
+            services.Configure<McpServerOptions>(options =>
+                options.Filters.Message.IncomingFilters.Add(next => async (context, ct) =>
+                {
+                    if (context.JsonRpcMessage is JsonRpcNotification
+                        { Method: NotificationMethods.CancelledNotification })
+                    {
+                        await CancellationDelivery.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    await next(context, ct).ConfigureAwait(false);
+                }));
             Services = services.BuildServiceProvider();
             m_running = Services.GetRequiredService<McpServer>().RunAsync(m_stop.Token);
         }
@@ -114,6 +138,11 @@ namespace Opc.Ua.Tools.Tests
         /// Gets completion of the captured server handler, including its cleanup path.
         /// </summary>
         internal Task LastRequestCompleted { get; private set; } = Task.CompletedTask;
+
+        /// <summary>
+        /// Gets or sets the gate before the server processes a cancellation notification.
+        /// </summary>
+        internal Task CancellationDelivery { get; set; } = Task.CompletedTask;
 
         /// <summary>
         /// Initializes the MCP client and optionally borrows one named OPC UA session.

@@ -35,6 +35,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Xml;
 using Opc.Ua.SourceGeneration;
 using Opc.Ua.Types;
@@ -910,7 +911,12 @@ namespace Opc.Ua.Schema.Model
             s_defaultMethodArgumentCodeNameScope = new();
         private static readonly System.Threading.Lock s_generatedCodeNamesLock = new();
         private static readonly ConditionalWeakTable<Parameter, GeneratedCodeNameState>
-            s_generatedCodeNames = new();
+            s_generatedCodeNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         /// <summary>
         /// Returns the field name of a child node.
@@ -1103,9 +1109,20 @@ namespace Opc.Ua.Schema.Model
         }
 
         private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
-            s_propertyNames = new();
+            s_propertyNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
+
         private static readonly ConditionalWeakTable<DataTypeDesign, string[]>
-            s_fieldsEnumMemberNames = new();
+            s_fieldsEnumMemberNames =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         /// <summary>
         /// Backing fields the data type templates declare themselves, which a
@@ -1161,7 +1178,6 @@ namespace Opc.Ua.Schema.Model
 
             return names;
         }
-
 
         private static readonly HashSet<string> s_reservedDataTypeMembers =
             new(StringComparer.Ordinal)
@@ -2682,8 +2698,8 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            if (instance.ModellingRule != ModellingRule.MandatoryPlaceholder &&
-                instance.ModellingRule != ModellingRule.OptionalPlaceholder)
+            if (instance.ModellingRule is not ModellingRule.MandatoryPlaceholder and
+                not ModellingRule.OptionalPlaceholder)
             {
                 return false;
             }
@@ -3358,6 +3374,67 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Resolves a permission's namespace-qualified wire identity without requiring a generated role node.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The permission does not identify a representable namespace-qualified role.
+        /// </exception>
+        internal static ExpandedNodeId ResolveRoleId(this RolePermission permission, IModelDesign model)
+        {
+            if (permission.RoleId != null)
+            {
+                if (ExpandedNodeId.TryParse(permission.RoleId, out ExpandedNodeId roleId) &&
+                    !roleId.IsNull &&
+                    roleId.ServerIndex == 0 &&
+                    (roleId.NamespaceIndex == 0 || !string.IsNullOrEmpty(roleId.NamespaceUri)) &&
+                    (roleId.NamespaceUri != Namespaces.OpcUa || !roleId.InnerNodeId.IsNull))
+                {
+                    return roleId.WithNamespaceUri(roleId.NamespaceUri ?? Namespaces.OpcUa);
+                }
+            }
+            else if (permission.Role != null &&
+                model.TryFindNode(permission.Role, permission.Role.Name, "RoleType", out NodeDesign? role))
+            {
+                uint? numericId = role.FindNumericIdentifier();
+                NodeId roleId = role.GetIdentifier() switch
+                {
+                    uint numeric => new NodeId(numeric),
+                    string text => new NodeId(text, 0),
+                    Guid guid => new NodeId(guid),
+                    ByteString opaque => new NodeId(opaque),
+                    _ when numericId.HasValue => new NodeId(numericId.Value),
+                    _ => new NodeId(role.SymbolicId?.Name ?? string.Empty, 0)
+                };
+                if ((role.HasIdentifier() || numericId.HasValue || !string.IsNullOrEmpty(role.SymbolicId?.Name)) &&
+                    !string.IsNullOrEmpty(role.SymbolicId?.Namespace) &&
+                    (!roleId.IsNull || role.SymbolicId.Namespace != Namespaces.OpcUa))
+                {
+                    return ((ExpandedNodeId)roleId).WithNamespaceUri(role.SymbolicId.Namespace);
+                }
+            }
+            throw new InvalidDataException(
+                $"RolePermissions cannot represent role '{permission.RoleId ?? permission.Role?.ToString()}'.");
+        }
+
+        /// <summary>
+        /// Formats the identifier kind even for an empty identifier in a nonzero namespace.
+        /// </summary>
+        internal static string FormatRoleId(this ExpandedNodeId roleId)
+        {
+            var text = new StringBuilder();
+            NodeId identifier = roleId.InnerNodeId;
+            ExpandedNodeId.Format(
+                CultureInfo.InvariantCulture,
+                text,
+                identifier.IdentifierAsString,
+                identifier.IdType,
+                0,
+                roleId.NamespaceUri,
+                0);
+            return text.ToString();
+        }
+
+        /// <summary>
         /// Maps the WriteAccess (WriteMask) of a node onto code. The verbatim
         /// OPC UA WriteMask bitmask is emitted so that attributes advertised as
         /// writable in the NodeSet (for example DisplayName and Description)
@@ -3365,7 +3442,24 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static string GetWriteMaskAsCode(this NodeDesign node)
         {
-            uint writeMask = node?.WriteAccess ?? 0;
+            return GetWriteMaskAsCode(node?.WriteAccess ?? 0);
+        }
+
+        /// <summary>
+        /// Emits an explicit user mask independently, retaining the fallback for unconfigured masks.
+        /// </summary>
+        public static string GetUserWriteMaskAsCode(this NodeDesign node)
+        {
+            return GetWriteMaskAsCode(node?.UserWriteAccessSpecified == true
+                ? node.UserWriteAccess
+                : node?.WriteAccess ?? 0);
+        }
+
+        /// <summary>
+        /// Formats an attribute write mask without changing its bits.
+        /// </summary>
+        private static string GetWriteMaskAsCode(uint writeMask)
+        {
             if (writeMask == 0)
             {
                 return "global::Opc.Ua.AttributeWriteMask.None";
@@ -3455,6 +3549,10 @@ namespace Opc.Ua.Schema.Model
             }
             return restrictions switch
             {
+                AccessRestrictions.None =>
+                    "global::Opc.Ua.AccessRestrictionType.None",
+                AccessRestrictions.ApplyToBrowse =>
+                    "global::Opc.Ua.AccessRestrictionType.ApplyRestrictionsToBrowse",
                 AccessRestrictions.SigningRequired =>
                     "global::Opc.Ua.AccessRestrictionType.SigningRequired",
                 AccessRestrictions.EncryptionRequired =>

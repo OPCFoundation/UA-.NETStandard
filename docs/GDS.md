@@ -76,6 +76,10 @@ The primary client for interacting with a GDS. Manages its own
 session and exposes the full GDS directory and certificate
 management API.
 
+Both GDS and push clients validate the server certificate against the originally
+requested endpoint hostname before activating credentials. Discovery cannot
+replace that destination's identity with an advertised host or transport.
+
 ```csharp
 using Opc.Ua.Gds.Client;
 
@@ -117,6 +121,11 @@ await gdsClient.DisconnectAsync();
 
 Client for OPC 10000-12 §7.10 push certificate management on a
 target server:
+
+Private-key uploads require a confidential, generation-bound dispatch context.
+A Sign-only channel is rejected before the key is sent, and reconnection cannot
+redirect the captured operation to another channel. Certificate-only updates
+retain their non-secret path.
 
 ```csharp
 var pushClient = new ServerPushConfigurationClient(appConfig);
@@ -564,6 +573,13 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 | §7.9.10 | GetCertificateStatus | ✅ | `OnGetCertificateStatus` | `ClientTest.cs` |
 | §7.9.11 | CheckRevocationStatus | ✅ | `OnCheckRevocationStatusAsync` + ValidityTime | `GdsCertificateManagementTests.cs` |
 
+`CheckRevocationStatus` uses locally configured issuer chains and verified local
+CRLs. Caller-supplied AIA URLs do not trigger certificate or CRL downloads.
+Incomplete or untrusted chains fail validation, and unavailable revocation
+evidence is reported as unknown rather than accepted. Provision the complete
+issuer chain and applicable CRLs in the configured stores, including on `net48`,
+whose explicit-path validation does not call `X509Chain.Build`.
+
 ## Roles and Privileges (§7.2)
 
 | Feature | Status | Source | Tests |
@@ -586,7 +602,7 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 | §7.10.7 | DeleteCertificate | ✅ | `...DeleteCertificateAsync` — empty slot → `Bad_InvalidState`; endpoint-reference check enforced at `ApplyChanges` | `ConfigurationNodeManagerPushTests` (`DeleteCertificate*`, `DeleteCertificateReferencedByEndpointIsRejectedByApplyChangesAsync`, `RotatedCertificateBecomesEndpointReferenced*`) |
 | §7.10.8 | GetCertificates | ✅ | `...GetCertificates` (null group → `DefaultApplicationGroup`; occupied slots only, aligned pairs) | `ConfigurationNodeManagerPushValidationTests.SelectOccupiedCertificateSlotsOmitsEmptySlotsAndPreservesOrder`, `ConfigurationNodeManagerPushTests.GetCertificates*`, `PushTest.GetCertificatesAsync` |
 | §7.10.9 | ApplyChanges | ✅ | `...ApplyChanges` (ordered commit + reverse rollback) | `PushConfigurationTransactionCoordinatorTests` (`ApplyChanges*`), `PushTest` (`ApplyChangesAsync`, `ApplyChangesForcesChannelRenegotiateAsync`) |
-| §7.10.10 | CreateSigningRequest | ✅ | `...CreateSigningRequestAsync` (nonce ≥ 32 bytes genuinely mixed in) | `ConfigurationNodeManagerPushTests` (`CreateSigningRequest*`, `...WithRegenerateAndShortNonceThrowsBadInvalidArgument`), `PushTest.CreateSigningRequest*` |
+| §7.10.10 | CreateSigningRequest | ✅ | `...CreateSigningRequestAsync` (nonce ≥ 32 bytes mixed in) | `ConfigurationNodeManagerPushTests` (`CreateSigningRequest*`, `...WithRegenerateAndShortNonceThrowsBadInvalidArgument`), `PushTest.CreateSigningRequest*` |
 | §7.10.11 | CancelChanges | ✅ | `...CancelChanges` (discard; `Bad_RequestCancelledByClient` diagnostics) | `PushConfigurationTransactionCoordinatorTests.CancelChanges*`, `ConfigurationNodeManagerPushTests.CancelChanges*` |
 | §7.10.12 | GetRejectedList | ✅ | `...GetRejectedList` | `ConfigurationNodeManagerPushTests.GetRejectedList*`, `PushTest.GetRejectedListAsync` |
 
@@ -602,7 +618,7 @@ Per-Method SecureChannel/Role enforcement (`Bad_SecurityModeInsufficient` for th
 | §7.10.9 ordered commit, reverse-order rollback, `Bad_NothingToDo`, open-writer `Bad_InvalidState` | ✅ | coordinator prepare/commit/compensate | `PushConfigurationTransactionCoordinatorTests` (`ApplyChangesCommitsOperationsInRequestOrderAsync`, `ApplyChangesWithFailingCommitRollsBackEarlierOperationsInReverseOrderAsync`, `ApplyChangesWithNoActiveTransactionReturnsBadNothingToDoAsync`, `ApplyChangesWithOpenTrustListWriterReturnsBadInvalidStateWithoutClearingTransactionAsync`) |
 | §7.10.11 wrong-Session apply/cancel → `Bad_SessionIdInvalid`; Session-close cancels its transaction | ✅ | coordinator ownership checks | `PushConfigurationTransactionCoordinatorTests` (`ApplyChangesFromWrongSessionReturnsBadSessionIdInvalidAsync`, `CancelChangesFromWrongSessionReturnsBadSessionIdInvalid`, `CancelForSessionClose*`) |
 | §7.10.17 `TransactionDiagnostics` DataValue status: `Bad_OutOfService` before any transaction, `Bad_InvalidState` while active, `Good` after completion | ✅ | `ConfigurationNodeManager` diagnostics binding + coordinator snapshot | `ConfigurationNodeManagerPushTests` (`TransactionDiagnosticsReportBadOutOfServiceBeforeAnyTransactionAsync`, `...BadInvalidStateWhileTransactionActiveAsync`, `...GoodResultAfterCompletedTransactionAsync`), `PushConfigurationTransactionCoordinatorTests.GetSnapshot*` |
-| §7.10.10 nonce entropy genuinely mixed into regenerated key (HMAC-DRBG) | ✅ | `AdditionalEntropyCertificateKeyGenerator` | `AdditionalEntropyCertificateKeyGeneratorTests.cs` |
+| §7.10.10 nonce entropy mixed into regenerated key (HMAC-DRBG) | ✅ | `AdditionalEntropyCertificateKeyGenerator` | `AdditionalEntropyCertificateKeyGeneratorTests.cs` |
 | §7.10.10 regenerated private key persisted across Sessions and restart | ✅ | `DirectoryPendingCertificateKeyStore` / `InMemoryPendingCertificateKeyStore` | `PendingCertificateKeyStoreTests.cs` |
 | Coordinator scoped per server (no cross-server sharing); injected coordinator honored | ✅ | `ConfigurationNodeManager` private per-server default | `ConfigurationNodeManagerPushTests` (`EachConfigurationNodeManagerOwnsADistinctDefaultCoordinator`, `AnInjectedCoordinatorIsSharedAcrossConfigurationNodeManagers`) |
 | Deferred post-apply effects drained/cancelled on shutdown | ✅ | `ConfigurationNodeManager.DeleteAddressSpaceAsync` / `Dispose` | `ConfigurationNodeManagerShutdownTests.cs` |
@@ -739,12 +755,36 @@ The following optional Part 12 members are **not** implemented (or only partiall
 
 ## LDS / LDS-ME (§4–5)
 
+Semaphore files are local-host liveness indicators (OPC UA Part 12). `RegisterServer`
+and `RegisterServer2` accept a non-empty `SemaphoreFilePath` only from a
+transport-observed loopback peer (including IPv4-mapped loopback). Remote peers
+and transports without peer-address evidence must omit the path and periodically
+refresh their registration. A certificate URI or a discovery URL naming localhost
+is not evidence of locality.
+
+Paths must be fully qualified native file paths. UNC paths (including mixed or
+forward slashes), Windows device/extended namespaces, drive-relative paths,
+URIs, control characters, alternate streams, reserved DOS device names, and
+ambiguous dot/space components are rejected with `BadInvalidArgument` before
+filesystem access, including offline requests. The store independently checks
+paths before registration and pruning; unsafe entries loaded or seeded into the
+store are pruned without probing their paths. The built-in store is in-memory;
+there is no registration persistence loader.
+
+Ordinary existing local semaphore files retain their liveness behavior: a missing
+file removes the registration. The filesystem can be injected through
+`RegisteredServerStore` or LDS hosting's `IFileSystem` service. Path validation is
+lexical, not a filesystem sandbox: administrators must keep semaphore directories,
+drive mappings, mounts, and links local and trusted. Local applications connecting
+through a non-loopback interface must reconnect through loopback to use semaphores.
+
 | Feature | Status | Source | Tests |
 |---------|--------|--------|-------|
 | FindServers | ✅ | `LdsServer.FindServersAsync` | `LocalDiscoveryTests.cs` |
 | GetEndpoints | ✅ | `LdsServer.GetEndpointsAsync` | `LocalDiscoveryTests.cs` |
 | RegisterServer | ✅ | `LdsServer.RegisterServerAsync` | `LocalDiscoveryTests.cs` |
 | RegisterServer2 | ✅ | `LdsServer.RegisterServer2Async` | `LocalDiscoveryTests.cs` |
+| Local semaphore path and peer validation | ✅ | `LdsServer.ValidateRegistration`, `RegisteredServerStore` | `RegistrationValidationTests.cs`, `SemaphorePathTests.cs` |
 | FindServersOnNetwork | ✅ | `LdsServer.FindServersOnNetworkAsync` | `LocalDiscoveryTests.cs`, `LdsServerStaticTests.cs` |
 | LDS-ME capability | ✅ | `ComputeServerCapabilities` | `ServerCapabilitiesTests.cs`, `ServerCapabilityTests.cs` |
 | mDNS _opcua-tcp._tcp | ✅ | `MulticastDiscovery.OpcUaServiceType` | `LdsServerStaticTests.cs` |

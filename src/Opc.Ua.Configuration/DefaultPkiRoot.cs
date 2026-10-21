@@ -30,6 +30,7 @@
 using System;
 using System.IO;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Configuration
 {
@@ -98,7 +99,7 @@ namespace Opc.Ua.Configuration
                 "application certificate and trust lists.")]
         public static partial void CertificateStoresFoundInLegacyTempRoot(
             this ILogger logger,
-            string legacyPkiRoot,
-            string pkiRoot);
+            [FilePath] string legacyPkiRoot,
+            [FilePath] string pkiRoot);
     }
 }

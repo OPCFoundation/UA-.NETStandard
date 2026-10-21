@@ -1035,7 +1035,7 @@ namespace Opc.Ua.Machinery.Tests
             var outputs = new List<Variant>();
             var errors = new List<ServiceResult>();
             ServiceResult status = await management!.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { Variant.FromStructure(options) }.ToArrayOf(),
                 errors,
@@ -1076,7 +1076,7 @@ namespace Opc.Ua.Machinery.Tests
             var outputs = new List<Variant>();
             var errors = new List<ServiceResult>();
             ServiceResult status = await management!.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { Variant.FromStructure(options) }.ToArrayOf(),
                 errors,
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Machinery.Tests
             var readOutputs = new List<Variant>();
             var readErrors = new List<ServiceResult>();
             ServiceResult readStatus = file.Read!.Call(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 file.NodeId,
                 new Variant[] { Variant.From(fileHandle), Variant.From(length) }.ToArrayOf(),
                 readErrors,

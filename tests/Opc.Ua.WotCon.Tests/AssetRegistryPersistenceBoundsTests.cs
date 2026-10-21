@@ -64,6 +64,7 @@ namespace Opc.Ua.WotCon.Tests
     public sealed class AssetRegistryPersistenceBoundsTests
     {
         private string _tempFolder = null!;
+        private ILoggerFactory? _loggerFactory;
 
         [SetUp]
         public void SetUp()
@@ -77,6 +78,8 @@ namespace Opc.Ua.WotCon.Tests
         [TearDown]
         public void TearDown()
         {
+            _loggerFactory?.Dispose();
+            _loggerFactory = null;
             if (Directory.Exists(_tempFolder))
             {
                 try
@@ -290,7 +293,12 @@ namespace Opc.Ua.WotCon.Tests
             // contract. A NullReferenceException here in a future
             // refactor is the desired signal that the load path now
             // touches the manager and must be re-tested at that layer.
-            ILogger logger = new CapturingLogger(entries);
+            // File names are classified log parameters: log through a redaction-aware factory.
+            _loggerFactory?.Dispose();
+            _loggerFactory = LoggerFactory.Create(builder => builder
+                .EnableOpcUaRedaction()
+                .AddProvider(new CapturingLogger(entries)));
+            ILogger logger = _loggerFactory.CreateLogger<AssetRegistry>();
             return new AssetRegistry(manager: null!, options, logger);
         }
 
@@ -360,7 +368,7 @@ namespace Opc.Ua.WotCon.Tests
 
         private sealed record LogEntry(LogLevel Level, EventId EventId, string Message);
 
-        private sealed class CapturingLogger : ILogger
+        private sealed class CapturingLogger : ILogger, ILoggerProvider
         {
             public CapturingLogger(List<LogEntry> entries)
             {
@@ -375,6 +383,15 @@ namespace Opc.Ua.WotCon.Tests
             public bool IsEnabled(LogLevel logLevel)
             {
                 return true;
+            }
+
+            public ILogger CreateLogger(string categoryName)
+            {
+                return this;
+            }
+
+            public void Dispose()
+            {
             }
 
             public void Log<TState>(

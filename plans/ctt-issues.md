@@ -121,16 +121,23 @@ procedure for running the CTT is in [ctt-testing.md](ctt-testing.md).
 
 ## Not filed
 
+> **Historical findings:** C28, C32 and C43 below retain the original conclusions
+> and held-back status. Their re-checks are follow-up work, not new verification
+> of the current server or CTT.
+
 - **C28. GDS Application Directory `029.js`, `038.js`, `039.js`** expect `BadInvalidArgument` for a null or
   unknown ApplicationId. The server returns `BadNotFound`, the only code OPC 10000-12 §6.5.7/§6.5.9 define for
   an unknown ApplicationId. Held back until the GDS server behavior is reviewed.
+  **Re-check:** distinguish null from unknown ApplicationIds against the Method requirements and current server.
 - **C32. Monitor Basic `038.js`** warns when a requested SamplingInterval of 0 is revised to 0, unless
   *Fastest Sampling Interval Supported* is 0. The nodes declare MinimumSamplingInterval 0, so 0 is correct
   (Part 4 §7.21). The setting cannot be lowered because `monitoredItem.js` uses it as the default sampling
   interval. Held back: relevance unclear.
+  **Re-check:** verify Part 4 §7.21 and the effect of changing the shared default in the current CTT project.
 - **C43. A & C Enable `Err_004.js`** calls Disable, Disable and Enable for every event of a condition without
   per-condition state, which feeds itself (up to about 850 events in 15 s). In 8 of 28 runs the alarm thread
   then returned no further events. Held back: needs more investigation.
+  **Re-check:** correlate the server trace, CTT acknowledgements and alarm-thread state before assigning a cause.
 - **C54. GDS AliasName Discovery `002.js`, `004.js`, `006.js`, `007.js`, `009.js`, `011.js`, `012.js`,
   `014.js`, `015.js`.** `AssertAliasNamesReplicated` (`library/GDS/AliasNameDiscoveryHelpers.js` line 92)
   compares the AliasFor targets with `UaExpandedNodeId.equals()`. On the source the target is local
@@ -161,7 +168,13 @@ procedure for running the CTT is in [ctt-testing.md](ctt-testing.md).
   session late; the Confirm then uses an EventId the Condition has already replaced (Part 9 B.1.2 keeps no
   previous states), so the server is right.
 - **C63. A & C** units reuse an alarm thread whose publish thread stalled (C60) at the end of the previous
-  unit, so the whole next unit fails.
+  unit, so the whole next unit fails. Seen in the weekly run of 2026-10-18: Refresh2 `Test_002.js`,
+  `Test_003.js` and `cleanup.js` failed with `BadSubscriptionIdInvalid`, and the unit stopped after
+  `Test_004.js`. At 250 ms the stall still hits about 1 in 5 A&C runs on a GitHub-hosted runner, sometimes
+  within a unit (Refresh2 `Err_003.js`). Workaround in the CTT CI: each unit checks at its start that the
+  publish thread still receives keep-alives and otherwise starts on a new alarm thread. A part whose first
+  attempt has regressions together with the C60 watchdog warning runs once more, and the second attempt is
+  the result.
 - **C65. Aggregate Bad data search reads forward.** `HAAggregateHelper.GetBadData` reads 120 raw values
   "backward" from the configured `StartOfBadData*` time with EndTime `new UaDateTime()`, the null DateTime. The
   server therefore reads forward (Part 11 §6.5.3), and the helper takes the last value as the earliest. The

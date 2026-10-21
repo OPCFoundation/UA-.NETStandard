@@ -67,37 +67,41 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             await using PubSubExpansionTestContext fixture = await PubSubExpansionTestContext
                 .CreateAsync(options: options)
                 .ConfigureAwait(false);
-            using IDisposable owner = fixture.Enter();
-            string handle = (await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input())
-                .ConfigureAwait(false))
-                ["handle"]!.GetValue<string>();
+            string handle;
+            using (fixture.Enter())
+            {
+                handle = (await fixture.Runtimes.CreateAsync(PubSubExpansionTestContext.Input())
+                    .ConfigureAwait(false))
+                    ["handle"]!.GetValue<string>();
 
-            CallToolResult binding = await fixture.Services.GetRequiredService<PubSubAdapterTools>()
-                .BindSourceAsync(handle, new PubSubVariablesInput
-                {
-                    Variables =
-                    [
-                        new PubSubVariableInput { Name = "Count", NodeId = fixture.Remote.Id("count").ToString() },
-                        new PubSubVariableInput { Name = "Enabled", NodeId = fixture.Remote.Id("flag").ToString() }
-                    ]
-                }, PubSubExpansionTestContext.SessionName).ConfigureAwait(false);
-            JsonObject status = await fixture.Runtimes.StatusAsync(handle).ConfigureAwait(false);
+                CallToolResult binding = await fixture.Services.GetRequiredService<PubSubAdapterTools>()
+                    .BindSourceAsync(handle, new PubSubVariablesInput
+                    {
+                        Variables =
+                        [
+                            new PubSubVariableInput { Name = "Count", NodeId = fixture.Remote.Id("count").ToString() },
+                            new PubSubVariableInput { Name = "Enabled", NodeId = fixture.Remote.Id("flag").ToString() }
+                        ]
+                    }, PubSubExpansionTestContext.SessionName).ConfigureAwait(false);
+                JsonObject status = await fixture.Runtimes.StatusAsync(handle).ConfigureAwait(false);
 
-            Assert.That(binding.IsError, Is.False);
-            Assert.That(status["bindingCount"]!.GetValue<int>(), Is.EqualTo(1));
-            Assert.That(status["isRunning"]!.GetValue<bool>(), Is.False);
-            Assert.That(status["bindings"]![0]!["operation"]!.GetValue<string>(), Is.EqualTo("read"));
-            Assert.That(status["bindings"]![0]!["ownsSession"]!.GetValue<bool>(), Is.False);
-            Assert.That(fixture.Transports.Factories, Is.Zero);
-            Assert.That(fixture.Remote.Reads, Is.Empty);
+                Assert.That(binding.IsError, Is.False);
+                Assert.That(status["bindingCount"]!.GetValue<int>(), Is.EqualTo(1));
+                Assert.That(status["isRunning"]!.GetValue<bool>(), Is.False);
+                Assert.That(status["bindings"]![0]!["operation"]!.GetValue<string>(), Is.EqualTo("read"));
+                Assert.That(status["bindings"]![0]!["ownsSession"]!.GetValue<bool>(), Is.False);
+                Assert.That(fixture.Transports.Factories, Is.Zero);
+                Assert.That(fixture.Remote.Reads, Is.Empty);
 
-            _ = await fixture.Runtimes.StartAsync(handle).ConfigureAwait(false);
+                _ = await fixture.Runtimes.StartAsync(handle).ConfigureAwait(false);
+            }
             await fixture.Sessions.RegisterExistingSessionAsync(
                 PubSubExpansionTestContext.SessionName, fixture.Remote.Session.Object, "Anonymous")
                 .ConfigureAwait(false);
             fixture.Clock.Advance(TimeSpan.FromSeconds(1));
             await fixture.Transports.Created.Single().Disposed.Task.WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
+            using IDisposable owner = fixture.Enter();
             JsonObject invalidated = await fixture.Runtimes.StatusAsync(handle).ConfigureAwait(false);
             Assert.That(invalidated["isRunning"]!.GetValue<bool>(), Is.False);
             Assert.That(invalidated["state"]!.GetValue<string>(), Is.EqualTo("BindingInvalidated"));

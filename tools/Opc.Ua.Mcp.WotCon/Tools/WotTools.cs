@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Text.Json.Nodes;
 using System.Threading;
@@ -91,6 +92,10 @@ namespace Opc.Ua.Mcp.Tools
                             "ValidateCompatibility", "StrictValidation", "VocabularyVersion", "SelectedBindings"],
                         token)
                         .ConfigureAwait(false);
+                if (IsInitialRefreshPending(registryInfo))
+                {
+                    registryInfo["error"] = false;
+                }
                 legacy["supported"] = !management.IsNull;
                 registryInfo["supported"] = !registry.IsNull;
                 return new JsonObject
@@ -101,6 +106,65 @@ namespace Opc.Ua.Mcp.Tools
                     ["registry"] = registryInfo
                 };
             }, ct);
+        }
+
+        /// <summary>
+        /// Identifies the expected initial refresh statuses without masking other property read failures.
+        /// </summary>
+        private static bool IsInitialRefreshPending(JsonObject registryInfo)
+        {
+            if (registryInfo["error"] is not JsonValue errorFlag ||
+                !errorFlag.TryGetValue(out bool hasError) ||
+                !hasError ||
+                registryInfo["properties"] is not JsonObject properties)
+            {
+                return false;
+            }
+
+            foreach (string name in new[] { "LastRefreshTime", "LastRefreshSummary" })
+            {
+                if (properties[name] is not JsonObject details ||
+                    details["supported"] is not JsonValue supportedFlag ||
+                    !supportedFlag.TryGetValue(out bool supported) ||
+                    !supported ||
+                    details["dataValue"] is not JsonObject dataValue ||
+                    dataValue["Status"] is not JsonObject status ||
+                    status["Code"] is not JsonValue codeValue ||
+                    !codeValue.TryGetValue(out uint code) ||
+                    code != StatusCodes.BadWaitingForInitialData)
+                {
+                    return false;
+                }
+            }
+
+            foreach (KeyValuePair<string, JsonNode?> property in properties)
+            {
+                if (property.Key is "LastRefreshTime" or "LastRefreshSummary" ||
+                    property.Value is not JsonObject details ||
+                    details["supported"] is not JsonValue supportedFlag ||
+                    !supportedFlag.TryGetValue(out bool supported) ||
+                    !supported)
+                {
+                    continue;
+                }
+                if (details["dataValue"] is not JsonObject dataValue)
+                {
+                    return false;
+                }
+                if (dataValue["Status"] is not JsonObject status)
+                {
+                    continue;
+                }
+                if (status["Code"] is not JsonValue codeValue || !codeValue.TryGetValue(out uint code))
+                {
+                    return false;
+                }
+                if (StatusCode.IsBad(new StatusCode(code)))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>

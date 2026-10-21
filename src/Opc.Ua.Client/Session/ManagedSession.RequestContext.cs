@@ -41,13 +41,14 @@ namespace Opc.Ua.Client
         /// Captures the real session only after entering the same gate as ordinary service requests.
         /// </summary>
         internal ValueTask<SessionRequestContext> CaptureRequestContextAsync(
-            CancellationToken ct, bool allowSameSessionRecovery = false)
+            bool requireConfidentiality, CancellationToken ct, bool allowSameSessionRecovery = false)
         {
             ct.ThrowIfCancellationRequested();
             return CallServiceAsync(
-                (owner: this, allowSameSessionRecovery),
+                (owner: this, requireConfidentiality, allowSameSessionRecovery),
                 static (session, args, _) => new ValueTask<SessionRequestContext>(
-                    session.CreateRequestContext(args.owner, args.allowSameSessionRecovery)),
+                    session.CreateRequestContext(
+                        args.owner, args.requireConfidentiality, args.allowSameSessionRecovery)),
                 ct, recoveryControl: true);
         }
 

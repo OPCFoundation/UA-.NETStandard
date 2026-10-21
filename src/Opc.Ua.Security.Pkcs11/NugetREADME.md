@@ -1,6 +1,6 @@
 # OPC UA .NET Standard — PKCS#11 certificate store
 
-`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` lets an OPC UA application keep its private keys inside a hardware token, smart card or HSM. The key is used for signing and decryption but is never present in process memory and can never be exported.
+`OPCFoundation.NetStandard.Opc.Ua.Security.Pkcs11` delegates private-key signing and decryption to a PKCS#11 module. Its RSA/ECDSA wrappers do not export private key parameters. Hardware-backed modules can keep key material inside the device when provisioned with appropriate key attributes; software modules such as SoftHSM do not provide that hardware-isolation guarantee. Verify the module's key-generation, storage and export policies for the deployment.
 
 This package is optional. `OPCFoundation.NetStandard.Opc.Ua.Core` does not reference it, so applications that do not use a token are unaffected.
 
@@ -55,6 +55,12 @@ Which security policies actually work depends on the mechanisms your token imple
 
 - Revocation lists are not held on a token. Point the trusted issuer store at a directory store.
 - Keys are provisioned and removed with the token vendor's tools, not through this store. Certificates are: `AddAsync` writes a certificate object (`CKO_CERTIFICATE`) to the token, and `DeleteAsync` destroys the certificate objects of a thumbprint while the key objects stay on the token. A written certificate gets the `CKA_ID` that `Pkcs11TokenOptions.ObjectId` selects objects by, else the `CKA_ID` of the key it belongs to — an RSA key with the same modulus and public exponent, or an EC key with the same point on the same curve — so a renewed certificate is paired with its key again; a certificate without a key on the token gets the SHA-1 hash of its public key as `CKA_ID`.
+- `LoadPrivateKeyAsync` pairs a certificate with the private key of the same `CKA_ID`.
+  Without a `CKA_ID`, each candidate key must sign a random challenge that the certificate's
+  public key verifies (PKCS#1 v1.5, or PSS for an RSA key restricted to PSS).
+  Candidates come first from key objects matching the certificate's public key, using their
+  `CKA_ID`, then from the configured `Pkcs11TokenOptions.ObjectLabel` or `ObjectId` filters.
+  If no filter is configured, only the public-key-matched candidates are tried.
 - A private key offered to `AddAsync` is refused and logged: a token does not import key material it did not generate.
 - The token's validation status is reported as **uncertified** unless you assert one, because nothing in the PKCS#11 interface reports a FIPS certificate. See the crypto provider documentation for how this is audited.
 
@@ -83,7 +89,7 @@ This is a property of the interop library, not of this package, and applies to a
 
 This package is marked `IsAotCompatible` on `net10.0` and is exercised by the `Opc.Ua.Aot.Tests` project. Despite `Pkcs11Interop` carrying no trim or AOT annotations of its own, the ILCompiler analysis produces no trim or AOT warnings for the paths this package uses.
 
-The module itself is resolved through native interop at run time, which trimming does not affect. Note that a native library that is genuinely absent fails the same way in an AOT binary as in a JIT one — see the `libdl.so` note above.
+The module itself is resolved through native interop at run time, which trimming does not affect. A missing native library fails the same way in an AOT binary as in a JIT one — see the `libdl.so` note above.
 
 ## Additional documentation
 

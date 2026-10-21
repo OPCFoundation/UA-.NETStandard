@@ -61,10 +61,9 @@ namespace Opc.Ua.Server.Fluent
     /// <para>
     /// Newly created child objects are attached to the parent via
     /// <see cref="NodeState.AddChild"/> and registered with the owning
-    /// node manager. Their NodeIds are generated from the parent's
-    /// NodeId by appending the child browse name (matching the pattern
-    /// used by the generated state classes and the
-    /// PumpDeviceIntegrationServer NodeIdFactory).
+    /// node manager. Their NodeIds are assigned through the owning
+    /// NodeManager's policy; the helper does not impose a fixed
+    /// parent-and-child string format.
     /// </para>
     /// </remarks>
     public static class ReferenceBuilderExtensions

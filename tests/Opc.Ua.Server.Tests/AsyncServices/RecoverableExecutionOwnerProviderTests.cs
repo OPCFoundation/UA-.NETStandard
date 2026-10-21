@@ -30,6 +30,7 @@
 using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -390,13 +391,15 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             identity.SetupGet(value => value.TokenType).Returns(tokenType);
             using OperationContext context = CreateContext(
                 CreateSession(m_certificate, identity.Object, tokenType: tokenType));
+            int initialTokenReads = identity.Invocations.Count(invocation =>
+                invocation.Method.Name == "get_TokenHandler");
 
             RecoverableExecutionOwner owner = await provider.ResolveAsync(context).ConfigureAwait(false);
 
             Assert.That(owner.Id, Is.EqualTo(ExpectedOwnerId));
             Assert.That(owner.ContinuityContext.Slice(1, 32), Is.EqualTo(m_certificateDigest));
             await provider.ValidatePersistedOwnerAsync(owner).ConfigureAwait(false);
-            identity.VerifyGet(value => value.TokenHandler, Times.Never);
+            identity.VerifyGet(value => value.TokenHandler, Times.Exactly(initialTokenReads));
         }
 
         [Test]
@@ -516,6 +519,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             var identity = new Mock<IUserIdentity>(MockBehavior.Strict);
             identity.SetupGet(value => value.DisplayName).Returns(kDisplayName);
             identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
+            identity.SetupGet(value => value.GrantedRoleIds).Returns([]);
+            identity.SetupGet(value => value.TokenHandler).Returns(
+                new UserIdentity(new UserNameIdentityToken { UserName = kSubject }).TokenHandler);
             using OperationContext context = CreateContext(CreateSession(m_certificate, identity.Object));
 
             await AssertResolveStatusAsync(provider, context, StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
@@ -786,6 +792,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             using OperationContext context = CreateContext(session);
             using var cancellation = new CancellationTokenSource();
             await cancellation.CancelAsync().ConfigureAwait(false);
+            Mock.Get(session.Object.Identity).Invocations.Clear();
+            Mock.Get(session.Object.IdentityToken).Invocations.Clear();
             session.Invocations.Clear();
 
             OperationCanceledException exception = (await Assert.ThrowsAsync<OperationCanceledException>(async () =>
@@ -1160,6 +1168,10 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             Mock<IUserIdentity> effective = CreateIdentity("urn:effective-only", "not-an-owner-mapping");
             using OperationContext context = CreateContext(
                 CreateSession(m_certificate, authenticated.Object, effective.Object));
+            int initialAuthenticatedTokenReads = authenticated.Invocations.Count(invocation =>
+                invocation.Method.Name == "get_TokenHandler");
+            int initialEffectiveTokenReads = effective.Invocations.Count(invocation =>
+                invocation.Method.Name == "get_TokenHandler");
 
             RecoverableExecutionOwner owner = await provider.ResolveAsync(context).ConfigureAwait(false);
             await provider.ValidatePersistedOwnerAsync(owner).ConfigureAwait(false);
@@ -1168,8 +1180,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             Assert.That(owner.ContinuityContext.Slice(1, 32), Is.EqualTo(m_certificateDigest));
             Assert.That(context.UserIdentity, Is.SameAs(effective.Object));
             Assert.That(effective.Object.GrantedRoleIds, Is.EqualTo(ArrayOf<NodeId>.Empty));
-            authenticated.VerifyGet(value => value.TokenHandler, Times.Never);
-            effective.VerifyGet(value => value.TokenHandler, Times.Never);
+            authenticated.VerifyGet(value => value.TokenHandler, Times.Exactly(initialAuthenticatedTokenReads));
+            effective.VerifyGet(value => value.TokenHandler, Times.Exactly(initialEffectiveTokenReads));
             policy.VerifyNoOtherCalls();
         }
 
@@ -1232,6 +1244,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             identity.SetupGet(value => value.DisplayName).Returns(displayName);
             identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
             identity.SetupGet(value => value.GrantedRoleIds).Returns([]);
+            identity.SetupGet(value => value.TokenHandler).Returns(
+                new UserIdentity(new UserNameIdentityToken { UserName = subject ?? string.Empty }).TokenHandler);
             return identity;
         }
 
@@ -1245,6 +1259,17 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             identity ??= CreateIdentity().Object;
             var token = new Mock<IUserIdentityTokenHandler>(MockBehavior.Strict);
             token.SetupGet(value => value.TokenType).Returns(tokenType);
+            token.SetupGet(value => value.Token).Returns(tokenType switch
+            {
+                UserTokenType.Anonymous => new AnonymousIdentityToken(),
+                UserTokenType.UserName => new UserNameIdentityToken { UserName = kSubject },
+                UserTokenType.Certificate => new X509IdentityToken
+                {
+                    CertificateData = new ByteString(certificate.RawData)
+                },
+                UserTokenType.IssuedToken => new IssuedIdentityToken(),
+                _ => throw new ArgumentOutOfRangeException(nameof(tokenType))
+            });
             var session = new Mock<ISession>();
             session.SetupGet(value => value.Activated).Returns(true);
             session.SetupGet(value => value.IsClosing).Returns(false);

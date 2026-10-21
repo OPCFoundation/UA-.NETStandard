@@ -48,7 +48,7 @@ namespace Opc.Ua.XRegistry.Tests
         [TestCase(1, 1)]
         [TestCase(8, 2)]
         [TestCase(9, 3)]
-        public async Task ExactChunksAreFollowedByOneFreshBoundedClose(int length, int writes)
+        public async Task ExactChunksAreFollowedByOneCloseWithTheCallerToken(int length, int writes)
         {
             var fixture = new WriteFixture();
             ByteString document = ByteString.From(Enumerable.Range(0, length).Select(value => (byte)value).ToArray());
@@ -61,7 +61,55 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(fixture.Chunks.All(chunk => chunk.Length is > 0 and <= 4), Is.True);
             Assert.That(fixture.Closes, Is.EqualTo(1));
             Assert.That(fixture.CloseToken.CanBeCanceled, Is.True);
-            Assert.That(fixture.CloseToken, Is.Not.EqualTo(cancellation.Token));
+            Assert.That(fixture.CloseToken, Is.EqualTo(cancellation.Token));
+            fixture.VerifyBorrowed();
+        }
+
+        /// <summary>
+        /// Verifies that committing successful writes is not limited by the failed-write cleanup deadline.
+        /// </summary>
+        [Test]
+        public async Task SuccessfulCloseCanCommitBeyondTheCleanupBudget()
+        {
+            var fixture = new WriteFixture();
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            bool committed = false;
+            fixture.Close = async token =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(6), token).ConfigureAwait(false);
+                committed = true;
+            };
+
+            await fixture.Resource.WriteDocumentAsync(73, ByteString.From([1]), ct: cancellation.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(committed, Is.True);
+            Assert.That(fixture.Closes, Is.EqualTo(1));
+            Assert.That(fixture.CloseToken, Is.EqualTo(cancellation.Token));
+            fixture.VerifyBorrowed();
+        }
+
+        /// <summary>
+        /// Verifies that cancellation during commit is surfaced without replaying Close.
+        /// </summary>
+        [Test]
+        public async Task SuccessfulCloseObservesCallerCancellationWithoutRetry()
+        {
+            var fixture = new WriteFixture();
+            using var cancellation = new CancellationTokenSource();
+            fixture.Close = token =>
+            {
+                Assert.That(token, Is.EqualTo(cancellation.Token));
+                cancellation.Cancel();
+                return new ValueTask(Task.FromCanceled(token));
+            };
+
+            await Assert.ThatAsync(
+                () => fixture.Resource.WriteDocumentAsync(73, ByteString.From([1]), ct: cancellation.Token).AsTask(),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+
+            Assert.That(fixture.Chunks, Has.Count.EqualTo(1));
+            Assert.That(fixture.Closes, Is.EqualTo(1));
             fixture.VerifyBorrowed();
         }
 
@@ -150,24 +198,29 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
-        public async Task AnUnresponsiveCloseIsCanceledByItsOwnFiniteDeadline()
+        public async Task UnresponsiveFailedWriteCleanupIsCanceledByItsOwnFiniteDeadline()
         {
             var fixture = new WriteFixture();
+            var writeFailure = new IOException("write failure");
+            fixture.Write = _ => new ValueTask(Task.FromException(writeFailure));
             fixture.Close = async token =>
             {
                 Assert.That(token.CanBeCanceled, Is.True);
                 await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
             };
 
-            Task operation = fixture.Resource.WriteDocumentAsync(73, ByteString.Empty).AsTask();
+            Task operation = fixture.Resource.WriteDocumentAsync(73, ByteString.From([1])).AsTask();
             using var watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(15));
             var expired = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using CancellationTokenRegistration registration =
                 watchdog.Token.Register(() => expired.TrySetResult(true));
             Assert.That(await Task.WhenAny(operation, expired.Task).ConfigureAwait(false), Is.SameAs(operation));
             // Await the operation itself: the net48 WaitAsync polyfill maps inner cancellation to a timeout.
-            await Assert.ThatAsync(() => operation, Throws.InstanceOf<OperationCanceledException>())
-                .ConfigureAwait(false);
+            AggregateException failure = (await Assert.ThrowsAsync<AggregateException>(async () =>
+                await operation.ConfigureAwait(false)).ConfigureAwait(false))!;
+            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(2));
+            Assert.That(failure.InnerExceptions[0], Is.SameAs(writeFailure));
+            Assert.That(failure.InnerExceptions[1], Is.InstanceOf<OperationCanceledException>());
 
             Assert.That(fixture.CloseToken.IsCancellationRequested, Is.True);
             Assert.That(fixture.Closes, Is.EqualTo(1));

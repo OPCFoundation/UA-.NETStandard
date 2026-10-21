@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -3495,7 +3496,9 @@ namespace Opc.Ua.Client
     {
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 9, Level = LogLevel.Information,
             Message = "ManagedSession: Connecting to {Endpoint}.")]
-        public static partial void ManagedSessionConnectingEndpoint(this ILogger logger, Uri? endpoint);
+        public static partial void ManagedSessionConnectingEndpoint(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpoint);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 10, Level = LogLevel.Information,
             Message = "ManagedSession: Connected, SessionId={SessionId}.")]
@@ -3538,7 +3541,9 @@ namespace Opc.Ua.Client
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 18, Level = LogLevel.Information,
             Message = "ManagedSession: Failing over to {Endpoint}.")]
-        public static partial void ManagedSessionFailingOverEndpoint(this ILogger logger, Uri? endpoint);
+        public static partial void ManagedSessionFailingOverEndpoint(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpoint);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 19, Level = LogLevel.Information,
             Message = "ManagedSession: Failover complete.")]
@@ -3612,6 +3617,6 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionPublishedEndpointNotAccepted(
             this ILogger logger,
             Exception? exception,
-            Uri? endpointUrl);
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

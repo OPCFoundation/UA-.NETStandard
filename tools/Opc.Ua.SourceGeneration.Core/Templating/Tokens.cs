@@ -261,6 +261,7 @@ namespace Opc.Ua.SourceGeneration
         public static string PermissionsValue => nameof(PermissionsValue);
         public static string ContainsNoLoopsValue => nameof(ContainsNoLoopsValue);
         public static string ExecutableValue => nameof(ExecutableValue);
+        public static string UserExecutableValue => nameof(UserExecutableValue);
         public static string MethodDeclarationId => nameof(MethodDeclarationId);
         public static string MinimumSamplingIntervalValue => nameof(MinimumSamplingIntervalValue);
         public static string HistorizingValue => nameof(HistorizingValue);

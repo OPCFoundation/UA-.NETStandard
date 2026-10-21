@@ -278,11 +278,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(fourth.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(4));
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void UnknownCostsRemainChargedDuringExecutionAndReleaseExactlyOnce(bool useFairScheduling)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void UnknownCostsRemainChargedDuringExecutionAndReleaseExactlyOnce(
+            bool useFairScheduling,
+            bool reservations)
         {
-            var provider = new TestProvider(costCapacity: 20) { UseFairScheduling = useFairScheduling };
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(costCapacity: 20)
+                : new TestProvider(costCapacity: 20);
+            provider.UseFairScheduling = useFairScheduling;
             NodeId token = provider.AddOwner("A");
             using var queue = CreateQueue(provider, requestCost: 10);
             Enqueue(queue, new TestRequest(token));
@@ -297,6 +304,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Enqueue(queue, new TestRequest(token));
             queue.Dispose();
             Assert.That(provider.TotalUsed, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
         }
 
         [Test]
@@ -322,11 +330,14 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public void QueuedCancellationCompletesOnceAndReturnsAllLeases(bool useFairScheduling)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void QueuedCancellationCompletesOnceAndReturnsAllLeases(bool useFairScheduling, bool reservations)
         {
-            var provider = new TestProvider { UseFairScheduling = useFairScheduling };
+            TestProvider provider = reservations ? new ReservingTestProvider() : new TestProvider();
+            provider.UseFairScheduling = useFairScheduling;
             NodeId token = provider.AddOwner("A");
             using var cancellation = new CancellationTokenSource();
             using var queue = CreateQueue(provider);
@@ -339,6 +350,73 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(request.Status, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
             Assert.That(provider.TotalUsed, Is.Zero);
             Assert.That(queue.TryDequeue(out _), Is.False);
+            AssertReservationsReleasedOnce(provider);
+        }
+
+        /// <summary>
+        /// A request rejected at a later stage returns the reservations of the earlier stages,
+        /// and a parked request returns its execution, parked and cost reservations once each.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReservationsReturnOnceOnRejectionAndParking(bool useFairScheduling)
+        {
+            var provider = new ReservingTestProvider(costCapacity: 10) { UseFairScheduling = useFairScheduling };
+            NodeId token = provider.AddOwner("A");
+            using var queue = CreateQueue(provider, requestCost: 10);
+            var parked = new TestRequest(token, park: true);
+            Enqueue(queue, parked);
+            Assert.That(queue.TryEnqueue(new TestRequest(token), default, out StatusCode status), Is.False);
+            Assert.That(status, Is.EqualTo(StatusCodes.BadServerTooBusy));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.EqualTo(1));
+
+            FairRequestQueue.Entry entry = Dequeue(queue);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueue), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.EqualTo(1));
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.EqualTo(1));
+            entry.ReleaseExecution();
+            entry.ReleaseExecution();
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(10));
+            entry.Dispose();
+            entry.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
+        }
+
+        /// <summary>
+        /// Response handoff moves the existing lease or value reservation and outlives entry and queue disposal.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void ResponseCostTransferPreservesExactlyOneOwner(bool reservations, bool disposedFirst)
+        {
+            TestProvider provider = reservations ? new ReservingTestProvider() : new TestProvider();
+            NodeId owner = provider.AddOwner("A");
+            using FairRequestQueue queue = CreateQueue(provider, requestCost: 10);
+            Enqueue(queue, new TestRequest(owner, park: true));
+            using FairRequestQueue.Entry entry = Dequeue(queue);
+            int grants = provider.Grants;
+            if (disposedFirst)
+            {
+                entry.Dispose();
+            }
+            using IDisposable? retained = entry.TransferResponseCost();
+            Assert.That(retained == null, Is.EqualTo(disposedFirst));
+            Assert.That(entry.TransferResponseCost(), Is.Null);
+            Assert.That(provider.Grants, Is.EqualTo(grants), "Handoff must not acquire a second reservation.");
+            entry.Dispose();
+            entry.Dispose();
+            queue.Dispose();
+            Assert.That(provider.Used(ResourceIsolationStage.RequestQueueBytes), Is.EqualTo(disposedFirst ? 0 : 10));
+            Assert.That(provider.Used(ResourceIsolationStage.RequestExecution), Is.Zero);
+            Assert.That(provider.Used(ResourceIsolationStage.ParkedRequest), Is.Zero);
+            retained?.Dispose();
+            retained?.Dispose();
+            Assert.That(provider.TotalUsed, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
         }
 
         [Test]
@@ -1676,11 +1754,18 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// Cancellation racing a dequeue completes each request at most once, never both
         /// dispatches and completes it, and returns every lease exactly once.
         /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task CancellationRacingDequeueReleasesLeasesExactlyOnceAsync(bool useFairScheduling)
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task CancellationRacingDequeueReleasesLeasesExactlyOnceAsync(
+            bool useFairScheduling,
+            bool reservations)
         {
-            var provider = new TestProvider(executionCapacity: 1000) { UseFairScheduling = useFairScheduling };
+            TestProvider provider = reservations
+                ? new ReservingTestProvider(executionCapacity: 1000)
+                : new TestProvider(executionCapacity: 1000);
+            provider.UseFairScheduling = useFairScheduling;
             NodeId a = provider.AddOwner("A", weight: 2, queueLimit: 1000);
             NodeId b = provider.AddOwner("B", queueLimit: 1000);
             using var queue = CreateQueue(provider, maxQueued: 1000);
@@ -1744,6 +1829,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Assert.That(provider.TotalUsed, Is.Zero, $"round {round}");
             }
             Assert.That(queue.OwnerCount, Is.Zero);
+            AssertReservationsReleasedOnce(provider);
         }
 
         /// <summary>
@@ -2273,6 +2359,21 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(provider.TotalUsed, Is.Zero);
         }
 
+        /// <summary>
+        /// A provider that admits by value got every admission of the queue as a reservation
+        /// and each reservation back exactly once.
+        /// </summary>
+        private static void AssertReservationsReleasedOnce(TestProvider provider)
+        {
+            if (provider is ReservingTestProvider reserving)
+            {
+                Assert.That(reserving.Reservations, Is.GreaterThan(0));
+                Assert.That(reserving.Reservations, Is.EqualTo(provider.Grants));
+                Assert.That(reserving.Releases, Is.EqualTo(reserving.Reservations));
+                Assert.That(reserving.DuplicateReleases, Is.Zero);
+            }
+        }
+
         private static FairRequestQueue CreateQueue(
             IServerResourceIsolationProvider provider,
             int maxQueued = 100,
@@ -2405,7 +2506,73 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         /// <summary>
         /// Provides deterministic owner limits and admission-race hooks for queue regressions.
         /// </summary>
-        private sealed class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
+        /// <summary>
+        /// Admits by value: the queue holds a reservation per stage and must return each
+        /// exactly once, which a lease would hide by being idempotent.
+        /// </summary>
+        private sealed class ReservingTestProvider(
+            long executionCapacity = 100,
+            long costCapacity = 10000) : TestProvider(executionCapacity, costCapacity), IResourceIsolationReservations
+        {
+            public int Reservations => Volatile.Read(ref m_reservations);
+            public int Releases => Volatile.Read(ref m_releases);
+            public int DuplicateReleases => Volatile.Read(ref m_duplicateReleases);
+
+            public bool TryReserve(
+                ResourceIsolationStage stage,
+                ResourceIsolationOwner owner,
+                long amount,
+                out ResourceIsolationReservation reservation)
+            {
+                if (!TryAcquire(stage, owner, amount, out IDisposable lease, out _))
+                {
+                    reservation = default;
+                    return false;
+                }
+                Interlocked.Increment(ref m_reservations);
+                reservation = new ResourceIsolationReservation(
+                    new Reserved(lease, stage, owner, amount), ResourceIsolationClass.Established, 0);
+                return true;
+            }
+
+            public void Release(
+                ResourceIsolationStage stage,
+                ResourceIsolationOwner owner,
+                long amount,
+                in ResourceIsolationReservation reservation)
+            {
+                var reserved = (Reserved)reservation.Accounting;
+                Assert.That(stage, Is.EqualTo(reserved.Stage));
+                Assert.That(owner, Is.SameAs(reserved.Owner));
+                Assert.That(amount, Is.EqualTo(reserved.Amount));
+                if (Interlocked.Exchange(ref reserved.Released, 1) != 0)
+                {
+                    Interlocked.Increment(ref m_duplicateReleases);
+                    return;
+                }
+                Interlocked.Increment(ref m_releases);
+                reserved.Lease.Dispose();
+            }
+
+            private sealed class Reserved(
+                IDisposable lease,
+                ResourceIsolationStage stage,
+                ResourceIsolationOwner owner,
+                long amount)
+            {
+                public IDisposable Lease { get; } = lease;
+                public ResourceIsolationStage Stage { get; } = stage;
+                public ResourceIsolationOwner Owner { get; } = owner;
+                public long Amount { get; } = amount;
+                public int Released;
+            }
+
+            private int m_reservations;
+            private int m_releases;
+            private int m_duplicateReleases;
+        }
+
+        private class TestProvider : IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
             IResourceIsolationAdmissionEvidence
         {
             public TestProvider(
@@ -2443,6 +2610,11 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             public Action BeforeCostGrant { get; set; } = null!;
             public int ExecutionAttempts { get; private set; }
             public int ExecutionGrants { get; private set; }
+
+            /// <summary>
+            /// Successful admissions of every stage.
+            /// </summary>
+            public int Grants { get; private set; }
             public int ClassificationCount { get; private set; }
             public bool LastRecoveryIntent { get; private set; }
             public bool LastControlIntent { get; private set; }
@@ -2645,6 +2817,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         {
                             ExecutionGrants++;
                         }
+                        Grants++;
                         lease = new TestLease(() => Release(owner.Key, stage, amount, sharedCost));
                         failure = default;
                         acquired = true;

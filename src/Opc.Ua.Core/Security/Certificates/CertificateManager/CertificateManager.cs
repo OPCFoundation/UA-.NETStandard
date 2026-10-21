@@ -33,6 +33,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -1491,7 +1492,9 @@ namespace Opc.Ua
                         m_telemetry,
                         store => string.IsNullOrEmpty(store.StorePath)
                             ? null
-                            : OpenStore(store.StorePath!, store.StoreType));
+                            : OpenStore(store.StorePath!, store.StoreType),
+                        static certificate => certificate.AsX509Certificate2(),
+                        m_timeProvider);
                     try
                     {
                         if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))
@@ -1712,7 +1715,7 @@ namespace Opc.Ua
     {
         [LoggerMessage(EventId = CoreEventIds.CertificateManager + 0, Level = LogLevel.Debug,
             Message = "Trust list '{TrustList}' is already registered, skipping.")]
-        public static partial void CertificateManagerLogMessage0(this ILogger logger, string? trustList);
+        public static partial void CertificateManagerLogMessage0(this ILogger logger, [FilePath] string? trustList);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateManager + 1, Level = LogLevel.Warning,
             Message = "Failed to resolve issuer chain for application certificate {Certificate}; " +
@@ -1720,7 +1723,7 @@ namespace Opc.Ua
         public static partial void CertificateManagerLogMessage1(
             this ILogger logger,
             Exception? exception,
-            Certificate? certificate);
+            [ApplicationIdentity] Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateManager + 2, Level = LogLevel.Error,
             Message = "A CertificateChanges observer threw while handling {Kind}; " +

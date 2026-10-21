@@ -34,6 +34,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Server
 {
@@ -583,25 +584,29 @@ namespace Opc.Ua.Server
     {
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 0, Level = LogLevel.Information,
             Message = "Reverse Connection added for EndpointUrl: {Url}.")]
-        public static partial void ReverseConnectionAddedForEndpointUrlUrl(this ILogger logger, Uri url);
+        public static partial void ReverseConnectionAddedForEndpointUrlUrl(
+            this ILogger logger,
+            [NetworkAddress] Uri url);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 1, Level = LogLevel.Information,
             Message = "Reverse Connection removed for EndpointUrl: {Url}.")]
-        public static partial void ReverseConnectionRemovedForEndpointUrlUrl(this ILogger logger, Uri url);
+        public static partial void ReverseConnectionRemovedForEndpointUrlUrl(
+            this ILogger logger,
+            [NetworkAddress] Uri url);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 2, Level = LogLevel.Information,
             Message = "Create Connection! [{LastState}][{ClientUrl}]")]
         public static partial void CreateConnectionLastStateClientUrl(
             this ILogger logger,
             ReverseConnectState lastState,
-            Uri clientUrl);
+            [NetworkAddress] Uri clientUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 3, Level = LogLevel.Error,
             Message = "Create Connection failed! [{LastState}][{ClientUrl}]")]
         public static partial void CreateConnectionFailedLastStateClientUrl(
             this ILogger logger,
             ReverseConnectState lastState,
-            Uri clientUrl);
+            [NetworkAddress] Uri clientUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 4, Level = LogLevel.Error,
             Message = "OnReverseConnect unexpected error")]
@@ -612,35 +617,39 @@ namespace Opc.Ua.Server
         public static partial void ClientRejectedConnectionLastStateEndpointUrl(
             this ILogger logger,
             ReverseConnectState lastState,
-            Uri endpointUrl);
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 6, Level = LogLevel.Error,
             Message = "Connection Error! [{LastState}][{EndpointUrl}]")]
         public static partial void ConnectionErrorLastStateEndpointUrl(
             this ILogger logger,
             ReverseConnectState lastState,
-            Uri endpointUrl);
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 7, Level = LogLevel.Information,
             Message = "New Connection State! [{LastState}][{EndpointUrl}]")]
         public static partial void NewConnectionStateLastStateEndpointUrl(
             this ILogger logger,
             ReverseConnectState lastState,
-            Uri endpointUrl);
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 8, Level = LogLevel.Warning,
             Message = "Status changed for unknown reverse connection: [{ChannelStatus}][{EndpointUrl}]")]
         public static partial void WarningStatusChangedForUnknownReverseConnection(
             this ILogger logger,
             ServiceResult channelStatus,
-            Uri endpointUrl);
+            [NetworkAddress] Uri endpointUrl);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 9, Level = LogLevel.Warning,
             Message = "ServerConfiguration.ReverseConnect contains duplicate EndpointUrl: {Uri}.")]
-        public static partial void WarningServerConfigurationReverseConnectContains(this ILogger logger, Uri uri);
+        public static partial void WarningServerConfigurationReverseConnectContains(
+            this ILogger logger,
+            [NetworkAddress] Uri uri);
 
         [LoggerMessage(EventId = ServerEventIds.ReverseConnectServer + 10, Level = LogLevel.Information,
             Message = "Reverse Connection added for EndpointUrl: {Uri}.")]
-        public static partial void ReverseConnectionAddedForEndpointUrlUri(this ILogger logger, Uri uri);
+        public static partial void ReverseConnectionAddedForEndpointUrlUri(
+            this ILogger logger,
+            [NetworkAddress] Uri uri);
     }
 }

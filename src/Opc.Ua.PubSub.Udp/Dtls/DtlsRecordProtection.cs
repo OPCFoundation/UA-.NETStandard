@@ -181,6 +181,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     plaintext.CopyTo(record.AsSpan(HeaderLength));
                     record[HeaderLength + plaintext.Length] = ApplicationDataContentType;
                     ComputeHmac(
+                        sequenceNumber,
                         record.AsSpan(0, HeaderLength),
                         record.AsSpan(HeaderLength, innerPlaintextLength),
                         record.AsSpan(HeaderLength + innerPlaintextLength, m_tagLength));
@@ -254,7 +255,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 // sender's monotonic counter after 2^16 records in an epoch (SA-DTLS-CRYPTO-03).
                 ushort truncatedSequence = BinaryPrimitives.ReadUInt16BigEndian(header[1..3]);
                 ulong sequenceNumber = ReconstructSequenceNumber(truncatedSequence);
-                if (ReadEpoch(header) != Epoch)
+                if (sequenceNumber > MaximumRecordSequenceNumber || ReadEpoch(header) != (Epoch & 0x03))
                 {
                     return false;
                 }
@@ -303,6 +304,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                     {
                         Span<byte> expectedTag = stackalloc byte[m_tagLength];
                         ComputeHmac(
+                            sequenceNumber,
                             header,
                             record.Slice(HeaderLength, contentLength),
                             expectedTag);
@@ -448,15 +450,25 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
         }
 
-        private void ComputeHmac(ReadOnlySpan<byte> header, ReadOnlySpan<byte> plaintext, Span<byte> tag)
+        /// <summary>
+        /// Authenticates the full DTLS record number, unified header and integrity-only plaintext.
+        /// </summary>
+        private void ComputeHmac(
+            ulong sequenceNumber,
+            ReadOnlySpan<byte> header,
+            ReadOnlySpan<byte> plaintext,
+            Span<byte> tag)
         {
             using HMAC hmac = DtlsHkdf.CreateHmac(m_hashAlgorithmName, m_key);
-            byte[] macInput = ArrayPool<byte>.Shared.Rent(header.Length + plaintext.Length);
+            int inputLength = sizeof(ulong) + header.Length + plaintext.Length;
+            byte[] macInput = ArrayPool<byte>.Shared.Rent(inputLength);
             try
             {
-                Span<byte> input = macInput.AsSpan(0, header.Length + plaintext.Length);
-                header.CopyTo(input);
-                plaintext.CopyTo(input[header.Length..]);
+                Span<byte> input = macInput.AsSpan(0, inputLength);
+                // The wire header truncates both fields; bind the full epoch16 || sequence48 record number.
+                BinaryPrimitives.WriteUInt64BigEndian(input, ((ulong)Epoch << 48) | sequenceNumber);
+                header.CopyTo(input[sizeof(ulong)..]);
+                plaintext.CopyTo(input[(sizeof(ulong) + header.Length)..]);
 #if NET8_0_OR_GREATER
                 Span<byte> hash = stackalloc byte[DtlsHkdf.GetHashLength(m_hashAlgorithmName)];
                 if (!hmac.TryComputeHash(input, hash, out int bytesWritten) || bytesWritten < tag.Length)
@@ -480,7 +492,7 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             }
             finally
             {
-                CryptoUtils.ZeroMemory(macInput.AsSpan(0, header.Length + plaintext.Length));
+                CryptoUtils.ZeroMemory(macInput.AsSpan(0, inputLength));
                 ArrayPool<byte>.Shared.Return(macInput);
             }
         }

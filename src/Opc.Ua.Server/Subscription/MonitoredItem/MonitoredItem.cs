@@ -143,6 +143,25 @@ namespace Opc.Ua.Server
         /// <see cref="TimeProvider"/> so the monotonic sampling clock can be
         /// mocked in tests.
         /// </summary>
+        /// <param name="server">The server used to initialize the instance.</param>
+        /// <param name="nodeManager">The node manager used to initialize the instance.</param>
+        /// <param name="managerHandle">The manager handle used to initialize the instance.</param>
+        /// <param name="subscriptionId">The subscription ID used to initialize the instance.</param>
+        /// <param name="id">The ID used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="itemToMonitor">The item to monitor used to initialize the instance.</param>
+        /// <param name="diagnosticsMasks">The diagnostics masks used to initialize the instance.</param>
+        /// <param name="timestampsToReturn">The timestamps to return used to initialize the instance.</param>
+        /// <param name="monitoringMode">The monitoring mode used to initialize the instance.</param>
+        /// <param name="clientHandle">The client handle used to initialize the instance.</param>
+        /// <param name="originalFilter">The original filter used to initialize the instance.</param>
+        /// <param name="filterToUse">The filter to use used to initialize the instance.</param>
+        /// <param name="range">The range used to initialize the instance.</param>
+        /// <param name="samplingInterval">The sampling interval used to initialize the instance.</param>
+        /// <param name="queueSize">The queue size used to initialize the instance.</param>
+        /// <param name="discardOldest">The discard-oldest flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="sourceSamplingInterval">The source sampling interval used to initialize the instance.</param>
+        /// <param name="createDurable">The create-durable flag used to initialize <c>MonitoredItem</c>.</param>
+        /// <param name="timeProvider">The time provider used to initialize the instance.</param>
         public MonitoredItem(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -489,7 +508,7 @@ namespace Opc.Ua.Server
         /// Predefined bits are defined by the MonitoredItemTypeMasks class.
         /// NodeManagers may use the remaining bits.
         /// </remarks>
-        public int MonitoredItemType { get; }
+        public int MonitoredItemType { get; private init; }
 
         /// <summary>
         /// Returns true if the item is ready to publish.
@@ -498,6 +517,7 @@ namespace Opc.Ua.Server
         {
             get
             {
+                EnsureSourceRetirement(includeCaptured: false);
                 if (MonitoringMode == MonitoringMode.Disabled ||
                     (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
                 {
@@ -926,6 +946,17 @@ namespace Opc.Ua.Server
         /// Whether the monitored item should report a value without checking if it was changed.
         /// </summary>
         public bool AlwaysReportUpdates { get; set; }
+
+        /// <summary>
+        /// Gets or initializes whether values are supplied by an external source instead of stack sampling.
+        /// </summary>
+        internal bool UsesExternalValueSource
+        {
+            get => (MonitoredItemType & MonitoredItemTypeMask.ExternalValueSource) != 0;
+            init => MonitoredItemType = value
+                ? MonitoredItemType | MonitoredItemTypeMask.ExternalValueSource
+                : MonitoredItemType & ~MonitoredItemTypeMask.ExternalValueSource;
+        }
 
         /// <summary>
         /// Returns a description of the item being monitored.
@@ -1392,6 +1423,132 @@ namespace Opc.Ua.Server
             QueueValueCore(in value, error, ignoreFilters, initialValue: false);
         }
 
+        /// <summary>
+        /// Removes notifications that were authorized under a previous session identity.
+        /// </summary>
+        internal void ClearQueuedNotifications()
+        {
+            lock (m_lock)
+            {
+                m_dataChangeQueueHandler?.Clear();
+                m_eventQueueHandler?.Clear();
+                AggregateFilter?.ClearNotifications();
+                m_valuePublication?.Complete(published: false);
+                m_valuePublication = null;
+                m_finalValuePending = false;
+                m_filteredRetainConditionIds?.Clear();
+                m_lastValue = default;
+                m_lastError = null;
+                m_readyToPublish = false;
+                m_readyToTrigger = false;
+                m_resendData = false;
+                m_triggered = false;
+                Interlocked.Exchange(ref m_readySignal, 0);
+            }
+        }
+
+        /// <summary>
+        /// Discards only notifications predating the current identity, preserving newly admitted events.
+        /// </summary>
+        internal void EnsureNotificationAuthorization()
+        {
+            lock (m_lock)
+            {
+                ISession? session = Session;
+                if (session == null)
+                {
+                    return;
+                }
+                NotificationAuthorization? authorization = NotificationAuthorization.Capture(session);
+                bool sameSession = ReferenceEquals(m_notificationSession, session);
+                bool sameAuthorization = ReferenceEquals(m_notificationAuthorization, authorization) ||
+                    (m_notificationAuthorization != null &&
+                        authorization != null &&
+                        m_notificationAuthorization.IsEquivalentTo(authorization, sameSession));
+                if (m_notificationSession != null && !sameAuthorization)
+                {
+                    ClearQueuedNotifications();
+                }
+                m_notificationSession = session;
+                m_notificationAuthorization = authorization;
+            }
+        }
+
+        /// <summary>
+        /// Admits a value only if the identity used to authorize its read still owns this item.
+        /// </summary>
+        internal void QueueValueIfCurrent(
+            OperationContext context,
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters = false,
+            bool initialValue = false)
+        {
+            lock (m_lock)
+            {
+                ISession? session = Session ?? context.Session;
+                if (!ReferenceEquals(context.Session, session) ||
+                    !NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
+                {
+                    return;
+                }
+                if (m_subscription == null)
+                {
+                    if (m_notificationSession != null &&
+                        !NotificationAuthorization.IsCurrent(m_notificationSession, m_notificationAuthorization))
+                    {
+                        ClearQueuedNotifications();
+                    }
+                    m_notificationSession = session;
+                    m_notificationAuthorization = context.NotificationAuthorization;
+                }
+                if (initialValue)
+                {
+                    QueueValueCore(value, error, ignoreFilters, initialValue: true);
+                }
+                else
+                {
+                    QueueValue(value, error, ignoreFilters);
+                }
+                if (!NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
+                {
+                    ClearQueuedNotifications();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Admits an event only in the epoch that authorized its delivery.
+        /// </summary>
+        internal void QueueEventIfCurrent(
+            ISession? session,
+            NotificationAuthorization? authorization,
+            IFilterTarget target,
+            SharedEventFilterKey? key,
+            SharedEventEvaluation? evaluation)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(session, Session) ||
+                    !NotificationAuthorization.IsCurrent(session, authorization))
+                {
+                    return;
+                }
+                if (evaluation != null)
+                {
+                    QueueSharedEvent(target, key!, evaluation);
+                }
+                else
+                {
+                    QueueEvent(target);
+                }
+                if (!NotificationAuthorization.IsCurrent(session, authorization))
+                {
+                    ClearQueuedNotifications();
+                }
+            }
+        }
+
         void IInitialValueMonitoredItem.QueueInitialValue(
             in DataValue value,
             ServiceResult? error,
@@ -1414,8 +1571,19 @@ namespace Opc.Ua.Server
             bool ignoreFilters,
             bool initialValue)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                EnsureSourceRetirement();
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+                EnsureSourceRetirement();
+
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -1424,7 +1592,8 @@ namespace Opc.Ua.Server
 
                 // check monitoring mode.
                 if (MonitoringMode == MonitoringMode.Disabled ||
-                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)))
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)) ||
+                    (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -1447,6 +1616,12 @@ namespace Opc.Ua.Server
                     error,
                     ignoreFilters,
                     initialValue: initialValue);
+                if (m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
+                {
+                    QueueNodeIdUnknown();
+                }
             }
         }
 
@@ -1651,6 +1826,30 @@ namespace Opc.Ua.Server
             EventFilter filter,
             IFilterTarget instance)
         {
+            return CreateEventFieldList(instance, EvaluateEventFields(context, filter, instance));
+        }
+
+        /// <summary>
+        /// Creates the event field list of this item for event field values.
+        /// </summary>
+        private EventFieldList CreateEventFieldList(IFilterTarget instance, Variant[] eventFieldValues)
+        {
+            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
+            result.ClientHandle = ClientHandle;
+            result.Handle = instance;
+            result.EventFields = eventFieldValues;
+            m_server.EventManager?.RegisterEventFields(result, instance);
+            return result;
+        }
+
+        /// <summary>
+        /// Reads the values of the select clauses from the event.
+        /// </summary>
+        private Variant[] EvaluateEventFields(
+            FilterContext context,
+            EventFilter filter,
+            IFilterTarget instance)
+        {
             // fetch the event fields.
             bool[] rejected = GetRejectedSelectClauses(context, filter);
             var eventFieldValues = new Variant[rejected.Length];
@@ -1685,11 +1884,7 @@ namespace Opc.Ua.Server
                     eventFieldValues[ii] = value;
                 }
             }
-            var result = (EventFieldList)EventFieldListActivator.Instance.CreateInstance();
-            result.ClientHandle = ClientHandle;
-            result.Handle = instance;
-            result.EventFields = eventFieldValues;
-            return result;
+            return eventFieldValues;
         }
 
         /// <summary>
@@ -1697,9 +1892,9 @@ namespace Opc.Ua.Server
         /// the server tables and the preferred locales of the session, so it is created again
         /// only when the session replaces its locales (or the item moves to another session).
         /// </summary>
-        private FilterContext GetEventFilterContext()
+        private FilterContext GetEventFilterContext(out string[]? preferredLocales)
         {
-            string[]? preferredLocales = Session?.PreferredLocales;
+            preferredLocales = Session?.PreferredLocales;
             EventFilterContext? cached = m_eventFilterContext;
             if (cached == null || !ReferenceEquals(cached.PreferredLocales, preferredLocales))
             {
@@ -1744,15 +1939,37 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="instance"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <param name="instance">The filter target.</param>
+        /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
             if (instance == null)
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
+
+            // the evaluation shared by the items with an equal filter, when the event
+            // consumer offers one for this event.
+            SharedEventEvaluation? sharedEvaluation = TakeSharedEvaluation(
+                instance,
+                out SharedEventFilterKey? sharedKey);
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
+
                 // this method should only be called for objects or views.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -1771,7 +1988,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                FilterContext context = GetEventFilterContext();
+                FilterContext context = GetEventFilterContext(out string[]? preferredLocales);
 
                 // event filter must be specified.
                 if (FilterToUse is not EventFilter filter)
@@ -1779,13 +1996,25 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
+                // the shared evaluation was made for the filter and locales the event was
+                // grouped by; an item modified since then evaluates the event itself.
+                if (sharedKey == null || !sharedKey.Matches(filter, preferredLocales))
+                {
+                    sharedEvaluation = null;
+                }
+
                 // apply filter first: an event the where clause would have rejected was
                 // never going to be queued, so it must not count as a queue overflow.
                 bool overrideRetain = false;
-                if (!bypassFilter &&
-                    !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
+                if (!bypassFilter)
                 {
-                    return;
+                    bool passedFilter = sharedEvaluation != null
+                        ? sharedEvaluation.PassesWhereClause(context, filter, instance)
+                        : filter.WhereClause.Evaluate(context, instance);
+                    if (!ApplyFilteredRetain(filter, instance, passedFilter, out overrideRetain))
+                    {
+                        return;
+                    }
                 }
 
                 // check for space in the queue only for events that passed the filter.
@@ -1797,21 +2026,48 @@ namespace Opc.Ua.Server
                 // fetch the event fields. The trailing filtered retain event reads them
                 // through a wrapper that reports Retain = false to this client only. The
                 // wrapper stays the handle of the queued event, so a later change of the
-                // select clauses rebuilds its fields with the same Retain override.
-                IFilterTarget fieldSource = overrideRetain
-                    ? new FilteredRetainTarget(instance)
-                    : instance;
-                QueueEvent(GetEventFields(context, filter, fieldSource));
+                // select clauses rebuilds its fields with the same Retain override. Its
+                // fields are this item's own, the other fields are shared by the group.
+                EventFieldList fields;
+                if (overrideRetain)
+                {
+                    fields = GetEventFields(context, filter, new FilteredRetainTarget(instance));
+                }
+                else if (sharedEvaluation != null)
+                {
+                    fields = CreateEventFieldList(
+                        instance,
+                        sharedEvaluation.GetEventFields(this, context, filter, instance));
+                }
+                else
+                {
+                    fields = GetEventFields(context, filter, instance);
+                }
+                QueueEvent(fields);
             }
         }
 
         /// <summary>
         /// Adds an event to the queue.
         /// </summary>
+        /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            using var emissionLease = emission;
+            if (!admitted)
+            {
+                return;
+            }
+            using var emissionScope = emission?.EnterSourceEmission();
+            m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+                if (!CanQueueSourceEmission())
+                {
+                    return;
+                }
                 m_eventQueueHandler!.QueueEvent(fields);
                 m_readyToPublish = true;
                 m_readyToTrigger = true;
@@ -1851,9 +2107,21 @@ namespace Opc.Ua.Server
             IFilterTarget instance,
             out bool overrideRetain)
         {
-            overrideRetain = false;
-
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
+            return ApplyFilteredRetain(filter, instance, passedFilter, out overrideRetain);
+        }
+
+        /// <summary>
+        /// Applies filtered retain to the where clause result of an event: see
+        /// <see cref="CanSendFilteredAlarm"/>.
+        /// </summary>
+        private bool ApplyFilteredRetain(
+            EventFilter filter,
+            IFilterTarget instance,
+            bool passedFilter,
+            out bool overrideRetain)
+        {
+            overrideRetain = false;
 
             ConditionState? alarmCondition = GetFilteredRetainCondition(instance);
 
@@ -2019,6 +2287,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // check if the item reports events.
                 if ((MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
@@ -2151,6 +2421,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
+
                 // check if the item reports data changes.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
                 {
@@ -2300,11 +2572,15 @@ namespace Opc.Ua.Server
                 value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            // the notification is pooled; it is returned to the pool when the message that
-            // carries it was acknowledged and sent (NotificationMessageLease).
-            var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
-            item.ClientHandle = ClientHandle;
-            item.Value = value;
+            // not pooled: a notification lives until its message was sent and acknowledged, so
+            // a publishing cycle holds all notifications of the cycle at once. Recycling them
+            // through the shared activator pool cost more CPU (pool contention, touching cold
+            // instances again) than allocating them.
+            var item = new MonitoredItemNotification
+            {
+                ClientHandle = ClientHandle,
+                Value = value
+            };
 
             ServerUtils.ReportPublishValue(NodeId, Id, value);
             notifications.Enqueue(item);
@@ -2343,6 +2619,7 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     m_subscription = value;
+                    EnsureNotificationAuthorization();
                 }
             }
         }
@@ -2391,6 +2668,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                EnsureNotificationAuthorization();
                 return new StoredMonitoredItem
                 {
                     SamplingInterval = m_samplingInterval,
@@ -2422,6 +2700,38 @@ namespace Opc.Ua.Server
                         ? [.. m_filteredRetainConditionIds]
                         : ArrayOf<string>.Null
                 };
+            }
+        }
+
+        private bool CanQueueSourceEmission()
+        {
+            return !m_isDetached &&
+                (!m_isDeleted ||
+                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0) ||
+                    (m_server.NodeManager is MasterNodeManager master &&
+                        master.HasCapturedSourceEmission(NodeManager) &&
+                        !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+        }
+
+        /// <summary>
+        /// Retires the item when its source emission was cut off so the cutoff is reported to the subscription.
+        /// </summary>
+        internal void RetireCutOffSource()
+        {
+            EnsureSourceRetirement();
+        }
+
+        private void EnsureSourceRetirement(bool includeCaptured = true)
+        {
+            lock (m_lock)
+            {
+                if (!m_isDeleted &&
+                    m_server.NodeManager is MasterNodeManager master &&
+                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured))
+                {
+                    SetDetachState(m_isDetached, isDeleted: true);
+                    QueueNodeIdUnknown();
+                }
             }
         }
 
@@ -2488,6 +2798,16 @@ namespace Opc.Ua.Server
                 StatusCodes.BadNodeIdUnknown,
                 utcNow,
                 utcNow);
+        }
+
+        private static bool IsBadNodeIdUnknown(in DataValue value, ServiceResult? error)
+        {
+            if (error?.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code)
+            {
+                return true;
+            }
+
+            return !value.IsNull && value.StatusCode.Code == StatusCodes.BadNodeIdUnknown.Code;
         }
 
         /// <summary>
@@ -2624,7 +2944,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2636,7 +2956,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {
@@ -2719,7 +3039,7 @@ namespace Opc.Ua.Server
                     // check if queuing is disabled.
                     if (QueueSize == 0)
                     {
-                        if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                        if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                         {
                             QueueSize = 1;
                         }
@@ -2731,7 +3051,7 @@ namespace Opc.Ua.Server
                     }
 
                     // create data queue.
-                    if (MonitoredItemType == MonitoredItemTypeMask.DataChange)
+                    if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
                         if (QueueSize <= 1)
                         {
@@ -2999,6 +3319,12 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>The owner of this item's notification epoch.</summary>
+        private ISession? m_notificationSession;
+
+        /// <summary>The epoch of this item's queued values, events, and aggregate state.</summary>
+        private NotificationAuthorization? m_notificationAuthorization;
         private bool m_queueRestoreStaged;
 
         /// <summary>

@@ -478,22 +478,21 @@ the reconnect policy then retries. A Bad validator result is reported as it
 is; an Uncertain or `null` result is reported as `BadSecurityChecksFailed`.
 
 Each `ManagedSession` works on its own copy of the `ConfiguredEndpoint` it was
-created with, taken when it connects, and on a copy of a failover or alternate
-endpoint once it switches to it. The session adopts a switch target before it
-connects and keeps it when the switch fails, so a later retry recreates on that
-target; the session then works on that copy and publishes accepted rediscovered
-endpoints to the endpoint it was copied from. Reconnects, recreates and
-failovers use the copy the session adopted, and both steps above compare
-against it, so it is always the endpoint the session itself accepted. An
-accepted rediscovered endpoint is published to the endpoint the copy was taken
-from, so other consumers of it see the update, but no session reads it back:
-another session sharing that endpoint keeps working on, and validating against,
-its own copy. When a session switches back to an endpoint it used before and
-that endpoint changed since, another session published the change; it is
-checked in both steps above against what this session accepted for that
-endpoint before the session adopts it, and a change that is not accepted is not
-taken over. `ManagedSession.ConfiguredEndpoint` returns the copy once the
-session is connected.
+created with, taken when it connects. It also copies a failover or alternate
+endpoint before attempting to connect to it. The session keeps that switch
+target if the attempt fails, so a later retry recreates on the same target.
+Reconnects, recreates and failovers use the adopted copy; both checks above
+compare against the endpoint the session itself accepted.
+
+An accepted rediscovered endpoint is published back to the endpoint from which
+the copy was taken, so other consumers can see the update. Sessions do not read
+that shared update back into their adopted copies: each continues working on,
+and validating against, its own copy.
+
+When a session switches back to a previously used endpoint that another session
+has since updated, both checks run against the endpoint this session previously
+accepted. The session adopts the updated endpoint only if those checks pass.
+`ManagedSession.ConfiguredEndpoint` returns the copy once the session is connected.
 
 ```csharp
 RediscoveredEndpointValidator pinCertificate = (current, rediscovered, ct) =>
@@ -580,6 +579,31 @@ handling.
 Capture requires the stack's `ManagedSession` and a supported transport;
 unsupported custom sessions or managed transports return `BadNotSupported`.
 For ordinary independent calls, continue using the managed session directly.
+
+Use `CaptureConfidentialAsync` for password, private-key or other secret-bearing
+method arguments. It additionally requires confidentiality on the actual
+captured transport and rechecks that requirement at dispatch:
+
+```csharp
+static async Task<CallResponse> SendConfidentialCallsAsync(
+    ISession session,
+    ArrayOf<CallMethodRequest> calls,
+    CancellationToken ct)
+{
+    SessionRequestContext context =
+        await SessionRequestContext.CaptureConfidentialAsync(session, ct).ConfigureAwait(false);
+    await using (context.ConfigureAwait(false))
+    {
+        return await context.Session.CallAsync(null, calls, ct).ConfigureAwait(false);
+    }
+}
+```
+
+The caller still handles the returned per-method results and performs normal
+authorization. Capture rejects insecure channels with `BadSecurityModeInsufficient`
+and unsupported custom sessions with `BadNotSupported`; it never retries secret
+arguments on a replacement channel. Built-in password-management helpers and
+certificate private-key uploads use this path automatically.
 
 See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
 [historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
@@ -1015,11 +1039,12 @@ construction paths:
 
 - **Direct path** (`CreateDirectHttpClient`) — builds an
   `HttpClientHandler` configured with:
-  - `ServerCertificateCustomValidationCallback` wired to the OPC UA
-    `ICertificateValidatorEx` / `CertificateValidator` (validates against
-    the OPC UA trust list / issuer chain).
-  - The OPC UA application instance certificate attached as a client
-    certificate (mutual TLS using the OPC UA application identity).
+  - `ServerCertificateCustomValidationCallback`, where supported, wired
+    to the channel's `ICertificateValidatorEx`. The application normally
+    supplies it through `ApplicationConfiguration.CertificateManager`
+    for OPC UA trust-list and issuer-chain validation.
+  - The OPC UA application instance certificate, when supplied, attached
+    as a client certificate for mutual TLS using the OPC UA application identity.
   - `AllowAutoRedirect = false` so an attacker-controlled redirect cannot
     silently move the OPC UA call to a different host.
   - `MaxConnectionsPerServer` and `MaxRequestContentBufferSize` quotas
@@ -1029,51 +1054,29 @@ construction paths:
   by `IHttpClientFactory` and CANNOT be reconfigured by
   `HttpsTransportChannel` after the fact).
 
-When an OPC UA `CertificateValidator` is configured for a channel — the
-normal case for any non-`SecurityPolicies.None` HTTPS profile —
+When an OPC UA certificate validator is configured for a channel,
 `HttpsTransportChannel.CanUseHttpClientFactory()` returns `false` and
-the direct path is always taken. This is the secure default: it
-guarantees that the OPC UA trust list, OPC UA mTLS, and the redirect
-lock are in effect on every OPC UA HTTPS connection. If a non-`Shared`
-factory was supplied but bypassed for security reasons,
-`CreateHttpClient` emits a one-time `LogWarning` so operators see that
-the named HttpClient pipeline (Polly resilience handler, etc.) is NOT
-applied to this OPC UA HTTPS channel.
+the direct path is always taken, regardless of custom named-client
+handler configuration. The `DefaultOpcUaHttpClientFactory.Shared`
+sentinel also selects the direct path. If a non-`Shared` factory is
+bypassed because a validator is configured, the channel logs a warning
+that the named-client pipeline is not applied.
+In practice, only validator-less discovery/GetEndpoints channels use the
+named-client factory.
 
-To keep BOTH Polly resilience AND OPC UA cert validation on the same
-channel, register the named `Opc.Ua.Client` HttpClient with a
-configured primary handler that wires OPC UA validation in yourself.
-The handler must be re-buildable per channel from the configuration
-because the OPC UA validator and client certificate are channel-bound,
-not process-bound:
+Configuring the primary handler of `Opc.Ua.Client` does not override this
+guard, so its Polly resilience pipeline is not applied to a channel with
+an OPC UA validator. Keep certificate validation configured through
+`ApplicationConfiguration.CertificateManager`; do not remove it or install
+an accept-all callback to force the factory path. Use the channel/session
+retry controls described in this guide, including the
+[shared retry budget](#shared-retry-budget-with-managedsession).
+See [certificate validation](Certificates.md#configuring-a-custom-certificate-validator)
+for the current validation API.
 
-```csharp
-services.AddHttpClient(OpcUaHttpClientDefaults.ClientName)
-    .ConfigurePrimaryHttpMessageHandler(sp =>
-    {
-        // Resolve the per-application validator and client cert from
-        // your DI container, then build a handler the same way
-        // CreateDirectHttpClient does.
-        ApplicationConfiguration config = sp.GetRequiredService<ApplicationConfiguration>();
-        ICertificateValidatorEx validator = config.CertificateValidator;
-        return new HttpClientHandler
-        {
-            ClientCertificateOptions = ClientCertificateOption.Manual,
-            AllowAutoRedirect = false,
-            ServerCertificateCustomValidationCallback = (_, cert, chain, _) =>
-            {
-                // … delegate to `validator.ValidateAsync(...)` synchronously.
-            },
-            // … and attach the OPC UA client instance certificate.
-        };
-    })
-    .AddStandardResilienceHandler();
-```
-
-Without that explicit primary-handler configuration, OPC UA HTTPS
-channels deliberately ignore the named-client pipeline and use the
-direct path — preserving OPC UA security at the cost of Polly resilience
-on those channels.
+On platforms that do not support the custom TLS validation callback, the
+direct handler falls back to platform TLS validation (trusted root CA required)
+and does not enforce the OPC UA trust list.
 
 ### Shared retry budget with `ManagedSession`
 
@@ -1387,13 +1390,14 @@ subscription.TryAddMonitoredItem(
 
 The V2 `ISubscription` returned from `Add(...)` transparently splits
 monitored items across multiple server-side partition subscriptions
-when the server's per-subscription cap would be exceeded. Single-
-partition workloads pay zero overhead because the composite
-collection short-circuits to the primary partition. Pin items into
-the same partition with `MonitoredItemOptions.Affinity` so per-
-subscription features like `SetTriggering` keep working across the
-group; opt out of partitioning entirely with
-`SubscriptionOptions.DisableUnboundedItemMode = true`. Full
+when the server's per-subscription cap would be exceeded. With unbounded
+item mode enabled, the composite collection uses partition-placement
+and indexing logic even while only one partition exists. Setting
+`SubscriptionOptions.DisableUnboundedItemMode = true` selects the
+primary-partition delegation path, avoiding the composite collection's
+placement logic and global indexes. Pin items into the same partition
+with `MonitoredItemOptions.Affinity` so per-subscription features like
+`SetTriggering` keep working across the group. Full
 developer guide: [Subscriptions § Unbounded monitored items](Subscriptions.md#unbounded-monitored-items).
 
 ### V2 notification pooling (opt-in)

@@ -90,7 +90,7 @@ Commands are listed under [Reproducing the evidence](#reproducing-the-evidence).
 
 ## Finding 1: the assembly is bimodal
 
-`Opc.Ua.Server` already contains several genuinely deep modules. These are the
+`Opc.Ua.Server` already contains several deep modules. These are the
 reference shape and should be left alone:
 
 | Module | Interface size | Behind the seam |
@@ -185,7 +185,7 @@ Six members account for the overwhelming majority of all override sites:
 `CreateAddressSpaceAsync`, `Dispose`, `New`, `LoadPredefinedNodesAsync`,
 `DeleteAddressSpaceAsync`, `AddBehaviourToPredefinedNodeAsync`.
 
-This is the depth deficit. The *implementation* is genuinely deep — roughly 22,000
+This is the depth deficit. The *implementation* is deep — roughly 22,000
 lines of browse, read, write, call, history, and monitored-item machinery across the
 three base classes. The *interface* charges an author 93 extension points to buy the
 handful they need. Leverage per unit of interface learned is poor.

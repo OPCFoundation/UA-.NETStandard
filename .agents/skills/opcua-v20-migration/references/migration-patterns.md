@@ -285,6 +285,10 @@ object boxed = variant.AsBoxedObject();
 
 ### `DataValue`
 
+`DataValue` is immutable in 2.0. Read `WrappedValue` directly; to replace it
+while preserving status and timestamps, assign the result of `WithWrappedValue`
+back to the variable.
+
 ```csharp
 // Before
 object val = dv.Value;
@@ -292,8 +296,8 @@ dv.Value = something;
 
 // After
 Variant val = dv.WrappedValue;      // preferred: type-safe
-dv.WrappedValue = someVariant;
-// .Value still works but is [Obsolete]
+dv = dv.WithWrappedValue(someVariant);
+// .Value remains an obsolete read-only accessor.
 
 // Timestamps changed from DateTime to DateTimeUtc
 DateTimeUtc src = dv.SourceTimestamp;
@@ -567,11 +571,11 @@ token.Decrypt(cert, nonce, policy, context);
 var sig = token.Sign(data, policy);
 bool valid = token.Verify(data, sig, policy);
 
-// After — handler pattern with IDisposable
+// After — non-disposable handler
 var token = new X509IdentityToken();
-using var handler = token.AsTokenHandler();
-await handler.EncryptAsync(cert, nonce, policy, context, ct);
-await handler.DecryptAsync(cert, nonce, policy, context, ct);
+var handler = token.AsTokenHandler();
+await handler.EncryptAsync(cert, nonce, policy, context, ct: ct);
+await handler.DecryptAsync(cert, nonce, policy, context, ct: ct);
 var sig = await handler.SignAsync(data, policy, ct);
 bool valid = await handler.VerifyAsync(data, sig, policy, ct);
 ```
@@ -692,7 +696,7 @@ sc = sc.WithAggregateBits(agg);
 
 1. **Do not suppress `[Obsolete]` warnings.** Obsolete API will be removed in
    the next minor 2.0 release.
-2. **`var` is your friend.** Many type mismatches (`object` → `Variant`) become
+2. **Use `var` for locals.** Many type mismatches (`object` → `Variant`) become
    non-issues when you use `var` for locals.
 3. **Test thoroughly.** Value-type semantics differ from reference types in
    equality, default values, and parameter passing.

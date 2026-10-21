@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -346,8 +347,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Between Session.Activate and the binding commit the session already carries the
-        /// new activation, so the previous binding must not be handed out for dispatch.
+        /// Once activation admission begins committing, the previous binding must not be handed out for dispatch.
         /// </summary>
         [Test]
         public async Task LookupDuringActivationCommitReturnsNoBindingAsync()
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, channel).ConfigureAwait(false);
             SessionBindingContext original = GetBinding(created, channel);
             bool? classifiedDuringCommit = null;
-            m_manager.OnNextSessionActivated = () => classifiedDuringCommit = m_manager.TryGetSessionContext(
+            m_manager.OnNextActivationCommit = () => classifiedDuringCommit = m_manager.TryGetSessionContext(
                 created.AuthenticationToken, channel.ChannelContext!, out _);
 
             await ActivateAsync(created, channel).ConfigureAwait(false);
@@ -543,7 +543,7 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, channel).ConfigureAwait(false);
             SessionBindingContext original = GetBinding(created, channel);
             bool? liveDuringCommit = null;
-            m_manager.OnNextSessionActivated = () =>
+            m_manager.OnNextActivationCommit = () =>
                 liveDuringCommit = original.Liveness!.IsCurrent(channel.ChannelContext!);
 
             await ActivateAsync(created, channel).ConfigureAwait(false);
@@ -619,6 +619,7 @@ namespace Opc.Ua.Server.Tests
             int closed = 0;
             int checks = 0;
             int confirmed = 0;
+            int readersLive = 0;
             var errors = new ConcurrentQueue<string>();
             using var stop = new CancellationTokenSource();
 
@@ -629,6 +630,7 @@ namespace Opc.Ua.Server.Tests
                 readers[r] = Task.Run(() =>
                 {
                     int attempt = 0;
+                    bool seenLive = false;
                     while (!stop.IsCancellationRequested)
                     {
                         OperationContext channel = channels[(reader + attempt++) & 1];
@@ -650,6 +652,11 @@ namespace Opc.Ua.Server.Tests
                                 break;
                             }
                             Interlocked.Increment(ref confirmed);
+                            if (!seenLive)
+                            {
+                                seenLive = true;
+                                Interlocked.Increment(ref readersLive);
+                            }
                             if (closedBefore || binding.ActivationSequence < floor)
                             {
                                 errors.Enqueue(
@@ -662,6 +669,18 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
+                // let every reader confirm the live session once before the race starts, so the
+                // positive check does not depend on the pool scheduling readers during transfers
+                var deadline = Stopwatch.StartNew();
+                while (Volatile.Read(ref readersLive) < kReaders && errors.IsEmpty)
+                {
+                    if (deadline.Elapsed > TimeSpan.FromSeconds(30))
+                    {
+                        Assert.Fail(
+                            $"Only {Volatile.Read(ref readersLive)} of {kReaders} readers confirmed the live session.");
+                    }
+                    await Task.Delay(1).ConfigureAwait(false);
+                }
                 for (int i = 1; i <= kTransfers; i++)
                 {
                     await ActivateAsync(created, channels[i & 1]).ConfigureAwait(false);
@@ -1197,10 +1216,27 @@ namespace Opc.Ua.Server.Tests
             }
 
             /// <summary>
-            /// Runs once on the activating thread after Session.Activate returned and
-            /// before the activation commits its binding.
+            /// Runs once while activation admission holds the binding in its committing state.
             /// </summary>
-            public Action? OnNextSessionActivated { get; set; }
+            public Action? OnNextActivationCommit { get; set; }
+
+            /// <summary>
+            /// Observes the production commit barrier before admitting activation.
+            /// </summary>
+            protected override async ValueTask<bool> AdmitActivationAsync(
+                NodeId authenticationToken, ISession session, OperationContext context,
+                bool isRestoredSession, CancellationToken cancellationToken)
+            {
+                bool admitted = await base.AdmitActivationAsync(
+                    authenticationToken, session, context, isRestoredSession, cancellationToken).ConfigureAwait(false);
+                if (admitted)
+                {
+                    Action? hook = OnNextActivationCommit;
+                    OnNextActivationCommit = null;
+                    hook?.Invoke();
+                }
+                return admitted;
+            }
 
             protected override ISession CreateSession(
                 OperationContext context, IServerInternal server, Certificate serverCertificate,
@@ -1209,41 +1245,10 @@ namespace Opc.Ua.Server.Tests
                 CertificateCollection clientCertificateChain, double sessionTimeout,
                 uint maxResponseMessageSize, int maxRequestAge, int maxContinuationPoints)
             {
-                return new HookSession(
-                    this, context, server, serverCertificate, sessionCookie, clientNonce, serverNonce,
+                return new Opc.Ua.Server.Session(
+                    context, server, serverCertificate, sessionCookie, clientNonce, serverNonce,
                     sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
-                    sessionTimeout, m_clock);
-            }
-
-            private sealed class HookSession : Opc.Ua.Server.Session, ISession
-            {
-                public HookSession(
-                    BindingSessionManager manager, OperationContext context, IServerInternal server,
-                    Certificate serverCertificate, NodeId authenticationToken, ByteString clientNonce,
-                    Nonce serverNonce, string sessionName, ApplicationDescription clientDescription,
-                    string endpointUrl, Certificate clientCertificate, CertificateCollection clientCertificateChain,
-                    double sessionTimeout, TimeProvider clock)
-                    : base(
-                        context, server, serverCertificate, authenticationToken, clientNonce, serverNonce,
-                        sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
-                        sessionTimeout, 10, 10, clock)
-                {
-                    m_manager = manager;
-                }
-
-                bool ISession.Activate(
-                    OperationContext context, IUserIdentityTokenHandler identityToken, IUserIdentity identity,
-                    IUserIdentity effectiveIdentity, ArrayOf<string> localeIds, Nonce serverNonce)
-                {
-                    bool changed = Activate(
-                        context, identityToken, identity, effectiveIdentity, localeIds, serverNonce);
-                    Action? hook = m_manager.OnNextSessionActivated;
-                    m_manager.OnNextSessionActivated = null;
-                    hook?.Invoke();
-                    return changed;
-                }
-
-                private readonly BindingSessionManager m_manager;
+                    sessionTimeout, 10, 10, m_clock);
             }
 
             private readonly IServerInternal m_server;

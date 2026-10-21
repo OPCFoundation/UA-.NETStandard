@@ -46,6 +46,6 @@ to move to the fluent builder / DI surface.
 
 See the [main repository README](https://github.com/OPCFoundation/UA-.NETStandard)
 and the dedicated
-[Opc.Ua.PubSub README](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/src/Opc.Ua.PubSub/README.md)
+[Part 14 PubSub guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/PubSub.md)
 for the full design (encodings, transports, security-key-service,
 discovery).

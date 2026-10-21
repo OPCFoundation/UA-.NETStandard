@@ -41,6 +41,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Opc.Ua.Client;
 using Opc.Ua.Mcp;
 
 namespace Opc.Ua.Tools.Tests.McpCompanion
@@ -51,9 +52,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
     internal sealed class GdsTestContext : IAsyncDisposable
     {
         private GdsTestContext(
-            RemoteModelTestSession remote, bool enabled, bool writable, int maxReferences, bool files)
+            RemoteModelTestSession remote, bool enabled, bool writable, int maxReferences, bool files,
+            bool callerCreated)
         {
             Remote = remote;
+            m_callerCreated = callerCreated;
             Remote.Context.NamespaceUris.GetIndexOrAppend("urn:test:unrelated-before-gds");
             Remote.Context.NamespaceUris.GetIndexOrAppend(Gds.Namespaces.OpcUaGds);
             Remote.Context.NamespaceUris.GetIndexOrAppend(Onboarding.Namespaces.OpcUaOnboarding);
@@ -76,7 +79,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         {
                             Caller = Owner, Capabilities = s_capabilities,
                             SessionNames = ["selected", "replacement"],
-                            SecretAliases = ["ticket-a", "ticket-b", "password", "proof"]
+                            SecretAliases = ["ticket-a", "ticket-b", "password", "proof", "auth-data", "nonce"]
                         },
                         new McpCallerGrant
                         {
@@ -90,6 +93,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             services.AddLogging(builder => builder.AddProvider(Logs));
             services.AddOpcUaMcpCore(Options);
             services.AddSingleton<TimeProvider>(Clock);
+            if (callerCreated)
+            {
+                services.AddSingleton<IMcpSessionConnector>(new TestSessionConnector(this));
+            }
             var registry = new SecretRegistry(Store);
             var registrar = new SecretIdentifier("ticket", Store.StoreType);
             services.AddOpcUaMcpSecrets(registry,
@@ -99,7 +106,11 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         "ticket-b", new SecretIdentifier("ticket-b", Store.StoreType), RegistrarResource),
                     new McpSecretAlias(
                         "password", new SecretIdentifier("password", Store.StoreType), DirectoryResource),
-                    new McpSecretAlias("proof", new SecretIdentifier("proof", Store.StoreType), "urn:resource")
+                    new McpSecretAlias("proof", new SecretIdentifier("proof", Store.StoreType), "urn:resource"),
+                    new McpSecretAlias("auth-data", new SecretIdentifier("auth-data", Store.StoreType),
+                        AuthorizationResource),
+                    new McpSecretAlias("nonce", new SecretIdentifier("nonce", Store.StoreType),
+                        ConfigurationResource)
                 ], writable ? Store : null, maxIssuedReferences: maxReferences);
             services.AddOpcUaMcpGds();
             services.AddMcpServer().WithStreamServerTransport(Stream.Null, Stream.Null)
@@ -189,18 +200,46 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             NodeId.ToExpandedNodeId(Remote.Id("directory"), Remote.Context.NamespaceUris);
 
         /// <summary>
+        /// Gets the public authorization-service label used by a legacy configured input alias.
+        /// </summary>
+        internal string AuthorizationResource => "opcua:urn:test:gds-server#" +
+            NodeId.ToExpandedNodeId(Remote.Id("auth-service"), Remote.Context.NamespaceUris);
+
+        /// <summary>
+        /// Gets the public push-configuration label used by a legacy nonce alias.
+        /// </summary>
+        internal string ConfigurationResource => "opcua:urn:test:gds-server#" +
+            NodeId.ToExpandedNodeId(Remote.Id("configuration"), Remote.Context.NamespaceUris);
+
+        /// <summary>
         /// Creates one registered encrypted session without network traffic.
         /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The managed test endpoint has no URL.
+        /// </exception>
         internal static async Task<GdsTestContext> CreateAsync(
             bool enabled = true, bool writable = true, int maxReferences = 128, bool files = false,
-            MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt)
+            MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt,
+            bool callerCreated = false, bool autoAcceptCertificates = false)
         {
             RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
                 includeWot: false, includeRegistry: false, mode: mode).ConfigureAwait(false);
-            var fixture = new GdsTestContext(remote, enabled, writable, maxReferences, files);
+            var fixture = new GdsTestContext(remote, enabled, writable, maxReferences, files, callerCreated);
             fixture.Connection = await GdsManagedSession.CreateAsync(remote, fixture.Clock).ConfigureAwait(false);
-            await fixture.Manager.RegisterExistingSessionAsync("selected", fixture.Connection.Managed, "Anonymous")
-                .ConfigureAwait(false);
+            if (callerCreated)
+            {
+                using IDisposable caller = fixture.Enter();
+                _ = await fixture.Manager.ConnectAsync(
+                    "selected", fixture.Connection.Managed.ConfiguredEndpoint.Description.EndpointUrl ??
+                        throw new InvalidOperationException("The managed test endpoint has no URL."),
+                    "SignAndEncrypt", SecurityPolicies.Basic256Sha256, "Anonymous", null, null,
+                    autoAcceptCertificates, CancellationToken.None).ConfigureAwait(false);
+            }
+            else
+            {
+                await fixture.Manager.RegisterExistingSessionAsync("selected", fixture.Connection.Managed, "Anonymous")
+                    .ConfigureAwait(false);
+            }
             return fixture;
         }
 
@@ -285,8 +324,15 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Store.SetFailure = null;
             Store.RemoveFailure = null;
             Store.GetFailure = null;
+            if (m_callerCreated)
+            {
+                await Connection.DisposeAsync().ConfigureAwait(false);
+            }
             await Services.DisposeAsync().ConfigureAwait(false);
-            await Connection.DisposeAsync().ConfigureAwait(false);
+            if (!m_callerCreated)
+            {
+                await Connection.DisposeAsync().ConfigureAwait(false);
+            }
             await Remote.DisposeAsync().ConfigureAwait(false);
             if (Root is not null)
             {
@@ -301,6 +347,28 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         {
             return NUnit.Framework.TestContext.CurrentContext.WorkDirectory;
         }
+
+        /// <summary>
+        /// Returns the test-owned real managed session after Core Connect has checked caller registration authority.
+        /// No discovery, socket, certificate store or private session-state bypass is involved.
+        /// </summary>
+        private sealed class TestSessionConnector(GdsTestContext context) : IMcpSessionConnector
+        {
+            /// <inheritdoc/>
+            public ValueTask<ISession> ConnectAsync(
+                string name, string endpointUrl, string? securityMode, string? securityPolicy, string authType,
+                string? username, string? password, bool autoAcceptCertificates, string? certificateIdentity,
+                CancellationToken ct)
+            {
+                ct.ThrowIfCancellationRequested();
+                return ValueTask.FromResult<ISession>(context.Connection.Managed);
+            }
+        }
+
+        /// <summary>
+        /// Whether Core Connect owns the managed test session rather than borrowing a host registration.
+        /// </summary>
+        private readonly bool m_callerCreated;
 
         private static readonly ArrayOf<McpCapability> s_capabilities =
         [

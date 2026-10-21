@@ -45,7 +45,7 @@ using ClientSession = Opc.Ua.Client.ISession;
 namespace Opc.Ua.PlasticsRubber.Datasets.Tests
 {
     /// <summary>
-    /// A real UA-TCP host with generated models, original service contexts, and worktree-local PKI.
+    /// A real UA-TCP host with generated models, original service contexts, and isolated temporary PKI.
     /// </summary>
     internal sealed class ProductionDatasetServerFixture : IAsyncDisposable
     {
@@ -67,8 +67,7 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                 TransferTimeout = TimeSpan.FromSeconds(10)
             };
             m_root = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory, "TestResults",
-                    "ProductionDatasets-" + Guid.NewGuid().ToString("N"));
+                Path.GetTempPath(), "ds-" + Guid.NewGuid().ToString("N"));
         }
 
         /// <summary>

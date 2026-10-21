@@ -15,10 +15,11 @@ the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
 - [Concepts](#concepts)
 - [Registration](#registration)
 - [Registering data types](#registering-data-types)
+  - [Standard field encodings](#standard-field-encodings)
   - [Namespace identity](#namespace-identity)
 - [Generating a schema](#generating-a-schema)
 - [Working with the object model](#working-with-the-object-model)
-- [JSON encoding notes](#json-encoding-notes-part-6)
+- [JSON encoding notes (Part 6)](#json-encoding-notes-part-6)
 - [PubSub schemas](#pubsub-schemas)
 - [OpenAPI document of the REST binding](#openapi-document-of-the-rest-binding)
 - [Trimming and NativeAOT](#trimming-and-nativeaot)
@@ -239,7 +240,7 @@ JsonObject document = generator.Generate(
 Without `includeSchemas` the document holds the paths and operations only
 (about 12 KB for all 28 services). With it, every request, response and the
 structures and enumerations they contain become component schemas (about 46 KB),
-which is what OpenAPI client generators need. The schemas describe the Compact
+as required by OpenAPI client generators. The schemas describe the Compact
 JSON encoding with the property names and types the published OPC Foundation
 documents use; [OPC UA over OpenAPI](OpenApi.md) lists the differences and the
 tests that keep the document correct. Pass an `IDataTypeDefinitionResolver` to

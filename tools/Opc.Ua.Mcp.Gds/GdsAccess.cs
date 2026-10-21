@@ -455,9 +455,16 @@ namespace Opc.Ua.Mcp
         internal NodeId SessionId { get; }
 
         /// <summary>
-        /// Gets the exact server/model resource binding displayed for host-authored aliases.
+        /// Gets the public server/model label, without asserting protected-secret eligibility.
         /// </summary>
         internal string Resource { get; }
+
+        /// <summary>
+        /// Gets current registration/certificate-bound secret authority only when an operation actually needs it.
+        /// Capture this value before dispatch if acknowledged issuance must survive later session invalidation.
+        /// </summary>
+        internal string SecretResource =>
+            McpSecretReferences.GetResourceBinding(Info.WithSession(Session), Proxy.ObjectId);
 
         /// <summary>
         /// Gets the decode/encode context captured before a mutation can dispose the borrowed session.

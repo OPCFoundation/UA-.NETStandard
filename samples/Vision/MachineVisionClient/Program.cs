@@ -42,6 +42,7 @@ using Opc.Ua.Vision.Client;
 using Opc.Ua.Vision.MachineVision;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+builder.Logging.EnableOpcUaRedaction();
 string url = builder.Configuration["endpoint"] ?? "opc.tcp://localhost:62550/MachineVision";
 string? insecureOption = builder.Configuration["insecure"];
 bool insecure = false;

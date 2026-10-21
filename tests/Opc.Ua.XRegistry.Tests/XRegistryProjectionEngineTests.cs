@@ -31,7 +31,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -50,6 +52,121 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryProjectionEngineTests
     {
+        /// <summary>
+        /// Records the process and runtime identities used by XRegistry projection tests.
+        /// </summary>
+        [SetUp]
+        public void RecordProjectionExecutionRuntime()
+        {
+            using Process process = Process.GetCurrentProcess();
+            TestContext.Out.WriteLine(
+                $"WOT-R34-XREG-RUNTIME;pid={process.Id};framework={RuntimeInformation.FrameworkDescription};" +
+                $"clr={Environment.Version};entry={typeof(XRegistryProjectionEngineTests).Assembly.Location};" +
+                $"core={typeof(object).Assembly.Location}");
+        }
+
+        /// <summary>
+        /// Verifies that current projection reconciliation uses the optional dispatcher.
+        /// </summary>
+        [Test]
+        public async Task CurrentProjectionReconciliationUsesTheOptionalDispatcher()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                calls++;
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                Assert.That(harness.Added.OfType<GroupState>(), Is.Empty);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(calls, Is.EqualTo(1));
+                Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                    Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that supplied projection transitions do not reenter the dispatcher.
+        /// </summary>
+        [Test]
+        public async Task SuppliedProjectionTransitionsDoNotReenterTheDispatcher()
+        {
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: (_, _) =>
+                throw new InvalidOperationException("An already ordered transition must not dispatch again."));
+            using XRegistryProjectionEngine engine = harness.Engine;
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            harness.Strategy.EventSnapshot = SnapshotWithResource(epoch: 2, versionEpoch: 1);
+            await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(harness.Added.OfType<ResourceState>().Single().NodeId,
+                Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
+        }
+
+        /// <summary>
+        /// Verifies that dispatched reconciliation cannot observe later snapshot removal.
+        /// </summary>
+        [Test]
+        public async Task DispatchedReconciliationCannotObserveLaterSnapshotRemoval()
+        {
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ProjectionHarness harness = ProjectionHarness.Create(projectionDispatcher: async (operation, token) =>
+            {
+                entered.SetResult(true);
+                await release.Task.ConfigureAwait(false);
+                await operation(token).ConfigureAwait(false);
+            });
+            using XRegistryProjectionEngine engine = harness.Engine;
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas",
+                    [new TestResource("schemas", "pump"), new TestResource("schemas", "sensor")])]);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(1);
+            await engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false);
+            var pumpId = new NodeId("TestRegistry/groups/schemas/resources/pump", 1);
+            ResourceState pump = harness.Added.OfType<ResourceState>().Single(node => node.NodeId == pumpId);
+            harness.Strategy.EventSnapshot = EmptyEventSnapshot(2);
+            Task reconcile = engine.ReconcileProjectionAsync(CancellationToken.None).AsTask();
+            await entered.Task.ConfigureAwait(false);
+            try
+            {
+                harness.Strategy.Snapshot = new TestSnapshot(
+                    [new TestGroup("schemas", [new TestResource("schemas", "sensor")])]);
+                harness.Strategy.EventSnapshot = EmptyEventSnapshot(3);
+                release.SetResult(true);
+                await reconcile.ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Not.Contain(pumpId),
+                    "An earlier dispatched operation must not apply a later removal ahead of pending notifications.");
+                Assert.That(engine.EventSourceFor("/groups/schemas/resources/pump"), Is.SameAs(pump));
+
+                await engine.ReconcileAsync(harness.Strategy.CaptureProjectionGeneration(), null, CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(harness.Deleted, Does.Contain(pumpId));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
         /// <summary>
         /// A failed or canceled generation cannot publish an epoch that an older successful retry would lower.
         /// </summary>
@@ -116,6 +233,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(registry.Epoch.Value, Is.EqualTo(4u));
         }
 
+        /// <summary>
+        /// Verifies that registry epoch is indexed and tracks only current projection generations.
+        /// </summary>
         [Test]
         public async Task RegistryEpochIsIndexedAndTracksOnlyCurrentProjectionGenerations()
         {
@@ -135,6 +255,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Registry.Epoch.Value, Is.EqualTo(5u));
         }
 
+        /// <summary>
+        /// Verifies that reconcile creates stable group and resource node IDs.
+        /// </summary>
         [Test]
         public async Task ReconcileCreatesStableGroupAndResourceNodeIdsAsync()
         {
@@ -169,6 +292,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that session discard reports unsupported for an existing provider without the optional capability.
+        /// </summary>
         [Test]
         public async Task SessionDiscardReportsUnsupportedForAnExistingProviderWithoutTheOptionalCapability()
         {
@@ -184,6 +310,9 @@ namespace Opc.Ua.XRegistry.Tests
                     .EqualTo(StatusCodes.BadNotSupported)).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that session discard rejects a <see langword="null"/> session ID.
+        /// </summary>
         [Test]
         public async Task SessionDiscardRejectsANullSessionId()
         {
@@ -196,6 +325,9 @@ namespace Opc.Ua.XRegistry.Tests
                 Throws.TypeOf<ArgumentException>()).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that reconcile removes nodes that left the snapshot.
+        /// </summary>
         [Test]
         public async Task ReconcileRemovesNodesThatLeftTheSnapshotAsync()
         {
@@ -218,6 +350,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Deleted, Does.Contain(new NodeId("TestRegistry/groups/schemas", 1)));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile is silent initially and suppresses duplicate snapshots.
+        /// </summary>
         [Test]
         public async Task EventReconcileIsSilentInitiallyAndSuppressesDuplicateSnapshotsAsync()
         {
@@ -273,6 +408,9 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(harness.Events, Has.Count.EqualTo(count));
         }
 
+        /// <summary>
+        /// Verifies that event reconcile detects out-of-band version update once.
+        /// </summary>
         [Test]
         public async Task EventReconcileDetectsOutOfBandVersionUpdateOnceAsync()
         {
@@ -301,6 +439,9 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.EqualTo(new NodeId("TestRegistry/groups/schemas/resources/pump", 1)));
         }
 
+        /// <summary>
+        /// Verifies that six-parameter projection context constructor remains available.
+        /// </summary>
         [Test]
         public void SixParameterProjectionContextConstructorRemainsAvailable()
         {
@@ -318,6 +459,11 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.Not.Null);
         }
 
+        /// <summary>
+        /// Verifies that version-aware create honors explicit and assigned version IDs.
+        /// </summary>
+        /// <param name="requestedVersionId">The version identifier requested by the test case.</param>
+        /// <param name="expectedVersionId">The version identifier expected by the test case.</param>
         [TestCase("v7", "v7")]
         [TestCase("", "generated-1")]
         public async Task VersionAwareCreateHonorsExplicitAndAssignedVersionIdsAsync(
@@ -411,6 +557,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that duplicate create can atomically claim only a contentless version.
+        /// </summary>
         [Test]
         public async Task DuplicateCreateCanAtomicallyClaimOnlyAContentlessVersionAsync()
         {
@@ -469,6 +618,64 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// An asynchronous contentless Open that completes Good after its Session started closing
+        /// must not hand out the handle: the provider handle is closed exactly once and the call
+        /// reports BadSessionClosed.
+        /// </summary>
+        [Test]
+        public async Task AsyncContentlessOpenRacingSessionCloseReleasesHandleAsync()
+        {
+            var strategy = new AsyncContentlessClaimStrategy();
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+            var sessionId = new NodeId("closing-session", 1);
+            bool closing = false;
+            var session = new Mock<ISession>();
+            session.SetupGet(s => s.IsClosing).Returns(() => closing);
+            ServerSystemContext context = harness.Context.Copy(
+                new Opc.Ua.Server.OperationContext(session.Object, DiagnosticsMasks.None));
+            context.SessionId = sessionId;
+            using var cts = new CancellationTokenSource();
+            var output = new List<Variant>();
+
+            Task<ServiceResult> create = group.CreateResource!.OnCallMethod2Async!(
+                context,
+                group.CreateResource,
+                group.NodeId,
+                [
+                    new Variant("pump"),
+                    new Variant("v1"),
+                    new Variant(true)
+                ],
+                output,
+                cts.Token).AsTask();
+            await Task.WhenAny(strategy.File.Entered, create).ConfigureAwait(false);
+            Assert.That(strategy.File.Entered.IsCompleted, Is.True);
+
+            closing = true;
+            await harness.Engine.DiscardSessionAsync(sessionId, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(strategy.File.Discards, Is.EqualTo(new[] { sessionId }));
+            Assert.That(create.IsCompleted, Is.False);
+            strategy.File.Release();
+            ServiceResult result = await create.ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadSessionClosed));
+                Assert.That(output, Is.Empty);
+                Assert.That(strategy.File.Closes, Has.Count.EqualTo(1));
+                Assert.That(strategy.File.Closes[0].Handle, Is.EqualTo(AsyncContentlessResourceFile.ClaimedHandle));
+                Assert.That(strategy.File.Closes[0].Token.CanBeCanceled, Is.False);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that versioned delete passes logical role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesLogicalRoleAndEpochToAtomicStrategyAsync()
         {
@@ -514,6 +721,101 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for version and logical delete.
+        /// </summary>
+        [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForVersionAndLogicalDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            ServiceResult version = await InvokeDeleteAsync(harness, FindVersionNode(harness, "v2"), 23)
+                .ConfigureAwait(false);
+            ServiceResult logical = await InvokeDeleteAsync(harness, FindLogicalResourceNode(harness, "pump"), 17)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(version), Is.True);
+                Assert.That(ServiceResult.IsGood(logical), Is.True);
+                Assert.That(strategy.EntityDeletes, Has.Count.EqualTo(2));
+                Assert.That(strategy.EntityDeletes[0].VersionId, Is.EqualTo("v2"));
+                Assert.That(strategy.EntityDeletes[0].Logical, Is.False);
+                Assert.That(strategy.EntityDeletes[0].Epoch, Is.EqualTo(23));
+                Assert.That(strategy.EntityDeletes[0].Context, Is.SameAs(harness.Context));
+                Assert.That(strategy.EntityDeletes[1].Logical, Is.True);
+                Assert.That(strategy.EntityDeletes[1].Epoch, Is.EqualTo(17));
+                Assert.That(strategy.EntityDeletes[1].Context, Is.SameAs(harness.Context));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that contextual delete capability receives the same context for group delete.
+        /// </summary>
+        [Test]
+        public async Task ContextualDeleteCapabilityReceivesTheSameContextForGroupDeleteAsync()
+        {
+            var strategy = new ContextualDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Has.Count.EqualTo(1));
+                Assert.That(strategy.GroupDeletes[0].GroupId, Is.EqualTo("schemas"));
+                Assert.That(strategy.GroupDeletes[0].Epoch, Is.EqualTo(5));
+                Assert.That(strategy.GroupDeletes[0].Context, Is.SameAs(harness.Context));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that legacy context-free strategy still receives group delete.
+        /// </summary>
+        [Test]
+        public async Task LegacyContextFreeStrategyStillReceivesGroupDeleteAsync()
+        {
+            var strategy = new LegacyGroupDeleteTestStrategy
+            {
+                Snapshot = VersionedProjectionSnapshot("v1"),
+                EventSnapshot = VersionedEventSnapshot("v1", 1, WotLabels())
+            };
+            ProjectionHarness harness = ProjectionHarness.Create(suppliedStrategy: strategy);
+            await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None)
+                .ConfigureAwait(false);
+            var group = (GroupState)harness.Added.Single(node => node is GroupState);
+
+            ServiceResult result = await group.Delete!.OnCallMethod2Async!(
+                harness.Context, group.Delete, group.NodeId, [new Variant(5u)], [], CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(strategy.GroupDeletes, Is.EqualTo(new[] { ("schemas", (long?)5) }));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that versioned delete uses logical role without event metadata.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalRoleWithoutEventMetadataAsync()
         {
@@ -558,6 +860,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes version role and epoch to atomic strategy.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesVersionRoleAndEpochToAtomicStrategyAsync()
         {
@@ -601,6 +906,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses logical XID mapping when browse names collide.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesLogicalXidMappingWhenBrowseNamesCollideAsync()
         {
@@ -667,6 +975,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete passes stale non-default role and service rejects.
+        /// </summary>
         [Test]
         public async Task VersionedDeletePassesStaleNonDefaultRoleAndServiceRejectsAsync()
         {
@@ -716,6 +1027,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that versioned delete uses reconciled logical role for new default.
+        /// </summary>
         [Test]
         public async Task VersionedDeleteUsesReconciledLogicalRoleForNewDefaultAsync()
         {
@@ -769,6 +1083,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that delete on non-versioned resource still uses logical resource route.
+        /// </summary>
         [Test]
         public async Task DeleteOnNonVersionedResourceStillUsesLogicalResourceRouteAsync()
         {
@@ -802,6 +1119,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that generation capture cannot mix projection and event snapshots.
+        /// </summary>
         [Test]
         public async Task GenerationCaptureCannotMixProjectionAndEventSnapshotsAsync()
         {
@@ -853,6 +1173,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that supplied projection transitions emit intermediate creation and deletion events.
+        /// </summary>
         [Test]
         public async Task SuppliedTransitionsEmitIntermediateCreateAndDeleteAsync()
         {
@@ -900,6 +1223,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated group emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedGroupEmitsSpecializedLifecycleEventAsync()
         {
@@ -929,6 +1255,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating normal group does not emit group deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalGroupDoesNotEmitGroupDeprecatedAsync()
         {
@@ -952,6 +1281,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that projection-only reconcile leaves fifo transitions as event authority.
+        /// </summary>
         [Test]
         public async Task ProjectionOnlyReconcileLeavesFifoTransitionsAsEventAuthorityAsync()
         {
@@ -1013,6 +1345,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that changing deprecation metadata emits both specialized lifecycle and update events.
+        /// </summary>
         [Test]
         public async Task DeprecatedObjectValueChangesEmitSpecializedAndUpdatedEventsAsync()
         {
@@ -1058,6 +1393,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that resource deprecated object uses create change and removal errata.
+        /// </summary>
         [Test]
         public async Task ResourceDeprecatedObjectUsesCreateChangeAndRemovalErrataAsync()
         {
@@ -1091,6 +1429,9 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that creating deprecated resource emits specialized lifecycle event.
+        /// </summary>
         [Test]
         public async Task CreatingDeprecatedResourceEmitsSpecializedLifecycleEventAsync()
         {
@@ -1122,6 +1463,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that creating normal resource does not emit resource deprecated.
+        /// </summary>
         [Test]
         public async Task CreatingNormalResourceDoesNotEmitResourceDeprecatedAsync()
         {
@@ -1147,6 +1491,9 @@ namespace Opc.Ua.XRegistry.Tests
                     }));
         }
 
+        /// <summary>
+        /// Verifies that resource name change includes canonical name and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameChangeIncludesCanonicalNameAndMetaEpochAsync()
         {
@@ -1158,6 +1505,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource description change includes canonical description and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceDescriptionChangeIncludesCanonicalDescriptionAndMetaEpochAsync()
         {
@@ -1169,6 +1519,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that resource name and description change includes both and meta epoch.
+        /// </summary>
         [Test]
         public Task ResourceNameAndDescriptionChangeIncludesBothAndMetaEpochAsync()
         {
@@ -1180,6 +1533,9 @@ namespace Opc.Ua.XRegistry.Tests
                 s_resourceNameAndDescriptionChanged);
         }
 
+        /// <summary>
+        /// Verifies that version sources meta and default switch are diffed independently.
+        /// </summary>
         [Test]
         public async Task VersionSourcesMetaAndDefaultSwitchAreDiffedIndependentlyAsync()
         {
@@ -1251,6 +1607,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that default switch includes all present version attributes without version update.
+        /// </summary>
         [Test]
         public async Task DefaultSwitchIncludesAllPresentVersionAttributesWithoutVersionUpdateAsync()
         {
@@ -1302,6 +1661,9 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Verifies that logical resource event source is mapped when generic events are disabled.
+        /// </summary>
         [Test]
         public async Task LogicalResourceEventSourceIsMappedWhenGenericEventsAreDisabled()
         {
@@ -2737,6 +3099,7 @@ namespace Opc.Ua.XRegistry.Tests
             public static ProjectionHarness Create(
                 bool eventsEnabled = false,
                 TestStrategy? suppliedStrategy = null,
+                Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>? projectionDispatcher = null,
                 Func<NodeState, CancellationToken, ValueTask>? onAdd = null)
             {
                 Mock<IServerInternal> server =
@@ -2779,12 +3142,15 @@ namespace Opc.Ua.XRegistry.Tests
                     },
                     (ctx, operation) => ServiceResult.Good,
                     eventsEnabled
-                            ? new XRegistryServerOptions
-                            {
-                                EventsEnabled = true,
-                                EventSourceUrl = "https://registry.example.test"
-                            }
-                            : null);
+                        ? new XRegistryServerOptions
+                        {
+                            EventsEnabled = true,
+                            EventSourceUrl = "https://registry.example.test"
+                        }
+                        : null)
+                {
+                    ProjectionDispatcher = projectionDispatcher
+                };
                 return new ProjectionHarness(
                     new XRegistryProjectionEngine(projectionContext, strategy, "TestRegistry"),
                     context,
@@ -2877,7 +3243,7 @@ namespace Opc.Ua.XRegistry.Tests
                     (new TestResource(groupId, resourceId), true));
             }
 
-            public ValueTask<ServiceResult> DeleteGroupAsync(
+            public virtual ValueTask<ServiceResult> DeleteGroupAsync(
                 string groupId,
                 long? epoch,
                 CancellationToken ct)
@@ -3172,6 +3538,71 @@ namespace Opc.Ua.XRegistry.Tests
             }
         }
 
+        private sealed class ContextualDeleteTestStrategy :
+            VersionedTestStrategy,
+            IXRegistryProjectionContextualDelete
+        {
+            public List<(string GroupId, long? Epoch, ISystemContext? Context)> GroupDeletes { get; } = [];
+            public List<(string ResourceId, string VersionId, bool Logical, long? Epoch, ISystemContext? Context)>
+                EntityDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free group delete must not be used.");
+            }
+
+            public override ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                CancellationToken ct)
+            {
+                throw new InvalidOperationException("The context-free entity delete must not be used.");
+            }
+
+            public ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<ServiceResult> DeleteProjectedEntityAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                bool deleteLogicalResource,
+                long? epoch,
+                ISystemContext? context,
+                CancellationToken ct)
+            {
+                EntityDeletes.Add((resourceId, versionId, deleteLogicalResource, epoch, context));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
+        private sealed class LegacyGroupDeleteTestStrategy : VersionedTestStrategy
+        {
+            public List<(string GroupId, long? Epoch)> GroupDeletes { get; } = [];
+
+            public override ValueTask<ServiceResult> DeleteGroupAsync(
+                string groupId,
+                long? epoch,
+                CancellationToken ct)
+            {
+                GroupDeletes.Add((groupId, epoch));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+        }
+
         private sealed class RecordingVersionedTestStrategy : VersionedTestStrategy
         {
             public string CurrentDefaultVersionId { get; set; } = "v1";
@@ -3325,6 +3756,146 @@ namespace Opc.Ua.XRegistry.Tests
             {
                 return new ValueTask<IXRegistryProjectionResource?>(
                     (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        private sealed class AsyncContentlessClaimStrategy : VersionedTestStrategy
+        {
+            public AsyncContentlessClaimStrategy()
+            {
+                Snapshot = new TestSnapshot(
+                [
+                    new TestGroup(
+                        "schemas",
+                        [new VersionedTestResource("schemas", "pump", "v1")])
+                ]);
+            }
+
+            public AsyncContentlessResourceFile File { get; } = new();
+
+            public override IXRegistryProjectedResourceFile CreateResourceFile(
+                ResourceState node,
+                IXRegistryProjectionResource resource)
+            {
+                return File;
+            }
+
+            public override ValueTask<IXRegistryProjectionResource?> CreateResourceAsync(
+                string groupId,
+                string resourceId,
+                string versionId,
+                CancellationToken ct)
+            {
+                return new ValueTask<IXRegistryProjectionResource?>(
+                    (IXRegistryProjectionResource?)null);
+            }
+        }
+
+        /// <summary>
+        /// Contentless provider whose asynchronous claim is held open by the test until
+        /// <see cref="Release"/> is called, and which records every forwarded Close.
+        /// </summary>
+        private sealed class AsyncContentlessResourceFile :
+            IXRegistryProjectedResourceFile,
+            IXRegistryAsyncProjectedContentlessResourceFile,
+            IXRegistryProjectedResourceFileHandleForwarder,
+            IXRegistryProjectedResourceSessionDiscard
+        {
+            private readonly TaskCompletionSource<bool> m_entered =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+            private readonly TaskCompletionSource<bool> m_release =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public const uint ClaimedHandle = 77;
+
+            public Task Entered => m_entered.Task;
+
+            public List<(uint Handle, CancellationToken Token)> Closes { get; } = [];
+
+            public List<NodeId> Discards { get; } = [];
+
+            public ValueTask DiscardSessionAsync(NodeId sessionId, CancellationToken ct = default)
+            {
+                Discards.Add(sessionId);
+                return default;
+            }
+
+            public void Release()
+            {
+                m_release.TrySetResult(true);
+            }
+
+            public ServiceResult TryOpenWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult TryOpenContentlessWriteHandle(ISystemContext context, out uint fileHandle)
+            {
+                fileHandle = 0;
+                return StatusCodes.BadNotSupported;
+            }
+
+            public async ValueTask<OpenMethodStateResult> OpenContentlessWriteAsync(
+                ISystemContext context,
+                CancellationToken cancellationToken)
+            {
+                m_entered.TrySetResult(true);
+                await m_release.Task.ConfigureAwait(false);
+                return new OpenMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    FileHandle = ClaimedHandle
+                };
+            }
+
+            public ServiceResult ForwardOpen(
+                ISystemContext context, MethodState method, NodeId objectId, byte mode, ref uint fileHandle)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ValueTask<ServiceResult> ForwardCloseAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, CancellationToken cancellationToken)
+            {
+                Closes.Add((fileHandle, cancellationToken));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+
+            public ValueTask<(ServiceResult Status, ByteString Data)> ForwardReadAsync(
+                ISystemContext context, MethodState method, NodeId objectId,
+                uint fileHandle, int length, CancellationToken cancellationToken)
+            {
+                return new ValueTask<(ServiceResult, ByteString)>(
+                    (StatusCodes.BadNotSupported, ByteString.Empty));
+            }
+
+            public ServiceResult ForwardWrite(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ByteString data)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardGetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ref ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public ServiceResult ForwardSetPosition(
+                ISystemContext context, MethodState method, NodeId objectId, uint fileHandle, ulong position)
+            {
+                return StatusCodes.BadNotSupported;
+            }
+
+            public void ApplyResource(IXRegistryProjectionResource resource)
+            {
+            }
+
+            public void Dispose()
+            {
             }
         }
 

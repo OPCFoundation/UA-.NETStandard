@@ -21,9 +21,10 @@ ObjectType proxies**. It talks to a registry hosted in an OPC UA server address 
   The returned client's Session retains the verified binding, rejects replacement
   instead of retargeting content, and is released by the caller when finished.
 
-Document uploads close their owned write handle with a separate five-second
-cancellation budget, including after cancellation or a failed Write. If Write and
-Close both fail, both exceptions are retained. Uploads are not automatically
+After successful document writes, Close commits the resource using the caller's
+cancellation token and the Session's normal request timeout. Cleanup after
+cancellation or a failed Write instead uses an independent five-second budget.
+If Write and Close both fail, both exceptions are retained. Uploads are not automatically
 replayed; inspect the server state before deciding whether a new request is safe.
 
 `XRegistryClient` is an abstract base carrying the xRegistry-level API;
@@ -32,6 +33,6 @@ registry client (for example a schema registry client) derives from `XRegistryCl
 domain-specific naming and defaults; because a domain model subtypes the base types, the
 generated proxy chain mirrors the OPC UA hierarchy automatically.
 
-The xRegistry 0.5.0 NodeSet also source-generates all 19 concrete `*EventTypeRecord` decoders and
+The xRegistry NodeSet also source-generates all 19 concrete `*EventTypeRecord` decoders and
 their `EventFilters.Build(...)` factories. Use them with the standard OPC UA subscription APIs;
 the package intentionally adds no parallel convenience subscription API.

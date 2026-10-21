@@ -39,6 +39,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -140,6 +141,7 @@ namespace Opc.Ua.Server.Hosting
             }
         }
 
+        /// <inheritdoc />
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             try
@@ -292,6 +294,10 @@ namespace Opc.Ua.Server.Hosting
             }
 
             m_server.SessionManagerFactory = m_services.GetService<ISessionManagerFactory>();
+            if (m_services.GetService<EventIdentityAdmissionOptions>() is { } eventIdentityOptions)
+            {
+                m_server.EventIdentityAdmissionOptions = eventIdentityOptions;
+            }
             m_server.RedundantServerSetProvider = m_services.GetService<IRedundantServerSetProvider>();
             m_server.GetEndpointsDirector = m_services.GetService<IGetEndpointsDirector>();
             m_server.SubscriptionStore = m_services.GetService<ISubscriptionStore>();
@@ -877,7 +883,9 @@ namespace Opc.Ua.Server.Hosting
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.OpcUaServerHostedService + 1, Level = LogLevel.Information,
             Message = "OPC UA server listening at {Endpoint}.")]
-        public static partial void OPCUAServerListeningAtEndpoint(this ILogger logger, string endpoint);
+        public static partial void OPCUAServerListeningAtEndpoint(
+            this ILogger logger,
+            [NetworkAddress] string endpoint);
 
         /// <summary>
         /// Logs a configured user token policy that lacks a matching identity authenticator.
@@ -909,7 +917,7 @@ namespace Opc.Ua.Server.Hosting
             Message = "Loading OPC UA server configuration from file {ConfigurationFile}.")]
         public static partial void LoadingOPCUAServerConfigurationFromFile(
             this ILogger logger,
-            string configurationFile);
+            [FilePath] string configurationFile);
 
         /// <summary>
         /// Logs loading of the OPC UA server configuration from a stream.

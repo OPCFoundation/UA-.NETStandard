@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Opc.Ua.Encoders;
 
@@ -124,28 +122,48 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return ServiceResult.Good;
             }
 
+            if (value.TryGetStructure<WoTResourceSelectorDataType>(
+                context, out ArrayOf<WoTResourceSelectorDataType> decoded))
+            {
+                foreach (WoTResourceSelectorDataType selector in decoded)
+                {
+                    if (selector is null)
+                    {
+                        return InvalidSelection();
+                    }
+                }
+                selectors = [.. decoded.ToList()];
+                return ServiceResult.Good;
+            }
+            if (!value.TryGetValue(out ArrayOf<ExtensionObject> extensions))
+            {
+                if (!value.TryGetValue(out ExtensionObject single))
+                {
+                    return InvalidSelection();
+                }
+                extensions = [single];
+            }
             ImmutableArray<WoTResourceSelectorDataType>.Builder builder =
                 ImmutableArray.CreateBuilder<WoTResourceSelectorDataType>();
-            foreach (object? element in Enumerate(value.AsBoxedObject(Variant.BoxingBehavior.Legacy)))
+            foreach (ExtensionObject element in extensions)
             {
-                if (element is null)
-                {
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "The Selection argument must be an array of WoTResourceSelectorDataType.");
-                }
-                ServiceResult status = TryCoerce(
+                ServiceResult status = TryDecodeExtensionObject(
                     element, context, out WoTResourceSelectorDataType? selector);
                 if (ServiceResult.IsBad(status) || selector is null)
                 {
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "The Selection argument must be an array of WoTResourceSelectorDataType.");
+                    return InvalidSelection();
                 }
                 builder.Add(selector);
             }
             selectors = builder.ToImmutable();
             return ServiceResult.Good;
+        }
+
+        private static ServiceResult InvalidSelection()
+        {
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidArgument,
+                "The Selection argument must be an array of WoTResourceSelectorDataType.");
         }
 
         private static ServiceResult TryDecodeStructure(
@@ -158,9 +176,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return ServiceResult.Good;
             }
-            ServiceResult status = TryCoerce(
-                value.AsBoxedObject(Variant.BoxingBehavior.Legacy), context, out options);
-            if (ServiceResult.IsBad(status) || options is null)
+            if (value.TryGetStructure<WoTRefreshOptionsDataType>(context, out options))
+            {
+                return ServiceResult.Good;
+            }
+            if (!value.TryGetValue(out ExtensionObject extension) ||
+                ServiceResult.IsBad(TryDecodeExtensionObject(extension, context, out options)) || options is null)
             {
                 return ServiceResult.Create(
                     StatusCodes.BadInvalidArgument,
@@ -176,28 +197,33 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return ServiceResult.Good;
             }
-            switch (value.AsBoxedObject(Variant.BoxingBehavior.Legacy))
+            if (value.TryGetValue(out result))
             {
-                case uint u:
-                    result = u;
-                    return ServiceResult.Good;
-                case int i when i >= 0:
-                    result = (uint)i;
-                    return ServiceResult.Good;
-                case long l when l is >= 0 and <= uint.MaxValue:
-                    result = (uint)l;
-                    return ServiceResult.Good;
-                case ushort us:
-                    result = us;
-                    return ServiceResult.Good;
-                case byte b:
-                    result = b;
-                    return ServiceResult.Good;
-                default:
-                    return ServiceResult.Create(
-                        StatusCodes.BadInvalidArgument,
-                        "The ExpectedGeneration argument must be a UInt32.");
+                return ServiceResult.Good;
             }
+            if (value.TryGetValue(out int signed) && signed >= 0)
+            {
+                result = (uint)signed;
+                return ServiceResult.Good;
+            }
+            if (value.TryGetValue(out long wide) && wide is >= 0 and <= uint.MaxValue)
+            {
+                result = (uint)wide;
+                return ServiceResult.Good;
+            }
+            if (value.TryGetValue(out ushort narrow))
+            {
+                result = narrow;
+                return ServiceResult.Good;
+            }
+            if (value.TryGetValue(out byte smallest))
+            {
+                result = smallest;
+                return ServiceResult.Good;
+            }
+            return ServiceResult.Create(
+                StatusCodes.BadInvalidArgument,
+                "The ExpectedGeneration argument must be a UInt32.");
         }
 
         private static ServiceResult TryDecodeString(Variant value, out string? result)
@@ -207,7 +233,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return ServiceResult.Good;
             }
-            if (value.AsBoxedObject(Variant.BoxingBehavior.Legacy) is string s)
+            if (value.TryGetValue(out string s))
             {
                 result = s;
                 return ServiceResult.Good;
@@ -215,61 +241,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return ServiceResult.Create(
                 StatusCodes.BadInvalidArgument,
                 "The RequestId argument must be a String.");
-        }
-
-        private static IEnumerable<object?> Enumerate(object? boxed)
-        {
-            switch (boxed)
-            {
-                case null:
-                    yield break;
-                case ExtensionObject single:
-                    yield return single;
-                    break;
-                case IConvertableToArray convertible:
-                    var array = convertible.ToArray();
-                    if (array is not null)
-                    {
-                        foreach (object? item in array)
-                        {
-                            yield return item;
-                        }
-                    }
-                    break;
-                case IEnumerable enumerable when boxed is not string:
-                    foreach (object? item in enumerable)
-                    {
-                        yield return item;
-                    }
-                    break;
-                default:
-                    yield return boxed;
-                    break;
-            }
-        }
-
-        private static ServiceResult TryCoerce<T>(
-            object? element,
-            IServiceMessageContext context,
-            out T? value)
-            where T : class, IEncodeable, new()
-        {
-            value = null;
-            switch (element)
-            {
-                case T typed:
-                    value = typed;
-                    return ServiceResult.Good;
-                case ExtensionObject extension:
-                    return TryDecodeExtensionObject(extension, context, out value);
-                case IEncodeable encodeable:
-                    return TryDecodeExtensionObject(
-                        new ExtensionObject(encodeable),
-                        context,
-                        out value);
-                default:
-                    return StatusCodes.BadInvalidArgument;
-            }
         }
 
         private static ServiceResult TryDecodeExtensionObject<T>(
@@ -292,13 +263,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 value = typed;
                 return ServiceResult.Good;
             }
-            if (typeof(T) == typeof(WoTRefreshOptionsDataType) &&
-                extension.TryGetValue(out Structure? structure, context) &&
-                structure is not null &&
-                TryDecodeDynamicOptions(structure, out WoTRefreshOptionsDataType? options))
+            if (extension.TryGetValue(out Structure? structure, context) && structure is not null)
             {
-                value = (T)(IEncodeable)options!;
-                return ServiceResult.Good;
+                if (typeof(T) == typeof(WoTRefreshOptionsDataType) &&
+                    TryDecodeDynamicOptions(structure, out WoTRefreshOptionsDataType? options))
+                {
+                    value = (T)(IEncodeable)options!;
+                    return ServiceResult.Good;
+                }
+                if (typeof(T) == typeof(WoTResourceSelectorDataType) &&
+                    TryDecodeDynamicSelector(structure, out WoTResourceSelectorDataType? selector))
+                {
+                    value = (T)(IEncodeable)selector!;
+                    return ServiceResult.Good;
+                }
             }
             if (extension.TryGetAsBinary(out ByteString body, context) && !body.IsNull)
             {
@@ -319,6 +297,43 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return ServiceResult.Create(
                 StatusCodes.BadInvalidArgument,
                 "The encoded argument body could not be decoded.");
+        }
+
+        private static bool TryDecodeDynamicSelector(
+            Structure structure,
+            out WoTResourceSelectorDataType? selector)
+        {
+            selector = null;
+            if (structure.TypeId != DataTypeIds.WoTResourceSelectorDataType ||
+                structure.BinaryEncodingId != ObjectIds.WoTResourceSelectorDataType_Encoding_DefaultBinary ||
+                !structure["Kind"].TryGetValue(out WoTDocumentKindEnum kind) ||
+                !TryGetSelectorString(structure, "Xid", out string xid) ||
+                !TryGetSelectorString(structure, "GroupId", out string groupId) ||
+                !TryGetSelectorString(structure, "ResourceId", out string resourceId) ||
+                !TryGetSelectorString(structure, "VersionId", out string versionId))
+            {
+                return false;
+            }
+            selector = new WoTResourceSelectorDataType
+            {
+                Kind = kind,
+                Xid = xid,
+                GroupId = groupId,
+                ResourceId = resourceId,
+                VersionId = versionId
+            };
+            return true;
+        }
+
+        private static bool TryGetSelectorString(Structure structure, string name, out string value)
+        {
+            Variant field = structure[name];
+            if (field.IsNull)
+            {
+                value = string.Empty;
+                return true;
+            }
+            return field.TryGetValue(out value);
         }
 
         private static bool TryDecodeDynamicOptions(
@@ -351,10 +366,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             => structure[fieldName].TryGetValue(out double value) ? value : 0;
 
         private static TEnum GetEnum<TEnum>(Structure structure, string fieldName)
-            where TEnum : struct
+            where TEnum : struct, Enum
         {
-            return structure[fieldName].TryGetValue(out int value)
-                ? (TEnum)(object)value
+            return structure[fieldName].TryGetValue(out TEnum value)
+                ? value
                 : default;
         }
 

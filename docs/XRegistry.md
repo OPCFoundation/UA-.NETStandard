@@ -2,7 +2,7 @@
 
 The **xRegistry** libraries implement the generic, registry-agnostic *abstract registry base model*
 for OPC UA. They provide the substrate a concrete registry builds on: **structural xRegistry
-identity**, an **Opaque-NodeId content fast path** that resolves a document in a single `Read`, a
+identity**, an **Opaque-NodeId content fast path** that reads a document directly without browsing, a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
@@ -19,6 +19,8 @@ Thing Model documents.
   - [Structural identity and content lookup](#structural-identity-and-content-lookup)
   - [Opaque-NodeId fast path](#opaque-nodeid-fast-path)
   - [Registration lifecycle and auto-bootstrap](#registration-lifecycle-and-auto-bootstrap)
+  - [Resource Meta and default-Version views](#resource-meta-and-default-version-views)
+  - [Source-derived identifier allocation](#source-derived-identifier-allocation)
   - [File open modes](#file-open-modes)
   - [Resource storage](#resource-storage)
   - [Transport security](#transport-security)
@@ -80,8 +82,9 @@ Opaque node while replacing or deleting one Version releases only that Version's
 ### Opaque-NodeId fast path
 
 A registered resource is reachable at an **Opaque `NodeId`** in the registry namespace whose
-Identifier is the *raw content-id bytes*. A consumer that received the id on the wire therefore needs
-no Browse and no fingerprint recomputation — one `Read` of that node's `Value` returns the document:
+Identifier is the *raw content-id bytes*. A consumer that received the id on the wire needs
+no Browse or fingerprint recomputation. It reads the node's `Value` directly;
+larger documents can require multiple range-based `Read` requests:
 
 ```csharp
 var fastPathNodeId = new NodeId(contentId, registryNamespaceIndex);
@@ -165,7 +168,7 @@ explicit Version does not change the default. WoT preserves its own selection po
 `SetDefaultVersion` separately. Generic options do **not** define active/desired selection,
 per-resource retention or metadata reload. Persisting bytes through `IXRegistryResourceStore` alone
 does not restore the generic address-space metadata after restart. Use the existing
-[WoT registry service and persistence](WoTConnectivity.md#112-registry-service-and-persistence)
+[WoT registry service and persistence](WotCon.md#112-registry-service-and-persistence)
 for those domain contracts; this registrar does not invent a retention-lease or reload API.
 
 **Browse compatibility:** clients that previously searched for flattened `resource:version` Group
@@ -329,7 +332,7 @@ the registrar never deletes established content to emulate atomic replacement.
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
 the shared byte layer without an on-disk migration. See
-[WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
+[WoT Connectivity — keeping the document bytes in a shared store](WotCon.md#keeping-the-document-bytes-in-a-shared-store).
 
 ### Transport security
 
@@ -349,8 +352,18 @@ var options = new XRegistryServerOptions
 };
 ```
 
-An in-process call carries no channel at all — the server's own bootstrap, or a test — and is always
-allowed.
+The encrypted-read option covers both FileType access and the complete document
+stored in registered or seeded Opaque content-id variables. Direct reads,
+monitored admission and later delivery enforce the subscriber's current endpoint;
+missing endpoint evidence does not imply encryption.
+The session's original HTTPS label cannot authorize a later plaintext channel.
+Reactivation rejects an effective-confidentiality downgrade before rebinding, so
+queued confidential document bytes also remain confined to the accepted secure
+transport.
+
+Server-owned bootstrap calls remain permitted without a channel.
+A requestless monitored context still belongs to its remote subscriber and is
+not treated as a trusted in-process call.
 
 ### Federation
 
@@ -516,7 +529,7 @@ Version labels does not. Repeating an identical label is a no-op; removing a mis
 
 ### Native xRegistry events
 
-The xRegistry 0.5.0 model includes `XRegistryEventType` and the 19 concrete registry, model,
+The xRegistry model includes `XRegistryEventType` and the 19 concrete registry, model,
 capabilities, group, resource and version event types. The model source generator emits the typed
 `*EventState`, `*EventTypeRecord` and `EventFilters.Build(...)` surfaces directly from the NodeSet.
 Applications subscribe with the standard OPC UA event APIs; there is no separate xRegistry
@@ -584,6 +597,30 @@ disabled. Event-enabled strategies additionally implement
 immutable generation. `IXRegistryVersionedProjectionStrategy` is additive and lets a domain honor
 explicit/server-assigned Version ids, materialize stable per-Version NodeIds, and separate Version
 labels from Resource Meta without breaking existing strategies.
+`IXRegistryProjectionContextualDelete` is an additive, optional capability for Group, Version and
+Resource deletes. When a strategy implements it, the engine passes the same `ISystemContext` of the
+delete call (and thus the caller's `IOperationContext`) instead of the context-free members, which
+remain in use for legacy strategies.
+
+`XRegistryProjectionContext.ProjectionDispatcher` optionally orders current-state
+reconciliation with a domain's notification delivery. The engine uses it for
+native mutation-triggered reconciliation as well as direct
+`ReconcileProjectionAsync` calls. Each dispatched operation uses its captured
+admission-time generation rather than rereading a later snapshot when it runs,
+so an earlier operation cannot apply later removals ahead of queued notifications.
+Supplied immutable transitions retain their
+caller's existing ordering and do not recursively dispatch. Without this
+callback, the engine retains its direct reconciliation behavior. The WoT registry
+uses its existing FIFO so native deletion cannot remove a Version/notifier ahead
+of an already queued failure. This callback does not create a new durable
+transaction or generation owner.
+
+Providers that need an asynchronous owner acquisition can opt into
+`IXRegistryAsyncProjectedResourceFileHandleForwarder`,
+`IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
+The existing file and logical pin tables still own the handles; synchronous providers
+retain their existing paths. The stock [WoT Version lease provider](WotCon.md#version-leases)
+uses these capabilities without adding retention or activation options to the generic registrar.
 
 ## Server-side usage
 
@@ -678,15 +715,19 @@ service calls. `XRegistryClient` is an **abstract** base carrying the xRegistry-
 `GenericXRegistryClient` is the sealed implementation for callers that only need the base model,
 and a domain registry client derives from the same base:
 
-```text
-abstract XRegistryClient
-   ├── sealed GenericXRegistryClient   // any registry namespace
-   ├── SchemaRegistryClient  (domain)
-   └── WotRegistryClient     (domain)
+```mermaid
+classDiagram
+    XRegistryClient <|-- GenericXRegistryClient
+    XRegistryClient <|-- SchemaRegistryClient
+    XRegistryClient <|-- WotRegistryClient
+    note for XRegistryClient "Abstract"
+    note for GenericXRegistryClient "Sealed; any registry namespace"
+    note for SchemaRegistryClient "Domain registry"
+    note for WotRegistryClient "Domain registry"
 ```
 
-Resolving a resource from an id received on the wire is a single call. It reads through
-`ReadBytesAsync`, so a document larger than the session's `MaxByteStringLength` is fetched with
+`ResolveResourceAsync` reads through `ReadBytesAsync`, so a document larger than
+the session's `MaxByteStringLength` is fetched with
 range-based reads rather than failing. It returns a **null** `ByteString` — check `IsNull` — when no
 fast-path node is registered, so the caller can fall back to a Browse or a registry-specific download:
 
@@ -746,7 +787,7 @@ elements and still deconstruct when that reads better:
 (NodeId nodeId, string versionId, bool created) = resource;
 ```
 
-The typed proxies are also available directly, which is what a domain client builds on:
+The typed proxies are also available directly for domain clients to build on:
 ```csharp
 GroupTypeClient group = client.GetGroup(groupNodeId);
 (NodeId nodeId, string versionId, uint fileHandle) =

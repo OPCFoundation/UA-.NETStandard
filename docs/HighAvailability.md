@@ -21,7 +21,7 @@ For distributed PubSub active/standby publishers and subscribers, see the PubSub
 - [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
 - [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
   - [Server.ServerRedundancy model](#serverserverredundancy-model)
-  - [Add* and Use* API convention](#add-and-use-api-convention)
+  - [Add\* and Use\* API convention](#add-and-use-api-convention)
 - [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
 - [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
 - [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
@@ -57,9 +57,9 @@ Server redundancy is either **transparent** or **non-transparent**. In transpare
 | --- | --- | --- |
 | `None` | No server redundancy is advertised. | Single-server default. |
 | `Cold` | Only one server is active at a time; backups may be unavailable or not running. | Client connects to one server and creates a fresh session/subscriptions on failover. |
-| `Warm` | Backup servers are running but have less functionality or no process data. | Client can connect to peers, keep subscriptions created but sampling/publishing inactive on backups, and promote the highest-`ServiceLevel` server. |
-| `Hot` | Multiple servers are running and can independently provide data. | Client connects to peers and either hands reporting over to one active server or merges reporting streams. |
-| `HotAndMirrored` | Hot servers mirror communication state. | `ManagedSession` keeps one active session, may keep lightweight ServiceLevel status-check sessions to backups, and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
+| `Warm` | Backup servers are running but have less functionality or no process data. | `ManagedSession` treats it like Cold: it fails over to the highest-`ServiceLevel` peer and recreates the session there. Subscriptions are not pre-created on backups. |
+| `Hot` | Multiple servers are running and can independently provide data. | `ManagedSession` treats it like Cold: one active session; parallel sessions to peers are not implemented. |
+| `HotAndMirrored` | Hot servers mirror communication state. | With `WithTokenReuseFailover()`, `ManagedSession` keeps one active session and fails over by opening a channel and re-activating the mirrored session with the existing `AuthenticationToken`; subscriptions are not recreated client-side. |
 | `Transparent` | One virtual server identity hides physical failover. | Server publishes `CurrentServerId`; deployment infrastructure supplies the virtual address and shared certificate/endpoint identity. |
 
 ### Server.ServerRedundancy model
@@ -216,7 +216,7 @@ if (decision.IsFailoverWarranted)
 
 ## Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)
 
-`ManagedSession` implements the Table 107 client patterns over `ManagedSession` instances discovered from `RedundantServerArray`/`ServerUriArray` and resolved with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
+With `WithServerRedundancy()`, `ManagedSession` keeps **one** active session and fails over between servers of a non-transparent set that it discovers from `RedundantServerArray`/`ServerUriArray` and resolves with `IRedundantServerEndpointResolver`. The default resolver uses `FindServers` at the current endpoint to locate peers, then requires `GetEndpoints` results to match the peer application URI, security policy/mode and URL scheme.
 
 The resolver retains a peer's discovery addresses before contacting that peer.
 Thus a Cold backup that was offline at connect time can be resolved at failover
@@ -227,78 +227,47 @@ endpoint or session security validation. If no peer address was learned before
 the primary became unreachable, a reachable discovery service or a custom
 `IRedundantServerEndpointResolver` is still required to translate its application URI.
 
+Failover is reactive. There is no public method to trigger it: when reconnecting to the current server fails and the reconnect policy or retry budget is exhausted, the session's connection state moves to `ConnectionState.Failover`. `ManagedSession` then refreshes the redundancy snapshot, asks the handler's `SelectFailoverTarget` for a peer (the default handler picks the Running peer with the highest `ServiceLevel` that is not the current server) and recreates the session in place against that endpoint. The inner `Session` object, the V2 subscription engine and the application's subscriptions survive the switch. Subscriptions are recreated on the new server, or transferred when `WithTransferSubscriptionsOnRecreate()` is enabled and the server supports it. For `Transparent` sets the default handler returns no target, because the server infrastructure moves the session.
+
+`ManagedSession` does not keep sessions or subscriptions open on backup servers. The Table 107 client patterns map onto it as follows:
+
 | Mode | Table 107 actions | `ManagedSession` realization |
 | --- | --- | --- |
-| Cold | Initial connection to one active server. At failover open a SecureChannel, create/activate a session, create subscriptions/monitored items, activate sampling, then activate publishing. | Starts with the initial endpoint only. `FailoverAsync` selects a peer, connects it, applies subscriptions only to the current session, and enables reporting/publishing. |
-| Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Connects all peers, stores templates with `AddSubscriptionAsync`, creates subscriptions on each connected server, and keeps only the selected server in Reporting/publishing while backups are Sampling/publishing disabled. |
-| Hot (a) | Connect to more than one server, create subscriptions everywhere, activate sampling everywhere, publish from one server; at failover activate publishing on the next server. | Default `HotRedundancyNotificationMode.ReportingHandoff`: all connected peers host subscriptions; current server Reports and publishes, backups Sample only. |
-| Hot (b) | Connect to more than one server, create subscriptions everywhere, activate sampling and publishing everywhere; client handles duplicate streams. | `HotRedundancyNotificationMode.ReportingMerge`: all connected peers Report and publish; duplicate suppression/merge is a client responsibility above the event callback. |
-| HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | Keeps a single active session and, when `EnableHotAndMirroredStatusChecks` is set, periodically reads ServiceLevel from backup status sessions. `FailoverAsync` reuses the mirrored `AuthenticationToken` and single-use nonce by calling `ActivateSession` on the backup; it does not recreate subscriptions because the server mirrors session and subscription state. |
+| Cold | Initial connection to one active server. At failover open a SecureChannel, create/activate a session, create subscriptions/monitored items, activate sampling, then activate publishing. | Matches the default behaviour: one session, and at failover a new session on the selected peer with subscriptions recreated. |
+| Warm | Connect to more than one server and create subscriptions/monitored items on backups; sampling and publishing become active at failover. | Handled like Cold. Pre-creating subscriptions on backups is not implemented; failover takes as long as a Cold failover. |
+| Hot (a) / Hot (b) | Connect to more than one server and create subscriptions everywhere; publish from one server (a) or from all servers with client-side de-duplication (b). | Handled like Cold. Parallel sessions and duplicate streams are not implemented. |
+| HotAndMirrored | Client normally connects to one server; optional status sessions only; on failover open a SecureChannel and call `ActivateSession` against the mirrored session. | With `WithTokenReuseFailover()`, failover re-activates the mirrored session on the selected peer by reusing the current `AuthenticationToken`, so the server-side session and subscriptions continue. If the peer rejects the token, the client falls back to creating a new session. |
 
-`ManagedSession.RefreshServiceLevelsAsync` reads service levels from connected sessions and selects the highest value. The default handler will not fail over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` or a longer default backoff, and selects a Running peer with an operational `ServiceLevel`.
-
-```csharp
-ManagedSession coldClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(ct: ct);
-
-await coldClient.AddSubscriptionAsync("process", subscriptionTemplate, ct);
-await coldClient.FailoverAsync(ct);
-```
+The default handler also implements the Part 4 selection rules in `ShouldFailover`: it does not recommend failing over away from a server that is still in the Healthy sub-range, defers retries for Maintenance using `EstimatedReturnTime` (or `DefaultServerRedundancyHandler.DefaultMaintenanceBackoff`), and only selects a Running peer with an operational `ServiceLevel`. `ManagedSession` does not poll `ServiceLevel` to fail over proactively; call `FetchRedundancyInfoAsync` and `ShouldFailover` yourself, as in the example above, if you want to act on ServiceLevel changes.
 
 ```csharp
-ManagedSession warmClient = await new ManagedSessionBuilder(configuration, telemetry)
+// Cold, Warm and Hot sets: fail over by recreating the session on a peer.
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(ct: ct);
+    .WithServerRedundancy()
+    .WithTransferSubscriptionsOnRecreate()
+    .ConnectAsync(ct);
 
-await warmClient.AddSubscriptionAsync("process", subscriptionTemplate, ct);
-await warmClient.RefreshServiceLevelsAsync(ct);
-```
-
-Hot handoff is the default Hot mode: every connected peer hosts the subscriptions and samples, but only the active server publishes, so the client sees a single stream and the next server starts publishing on failover. Use it for fast failover without client-side de-duplication.
-
-```csharp
-ManagedSession hotHandoffClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            HotNotificationMode = HotRedundancyNotificationMode.ReportingHandoff
-        },
-        ct);
-```
-
-Hot merge has every connected peer publish at once, so the client receives duplicate streams with near-zero failover latency and merges or de-duplicates them in the `NotificationReceived` handler (by application key, source timestamp, EventId, or sequence context). Use it when the lowest possible failover gap is worth handling duplicates.
-
-```csharp
-ManagedSession hotMergeClient = await new ManagedSessionBuilder(configuration, telemetry)
-    .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            HotNotificationMode = HotRedundancyNotificationMode.ReportingMerge
-        },
-        ct);
-
-hotMergeClient.NotificationReceived += (sender, args) =>
+session.ConnectionStateChanged += (sender, args) =>
 {
-    // Merge or de-duplicate streams by application key, source timestamp, EventId, or sequence context.
+    if (args.NewState == ConnectionState.Failover)
+    {
+        // The current server is unreachable; a peer is being selected.
+    }
 };
 ```
 
-For a `HotAndMirrored` server, the client keeps one active session and, with `EnableHotAndMirroredStatusChecks`, periodically polls the backups' `ServiceLevel` over lightweight status-check sessions so it can pick the healthiest survivor. Because the server mirrors session and subscription state, failover re-activates the mirrored session on the survivor and does not recreate subscriptions. Use it when the server set runs `HotAndMirrored` (or `Transparent`) mirroring.
+For a `HotAndMirrored` set, add token-reuse failover so the mirrored session is re-activated instead of recreated. This is what [samples/Redundancy/RedundantClient](../samples/Redundancy/RedundantClient) does:
 
 ```csharp
 ManagedSession mirroredClient = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(initialEndpoint)
-    .ConnectRedundantAsync(
-        new ManagedSessionOptions
-        {
-            EnableHotAndMirroredStatusChecks = true,
-            HotAndMirroredStatusCheckInterval = TimeSpan.FromSeconds(5)
-        },
-        ct);
+    .WithServerRedundancy()
+    .WithTokenReuseFailover()
+    .ConnectAsync(ct);
 ```
+
+To run Warm or Hot standbys on the *client* side, so that a second client process holds a ready session, use a client replica set (`RedundantClientSessionBuilder` with `ClientStandbyMode`); see [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets) below.
 
 ## Manual failover and Maintenance (as per Part 4 §6.6.5)
 
@@ -332,7 +301,25 @@ You enable mirroring by registering the seams below on the server builder; each 
 - Replicas of a non-transparent (HotAndMirrored) set have their own ApplicationUri and certificate. The record carries the certificate of the server that created the session, and a restored session accepts a client signature over either that certificate or the restoring replica's own one (the stack's client signs the failover server's certificate). Encrypted user tokens must still be decryptable by the restoring replica: with RSA user token policies the client encrypts for the certificate it signs, and a session whose user token is encrypted with an ECC or RSA-DH `EphemeralKey` is not restored at all, because the private part of that key never leaves the replica that issued it — the reconnect is rejected before anything is consumed and the client re-creates the session.
 - A periodic sweep (`SweepInterval`, default five minutes) removes the records of sessions that can no longer be restored — for example those of a replica that crashed or shut down, which nobody closes — and the consumed-nonce markers that no live record references and that are older than `NonceMarkerRetention` (default one hour). A restore that finds an expired record deletes it as well.
 - `SharedKeyValueSessionStore` and `DistributedSessionManagerFactory` refuse an external (non in-memory) store without an `IRecordProtector`, like the dependency injection registration; pass `NullRecordProtector.Instance` explicitly to knowingly store session secrets unprotected.
-- Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. Version 4 also mirrors whether the client application certificate passed validation when the Session was created; a Session whose certificate error an `OnApplicationCertificateError` override accepted is restored without the `TrustedApplication` role or application-based role mappings, like the original. A version 3 record is still restored, with its certificate treated as not validated. Version 5 adds the liveness heartbeat, the owning replica, the original server certificate and whether the user token needs an `EphemeralKey`; version 3 and 4 records are still restored, without an owner. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
+- Mirrored session records carry a `SecurityStateVersion`. The current
+  implementation restores eligible records with versions **3 through 5**,
+  subject to the other security checks. Records outside that supported range
+  fail closed and require the client to recreate the Session.
+
+  | Version | State available during restoration |
+  |---|---|
+  | 3 | Identity continuity state; the client certificate is treated as not validated, and no owner is recorded. |
+  | 4 | Also records whether the client application certificate passed validation when the Session was created; no owner is recorded. |
+  | 5 | Also records the liveness heartbeat, owning replica, original server certificate and whether the user token requires an `EphemeralKey`. |
+
+  A Session whose certificate error an `OnApplicationCertificateError` override
+  accepted is restored without the `TrustedApplication` role or
+  application-based role mappings, like the original. The stored user identity
+  is an encoded continuity key (token type plus a delimited issuer and subject),
+  not the human-readable `ClientUserIdOfSession` diagnostic value. Activation
+  records are stamped with a per-Session activation sequence so that when two
+  activations overlap the mirror keeps the newest `serverNonce` instead of
+  whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore` as `ISubscriptionStore`. It mirrors subscription definitions and monitored-item definitions: publishing interval, lifetime, keepalive, priority, node id, attribute id, monitoring mode, sampling interval, queue size, filters, discard policy, and related metadata. It also installs `SharedKeyValueMonitoredItemQueueFactory` as the `IMonitoredItemQueueFactory`, which continuously mirrors each monitored item's data/event queue contents to the shared store through a non-blocking, coalesced background drain (protected at rest by the configured `IRecordProtector`); on promotion the store's asynchronous restore members re-hydrate those queues so queued-but-unpublished notifications survive a failover.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
 - `IContinuationPointStore` mirrors the generic Browse continuation envelope.
@@ -361,6 +348,21 @@ You enable mirroring by registering the seams below on the server builder; each 
   prevents older pending values from crossing into recreated descendants.
   See the consistency requirements below for
   eventually consistent payload stores, where absence is not authoritative.
+
+  Replicated topology uses the `NSRP` version-1 envelope, which preserves
+  `RolePermissions`, `UserRolePermissions` and `AccessRestrictions` for every
+  descendant. Role identities use namespace URIs, and null versus explicit empty
+  permissions retain their distinct meanings. Policy updates apply to existing
+  replica nodes as well as newly hydrated nodes. Invalid live policy withdraws
+  the affected tree until a valid topology update repairs it; value-only updates
+  cannot reopen it. Callback-dependent authorization must be expressed as
+  serializable policy or kept replica-local.
+
+  **Storage and peer compatibility:** all peers must support this envelope.
+  Legacy unversioned records, unsupported versions, missing role namespaces and
+  incomplete policy coverage fail closed. Upgrade peers together and re-encode
+  or reseed topology from the trusted authoritative application model; omitted
+  permissions cannot be recovered safely from legacy serialized records.
 
 Notes:
 
@@ -530,7 +532,7 @@ services.AddOpcUa()
     .UseReplicatedSessions();
 ```
 
-Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values are not secrets, but LWW CRDT frames require integrity/authenticity because a forged high-clock update wins convergence.
+Networked CRDT gossip fails closed unless peers are authenticated. Configure TCP gossip with mutual TLS (`GossipTlsOptions` with a server certificate, required client certificates, a client certificate, and remote certificate validation). UDP gossip has no built-in peer authentication and should only be enabled with `AllowUnauthenticatedGossip` inside an isolated development/test network. Address-space values may contain confidential process or business information. Apply the deployment's confidentiality requirements as well as integrity and authenticity protection: a forged high-clock update can win LWW convergence.
 
 > For Kubernetes, add a NetworkPolicy for the gossip port in addition to any Kubernetes API or shared-store policies. Allow ingress and egress only between the replica pods that participate in the CRDT fabric, and keep the gossip port closed to clients, other namespaces, and infrastructure that is not part of the replica set.
 
@@ -600,7 +602,9 @@ On the client side, `AddRaftClientSharedStore` registers a Raft-backed `ISharedK
 - `RestoreSnapshotAsync` replaces the state before the store applies the log; it shares the startup gate, so a store that is starting or has started rejects it with `InvalidOperationException`. Pass `RaftSnapshotLogReplay.AfterSnapshot` when the consensus delivers only the commands after the snapshot (its log was compacted up to the snapshot, or it starts empty), or `RaftSnapshotLogReplay.FromFirstCommand` when it replays its persisted log from the beginning; the store then skips the commands the snapshot already holds, so no command — in particular no compare-and-swap — is applied twice.
 - A corrupt snapshot is rejected with `FormatException`: the decoder accepts only what the encoder produces (strict UTF-8 keys, canonical value markers, no payload for a null value, no duplicate key).
 
-The replay mode must match the log the consensus actually delivers after the restore, and recovery decides it from what was persisted, never from what the application intended to do. `FromFirstCommand` skips the first `LastIncludedCommand` delivered commands, so it is valid only while the log is complete (starts at the first command); on a log compacted up to the snapshot it would silently skip committed updates made after the snapshot. `AfterSnapshot` applies every delivered command, so it is valid only when the log starts exactly after `LastIncludedCommand`. The example therefore names each snapshot by its position and relies on the log persisting its own compaction boundary (in command positions, updated atomically with the removal of the prefix); `ICompactedLog` stands for that application-owned adapter over the consensus engine's log.
+The replay mode must match the log the consensus delivers after the restore. Choose it from the persisted state, not the intended compaction. `FromFirstCommand` skips the first `LastIncludedCommand` delivered commands, so it is valid only while the log is complete (starts at the first command); on a log compacted up to the snapshot it would silently skip committed updates made after the snapshot. `AfterSnapshot` applies every delivered command, so it is valid only when the log starts exactly after `LastIncludedCommand`.
+
+The example names each snapshot by its position and relies on the log persisting its own compaction boundary (in command positions, updated atomically with the removal of the prefix). `ICompactedLog` stands for that application-owned adapter over the consensus engine's log.
 
 ```csharp
 // Application-owned adapter over the consensus engine's persisted log, in committed-command positions.
@@ -732,7 +736,7 @@ The crash windows resolve from the persisted state alone:
 
 - Stopped before the rename: only a `*.tmp` file is new; the log and the published snapshots are unchanged.
 - Stopped after the rename, before compaction: `CompactedThrough` is still the previous boundary. With a complete log (`0`) the newest snapshot is restored with `FromFirstCommand`; with a log compacted up to an earlier snapshot, that earlier snapshot, still present because older snapshots are deleted only after compaction, is restored with `AfterSnapshot`. Using the new snapshot here with either mode would apply commands twice or skip them.
-- Stopped after compaction, before the deletion: `CompactedThrough` names the new snapshot; the older files are merely left over.
+- Stopped after compaction, before the deletion: `CompactedThrough` names the new snapshot; the older files remain.
 
 Never overwrite the published snapshot in place (for example with `File.WriteAllBytesAsync(snapshotPath, ...)`): that truncates it first, so an interrupted write can destroy the only snapshot after the log prefix it replaces was compacted. Keep the snapshot that matches the log's compaction boundary until the log is compacted up to a newer, durably published one:
 
@@ -743,7 +747,9 @@ Never overwrite the published snapshot in place (for example with `File.WriteAll
 
 `LastIncludedCommand` counts committed application commands, not entries of the consensus engine's own log (which also holds leader no-ops and configuration changes), because `IRaftConsensus` does not expose log indexes. Compacting an engine's log therefore needs the engine to map the position to its own index.
 
-For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
+`DefaultRaftConsensus` does that mapping itself: it implements `IRaftSnapshotConsensus`, whose `CommittedItems` stream carries each committed command with its log index and delivers the engine's snapshots (when a lagging replica installs the leader's snapshot, and first after a restart), and whose `CompactAsync` records a snapshot in the engine's storage and discards the log behind it. A store created with `new RaftSharedKeyValueStore(consensus, ownsConsensus, commitTimeout, compactionInterval)` over such a consensus bounds the log on its own: after every `compactionInterval` applied commands it snapshots its state into the engine. The engine's snapshot carries the command position, so the commands after it keep their positions on every replica; a store that installs it publishes the differences to its watchers, and `AppliedIndex` is the engine log index the state corresponds to. The engine's storage must keep snapshots (`MemoryStorage` and `RaftCs.Storage.File` do). The engine's snapshot replaces a state restored with `RestoreSnapshotAsync`, since the engine delivers every command after it; an application that lets the store compact does not need its own snapshot files. With dependency injection, set `RedundancyConsistencyOptions.RaftCompactionInterval` on the server, or pass the interval to the `AddRaftClientSharedStore` and `AddRedundantClientSharedStore` overloads that take it on the client; zero, the default, never compacts. Once a cluster has compacted its log, do not roll a replica back to a release whose store does not install the engine's snapshots (RaftCs 1.1.3 or earlier, or a store without these snapshots): it would receive only the commands after the latest snapshot and miss the state before it.
+
+For Kubernetes, run the Raft members as a `StatefulSet` with stable network identities (so each Raft peer keeps its node id and address across restarts) and an odd member count (3 or 5) for a fault-tolerant quorum; a durable `RaftCs.Storage.File` WAL on a `PersistentVolume` lets a restarted pod rejoin without a full snapshot. A WAL in which RaftCs 1.1.4 or later recorded a membership (as the Kubernetes builder does when it bootstraps a fresh WAL), a snapshot, or a compaction cannot be opened by RaftCs 1.1.3 or earlier, which refuses it rather than misread it. Rolling a member back to such a release is therefore not supported: deleting its WAL instead would also lose the term and vote the member persisted, which Raft relies on. See the [Kubernetes High Availability Deployment](Kubernetes.md) guide.
 
 ### Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)
 
@@ -870,7 +876,7 @@ Security. The store is treated as an untrusted conduit: every direction and endp
 
 ### Client-side high availability (replica sets)
 
-OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Client.Redundancy`.
+OPC 10000-4 §6.6 covers redundant *servers* and the client behavior for connecting to them. A complementary, beyond-spec capability is a redundant *client* replica set: two or more client processes that cooperate so that exactly one — the leader — holds the active session and subscriptions while the others stand by (hot, warm, or cold) and take over on leader loss. This is provided by `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Client`.
 
 ```mermaid
 flowchart LR
@@ -903,7 +909,7 @@ ISession session = provider.GetRequiredService<ISession>();
 BrowseResponse response = await session.BrowseAsync(/* … */, ct);   // blocks until this replica leads
 ```
 
-Under the hood it reuses the same seams as the server, now shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
+It reuses the server's interfaces, shared from `Opc.Ua.Core` under the `Opc.Ua.Redundancy` namespace:
 
 - **Leader election** among the client replicas (`ILeaderElection`, e.g. `SharedStoreLeaseElection`), so exactly one replica is the active client at a time.
 - **Shared session secret.** The leader persists its session secrets (`AuthenticationToken`, nonces) through `ISharedKeyValueStore`, encrypted and integrity-protected at rest by `IRecordProtector`. The coordinator is fail-closed: a non-in-memory store with no real protector is rejected. A follower promoted to leader reuses the token to `ActivateSession` against a `HotAndMirrored` server, or recreates the session and transfers subscriptions otherwise.

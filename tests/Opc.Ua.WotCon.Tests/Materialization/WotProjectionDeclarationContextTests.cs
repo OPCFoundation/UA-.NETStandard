@@ -43,15 +43,166 @@ using WotAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
+    /// <summary>
+    /// Contains tests for WoT projection declaration context.
+    /// </summary>
     [TestFixture]
+    [NonParallelizable]
     public sealed class WotProjectionDeclarationContextTests
     {
+        /// <summary>
+        /// Verifies that native event view uses captured type evidence without transferring node ownership.
+        /// </summary>
+        /// <param name="generatesEvent">The generates-event flag for this test case.</param>
+        /// <param name="typePresent">The type-present flag for this test case.</param>
+        /// <param name="eventPresent">The event-present flag for this test case.</param>
+        [TestCase(true, true, true)]
+        [TestCase(false, true, true)]
+        [TestCase(true, false, true)]
+        [TestCase(true, true, false)]
+        public async Task NativeEventViewUsesCapturedTypeEvidenceWithoutTransferringNodeOwnership(
+            bool generatesEvent, bool typePresent, bool eventPresent)
+        {
+            using var registry = new WotRegistryService();
+            await AddAsync(registry, "event-source", WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes("""{"id":"urn:event-source","title":"Source"}""")).ConfigureAwait(false);
+            WotResource source = registry.Current.AllResources()
+                .Single(resource => resource.SourceId == "urn:event-source");
+            const string ns = "urn:split-event";
+            var context = new WotProjectionDeclarationContext(
+                registry.Current, 64, registry.ReadContentAsync);
+            var owner = new UANodeSet
+            {
+                NamespaceUris = [ns],
+                Items =
+                [
+                    new UAObject
+                    {
+                        NodeId = "ns=1;s=Owner", BrowseName = "1:Owner",
+                        References =
+                        [
+                            new Reference { ReferenceType = "HasTypeDefinition", Value = "ns=1;s=SourceType" }
+                        ]
+                    }
+                ]
+            };
+            ByteString content = ByteString.From(
+                Encoding.UTF8.GetBytes("""{"uav:id":"nsu=urn:split-event;s=Owner"}"""));
+            context.AddNodeSet(source.Xid, owner, new ExpandedNodeId("Owner", ns), content);
+            if (typePresent)
+            {
+                var type = new UANodeSet
+                {
+                    NamespaceUris = [ns],
+                    Items =
+                    [
+                        new UAObjectType
+                        {
+                            NodeId = "ns=1;s=SourceType", BrowseName = "1:SourceType",
+                            References = generatesEvent
+                                ? [new Reference { ReferenceType = "GeneratesEvent", Value = "ns=1;s=Alarm" }] : []
+                        }
+                    ]
+                };
+                context.AddNodeSet("type", type, new ExpandedNodeId("SourceType", ns), content);
+            }
+            if (eventPresent)
+            {
+                context.AddNodeSet("event", new UANodeSet
+                {
+                    NamespaceUris = [ns],
+                    Items = [new UAObjectType { NodeId = "ns=1;s=Alarm", BrowseName = "1:Alarm" }]
+                }, new ExpandedNodeId("Alarm", ns), content);
+            }
+            var namespaces = new NamespaceTable();
+            ushort index = namespaces.GetIndexOrAppend(ns);
+            var roots = new Dictionary<string, NodeId>(StringComparer.Ordinal)
+            {
+                [source.Xid] = new NodeId("Owner", index)
+            };
+            var nodeIndex = new WotMaterializedNodeIndex(
+                registry.Current, namespaces, roots, (xid, node) =>
+                    context.ContainsNode(xid, NodeId.ToExpandedNodeId(node, namespaces)),
+                (xid, node) => context.ContainsEventType(xid, NodeId.ToExpandedNodeId(node, namespaces)));
+            NodeId located = nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Event, "Alarm",
+                new ExpandedNodeId("Alarm", ns)));
+
+            Assert.That(located, Is.EqualTo(generatesEvent && typePresent && eventPresent
+                ? new NodeId("Alarm", index) : NodeId.Null));
+            Assert.That(context.ContainsNode(source.Xid, new ExpandedNodeId("Alarm", ns)), Is.False,
+                "Referenced event declarations remain owned by their actual native partition.");
+            Assert.That(nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Property, "Alarm",
+                new ExpandedNodeId("Alarm", ns))).IsNull, Is.True);
+            Assert.That(nodeIndex.Locate(new WotMaterializedAffordanceRef(
+                "urn:event-source", Opc.Ua.Wot.WotAffordanceKind.Action, "Alarm",
+                new ExpandedNodeId("Alarm", ns))).IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that coordinator carries generated local identities into binding plans.
+        /// </summary>
+        [Test]
+        public async Task CoordinatorCarriesGeneratedLocalIdentitiesIntoBindingPlans()
+        {
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
+            byte[] document = Encoding.UTF8.GetBytes("""
+                {
+                  "@type": "uav:object",
+                  "id": "urn:runtime-identities",
+                  "title": "Device",
+                  "properties": {
+                    "value": { "type": "integer",
+                      "forms": [{ "href": "https://source.example/value", "op": "readproperty" }] }
+                  },
+                  "actions": {
+                    "run": { "forms": [{ "href": "https://source.example/run", "op": "invokeaction" }] }
+                  }
+                }
+                """);
+            await AddAsync(registry, "runtime-identities", WoTDocumentKindEnum.ThingDescription, document)
+                .ConfigureAwait(false);
+            var documents = new List<WotProjectionDocument>();
+            IWotInvocationProjectionHost host = runtime.Observe(changes =>
+                documents.AddRange(changes.ToList().Select(change => change.Document).OfType<WotProjectionDocument>()));
+            using var coordinator = new WotMaterializationCoordinator(
+                registry, host, new WotProtocolBinderRegistry([]), documentConverter: new WotNodeSetDocumentConverter())
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
+
+            WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
+
+            Assert.That(result.Results.All(item => item.Outcome == WoTOutcomeEnum.Warning), Is.True,
+                string.Join("; ", result.Results.Select(item => item.Message)));
+            WotProjectionDocument publication = documents.Single();
+            Assert.That(publication.BindingPlans.Count, Is.EqualTo(1));
+            WotBindingPlan plan = publication.BindingPlans[0];
+            Assert.That(plan.ProjectedAffordances.Count, Is.EqualTo(2));
+            foreach (WotProjectedAffordance local in plan.ProjectedAffordances)
+            {
+                Assert.That(local.NodeId, Is.Not.Empty);
+                Assert.That(ExpandedNodeId.TryParse(local.NodeId, out ExpandedNodeId nodeId), Is.True);
+                Assert.That(nodeId.NamespaceUri, Is.EqualTo("urn:runtime-identities"));
+                Assert.That(local.OwnerNodeId, Is.Not.Empty);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that coordinator distinguishes contained declarations from instances of the same model.
+        /// </summary>
+        /// <param name="typeRelation">The type relation used by this test case.</param>
         [TestCase("type")]
         [TestCase("ua:HasTypeDefinition")]
         public async Task CoordinatorDistinguishesContainedDeclarationsFromInstancesOfTheSameModel(
             string typeRelation)
         {
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             await AddAsync(registry, "model", WoTDocumentKindEnum.ThingModel,
                 TypeDeclarationDocument()).ConfigureAwait(false);
             await AddAsync(registry, "nested", WoTDocumentKindEnum.ThingDescription,
@@ -62,19 +213,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Document("instance", typeRelation, "model")).ConfigureAwait(false);
             await AddAsync(registry, "instance-child", WoTDocumentKindEnum.ThingDescription,
                 Document("instance-child", "uav:componentOf", "instance")).ConfigureAwait(false);
-            var host = new FakeWotProjectionHost();
+            var documents = new List<WotProjectionDocument>();
+            IWotInvocationProjectionHost host = runtime.Observe(changes =>
+                documents.AddRange(changes.ToList().Select(change => change.Document).OfType<WotProjectionDocument>()));
             using var coordinator = new WotMaterializationCoordinator(
                 registry, host, new WotProtocolBinderRegistry([]),
-                documentConverter: new FakeWotDocumentConverter());
+                documentConverter: new FakeWotDocumentConverter())
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
 
             WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            Assert.That(result.Results.All(item => item.Outcome == WoTOutcomeEnum.Warning), Is.True,
-                string.Join("; ", result.Results.Select(item => $"{item.ResourceId}: {item.Message}")));
-            var plans = new List<WotBindingPlan>();
-            foreach (HostOperation operation in host.Operations.Where(operation => operation.Op == "add"))
+            Assert.That(result.Results.Select(item => (item.ResourceId, item.Outcome)), Is.EquivalentTo(new[]
             {
-                ArrayOf<WotBindingPlan> bindings = operation.Document!.BindingPlans;
+                ("model", WoTOutcomeEnum.Success),
+                ("nested", WoTOutcomeEnum.Success),
+                ("leaf", WoTOutcomeEnum.Success),
+                ("instance", WoTOutcomeEnum.Warning),
+                ("instance-child", WoTOutcomeEnum.Warning)
+            }), string.Join("; ", result.Results.Select(item => $"{item.ResourceId}: {item.Message}")));
+            var plans = new List<WotBindingPlan>();
+            foreach (WotProjectionDocument publication in documents)
+            {
+                ArrayOf<WotBindingPlan> bindings = publication.BindingPlans;
                 for (int i = 0; i < bindings.Count; i++)
                 {
                     plans.Add(bindings[i]);
@@ -100,6 +262,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
         }
 
+        /// <summary>
+        /// Verifies that containment brings the model ancestor into the dependency closure before its child.
+        /// </summary>
         [Test]
         public async Task ContainmentAddsTheModelAncestorToTheClosureBeforeItsChild()
         {
@@ -127,6 +292,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo(s_expectedOrder));
         }
 
+        /// <summary>
+        /// Verifies that declaration methods remain present without synthesizing runtime action bindings.
+        /// </summary>
         [Test]
         public async Task DeclarationMethodsStayPresentWithoutInventedRuntimeBindings()
         {
@@ -155,6 +323,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that declaration context allows absent forms but does not ignore malformed forms.
+        /// </summary>
+        /// <param name="malformed">The malformed input supplied by the test case.</param>
         [TestCase(false)]
         [TestCase(true)]
         public void DeclarationContextAllowsAbsentFormsButDoesNotIgnoreMalformedForms(bool malformed)
@@ -179,6 +351,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(malformed ? 1 : 0));
         }
 
+        /// <summary>
+        /// Verifies that portable node IDs do not become missing document dependencies.
+        /// </summary>
+        /// <param name="relation">The relation name or URI to classify.</param>
         [TestCase("uav:componentOf")]
         [TestCase("ua:HasTypeDefinition")]
         public void PortableNodeIdsDoNotBecomeMissingDocumentDependencies(string relation)
@@ -189,6 +365,77 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(references, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that portable node metadata retains its identity without document base resolution.
+        /// </summary>
+        [TestCase("i=58")]
+        [TestCase("nsu=urn:loaded;s=Parent")]
+        [TestCase("nsu=https://types.example/model/;i=1001")]
+        public void PortableNodeMetadataRetainsItsIdentityWithoutDocumentBaseResolution(string identity)
+        {
+            byte[] content = Encoding.UTF8.GetBytes($$"""
+                {
+                  "@context":{"@base":"https://documents.example/sub/"},
+                  "id":"urn:document:instance",
+                  "uav:id":"{{identity}}",
+                  "links":[{"rel":"ua:HasTypeDefinition","href":"{{identity}}"}]
+                }
+                """);
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(ByteString.From(content), 64);
+
+            Assert.That(metadata.References.Count, Is.Zero);
+            Assert.That(metadata.DefinedNodeIds.ToArray(), Is.EqualTo(new[] { identity }));
+        }
+
+        /// <summary>
+        /// Verifies that relative document dependency still uses its active base.
+        /// </summary>
+        [Test]
+        public void RelativeDocumentDependencyStillUsesItsActiveBase()
+        {
+            var content = ByteString.From(Encoding.UTF8.GetBytes("""
+                {
+                  "@context":{"@base":"https://documents.example/sub/"},
+                  "id":"urn:document:instance",
+                  "links":[{"rel":"type","href":"../model.json"}]
+                }
+                """));
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
+
+            Assert.That(metadata.References.Count, Is.EqualTo(1));
+            Assert.That(metadata.References[0].TargetUri, Is.EqualTo("../model.json"));
+            Assert.That(metadata.References[0].LookupUri, Is.EqualTo("https://documents.example/model.json"));
+        }
+
+        /// <summary>
+        /// Verifies that portable node targets keep the document closure projectable.
+        /// </summary>
+        [TestCase("uav:componentOf")]
+        [TestCase("ua:HasTypeDefinition")]
+        public async Task PortableNodeTargetsKeepTheDocumentClosureProjectable(string relation)
+        {
+            using var registry = new WotRegistryService();
+            byte[] content = Document("instance", relation, "nsu=urn:loaded;s=Parent");
+            await AddAsync(registry, "instance", WoTDocumentKindEnum.ThingDescription, content).ConfigureAwait(false);
+            WotResource selected = registry.Current.AllResources().Single();
+
+            var closures = await WotDependencyGraph.BuildClosuresAsync(
+                registry.Current, [selected], 64,
+                (_, _) => new ValueTask<ByteString>(ByteString.From(content)), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(closures, Has.Length.EqualTo(1));
+            Assert.That(closures[0].IsProjectable, Is.True);
+            Assert.That(closures[0].Dependencies, Is.Empty);
+            Assert.That(closures[0].OrderedResources, Has.Length.EqualTo(1));
+            Assert.That(closures[0].OrderedResources[0].ResourceId, Is.EqualTo("instance"));
+        }
+
+        /// <summary>
+        /// Verifies that stock coordinator uses root ownership without following instance type definitions.
+        /// </summary>
         [TestCase("ParentNodeId")]
         [TestCase("HasComponent")]
         [TestCase("HasProperty")]
@@ -202,6 +449,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var instance = new UANodeSet
             {
                 NamespaceUris = [kNativeNamespace],
+                Aliases =
+                [
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" },
+                    new NodeIdAlias { Alias = "HasComponent", Value = "i=47" }
+                ],
                 Items =
                 [
                     new UAObject
@@ -216,14 +468,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     }
                 ]
             };
-            using var registry = new WotRegistryService();
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            WotRegistryService registry = await runtime.CreateRegistryAsync().ConfigureAwait(false);
             await AddAsync(registry, "model", WoTDocumentKindEnum.ThingModel,
                 TypeDeclarationDocument()).ConfigureAwait(false);
             await AddAsync(registry, "declaration", WoTDocumentKindEnum.ThingDescription,
                 NativeRootDocument(1100, 1101, ownership == "Readable")).ConfigureAwait(false);
             await AddAsync(registry, "instance", WoTDocumentKindEnum.ThingDescription,
                 NativeRootDocument(1200, 2000, false)).ConfigureAwait(false);
-            var host = new FakeWotProjectionHost();
+            var documents = new List<WotProjectionDocument>();
+            IWotInvocationProjectionHost host = runtime.Observe(changes =>
+                documents.AddRange(changes.ToList().Select(change => change.Document).OfType<WotProjectionDocument>()));
             using var coordinator = new WotMaterializationCoordinator(
                 registry, host, new WotProtocolBinderRegistry([]),
                 documentConverter: new NativePartitionConverter(new Dictionary<string, UANodeSet>
@@ -231,16 +487,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ["model"] = model,
                     ["declaration"] = declaration,
                     ["instance"] = instance
-                }));
+                }))
+            {
+                ServerNamespaceUris = runtime.Namespaces
+            };
 
             WotRefreshResult result = await coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 
-            Assert.That(result.Results.All(item => item.Outcome == WoTOutcomeEnum.Warning), Is.True,
-                string.Join("; ", result.Results.Select(item => $"{item.ResourceId}: {item.Message}")));
-            var plans = new List<WotBindingPlan>();
-            foreach (HostOperation operation in host.Operations.Where(operation => operation.Op == "add"))
+            Assert.That(result.Results.Select(item => (item.ResourceId, item.Outcome)), Is.EquivalentTo(new[]
             {
-                ArrayOf<WotBindingPlan> bindings = operation.Document!.BindingPlans;
+                ("model", WoTOutcomeEnum.Success),
+                ("declaration", WoTOutcomeEnum.Success),
+                ("instance", WoTOutcomeEnum.Warning)
+            }), string.Join("; ", result.Results.Select(item => $"{item.ResourceId}: {item.Message}")));
+            var plans = new List<WotBindingPlan>();
+            foreach (WotProjectionDocument publication in documents)
+            {
+                ArrayOf<WotBindingPlan> bindings = publication.BindingPlans;
                 for (int i = 0; i < bindings.Count; i++)
                 {
                     plans.Add(bindings[i]);
@@ -268,6 +531,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
         }
 
+        /// <summary>
+        /// Verifies that available native partitions provide ownership evidence across separate document closures.
+        /// </summary>
         [Test]
         public async Task AvailableNativePartitionsProvideOwnershipAcrossSeparateDocumentClosures()
         {
@@ -302,6 +568,61 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.True);
         }
 
+        /// <summary>
+        /// Verifies that captured partitions resolve aliases and do not claim other sources or dependencies.
+        /// </summary>
+        [Test]
+        public void CapturedPartitionsResolveAliasesAndDoNotClaimOtherSourcesOrDependencies()
+        {
+            const string otherNamespace = "urn:ownership:other";
+            var context = new WotProjectionDeclarationContext(
+                WotRegistrySnapshot.Empty, 64, (_, _) => throw new InvalidOperationException());
+            ByteString document = ByteString.From(Encoding.UTF8.GetBytes("{}"));
+            var first = new UANodeSet
+            {
+                NamespaceUris = [kNativeNamespace, otherNamespace],
+                Aliases = [new NodeIdAlias { Alias = "Reading", Value = "ns=2;i=101" }],
+                Items =
+                [
+                    new UAObject { NodeId = "ns=1;i=100", BrowseName = "1:Root" },
+                    new UAVariable { NodeId = "Reading", BrowseName = "2:Reading" }
+                ]
+            };
+            context.AddNodeSet("first", first, new ExpandedNodeId(100u, kNativeNamespace), document);
+            context.AddNodeSet("second", new UANodeSet
+            {
+                NamespaceUris = [otherNamespace, kNativeNamespace],
+                Items =
+                [
+                    new UAObject { NodeId = "ns=2;i=200", BrowseName = "2:Root" },
+                    new UAVariable { NodeId = "ns=1;i=201", BrowseName = "1:Other" }
+                ]
+            }, new ExpandedNodeId(200u, kNativeNamespace), document);
+            context.AddDependencyNodeSet(new UANodeSet
+            {
+                NamespaceUris = [otherNamespace],
+                Items = [new UAVariableType { NodeId = "ns=1;i=999", BrowseName = "1:Dependency" }]
+            });
+            first.Items[1].NodeId = "ns=2;i=201";
+
+            Assert.That(context.GetNodes("first").ToArray(), Is.EquivalentTo(new[]
+            {
+                new ExpandedNodeId(100u, kNativeNamespace), new ExpandedNodeId(101u, otherNamespace)
+            }));
+            Assert.That(context.ContainsNode("first", new ExpandedNodeId(101u, otherNamespace)), Is.True);
+            Assert.That(context.ContainsNode("first", new ExpandedNodeId(201u, otherNamespace)), Is.False);
+            Assert.That(context.ContainsNode("first", new ExpandedNodeId(999u, otherNamespace)), Is.False);
+            Assert.That(context.ContainsNode("second", new ExpandedNodeId(201u, otherNamespace)), Is.True);
+            Assert.That(context.ContainsNode("missing", new ExpandedNodeId(101u, otherNamespace)), Is.False);
+            Assert.That(context.GetNodes("missing").IsEmpty, Is.True);
+            context.AddNodeSet("first", first, new ExpandedNodeId(100u, kNativeNamespace), document);
+            Assert.That(context.ContainsNode("first", new ExpandedNodeId(101u, otherNamespace)), Is.False);
+            Assert.That(context.ContainsNode("first", new ExpandedNodeId(201u, otherNamespace)), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that native ownership walk is bounded and does not follow type definition or forward edges.
+        /// </summary>
         [Test]
         public void NativeOwnershipWalkIsBoundedAndDoesNotFollowTypeDefinitionOrForwardEdges()
         {
@@ -338,6 +659,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             return new UANodeSet
             {
                 NamespaceUris = [kNativeNamespace],
+                Aliases = [new NodeIdAlias { Alias = "HasSubtype", Value = "i=45" }],
                 Items =
                 [
                     new UAObjectType
@@ -388,6 +710,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 NamespaceUris = ["urn:unrelated", kNativeNamespace],
                 Aliases =
                 [
+                    new NodeIdAlias { Alias = "HasTypeDefinition", Value = "i=40" },
                     new NodeIdAlias { Alias = "Owner", Value = "ns=2;i=1000" },
                     new NodeIdAlias { Alias = "ParentAlias", Value = "ns=2;i=1000" },
                     new NodeIdAlias { Alias = "Component", Value = "i=47" },

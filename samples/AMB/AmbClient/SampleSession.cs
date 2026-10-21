@@ -35,6 +35,7 @@ using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions.Streaming;
 using Opc.Ua.Configuration;
+using Opc.Ua.Security.Certificates;
 
 namespace AmbSample.Client
 {
@@ -111,13 +112,6 @@ namespace AmbSample.Client
             configuration.CertificateManager ??= CertificateManagerFactory.Create(
                 configuration.SecurityConfiguration,
                 telemetry);
-            if (options.Insecure)
-            {
-                configuration.CertificateManager.AcceptError = static (_, _) => true;
-                Console.Error.WriteLine(
-                    "WARNING: --insecure is demo-only: any server certificate is accepted.");
-            }
-
             try
             {
                 EndpointDescription? endpointDescription = await CoreClientUtils.SelectEndpointAsync(
@@ -126,24 +120,13 @@ namespace AmbSample.Client
                     useSecurity: true,
                     discoverTimeout: 15000,
                     telemetry,
-                    cancellationToken).ConfigureAwait(false);
-                if (endpointDescription is null)
-                {
-                    throw ServiceResultException.Create(
+                    cancellationToken).ConfigureAwait(false) ?? throw ServiceResultException.Create(
                         StatusCodes.BadTimeout,
                         "Could not reach {0}.",
                         options.ServerUrl);
-                }
 
-                var endpoint = new ConfiguredEndpoint(
-                    null,
-                    endpointDescription,
-                    EndpointConfiguration.Create(configuration));
-                ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
-                    .UseEndpoint(endpoint)
-                    .WithSessionName("AmbClient")
-                    .WithSessionTimeout(TimeSpan.FromSeconds(60))
-                    .WithUserIdentity(new UserIdentity(new AnonymousIdentityToken()))
+                ManagedSession session = await CreateSessionBuilder(
+                    configuration, telemetry, options, endpointDescription)
                     .ConnectAsync(cancellationToken).ConfigureAwait(false);
                 return new SampleSession(session, appInstance);
             }
@@ -181,6 +164,68 @@ namespace AmbSample.Client
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Prepares the actual connection while retaining the operator's host across discovery and recovery.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The requested or discovered endpoint URL is invalid, or discovery changed the requested transport.
+        /// </exception>
+        internal static ManagedSessionBuilder CreateSessionBuilder(
+            ApplicationConfiguration configuration,
+            ITelemetryContext telemetry,
+            AmbClientOptions options,
+            EndpointDescription endpointDescription)
+        {
+            configuration.CertificateManager.AcceptError = options.Insecure ? static (_, _) => true : null;
+            if (options.Insecure)
+            {
+                Console.Error.WriteLine(
+                    "WARNING: --insecure is demo-only: any server certificate is accepted.");
+            }
+            string requestedUrl = options.ServerUrl;
+            if (!Uri.TryCreate(requestedUrl, UriKind.Absolute, out Uri? requested) ||
+                string.IsNullOrEmpty(requested.Host))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The requested endpoint must have a valid absolute URL with a hostname.");
+            }
+            string? advertisedUrl = endpointDescription.EndpointUrl;
+            if (!Uri.TryCreate(advertisedUrl, UriKind.Absolute, out Uri? advertised) ||
+                string.IsNullOrEmpty(advertised.Host))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The discovered endpoint has no valid absolute URL with a hostname.");
+            }
+            if (!string.Equals(requested.Scheme, advertised.Scheme, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The discovered endpoint changed the requested transport.");
+            }
+            EndpointDescription description = CoreUtils.Clone(endpointDescription)!;
+            description.EndpointUrl = new UriBuilder(advertised)
+            {
+                Host = requested.IdnHost,
+                Port = requested.Port
+            }.Uri.AbsoluteUri;
+            description.Server.DiscoveryUrls = [requested.AbsoluteUri];
+            var endpoint = new ConfiguredEndpoint(
+                null, description, EndpointConfiguration.Create(configuration));
+            if (description.ServerCertificate.Length > 0)
+            {
+                using var certificate = Certificate.FromRawData(description.ServerCertificate);
+                configuration.CertificateManager.ValidateDomains(certificate, endpoint, serverValidation: true);
+            }
+            return new ManagedSessionBuilder(configuration, telemetry)
+                .UseEndpoint(endpoint)
+                .WithCheckDomain(true)
+                .WithSessionName("AmbClient")
+                .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                .WithUserIdentity(new UserIdentity(new AnonymousIdentityToken()));
         }
 
         private static string GetPrivateStateRoot()

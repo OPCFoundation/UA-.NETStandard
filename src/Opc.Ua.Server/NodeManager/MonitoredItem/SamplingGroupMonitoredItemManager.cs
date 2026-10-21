@@ -84,6 +84,24 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems { get; }
 
+        /// <summary>
+        /// Queues a semantic resample through the lifecycle-owned sampling groups.
+        /// </summary>
+        internal bool TryQueueSemanticResample(NodeState source, ISampledDataChangeMonitoredItem item)
+        {
+            return m_samplingGroupManager.TryQueueSemanticResample(source, item);
+        }
+
+        /// <summary>
+        /// Waits for semantic resamples already admitted by the sampling groups.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels the wait.</param>
+        /// <returns>A task that completes when pending resamples finish.</returns>
+        internal ValueTask WaitForPendingSemanticResamplesAsync(CancellationToken cancellationToken)
+        {
+            return m_samplingGroupManager.WaitForPendingSemanticResamplesAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         public ISampledDataChangeMonitoredItem CreateMonitoredItem(
             IServerInternal server,
@@ -327,6 +345,11 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        /// <param name="context">The server system context.</param>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <param name="monitoringMode">The monitoring mode.</param>
+        /// <param name="handle">The node handle.</param>
+        /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         public async ValueTask<(ServiceResult, MonitoringMode?)> SetMonitoringModeAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
@@ -363,7 +386,9 @@ namespace Opc.Ua.Server
             // need to provide an immediate update after enabling. For an item whose node
             // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
             // node must not override it with a Good value.
-            if (enabled && monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
+            if (enabled &&
+                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true } &&
+                monitoredItem is not MonitoredItem { UsesExternalValueSource: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,
@@ -389,9 +414,32 @@ namespace Opc.Ua.Server
                             .WithWrappedValue(default)
                             .WithStatus(error.StatusCode);
                     }
+                    using OperationContext operation = MonitoredReadAuthorization.CreateContext(monitoredItem);
+                    ServerSystemContext subscriber = context.Copy(operation);
+                    ServiceResult authorization = await m_nodeManager.ValidateRolePermissionsAsync(
+                        operation, node.NodeId, MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId),
+                        cancellationToken).ConfigureAwait(false);
+                    if (!ServiceResult.IsBad(authorization))
+                    {
+                        authorization = await MonitoredReadAuthorization.ValidateAsync(
+                            m_nodeManager, node, subscriber, monitoredItem.AttributeId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        initialValue = DataValue.FromStatusCode(authorization.StatusCode);
+                    }
                 }
 
-                monitoredItem.QueueValue(initialValue, null);
+                if (monitoredItem is MonitoredItem concreteItem &&
+                    context.OperationContext is OperationContext operationContext)
+                {
+                    concreteItem.QueueValueIfCurrent(operationContext, initialValue, null);
+                }
+                else
+                {
+                    monitoredItem.QueueValue(initialValue, null);
+                }
             }
 
             return (StatusCodes.Good, previousMode);

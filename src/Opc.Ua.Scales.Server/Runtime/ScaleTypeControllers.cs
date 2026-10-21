@@ -289,21 +289,18 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             m_owner = owner;
             Scale = scale;
-            if (scale.SetReferencePieceWeight != null)
-            {
-                scale.SetReferencePieceWeight.OnCall = (context, method, objectId, weight, units) =>
-                    owner.Execute(ScaleCommand.SetReferencePieceWeight, () => SetReferencePieceWeightCore(weight, units));
-            }
-            if (scale.SetNumberOfReferencePieces != null)
-            {
-                scale.SetNumberOfReferencePieces.OnCall = (context, method, objectId, count) =>
-                    owner.Execute(ScaleCommand.SetNumberOfReferencePieces, () => SetNumberOfReferencePiecesCore(count));
-            }
-            if (scale.StartReference != null)
-            {
-                scale.StartReference.OnCall = (context, method, objectId, count) =>
-                    owner.Execute(ScaleCommand.StartReference, () => StartReferenceCore(count));
-            }
+            scale.SetReferencePieceWeight?.OnCall = (context, method, objectId, weight, units) =>
+                    owner.Execute(
+                        ScaleCommand.SetReferencePieceWeight,
+                        () => SetReferencePieceWeightCore(weight, units, context),
+                        context);
+            scale.SetNumberOfReferencePieces?.OnCall = (context, method, objectId, count) =>
+                    owner.Execute(
+                        ScaleCommand.SetNumberOfReferencePieces,
+                        () => SetNumberOfReferencePiecesCore(count, context),
+                        context);
+            scale.StartReference?.OnCall = (context, method, objectId, count) =>
+                    owner.Execute(ScaleCommand.StartReference, () => StartReferenceCore(count, context), context);
         }
 
         /// <summary>
@@ -345,7 +342,9 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// <param name="count">The number of reference pieces.</param>
         public ServiceResult SetNumberOfReferencePieces(uint count)
         {
-            return m_owner.Execute(ScaleCommand.SetNumberOfReferencePieces, () => SetNumberOfReferencePiecesCore(count));
+            return m_owner.Execute(
+                ScaleCommand.SetNumberOfReferencePieces,
+                () => SetNumberOfReferencePiecesCore(count));
         }
 
         /// <summary>
@@ -358,7 +357,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             return m_owner.Execute(ScaleCommand.StartReference, () => StartReferenceCore(count));
         }
 
-        internal void OnWeight(WeighingResult current)
+        /// <summary>
+        /// Publishes the count to the product captured by the caller or by a trusted equipment report.
+        /// </summary>
+        internal void OnWeight(WeighingResult current, PieceCountingProductState? product)
         {
             if (!(m_referencePieceWeight > 0))
             {
@@ -367,14 +369,23 @@ namespace Opc.Ua.Scales.Server.Runtime
             double pieces = Math.Max(0, Math.Round(current.HighResolutionNet / m_referencePieceWeight));
             CurrentPieceCount = (ulong)pieces;
             ScaleValues.Set(m_owner.Services.Context, Scale.CurrentPieceCount, Variant.From(CurrentPieceCount));
-            if (ActiveProduct() is { } product && product.CurrentItemCount != null)
+            if (product?.CurrentItemCount != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.CurrentItemCount, Variant.From(CurrentPieceCount));
             }
         }
 
-        private ServiceResult SetReferencePieceWeightCore(double weight, EUInformation units)
+        private ServiceResult SetReferencePieceWeightCore(
+            double weight,
+            EUInformation units,
+            ISystemContext? callContext = null)
         {
+            PieceCountingProductState? product = ActiveProduct();
+            ServiceResult access = CheckProductLock(callContext, product);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             ServiceResult unit = ScaleValues.CheckUnit(
                 units,
                 m_owner.AllowedEngineeringUnits,
@@ -395,7 +406,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     units.DisplayName.Text ?? string.Empty);
             }
             m_referencePieceWeight = converted;
-            if (ActiveProduct() is { } product)
+            if (product != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.ReferencePieceWeight, Variant.From(converted));
                 ScaleValues.SetUnits(m_owner.Services.Context, product.ReferencePieceWeight, m_owner.Unit);
@@ -403,25 +414,41 @@ namespace Opc.Ua.Scales.Server.Runtime
             return ServiceResult.Good;
         }
 
-        private ServiceResult SetNumberOfReferencePiecesCore(uint count)
+        private ServiceResult SetNumberOfReferencePiecesCore(uint count, ISystemContext? callContext = null)
         {
+            PieceCountingProductState? product = ActiveProduct();
+            ServiceResult access = CheckProductLock(callContext, product);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             if (count == 0)
             {
-                return ServiceResult.Create(StatusCodes.BadOutOfRange, "The number of reference pieces must be positive.");
+                return ServiceResult.Create(
+                    StatusCodes.BadOutOfRange,
+                    "The number of reference pieces must be positive.");
             }
             m_referencePieces = count;
-            if (ActiveProduct() is { } product)
+            if (product != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.NumberOfReferencePieces, Variant.From(count));
             }
             return ServiceResult.Good;
         }
 
-        private ServiceResult StartReferenceCore(uint count)
+        private ServiceResult StartReferenceCore(uint count, ISystemContext? callContext = null)
         {
+            PieceCountingProductState? product = ActiveProduct();
+            ServiceResult access = CheckProductLock(callContext, product);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
+            }
             if (count == 0)
             {
-                return ServiceResult.Create(StatusCodes.BadOutOfRange, "The number of reference pieces must be positive.");
+                return ServiceResult.Create(
+                    StatusCodes.BadOutOfRange,
+                    "The number of reference pieces must be positive.");
             }
             ServiceResult stable = m_owner.Engine.CanRegister();
             if (ServiceResult.IsBad(stable))
@@ -437,13 +464,26 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             m_referencePieces = count;
             m_referencePieceWeight = net / count;
-            if (ActiveProduct() is { } product)
+            if (product != null)
             {
                 ScaleValues.Set(m_owner.Services.Context, product.NumberOfReferencePieces, Variant.From(count));
-                ScaleValues.Set(m_owner.Services.Context, product.ReferencePieceWeight, Variant.From(m_referencePieceWeight));
+                ScaleValues.Set(
+                    m_owner.Services.Context,
+                    product.ReferencePieceWeight,
+                    Variant.From(m_referencePieceWeight));
                 ScaleValues.SetUnits(m_owner.Services.Context, product.ReferencePieceWeight, m_owner.Unit);
             }
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Checks remote callers against the captured product while keeping equipment-side updates trusted.
+        /// </summary>
+        private ServiceResult CheckProductLock(ISystemContext? callContext, PieceCountingProductState? product)
+        {
+            return callContext != null && product != null
+                ? ScaleValues.CheckLock(m_owner.Services, callContext, product.NodeId)
+                : ServiceResult.Good;
         }
 
         private PieceCountingProductState? ActiveProduct()
@@ -474,28 +514,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             m_owner = owner;
             Scale = scale;
-            if (scale.OpenDraftShields != null)
-            {
-                scale.OpenDraftShields.OnCall = (context, method, objectId, shield) =>
+            scale.OpenDraftShields?.OnCall = (context, method, objectId, shield) =>
                     owner.Execute(ScaleCommand.OpenDraftShields, () => SetShields(shield, closed: false));
-            }
-            if (scale.CloseDraftShields != null)
-            {
-                scale.CloseDraftShields.OnCall = (context, method, objectId, shield) =>
+            scale.CloseDraftShields?.OnCall = (context, method, objectId, shield) =>
                     owner.Execute(ScaleCommand.CloseDraftShields, () => SetShields(shield, closed: true));
-            }
             BindStart(scale.StartLeveling, ScaleCommand.StartLeveling, () => scale.LevelingRunning, CompleteLeveling);
             BindStart(scale.StartCalibration, ScaleCommand.StartCalibration, () => scale.CalibrationRunning, CompleteCalibration);
-            if (scale.StartIonisator != null)
-            {
-                scale.StartIonisator.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
+            scale.StartIonisator?.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
                     owner.Execute(ScaleCommand.StartIonisator, () => SetFlag(scale.IonisatorRunning, true));
-            }
-            if (scale.StopIonisator != null)
-            {
-                scale.StopIonisator.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
+            scale.StopIonisator?.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
                     owner.Execute(ScaleCommand.StopIonisator, () => SetFlag(scale.IonisatorRunning, false));
-            }
         }
 
         /// <summary>
@@ -728,21 +756,16 @@ namespace Opc.Ua.Scales.Server.Runtime
         {
             m_owner = owner;
             Scale = scale;
-            if (scale.InboundWeighing != null)
-            {
-                scale.InboundWeighing.OnCall = (context, method, objectId, vehicleId) =>
-                    owner.Execute(ScaleCommand.InboundWeighing, () => Inbound(vehicleId));
-            }
-            if (scale.OutboundWeighing != null)
-            {
-                scale.OutboundWeighing.OnCall = (context, method, objectId, vehicleId) =>
-                    owner.Execute(ScaleCommand.OutboundWeighing, () => Outbound(vehicleId, onePass: false));
-            }
-            if (scale.OnePassWeighing != null)
-            {
-                scale.OnePassWeighing.OnCall = (context, method, objectId, vehicleId) =>
-                    owner.Execute(ScaleCommand.OnePassWeighing, () => Outbound(vehicleId, onePass: true));
-            }
+            scale.InboundWeighing?.OnCall = (context, method, objectId, vehicleId) =>
+                    owner.Execute(ScaleCommand.InboundWeighing, () => Inbound(vehicleId, context));
+            scale.OutboundWeighing?.OnCall = (context, method, objectId, vehicleId) =>
+                    owner.Execute(
+                        ScaleCommand.OutboundWeighing,
+                        () => Outbound(vehicleId, onePass: false, context));
+            scale.OnePassWeighing?.OnCall = (context, method, objectId, vehicleId) =>
+                    owner.Execute(
+                        ScaleCommand.OnePassWeighing,
+                        () => Outbound(vehicleId, onePass: true, context));
         }
 
         /// <summary>
@@ -780,11 +803,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             return m_owner.Execute(ScaleCommand.OnePassWeighing, () => Outbound(vehicleId, onePass: true));
         }
 
-        private ServiceResult Inbound(string vehicleId)
+        private ServiceResult Inbound(string vehicleId, ISystemContext? callContext = null)
         {
             if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
             {
                 return error!;
+            }
+            ServiceResult access = CheckProductLock(callContext, vehicle!);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
             }
             ServiceResult check = m_owner.Engine.CanRegister();
             if (ServiceResult.IsBad(check))
@@ -801,11 +829,16 @@ namespace Opc.Ua.Scales.Server.Runtime
             return ServiceResult.Good;
         }
 
-        private ServiceResult Outbound(string vehicleId, bool onePass)
+        private ServiceResult Outbound(string vehicleId, bool onePass, ISystemContext? callContext = null)
         {
             if (!TryFind(vehicleId, out VehicleProductState? vehicle, out ServiceResult? error))
             {
                 return error!;
+            }
+            ServiceResult access = CheckProductLock(callContext, vehicle!);
+            if (ServiceResult.IsBad(access))
+            {
+                return access;
             }
             ServiceResult check = m_owner.Engine.CanRegister();
             if (ServiceResult.IsBad(check))
@@ -844,6 +877,16 @@ namespace Opc.Ua.Scales.Server.Runtime
                 ScaleValues.Set(context, isFilling, delta < 0);
             }
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Authorizes remote weighing against the selected vehicle before changing its values or inbound cache.
+        /// </summary>
+        private ServiceResult CheckProductLock(ISystemContext? callContext, VehicleProductState vehicle)
+        {
+            return callContext != null
+                ? ScaleValues.CheckLock(m_owner.Services, callContext, vehicle.NodeId)
+                : ServiceResult.Good;
         }
 
         private bool TryFind(string vehicleId, out VehicleProductState? vehicle, out ServiceResult? error)
@@ -907,14 +950,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return;
             }
             item.Value = new WeightType { Gross = weight, Net = weight, Tare = 0 };
-            if (item.Overload != null)
-            {
-                item.Overload.Value = false;
-            }
-            if (item.Underload != null)
-            {
-                item.Underload.Value = false;
-            }
+            item.Overload?.Value = false;
+            item.Underload?.Value = false;
             ScaleValues.Touch(m_owner.Services.Context, item);
             item.ClearChangeMasks(m_owner.Services.Context, includeChildren: true);
         }

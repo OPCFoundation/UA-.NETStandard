@@ -46,17 +46,23 @@ store concepts, this guide for current APIs, and the
 
 The `CertificateManager` is composed of focused interfaces. Consumers depend only on the slice they need:
 
-```
-ICertificateManager (composite)
-├── ICertificateRegistry         — "What certificates do I have?"
-├── ICertificateTrustListManager — "Which stores exist?"
-├── ICertificateValidatorEx      — "Is this certificate trusted?"
-├── ICertificateLifecycle        — "What changed?"
-└── ITrustListFileAccess         — "Read/write trust-list blobs"
-
-Standalone (no CertificateManager dependency):
-├── ICertificateFactory          — "Create from raw material"
-└── ICertificateIssuer           — "Sign as a CA"
+```mermaid
+flowchart TB
+    manager["ICertificateManager (composite)"]
+    registry["ICertificateRegistry<br/>What certificates do I have?"]
+    trust["ICertificateTrustListManager<br/>Which stores exist?"]
+    validator["ICertificateValidatorEx<br/>Is this certificate trusted?"]
+    lifecycle["ICertificateLifecycle<br/>What changed?"]
+    files["ITrustListFileAccess<br/>Read/write trust-list blobs"]
+    manager --> registry
+    manager --> trust
+    manager --> validator
+    manager --> lifecycle
+    manager --> files
+    subgraph standalone["Standalone (no CertificateManager dependency)"]
+        factory["ICertificateFactory<br/>Create from raw material"]
+        issuer["ICertificateIssuer<br/>Sign as a CA"]
+    end
 ```
 
 ## Quick Start
@@ -147,10 +153,12 @@ if (!result.IsValid)
     Console.WriteLine($"Validation failed: {result.StatusCode}");
 }
 
-// Validate a user X.509 identity token against the Users trust-list
+// Validate a user X.509 identity token against Users without application autoaccept.
+using var userChain = new CertificateCollection { userCertificate };
 CertificateValidationResult userResult = await manager.ValidateAsync(
-    userCertificate,
-    TrustListIdentifier.Users);
+    userChain,
+    TrustListIdentifier.Users,
+    new CertificateValidationOptions { AcceptError = static (_, _) => false });
 
 // Validate against a custom trust-list
 CertificateValidationResult mqttResult = await manager.ValidateAsync(
@@ -181,6 +189,24 @@ listed issuers. The manager snapshots the configuration; call `UpdateAsync`
 to replace those snapshots and invalidate cached validation results.
 An explicit-only list can validate certificates without a `StorePath`;
 store-management operations still require a configured backing store.
+
+When `UseValidatedCertificates` is enabled, cached acceptance still checks
+revocation, the complete accepted issuer path and the validity interval shared by
+every certificate on that path. Omitting a peer-only intermediate cannot reuse an
+earlier complete-chain acceptance. An expired, not-yet-valid, missing or changed
+path returns through normal chain validation and the current caller's error
+policy. Cache entries retain immutable certificate bytes, not native handles.
+The manager's `TimeProvider` drives both native verification time and cache
+deadlines, including when constructed through the factory. Hostname validation
+is independent of the chain cache and checks each requested endpoint.
+
+The Reference Server rejects every user-certificate validation error through an
+isolated per-call policy, even when application provisioning enables autoaccept
+or another validation has warmed a permissive Users cache. Approve X.509 users
+in the Users trust list; trusting an application in Peers does not approve a
+user. Valid user certificates still require proof of possession and grant no
+administrative role merely by being trusted. Application bootstrap acceptance
+and provisioning's removal of Anonymous remain unchanged.
 
 Set `CertificateValidationOptions.RecordRejectedCertificates = false` for
 re-evaluating an existing connection without adding failures to the rejected
@@ -327,12 +353,14 @@ public sealed class MyTransportListener : ITransportListener, ITransportListener
 {
     // ...
 
-    public IReadOnlyList<string> CloseChannelsForCertificate(Certificate oldCertificate)
+    public ValueTask<IReadOnlyList<string>> CloseChannelsForCertificateAsync(
+        Certificate oldCertificate,
+        CancellationToken ct = default)
     {
         // Close every channel whose negotiated ServerCertificate.Thumbprint
         // matches oldCertificate.Thumbprint. Keep the listener socket bound.
         // Return the global channel ids that were closed (for diagnostics).
-        return [];
+        return new ValueTask<IReadOnlyList<string>>([]);
     }
 }
 ```
@@ -343,13 +371,13 @@ Server-base subclasses that want to observe rotation in custom ways can still su
 
 `ApplyChanges` also has to react to *TrustList* changes committed in the transaction, not just server-certificate rotation. Once the response has been delivered, `ConfigurationNodeManager` maps every committed TrustList to the certificate group it belongs to and applies the corresponding effect:
 
-- **Application group TrustList (`opc.tcp`)** validates the *peer* (client application) certificate presented in `OpenSecureChannel` against the `Peers` store. If a committed change (typically a removal of a trusted certificate or issuer) means a currently-connected peer would no longer validate, that peer's `opc.tcp` SecureChannel is forced to renegotiate; peers whose certificate is still trusted — and peers on a group whose TrustList did not change — keep their channels, Sessions and Subscriptions.
+- **Application group TrustList (`opc.tcp` and binary WSS)** validates the *peer* (client application) certificate presented in `OpenSecureChannel` against the `Peers` store. If a committed change (typically a removal of a trusted certificate or issuer) means a currently-connected peer would no longer validate, that peer's SecureChannel is forced to renegotiate; peers whose certificate is still trusted — and peers on a group whose TrustList did not change — keep their channels, Sessions and Subscriptions.
 - **HTTPS group TrustList** validates certificates used by the request-scoped UA-HTTPS transport (`Https` store). UA-HTTPS has no long-lived, per-peer SecureChannel keyed by the client application certificate. The shared validator checks any client TLS certificate (mutual TLS) against the directory-backed trust stores at the next TLS handshake. Therefore, an HTTPS-group change does **not** trigger channel renegotiation or a connection teardown. Server-certificate rotation on HTTPS is separate; `ITransportListenerCertificateRotation` handles it with a Kestrel Stop/Start cycle.
 - **User-token group TrustList** validates X.509 user identity tokens. Every active Session that authenticated with a certificate user identity is re-validated against the updated user TrustList; a Session whose user certificate is no longer trusted is closed together with its Subscriptions (§7.10.9). Anonymous / username / issued-token Sessions are never disturbed.
 
 The effect fan-out runs after the same grace/flush boundary as certificate rotation and is awaitable through `IConfigurationNodeManager.DrainPendingApplyChangesAsync(CancellationToken)`.
 
-Both TCP listeners retain the complete peer chain validated at
+Both TCP listeners and the binary WebSocket listener retain the complete peer chain validated at
 `OpenSecureChannel`, including intermediates supplied only by the client.
 Their `ITransportListenerPeerCertificateChainRotation` capability passes an
 owned chain snapshot to `CloseChannelsForUntrustedPeerChainsAsync`. The
@@ -380,8 +408,10 @@ Two seams make this behaviour injectable and testable:
    `KestrelTcpTransportListener`. Each listener revalidates tracked client
    certificates with a caller-supplied asynchronous predicate. It force-closes
    only channels whose certificates fail validation, while keeping the
-   listener socket bound. The UA-HTTPS listener does **not** implement this
-   capability (see the HTTPS bullet above). Custom transports can opt in:
+   listener socket bound. `HttpsTransportListener` also implements it for
+   binary WSS SecureChannels, including outbound reverse connections; ordinary
+   request-scoped HTTPS has no application SecureChannels to close.
+   Custom transports can opt in:
 
    ```csharp
    public sealed class MyTransportListener : ITransportListener, ITransportListenerPeerCertificateRotation
@@ -495,9 +525,14 @@ TrustList changes made with `AddCertificateAsync` / `RemoveCertificateAsync` / `
   `regeneratePrivateKey: true` with `Bad_NotSupported` before generating or
   saving a key. Existing-key signing requests and updates remain supported.
   The provider's explicit `TryTakeAsync` API remains available.
-- `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **genuinely mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
+- `IPushCertificateKeyGenerator` (default: `AdditionalEntropyCertificateKeyGenerator`) generates the regenerated signing-request key pair, **mixing the caller-supplied §7.10.10 `Nonce` into the private key** (see *Method security and validation* below).
+- `IPushConfigurationTrustListEffectHandler` (default: `PushConfigurationTrustListEffectHandler`) applies the post-`ApplyChanges` TrustList effects required by §7.10.9.
 
-Both are also constructor parameters on `ConfigurationNodeManager`/`MainNodeManagerFactory` for applications that construct the server directly instead of through DI; omitting them lets `ConfigurationNodeManager` create its own private defaults.
+`ConfigurationNodeManager` and `MainNodeManagerFactory` also accept
+`IPushConfigurationTransactionCoordinator`, `IPendingCertificateKeyStore`,
+`IPushCertificateKeyGenerator` and `IPushConfigurationTrustListEffectHandler`
+through constructor parameters. Passing null selects the manager's default
+implementation.
 
 Two further collaborators are internal to the stack and not replaceable: the `NamespaceMetadataRegistry` behind the Part 5 `NamespaceMetadata` members of `IConfigurationNodeManager`, and the `CertificateAlarmScheduler` that refreshes and evaluates the §7.8.3 alarms. `ConfigurationNodeManager` itself is a partial class split into one `ConfigurationNodeManager.*.cs` file per concern (Push methods, push validation, certificate slots, ApplyChanges, trust material, certificate alarms, namespace metadata).
 
@@ -505,7 +540,8 @@ Two further collaborators are internal to the stack and not replaceable: the `Na
 replica has its own PushManagement transaction. Two administrators using
 different replicas could therefore stage conflicting changes.
 `UseDistributedPushConfiguration()` (from `Opc.Ua.Redundancy.Server`)
-replaces the two collaborators above with shared-store-backed variants. The
+replaces `IPushConfigurationTransactionCoordinator` and
+`IPendingCertificateKeyStore` with shared-store-backed implementations. The
 transaction is then shared **across the replica set**:
 
 - `DistributedPushConfigurationTransactionCoordinator` wraps the per-server
@@ -557,7 +593,7 @@ A malformed subject returns `Bad_InvalidArgument` before key generation or
 pending-key changes; the active certificate and any earlier pending key remain
 unchanged.
 
-`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
+`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh 48-byte server-side cryptographic seed concatenated with the caller `Nonce` and a fixed personalization string, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Key unpredictability therefore relies on the server seed remaining secret and independently generated by a functioning cryptographic RNG, and on the HMAC-DRBG construction; it does not rely on the caller providing an unpredictable `Nonce`. On .NET Framework the platform cannot import a private-only EC scalar, so additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
 
 TrustList file operations reject a closed handle with `Bad_InvalidArgument`;
 another Session's live handle remains protected with `Bad_UserAccessDenied`.
@@ -745,13 +781,13 @@ immediately.
 ### TrustList Size Limits (OPC UA Part 12 §8.4.5)
 
 `ServerConfiguration.MaxTrustListSize` advertises, in bytes, the largest
-TrustList a Client may write (`0` = unlimited). Enforcing a truly unbounded
+TrustList a Client may write (`0` = unlimited). Enforcing an unbounded
 write would expose the server to unbounded allocation, so the server bounds
-actual enforcement by a **resource-protection safety ceiling** and — crucially —
+actual enforcement by a **resource-protection safety ceiling** and
 advertises the *effective* limit it actually enforces rather than a `0` that
 hides a cap.
 
-The effective, actually-enforced limit is derived from the advertised
+The effective limit is derived from the advertised
 `MaxTrustListSize` and `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling`
 (default 1 MiB):
 
@@ -805,10 +841,10 @@ the managed session ALSO automatically reacts:
 
 - **`ApplicationCertificateUpdated`** — calls
   `Session.ReloadInstanceCertificateAsync` (so the next ActivateSession
-  is signed with the rotated client cert) and triggers a reconnect via
-  the state machine. The new client cert takes effect within
-  milliseconds rather than at the next `SecurityTokenLifetime` rekey
-  (Part 4 §5.5.2).
+  is signed with the rotated client cert), then requests a reconnect via
+  the state machine rather than waiting for the next scheduled
+  security-token renewal (Part 4 §5.5.2). Completion time depends on
+  connection availability, in-flight work and the reconnect policy.
 - **`TrustListUpdated` / `CrlUpdated`** — wakes a long-lived
   per-session revalidation loop that:
   1. Debounces a burst of events (250 ms window) on the injected

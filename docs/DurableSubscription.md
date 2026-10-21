@@ -9,10 +9,11 @@ TransferSubscriptions service to retrieve missed notifications.
 
 ## Contents
 
-- [Overview](#overview)
-- [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
-- [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
-- [Known limitations and issues](#known-limitations-and-issues)
+- [Durable Subscription](#durable-subscription)
+  - [Overview](#overview)
+  - [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
+  - [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
+  - [Known limitations and issues](#known-limitations-and-issues)
 
 ## Fix an existing server with minimal changes
 
@@ -38,8 +39,8 @@ Typically the following porting steps are necessary:
   server restarts. After restoring a subscription, the store must also provide
   persistent queues to its monitored items. Register the store by overriding
   `StandardServer.CreateSubscriptionStore`.
-- Report a store that cannot read its subscriptions from
-  `RestoreSubscriptionsAsync`, either by throwing or by returning
+- `RestoreSubscriptionsAsync` must report a failure to read stored subscriptions
+  by throwing or returning
   `RestoreSubscriptionResult.Success = false`; return `Success = true` with no
   subscriptions when nothing was stored. Keep the stored subscriptions and the
   queue snapshots of their monitored items until
@@ -59,8 +60,8 @@ Typically the following porting steps are necessary:
   returned, so the store may return the same objects to a retry. A server
   startup that fails releases its session and subscription managers, so the
   restore can be retried by starting again.
-- A queue whose contents are kept in storage while the server runs, and which
-  disposing removes from that storage, should implement
+- Queues that persist their contents while the server runs and remove those
+  contents on disposal should implement
   `IRestorableMonitoredItemQueue`. While
   `SubscriptionManager.RestoreSubscriptionsAsync` restores the subscriptions it
   calls `BeginRestore` before it changes such a queue of a restored monitored

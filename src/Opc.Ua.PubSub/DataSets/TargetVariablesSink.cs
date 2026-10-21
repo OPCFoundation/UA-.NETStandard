@@ -40,7 +40,7 @@ namespace Opc.Ua.PubSub.DataSets
     /// DataSetMessage into a host's address space using a
     /// <see cref="TargetVariablesDataType"/> configuration. For each
     /// inbound field the sink resolves the matching
-    /// <see cref="FieldTargetDataType"/> entry (positionally) and
+    /// <see cref="FieldTargetDataType"/> entry by its metadata field identifier and
     /// applies the (possibly overridden) <see cref="DataValue"/> to
     /// the configured node attribute through the injected
     /// <see cref="ITargetVariableWriter"/>. Override semantics are
@@ -52,6 +52,9 @@ namespace Opc.Ua.PubSub.DataSets
     /// described in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.10">
     /// Part 14 §6.2.10 SubscribedDataSet</see>.
+    /// Per §6.2.10.2.3, non-empty DataSetFieldIds identify fields independently
+    /// of the target array's order or size. Received metadata names are labels,
+    /// not identifiers. Targets without a DataSetFieldId retain index-based mapping.
     /// </remarks>
     public sealed class TargetVariablesSink : ISubscribedDataSetSink
     {
@@ -105,7 +108,7 @@ namespace Opc.Ua.PubSub.DataSets
             for (int i = 0; i < count; i++)
             {
                 FieldTargetDataType target = m_targets[i];
-                DataSetField? incoming = FindField(fields, target, i);
+                DataSetField? incoming = FindField(fields, target.DataSetFieldId, i);
                 DataValue lastGood;
                 lock (m_gate)
                 {
@@ -142,35 +145,38 @@ namespace Opc.Ua.PubSub.DataSets
             }
         }
 
+        /// <summary>
+        /// Resolves a target by its metadata identifier, using indices only for targets without an identifier.
+        /// </summary>
         private static DataSetField? FindField(
             IReadOnlyList<DataSetField> fields,
-            FieldTargetDataType target,
-            int positionalIndex)
+            Uuid fieldId,
+            int targetIndex)
         {
-            if (!target.DataSetFieldId.IsNullOrEmpty())
+            if (fieldId != Uuid.Empty)
             {
-                string fieldIdText = target.DataSetFieldId.ToString();
-                for (int j = 0; j < fields.Count; j++)
+                for (int i = 0; i < fields.Count; i++)
                 {
-                    if (string.Equals(fields[j].Name, fieldIdText, StringComparison.Ordinal))
+                    if (fields[i].DataSetFieldId == fieldId)
                     {
-                        return fields[j];
+                        return fields[i];
                     }
                 }
+                return null;
             }
-            if (positionalIndex >= 0 && positionalIndex < fields.Count)
+            if (targetIndex < fields.Count && fields[targetIndex].FieldIndex < 0)
             {
-                return fields[positionalIndex];
+                return fields[targetIndex];
+            }
+            for (int i = 0; i < fields.Count; i++)
+            {
+                DataSetField field = fields[i];
+                if (field.FieldIndex == targetIndex)
+                {
+                    return field;
+                }
             }
             return null;
-        }
-    }
-
-    internal static class UuidExtensions
-    {
-        public static bool IsNullOrEmpty(this Uuid value)
-        {
-            return value == Uuid.Empty;
         }
     }
 }

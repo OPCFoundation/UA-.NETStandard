@@ -97,13 +97,18 @@ namespace Opc.Ua.PubSub.Transcoding
                 source, transcoder, egress, telemetry, descriptor.TopicSelector);
         }
 
-        private TranscodeSecurity BuildSecurity(
+        private static TranscodeSecurity BuildSecurity(
             IPubSubConnection target,
             TranscodingBridgeDescriptor descriptor)
         {
-            IPubSubSecurityWrapperResolver? resolver =
-                m_serviceProvider.GetService<IPubSubSecurityWrapperResolver>();
-            PubSubSecurityContext? securityContext = resolver?.Resolve(target.Configuration);
+            PubSubSecurityContext? securityContext = (target as PubSubConnection)?.EffectiveSecurityContext;
+            if (PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(
+                target.Configuration, out MessageSecurityMode mode, out _) &&
+                mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt &&
+                securityContext is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient);
+            }
             return new TranscodeSecurity
             {
                 TargetWrapper = securityContext?.Wrapper,

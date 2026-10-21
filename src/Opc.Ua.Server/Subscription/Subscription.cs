@@ -117,6 +117,8 @@ namespace Opc.Ua.Server
         {
             Id = subscriptionId;
             Session = session ?? throw new ArgumentNullException(nameof(session));
+            m_notificationSession = session;
+            m_notificationAuthorization = NotificationAuthorization.Capture(session);
             UpdateOwnerIdentity(Session);
             m_server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = server.Telemetry.CreateLogger<Subscription>();
@@ -140,7 +142,8 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxMessageCount,
                 m_server.SubscriptionStore as ISubscriptionRetransmissionStore,
-                m_logger);
+                m_logger,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = false;
 
@@ -338,7 +341,8 @@ namespace Opc.Ua.Server
                 m_logger,
                 storedSubscription.SentMessages,
                 storedSubscription.SequenceNumber,
-                storedSubscription.LastSentMessage);
+                storedSubscription.LastSentMessage,
+                m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
             // UserIdentityToken is null for anonymous sessions; the owner is then an
@@ -1113,15 +1117,16 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Adds the monitored items of this subscription to the process-wide count that sizes
-        /// the notification pools, and raises the pool bounds when the count grew.
+        /// the event field list pool, and raises the pool bound when the count grew.
         /// </summary>
         /// <remarks>
-        /// The activator pools are process-wide and retain 1024 instances by default. A
-        /// notification is recycled after its message was sent and acknowledged, so about two
-        /// publishing cycles of notifications are in flight; with more items than the bound
-        /// most notifications would be allocated again. The bound follows twice the number of
+        /// The activator pool is process-wide and retains 1024 instances by default. An
+        /// event field list is recycled after its message was sent and acknowledged, so about
+        /// two publishing cycles of event field lists are in flight; with more items than the
+        /// bound most of them would be allocated again. The bound follows twice the number of
         /// monitored items of all subscriptions in the process, capped at
-        /// <see cref="kMaxPooledNotifications"/>, and is never lowered.
+        /// <see cref="kMaxPooledNotifications"/>, and is never lowered. Data change
+        /// notifications are not pooled (see <see cref="MonitoredItem"/>).
         /// </remarks>
         private void CountPooledItems(int delta)
         {
@@ -1137,7 +1142,6 @@ namespace Opc.Ua.Server
                 int bound = (int)Math.Min(
                     kMaxPooledNotifications,
                     Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
-                MonitoredItemNotificationActivator.Instance.EnsureMaximumRetained(bound);
                 EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
             }
         }
@@ -1394,6 +1398,36 @@ namespace Opc.Ua.Server
                 monitoredItems = [.. m_monitoredItems.Select(v => v.Value.Value)];
             }
 
+            foreach (IMonitoredItem item in monitoredItems)
+            {
+                if ((item.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
+                    item is not IEventMonitoredItem ||
+                    item is IDetachableMonitoredItem { IsDetached: true })
+                {
+                    continue;
+                }
+                IAsyncNodeManager owner = item.NodeManager;
+                object handle = item.ManagerHandle;
+                NodeMetadata? metadata = await owner.GetNodeMetadataAsync(
+                    context, handle, BrowseResultMask.All, cancellationToken).ConfigureAwait(false);
+                if (metadata == null || !ReferenceEquals(owner, item.NodeManager) ||
+                    !ReferenceEquals(handle, item.ManagerHandle))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
+                ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
+                    context, metadata, PermissionType.ReceiveEvents);
+                if (ServiceResult.IsGood(permission))
+                {
+                    permission = MasterNodeManager.ValidateAccessRestrictions(
+                        context, metadata, PermissionType.ReceiveEvents);
+                }
+                if (ServiceResult.IsBad(permission))
+                {
+                    throw new ServiceResultException(permission);
+                }
+            }
+
             var errors = new List<ServiceResult>(monitoredItems.Count);
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
@@ -1539,8 +1573,11 @@ namespace Opc.Ua.Server
                             StatusCodes.BadSubscriptionIdInvalid,
                             "Subscription ownership changed during transfer.");
                     }
-                    m_subscription.Session = m_destinationSession;
-                    m_subscription.EndValuePublications(StatusCodes.BadInvalidState);
+                    m_subscription.ExecuteNotificationOperation(() =>
+                    {
+                        m_subscription.Session = m_destinationSession;
+                        m_subscription.EndValuePublications(StatusCodes.BadInvalidState);
+                    });
                 }
 
                 if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
@@ -1741,18 +1778,21 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                m_savedOwnerIdentity = closingSession.EffectiveIdentity;
-                UpdateOwnerIdentity(closingSession);
-                if (!m_diagnosticsId.IsNull &&
-                    m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                ExecuteNotificationOperation(() =>
                 {
-                    diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
-                        m_diagnosticsId,
-                        closingSession.Id,
-                        default);
-                }
-                Session = null!;
-                EndValuePublications();
+                    m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                    UpdateOwnerIdentity(closingSession);
+                    if (!m_diagnosticsId.IsNull &&
+                        m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                    {
+                        diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                            m_diagnosticsId,
+                            closingSession.Id,
+                            default);
+                    }
+                    Session = null!;
+                    EndValuePublications();
+                });
             }
 
             lock (m_diagnosticsLock)
@@ -1802,6 +1842,89 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retires cached messages and only the monitored-item queues that still belong to the previous epoch.
+        /// A new identity's events may already have arrived before its first Publish.
+        /// </summary>
+        private void EnsureNotificationAuthorization()
+        {
+            ISession? session = Session;
+            if (session == null)
+            {
+                return;
+            }
+
+            NotificationAuthorization? authorization = NotificationAuthorization.Capture(session);
+            bool sameSession = ReferenceEquals(m_notificationSession, session);
+            bool sameAuthorization = ReferenceEquals(m_notificationAuthorization, authorization) ||
+                (m_notificationAuthorization != null &&
+                    authorization != null &&
+                    m_notificationAuthorization.IsEquivalentTo(authorization, sameSession));
+            if (m_notificationSession != null && !sameAuthorization)
+            {
+                m_messageQueue.InvalidateAuthorization();
+                foreach (LinkedListNode<IMonitoredItem> item in m_monitoredItems.Values)
+                {
+                    (item.Value as MonitoredItem)?.EnsureNotificationAuthorization();
+                }
+                lock (m_diagnosticsLock)
+                {
+                    Diagnostics.UnacknowledgedMessageCount = 0;
+                    MarkDiagnosticsDirty();
+                }
+            }
+            m_notificationSession = session;
+            m_notificationAuthorization = authorization;
+        }
+
+        /// <summary>
+        /// Uses the owning Session's identity boundary after entering the subscription, never the reverse.
+        /// </summary>
+        /// <typeparam name="T">The operation's result type.</typeparam>
+        private T ExecuteNotificationOperation<T>(Func<T> operation)
+        {
+            return Session is Session session
+                ? session.ExecuteNotificationOperation(() =>
+                {
+                    EnsureNotificationAuthorization();
+                    return operation();
+                })
+                : ExecuteCustomNotificationOperation(operation);
+        }
+
+        /// <summary>
+        /// Completes an ownership transition in the source owner's notification epoch.
+        /// </summary>
+        private void ExecuteNotificationOperation(Action operation)
+        {
+            ExecuteNotificationOperation(() =>
+            {
+                operation();
+                return true;
+            });
+        }
+
+        /// <summary>
+        /// Checks custom Session implementations' principal and grants without changing their activation contract.
+        /// </summary>
+        /// <typeparam name="T">The operation's result type.</typeparam>
+        private T ExecuteCustomNotificationOperation<T>(Func<T> operation)
+        {
+            EnsureNotificationAuthorization();
+            return operation();
+        }
+
+        /// <summary>
+        /// Rejects a Publish request admitted under an identity that has since been replaced.
+        /// </summary>
+        private void VerifyNotificationAuthorization(OperationContext context)
+        {
+            if (!NotificationAuthorization.IsCurrent(Session, context.NotificationAuthorization))
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
+        }
+
+        /// <summary>
         /// Update the monitoring queue overflow count.
         /// </summary>
         void ISubscriptionPublishPipeline.QueueOverflowHandler()
@@ -1835,28 +1958,29 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // check session.
-                VerifySession(context);
-
-                // clear lifetime counter.
-                ResetLifetimeCount();
-
-                // find message in queue.
-                if (m_messageQueue.TryAcknowledge(sequenceNumber))
-                {
-                    return null;
-                }
-
-                if (sequenceNumber == 0)
-                {
-                    return StatusCodes.BadSequenceNumberInvalid;
-                }
-
-                // TraceState(LogLevel.Trace, TraceStateId.Items, "ACK " + sequenceNumber.ToString());
-
-                // message not found.
-                return StatusCodes.BadSequenceNumberUnknown;
+                return ExecuteNotificationOperation(() => AcknowledgeCore(context, sequenceNumber));
             }
+        }
+
+        /// <summary>
+        /// Acknowledges a retained message without crossing an identity commit.
+        /// </summary>
+        private ServiceResult? AcknowledgeCore(OperationContext context, uint sequenceNumber)
+        {
+            VerifySession(context);
+            ResetLifetimeCount();
+
+            if (m_messageQueue.TryAcknowledge(sequenceNumber))
+            {
+                return null;
+            }
+
+            if (sequenceNumber == 0)
+            {
+                return StatusCodes.BadSequenceNumberInvalid;
+            }
+
+            return StatusCodes.BadSequenceNumberUnknown;
         }
 
         /// <summary>
@@ -1910,11 +2034,21 @@ namespace Opc.Ua.Server
                         MarkDiagnosticsDirty();
                     }
 
-                    message = InnerPublish(
-                        context,
-                        out availableSequenceNumbers,
-                        out moreNotifications,
-                        out lease);
+                    (message, availableSequenceNumbers, moreNotifications, lease) = ExecuteNotificationOperation(() =>
+                    {
+                        NotificationMessage? result = InnerPublish(
+                            context,
+                            out ArrayOf<uint> available,
+                            out bool more,
+                            out NotificationMessageLease? messageLease);
+                        if (!NotificationAuthorization.IsCurrent(Session, context.NotificationAuthorization))
+                        {
+                            messageLease?.Release();
+                            EnsureNotificationAuthorization();
+                            throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                        }
+                        return (result, available, more, messageLease);
+                    });
 
                     lock (m_diagnosticsLock)
                     {
@@ -2009,6 +2143,7 @@ namespace Opc.Ua.Server
 
             // check session.
             VerifySession(context);
+            VerifyNotificationAuthorization(context);
 
             // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH");
 
@@ -2294,7 +2429,10 @@ namespace Opc.Ua.Server
         /// </summary>
         ArrayOf<uint> ISubscriptionPublishPipeline.AvailableSequenceNumbersForRetransmission()
         {
-            return m_messageQueue.AvailableSequenceNumbersForRetransmission();
+            lock (m_lock)
+            {
+                return ExecuteNotificationOperation(m_messageQueue.AvailableSequenceNumbersForRetransmission);
+            }
         }
 
         /// <summary>
@@ -2336,7 +2474,9 @@ namespace Opc.Ua.Server
                 var eventList = new EventFieldList[eventCount];
                 for (int ii = 0; ii < eventList.Length; ii++)
                 {
-                    eventList[ii] = events.Dequeue();
+                    EventFieldList fields = events.Dequeue();
+                    m_server.EventManager?.AdmitEventFields(fields);
+                    eventList[ii] = fields;
                 }
                 notificationCount += eventCount;
                 var notification = (EventNotificationList)EventNotificationListActivator.Instance.CreateInstance();
@@ -2397,35 +2537,48 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                // check session.
-                VerifySession(context);
+                return ExecuteNotificationOperation(() => RepublishCore(context, retransmitSequenceNumber));
+            }
+        }
 
-                // clear lifetime counter.
-                ResetLifetimeCount();
+        /// <summary>
+        /// Returns a retained message while the owning identity cannot change.
+        /// </summary>
+        private NotificationMessage RepublishCore(OperationContext context, uint retransmitSequenceNumber)
+        {
+            VerifySession(context);
+            ResetLifetimeCount();
 
+            lock (m_diagnosticsLock)
+            {
+                Diagnostics.RepublishRequestCount++;
+                Diagnostics.RepublishMessageRequestCount++;
+                MarkDiagnosticsDirty();
+            }
+
+            if (!NotificationAuthorization.IsCurrent(Session, context.NotificationAuthorization))
+            {
+                throw new ServiceResultException(StatusCodes.BadMessageNotAvailable);
+            }
+
+            NotificationMessage? sentMessage = m_messageQueue.FindForRepublish(retransmitSequenceNumber);
+            if (sentMessage != null)
+            {
+                if (!NotificationAuthorization.IsCurrent(Session, context.NotificationAuthorization))
+                {
+                    EnsureNotificationAuthorization();
+                    throw new ServiceResultException(StatusCodes.BadMessageNotAvailable);
+                }
                 lock (m_diagnosticsLock)
                 {
-                    Diagnostics.RepublishRequestCount++;
-                    Diagnostics.RepublishMessageRequestCount++;
+                    Diagnostics.RepublishMessageCount++;
                     MarkDiagnosticsDirty();
                 }
 
-                // find message.
-                NotificationMessage? sentMessage = m_messageQueue.FindForRepublish(retransmitSequenceNumber);
-                if (sentMessage != null)
-                {
-                    lock (m_diagnosticsLock)
-                    {
-                        Diagnostics.RepublishMessageCount++;
-                        MarkDiagnosticsDirty();
-                    }
-
-                    return sentMessage;
-                }
-
-                // message not available.
-                throw new ServiceResultException(StatusCodes.BadMessageNotAvailable);
+                return sentMessage;
             }
+
+            throw new ServiceResultException(StatusCodes.BadMessageNotAvailable);
         }
 
         /// <summary>
@@ -3888,46 +4041,54 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                var monitoredItemsToStore = new List<IStoredMonitoredItem>();
-
-                foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
-                {
-                    monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
-                }
-
-                Dictionary<uint, IReadOnlyList<uint>>? triggeringLinks = null;
-                foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> link in m_itemsToTrigger)
-                {
-                    if (link.Value.Count == 0)
-                    {
-                        continue;
-                    }
-
-                    triggeringLinks ??= [];
-                    triggeringLinks[link.Key] = [.. link.Value.Select(item => item.Id)];
-                }
-
-                return new StoredSubscription
-                {
-                    SentMessages = m_messageQueue.CreateSnapshot(),
-                    Id = Id,
-                    SequenceNumber = m_messageQueue.NextSequenceNumber,
-                    LastSentMessage = m_messageQueue.LastSentMessage,
-                    LifetimeCounter = m_lifetimeCounter,
-                    MaxKeepaliveCount = m_maxKeepAliveCount,
-                    MaxLifetimeCount = m_maxLifetimeCount,
-                    MaxMessageCount = m_messageQueue.MaxMessageCount,
-                    MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
-                    Priority = Priority,
-                    PublishingInterval = PublishingInterval,
-                    UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
-                    PublishingEnabled = m_publishingEnabled,
-                    OwnerClientApplicationUri = m_ownerClientApplicationUri,
-                    MonitoredItems = monitoredItemsToStore,
-                    TriggeringLinks = triggeringLinks,
-                    IsDurable = IsDurable
-                };
+                return ExecuteNotificationOperation(ToStorableSubscriptionCore);
             }
+        }
+
+        /// <summary>
+        /// Captures pending items and retained messages in the same authorization epoch as their stored owner.
+        /// </summary>
+        private IStoredSubscription ToStorableSubscriptionCore()
+        {
+            var monitoredItemsToStore = new List<IStoredMonitoredItem>();
+
+            foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+            {
+                monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+            }
+
+            Dictionary<uint, IReadOnlyList<uint>>? triggeringLinks = null;
+            foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> link in m_itemsToTrigger)
+            {
+                if (link.Value.Count == 0)
+                {
+                    continue;
+                }
+
+                triggeringLinks ??= [];
+                triggeringLinks[link.Key] = [.. link.Value.Select(item => item.Id)];
+            }
+
+            return new StoredSubscription
+            {
+                SentMessages = m_messageQueue.CreateSnapshot(),
+                Id = Id,
+                SequenceNumber = m_messageQueue.NextSequenceNumber,
+                LastSentMessage = m_messageQueue.LastSentMessage,
+                LifetimeCounter = m_lifetimeCounter,
+                MaxKeepaliveCount = m_maxKeepAliveCount,
+                MaxLifetimeCount = m_maxLifetimeCount,
+                MaxMessageCount = m_messageQueue.MaxMessageCount,
+                MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
+                Priority = Priority,
+                PublishingInterval = PublishingInterval,
+                UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
+                PublishingEnabled = m_publishingEnabled,
+                OwnerClientApplicationUri = m_ownerClientApplicationUri,
+                MonitoredItems = monitoredItemsToStore,
+                TriggeringLinks = triggeringLinks,
+                IsDurable = IsDurable
+            };
         }
 
         /// <summary>
@@ -4166,6 +4327,12 @@ namespace Opc.Ua.Server
         private bool m_waitingForPublish;
         private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
+
+        /// <summary>The Session whose notification epoch the retained messages belong to.</summary>
+        private ISession? m_notificationSession;
+
+        /// <summary>The authorization epoch of the retained messages.</summary>
+        private NotificationAuthorization? m_notificationAuthorization;
         private readonly List<NotificationMessage> m_publishMessages = [];
         private readonly List<MonitoredItemNotification[]?> m_publishRentedItemArrays = [];
         private readonly Queue<EventFieldList> m_publishEvents = new();

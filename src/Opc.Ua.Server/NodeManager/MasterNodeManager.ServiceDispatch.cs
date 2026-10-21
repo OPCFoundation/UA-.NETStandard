@@ -994,24 +994,33 @@ namespace Opc.Ua.Server
                     AccessRestrictionType.ApplyRestrictionsToBrowse;
 
                 bool browseOperation =
-                    context.RequestType
+                    context?.RequestType
                         is RequestType.Browse
                             or RequestType.BrowseNext
                             or RequestType.TranslateBrowsePathsToNodeIds;
 
-                SecureChannelContext channelContext = context.ChannelContext!;
+                // Notifications have no incoming request channel. Only the subscriber's
+                // session endpoint can supply their transport security, never the reporter.
+                SecureChannelContext? channelContext = context?.ChannelContext;
+                EndpointDescription? endpointDescription = channelContext == null
+                    ? MonitoredReadAuthorization.GetEndpoint(context?.Session) : null;
+                bool providesEncryption = channelContext?.ProvidesEncryption ??
+                    MonitoredReadAuthorization.IsConfidential(endpointDescription);
+                bool providesIntegrity = channelContext?.ProvidesIntegrity ??
+                    (endpointDescription?.SecurityMode == MessageSecurityMode.Sign ||
+                        MonitoredReadAuthorization.IsConfidential(endpointDescription));
 
                 if ((
                         encryptionRequired &&
-                        !channelContext.ProvidesEncryption &&
+                        !providesEncryption &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
                     (
                         signingRequired &&
-                        !channelContext.ProvidesIntegrity &&
+                        !providesIntegrity &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
-                    (sessionRequired && context.Session == null && !context.IsSessionIndependent))
+                    (sessionRequired && context?.Session == null && context?.IsSessionIndependent != true))
                 {
                     serviceResult = ServiceResult.Create(
                         StatusCodes.BadSecurityModeInsufficient,

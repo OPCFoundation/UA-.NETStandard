@@ -68,6 +68,40 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(normalized!.Host, Is.EqualTo("example.com"));
         }
 
+        /// <summary>
+        /// Loopback opt-in never makes a missing network authority a valid endpoint.
+        /// </summary>
+        [TestCase("mqtt://", false)]
+        [TestCase("mqtts://", true)]
+        [TestCase("mqtt:///private/status", true)]
+        [Category("SecurityRegression")]
+        public void SecurityF28EndpointPolicyRejectsHostlessMqtt(string endpoint, bool allowLoopback)
+        {
+            var policy = new WotEndpointPolicy { AllowLoopback = allowLoopback };
+
+            ServiceResult result = WotEndpointValidator.Validate(endpoint, policy, out Uri? normalized);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(normalized, Is.Null);
+        }
+
+        /// <summary>
+        /// Loopback opt-in never makes a missing Modbus authority a valid endpoint.
+        /// </summary>
+        [TestCase("modbus+tcp://", false)]
+        [TestCase("modbus://", true)]
+        [TestCase("modbus+tcp:///1", true)]
+        [Category("SecurityRegression")]
+        public void SecurityF45EndpointPolicyRejectsHostlessModbus(string endpoint, bool allowLoopback)
+        {
+            var policy = new WotEndpointPolicy { AllowLoopback = allowLoopback };
+
+            ServiceResult result = WotEndpointValidator.Validate(endpoint, policy, out Uri? normalized);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(normalized, Is.Null);
+        }
+
         [Test]
         public void ValidateAllowsLoopbackWhenPolicyOptsIn()
         {

@@ -43,11 +43,14 @@ using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
 using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 
@@ -84,13 +87,33 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await m_server.NodeManagerLifecycle.AddAsync(new WotConnectivityNodeManagerFactory(
                 new WotConnectivityServerOptions { ManagementAccess = policy }), callerContext: null)
                 .ConfigureAwait(false);
-            m_registry = new WotRegistryService();
+            var identities = new WotRegistryIdentityBindings
+            {
+                Groups =
+                [
+                    new WotRegistryGroupIdentity(
+                        WotRegistryGroups.ThingDescriptions, WotCon.WoTDocumentKindEnum.ThingDescription,
+                        "urn:mcp:thing-descriptions"),
+                    new WotRegistryGroupIdentity(
+                        WotRegistryGroups.ThingModels, WotCon.WoTDocumentKindEnum.ThingModel, "urn:mcp:thing-models")
+                ],
+                Resources =
+                [
+                    new WotRegistryResourceIdentity(
+                        WotRegistryGroups.ThingDescriptions, "mcp-live-resource", "urn:mcp-live-resource")
+                ]
+            };
+            m_content = new RecordingLeasedResourceStore();
+            m_registry = new WotRegistryService(
+                new FileWotRegistryStore(Path.Combine(m_root, "registry"), resourceStore: m_content),
+                null, identities);
             m_coordinator = new WotMaterializationCoordinator(
                 m_registry, new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle));
             await m_server.NodeManagerLifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                 new WotRegistryServerOptions
                 {
                     AutoRefresh = false,
+                    IdentityBindings = identities,
                     ManagementAccess = policy,
                     XRegistryEvents = new XRegistryServerOptions
                     {
@@ -105,7 +128,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 TransferRoot = m_root,
                 MaxTransferBytes = 256 * 1024
             }).AddOpcUaMcpWotCon().AddOpcUaMcpXRegistry();
-            services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "client-pki"), "WotMcpLiveClient")
+                .ConfigureAwait(false);
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
             var profiles = McpToolProfileSet.Parse("wot,xregistry");
             services.AddMcpServer()
                 .WithStreamServerTransport(Stream.Null, Stream.Null)
@@ -121,6 +147,14 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await m_sessions.ConnectAsync("unencrypted", endpoint, "None", "None",
                 "Anonymous", null, null, true, startup.Token).ConfigureAwait(false);
             JsonElement roots = Success(await CallAsync("wot_inspect_server", []).ConfigureAwait(false));
+            Assert.That(roots.GetProperty("legacy").GetProperty("error").GetBoolean(), Is.False);
+            Assert.That(roots.GetProperty("registry").GetProperty("error").GetBoolean(), Is.False);
+            foreach (string name in new[] { "LastRefreshTime", "LastRefreshSummary" })
+            {
+                Assert.That(roots.GetProperty("registry").GetProperty("properties").GetProperty(name)
+                    .GetProperty("dataValue").GetProperty("Status").GetProperty("Code").GetUInt32(),
+                    Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+            }
             Assert.That(roots.GetProperty("legacy").GetProperty("supported").GetBoolean(), Is.True);
             Assert.That(roots.GetProperty("registry").GetProperty("supported").GetBoolean(), Is.True);
             m_managementId = roots.GetProperty("legacy").GetProperty("nodeId").GetString()!;
@@ -148,7 +182,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }
             m_coordinator?.Dispose();
             m_registry?.Dispose();
+            m_content?.Dispose();
             m_server?.Dispose();
+            if (m_client is not null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_root is not null && Directory.Exists(m_root))
             {
                 Directory.Delete(m_root, recursive: true);
@@ -290,8 +329,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             JsonElement registryFields = registryEvents.GetProperty("items")[0].GetProperty("fields");
             Assert.That(EventField(registryFields, "SourceUrl").GetProperty("Value").GetString(),
                 Is.EqualTo("https://wot-mcp.example.test"));
+            string expectedGroupXid = m_registry!.Current.Groups.Values.Single(group =>
+                group.Kind == WotCon.WoTDocumentKindEnum.ThingModel).Xid;
             Assert.That(EventField(registryFields, "Subject").GetProperty("Value").GetString(),
-                Does.EndWith("/" + WotRegistryGroups.ThingModels));
+                Is.EqualTo(expectedGroupXid));
             await WaitForItemCountAsync(baseline, timeout.Token).ConfigureAwait(false);
 
             JsonObject wotRequest = Observation();
@@ -418,9 +459,12 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         private ServerFixture<ReferenceServer>? m_fixture;
         private ReferenceServer? m_server;
         private WotRegistryService? m_registry;
+        private RecordingLeasedResourceStore? m_content;
         private WotMaterializationCoordinator? m_coordinator;
         private ServiceProvider? m_services;
         private OpcUaSessionManager? m_sessions;
+        /// <summary>The fixture-owned client configuration and application certificates.</summary>
+        private ClientFixture? m_client;
     }
 }
 #endif

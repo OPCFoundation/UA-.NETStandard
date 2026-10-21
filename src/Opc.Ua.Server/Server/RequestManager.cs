@@ -323,7 +323,15 @@ namespace Opc.Ua.Server
         {
             long validationId = Interlocked.Increment(
                 ref m_lastValidationScopeId);
-            var scope = new RequestValidationScope(this, validationId);
+            RequestValidationScope? scope = Interlocked.Exchange(ref m_spareValidationScopes[GetSpareIndex()], null);
+            if (scope == null)
+            {
+                scope = new RequestValidationScope(this, validationId);
+            }
+            else
+            {
+                scope.Reuse(validationId);
+            }
             m_validationScopes.Add(scope);
 
             // A drain that misses this scope started first; the fence orders the registration
@@ -483,6 +491,18 @@ namespace Opc.Ua.Server
                     PublishDrainCountLocked();
                 }
             }
+        }
+
+        /// <summary>
+        /// The spare validation scope slot of the current processor.
+        /// </summary>
+        private static int GetSpareIndex()
+        {
+#if NETCOREAPP3_0_OR_GREATER
+            return Thread.GetCurrentProcessorId() & (kSpareStripes - 1);
+#else
+            return Environment.CurrentManagedThreadId & (kSpareStripes - 1);
+#endif
         }
 
         private RequestDrain? CreateRequestDrainLocked(out TimeSpan budget)
@@ -1059,6 +1079,16 @@ namespace Opc.Ua.Server
         private int m_pendingCancelSessionCount;
         private DateTime m_nextPendingCancelSweep;
         private long m_lastValidationScopeId;
+
+        /// <summary>
+        /// Validation scopes that have been disposed, one slot per processor stripe: a request
+        /// validates in a short, mostly synchronous window, so a scope is taken and returned on
+        /// the same stripe and validation allocates none.
+        /// </summary>
+        private readonly RequestValidationScope?[] m_spareValidationScopes =
+            new RequestValidationScope?[kSpareStripes];
+        private const int kSpareStripes = 16;
+
         private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;
         private bool m_disposed;
@@ -1246,6 +1276,11 @@ namespace Opc.Ua.Server
         /// attaching its execution scope to the context that <c>ValidateRequestAsync</c> returns.
         /// </para>
         /// </summary>
+        /// <remarks>
+        /// A disposed scope is reused under a new id. Ids are never reused, so a drain that read
+        /// the scope before its reuse waits at most for the newer validation, never for nothing.
+        /// Only the owner disposes a scope, once.
+        /// </remarks>
         private sealed class RequestValidationScope : IDisposable, IRequestTableEntry
         {
             /// <inheritdoc/>
@@ -1266,10 +1301,20 @@ namespace Opc.Ua.Server
                 long validationId)
             {
                 m_requestManager = requestManager;
-                ValidationId = validationId;
+                m_validationId = validationId;
             }
 
-            public long ValidationId { get; }
+            public long ValidationId => Interlocked.Read(ref m_validationId);
+
+            /// <summary>
+            /// Prepares a disposed scope for another validation.
+            /// </summary>
+            /// <param name="validationId">The id the drain waits for.</param>
+            public void Reuse(long validationId)
+            {
+                Interlocked.Exchange(ref m_validationId, validationId);
+                m_disposed = false;
+            }
 
             /// <summary>
             /// Releases the drain that waits for this scope.
@@ -1280,29 +1325,39 @@ namespace Opc.Ua.Server
                 {
                     m_disposed = true;
                     m_requestManager.m_validationScopes.Remove(this);
-                    if (!m_requestManager.HasRequestDrains())
+                    if (m_requestManager.HasRequestDrains())
                     {
-                        return;
+                        CompleteDrains();
                     }
-                    lock (m_requestManager.m_requestsLock)
+                    // the owner does not touch the scope after disposing it
+                    Volatile.Write(ref m_requestManager.m_spareValidationScopes[GetSpareIndex()], this);
+                }
+            }
+
+            /// <summary>
+            /// Releases the drains that wait for this scope.
+            /// </summary>
+            private void CompleteDrains()
+            {
+                lock (m_requestManager.m_requestsLock)
+                {
+                    for (int ii =
+                        m_requestManager.m_requestDrains.Count - 1;
+                        ii >= 0;
+                        ii--)
                     {
-                        for (int ii =
-                            m_requestManager.m_requestDrains.Count - 1;
-                            ii >= 0;
-                            ii--)
+                        if (m_requestManager.m_requestDrains[ii]
+                            .CompleteValidation(m_validationId))
                         {
-                            if (m_requestManager.m_requestDrains[ii]
-                                .CompleteValidation(ValidationId))
-                            {
-                                m_requestManager.m_requestDrains.RemoveAt(ii);
-                            }
+                            m_requestManager.m_requestDrains.RemoveAt(ii);
                         }
-                        m_requestManager.PublishDrainCountLocked();
                     }
+                    m_requestManager.PublishDrainCountLocked();
                 }
             }
 
             private readonly RequestManager m_requestManager;
+            private long m_validationId;
             private bool m_disposed;
         }
     }

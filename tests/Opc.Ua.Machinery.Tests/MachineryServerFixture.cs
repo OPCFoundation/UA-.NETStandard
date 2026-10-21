@@ -57,6 +57,11 @@ namespace Opc.Ua.Machinery.Tests
 
         public MachineryNodeManager Manager { get; private set; } = null!;
 
+        /// <summary>
+        /// Gets the live session context used by direct method calls and their file operations.
+        /// </summary>
+        public ServerSystemContext SessionContext { get; private set; } = null!;
+
         public IMachineryBuildContext CreateBuildContext()
         {
             return Manager.CreateMachineryBuildContext();
@@ -65,7 +70,7 @@ namespace Opc.Ua.Machinery.Tests
         public async Task StartAsync()
         {
             m_fixture = new ServerFixture<StandardServer>(
-                telemetry => new StandardServer(telemetry))
+                telemetry => new StandardServer(telemetry) { SessionManagerFactory = m_session.Factory })
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -78,6 +83,7 @@ namespace Opc.Ua.Machinery.Tests
                 Options);
             var externalReferences = new Dictionary<NodeId, IList<IReference>>();
             await Manager.CreateAddressSpaceAsync(externalReferences).ConfigureAwait(false);
+            SessionContext = m_session.CreateContext(Manager.SystemContext);
         }
 
         public async ValueTask DisposeAsync()
@@ -90,5 +96,8 @@ namespace Opc.Ua.Machinery.Tests
         }
 
         private ServerFixture<StandardServer>? m_fixture;
+
+        /// <summary>The live owner used by in-process calls.</summary>
+        private readonly MachineryTestSession m_session = new();
     }
 }

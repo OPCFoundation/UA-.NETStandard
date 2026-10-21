@@ -145,6 +145,21 @@ namespace Opc.Ua.PlasticsRubber.Server
             SetCyclicJobDataMethodState method = node.SetCyclicJobData ??
                 throw new ArgumentException("The SetCyclicJobData method was not selected.", nameof(node));
             m_binding = new PlasticsRubberMethodBinding(node, context, accessPolicy);
+            BaseVariableState?[] publication =
+            [
+                node.JobName, node.JobDescription, node.CustomerName, node.ProductionDatasetName,
+                node.ProductionDatasetDescription, node.Material, node.ProductName, node.ProductDescription,
+                node.ContinueAtJobEnd, node.NominalParts, node.NominalBoxParts, node.ExpectedCycleTime,
+                node.MouldId, node.NumCavities
+            ];
+            foreach (BaseVariableState? field in publication)
+            {
+                if (field != null)
+                {
+                    field.AccessLevel = AccessLevels.CurrentRead;
+                    field.UserAccessLevel = AccessLevels.CurrentRead;
+                }
+            }
             method.OnCallAsync = async (
                 call, called, target, name, description, customer, datasetName, datasetDescription,
                 material, products, productDescriptions, continueAtEnd, nominalParts, nominalBoxParts,
