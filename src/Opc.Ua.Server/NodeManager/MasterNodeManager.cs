@@ -2872,7 +2872,14 @@ namespace Opc.Ua.Server
             public int EmissionCutoffReservations
             {
                 get => Volatile.Read(ref m_emissionCutoffReservations);
-                set => Interlocked.Exchange(ref m_emissionCutoffReservations, value);
+                set
+                {
+                    Interlocked.Exchange(ref m_emissionCutoffReservations, value);
+                    // Every reservation and release moves the version, so an admission that read the
+                    // gate before a cutoff started and checks it again after the cutoff completed
+                    // still sees that a cutoff ran in between.
+                    Interlocked.Increment(ref m_cutoffVersion);
+                }
             }
 
             /// <summary>
@@ -2919,16 +2926,22 @@ namespace Opc.Ua.Server
             /// <c>true</c> when admission failed after a drain could have counted the lease, so
             /// the caller must complete that drain.
             /// </param>
-            public bool TryAdmitFast(out int slot, out bool releaseRequired)
+            /// <param name="beforeEnter">Test hook run between the first gate check and the count.</param>
+            public bool TryAdmitFast(out int slot, out bool releaseRequired, Action? beforeEnter = null)
             {
                 releaseRequired = false;
                 slot = -1;
+                int version = Volatile.Read(ref m_cutoffVersion);
                 if (!IsFastAdmissionOpen)
                 {
                     return false;
                 }
+                beforeEnter?.Invoke();
                 int entered = m_fastDispatches.Enter();
-                if (IsFastAdmissionOpen)
+                // A cutoff that started (or started and completed) since the first check moved the
+                // version: the routes it published and its flag are then only observed together under
+                // the lock.
+                if (IsFastAdmissionOpen && Volatile.Read(ref m_cutoffVersion) == version)
                 {
                     slot = entered;
                     return true;
@@ -2948,14 +2961,19 @@ namespace Opc.Ua.Server
                 return DispatchesDrained is not null;
             }
 
+            /// <summary>
+            /// Reads the reservation before the flag: a cutoff clears the flag before it releases
+            /// its reservation, so a released reservation implies the cleared flag is visible.
+            /// </summary>
             private bool IsFastAdmissionOpen =>
-                BusinessEmissionsEnabled &&
                 EmissionCutoffReservations == 0 &&
+                BusinessEmissionsEnabled &&
                 DispatchesDrained is null;
 
             private readonly StripedCounter m_fastDispatches = new();
             private bool m_businessEmissionsEnabled = true;
             private int m_emissionCutoffReservations;
+            private int m_cutoffVersion;
             private TaskCompletionSource<bool>? m_dispatchesDrained;
             private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
         }

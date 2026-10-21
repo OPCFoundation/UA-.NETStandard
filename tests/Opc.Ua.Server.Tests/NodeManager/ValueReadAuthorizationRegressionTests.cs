@@ -215,6 +215,54 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A namespace default restriction served by a read callback is checked on every delivery,
+        /// also when the callback is attached after a grant was reused.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF29TightenedNamespaceDefaultCallbackAppliesAfterGrantAsync(bool attachLater)
+        {
+            await using var harness = new Harness();
+            await harness.InitializeAsync().ConfigureAwait(false);
+            harness.First.Endpoint.SecurityMode = MessageSecurityMode.Sign;
+            var metadata = new NamespaceMetadataState(null);
+            metadata.AddDefaultAccessRestrictions(harness.Owner.SystemContext);
+            DeterministicServerMock.SetNamespaceMetadata(harness.Server, harness.Owner.NamespaceIndex, metadata);
+            AccessRestrictionType served = AccessRestrictionType.None;
+            void AttachCallback()
+            {
+                metadata.DefaultAccessRestrictions!.OnSimpleReadValue =
+                    (ISystemContext _, NodeState _, ref Variant value) =>
+                    {
+                        value = new Variant((ushort)served);
+                        return ServiceResult.Good;
+                    };
+            }
+            if (!attachLater)
+            {
+                AttachCallback();
+            }
+
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+            served = AccessRestrictionType.EncryptionRequired;
+            if (attachLater)
+            {
+                AttachCallback();
+            }
+            await harness.EnqueueAsync().ConfigureAwait(false);
+            await harness.WaitAsync().ConfigureAwait(false);
+
+            DataValue[] values = harness.First.Values.ToArray();
+            AssertValue(values[0]);
+            AssertValue(values[1]);
+            AssertDenied(values[2], StatusCodes.BadSecurityModeInsufficient);
+        }
+
+        /// <summary>
         /// A grant reused across deliveries is withdrawn when the node's restrictions or the
         /// subscriber's channel change.
         /// </summary>
