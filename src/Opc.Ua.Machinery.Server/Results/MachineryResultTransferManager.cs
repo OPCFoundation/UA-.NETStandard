@@ -145,10 +145,17 @@ namespace Opc.Ua.Machinery.Server.Results
                     "carrying the ResultId to download.");
             }
 
+            NodeId sessionId = SessionIdOf(context);
+            if (sessionId.IsNull)
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadSessionIdInvalid,
+                    "Result-transfer handles require an active session.");
+            }
+
             await ReclaimExpiredHandlesAsync().ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
 
-            NodeId sessionId = SessionIdOf(context);
             ISession? owner = FindLiveSession(sessionId);
             DownloadSlot slot;
             lock (m_gate)
@@ -606,9 +613,7 @@ namespace Opc.Ua.Machinery.Server.Results
         private static bool OwnsSlot(ISystemContext context, DownloadSlot slot)
         {
             NodeId sessionId = SessionIdOf(context);
-            return slot.OwnerSessionId.IsNull ||
-                sessionId.IsNull ||
-                slot.OwnerSessionId == sessionId;
+            return !sessionId.IsNull && slot.OwnerSessionId == sessionId;
         }
 
         private DownloadSlot? FindSlotByFileObject(NodeState? parent)
@@ -671,7 +676,7 @@ namespace Opc.Ua.Machinery.Server.Results
             public uint Handle { get; }
 
             /// <summary>
-            /// Gets the owning session, or null for an internal caller.
+            /// Gets the owning session.
             /// </summary>
             public NodeId OwnerSessionId { get; }
 

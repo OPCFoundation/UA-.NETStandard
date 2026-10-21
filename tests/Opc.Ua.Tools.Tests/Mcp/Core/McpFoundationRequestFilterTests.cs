@@ -139,6 +139,8 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
         public async Task CoreRegistrationPreservesInjectedPolicyAndCallerContextAsync(bool configureOverload)
         {
             var policy = new Mock<IMcpOperationPolicy>(MockBehavior.Strict);
+            policy.Setup(value => value.RequireCaller()).Returns(s_caller);
+            policy.Setup(value => value.RequireSessionAccess(kSession)).Returns(s_caller);
             policy.Setup(value => value.RequireSession(McpCapability.IdentityAdministration, kSession))
                 .Returns(() =>
                 {
@@ -187,6 +189,8 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             Assert.That(calls, Is.EqualTo(1));
             Assert.That(result, Is.SameAs(expected));
             AssertNoScope();
+            policy.Verify(value => value.RequireCaller(), Times.Once);
+            policy.Verify(value => value.RequireSessionAccess(kSession), Times.Once);
             policy.Verify(value => value.RequireSession(McpCapability.IdentityAdministration, "Prod-A"), Times.Once);
             policy.VerifyNoOtherCalls();
             Assert.That(m_model.Browses.Select(query => query.Request.NodeId), Does.Contain(s_target));
@@ -425,7 +429,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
 
             Assert.That(calls, Is.EqualTo(1));
             AssertServiceError(result, StatusCodes.BadUserAccessDenied, "BadUserAccessDenied",
-                claims == "AuthenticatedAdministrator" ? kGrantDenied : kNoCaller);
+                kRegistrationDenied);
             Assert.That(m_callers.Current, Is.SameAs(s_caller));
             Assert.That(m_callers.HasRequestScope, Is.True);
             m_model.VerifyNoMutations();
@@ -470,7 +474,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             }
             else
             {
-                AssertServiceError(result, StatusCodes.BadUserAccessDenied, "BadUserAccessDenied", kNoCaller);
+                AssertServiceError(result, StatusCodes.BadUserAccessDenied, "BadUserAccessDenied", kRegistrationDenied);
                 m_model.VerifyNoMutations();
             }
             AssertNoScope();
@@ -1272,6 +1276,8 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
         private const string kSession = "Prod-A";
         private const string kNoCaller = "No trusted MCP caller identity is available.";
         private const string kGrantDenied = "The caller has no grant for the IdentityAdministration capability.";
+        private const string kRegistrationDenied =
+            "The caller cannot replace, remove or borrow this UA session registration.";
 
         private const string kSessionDenied =
             "The caller has no privileged-operation grant for the selected UA session.";

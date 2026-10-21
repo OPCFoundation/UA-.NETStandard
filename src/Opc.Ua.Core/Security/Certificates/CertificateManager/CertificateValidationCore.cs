@@ -61,7 +61,8 @@ namespace Opc.Ua
         /// </summary>
         private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
         private readonly Func<Certificate, X509Certificate2> m_copyNativeCertificate;
-        private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
+        private readonly ConcurrentDictionary<string, ValidatedPath> m_validatedCertificates;
+        private readonly TimeProvider m_timeProvider;
 
         /// <summary>
         /// Trust-list store instances, cached and reused across validations so
@@ -98,11 +99,24 @@ namespace Opc.Ua
             ITelemetryContext telemetry,
             Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
             Func<Certificate, X509Certificate2> copyNativeCertificate)
+            : this(telemetry, openStore, copyNativeCertificate, TimeProvider.System)
+        {
+        }
+
+        /// <summary>
+        /// Creates a validation engine using one clock for native validation and cached path validity.
+        /// </summary>
+        internal CertificateValidationCore(
+            ITelemetryContext telemetry,
+            Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
+            Func<Certificate, X509Certificate2> copyNativeCertificate,
+            TimeProvider timeProvider)
         {
             m_telemetry = telemetry;
             m_openStore = openStore ?? (store => store.OpenStore(telemetry));
             m_copyNativeCertificate = copyNativeCertificate ??
                 throw new ArgumentNullException(nameof(copyNativeCertificate));
+            m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
@@ -437,7 +451,7 @@ namespace Opc.Ua
         {
             InternalResetValidatedCertificates();
 
-            CertificateTrustList? trustedSnapshot = CertificateTrustList.CreateSnapshot(trustedStore);
+            var trustedSnapshot = CertificateTrustList.CreateSnapshot(trustedStore);
             CertificateStoreIdentifier? trustedCertificateStore = null;
 
             // A trust list can name its certificates inline and have no store
@@ -453,7 +467,7 @@ namespace Opc.Ua
                 };
             }
 
-            CertificateTrustList? issuerSnapshot = CertificateTrustList.CreateSnapshot(issuerStore);
+            var issuerSnapshot = CertificateTrustList.CreateSnapshot(issuerStore);
             CertificateStoreIdentifier? issuerCertificateStore = null;
             if (issuerSnapshot != null && !string.IsNullOrEmpty(issuerSnapshot.StorePath))
             {
@@ -551,20 +565,24 @@ namespace Opc.Ua
             }
 
             Certificate certificate = chain[0];
+            ValidatedPath? validatedPath = null;
+            CertificateValidationResult result;
 
             try
             {
-                await InternalValidateAsync(chain, endpoint: null, options, ct).ConfigureAwait(false);
-
-                m_validatedCertificates.GetOrAdd(
-                   certificate.Thumbprint,
-                   _ => certificate.RawData);
-                return CertificateValidationResult.Success;
+                await InternalValidateAsync(
+                    chain, endpoint: null, options, path => validatedPath = path, ct).ConfigureAwait(false);
+                result = CertificateValidationResult.Success;
             }
             catch (ServiceResultException se)
             {
-                return HandleCertificateValidationException(se, certificate, acceptError);
+                result = HandleCertificateValidationException(se, certificate, acceptError);
             }
+            if (result.IsValid && validatedPath != null)
+            {
+                m_validatedCertificates[certificate.Thumbprint] = validatedPath;
+            }
+            return result;
         }
 
         /// <summary>
@@ -739,8 +757,7 @@ namespace Opc.Ua
         /// Validate domains in a server certificate against endpoint used for connection.
         /// </summary>
         /// <remarks>
-        /// On a client: the endpoint is only checked if the certificate is not already validated.
-        /// On a server: the endpoint is always checked but the certificate is not saved.
+        /// The endpoint is checked independently of cached certificate-chain validation.
         /// </remarks>
         /// <exception cref="ServiceResultException">
         /// Thrown with <see cref="StatusCodes.BadCertificateHostNameInvalid"/>
@@ -752,16 +769,6 @@ namespace Opc.Ua
             bool serverValidation,
             Func<Certificate, ServiceResult, bool>? acceptError)
         {
-            if (!serverValidation &&
-                m_useValidatedCertificates &&
-                m_validatedCertificates.TryGetValue(
-                    serverCertificate.Thumbprint,
-                    out byte[]? certificate2) &&
-                Utils.IsEqual(certificate2, serverCertificate.RawData))
-            {
-                return;
-            }
-
             Uri? endpointUrl = endpoint?.EndpointUrl;
             if (endpointUrl != null && !CertificateValidationHelpers.FindDomain(serverCertificate, endpointUrl))
             {
@@ -858,6 +865,7 @@ namespace Opc.Ua
             CertificateCollection certificates,
             ConfiguredEndpoint? endpoint,
             Security.Certificates.CertificateValidationOptions? options,
+            Action<ValidatedPath> capturePath,
             CancellationToken ct = default)
         {
             Certificate certificate = certificates[0];
@@ -906,28 +914,35 @@ namespace Opc.Ua
                     .ConfigureAwait(false);
 
                 ServiceResult? sresult = PopulateSresultWithValidationErrors(validationErrors);
+                var currentPath = new ValidatedPath(certificate, issuers);
+                if (issuers.Count == 0
+                    ? X509Utils.IsSelfSigned(certificate)
+                    : X509Utils.IsSelfSigned(issuers[^1].Certificate))
+                {
+                    capturePath(currentPath);
+                }
 
                 // Check for a previously validated certificate. Deliberately
                 // placed AFTER the issuer walk: GetIssuersAsync is what
                 // evaluates the revocation lists, so a cached certificate
                 // that has been revoked since it was first validated (e.g.
                 // by a freshly pushed CRL) is never waved through on the
-                // thumbprint alone. Only an ACTUAL revocation blocks the
-                // fast path - a certificate enters the cache after a
+                // thumbprint alone. Actual revocation or a validity-period
+                // failure blocks the fast path. A certificate enters the cache after a
                 // successful validation or an explicitly accepted
                 // suppressible error (e.g. RevocationUnknown when the CA
                 // publishes no CRL), and re-raising such an accepted error
                 // on every validation would re-fire the accept callback per
                 // connection and permanently defeat the cache for exactly
-                // the certificates it was written for. On a cache hit the
-                // expensive chain-policy build below is skipped, which is
-                // the performance intent of UseValidatedCertificates.
+                // the certificates it was written for. Time validity must
+                // still hold for the leaf and every resolved issuer. A current
+                // cache hit skips the expensive chain-policy build below.
                 if (UseValidatedCertificates &&
                     !HasRevocationError(validationErrors) &&
                     m_validatedCertificates.TryGetValue(
                         certificate.Thumbprint,
-                        out byte[]? certificate2) &&
-                    Utils.IsEqual(certificate2, certificate.RawData))
+                        out ValidatedPath? cachedPath) &&
+                    cachedPath.Matches(currentPath, m_timeProvider.GetUtcNow().UtcDateTime))
                 {
                     return;
                 }
@@ -937,6 +952,7 @@ namespace Opc.Ua
                 {
                     RevocationFlag = X509RevocationFlag.EntireChain,
                     RevocationMode = X509RevocationMode.NoCheck,
+                    VerificationTime = m_timeProvider.GetUtcNow().UtcDateTime,
                     VerificationFlags = X509VerificationFlags.NoFlag,
 #if NET5_0_OR_GREATER
                     DisableCertificateDownloads = !(options?.AllowCertificateDownload ?? false),
@@ -1015,7 +1031,7 @@ namespace Opc.Ua
                             default:
                                 if (m_logger.IsEnabled(LogLevel.Error))
                                 {
-                                    m_logger.CertificateValidationLog6((chainStatus.Status).ToString());
+                                    m_logger.CertificateValidationLog6(chainStatus.Status.ToString());
                                 }
                                 sresult = new ServiceResult(ServiceResult.Create(
                                     StatusCodes.BadCertificateInvalid,
@@ -1099,6 +1115,30 @@ namespace Opc.Ua
                 {
                     // no issuer found at all
                     chainIncomplete = true;
+                }
+
+                // Apply the same exclusive expiry and clock to every path certificate,
+                // independently of native chain-engine time handling.
+                DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
+                if ((now < certificate.NotBefore.ToUniversalTime() || now >= certificate.NotAfter.ToUniversalTime()) &&
+                    (trustedCertificate == null ||
+                        (trustedCertificate.Options & CertificateValidationOptions.SuppressCertificateExpired) == 0))
+                {
+                    sresult = new ServiceResult(
+                        ServiceResult.Create(StatusCodes.BadCertificateTimeInvalid, "Certificate is not time valid."),
+                        sresult);
+                }
+                foreach (CertificateIssuerReference issuer in issuers)
+                {
+                    if ((now < issuer.Certificate.NotBefore.ToUniversalTime() ||
+                        now >= issuer.Certificate.NotAfter.ToUniversalTime()) &&
+                        (issuer.Options & CertificateValidationOptions.SuppressCertificateExpired) == 0)
+                    {
+                        sresult = new ServiceResult(
+                            ServiceResult.Create(
+                                StatusCodes.BadCertificateIssuerTimeInvalid, "Issuer certificate is not time valid."),
+                            sresult);
+                    }
                 }
 
                 // A certificate or CA the trust list marks as "never trust"
@@ -1401,12 +1441,6 @@ namespace Opc.Ua
                     isSuppressible: true);
             }
 
-            // accepted; cache raw data for future fast-path without adding
-            // another disposable certificate owner to the validation cache.
-            if (!m_validatedCertificates.ContainsKey(certificate.Thumbprint))
-            {
-                m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
-            }
             return CertificateValidationResult.Success;
         }
 
@@ -2128,6 +2162,63 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Immutable certificate bytes and validity intersection of the accepted issuer path.
+        /// Does not retain native certificate handles or borrow certificates from callers.
+        /// </summary>
+        private sealed class ValidatedPath
+        {
+            /// <summary>
+            /// Captures the resolved path before its borrowed certificate handles are released.
+            /// </summary>
+            public ValidatedPath(Certificate certificate, List<CertificateIssuerReference> issuers)
+            {
+                m_certificates = new byte[issuers.Count + 1][];
+                m_certificates[0] = certificate.RawData;
+                m_notBefore = certificate.NotBefore.ToUniversalTime();
+                m_notAfter = certificate.NotAfter.ToUniversalTime();
+                for (int i = 0; i < issuers.Count; i++)
+                {
+                    Certificate issuer = issuers[i].Certificate;
+                    m_certificates[i + 1] = issuer.RawData;
+                    DateTime notBefore = issuer.NotBefore.ToUniversalTime();
+                    DateTime notAfter = issuer.NotAfter.ToUniversalTime();
+                    if (notBefore > m_notBefore)
+                    {
+                        m_notBefore = notBefore;
+                    }
+                    if (notAfter < m_notAfter)
+                    {
+                        m_notAfter = notAfter;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Requires the entire previously accepted issuer path and its earliest validity deadline.
+            /// </summary>
+            public bool Matches(ValidatedPath current, DateTime now)
+            {
+                if (now < m_notBefore || now >= m_notAfter ||
+                    m_certificates.Length != current.m_certificates.Length)
+                {
+                    return false;
+                }
+                for (int i = 0; i < m_certificates.Length; i++)
+                {
+                    if (!Utils.IsEqual(m_certificates[i], current.m_certificates[i]))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            private readonly byte[][] m_certificates;
+            private readonly DateTime m_notBefore;
+            private readonly DateTime m_notAfter;
+        }
+
+        /// <summary>
         /// Reports whether the issuer walk found an actual revocation
         /// (<see cref="StatusCodes.BadCertificateRevoked"/> or
         /// <see cref="StatusCodes.BadCertificateIssuerRevoked"/>) for any
@@ -2315,33 +2406,33 @@ namespace Opc.Ua
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog1(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 2, Level = LogLevel.Error,
             Message = "The domain '{Url}' is not listed in the server certificate.")]
         public static partial void CertificateValidationLog2(
             this ILogger logger,
-            [NetworkAddress] global::System.Uri? url);
+            [NetworkAddress] Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 3, Level = LogLevel.Error,
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog3(
             this ILogger logger,
-            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate? certificate,
+            [ApplicationIdentity] Certificate? certificate,
             [SensitiveText] string serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 4, Level = LogLevel.Error,
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog4(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 5, Level = LogLevel.Error,
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog5(
             this ILogger logger,
-            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate? certificate,
-            [SensitiveText] global::Opc.Ua.ServiceResult serviceResult);
+            [ApplicationIdentity] Certificate? certificate,
+            [SensitiveText] ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 6, Level = LogLevel.Error,
             Message = "Unexpected status {ChainStatus} processing certificate chain.")]
@@ -2357,34 +2448,34 @@ namespace Opc.Ua
             Message = "Certificate {Certificate} rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog8(
             this ILogger logger,
-            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate certificate,
-            global::Opc.Ua.ServiceResult serviceResult);
+            [ApplicationIdentity] Certificate certificate,
+            ServiceResult serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 9, Level = LogLevel.Error,
             Message = "AcceptError callback threw; treating as reject.")]
         public static partial void CertificateValidationLog9(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 10, Level = LogLevel.Information,
             Message = "Auto accepted certificate {Certificate}")]
         public static partial void CertificateValidationLog10(
             this ILogger logger,
-            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate certificate);
+            [ApplicationIdentity] Certificate certificate);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 11, Level = LogLevel.Error,
             Message = "Certificate {Certificate} validation failed with suppressible errors but was " +
                 "rejected. Reason={ServiceResult}.")]
         public static partial void CertificateValidationLog11(
             this ILogger logger,
-            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate certificate,
+            [ApplicationIdentity] Certificate certificate,
             [SensitiveText] string serviceResult);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 12, Level = LogLevel.Warning,
             Message = "Failed to open issuer store: {CertificateStore}")]
         public static partial void CertificateValidationLog12(
             this ILogger logger,
-            [FilePath] global::Opc.Ua.CertificateStoreIdentifier certificateStore);
+            [FilePath] CertificateStoreIdentifier certificateStore);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateValidationCore + 13, Level = LogLevel.Warning,
             Message = "Error suppressed: {Status}: {Information}")]

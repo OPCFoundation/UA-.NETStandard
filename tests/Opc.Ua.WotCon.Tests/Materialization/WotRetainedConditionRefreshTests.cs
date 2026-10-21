@@ -215,6 +215,43 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
+        /// Verifies that a retired generation keeps a resolved action call until the call ends, and resolves no
+        /// further call: its owner may release the captured source only after the call.
+        /// </summary>
+        [TestCase("local-re-emission")]
+        [TestCase("transparent-forwarding")]
+        public async Task RetiredBindingWaitsForAResolvedActionCallAndResolvesNoOtherAsync(string mode)
+        {
+            await using var h = new RefreshHarness(
+                mode, sourceCondition: new ExpandedNodeId("retainedLimitAlarm", SourceNamespace));
+            BaseEventState? first = await h.ProjectAsync().ConfigureAwait(false);
+            Assert.That(first, Is.Not.Null);
+            ByteString eventId = first!.EventId!.Value;
+            h.Binding.RegisterAction("Acknowledge", h.CreateAction());
+
+            ServiceResult resolved = h.Binding.ResolveAction(
+                eventId, "Acknowledge", out WotCapturedEvent? occurrence, out WotCapturedConditionAction? action,
+                out IDisposable? call);
+            Assert.That(resolved.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(occurrence, Is.Not.Null);
+            Assert.That(action, Is.Not.Null);
+            Assert.That(call, Is.Not.Null);
+
+            h.Binding.Clear();
+            Task completed = h.Binding.WhenActionCallsCompletedAsync();
+            Assert.That(completed.IsCompleted, Is.False, "the retired binding still has a resolved call");
+            ServiceResult retired = h.Binding.ResolveAction(
+                eventId, "Acknowledge", out _, out _, out IDisposable? none);
+            Assert.That(retired.StatusCode, Is.EqualTo(StatusCodes.BadEventIdUnknown));
+            Assert.That(none, Is.Null);
+
+            call!.Dispose();
+            call.Dispose();
+            await completed.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(h.Binding.WhenActionCallsCompletedAsync().IsCompleted, Is.True);
+        }
+
+        /// <summary>
         /// Verifies that retained property update reuses identity and finite capacity.
         /// </summary>
         [TestCase("local-re-emission")]
@@ -430,9 +467,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="configurationProperty">The configuration property used to initialize the instance.</param>
             /// <param name="capacity">The capacity used to initialize the instance.</param>
             /// <param name="mode">The mode used to initialize <c>RefreshHarness</c>.</param>
+            /// <param name="sourceCondition">The source Condition the binding routes actions for, if any.</param>
             public RefreshHarness(
                 string mode, bool limitType = true, bool qualifiedProperty = false, bool includeStateProperty = false,
-                string? configurationProperty = null, int capacity = 1)
+                string? configurationProperty = null, int capacity = 1, ExpandedNodeId sourceCondition = default)
             {
                 ServiceMessageContext messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
                 messageContext.NamespaceUris = new NamespaceTable(
@@ -501,7 +539,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 var notifier = new BaseObjectState(null) { NodeId = new NodeId("Owner", 2) };
                 bool transparent = mode == "transparent-forwarding";
                 Binding = new WotProjectedEventBinding(Context, m_eventSource, notifier,
-                    transparent ? s_sourceType : s_localType, null, ExpandedNodeId.Null, capacity, TimeProvider.System,
+                    transparent ? s_sourceType : s_localType, null, sourceCondition, capacity,
+                    TimeProvider.System,
                     "urn:wot:refresh:document", "/events/alarm", m_registry,
                     transparent
                         ? WoTEventIdentityModeEnum.TransparentForwarding : WoTEventIdentityModeEnum.LocalReEmission,
@@ -581,6 +620,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 }
                 return Binding.ProjectAsync(new WotNotification(new DataValue(Variant.Null), null, data.Build())
                     .WithContext(m_messageContext).WithCapturedEvent(captured), CancellationToken.None);
+            }
+
+            /// <summary>
+            /// Creates a captured Condition action on the current source that answers Good without a call.
+            /// </summary>
+            public WotCapturedConditionAction CreateAction()
+            {
+                return new WotCapturedConditionAction(
+                    m_source, Alarm.NodeId, new NodeId("Acknowledge", 1),
+                    (_, _) => new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Good)));
             }
 
             public void ReplaceSource()

@@ -1492,7 +1492,9 @@ namespace Opc.Ua
                         m_telemetry,
                         store => string.IsNullOrEmpty(store.StorePath)
                             ? null
-                            : OpenStore(store.StorePath!, store.StoreType));
+                            : OpenStore(store.StorePath!, store.StoreType),
+                        static certificate => certificate.AsX509Certificate2(),
+                        m_timeProvider);
                     try
                     {
                         if (m_trustLists.TryGetValue(trustList, out TrustListEntry? entry))

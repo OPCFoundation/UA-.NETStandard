@@ -457,6 +457,16 @@ namespace Opc.Ua.Bindings
             {
                 throw new ObjectDisposedException(nameof(HttpsTransportChannel));
             }
+            if (!url.IsAbsoluteUri ||
+                (url.Scheme != Uri.UriSchemeHttps && url.Scheme != Utils.UriSchemeOpcHttps) ||
+                (!string.IsNullOrEmpty(settings.Description?.TransportProfileUri) &&
+                    settings.Description.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                    settings.Description.TransportProfileUri != Profiles.HttpsJsonTransport))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "The HTTPS transport requires an absolute HTTPS endpoint and a compatible transport profile.");
+            }
             m_url = new Uri(url.ToString());
             // remove the opc. prefix, the https client can not handle it
             if (m_url.Scheme == Utils.UriSchemeOpcHttps)

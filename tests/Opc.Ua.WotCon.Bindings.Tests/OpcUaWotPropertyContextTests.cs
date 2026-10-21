@@ -167,8 +167,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 new WotPayloadDescriptor("application/octet-stream", "binary"),
                 [],
                 isExecutable: true);
-            IWotBindingChannel channel = await executor.ActivateAsync(form, new WotExecutorContext())
-                .ConfigureAwait(false);
+            IWotBindingChannel channel = await executor.ActivateAsync(form, new WotExecutorContext(
+                endpointPolicy: new WotEndpointPolicy { AllowLoopback = true })).ConfigureAwait(false);
             Assert.That(channel, Is.InstanceOf<IWotPropertyBindingChannel>());
             return (IWotPropertyBindingChannel)channel;
         }

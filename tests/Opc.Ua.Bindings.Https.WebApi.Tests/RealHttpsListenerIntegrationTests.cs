@@ -800,6 +800,16 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 Descriptions = [.. s_peerProfiles.Select(profile =>
                 {
                     var description = (EndpointDescription)endpoint.Clone();
+                    bool secureHttpsEndpoint = mutualTls &&
+                        profile is Profiles.HttpsBinaryTransport or
+                            Profiles.HttpsJsonTransport or
+                            Profiles.HttpsOpenApiTransport;
+                    description.SecurityMode = secureHttpsEndpoint
+                        ? MessageSecurityMode.SignAndEncrypt
+                        : MessageSecurityMode.None;
+                    description.SecurityPolicyUri = secureHttpsEndpoint
+                        ? SecurityPolicies.Basic256Sha256
+                        : SecurityPolicies.None;
                     description.TransportProfileUri = profile;
                     if (profile is Profiles.UaWssTransport or Profiles.UaWssJsonTransport or Profiles.WssOpenApiTransport)
                     {

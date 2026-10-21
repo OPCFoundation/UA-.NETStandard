@@ -667,10 +667,27 @@ namespace Opc.Ua.Client
         {
             MessageSecurityMode originalMode = endpoint.Description.SecurityMode;
             string originalPolicyUri = endpoint.Description.SecurityPolicyUri!;
+            bool requiresHttps = endpoint.EndpointUrl is { IsAbsoluteUri: true } originalUrl &&
+                Utils.IsUriHttpsScheme(originalUrl.Scheme);
+            ConfiguredEndpoint candidate = CoreUtils.Clone(endpoint)!;
             try
             {
-                await UpdateFromServerAsync(endpoint, connection, originalMode, originalPolicyUri)
+                await UpdateFromServerAsync(candidate, connection, originalMode, originalPolicyUri)
                     .ConfigureAwait(false);
+                if (candidate.Description.SecurityMode != originalMode ||
+                    candidate.Description.SecurityPolicyUri != originalPolicyUri ||
+                    (requiresHttps &&
+                        (candidate.EndpointUrl is not { IsAbsoluteUri: true } url ||
+                            !Utils.IsUriHttpsScheme(url.Scheme) ||
+                            (candidate.Description.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                                candidate.Description.TransportProfileUri != Profiles.HttpsJsonTransport &&
+                                !Profiles.IsHttpsOpenApi(candidate.Description.TransportProfileUri)))))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Endpoint refresh changed the required transport or message security.");
+                }
+                endpoint.Update(candidate);
             }
             catch (ServiceResultException sre) when (
                 sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
@@ -704,6 +721,10 @@ namespace Opc.Ua.Client
                     securityMode,
                     securityPolicyUri,
                     m_telemetry);
+            }
+            if (Session is Session session)
+            {
+                return endpoint.UpdateFromServerAsync(session.ApplicationConfiguration, m_telemetry);
             }
             return endpoint.UpdateFromServerAsync(
                 endpoint.EndpointUrl!,

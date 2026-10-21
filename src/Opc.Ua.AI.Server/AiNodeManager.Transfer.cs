@@ -33,12 +33,6 @@ using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua;
-using Opc.Ua.AI;
-using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
-using BrowseNames = Opc.Ua.AI.BrowseNames;
-using ObjectIds = Opc.Ua.ObjectIds;
-using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
@@ -63,6 +57,8 @@ namespace Opc.Ua.AI.Server
         /// </para>
         /// </remarks>
         private async ValueTask<BeginTransferMethodStateResult> BeginTransferAsync(
+            ISystemContext context,
+            MethodState invocationMethod,
             NodeId objectId,
             string contentType,
             ulong requestSize,
@@ -90,6 +86,17 @@ namespace Opc.Ua.AI.Server
                 return new BeginTransferMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadRequestTooLarge,
+                    Transfer = NodeId.Null,
+                    Accepted = false
+                };
+            }
+
+            InferenceOwner? owner = CaptureOwner(context, sessionBound: true);
+            if (owner is null)
+            {
+                return new BeginTransferMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadUserAccessDenied,
                     Transfer = NodeId.Null,
                     Accepted = false
                 };
@@ -130,6 +137,8 @@ namespace Opc.Ua.AI.Server
                 {
                     Node = node,
                     DeploymentId = deployment.NodeId,
+                    InvocationMethodId = invocationMethod.NodeId,
+                    Owner = owner,
                     ContentType = contentType,
                     Parameters = parameters ?? new Dictionary<string, string>(),
                     ExpiresAt = DateTime.UtcNow.Add(m_options.TransferExpiry)
@@ -147,6 +156,7 @@ namespace Opc.Ua.AI.Server
                 Child<PropertyState<FinishReasonEnum>>(node, BrowseNames.FinishReason);
                 Child<PropertyState<LocalizedText>>(node, BrowseNames.LastError);
 
+                ProtectOwnedTree(node, owner);
                 m_transfers[node.NodeId] = entry;
                 Child<FolderState>(m_root!, BrowseNames.Jobs).AddChild(node);
                 AddPredefinedNodeSynchronously(node);
@@ -165,25 +175,22 @@ namespace Opc.Ua.AI.Server
         /// </summary>
         private void WireTransfer(TransferEntry entry)
         {
-            var request = Child<FileState>(entry.Node, BrowseNames.Request);
-            var response = Child<FileState>(entry.Node, BrowseNames.Response);
+            FileState request = Child<FileState>(entry.Node, BrowseNames.Request);
+            FileState response = Child<FileState>(entry.Node, BrowseNames.Response);
 
-            m_files.Attach(request, entry.Request, writable: true);
-            m_files.Attach(response, entry.Response, writable: false);
+            m_files.Attach(request, entry.Request, writable: true, context => IsOwner(context, entry.Owner));
+            m_files.Attach(response, entry.Response, writable: false, context => IsOwner(context, entry.Owner));
             m_files.Own(entry.Node, request, response);
 
             Child<ExecuteMethodState>(entry.Node, BrowseNames.Execute).OnCallAsync =
-                (context, method, objectId, ct) => ExecuteTransferAsync(objectId, ct);
+                (context, method, objectId, ct) => ExecuteTransferAsync(context, objectId, ct);
 
             // Materialised rather than looked up. FindChild does not create, so an
             // optional Method reached that way is silently absent: the sample would
             // claim to support Abort and publish nothing.
-            Child<MethodState>(entry.Node, BrowseNames.Abort).OnCallMethod2Async = async (
+            Child<MethodState>(entry.Node, BrowseNames.Abort).OnCallMethod2Async = (
                 context, method, objectId, inputs, outputs, ct) =>
-            {
-                await DiscardTransferAsync(objectId, ct).ConfigureAwait(false);
-                return ServiceResult.Good;
-            };
+                DiscardTransferAsync(context, objectId, ct);
         }
 
         /// <summary>
@@ -196,12 +203,12 @@ namespace Opc.Ua.AI.Server
         /// arrived in chunks.
         /// </remarks>
         private async ValueTask<ExecuteMethodStateResult> ExecuteTransferAsync(
+            ISystemContext context,
             NodeId objectId,
             CancellationToken ct)
         {
             TransferEntry? entry;
             DeploymentState? deployment;
-            byte[] payload;
 
             lock (m_sync)
             {
@@ -214,6 +221,15 @@ namespace Opc.Ua.AI.Server
                     };
                 }
 
+                if (!IsOwner(context, entry.Owner))
+                {
+                    return new ExecuteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadUserAccessDenied,
+                        Accepted = false
+                    };
+                }
+
                 deployment = FindDeployment(entry.DeploymentId);
 
                 if (deployment is null)
@@ -221,6 +237,40 @@ namespace Opc.Ua.AI.Server
                     return new ExecuteMethodStateResult
                     {
                         ServiceResult = StatusCodes.BadNodeIdUnknown,
+                        Accepted = false
+                    };
+                }
+            }
+
+            ServiceResult authorized = await AuthorizeDeploymentAsync(
+                context, deployment, entry.InvocationMethodId, ct).ConfigureAwait(false);
+            if (ServiceResult.IsBad(authorized))
+            {
+                return new ExecuteMethodStateResult
+                {
+                    ServiceResult = authorized,
+                    Accepted = false
+                };
+            }
+
+            byte[] payload;
+            lock (m_sync)
+            {
+                if (!m_transfers.TryGetValue(objectId, out TransferEntry? current) ||
+                    !ReferenceEquals(current, entry))
+                {
+                    return new ExecuteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadInvalidState,
+                        Accepted = false
+                    };
+                }
+
+                if (!IsOwner(context, entry.Owner))
+                {
+                    return new ExecuteMethodStateResult
+                    {
+                        ServiceResult = StatusCodes.BadUserAccessDenied,
                         Accepted = false
                     };
                 }
@@ -245,7 +295,7 @@ namespace Opc.Ua.AI.Server
                     m_options.TransferInferenceTimeout.TotalMilliseconds,
                     ct).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is ArgumentException || ex is JsonException)
+            catch (Exception ex) when (ex is ArgumentException or JsonException)
             {
                 lock (m_sync)
                 {
@@ -320,7 +370,7 @@ namespace Opc.Ua.AI.Server
 
         private void SetTransferState(TransferEntry entry, TransferStateEnum state)
         {
-            var node = Child<PropertyState<TransferStateEnum>>(entry.Node, BrowseNames.State);
+            PropertyState<TransferStateEnum> node = Child<PropertyState<TransferStateEnum>>(entry.Node, BrowseNames.State);
             node.Value = state;
             entry.Node.ClearChangeMasks(SystemContext, true);
         }
@@ -334,7 +384,8 @@ namespace Opc.Ua.AI.Server
         /// caller finds nothing and returns, rather than racing the first one to
         /// delete the same node.
         /// </remarks>
-        private async ValueTask DiscardTransferAsync(
+        private async ValueTask<ServiceResult> DiscardTransferAsync(
+            ISystemContext context,
             NodeId transferId,
             CancellationToken ct)
         {
@@ -342,16 +393,22 @@ namespace Opc.Ua.AI.Server
 
             lock (m_sync)
             {
-                if (!m_transfers.Remove(transferId, out entry))
+                if (!m_transfers.TryGetValue(transferId, out entry))
                 {
-                    return;
+                    return ServiceResult.Good;
+                }
+                if (!IsOwner(context, entry.Owner))
+                {
+                    return StatusCodes.BadUserAccessDenied;
                 }
 
+                m_transfers.Remove(transferId);
                 m_files.Detach(entry.Node);
             }
 
             await DeleteNodeAsync(SystemContext, transferId, ct).ConfigureAwait(false);
             entry.Dispose();
+            return ServiceResult.Good;
         }
 
         /// <summary>

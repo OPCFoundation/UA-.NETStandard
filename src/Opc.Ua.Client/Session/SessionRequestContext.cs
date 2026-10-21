@@ -38,7 +38,7 @@ namespace Opc.Ua.Client
     /// </summary>
     /// <remarks>
     /// Use <see cref="Session"/> for every classification, request and cleanup in the operation.
-    /// Each wire dispatch checks the owning managed session, its generation and namespace mappings,
+    /// Each wire dispatch checks the originating stack session, its generation and namespace mappings,
     /// then sends once using the captured authentication token and physical transport. Recovery invalidates
     /// the context even when it might ultimately reactivate the same server session. Already dispatched
     /// requests may complete; their results are not replaced by a later cancellation or invalidation.
@@ -48,13 +48,15 @@ namespace Opc.Ua.Client
     public sealed class SessionRequestContext : IAsyncDisposable
     {
         /// <summary>
-        /// Captures a session while its managed service gate and identity synchronization are held.
+        /// Captures a session under identity synchronization and, when present, its managed service gate.
         /// </summary>
-        internal SessionRequestContext(ManagedSession owner, Session session, long generation)
+        internal SessionRequestContext(
+            ManagedSession? owner, Session session, long generation, bool requireConfidentiality = false)
         {
             m_owner = owner;
             m_originalSession = session;
             m_generation = generation;
+            m_requireConfidentiality = requireConfidentiality;
             SessionConfiguration configuration = session.SaveSessionConfiguration();
             SessionId = configuration.SessionId;
             m_authenticationToken = configuration.AuthenticationToken;
@@ -77,6 +79,7 @@ namespace Opc.Ua.Client
             {
                 throw InvalidSession();
             }
+            ValidateConfidentiality();
             m_namespaceUris = session.NamespaceUris.ToArrayOf();
             m_serverUris = session.ServerUris.ToArrayOf();
             m_messageContext = new ServiceMessageContext(session.MessageContext, session.MessageContext.Telemetry);
@@ -94,8 +97,11 @@ namespace Opc.Ua.Client
                 throw;
             }
             session.RequestContextChanged += Invalidate;
-            owner.ConnectionStateChanged += OnConnectionStateChanged;
-            owner.ChannelStateChanged += OnChannelStateChanged;
+            if (owner != null)
+            {
+                owner.ConnectionStateChanged += OnConnectionStateChanged;
+                owner.ChannelStateChanged += OnChannelStateChanged;
+            }
         }
 
         /// <summary>
@@ -138,7 +144,47 @@ namespace Opc.Ua.Client
                     StatusCodes.BadNotSupported,
                     "Generation-bound requests require a stack ManagedSession.");
             }
-            return managed.CaptureRequestContextAsync(ct);
+            return managed.CaptureRequestContextAsync(requireConfidentiality: false, ct);
+        }
+
+        /// <summary>
+        /// Captures an encrypted dispatch channel for an operation carrying passwords or private keys.
+        /// </summary>
+        /// <remarks>
+        /// Supports stack <see cref="ManagedSession"/> and <see cref="Client.Session"/> instances.
+        /// Use only the returned <see cref="Session"/> for classification and dispatch, and dispose this
+        /// context after the operation. Every send checks the original session, authentication token,
+        /// namespace tables and physical channel generation, then requires that channel's actual endpoint
+        /// to use SignAndEncrypt with a non-None security policy. The operation never follows a replacement
+        /// session or retries on a replacement channel. Unsupported custom sessions fail closed.
+        /// Custom transports must not be independently retargeted outside their stack owner.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public static async ValueTask<SessionRequestContext> CaptureConfidentialAsync(
+            ISession session, CancellationToken ct = default)
+        {
+            if (session is null)
+            {
+                throw new ArgumentNullException(nameof(session));
+            }
+            ct.ThrowIfCancellationRequested();
+            switch (session)
+            {
+                case ManagedSession managed:
+                    return await managed.CaptureRequestContextAsync(requireConfidentiality: true, ct)
+                        .ConfigureAwait(false);
+                case Session fixedSession:
+                    if (fixedSession.NullableTransportChannel is RequestContextTransport borrowed)
+                    {
+                        return await borrowed.CaptureConfidentialAsync(ct).ConfigureAwait(false);
+                    }
+                    return fixedSession.CreateRequestContext(owner: null, requireConfidentiality: true);
+                default:
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "Confidential requests require a stack Session or ManagedSession with fixed dispatch.");
+            }
         }
 
         /// <summary>
@@ -170,8 +216,11 @@ namespace Opc.Ua.Client
             }
             Invalidate();
             m_originalSession.RequestContextChanged -= Invalidate;
-            m_owner.ConnectionStateChanged -= OnConnectionStateChanged;
-            m_owner.ChannelStateChanged -= OnChannelStateChanged;
+            if (m_owner != null)
+            {
+                m_owner.ConnectionStateChanged -= OnConnectionStateChanged;
+                m_owner.ChannelStateChanged -= OnChannelStateChanged;
+            }
             try
             {
                 await m_session.DisposeAsync().ConfigureAwait(false);
@@ -221,11 +270,64 @@ namespace Opc.Ua.Client
                 throw InvalidSession();
             }
             ct.ThrowIfCancellationRequested();
+            ValidateConfidentiality();
             request.RequestHeader.AuthenticationToken = m_authenticationToken;
 
             // A managed lease may wait, swap transports, retry, or reject an already completed
             // response on cancellation. Send once on the physical transport captured above instead.
             return m_transport.SendRequestAsync(request, ct);
+        }
+
+        /// <summary>
+        /// Promotes a borrowed session without trusting its advertised metadata or adopting a newer owner generation.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask<SessionRequestContext> CaptureConfidentialCopyAsync(CancellationToken ct)
+        {
+            if (m_invalidated.Task.IsCompleted)
+            {
+                throw InvalidSession();
+            }
+            SessionRequestContext captured = await CaptureConfidentialAsync(
+                (ISession?)m_owner ?? m_originalSession, ct).ConfigureAwait(false);
+            if (m_invalidated.Task.IsCompleted ||
+                !ReferenceEquals(captured.m_originalSession, m_originalSession) ||
+                captured.m_generation != m_generation ||
+                captured.SessionId != SessionId ||
+                captured.m_authenticationToken != m_authenticationToken ||
+                !ReferenceEquals(captured.m_originalChannel, m_originalChannel) ||
+                !ReferenceEquals(captured.m_transport, m_transport) ||
+                captured.m_channelGeneration != m_channelGeneration ||
+                !captured.m_namespaceUris.Equals(m_namespaceUris) ||
+                !captured.m_serverUris.Equals(m_serverUris))
+            {
+                Invalidate();
+                await captured.DisposeAsync().ConfigureAwait(false);
+                throw InvalidSession();
+            }
+            return captured;
+        }
+
+        /// <summary>
+        /// Checks the physical channel, not mutable advertised session metadata, before any confidential send.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void ValidateConfidentiality()
+        {
+            if (!m_requireConfidentiality)
+            {
+                return;
+            }
+            EndpointDescription endpoint = m_transport.EndpointDescription;
+            if (endpoint == null ||
+                endpoint.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
+                string.IsNullOrEmpty(endpoint.SecurityPolicyUri) ||
+                endpoint.SecurityPolicyUri == SecurityPolicies.None)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "Confidential method arguments require an encrypted channel.");
+            }
         }
 
         /// <summary>
@@ -331,7 +433,9 @@ namespace Opc.Ua.Client
                 {
                     throw InvalidSession();
                 }
-                return context.m_owner.SendRequestContextAsync(context, request, ct);
+                return context.m_owner != null
+                    ? context.m_owner.SendRequestContextAsync(context, request, ct)
+                    : context.m_originalSession.SendRequestContextAsync(context, request, ct);
             }
 
             /// <inheritdoc/>
@@ -346,9 +450,17 @@ namespace Opc.Ua.Client
             {
                 context.Invalidate();
             }
+
+            /// <summary>
+            /// Captures confidentiality at the physical owner, never at this metadata-only adapter.
+            /// </summary>
+            internal ValueTask<SessionRequestContext> CaptureConfidentialAsync(CancellationToken ct)
+            {
+                return context.CaptureConfidentialCopyAsync(ct);
+            }
         }
 
-        private readonly ManagedSession m_owner;
+        private readonly ManagedSession? m_owner;
         private readonly Session m_originalSession;
         private readonly Session m_session;
         private readonly RequestContextTransport m_requestTransport;
@@ -364,6 +476,9 @@ namespace Opc.Ua.Client
         private readonly ServiceMessageContext m_messageContext;
         private readonly EndpointDescription m_endpoint;
         private readonly EndpointConfiguration m_endpointConfiguration;
+
+        /// <summary>Whether every physical dispatch requires an encrypted channel.</summary>
+        private readonly bool m_requireConfidentiality;
 
         private readonly TaskCompletionSource<bool> m_invalidated =
             new(TaskCreationOptions.RunContinuationsAsynchronously);

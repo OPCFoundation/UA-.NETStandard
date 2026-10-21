@@ -41,7 +41,8 @@ namespace Opc.Ua.AutoID.Client
     /// The NodeIds of the variables that change at runtime and the methods the device publishes
     /// come from the browse that precedes the read, whatever the options, so a client can monitor
     /// the device and knows which optional methods (OPC 30010 6.1, 6.5.3, 6.6.3) it may call
-    /// without browsing again.
+    /// without browsing again. <see cref="AutoIdClient.RefreshDeviceAsync"/> reads these
+    /// variables again through the NodeIds, in one Read and without a Browse.
     /// </remarks>
     public sealed record AutoIdDeviceSnapshot
     {

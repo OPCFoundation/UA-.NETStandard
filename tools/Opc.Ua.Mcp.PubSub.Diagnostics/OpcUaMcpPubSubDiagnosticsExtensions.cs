@@ -29,6 +29,7 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Opc.Ua.Mcp.Tools;
 using Opc.Ua.PubSub.Pcap;
 
@@ -64,6 +65,7 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(services);
 
             services.AddPubSubPcap();
+            services.TryAddSingleton<McpCallerContext>();
             return services;
         }
 
@@ -96,6 +98,7 @@ namespace Opc.Ua.Mcp
             bool diagnosticsToolsEnabled = false)
         {
             ArgumentNullException.ThrowIfNull(mcpServerBuilder);
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
 
             switch (toolProfile)
             {
@@ -176,6 +179,7 @@ namespace Opc.Ua.Mcp
                 return mcpServerBuilder;
             }
 
+            mcpServerBuilder.WithOpcUaMcpCallerIdentity();
             mcpServerBuilder.WithTools<PubSubCaptureTools>();
             if (diagnosticsToolsEnabled)
             {

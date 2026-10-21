@@ -261,31 +261,36 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Admits an operation until it exits, allowing guarded access during the active teardown callback.
+        /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                NodeManagerOperationContext? previous = m_operationContext.Value;
+                if (m_disposed && previous?.Active != true &&
+                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
+                var context = new NodeManagerOperationContext(previous);
+                m_operationContext.Value = context;
                 m_operationCount++;
-                return new NodeManagerOperation(this);
+                return new NodeManagerOperation(this, context);
             }
         }
 
         /// <summary>
-        /// Rejects access after admission closes unless it belongs to the active teardown callback.
+        /// Rejects access after admission closes unless an admitted operation or teardown callback owns it.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
         private protected void ThrowIfNodeManagerStopping()
         {
             lock (m_operationLifetimeLock)
             {
-                if (m_disposed && (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
+                if (m_disposed && m_operationContext.Value?.Active != true &&
+                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
                 {
                     throw new ObjectDisposedException(GetType().Name);
                 }
@@ -340,10 +345,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Releases an admitted operation and signals shutdown when the final operation exits.
         /// </summary>
-        private void CompleteNodeManagerOperation()
+        private void CompleteNodeManagerOperation(NodeManagerOperationContext context)
         {
             lock (m_operationLifetimeLock)
             {
+                if (!context.Active)
+                {
+                    return;
+                }
+                context.Active = false;
+                if (ReferenceEquals(m_operationContext.Value, context))
+                {
+                    m_operationContext.Value = context.Previous;
+                }
                 m_operationCount--;
                 if (m_disposed && m_operationCount == 0)
                 {
@@ -361,6 +375,7 @@ namespace Opc.Ua.Server
             {
                 await m_operationsDrained.Task.ConfigureAwait(false);
                 DisposeSessionClosingHandlers();
+                DisposeValueReadAuthorizations();
                 var errors = new List<Exception>();
                 lock (m_operationLifetimeLock)
                 {
@@ -433,6 +448,22 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Tracks whether an operation inherited through an execution context is still admitted.
+        /// </summary>
+        private protected sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous)
+        {
+            /// <summary>
+            /// Gets the surrounding operation to restore when this scope completes.
+            /// </summary>
+            public NodeManagerOperationContext? Previous { get; } = previous;
+
+            /// <summary>
+            /// Gets or sets whether this scope still retains operation admission.
+            /// </summary>
+            public bool Active { get; set; } = true;
+        }
+
+        /// <summary>
         /// Retains operation admission through semaphore scopes and any deferred callbacks.
         /// </summary>
         private protected readonly struct NodeManagerOperation : IDisposable
@@ -440,9 +471,10 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Captures the node manager whose admitted operation this scope completes.
             /// </summary>
-            public NodeManagerOperation(AsyncCustomNodeManager owner)
+            public NodeManagerOperation(AsyncCustomNodeManager owner, NodeManagerOperationContext context)
             {
                 m_owner = owner;
+                m_context = context;
             }
 
             /// <summary>
@@ -450,13 +482,16 @@ namespace Opc.Ua.Server
             /// </summary>
             public void Dispose()
             {
-                m_owner.CompleteNodeManagerOperation();
+                m_owner.CompleteNodeManagerOperation(m_context);
             }
 
             /// <summary>
             /// Owns the admission count retained by this operation scope.
             /// </summary>
             private readonly AsyncCustomNodeManager m_owner;
+
+            /// <summary>The execution-context scope retained by this operation.</summary>
+            private readonly NodeManagerOperationContext m_context;
         }
 
         /// <summary>
@@ -1135,7 +1170,15 @@ namespace Opc.Ua.Server
                     {
                         if (!externalValues)
                         {
-                            sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                            if (sampledMonitoredItem is MonitoredItem concreteItem)
+                            {
+                                concreteItem.QueueValueIfCurrent(
+                                    operationContext, initialValue, readResult, ignoreFilters: true);
+                            }
+                            else
+                            {
+                                sampledMonitoredItem.QueueValue(initialValue, readResult, true);
+                            }
                         }
                         return result;
                     }
@@ -3784,6 +3827,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            DisposeValueReadAuthorization(node);
             // Drop any cached component view so a later resolution does not
             // return the removed node.
             await InvalidateComponentCacheAsync(node.NodeId, cancellationToken).ConfigureAwait(false);
@@ -4214,6 +4258,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
+                DisposeValueReadAuthorization(node);
                 await OnNodeRemovedAsync(node, cancellationToken).ConfigureAwait(false);
                 if (node is BaseTypeState type &&
                     !IsTypeOwnedByAnotherNodeManager(type.NodeId))
@@ -5644,22 +5689,7 @@ namespace Opc.Ua.Server
                     propertyState.NodeId == property.NodeId &&
                     (hasSemanticChangeFlag || IsSemanticChangeProperty(node, propertyName)))
                 {
-                    monitoredItem.SetSemanticsChanged();
-
-                    // re-read in the context of the session owning the monitored item,
-                    // not in the context of the writer.
-                    ServerSystemContext itemContext = SystemContext.Copy(
-                        new OperationContext(kvp.Value));
-                    var value = new DataValue(Variant.Null, StatusCodes.Good, DateTimeUtc.MinValue, DateTime.UtcNow);
-
-                    ServiceResult readResult = node.ReadAttribute(
-                        itemContext,
-                        Attributes.Value,
-                        monitoredItem.IndexRange,
-                        monitoredItem.DataEncoding,
-                        ref value);
-
-                    monitoredItem.QueueValue(value, readResult, true);
+                    m_monitoredItemManager.TryQueueSemanticResample(node, monitoredItem);
 
                     changedNode ??= node;
                 }
@@ -5910,7 +5940,7 @@ namespace Opc.Ua.Server
                 kept.Add(entry);
             }
 
-            return new ArrayOf<ModelChangeStructureDataType>(kept.ToArray());
+            return new ArrayOf<ModelChangeStructureDataType>([.. kept]);
         }
 
         /// <summary>
@@ -8296,7 +8326,15 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    monitoredItem.QueueEvent(events[jj]);
+                    if (monitoredItem is MonitoredItem concreteItem)
+                    {
+                        concreteItem.QueueEventIfCurrent(
+                            context.Session, context.NotificationAuthorization, events[jj], null, null);
+                    }
+                    else
+                    {
+                        monitoredItem.QueueEvent(events[jj]);
+                    }
                 }
             }
 
@@ -8584,6 +8622,8 @@ namespace Opc.Ua.Server
 
                 MonitoredItemCreateRequest itemToCreate = itemsToCreate[handle.Index];
 
+                // The node resolved; cancellation during admission must not retain the lookup placeholder.
+                errors[handle.Index] = ServiceResult.Good;
                 (errors[handle.Index], filterResult, monitoredItem) = await CreateMonitoredItemAsync(
                     systemContext,
                     handle,
@@ -8701,6 +8741,22 @@ namespace Opc.Ua.Server
             if (!Attributes.IsValid(handle.Node.NodeClass, itemToCreate.ItemToMonitor.AttributeId))
             {
                 return (StatusCodes.BadAttributeIdInvalid, filterResult, monitoredItem);
+            }
+
+            ServiceResult readAuthorization = await ValidateRolePermissionsAsync(
+                context.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(itemToCreate.ItemToMonitor.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
+            }
+            readAuthorization = await ValidateMonitoredReadAsync(
+                context, handle.Node, itemToCreate.ItemToMonitor.AttributeId, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(readAuthorization))
+            {
+                return (readAuthorization, filterResult, monitoredItem);
             }
 
             // determine the sampling interval.
@@ -9043,6 +9099,18 @@ namespace Opc.Ua.Server
                             request,
                             token,
                             cancellationToken).ConfigureAwait(false);
+                    ServiceResult authorization = await ValidateRolePermissionsAsync(
+                        context.OperationContext!, handle.NodeId, PermissionType.Read, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (!ServiceResult.IsBad(authorization))
+                    {
+                        authorization = await MonitoredReadAuthorization.ValidateAsync(
+                            this, handle.Node, context, Attributes.Value, cancellationToken).ConfigureAwait(false);
+                    }
+                    if (ServiceResult.IsBad(authorization))
+                    {
+                        return QueueInitialHistoryFailure(monitoredItem, utcNow, authorization);
+                    }
                     foreach (HistoricalDataValue historicalValue in page.Values)
                     {
                         // the priming window is client controlled (StartTime and
@@ -9079,7 +9147,8 @@ namespace Opc.Ua.Server
                             monitoredItem,
                             value,
                             valueError,
-                            ignoreFilters: false);
+                            ignoreFilters: false,
+                            context: context.OperationContext);
                     }
 
                     if (page.IsFinal)
@@ -9153,19 +9222,21 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<InitialValueReadResult> ReadCurrentValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
         {
             (ServiceResult error, DataValue value) = await ReadMonitoredValueAsync(
                 context, handle, monitoredItem, cancellationToken).ConfigureAwait(false);
-            QueueInitialValue(monitoredItem, value, error, ignoreFilters: true);
+            QueueInitialValue(
+                monitoredItem, value, error, ignoreFilters: true,
+                context: context.OperationContext);
             return new InitialValueReadResult(error);
         }
 
         private async ValueTask<(ServiceResult, DataValue)> ReadMonitoredValueAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9184,6 +9255,30 @@ namespace Opc.Ua.Server
                 initialValue,
                 cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
+            ISession? session = monitoredItem.Session ?? context.OperationContext?.Session;
+            if (session != null && !ReferenceEquals(context.UserIdentity, session.EffectiveIdentity))
+            {
+                return (StatusCodes.BadUserAccessDenied, DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied));
+            }
+            using OperationContext? current = session == null ? null : MonitoredReadAuthorization.CreateContext(session);
+            ServerSystemContext subscriberContext = current != null
+                ? SystemContext.Copy(current)
+                : context;
+            ServiceResult authorization = await ValidateRolePermissionsAsync(
+                subscriberContext.OperationContext!,
+                handle.NodeId,
+                MonitoredReadAuthorization.PermissionFor(monitoredItem.AttributeId),
+                cancellationToken).ConfigureAwait(false);
+            if (!ServiceResult.IsBad(authorization))
+            {
+                authorization = await MonitoredReadAuthorization.ValidateAsync(
+                    this, handle.Node, subscriberContext, monitoredItem.AttributeId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (ServiceResult.IsBad(authorization))
+            {
+                return (authorization, DataValue.FromStatusCode(authorization.StatusCode));
+            }
             return (error, value);
         }
 
@@ -9223,7 +9318,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<ServiceResult> ValidateInitialValueRequestAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeHandle handle,
             IDataChangeMonitoredItem2 monitoredItem,
             CancellationToken cancellationToken)
@@ -9271,8 +9366,14 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             in DataValue value,
             ServiceResult? error,
-            bool ignoreFilters)
+            bool ignoreFilters,
+            OperationContext? context = null)
         {
+            if (monitoredItem is MonitoredItem concreteItem && context != null)
+            {
+                concreteItem.QueueValueIfCurrent(context, value, error, ignoreFilters, initialValue: true);
+                return;
+            }
             if (monitoredItem is IInitialValueMonitoredItem initialValueMonitoredItem)
             {
                 initialValueMonitoredItem.QueueInitialValue(
@@ -10603,7 +10704,8 @@ namespace Opc.Ua.Server
                 ArrayOf<RolePermissionType> defaultRolePermissions,
                 ArrayOf<RolePermissionType> defaultUserRolePermissions) =
                 await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
-            metadata.DefaultAccessRestrictions = defaultAccessRestrictions;
+            metadata.DefaultAccessRestrictions = target.AccessRestrictions.HasValue
+                ? AccessRestrictionType.None : defaultAccessRestrictions;
             metadata.DefaultRolePermissions = defaultRolePermissions;
             metadata.DefaultUserRolePermissions = defaultUserRolePermissions;
         }
@@ -10618,7 +10720,7 @@ namespace Opc.Ua.Server
         /// node manager; the caller then takes the <see cref="NodeMetadata"/> path, which has
         /// the fallbacks for that case.
         /// </returns>
-        internal async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
+        internal ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsAsync(
             OperationContext context,
             object targetHandle,
             PermissionType requestedPermission,
@@ -10628,6 +10730,26 @@ namespace Opc.Ua.Server
             bool validateAccessRestrictions,
             CancellationToken cancellationToken = default)
         {
+            return TryValidatePermissionsCoreAsync(
+                context, targetHandle, requestedPermission, uniqueNodesServiceAttributesCache, permissionsOnly,
+                logger, validateAccessRestrictions, validateRolePermissions: true, cancellationToken);
+        }
+
+        /// <summary>
+        /// Validates permissions, optionally against a retained source rather than current address-space routing.
+        /// </summary>
+        private async ValueTask<(bool Handled, ServiceResult? Result)> TryValidatePermissionsCoreAsync(
+            OperationContext context,
+            object targetHandle,
+            PermissionType requestedPermission,
+            Dictionary<NodeId, Variant[]>? uniqueNodesServiceAttributesCache,
+            bool permissionsOnly,
+            ILogger? logger,
+            bool validateAccessRestrictions,
+            bool validateRolePermissions,
+            CancellationToken cancellationToken,
+            bool exactSource = false)
+        {
             ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -10636,7 +10758,9 @@ namespace Opc.Ua.Server
                 return (false, null);
             }
 
-            NodeState? target = await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false);
+            NodeState? target = exactSource
+                ? handle.Node
+                : await ValidateNodeAsync(systemContext, handle, null!, cancellationToken).ConfigureAwait(false);
             if (target == null)
             {
                 return (false, null);
@@ -10695,26 +10819,27 @@ namespace Opc.Ua.Server
                 t_validationValues = scratch;
             }
 
-            (AccessRestrictionType defaultAccessRestrictions,
-                ArrayOf<RolePermissionType> defaultRolePermissions,
-                ArrayOf<RolePermissionType> defaultUserRolePermissions) =
-                await GetDefaultPermissionsAsync(systemContext, target, cancellationToken).ConfigureAwait(false);
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (!StatusCode.IsGood(defaults.Status))
+            {
+                return (true, new ServiceResult(defaults.Status));
+            }
 
             var permissions = new PermissionMetadata(
                 target.NodeId,
                 target.IsPartOfTypeHierarchy,
                 accessRestrictions,
-                defaultAccessRestrictions,
+                target.AccessRestrictions.HasValue
+                    ? AccessRestrictionType.None : defaults.DefaultAccessRestrictions,
                 rolePermissions,
-                defaultRolePermissions,
+                defaults.DefaultRolePermissions,
                 userRolePermissions,
-                defaultUserRolePermissions);
+                defaults.DefaultUserRolePermissions);
 
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(
-                context,
-                permissions,
-                requestedPermission,
-                logger);
+            ServiceResult result = validateRolePermissions
+                ? MasterNodeManager.ValidateRolePermissions(context, permissions, requestedPermission, logger)
+                : ServiceResult.Good;
             return (true, validateAccessRestrictions && ServiceResult.IsGood(result)
                 ? MasterNodeManager.ValidateAccessRestrictions(context, permissions, requestedPermission)
                 : result);
@@ -10732,88 +10857,16 @@ namespace Opc.Ua.Server
             NodeState target,
             CancellationToken cancellationToken = default)
         {
-            ushort namespaceIndex = target.NodeId.NamespaceIndex;
-            OperationContext? operationContext = systemContext.OperationContext;
-            if (operationContext != null &&
-                operationContext.TryGetDefaultPermissions(namespaceIndex, out NamespaceDefaultPermissions cached))
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                Server, systemContext, target.NodeId.NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (!StatusCode.IsGood(defaults.Status))
             {
-                return (
-                    cached.DefaultAccessRestrictions,
-                    cached.DefaultRolePermissions,
-                    cached.DefaultUserRolePermissions);
+                throw new ServiceResultException(defaults.Status);
             }
-
-            AccessRestrictionType defaultAccessRestrictions = AccessRestrictionType.None;
-            ArrayOf<RolePermissionType> defaultRolePermissions = default;
-            ArrayOf<RolePermissionType> defaultUserRolePermissions = default;
-
-            // check if NamespaceMetadata is defined for NamespaceIndex of the node.
-            NamespaceMetadataState? namespaceMetadataState = await
-                Server.NodeManager.ConfigurationNodeManager!.GetNamespaceMetadataStateAsync(namespaceIndex, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (namespaceMetadataState != null)
-            {
-                Variant value = default;
-                DateTimeUtc sourceTimestamp = DateTimeUtc.MinValue;
-
-                if (namespaceMetadataState.DefaultAccessRestrictions != null)
-                {
-                    // get DefaultAccessRestrictions for Namespace
-                    namespaceMetadataState.DefaultAccessRestrictions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull)
-                    {
-                        defaultAccessRestrictions =
-                            value.GetEnumeration<AccessRestrictionType>();
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultRolePermissions != null)
-                {
-                    // get DefaultRolePermissions for Namespace
-                    namespaceMetadataState.DefaultRolePermissions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> rolePermissions))
-                    {
-                        defaultRolePermissions = rolePermissions;
-                    }
-                }
-
-                if (namespaceMetadataState.DefaultUserRolePermissions != null)
-                {
-                    // get DefaultUserRolePermissions for Namespace
-                    namespaceMetadataState.DefaultUserRolePermissions
-                        .ReadAttribute(
-                            systemContext,
-                            Attributes.Value,
-                            ref value,
-                            ref sourceTimestamp);
-
-                    if (!value.IsNull && value.TryGetStructure(out ArrayOf<RolePermissionType> userRolePermissions))
-                    {
-                        defaultUserRolePermissions = userRolePermissions;
-                    }
-                }
-            }
-
-            operationContext?.SetDefaultPermissions(new NamespaceDefaultPermissions(
-                namespaceIndex,
-                defaultAccessRestrictions,
-                defaultRolePermissions,
-                defaultUserRolePermissions));
-
-            return (defaultAccessRestrictions, defaultRolePermissions, defaultUserRolePermissions);
+            return (
+                defaults.DefaultAccessRestrictions,
+                defaults.DefaultRolePermissions,
+                defaults.DefaultUserRolePermissions);
         }
 
         /// <summary>
@@ -11159,6 +11212,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private int m_operationCount;
 
+        /// <summary>The admitted operation inherited by nested callbacks.</summary>
+        private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();
         /// <summary>
         /// the sync NodeManager adapter
         /// </summary>

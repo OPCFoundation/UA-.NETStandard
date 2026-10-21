@@ -34,6 +34,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -53,6 +54,135 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public sealed class CertificateValidationCoreTests
     {
+        /// <summary>
+        /// An omitted peer-only issuer cannot borrow a prior complete path, including after its expiration.
+        /// </summary>
+        [TestCase(-1, false)]
+        [TestCase(0, false)]
+        [TestCase(1, false)]
+        [TestCase(-1, true)]
+        [TestCase(0, true)]
+        [TestCase(1, true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR15CachedLeafCannotOmitExpiredPeerIntermediateAsync(
+            int secondsFromExpiry, bool includeIssuer)
+        {
+            DateTime expiry = new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            using Certificate issuer = CertificateBuilder.Create("CN=Peer Only R15 Issuer")
+                .SetCAConstraint(0).SetNotBefore(s_leafFrom).SetNotAfter(expiry)
+                .SetIssuer(m_rootCa).SetRSAKeySize(2048).CreateForRSA();
+            using Certificate leaf = CreateUnclippedLeaf(issuer, expiry.AddYears(1));
+            var clock = new FakeTimeProvider(new DateTimeOffset(expiry.AddHours(-1)));
+            int nativeCopies = 0;
+            using var core = new CertificateValidationCore(
+                m_telemetry, static _ => null, certificate =>
+                {
+                    nativeCopies++;
+                    return certificate.AsX509Certificate2();
+                }, clock);
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = m_rootCa.RawData }]
+            }, null);
+            core.UseValidatedCertificates = true;
+            using (CertificateCollection complete = Chain(leaf, issuer))
+            {
+                CertificateValidationResult initial = await core.ValidateAsync(
+                    complete, null, null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(initial.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            }
+            int initialCopies = nativeCopies;
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromSeconds(secondsFromExpiry));
+            using CertificateCollection presented = includeIssuer ? Chain(leaf, issuer) : Chain(leaf);
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                presented, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            if (includeIssuer && secondsFromExpiry < 0)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(nativeCopies, Is.EqualTo(initialCopies), "A complete current path may use the cache.");
+            }
+            else
+            {
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(ContainsStatusCode(result, includeIssuer
+                    ? StatusCodes.BadCertificateIssuerTimeInvalid
+                    : StatusCodes.BadCertificateChainIncomplete), Is.True);
+                Assert.That(nativeCopies, Is.GreaterThan(initialCopies), "Invalid evidence requires native validation.");
+            }
+            using RSA sourceKey = issuer.GetRSAPublicKey()!;
+            Assert.That(sourceKey.KeySize, Is.EqualTo(2048), "Cache entries cannot dispose borrowed certificates.");
+        }
+
+        /// <summary>
+        /// Trusted self-signed leaves retain a fast path only strictly before their own expiry.
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(0)]
+        [TestCase(1)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR15CachedCompleteValidPathAndTrustedLeafRemainUsableAsync(int secondsFromExpiry)
+        {
+            DateTime expiry = new(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            using Certificate leaf = CertificateBuilder.Create("CN=Trusted R15 Leaf")
+                .SetNotBefore(s_leafFrom).SetNotAfter(expiry).SetRSAKeySize(2048).CreateForRSA();
+            var clock = new FakeTimeProvider(new DateTimeOffset(expiry.AddHours(-1)));
+            int copies = 0;
+            using var core = new CertificateValidationCore(m_telemetry, static _ => null, certificate =>
+            {
+                copies++;
+                return certificate.AsX509Certificate2();
+            }, clock);
+            core.Update(null, new CertificateTrustList
+            {
+                TrustedCertificates = [new CertificateIdentifier { RawData = leaf.RawData }]
+            }, null);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(leaf);
+            Assert.That((await core.ValidateAsync(chain, null, null, CancellationToken.None)
+                .ConfigureAwait(false)).IsValid, Is.True);
+            int initialCopies = copies;
+            clock.Advance(TimeSpan.FromHours(1) + TimeSpan.FromSeconds(secondsFromExpiry));
+
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.EqualTo(secondsFromExpiry < 0));
+            if (secondsFromExpiry < 0)
+            {
+                Assert.That(copies, Is.EqualTo(initialCopies));
+                core.ResetValidatedCertificates();
+                Assert.That((await core.ValidateAsync(chain, null, null, CancellationToken.None)
+                    .ConfigureAwait(false)).IsValid, Is.True);
+                Assert.That(copies, Is.GreaterThan(initialCopies), "Reset must retire the cached path.");
+            }
+            else
+            {
+                Assert.That(ContainsStatusCode(result, StatusCodes.BadCertificateTimeInvalid), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Constructs a signed leaf whose lifetime does not hide its issuer's independent expiration.
+        /// </summary>
+        private static Certificate CreateUnclippedLeaf(Certificate issuer, DateTime notAfter)
+        {
+            using var publicKey = RSA.Create(2048);
+            using RSA issuerKey = issuer.GetRSAPrivateKey()!;
+            var request = new CertificateRequest(
+                "CN=R15 Leaf", publicKey, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment |
+                X509KeyUsageFlags.DataEncipherment, true));
+            request.CertificateExtensions.Add(issuer.BuildAuthorityKeyIdentifier());
+            using X509Certificate2 native = request.Create(
+                issuer.SubjectName, X509SignatureGenerator.CreateForRSA(issuerKey, RSASignaturePadding.Pkcs1),
+                s_leafFrom, notAfter, new byte[] { 1, 5 });
+            return Certificate.FromRawData(native.RawData);
+        }
+
         private static readonly DateTime s_rootFrom = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_rootTo = new(2099, 12, 31, 0, 0, 0, DateTimeKind.Utc);
         private static readonly DateTime s_leafFrom = new(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -883,6 +1013,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        [Category("SecurityRegression")]
         public async Task ValidateAsyncUsesValidatedCertificateFastPathAsync()
         {
             string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
@@ -904,7 +1035,156 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(secondResult.StatusCode, Is.EqualTo(StatusCodes.Good));
         }
 
+        /// <summary>
+        /// Cached acceptance cannot suppress subsequent validity errors without the current caller's approval.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedCertificatesStillRequireCurrentValidityAsync(bool expiredIssuer)
+        {
+            string trustedDir = await WriteStoreAsync(
+                [expiredIssuer ? m_expiredRootCa : m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(expiredIssuer ? m_leafUnderExpiredRoot : m_expiredLeaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            int callbacks = 0;
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain,
+                (_, _) =>
+                {
+                    callbacks++;
+                    return false;
+                },
+                null,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(
+                ContainsStatusCode(
+                    rejected,
+                    expiredIssuer
+                        ? StatusCodes.BadCertificateIssuerTimeInvalid
+                        : StatusCodes.BadCertificateTimeInvalid),
+                Is.True);
+            Assert.That(callbacks, Is.GreaterThan(0));
+
+            CertificateValidationResult explicitlyAccepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(explicitlyAccepted.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A currently valid leaf cannot hide an expired issuer behind cached acceptance.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// The test issuer has no RSA private key.
+        /// </exception>
         [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedValidLeafDoesNotHideExpiredIssuerAsync()
+        {
+            // The normal builder clips the leaf lifetime to its issuer, hiding this independent validity boundary.
+            using var publicKey = RSA.Create(2048);
+            using RSA issuerKey = m_expiredRootCa.GetRSAPrivateKey() ??
+                throw new InvalidOperationException("The test issuer requires an RSA private key.");
+            var request = new CertificateRequest(
+                "CN=CVC Valid Leaf Under Expired Root",
+                publicKey,
+                HashAlgorithmName.SHA256,
+                RSASignaturePadding.Pkcs1);
+            request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
+            request.CertificateExtensions.Add(new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature |
+                X509KeyUsageFlags.KeyEncipherment |
+                X509KeyUsageFlags.DataEncipherment,
+                true));
+            request.CertificateExtensions.Add(m_expiredRootCa.BuildAuthorityKeyIdentifier());
+            using X509Certificate2 nativeLeaf = request.Create(
+                m_expiredRootCa.SubjectName,
+                X509SignatureGenerator.CreateForRSA(issuerKey, RSASignaturePadding.Pkcs1),
+                s_leafFrom,
+                s_leafTo,
+                Guid.NewGuid().ToByteArray());
+            using var leaf = Certificate.FromRawData(nativeLeaf.RawData);
+            DateTime now = DateTime.UtcNow;
+            Assert.That(leaf.NotBefore.ToUniversalTime(), Is.LessThan(now));
+            Assert.That(leaf.NotAfter.ToUniversalTime(), Is.GreaterThan(now));
+            Assert.That(m_expiredRootCa.NotAfter.ToUniversalTime(), Is.LessThan(now));
+            string trustedDir = await WriteStoreAsync([m_expiredRootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(leaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(rejected, StatusCodes.BadCertificateIssuerTimeInvalid), Is.True);
+        }
+
+        /// <summary>
+        /// Explicit acceptance cannot turn a future-dated certificate into continuing cached authority.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedFutureCertificateStillRequiresNotBeforeAsync()
+        {
+            string trustedDir = await WriteStoreAsync([m_rootCa]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(m_notYetValidLeaf);
+
+            CertificateValidationResult accepted = await core.ValidateAsync(
+                chain, static (_, _) => true, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(accepted.IsValid, Is.True);
+
+            CertificateValidationResult rejected = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(rejected.IsValid, Is.False);
+            Assert.That(ContainsStatusCode(rejected, StatusCodes.BadCertificateTimeInvalid), Is.True);
+        }
+
+        /// <summary>
+        /// Cached chain trust cannot replace validation against the current destination hostname.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF37CachedTrustDoesNotSkipEndpointHostnameAsync()
+        {
+            string trustedDir = await WriteStoreAsync([m_selfSignedApp]).ConfigureAwait(false);
+            CertificateValidationCore core = NewCore(trustedDir);
+            core.UseValidatedCertificates = true;
+            using CertificateCollection chain = Chain(m_selfSignedApp);
+            CertificateValidationResult result = await core.ValidateAsync(
+                chain, null, null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.True);
+
+            ConfiguredEndpoint endpoint = CreateEndpoint("opc.tcp://wrong-host.example:4840", "urn:wrong-host");
+            ServiceResultException error = Assert.Throws<ServiceResultException>(
+                () => core.ValidateDomains(m_selfSignedApp, endpoint, serverValidation: false, null));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
+
+            int callbacks = 0;
+            core.ValidateDomains(m_selfSignedApp, endpoint, serverValidation: false, (_, failure) =>
+            {
+                callbacks++;
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadCertificateHostNameInvalid));
+                return true;
+            });
+            Assert.That(callbacks, Is.EqualTo(1));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
         public async Task ValidatedCertificateFastPathDoesNotSkipRevocationAsync()
         {
             // Regression: the UseValidatedCertificates fast path must never

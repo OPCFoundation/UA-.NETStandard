@@ -745,6 +745,11 @@ namespace Opc.Ua.Client
         public ConfiguredEndpoint ConfiguredEndpoint => m_endpoint;
 
         /// <summary>
+        /// Gets the client application configuration used to create this session.
+        /// </summary>
+        internal ApplicationConfiguration ApplicationConfiguration => m_configuration;
+
+        /// <summary>
         /// Gets the name assigned to the session.
         /// </summary>
         public string SessionName => m_sessionName;

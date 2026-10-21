@@ -30,10 +30,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Identity;
 using Opc.Ua.Tests;
@@ -46,6 +49,43 @@ namespace Opc.Ua.Server.Tests.Identity
     {
         private const string Issuer = "https://issuer.example.test";
         private const string Audience = "urn:opcua:test-server";
+
+        /// <summary>
+        /// A freshly signed, lifetime-valid token cannot use a key withdrawn from an expired JWKS snapshot.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR16WithdrawnCachedKeyCannotAuthenticateFreshJwtAsync(bool noKid)
+        {
+            using var retired = RSA.Create(2048);
+            using var current = RSA.Create(2048);
+            var clock = new FakeTimeProvider();
+            using var handler = new RotatingJwksHandler(
+                CreateJwks(retired, "retired"), CreateJwks(current, "current"));
+            using var client = new HttpClient(handler, false);
+            using var resolver = new JwksIssuerKeyResolver(
+                Issuer, Issuer + "/keys", client, clock);
+            var authenticator = new JwtAuthenticator(resolver, Audience);
+            AuthenticationResult initial = await AuthenticateJwtAsync(
+                authenticator, CreateFixedJwt(retired, noKid ? null : "retired")).ConfigureAwait(false);
+            Assert.That(initial.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(((IIdentityClaims)initial.Identity!).Subject, Is.EqualTo("subject-r16"));
+            clock.Advance(TimeSpan.FromMinutes(5));
+
+            AuthenticationResult withdrawn = await AuthenticateJwtAsync(
+                authenticator, CreateFixedJwt(retired, noKid ? null : "retired")).ConfigureAwait(false);
+            AuthenticationResult replacement = await AuthenticateJwtAsync(
+                authenticator, CreateFixedJwt(current, noKid ? null : "current")).ConfigureAwait(false);
+
+            Assert.That(withdrawn.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(withdrawn.Error!.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(withdrawn.Identity, Is.Null);
+            Assert.That(replacement.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(((IIdentityClaims)replacement.Identity!).Subject, Is.EqualTo("subject-r16"));
+            Assert.That(((IIdentityClaims)replacement.Identity).Roles, Is.EqualTo((string[])["operator"]));
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+        }
 
         [Test]
         public async Task AuthenticateAsyncRs256TokenAcceptedAndClaimsExtracted()
@@ -270,6 +310,63 @@ namespace Opc.Ua.Server.Tests.Identity
                 },
                 new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+        }
+
+        /// <summary>
+        /// Authenticates through the real JWT signature and claim checks.
+        /// </summary>
+        private static ValueTask<AuthenticationResult> AuthenticateJwtAsync(JwtAuthenticator authenticator, string jwt)
+        {
+            return authenticator.AuthenticateAsync(CreateContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, Encoding.UTF8.GetBytes(jwt))));
+        }
+
+        /// <summary>
+        /// Creates a fixed-lifetime token whose validity is independent of the resolver's simulated clock.
+        /// </summary>
+        private static string CreateFixedJwt(RSA signer, string? kid)
+        {
+            string header = "{\"alg\":\"RS256\"" + (kid == null ? string.Empty : ",\"kid\":\"" + kid + "\"") + "}";
+            const string payload = "{\"iss\":\"" + Issuer + "\",\"aud\":\"" + Audience +
+                "\",\"sub\":\"subject-r16\",\"nbf\":1577836800,\"iat\":1577836800,\"exp\":4102444800," +
+                "\"roles\":[\"operator\"]}";
+            string input = Base64UrlEncode(Encoding.UTF8.GetBytes(header)) + "." +
+                Base64UrlEncode(Encoding.UTF8.GetBytes(payload));
+            return input + "." + Base64UrlEncode(signer.SignData(
+                Encoding.ASCII.GetBytes(input), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+        }
+
+        /// <summary>
+        /// Publishes only the supplied RSA public key.
+        /// </summary>
+        private static string CreateJwks(RSA signer, string kid)
+        {
+            RSAParameters parameters = signer.ExportParameters(false);
+            return "{\"keys\":[{\"kty\":\"RSA\",\"kid\":\"" + kid + "\",\"alg\":\"RS256\",\"n\":\"" +
+                Base64UrlEncode(parameters.Modulus!) + "\",\"e\":\"" + Base64UrlEncode(parameters.Exponent!) + "\"}]}";
+        }
+
+        /// <summary>
+        /// Supplies deterministic initial and replacement keysets without a network connection.
+        /// </summary>
+        private sealed class RotatingJwksHandler(string initial, string replacement) : HttpMessageHandler
+        {
+            /// <summary>
+            /// Gets the exact number of issuer refresh requests.
+            /// </summary>
+            public int RequestCount { get; private set; }
+
+            /// <inheritdoc/>
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                RequestCount++;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(RequestCount == 1 ? initial : replacement)
+                });
+            }
         }
 
         private static string CreateJwt(

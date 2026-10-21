@@ -37,6 +37,14 @@ services.AddOpcUa()
     });
 ```
 
+Every reader stays reachable from the DI `DeviceSet` (OPC 10000-100 4.9):
+`WithParent` places it below another node, and `DeviceSet` organizes it as well
+unless it already reaches that node. In the Machinery composition,
+`AsComponentOf(machine)` makes a reader an identifiable component of a machine
+(OPC 40001-1 11): it is referenced from the machine's `Components` add-in and
+gets a `MachineryComponentIdentificationType` add-in that references its
+nameplate. Readers are never added to the `Machines` folder.
+
 ## Providers
 
 Implement `IAutoIdReaderProvider` and add interfaces for what the hardware can do;

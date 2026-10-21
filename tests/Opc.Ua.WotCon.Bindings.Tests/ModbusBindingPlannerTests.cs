@@ -66,6 +66,28 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(plan.CompiledForms, Is.Not.Empty);
         }
 
+        /// <summary>
+        /// A document cannot omit the Modbus host and rely on an implicit loopback device.
+        /// </summary>
+        [TestCase("modbus+tcp:///1")]
+        [TestCase("modbus:///1")]
+        [Category("SecurityRegression")]
+        public void SecurityF45HostlessModbusDocumentIsNotPlanned(string href)
+        {
+            WotBindingPlan plan = PrepareForm(
+                "\"href\":\"" +
+                href +
+                "\"," +
+                "\"modv:entity\":\"holdingRegister\",\"modv:address\":100," +
+                "\"op\":[\"readproperty\",\"writeproperty\",\"observeproperty\"]");
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(1));
+            Assert.That(
+                plan.Diagnostics.Any(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.True);
+        }
+
         [Test]
         public void PlannerRejectsInvalidScheme()
         {

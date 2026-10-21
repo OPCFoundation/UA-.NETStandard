@@ -381,34 +381,35 @@ namespace Opc.Ua.Server.Programs
             {
                 return StatusCodes.BadUserAccessDenied;
             }
-            IConfigurationNodeManager? configuration = Server.NodeManager.ConfigurationNodeManager;
-            if (configuration is not null)
+
+            // the namespace defaults are read for the caller; a failed read or decode denies.
+            NamespaceDefaultPermissions defaults = await NamespaceDefaultPermissionReader.ReadAsync(
+                Server, context, NamespaceIndex, cancellationToken).ConfigureAwait(false);
+            if (StatusCode.IsBad(defaults.Status))
             {
-                NamespaceMetadataState? namespaceState = await configuration.GetNamespaceMetadataStateAsync(
-                    NamespaceIndex, cancellationToken).ConfigureAwait(false);
-                if (namespaceState is not null)
-                {
-                    var metadata = new NodeMetadata(namespaceState, new NodeId(0u, NamespaceIndex))
-                    {
-                        DefaultRolePermissions = namespaceState.DefaultRolePermissions?.Value ?? default,
-                        DefaultUserRolePermissions = namespaceState.DefaultUserRolePermissions?.Value ?? default,
-                        DefaultAccessRestrictions = (AccessRestrictionType)(
-                            namespaceState.DefaultAccessRestrictions?.Value ?? 0)
-                    };
-                    ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
-                        context.OperationContext, metadata, PermissionType.AddNode);
-                    if (ServiceResult.IsBad(permission))
-                    {
-                        return permission;
-                    }
-                    permission = MasterNodeManager.ValidateAccessRestrictions(
-                        context.OperationContext, metadata, PermissionType.AddNode);
-                    if (ServiceResult.IsBad(permission))
-                    {
-                        return permission;
-                    }
-                }
+                return new ServiceResult(defaults.Status);
             }
+
+            var metadata = new NodeMetadata(m_root, new NodeId(0u, NamespaceIndex))
+            {
+                DefaultRolePermissions = defaults.DefaultRolePermissions,
+                DefaultUserRolePermissions = defaults.DefaultUserRolePermissions,
+                DefaultAccessRestrictions = defaults.DefaultAccessRestrictions
+            };
+            ServiceResult permission = MasterNodeManager.ValidateRolePermissions(
+                context.OperationContext, metadata, PermissionType.AddNode);
+            if (ServiceResult.IsBad(permission))
+            {
+                return permission;
+            }
+
+            permission = MasterNodeManager.ValidateAccessRestrictions(
+                context.OperationContext, metadata, PermissionType.AddNode);
+            if (ServiceResult.IsBad(permission))
+            {
+                return permission;
+            }
+
             (bool handled, ServiceResult? result) = await TryValidatePermissionsAsync(
                 context.OperationContext,
                 new NodeHandle { NodeId = m_root.NodeId, Node = m_root, Validated = true },

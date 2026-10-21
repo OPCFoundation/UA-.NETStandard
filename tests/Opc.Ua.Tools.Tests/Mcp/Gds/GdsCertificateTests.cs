@@ -89,6 +89,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             await using GdsTestContext fixture = await GdsTestContext.CreateAsync(files: true).ConfigureAwait(false);
             using IDisposable caller = fixture.Enter();
             ByteString certificate = CreateCertificate(fixture);
+            string issuer = McpSecretReferences.GetResourceBinding(
+                fixture.Manager.GetSessionInfoOrThrow("selected"), fixture.Remote.Id("directory"));
             SetPullReplies(fixture, certificate, "private-key-never-in-artifact");
 
             CallToolResult result = await Tools(fixture).FinishRequestAsync(
@@ -102,6 +104,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(json.GetProperty("resource").GetString(), Is.EqualTo("opcua-app:urn:test:gds-server"));
             Assert.That(json.GetProperty("requestId").GetString(), Is.EqualTo(fixture.Remote.Id("request").ToString()));
             string reference = json.GetProperty("privateKey").GetProperty("reference").GetString()!;
+            Assert.That(json.GetProperty("privateKey").GetProperty("issuer").GetString(), Is.EqualTo(issuer));
             using ISecret secret = await fixture.Secrets.ResolveAsync(
                 reference, "opcua-app:urn:test:gds-server", McpCapability.CertificateAdministration)
                 .ConfigureAwait(false);

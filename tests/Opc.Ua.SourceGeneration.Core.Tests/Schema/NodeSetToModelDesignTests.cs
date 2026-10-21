@@ -603,7 +603,8 @@ namespace Opc.Ua.Schema.Model.Tests
         /// so an unrestricted node was imported as an encrypted one.
         /// </summary>
         [Test]
-        public void ImportZeroAccessRestrictionsLeavesThemUnspecified()
+        [Category("SecurityRegression")]
+        public void SecurityR43ImportZeroAccessRestrictionsPreservesExplicitOverride()
         {
             const string path = "memory://ZeroRestrictions.NodeSet2.xml";
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ZeroAccessRestrictionsNodeSet));
@@ -617,11 +618,52 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.That(
                 node.AccessRestrictionsSpecified,
-                Is.False,
-                "an empty mask carries no restriction the design schema can express");
+                Is.True,
+                "an explicit empty mask must override inherited restrictions without becoming unspecified");
             Assert.That(
                 node.AccessRestrictions,
-                Is.Not.EqualTo(AccessRestrictions.EncryptionRequired));
+                Is.EqualTo(AccessRestrictions.None));
+        }
+
+        /// <summary>
+        /// Runtime and generated paths select the same owning-model default without replacing explicit zero.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public void SecurityR09GeneratedModelDefaultsRespectExplicitNodeOverrides(bool explicitOverride)
+        {
+            const string path = "memory://ModelDefaults.NodeSet2.xml";
+            string xml = ZeroAccessRestrictionsNodeSet.Replace(
+                "Version=\"1.0.0\" />",
+                """
+                Version="1.0.0" AccessRestrictions="2">
+                  <RolePermissions><RolePermission Permissions="32">i=15704</RolePermission></RolePermissions>
+                </Model>
+                """,
+                StringComparison.Ordinal);
+            if (!explicitOverride)
+            {
+                xml = xml.Replace("AccessRestrictions=\"0\"", string.Empty, StringComparison.Ordinal);
+            }
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(xml));
+            NodeSetToModelDesign importer = new(
+                m_fileSystem, path, new NodeSetReaderSettings(), CreateTelemetry());
+
+            NodeDesign node = importer.Import("Restrictions", "Restrictions").Items
+                .Single(item => item.SymbolicName?.Name == "Unrestricted");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.AccessRestrictionsSpecified, Is.True);
+                Assert.That(node.AccessRestrictions,
+                    Is.EqualTo(explicitOverride ? AccessRestrictions.None : AccessRestrictions.EncryptionRequired));
+                Assert.That(node.RolePermissions.RolePermission, Has.Length.EqualTo(1));
+                Assert.That(ExpandedNodeId.Parse(node.RolePermissions.RolePermission.Single().RoleId).InnerNodeId,
+                    Is.EqualTo(new NodeId(15704u)));
+                Assert.That(node.RolePermissions.RolePermission.Single().Permission,
+                    Is.EqualTo(new[] { Permissions.Read }));
+            });
         }
 
         /// <summary>

@@ -86,7 +86,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         public long ByteCount => Interlocked.Read(ref m_byteCount);
 
         /// <inheritdoc/>
-        public ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
+        public async ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(request);
             ct.ThrowIfCancellationRequested();
@@ -101,6 +101,14 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 throw new PcapDiagnosticsException($"Replay pcap file '{request.PcapFilePath}' does not exist.");
             }
 
+            if (Volatile.Read(ref m_state) != StateNew)
+            {
+                throw new PcapDiagnosticsException("ReplayCaptureSource cannot be started twice.");
+            }
+
+            CaptureFileValidator.RejectKeyLogPath(request.PcapFilePath, request.KeyLogFilePath);
+            await CaptureFileValidator.ValidateFileAsync(request.PcapFilePath, ct).ConfigureAwait(false);
+
             if (Interlocked.CompareExchange(ref m_state, StateRunning, StateNew) != StateNew)
             {
                 throw new PcapDiagnosticsException("ReplayCaptureSource cannot be started twice.");
@@ -112,8 +120,6 @@ namespace Opc.Ua.Pcap.Capture.Sources
             {
                 m_keyLogFilePath = request.KeyLogFilePath;
             }
-
-            return ValueTask.CompletedTask;
         }
 
         /// <inheritdoc/>

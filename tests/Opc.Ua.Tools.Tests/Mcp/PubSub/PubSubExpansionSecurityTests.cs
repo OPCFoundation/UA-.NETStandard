@@ -177,6 +177,54 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
         }
 
         [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR10PushRecipientMustHaveStrictHostApprovedRegistrationAsync()
+        {
+            await using PubSubExpansionTestContext fixture = await PubSubExpansionTestContext
+                .CreateAsync().ConfigureAwait(false);
+            using IDisposable owner = fixture.Enter();
+            OpcUaSessionManager.SessionInfo approved = fixture.Sessions.GetSessionInfoOrThrow(
+                PubSubExpansionTestContext.SessionName);
+            EndpointDescription endpoint = approved.Endpoint;
+            var callerOwned = new OpcUaSessionManager.SessionInfo
+            {
+                Name = "caller-owned",
+                Session = approved.Session,
+                Endpoint = endpoint,
+                AuthType = approved.AuthType,
+                Authority = new McpSessionAuthority(
+                    new McpCallerIdentity("untrusted-caller", "urn:test:issuer"),
+                    autoAccepted: false,
+                    endpoint)
+            };
+            var autoAccepted = new OpcUaSessionManager.SessionInfo
+            {
+                Name = "auto-accepted",
+                Session = approved.Session,
+                Endpoint = endpoint,
+                AuthType = approved.AuthType,
+                Authority = new McpSessionAuthority(null, autoAccepted: true, endpoint)
+            };
+
+            Assert.That(
+                () => McpSecretReferences.GetResourceBinding(callerOwned, ObjectIds.PublishSubscribe),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(
+                () => McpSecretReferences.GetResourceBinding(autoAccepted, ObjectIds.PublishSubscribe),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadUserAccessDenied));
+
+            string recipientBinding = McpSecretReferences.GetResourceBinding(
+                approved, ObjectIds.PublishSubscribe);
+            Assert.That(recipientBinding, Does.Contain("#"));
+            PubSubSecurityInput sourceKey = await StoreKeyAsync(fixture, TimeSpan.FromMinutes(1))
+                .ConfigureAwait(false);
+            Assert.That(recipientBinding, Is.Not.EqualTo(sourceKey.Resource),
+                "Recipient registration is authorized independently of source-key ownership.");
+        }
+
+        [Test]
         public async Task IssuedKeyExpiryClosesOwnedTransportWithoutAnotherRequestAsync()
         {
             await using PubSubExpansionTestContext fixture = await PubSubExpansionTestContext.CreateAsync()

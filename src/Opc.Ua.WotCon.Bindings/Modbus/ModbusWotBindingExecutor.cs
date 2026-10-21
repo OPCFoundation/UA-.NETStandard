@@ -78,8 +78,27 @@ namespace Opc.Ua.WotCon.Bindings.Modbus
             // opening the socket so a hand-built or tampered compiled form fails fast
             // and never leaks a half-open connection.
             var addressing = ModbusAddressing.FromForm(form, context.Bounds);
-            string host = string.IsNullOrEmpty(form.Endpoint.Host) ? "127.0.0.1" : form.Endpoint.Host!;
+            if (string.IsNullOrWhiteSpace(form.Endpoint.Host))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The Modbus device host is required.");
+            }
+            if (!string.Equals(form.Endpoint.Scheme, "modbus+tcp", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(form.Endpoint.Scheme, "modbus", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument, "The Modbus endpoint scheme is invalid.");
+            }
             int port = form.Endpoint.Port > 0 ? form.Endpoint.Port : 502;
+            // BaseUri can differ on a hand-built form; validate the actual connector destination.
+            Uri destination = new UriBuilder(form.Endpoint.Scheme, form.Endpoint.Host, port).Uri;
+            ServiceResult validation = WotEndpointValidator.Validate(
+                destination.AbsoluteUri, context.EndpointPolicy, out _);
+            if (ServiceResult.IsBad(validation))
+            {
+                throw new ServiceResultException(validation);
+            }
+            string host = WotEndpointValidator.ToAsciiHost(destination);
+            port = destination.Port;
             var client = new ModbusTcpClient(
                 host, port, context.Bounds.DefaultTimeout, m_options.StreamConnector);
             try

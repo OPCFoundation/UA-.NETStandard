@@ -29,6 +29,7 @@
 
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.SpecTraceability;
@@ -188,32 +189,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 affordanceElement);
         }
 
-        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "act")
-        {
-            using var formDoc = JsonDocument.Parse(formJson);
-            JsonElement formElement = formDoc.RootElement.Clone();
-
-            string? href = null;
-            if (formElement.ValueKind == JsonValueKind.Object &&
-                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
-                hrefEl.ValueKind == JsonValueKind.String)
-            {
-                href = hrefEl.GetString();
-            }
-
-            return new WotAffordanceForm(
-                WotAffordanceKind.Action,
-                affordanceName,
-                ["invokeaction"],
-                href,
-                null,
-                null,
-                [],
-                "/actions/" + affordanceName + "/forms/0",
-                formElement,
-                default);
-        }
-
         private static WotAffordanceForm MakeEventForm(string formJson, string affordanceName = "ev")
         {
             using var formDoc = JsonDocument.Parse(formJson);
@@ -240,6 +215,32 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 default);
         }
 
+        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "action")
+        {
+            using var formDoc = JsonDocument.Parse(formJson);
+            JsonElement formElement = formDoc.RootElement.Clone();
+
+            string? href = null;
+            if (formElement.ValueKind == JsonValueKind.Object &&
+                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
+                hrefEl.ValueKind == JsonValueKind.String)
+            {
+                href = hrefEl.GetString();
+            }
+
+            return new WotAffordanceForm(
+                WotAffordanceKind.Action,
+                affordanceName,
+                ["invokeaction"],
+                href,
+                null,
+                null,
+                [],
+                "/actions/" + affordanceName + "/forms/0",
+                formElement,
+                default);
+        }
+
         /// <summary>
         /// Verifies that MQTT planner compiles valid property form.
         /// </summary>
@@ -260,6 +261,44 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Hostless document forms must not acquire an implicit broker during activation.
+        /// </summary>
+        [TestCase("mqtt:///private/status")]
+        [TestCase("mqtts:///private/status")]
+        [Category("SecurityRegression")]
+        public void SecurityF28HostlessMqttDocumentIsNotPlanned(string href)
+        {
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Hostless broker",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "observable": true,
+                      "forms": [{
+                        "href": "{{href}}",
+                        "op": ["readproperty", "writeproperty", "observeproperty"]
+                      }]
+                    }
+                  },
+                  "actions": {
+                    "set": {"forms": [{"href": "{{href}}", "op": "invokeaction"}]}
+                  }
+                }
+                """;
+            var registry = new WotProtocolBinderRegistry([new MqttBindingPlanner()]);
+
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "hostless", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(2));
+            Assert.That(
+                plan.Diagnostics.Count(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.EqualTo(2));
+        }
+
         /// Verifies that MQTT planner extracts topic from href.
         /// </summary>
         [Test]

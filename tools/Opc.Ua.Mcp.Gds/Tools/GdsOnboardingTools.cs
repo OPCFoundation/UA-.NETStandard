@@ -181,6 +181,7 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await m_access.EndpointAsync(
                     registrarNodeId, GdsTarget.Registrar, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                string secretResource = endpoint.SecretResource;
                 var buffers = new List<byte[]>(input.TicketReferences.Count);
                 try
                 {
@@ -188,7 +189,7 @@ namespace Opc.Ua.Mcp
                     for (int index = 0; index < input.TicketReferences.Count; index++)
                     {
                         using ISecret ticket = await m_access.Secrets.ResolveAsync(
-                            input.TicketReferences[index], endpoint.Resource, McpCapability.Onboarding, token)
+                            input.TicketReferences[index], secretResource, McpCapability.Onboarding, token)
                             .ConfigureAwait(false);
                         total = checked(total + ticket.Bytes.Length);
                         if (total > m_access.Options.MaxArtifactBytes)

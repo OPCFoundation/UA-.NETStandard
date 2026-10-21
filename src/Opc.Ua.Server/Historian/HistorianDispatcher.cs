@@ -2220,12 +2220,22 @@ namespace Opc.Ua.Server.Historian
                     systemContext.OperationContext,
                     serverInternal.Telemetry);
 
+                // Part 3 8.55: a client only receives an event, live or historical, when
+                // ReceiveEvents is granted on its EventType and SourceNode. Every page,
+                // including continuation pages, is authorized for the current request
+                // before any client filter sees a record.
+                ArrayOf<HistorianEventRecord> authorized = await AuthorizeHistoricalEventsAsync(
+                    systemContext,
+                    node.NodeId,
+                    page.Values,
+                    cancellationToken).ConfigureAwait(false);
+
                 EventFilter filter = request.Filter;
-                ArrayOf<HistorianEventRecord> filtered = page.Values;
+                ArrayOf<HistorianEventRecord> filtered = authorized;
                 if (filter.WhereClause.Elements.Count > 0)
                 {
-                    var keep = new List<HistorianEventRecord>(page.Values.Count);
-                    foreach (HistorianEventRecord record in page.Values)
+                    var keep = new List<HistorianEventRecord>(authorized.Count);
+                    foreach (HistorianEventRecord record in authorized)
                     {
                         var target = new HistorianEventFilterTarget(record);
                         var evaluator = new FilterEvaluator(
@@ -2292,6 +2302,142 @@ namespace Opc.Ua.Server.Historian
                     await claim.DisposeAsync().ConfigureAwait(false);
                 }
             }
+        }
+
+        /// <summary>
+        /// Keeps the stored events whose EventType and SourceNode grant
+        /// <see cref="PermissionType.ReceiveEvents"/> to the caller of the current request,
+        /// in their original order. A missing or malformed stored identity, an unknown node
+        /// or a failed permission lookup excludes the event. Only a trusted in-process read
+        /// without an operation context sees every stored event.
+        /// </summary>
+        internal static async ValueTask<ArrayOf<HistorianEventRecord>> AuthorizeHistoricalEventsAsync(
+            ServerSystemContext systemContext,
+            NodeId notifierId,
+            ArrayOf<HistorianEventRecord> records,
+            CancellationToken cancellationToken)
+        {
+            OperationContext? operationContext = systemContext.OperationContext;
+            if (operationContext == null || records.Count == 0)
+            {
+                return records;
+            }
+
+            var verdicts = new Dictionary<NodeId, bool>();
+            var allowed = new List<HistorianEventRecord>(records.Count);
+            for (int index = 0; index < records.Count; index++)
+            {
+                HistorianEventRecord record = records[index];
+                if (record == null ||
+                    !TryGetStoredEventIdentity(record, notifierId, out NodeId eventType, out NodeId sourceNode))
+                {
+                    continue;
+                }
+
+                if (await IsReceiveEventsGrantedAsync(
+                        systemContext,
+                        operationContext,
+                        eventType,
+                        verdicts,
+                        cancellationToken).ConfigureAwait(false) &&
+                    await IsReceiveEventsGrantedAsync(
+                        systemContext,
+                        operationContext,
+                        sourceNode,
+                        verdicts,
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    allowed.Add(record);
+                }
+            }
+
+            return allowed.Count == records.Count ? records : allowed.ToArrayOf();
+        }
+
+        /// <summary>
+        /// Reads the server-stored identity of a historical event. A record without a stored
+        /// SourceNode was captured or inserted for the notifier itself; a stored SourceNode that
+        /// is not a non-null NodeId, or a null EventType, is malformed.
+        /// </summary>
+        private static bool TryGetStoredEventIdentity(
+            HistorianEventRecord record,
+            NodeId notifierId,
+            out NodeId eventType,
+            out NodeId sourceNode)
+        {
+            eventType = record.EventType;
+            sourceNode = default;
+            if (eventType.IsNull)
+            {
+                return false;
+            }
+
+            var sourceKey = new HistorianEventFieldKey(
+                ObjectTypeIds.BaseEventType,
+                [new QualifiedName(BrowseNames.SourceNode)],
+                Attributes.Value,
+                null);
+            if (!record.TryGetQualifiedField(sourceKey, out Variant stored) &&
+                !record.TryGetField(BrowseNames.SourceNode, out stored))
+            {
+                sourceNode = notifierId;
+                return !sourceNode.IsNull;
+            }
+
+            return stored.TryGetValue(out sourceNode) && !sourceNode.IsNull;
+        }
+
+        /// <summary>
+        /// Validates ReceiveEvents (role permissions and access restrictions, with the
+        /// namespace defaults of the owning node manager) on a node for the current request.
+        /// </summary>
+        private static async ValueTask<bool> IsReceiveEventsGrantedAsync(
+            ServerSystemContext systemContext,
+            OperationContext operationContext,
+            NodeId nodeId,
+            Dictionary<NodeId, bool> verdicts,
+            CancellationToken cancellationToken)
+        {
+            if (verdicts.TryGetValue(nodeId, out bool granted))
+            {
+                return granted;
+            }
+
+            granted = false;
+            try
+            {
+                (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
+                    .GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (handle != null && nodeManager != null)
+                {
+                    NodeMetadata? metadata = await nodeManager.GetNodeMetadataAsync(
+                        operationContext,
+                        handle,
+                        BrowseResultMask.All,
+                        cancellationToken).ConfigureAwait(false);
+                    granted = metadata != null &&
+                        !ServiceResult.IsBad(MasterNodeManager.ValidateRolePermissions(
+                            operationContext,
+                            metadata,
+                            PermissionType.ReceiveEvents)) &&
+                        !ServiceResult.IsBad(MasterNodeManager.ValidateAccessRestrictions(
+                            operationContext,
+                            metadata,
+                            PermissionType.ReceiveEvents));
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                granted = false;
+            }
+
+            verdicts[nodeId] = granted;
+            return granted;
         }
 
         /// <summary>

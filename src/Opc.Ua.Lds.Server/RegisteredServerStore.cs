@@ -58,6 +58,10 @@ namespace Opc.Ua.Lds.Server
         private readonly List<ServerOnNetworkRecord> m_records = [];
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;
+
+        /// <summary>File system for validated local semaphore paths.</summary>
+        private readonly IFileSystem m_fileSystem;
+
         private uint m_nextRecordId = 1;
         private DateTime m_lastCounterResetTime;
         private ITimer? m_pruneTimer;
@@ -71,7 +75,20 @@ namespace Opc.Ua.Lds.Server
         /// background prune timer and registration timestamps. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
         public RegisteredServerStore(ILogger? logger = null, TimeProvider? timeProvider = null)
+            : this(logger, timeProvider, LocalFileSystem.Instance)
         {
+        }
+
+        /// <summary>
+        /// Creates a store with an injectable file system for local semaphore checks.
+        /// </summary>
+        /// <param name="logger">Optional logger.</param>
+        /// <param name="timeProvider">Optional clock and timer provider.</param>
+        /// <param name="fileSystem">File system used only after semaphore path validation.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="fileSystem"/> is null.</exception>
+        public RegisteredServerStore(ILogger? logger, TimeProvider? timeProvider, IFileSystem fileSystem)
+        {
+            m_fileSystem = fileSystem ?? throw new ArgumentNullException(nameof(fileSystem));
             m_logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_lastCounterResetTime = m_timeProvider.GetUtcNow().UtcDateTime;
@@ -170,6 +187,11 @@ namespace Opc.Ua.Lds.Server
         /// (post-merge) or <c>null</c> if it was removed.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="server"/> is null.</exception>
+        /// <exception cref="ServiceResultException">The semaphore path is not a local absolute file path.</exception>
+        /// <remarks>
+        /// Callers accepting protocol requests must independently enforce peer locality, as this store has no
+        /// transport context. <see cref="LdsServer"/> permits semaphores only for observed loopback peers.
+        /// </remarks>
         public async Task<RegistrationEntry?> RegisterAsync(
             RegisteredServer server,
             MdnsDiscoveryConfiguration? mdnsConfig,
@@ -180,14 +202,20 @@ namespace Opc.Ua.Lds.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
+            // Validate even offline registrations, and never pass the unvalidated DTO path to I/O.
+            string? semaphoreFilePath = server.SemaphoreFilePath;
+            if (!LocalSemaphorePath.IsValid(semaphoreFilePath))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+            }
+
             await m_lock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 string uri = server.ServerUri!;
 
                 // semaphore file: if path is set but file is missing, drop the registration
-                bool semaphoreValid = string.IsNullOrEmpty(server.SemaphoreFilePath) ||
-                    File.Exists(server.SemaphoreFilePath);
+                bool semaphoreValid = !server.IsOnline || SemaphoreExists(semaphoreFilePath);
 
                 if (!server.IsOnline || !semaphoreValid)
                 {
@@ -214,7 +242,7 @@ namespace Opc.Ua.Lds.Server
                 entry.DiscoveryUrls = server.DiscoveryUrls.IsNull
                     ? []
                     : server.DiscoveryUrls.ToList();
-                entry.SemaphoreFilePath = server.SemaphoreFilePath;
+                entry.SemaphoreFilePath = semaphoreFilePath;
                 entry.IsOnline = true;
                 entry.LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime;
 
@@ -385,7 +413,7 @@ namespace Opc.Ua.Lds.Server
                 var staleUris = m_byUri.Values
                     .Where(e =>
                         nowUtc - e.LastSeenUtc > RegistrationLifetime ||
-                        (!string.IsNullOrEmpty(e.SemaphoreFilePath) && !File.Exists(e.SemaphoreFilePath)))
+                        !SemaphoreExists(e.SemaphoreFilePath))
                     .Select(e => e.ServerUri)
                     .ToList();
 
@@ -469,6 +497,15 @@ namespace Opc.Ua.Lds.Server
             m_lock.Dispose();
         }
 
+        /// <summary>
+        /// Checks a captured path, rejecting unsafe stored/loaded entries before any file system call.
+        /// </summary>
+        private bool SemaphoreExists(string? path)
+        {
+            return string.IsNullOrEmpty(path) ||
+                (LocalSemaphorePath.IsValid(path) && m_fileSystem.Exists(path));
+        }
+
         private void UpdateNetworkRecordsCore(RegistrationEntry entry)
         {
             // Replace any prior records for this ServerUri originating from
@@ -493,6 +530,94 @@ namespace Opc.Ua.Lds.Server
                     LastSeenUtc = m_timeProvider.GetUtcNow().UtcDateTime,
                     ObservedViaMulticast = false
                 });
+            }
+        }
+
+        /// <summary>
+        /// Lexical, platform-independent rejection of network/device syntax, followed by native absolute-path checks.
+        /// Does not resolve paths, expand variables, or access the file system.
+        /// </summary>
+        internal static class LocalSemaphorePath
+        {
+            /// <summary>
+            /// Accepts an absent semaphore or an ordinary fully qualified native file path.
+            /// </summary>
+            internal static bool IsValid(string? path)
+            {
+                if (string.IsNullOrEmpty(path))
+                {
+                    return true;
+                }
+
+                // Check both separators on every platform: Path APIs on Unix do not recognize Windows UNC/device paths.
+                if (char.IsWhiteSpace(path[0]) ||
+                    (IsSeparator(path[0]) && (path.Length < 2 || IsSeparator(path[1]))))
+                {
+                    return false;
+                }
+
+                int start;
+                if (Path.DirectorySeparatorChar == '\\')
+                {
+                    if (path.Length < 4 ||
+                        !((path[0] >= 'A' && path[0] <= 'Z') || (path[0] >= 'a' && path[0] <= 'z')) ||
+                        path[1] != ':' || !IsSeparator(path[2]))
+                    {
+                        return false;
+                    }
+                    start = 3;
+                }
+                else
+                {
+                    if (path[0] != '/' || path.Contains('\\', StringComparison.Ordinal))
+                    {
+                        return false;
+                    }
+                    start = 1;
+                }
+
+                foreach (char ch in path.AsSpan(start))
+                {
+                    if (char.IsControl(ch) || ch is ':' or '"' or '<' or '>' or '|' or '?' or '*')
+                    {
+                        return false;
+                    }
+                }
+
+                foreach (string component in path.Substring(start).Split(['\\', '/']))
+                {
+                    if (component.Length == 0 || component[^1] is '.' or ' ' ||
+                        char.IsWhiteSpace(component[0]))
+                    {
+                        return false;
+                    }
+
+                    string name = component.Split('.')[0].TrimEnd(' ');
+                    if (name.Equals("CON", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("PRN", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("AUX", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("NUL", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("CLOCK$", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("CONIN$", StringComparison.OrdinalIgnoreCase) ||
+                        name.Equals("CONOUT$", StringComparison.OrdinalIgnoreCase) ||
+                        (name.Length == 4 &&
+                        (name.StartsWith("COM", StringComparison.OrdinalIgnoreCase) ||
+                        name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) &&
+                        (name[3] is >= '1' and <= '9' or '¹' or '²' or '³')))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            /// <summary>
+            /// Recognizes either Windows path separator regardless of the current platform.
+            /// </summary>
+            private static bool IsSeparator(char value)
+            {
+                return value is '\\' or '/';
             }
         }
 

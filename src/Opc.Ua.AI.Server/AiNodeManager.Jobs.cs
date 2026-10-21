@@ -33,12 +33,6 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua;
-using Opc.Ua.AI;
-using AIRefs = Opc.Ua.AI.ReferenceTypeIds;
-using BrowseNames = Opc.Ua.AI.BrowseNames;
-using ObjectIds = Opc.Ua.ObjectIds;
-using ReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 
 namespace Opc.Ua.AI.Server
 {
@@ -62,11 +56,12 @@ namespace Opc.Ua.AI.Server
         /// </para>
         /// </remarks>
         private async ValueTask<InvokeAsyncMethodStateResult> StartJobAsync(
+            ISystemContext context,
             NodeId objectId,
             ByteString payload,
             string payloadUri,
             string contentType,
-            ArrayOf<Opc.Ua.KeyValuePair> parameters,
+            ArrayOf<KeyValuePair> parameters,
             CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
@@ -105,6 +100,16 @@ namespace Opc.Ua.AI.Server
                 return new InvokeAsyncMethodStateResult
                 {
                     ServiceResult = StatusCodes.BadInvalidArgument,
+                    Job = NodeId.Null
+                };
+            }
+
+            InferenceOwner? owner = CaptureOwner(context, sessionBound: false);
+            if (owner is null)
+            {
+                return new InvokeAsyncMethodStateResult
+                {
+                    ServiceResult = StatusCodes.BadUserAccessDenied,
                     Job = NodeId.Null
                 };
             }
@@ -155,8 +160,9 @@ namespace Opc.Ua.AI.Server
                 Child<PropertyState<DateTimeUtc>>(job, BrowseNames.FinishedAt);
 
                 job.CurrentState!.Value = new LocalizedText("Running");
-                job.CurrentState!.Id!.Value = Opc.Ua.ObjectIds.ProgramStateMachineType_Running;
+                job.CurrentState!.Id!.Value = Ua.ObjectIds.ProgramStateMachineType_Running;
 
+                ProtectOwnedTree(job, owner);
                 Child<FolderState>(m_root!, BrowseNames.Jobs).AddChild(job);
                 AddPredefinedNodeSynchronously(job);
                 m_jobs.Add(job.NodeId);
@@ -290,7 +296,7 @@ namespace Opc.Ua.AI.Server
                 DateTime.UtcNow;
 
             job.CurrentState!.Value = new LocalizedText("Halted");
-            job.CurrentState!.Id!.Value = Opc.Ua.ObjectIds.ProgramStateMachineType_Halted;
+            job.CurrentState!.Id!.Value = Ua.ObjectIds.ProgramStateMachineType_Halted;
 
             job.ClearChangeMasks(SystemContext, true);
         }

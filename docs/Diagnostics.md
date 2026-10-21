@@ -790,12 +790,17 @@ Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
 
-For finalized files, set `StartCaptureRequest.RequireCompleteReplay = true` when
-starting `ReplayCaptureSource` or a managed replay session. The corresponding
-`PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, ct)` overload rejects
-missing/partial global headers and partial trailing records. The original reader
-overload remains tolerant of an incomplete trailing header for active-capture
-snapshots. Strict mode does not add decryption keys or transmit any data.
+Replay import and raw export require a complete, structurally valid PCAP or
+PCAPNG container, independently of `StartCaptureRequest.RequireCompleteReplay`.
+Raw export revalidates the exact exported bytes, so replacing an admitted replay
+file cannot turn it into an arbitrary-file download. Keylogs, registered key
+artifacts and PCAPNG decryption-secret blocks are excluded from ordinary capture
+export; key disclosure remains a separate explicitly enabled capability.
+
+`PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, ct)` additionally
+rejects missing/partial global headers and partial trailing records for direct
+reader callers. Its original overload remains tolerant of an incomplete trailing
+header for active-capture snapshots. Strict mode does not add keys or transmit data.
 
 ### Security model
 
@@ -1117,6 +1122,10 @@ accepted by a hosted OPC UA server. It uses the same frame sink plus
 **Replay (`replay`)** reads an existing pcap or pcapng plus
 `.uakeys.json` or `.uakeys.txt`. Use it for offline decode, summaries,
 and mock-client or mock-server replay.
+
+PubSub dissection and all shared key-loading paths authorize a supplied keylog
+against the host-approved capture root immediately before opening it. Knowing an
+absolute path outside that root does not grant use of its keys.
 
 Capture requests accept these canonical wire names and also the CLR
 member names (`Nic`, `InProcessClient`, `InProcessServer`, `Replay`) for

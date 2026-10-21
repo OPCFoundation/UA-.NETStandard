@@ -74,7 +74,8 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                     new McpPubSubDatagramRule
                     {
                         Endpoint = input.Connection.Endpoint, NetworkInterface = input.Connection.NetworkInterface!,
-                        LocalAddress = "127.0.0.1", Operations = ["configure-publish", "configure-subscribe"]
+                        LocalAddress = "127.0.0.1",
+                        Operations = ["configure-connect", "configure-publish", "configure-subscribe"]
                     }
                 ]
             };
@@ -84,6 +85,23 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             NodeId target = fixture.Remote.Id("target");
             NodeId assigned = fixture.Remote.Id("assigned");
             fixture.Remote.Type(target, type);
+            bool connectionTarget = kind.EndsWith("Group", StringComparison.Ordinal);
+            NodeId connection = connectionTarget ? target : fixture.Remote.Id("connection");
+            fixture.Remote.Type(connection, ObjectTypeIds.PubSubConnectionType);
+            if (!connectionTarget)
+            {
+                fixture.Remote.Browse(target, ReferenceTypeIds.HasComponent,
+                    [fixture.Remote.Reference(connection, ObjectTypeIds.PubSubConnectionType)],
+                    BrowseDirection.Inverse);
+            }
+            fixture.Remote.Property(connection, new QualifiedName(BrowseNames.TransportProfileUri),
+                Variant.From(Profiles.PubSubUdpUadpTransport));
+            NodeId address = fixture.Remote.Id("address");
+            fixture.Remote.Child(connection, new QualifiedName(BrowseNames.Address), address);
+            fixture.Remote.Property(address, new QualifiedName(BrowseNames.Url),
+                Variant.From(input.Connection.Endpoint));
+            fixture.Remote.Property(address, new QualifiedName(BrowseNames.NetworkInterface),
+                Variant.From(input.Connection.NetworkInterface!));
             fixture.Remote.Reply(StatusCodes.Good, Variant.From(assigned));
             PubSubConfigurationTools tools = fixture.Services.GetRequiredService<PubSubConfigurationTools>();
             CallToolResult result = kind switch

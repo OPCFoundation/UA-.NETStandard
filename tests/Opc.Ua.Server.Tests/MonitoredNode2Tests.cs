@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests
     [Category("MonitoredNode")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable] // Permission-cache assertions and one-shot gates require a stable RolePermissionsVersion.
     public class MonitoredNode2Tests
     {
         /// <summary>

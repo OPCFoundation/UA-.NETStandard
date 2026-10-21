@@ -173,10 +173,11 @@ namespace Opc.Ua.Pcap.Frame
             uint magic = BinaryPrimitives.ReadUInt32LittleEndian(globalHeader);
             bool littleEndian = magic switch
             {
-                0xA1B2C3D4U => true,
-                0xD4C3B2A1U => false,
+                0xA1B2C3D4U or 0xA1B23C4DU => true,
+                0xD4C3B2A1U or 0x4D3CB2A1U => false,
                 _ => throw new PcapDiagnosticsException("Invalid pcap magic number.")
             };
+            bool nanoseconds = magic is 0xA1B23C4DU or 0x4D3CB2A1U;
             uint linkType = ReadUInt32(globalHeader.AsSpan(20, 4), littleEndian);
             byte[] recordHeader = new byte[16];
             while (await ReadExactOrEndAsync(stream, recordHeader, requireCompleteFile, ct).ConfigureAwait(false))
@@ -220,7 +221,8 @@ namespace Opc.Ua.Pcap.Frame
                     throw new PcapDiagnosticsException("Truncated pcap packet record.");
                 }
 
-                DateTimeOffset timestamp = DateTimeOffset.UnixEpoch.AddSeconds(tsSec).AddTicks(tsUsec * 10L);
+                long fractionalTicks = nanoseconds ? tsUsec / 100L : tsUsec * 10L;
+                DateTimeOffset timestamp = DateTimeOffset.UnixEpoch.AddSeconds(tsSec).AddTicks(fractionalTicks);
                 yield return new PcapRecord(timestamp, linkType, checked((int)originalLength), data);
             }
         }

@@ -150,8 +150,13 @@ namespace Opc.Ua.Server
                 // Unsubscribe from RoleManager configuration events before
                 // tearing down sessions to avoid late-stage callbacks racing
                 // with disposal.
-                IRoleManager? subscribed = Interlocked.Exchange(ref m_subscribedRoleManager, null);
-                subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                lock (m_roleSubscriptionLock)
+                {
+                    m_roleSubscriptionDisposed = true;
+                    IRoleManager? subscribed = m_subscribedRoleManager;
+                    m_subscribedRoleManager = null;
+                    subscribed?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                }
 
                 CloseAllSessions();
 
@@ -741,6 +746,14 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityPolicyRejected);
                     }
+                    if (isNewChannel &&
+                        MonitoredReadAuthorization.IsConfidential(MonitoredReadAuthorization.GetEndpoint(session)) &&
+                        !MonitoredReadAuthorization.IsConfidential(currentEndpoint))
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "The new SecureChannel does not preserve the Session's transport confidentiality.");
+                    }
                     if (!session.Activated && !session.IsSecureChannelValid(channelContext.SecureChannelId))
                     {
                         throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
@@ -899,6 +912,8 @@ namespace Opc.Ua.Server
                     var impersonated = new ImpersonatedIdentity(identity, effectiveIdentity);
 
                     // Add mandatory roles based on session/channel security context (e.g., TrustedApplication).
+                    EnsureRoleManagerSubscription();
+                    long roleGeneration = session.CaptureIdentityRefreshSnapshot().Generation;
                     effectiveIdentity = AddMandatoryRoles(session, context, effectiveIdentity);
 
                     // Per Part 18 §5.2.8: when the authenticated user has the
@@ -923,19 +938,53 @@ namespace Opc.Ua.Server
                         activationState.IsCommitting = true;
                     }
 
+                    bool admitted = false;
+                    try
+                    {
+                        admitted = await AdmitActivationAsync(
+                            authenticationToken,
+                            session,
+                            context,
+                            activationState.RestorePending,
+                            CancellationToken.None).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (!admitted)
+                        {
+                            lock (m_bindingsLock)
+                            {
+                                activationState.IsCommitting = false;
+                            }
+                        }
+                    }
+                    if (!admitted)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+
                     // Set before Activate: a re-evaluation racing with it then works on the
                     // previous generation, which Activate supersedes.
                     ImpersonatedIdentity? previousImpersonated = activationState.Impersonated;
                     activationState.Impersonated = impersonated;
                     try
                     {
-                        contextChanged = session.Activate(
-                            context,
-                            newIdentity!,
-                            identity,
-                            effectiveIdentity,
-                            localeIds,
-                            serverNonceObject);
+                        if (session is Session concreteSession)
+                        {
+                            contextChanged = concreteSession.ActivateWithRoleGeneration(
+                                context, newIdentity!, identity, effectiveIdentity, localeIds,
+                                serverNonceObject, roleGeneration);
+                        }
+                        else
+                        {
+                            bool rolesChanged = roleGeneration != session.CaptureIdentityRefreshSnapshot().Generation;
+                            contextChanged = session.Activate(
+                                context, newIdentity!, identity, effectiveIdentity, localeIds, serverNonceObject);
+                            if (rolesChanged)
+                            {
+                                session.MarkIdentityStale();
+                            }
+                        }
                     }
                     catch
                     {
@@ -949,39 +998,7 @@ namespace Opc.Ua.Server
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
 
-                    // The first activation of a restored session consumes the restore
-                    // (e.g. a mirrored single-use nonce) only once it passed every check
-                    // and the session was activated locally, so a failed or abandoned
-                    // attempt leaves it for another one. Only the binding commit, which
-                    // fails only for a session that is being closed, follows. Until it,
-                    // the session is unbound and is discarded when the activation fails.
-                    if (activationState.RestorePending)
-                    {
-                        bool admitted = false;
-                        try
-                        {
-                            admitted = await AdmitRestoredSessionAsync(
-                                authenticationToken,
-                                session,
-                                context,
-                                CancellationToken.None).ConfigureAwait(false);
-                        }
-                        finally
-                        {
-                            if (!admitted)
-                            {
-                                lock (m_bindingsLock)
-                                {
-                                    activationState.IsCommitting = false;
-                                }
-                            }
-                        }
-                        if (!admitted)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-                        }
-                        activationState.RestorePending = false;
-                    }
+                    activationState.RestorePending = false;
 
                     activationState.ClientUserId = clientUserId;
                     activationState.ClientUserTokenType = clientUserTokenType;
@@ -1492,6 +1509,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Performs admission that must succeed before a Session is changed or its channel binding commits.
+        /// </summary>
+        /// <param name="authenticationToken">The session authentication token.</param>
+        /// <param name="session">The authenticated Session.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="isRestoredSession">Whether the Session was restored from a replica.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns><c>true</c> to proceed with activation; <c>false</c> to reject it.</returns>
+        protected virtual ValueTask<bool> AdmitActivationAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            bool isRestoredSession,
+            CancellationToken cancellationToken)
+        {
+            return isRestoredSession
+                ? AdmitRestoredSessionAsync(
+                    authenticationToken,
+                    session,
+                    context,
+                    cancellationToken)
+                : new ValueTask<bool>(true);
+        }
+
+        /// <summary>
         /// Removes a restored Session whose first activation failed, without the
         /// virtual <see cref="CloseSessionAsync"/> and therefore without deleting any
         /// mirrored state. Its diagnostics node is removed and the session disposed.
@@ -1607,6 +1649,7 @@ namespace Opc.Ua.Server
 
             try
             {
+                EnsureRoleManagerSubscription();
                 // check for create session request.
                 if (requestType is RequestType.CreateSession or RequestType.ActivateSession)
                 {
@@ -1643,19 +1686,18 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
 
-                // Lazily reconcile the RoleManager subscription. The
-                // RoleManager is bound during server startup, after
-                // SessionManager construction, so we
-                // can't subscribe at startup; the first request that flows
-                // through a fully-initialized server wires it up.
-                EnsureRoleManagerSubscription();
-
                 // Part 18 §4.4.1 — if a Role configuration change marked the
                 // session's identity stale, re-evaluate the mandatory roles
                 // (Anonymous/AuthenticatedUser/TrustedApplication + live
                 // RoleManager identity-mapping rules) before the request runs
                 // so that downstream access checks see the current grants.
                 ReevaluateIdentityIfStale(session, secureChannelContext);
+                if (session.IsIdentityStale)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUserAccessDenied,
+                        "The current role grants could not be established.");
+                }
 
                 // validate user has permissions for additional info. Decided after the
                 // re-evaluation so the privilege reflects the roles the request runs with.
@@ -2305,6 +2347,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Refreshes a background producer's grants before it retries an authorized read.
+        /// </summary>
+        internal bool TryRefreshEffectiveIdentity(ISession session, SecureChannelContext? secureChannelContext)
+        {
+            if (secureChannelContext == null)
+            {
+                return false;
+            }
+            EnsureRoleManagerSubscription();
+            ReevaluateIdentityIfStale(session, secureChannelContext);
+            return !session.IsIdentityStale;
+        }
+
+        /// <summary>
         /// Re-evaluates the session's effective identity if it has been
         /// marked stale by a Role configuration change.
         /// </summary>
@@ -2416,22 +2472,27 @@ namespace Opc.Ua.Server
         /// </remarks>
         private void EnsureRoleManagerSubscription()
         {
-            IRoleManager? current = m_server.RoleManager;
-            IRoleManager? previous = m_subscribedRoleManager;
-            if (current == previous)
+            lock (m_roleSubscriptionLock)
             {
-                return;
-            }
+                if (m_roleSubscriptionDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(SessionManager));
+                }
+                IRoleManager? current = m_server.RoleManager;
+                IRoleManager? previous = m_subscribedRoleManager;
+                if (current == previous)
+                {
+                    return;
+                }
 
-            // CAS to claim the swap; on failure another thread already
-            // reconciled — defer to it.
-            if (Interlocked.CompareExchange(ref m_subscribedRoleManager, current, previous) != previous)
-            {
-                return;
+                previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
+                current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
+                m_subscribedRoleManager = current;
+                foreach (ISession session in GetSessions())
+                {
+                    session.MarkIdentityStale();
+                }
             }
-
-            previous?.RoleConfigurationChanged -= OnRoleConfigurationChanged;
-            current?.RoleConfigurationChanged += OnRoleConfigurationChanged;
         }
 
         /// <summary>
@@ -2830,6 +2891,12 @@ namespace Opc.Ua.Server
         /// <see cref="EnsureRoleManagerSubscription"/>.
         /// </summary>
         private IRoleManager? m_subscribedRoleManager;
+
+        /// <summary>Serializes role listener replacement and initial identity invalidation.</summary>
+        private readonly Lock m_roleSubscriptionLock = new();
+
+        /// <summary>Prevents a late request from attaching a listener after disposal.</summary>
+        private bool m_roleSubscriptionDisposed;
 
         /// <summary>
         /// The length of the Session nonces this Server issues in the

@@ -34,6 +34,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -141,6 +142,9 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
             var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
                 "CN=pubsub-loopback-test", key, HashAlgorithmName.SHA256);
+            var subjectAltName = new SubjectAlternativeNameBuilder();
+            subjectAltName.AddIpAddress(IPAddress.Loopback);
+            request.CertificateExtensions.Add(subjectAltName.Build());
             using var certificate = Certificate.From(request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10)));
             var validator = new Mock<ICertificateValidatorEx>(MockBehavior.Strict);

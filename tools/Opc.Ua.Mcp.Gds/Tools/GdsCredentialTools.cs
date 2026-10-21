@@ -227,6 +227,7 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await m_access.EndpointAsync(
                     serviceNodeId, GdsTarget.KeyCredential, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                _ = endpoint.SecretResource;
                 string resource = await ResourceAsync(endpoint, token).ConfigureAwait(false);
                 ByteString publicKey = input.PublicKeyPath is null ? default :
                     await m_access.PublicInputAsync(input.PublicKeyPath, token).ConfigureAwait(false);
@@ -265,6 +266,7 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await m_access.EndpointAsync(
                     serviceNodeId, GdsTarget.KeyCredential, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                string issuer = endpoint.SecretResource;
                 string resource = await ResourceAsync(endpoint, token).ConfigureAwait(false);
                 using McpSecretReservation reservation =
                     m_access.Secrets.ReserveIssuance(McpCapability.CredentialIssuance);
@@ -294,7 +296,7 @@ namespace Opc.Ua.Mcp
                     {
                         result["credential"] = await PersistAsync(reservation, secret, "key-credential",
                             resource, m_access.Time.GetUtcNow() + m_access.Options.ReferenceLifetime,
-                            GdsJson.String(call, 0), result, endpoint.Resource).ConfigureAwait(false);
+                            GdsJson.String(call, 0), result, issuer).ConfigureAwait(false);
                     }
                 }
                 return result;
@@ -410,10 +412,11 @@ namespace Opc.Ua.Mcp
                 McpCallerIdentity owner = m_access.Sessions.OperationPolicy.Require(McpCapability.CredentialIssuance);
                 using GdsOperationState.RequestReservation request =
                     m_state.ReserveRequest(endpoint, owner, resourceId);
+                string issuer = request.Issuer;
                 using McpSecretReservation secret =
                     m_access.Secrets.ReserveIssuance(McpCapability.CredentialIssuance);
                 using ISecret? data = requestorDataReference is null ? null :
-                    await m_access.Secrets.ResolveAsync(requestorDataReference, endpoint.Resource,
+                    await m_access.Secrets.ResolveAsync(requestorDataReference, issuer,
                         McpCapability.CredentialIssuance, token).ConfigureAwait(false);
                 ByteString requestorData = data is null ? default : ByteString.From(data.Bytes.ToArray());
                 CallMethodResult call = await endpoint.CallAsync(GdsMethods.AuthorizationServiceType_StartRequestToken,
@@ -431,7 +434,7 @@ namespace Opc.Ua.Mcp
                     {
                         result["serviceData"] = await PersistAsync(secret, challenge, "authorization-challenge",
                             resourceId, m_access.Time.GetUtcNow() + m_access.Options.RequestLifetime, id, result,
-                            endpoint.Resource)
+                            issuer)
                             .ConfigureAwait(false);
                     }
                 }
@@ -469,11 +472,12 @@ namespace Opc.Ua.Mcp
                     serviceNodeId, GdsTarget.Authorization, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
                 McpCallerIdentity owner = m_access.Sessions.OperationPolicy.Require(McpCapability.CredentialIssuance);
+                string issuer = endpoint.SecretResource;
                 string resource = m_state.RequireRequest(endpoint, owner, id.ToString());
                 using McpSecretReservation reservation =
                     m_access.Secrets.ReserveIssuance(McpCapability.CredentialIssuance, 2);
                 (UserIdentityToken identity, SignatureData signature) =
-                    await ProofAsync(input.Proof, endpoint.Resource, token).ConfigureAwait(false);
+                    await ProofAsync(input.Proof, issuer, token).ConfigureAwait(false);
                 CallMethodResult call = await endpoint.CallAsync(GdsMethods.AuthorizationServiceType_FinishRequestToken,
                     [new Variant(id), new Variant(input.RequestedRoles), Variant.FromStructure(identity),
                         Variant.FromStructure(signature)], token).ConfigureAwait(false);
@@ -483,7 +487,7 @@ namespace Opc.Ua.Mcp
                 if (!StatusCode.IsBad(call.StatusCode))
                 {
                     m_state.CompleteRequest(endpoint, id.ToString());
-                    await TokensAsync(reservation, call, resource, id.ToString(), result, endpoint.Resource)
+                    await TokensAsync(reservation, call, resource, id.ToString(), result, issuer)
                         .ConfigureAwait(false);
                 }
                 return result;
@@ -516,13 +520,14 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await m_access.EndpointAsync(
                     serviceNodeId, GdsTarget.Authorization, sessionName, token).ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                string issuer = endpoint.SecretResource;
                 bool issued = refreshReference.StartsWith("issued:", StringComparison.Ordinal);
                 if (issued)
                 {
                     McpSecretReference reference = m_access.Secrets.RequireReference(
                         refreshReference, resourceId, McpCapability.CredentialIssuance);
                     if (reference.Purpose != "refresh-token" ||
-                        !string.Equals(reference.Issuer, endpoint.Resource, StringComparison.Ordinal))
+                        !string.Equals(reference.Issuer, issuer, StringComparison.Ordinal))
                     {
                         throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
                     }
@@ -530,7 +535,7 @@ namespace Opc.Ua.Mcp
                 using McpSecretReservation reservation =
                     m_access.Secrets.ReserveIssuance(McpCapability.CredentialIssuance, 2);
                 using ISecret refresh = await m_access.Secrets.ResolveAsync(
-                    refreshReference, issued ? resourceId : endpoint.Resource,
+                    refreshReference, issued ? resourceId : issuer,
                     McpCapability.CredentialIssuance, token).ConfigureAwait(false);
                 string text = s_utf8.GetString(refresh.Bytes);
                 CallMethodResult call = await endpoint.CallAsync(GdsMethods.AuthorizationServiceType_RefreshToken,
@@ -539,7 +544,7 @@ namespace Opc.Ua.Mcp
                 result["resource"] = resourceId;
                 if (!StatusCode.IsBad(call.StatusCode))
                 {
-                    await TokensAsync(reservation, call, resourceId, null, result, endpoint.Resource)
+                    await TokensAsync(reservation, call, resourceId, null, result, issuer)
                         .ConfigureAwait(false);
                     if (issued)
                     {
@@ -609,17 +614,14 @@ namespace Opc.Ua.Mcp
         /// </summary>
         private async ValueTask<JsonObject?> PersistAsync(
             McpSecretReservation reservation, ByteString value, string purpose, string resource,
-            DateTimeOffset expiry, string? credentialId, JsonObject result, string? issuer = null)
+            DateTimeOffset expiry, string? credentialId, JsonObject result, string issuer)
         {
             try
             {
                 using var persistence = new CancellationTokenSource(TimeSpan.FromSeconds(30), m_access.Time);
-                McpSecretReference reference = issuer is null
-                    ? await reservation.StoreAsync(value, purpose, resource, expiry, credentialId, persistence.Token)
-                        .ConfigureAwait(false)
-                    : await reservation.StoreForIssuerAsync(
-                        value, purpose, resource, issuer, expiry, credentialId, persistence.Token)
-                        .ConfigureAwait(false);
+                McpSecretReference reference = await reservation.StoreForIssuerAsync(
+                    value, purpose, resource, issuer, expiry, credentialId, persistence.Token)
+                    .ConfigureAwait(false);
                 return GdsJson.Reference(reference);
             }
             catch (Exception failure) when (failure is IMcpSecretPersistenceFailure persistence)
@@ -643,7 +645,7 @@ namespace Opc.Ua.Mcp
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         private async ValueTask<(UserIdentityToken Identity, SignatureData Signature)> ProofAsync(
-            GdsTokenProof proof, string resource, CancellationToken ct)
+            GdsTokenProof proof, string issuer, CancellationToken ct)
         {
             if (!Enum.IsDefined(proof.Kind) ||
                 (proof.Kind == GdsIdentityKind.Anonymous && proof.CredentialReference is not null) ||
@@ -655,10 +657,10 @@ namespace Opc.Ua.Mcp
             GdsAccess.Text(proof.EncryptionAlgorithm, allowEmpty: true);
             GdsAccess.Text(proof.SignatureAlgorithm, allowEmpty: true);
             using ISecret? secret = proof.CredentialReference is null ? null :
-                await m_access.Secrets.ResolveAsync(proof.CredentialReference, resource,
+                await m_access.Secrets.ResolveAsync(proof.CredentialReference, issuer,
                     McpCapability.CredentialIssuance, ct).ConfigureAwait(false);
             using ISecret? signature = proof.SignatureReference is null ? null :
-                await m_access.Secrets.ResolveAsync(proof.SignatureReference, resource,
+                await m_access.Secrets.ResolveAsync(proof.SignatureReference, issuer,
                     McpCapability.CredentialIssuance, ct).ConfigureAwait(false);
             ByteString bytes = secret is null ? default : ByteString.From(secret.Bytes.ToArray());
             UserIdentityToken identity = proof.Kind switch

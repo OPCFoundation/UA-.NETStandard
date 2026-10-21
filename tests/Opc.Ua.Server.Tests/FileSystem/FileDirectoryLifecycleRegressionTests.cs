@@ -566,7 +566,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// </summary>
             public BindingHarness()
             {
-                m_path = Path.Combine(Path.GetTempPath(), "FileDirectoryRegression-" + Guid.NewGuid().ToString("N"));
+                m_path = Path.Combine(
+                    AppContext.BaseDirectory, "FileDirectoryRegression-" + Guid.NewGuid().ToString("N"));
                 Physical = new PhysicalFileSystemProvider(m_path, "regression");
                 Provider.SetupGet(value => value.MountName).Returns("regression");
                 Provider.SetupGet(value => value.IsWritable).Returns(true);

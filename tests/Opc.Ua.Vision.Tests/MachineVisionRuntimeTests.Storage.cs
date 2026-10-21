@@ -553,7 +553,8 @@ namespace Opc.Ua.Vision.Tests
         {
             await using var fixture = new VisionServerFixture();
             await fixture.StartAsync(MachineVisionParts.All).ConfigureAwait(false);
-            string directory = Path.Combine(Path.GetTempPath(), "VisionStore-" + Guid.NewGuid().ToString("N"));
+            // Leave room for legacy pending-file names on .NET Framework.
+            string directory = Path.Combine(AppContext.BaseDirectory, "v-" + Guid.NewGuid().ToString("N")[..8]);
             var provider = new PhysicalFileSystemProvider(directory);
             try
             {
