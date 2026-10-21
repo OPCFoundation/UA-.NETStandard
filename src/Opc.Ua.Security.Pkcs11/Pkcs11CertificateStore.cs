@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Net.Pkcs11Interop.Common;
 using Net.Pkcs11Interop.HighLevelAPI;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Security.Pkcs11
@@ -954,7 +955,7 @@ namespace Opc.Ua.Security.Pkcs11
             Message = "Opened PKCS#11 token '{TokenLabel}' using module {ModulePath}.")]
         public static partial void Pkcs11CertificateStoreLog0(
             this ILogger logger,
-            string modulePath,
+            [FilePath] string modulePath,
             string tokenLabel);
 
         [LoggerMessage(
@@ -965,7 +966,7 @@ namespace Opc.Ua.Security.Pkcs11
                 "generate; the public certificate is unaffected.")]
         public static partial void Pkcs11CertificateStoreLog1(
             this ILogger logger,
-            string thumbprint,
+            [ApplicationIdentity] string thumbprint,
             string tokenLabel);
 
         [LoggerMessage(
@@ -974,7 +975,7 @@ namespace Opc.Ua.Security.Pkcs11
             Message = "Wrote certificate {Thumbprint} to the PKCS#11 token '{TokenLabel}'.")]
         public static partial void Pkcs11CertificateStoreLog2(
             this ILogger logger,
-            string thumbprint,
+            [ApplicationIdentity] string thumbprint,
             string tokenLabel);
 
         [LoggerMessage(
@@ -983,7 +984,7 @@ namespace Opc.Ua.Security.Pkcs11
             Message = "Deleted certificate {Thumbprint} from the PKCS#11 token '{TokenLabel}'.")]
         public static partial void Pkcs11CertificateStoreLog3(
             this ILogger logger,
-            string thumbprint,
+            [ApplicationIdentity] string thumbprint,
             string tokenLabel);
     }
 }

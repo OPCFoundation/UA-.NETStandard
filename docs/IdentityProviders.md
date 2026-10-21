@@ -8,23 +8,17 @@ and the identity-provider handshakes in
 
 The design is intentionally **symmetric**:
 
-```
-                 ┌──────────────────────────────────────────────┐
-                 │            Opc.Ua.Core / Opc.Ua.Identity     │
-                 │  (shared interfaces, no behaviour change)    │
-                 └──────────────────────────────────────────────┘
-                              ▲                       ▲
-              ┌───────────────┘                       └───────────────┐
-              │                                                       │
-   IClientIdentityProvider                                IUserTokenAuthenticator
-   IAccessTokenProvider                                   IServerIdentityRegistry
-   AuthorizationServerMetadata                            ITokenIssuer
-              │                                                       │
-   Used by:                                              Used by:
-     ManagedSession,                                       SessionManager
-     ConsoleReferenceClient                                ReferenceServer
-     custom Entra/OIDC providers                           JwtAuthenticator, X509Authenticator
-     custom Windows/AspNetCore providers                   AuthorizationServiceType
+```mermaid
+flowchart TB
+    shared["Opc.Ua.Core / Opc.Ua.Identity<br/>Shared interfaces, no behaviour change"]
+    client["IClientIdentityProvider<br/>IAccessTokenProvider<br/>AuthorizationServerMetadata"]
+    server["IUserTokenAuthenticator<br/>IServerIdentityRegistry<br/>ITokenIssuer"]
+    clientUsers["ManagedSession<br/>ConsoleReferenceClient<br/>Custom Entra/OIDC providers<br/>Custom Windows/AspNetCore providers"]
+    serverUsers["SessionManager<br/>ReferenceServer<br/>JwtAuthenticator, X509Authenticator<br/>AuthorizationServiceType"]
+    client --> shared
+    server --> shared
+    clientUsers -->|uses| client
+    serverUsers -->|uses| server
 ```
 
 The model **does not replace** the existing
@@ -43,7 +37,7 @@ register `IUserTokenAuthenticator` instances directly.
   - [Client example](#client-example)
   - [GDS example](#gds-example)
   - [Configuration reference](#configuration-reference)
-- [Three layers, kept separate](#three-layers-kept-separate)
+- [Separate identity responsibilities](#separate-identity-responsibilities)
 - [Client side](#client-side)
   - [`IClientIdentityProvider` — what to send in `ActivateSession`](#iclientidentityprovider--what-to-send-in-activatesession)
   - [`IAccessTokenProvider` — orthogonal to the OPC UA stack](#iaccesstokenprovider--orthogonal-to-the-opc-ua-stack)
@@ -242,10 +236,11 @@ services.AddOpcUa()
     .AddIdentityProvider(configuration.GetSection("OpcUa:Client:Identity"));
 ```
 
-The matching `appsettings.json` (only the `AddIdentityProvider(section)`
-overload picks this up — `AddClient(IConfiguration)` alone binds the
-section into `OpcUaClientOptions.Identity` but does not register
-providers):
+`AddIdentityProvider(section)` explicitly registers a configuration-backed
+`IClientIdentityProvider` in DI. `AddClient(IConfiguration)` also binds identity
+options; when no session-specific or DI-registered provider is selected, the
+session factory builds a composite from non-default bound options at resolution
+time. The matching `appsettings.json` is:
 
 ```json
 {
@@ -336,20 +331,19 @@ SelfAdmin elevation works without custom host code.
 |---|---|---|
 | `OpcUa:Server:Identity:Defaults` | `AddServer(IConfiguration)` | The hosted service materialises the four default authenticators from the bound flags. |
 | `OpcUa:Server:Identity:Issuers[]` | `AddServer(IConfiguration)` | Each entry is registered through `AddJwtIssuer(...)` at builder time. |
-| `OpcUa:Client:Identity` | `AddClient(IConfiguration)` (fallback at session-factory resolution) | The session factory builds a composite from the bound options when **no** `IClientIdentityProvider` is registered AND at least one non-default field is set (any of `UserName`, `X509`, `IssuedToken`, `Order`, or `EnableAnonymous = false`). Pass the section to `.AddIdentityProvider(IConfiguration)` for an explicit eager registration. |
+| `OpcUa:Client:Identity` | `AddClient(IConfiguration)` (fallback at session-factory resolution) | A session-specific provider takes precedence, followed by DI-registered `IClientIdentityProvider` instances. If neither is selected and at least one non-default field is set (`UserName`, `X509`, `IssuedToken`, `Order`, or `EnableAnonymous = false`), the session factory builds a composite from the bound options. Pass the section to `.AddIdentityProvider(IConfiguration)` for explicit DI registration; the registered factory constructs the provider when resolved. |
 | `OpcUa:Server:Identity:*` from the `AddServer(Action<>)` path | **Not auto-wired** | Use the explicit fluent calls (`AddDefaultIdentityAuthenticators`, `AddJwtIssuer`). |
 
 See [Dependency Injection](DependencyInjection.md) for the full
 `services.AddOpcUa()` surface and how options flow through
 `IConfiguration`.
 
-## Three layers, kept separate
+## Separate identity responsibilities
 
-A common pitfall when designing identity systems is to collapse three
-distinct responsibilities into one interface. This API keeps them
-separate so each layer can be replaced independently:
+Authentication, augmentation, claim extraction and role mapping have separate
+contracts. Keep each responsibility in its designated interface:
 
-| Layer | Interface | What it does | What it must NOT do |
+| Responsibility | Interface | What it does | What it must NOT do |
 |---|---|---|---|
 | **Authentication** | `IUserTokenAuthenticator` | Validates a single token type / profile (password lookup, X.509 trust, JWT signature). Produces an `IUserIdentity`. | Pre-grant Part 18 role NodeIds. |
 | **Augmentation** | `IIdentityAugmenter` | Runs after an accepted authenticator and may wrap the identity with deployment-specific bindings such as GDS ApplicationSelfAdmin. | Validate a token or run after rejection. |
@@ -740,8 +734,8 @@ public sealed class CertificateJwtIssuer : ITokenIssuer
 }
 ```
 
-GDS hosts register the default issuer with `WithAuthorizationService(...)`
-or a custom issuer with `WithAuthorizationService<TIssuer>(...)`; see
+GDS hosts register the default issuer with `AddAuthorizationService(...)`
+or a custom issuer with `AddAuthorizationService<TIssuer>(...)`; see
 [AuthorizationService](AuthorizationService.md).
 
 ### `IIssuerKeyResolver` + `IssuerVerificationKey` — JWT validation

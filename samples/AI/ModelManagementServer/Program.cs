@@ -41,6 +41,7 @@ using Opc.Ua.Server.Fluent;
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Logging.ClearProviders();
+builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62640;

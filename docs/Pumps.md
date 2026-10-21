@@ -15,11 +15,36 @@ them back into typed snapshots. Both sides share one set of contracts.
 - [Quick start — server](#quick-start--server)
 - [Quick start — client](#quick-start--client)
 - [Server hosting](#server-hosting)
+  - [`AddPumps` and `ConfigurePumps`](#addpumps-and-configurepumps)
+  - [Options](#options)
+  - [Load order](#load-order)
+  - [Creating pumps](#creating-pumps)
+  - [Coexisting with a server that already owns DI](#coexisting-with-a-server-that-already-owns-di)
+  - [Direct composition and lifetime](#direct-composition-and-lifetime)
 - [Builder reference](#builder-reference)
+  - [Nothing is materialised until it is asked for](#nothing-is-materialised-until-it-is-asked-for)
+  - [Addressing children by browse name](#addressing-children-by-browse-name)
+  - [`IPumpBuilder`](#ipumpbuilder)
+  - [`IPumpGroupBuilder`](#ipumpgroupbuilder)
+  - [The nameplate](#the-nameplate)
+  - [Ports](#ports)
+  - [Vibration measurements and other placeholders](#vibration-measurements-and-other-placeholders)
+  - [Documentation files](#documentation-files)
 - [Updating values at runtime](#updating-values-at-runtime)
 - [Client reference](#client-reference)
+  - [Creating the client](#creating-the-client)
+  - [Discovery](#discovery)
+  - [Reading groups](#reading-groups)
+  - [Value sets, not records](#value-sets-not-records)
+  - [Read options](#read-options)
+  - [Supervision](#supervision)
+  - [Maintenance](#maintenance)
 - [Contracts reference](#contracts-reference)
 - [Conformance matrix](#conformance-matrix)
+  - [Profiles and conformance units](#profiles-and-conformance-units)
+  - [Model](#model)
+  - [Server](#server)
+  - [Client](#client)
 - [Samples](#samples)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -334,7 +359,7 @@ models itself, call `CreatePumpsRuntime`, and release registered resources throu
 `DisposeMachineryResourcesAsync()` from its asynchronous disposal path.
 No inheritance change to the sealed stock managers is required.
 
-The [PumpDeviceIntegrationServer sample](../samples/DI/PumpDeviceIntegrationServer)
+The [PumpDeviceIntegrationServer sample](../samples/Di/PumpDeviceIntegrationServer)
 follows the same pattern in its own `DiNodeManager` subclass, because the same
 manager also owns OpenUSD. It still source-generates its own copies of the
 Machinery and Pumps models, which other test suites use as fixtures; moving it
@@ -439,7 +464,7 @@ OPC 40223 §7.32 declares vibration measurements as the OptionalPlaceholder
 `<Vibration>` of `MeasurementsType`, typed `VibrationMeasurementType` (§7.33,
 35 analog values after IEC 61987 plus `ReferenceStandardForVibrationMeasurement`).
 A pump publishes one instance per measuring point, each named by the
-application, which is what `AddVibration` creates:
+application and created with `AddVibration`:
 
 ```csharp
 pump.Measurements.AddVibration("DriveEndBearing")
@@ -484,8 +509,8 @@ pump.Supervision(BrowseNames.SupervisionProcessFluid)
 
 Every `Set`, `SetAnalog` and `SetDiscrete` stamps the value with status
 `Good` and the current time and publishes the change. `PumpsNodeManager`
-reports data changes by exception, so this publish is what makes a monitored
-item fire; a client subscribed to `MassFlow` sees each update, and
+reports data changes by exception, so publishing triggers monitored
+items; a client subscribed to `MassFlow` sees each update, and
 `PumpsClientServerE2eTests` checks exactly that over a real subscription.
 For a signal object the publish happens on the `DiscreteInputValue` /
 `DiscreteOutputValue` child that carries the state, which is also the node a
@@ -613,8 +638,8 @@ unit for its analog variables. That costs one extra round trip per group.
 | `IncludeTimestamps` | `false` | Return source timestamps |
 | `PumpReadOptions.ValuesOnly` | | One browse and one read, no metadata |
 
-Read once with the defaults and poll with `ValuesOnly`: the metadata does not
-change.
+Read once with the defaults, retain the metadata, then poll with `ValuesOnly`;
+re-read metadata after a device or server configuration change.
 
 ### Supervision
 
@@ -634,9 +659,9 @@ if (supervision?.HasActiveSignals == true)
 }
 ```
 
-`ActiveSignals` yields only signals that are currently raised. A signal
-published as `false`, or with a bad status, is left out; an empty result is
-the healthy case.
+`ActiveSignals` includes Boolean `true` readings whose status is not bad.
+An empty result means no readable signal is raised; signals that are missing,
+non-Boolean or bad are not counted.
 
 ### Maintenance
 
@@ -764,7 +789,7 @@ convenience; disable it when testing explicit peer trust.
 | --- | --- |
 | [PumpsServer](../samples/Pumps/PumpsServer) | `AddPumps` / `ConfigurePumps` with two pumps: nameplate, every group builder, units and ranges, ports, documentation links, and a simulation that publishes runtime updates to subscribers |
 | [PumpsClient](../samples/Pumps/PumpsClient) | `PumpsClient` discovery, `ReadPumpAsync` snapshots, supervision and maintenance evaluation, `ValuesOnly` polling, and streaming subscriptions on `PumpValue.NodeId` |
-| [PumpDeviceIntegrationServer](../samples/DI/PumpDeviceIntegrationServer) | A datasheet-driven pump simulation in its own `DiNodeManager` subclass with the Pumps model loaded next to OpenUSD, published data changes, and an OpenUSD twin per pump |
+| [PumpDeviceIntegrationServer](../samples/Di/PumpDeviceIntegrationServer) | A datasheet-driven pump simulation in its own `DiNodeManager` subclass with the Pumps model loaded next to OpenUSD, published data changes, and an OpenUSD twin per pump |
 | [WoT aggregation](../samples/WotCon/README.md) | A DI / Machinery / Pumps `PumpType` instance loaded at runtime from WoT documents, with no Pumps assembly referenced |
 | [SiteCompositionServer](../samples/OpenUsd/SiteCompositionServer) | A supervisory server composing the pump and generator servers into one scene |
 
@@ -821,7 +846,7 @@ DI and Machinery models are newer and satisfy them.
 
 The generated state classes implement
 `NodeState.CreateChild(context, browseName)` for every optional child the
-model declares, which is what lets one builder cover all ~3,000 of them. That
+model declares. One builder can therefore cover all ~3,000 of them. That
 generic path creates a child of the right CLR type and browse name, but does
 **not** stamp the modelling metadata: the child comes back with no
 `ReferenceTypeId`, no `TypeDefinitionId` and `BaseDataType` as its data type.
@@ -837,7 +862,7 @@ The same applies to `TranslateBrowsePathsToNodeIds`.
 instance declaration on the type, copying `ReferenceTypeId`,
 `TypeDefinitionId`, `DataType`, `ValueRank`, access levels and sampling
 interval before registering it, and filling only members the generic path
-left unset. `PumpsClientServerE2eTests` is what catches a regression here.
+left unset. `PumpsClientServerE2eTests` catches regressions here.
 
 ## See also
 

@@ -115,7 +115,7 @@ builder.Services
 |---|---|
 | `OPCFoundation.NetStandard.Opc.Ua.Vision` | Source-generated Vision model (required) |
 | `OPCFoundation.NetStandard.Opc.Ua.Vision.Client` | High-level client for the same model |
-| `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | A reference `ISceneCameraCaptureProvider` that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` gracefully on CI |
+| `OPCFoundation.NetStandard.Opc.Ua.Vision.OpenUsd` | A reference `ISceneCameraCaptureProvider` that renders a `UsdGeomCamera` offscreen and reports `NoRenderingBackend` on CI |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools that let a language-model agent drive a Vision server |
 
 See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md)

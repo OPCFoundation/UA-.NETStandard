@@ -108,16 +108,15 @@ Controllers, task controls, software and safety states reuse Robotics.
 
 Conceptually, one system contains:
 
-```text
-DeviceSet
-  CraneMotionDeviceSystem
-    Controllers -> software and task controls
-    SafetyStates
-    MotionDevices
-      CraneMotionDevice
-        Axes -> CraneAxis
-        PowerTrains -> motors referenced by the axes
-    ProtectiveFunctions -> ProtectsAxis references
+```mermaid
+flowchart TD
+    devices["DeviceSet"] --> system["CraneMotionDeviceSystem"]
+    system --> controllers["Controllers<br/>Software and task controls"]
+    system --> safety["SafetyStates"]
+    system --> motions["MotionDevices"] --> motion["CraneMotionDevice"]
+    motion --> axes["Axes"] --> axis["CraneAxis"]
+    motion --> power["PowerTrains<br/>Motors referenced by the axes"]
+    system --> protection["ProtectiveFunctions<br/>ProtectsAxis references"]
 ```
 
 Machinery identification and optional Components/Notifications bindings attach

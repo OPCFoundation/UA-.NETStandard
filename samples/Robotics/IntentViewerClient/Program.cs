@@ -245,7 +245,7 @@ namespace IntentViewerClient
             }
 
             using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-                builder.SetMinimumLevel(LogLevel.Information));
+                builder.EnableOpcUaRedaction().SetMinimumLevel(LogLevel.Information));
             ILogger logger = loggerFactory.CreateLogger("IntentViewerClient");
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning));
             using CancellationTokenSource lifetime = options.Seconds > 0
@@ -501,6 +501,7 @@ namespace IntentViewerClient
         private static void ConfigureMcpLogging(ILoggingBuilder logging, bool useStdioTransport)
         {
             logging.ClearProviders();
+            logging.EnableOpcUaRedaction();
             logging.SetMinimumLevel(LogLevel.Information);
             logging.AddSimpleConsole(options =>
             {

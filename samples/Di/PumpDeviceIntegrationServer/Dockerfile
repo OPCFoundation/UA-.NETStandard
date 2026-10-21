@@ -8,7 +8,7 @@
 # src/, tools/). Build it like this:
 #
 #   # from the repository root:
-#   docker build -f samples/DI/PumpDeviceIntegrationServer/Dockerfile \
+#   docker build -f samples/Di/PumpDeviceIntegrationServer/Dockerfile \
 #                -t pumpdeviceintegrationserver:local .
 #
 # Running `docker build .` from inside this folder will fail fast with a
@@ -45,7 +45,7 @@ RUN test -f UA.slnx || { \
         echo '       The image needs the full source tree (src/, src/, tools/).'; \
         echo ''; \
         echo '  From the repository root run:'; \
-        echo '    docker build -f samples/DI/PumpDeviceIntegrationServer/Dockerfile -t pumpdeviceintegrationserver .'; \
+        echo '    docker build -f samples/Di/PumpDeviceIntegrationServer/Dockerfile -t pumpdeviceintegrationserver .'; \
         echo ''; \
         exit 1; \
     }
@@ -54,10 +54,10 @@ ARG Version
 ARG SimpleVersion
 ARG InformationalVersion
 
-RUN dotnet restore "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
+RUN dotnet restore "samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --force
 
-RUN dotnet publish "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
+RUN dotnet publish "samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" \
         --no-restore \
         -c Release \
         -f net10.0 \

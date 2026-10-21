@@ -27,28 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Compliance.Classification;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Wraps the supplied value and applies the redaction strategy when converting to string.
+    /// Marks a value as <see cref="OpcUaDataClassifications.UserIdentity"/>.
     /// </summary>
-    /// <typeparam name="T">Type of the supplied value.</typeparam>
-    public class RedactionWrapper<T>
+    public sealed class UserIdentityAttribute : DataClassificationAttribute
     {
-        private readonly T m_value;
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="RedactionWrapper{T}"/> class.
+        /// Initializes a new instance of the <see cref="UserIdentityAttribute"/> class.
         /// </summary>
-        public RedactionWrapper(T value)
+        public UserIdentityAttribute()
+            : base(OpcUaDataClassifications.UserIdentity)
         {
-            m_value = value;
-        }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return RedactionStrategies.CurrentStrategy.Redact(m_value!);
         }
     }
 }

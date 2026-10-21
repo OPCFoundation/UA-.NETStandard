@@ -33,6 +33,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -2270,7 +2271,7 @@ namespace Opc.Ua.Server
             string sessionId,
             string sessionName,
             string secureChannelId,
-            string identity);
+            [UserIdentity] string identity);
 
         /// <summary>
         /// Logs the server-side cause of a user identity token decryption failure that is

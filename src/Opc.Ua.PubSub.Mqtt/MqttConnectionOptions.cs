@@ -71,9 +71,10 @@ namespace Opc.Ua.PubSub.Mqtt
         public string Endpoint { get; set; } = string.Empty;
 
         /// <summary>
-        /// Optional MQTT <c>ClientID</c>; when
-        /// <see langword="null"/> the transport derives one from the
-        /// PubSubConnection's PublisherId per Part 14 §7.3.4.4.
+        /// Optional MQTT <c>ClientID</c>; when <see langword="null"/> or
+        /// empty the MQTT client library generates a random one for each
+        /// connection. Set it explicitly when the broker needs a stable
+        /// client id, for example for persistent sessions.
         /// </summary>
         public string? ClientId { get; set; }
 

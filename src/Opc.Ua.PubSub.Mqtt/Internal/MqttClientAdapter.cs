@@ -45,6 +45,7 @@ using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Packets;
 using MQTTnet.Protocol;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 #if NET8_0_OR_GREATER
 // MQTTnet v5: client types live in the MQTTnet root namespace.
@@ -695,8 +696,8 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             Message = "MQTT connecting to {Host}:{Port} (TLS={UseTls}, version={Version}).")]
         public static partial void MqttConnecting(
             this ILogger logger,
-            string host,
-            int port,
+            [NetworkAddress] string host,
+            [NetworkAddress] int port,
             bool useTls,
             MqttProtocolVersion version);
 

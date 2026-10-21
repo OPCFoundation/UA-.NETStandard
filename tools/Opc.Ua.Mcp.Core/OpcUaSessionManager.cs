@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using Opc.Ua.Identity;
@@ -1186,7 +1187,7 @@ namespace Opc.Ua.Mcp
     {
         [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 0, Level = LogLevel.Information,
             Message = "Connecting to {EndpointUrl} as '{Name}'...")]
-        public static partial void Connecting(this ILogger logger, string endpointUrl, string name);
+        public static partial void Connecting(this ILogger logger, [NetworkAddress] string endpointUrl, string name);
 
         [LoggerMessage(EventId = McpServerEventIds.OpcUaSessionManager + 1, Level = LogLevel.Information,
             Message = "Connected '{Name}'. SessionName={SessionName}, SessionId={SessionId}")]

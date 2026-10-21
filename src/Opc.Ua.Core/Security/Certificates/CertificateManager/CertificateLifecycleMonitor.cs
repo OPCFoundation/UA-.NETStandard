@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -204,7 +205,7 @@ namespace Opc.Ua
             Message = "Certificate {Thumbprint} expires at {NotAfter}.")]
         public static partial void CertLifecycleLog0(
             this ILogger logger,
-            string? thumbprint,
+            [ApplicationIdentity] string? thumbprint,
             DateTime notAfter);
 
         [LoggerMessage(EventId = CoreEventIds.CertificateLifecycleMonitor + 1, Level = LogLevel.Debug,

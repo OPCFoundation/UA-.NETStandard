@@ -39,6 +39,7 @@ using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Kafka.Internal;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Kafka
 {
@@ -833,7 +834,7 @@ namespace Opc.Ua.PubSub.Kafka
         public static partial void KafkaTransportOpened(
             this ILogger logger,
             string? connection,
-            string bootstrap,
+            [NetworkAddress] string bootstrap,
             PubSubTransportDirection direction,
             string profile);
 

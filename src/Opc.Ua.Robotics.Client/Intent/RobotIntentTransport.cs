@@ -37,6 +37,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 using Opc.Ua.Client.Subscriptions.Streaming;
+using Opc.Ua.Redaction;
 using Opc.Ua.RobotIntent;
 
 namespace Opc.Ua.Robotics.Client.Intent
@@ -1156,7 +1157,7 @@ namespace Opc.Ua.Robotics.Client.Intent
         public static partial void IntentRefused(
             this ILogger logger,
             IntentFailureEnum failure,
-            string message);
+            [SensitiveText] string message);
 
         [LoggerMessage(
             EventId = RobotIntentClientEventIds.MissionUpdateRefused,
@@ -1168,6 +1169,6 @@ namespace Opc.Ua.Robotics.Client.Intent
             string missionId,
             uint updateId,
             MissionUpdateResultEnum result,
-            string message);
+            [SensitiveText] string message);
     }
 }

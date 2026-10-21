@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -7503,7 +7504,7 @@ namespace Opc.Ua.Client
         public static partial void KeepAliveReadFailedServiceResultEndpointUrl(
             this ILogger logger,
             ServiceResult serviceResult,
-            string? endpointUrl,
+            [NetworkAddress] string? endpointUrl,
             int good,
             int outstanding,
             NodeId? sessionId);
@@ -7513,7 +7514,7 @@ namespace Opc.Ua.Client
         public static partial void CouldNotSendKeepAliveRequest(
             this ILogger logger,
             string? requestType,
-            string message,
+            [SensitiveText] string message,
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.Session + 56, Level = LogLevel.Error,
@@ -7528,7 +7529,7 @@ namespace Opc.Ua.Client
         public static partial void KEEPALIVELATEDurationMsEndpointUrl(
             this ILogger logger,
             double duration,
-            string? endpointUrl,
+            [NetworkAddress] string? endpointUrl,
             int good,
             int outstanding,
             NodeId? sessionId);

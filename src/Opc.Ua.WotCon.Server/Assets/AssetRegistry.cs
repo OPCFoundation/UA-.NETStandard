@@ -34,6 +34,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.WotCon.Server.ThingDescriptions;
@@ -2312,7 +2313,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 19, Level = LogLevel.Warning,
             Message = "Refusing to persist TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
-        public static partial void RefusingToPersistTd(this ILogger logger, string assetName, string folder);
+        public static partial void RefusingToPersistTd(
+            this ILogger logger,
+            string assetName,
+            [FilePath] string folder);
 
         /// <summary>
         /// Logs failure to persist an asset's Thing Description.
@@ -2333,7 +2337,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 21, Level = LogLevel.Warning,
             Message = "Refusing to delete TD for asset {AssetName}: name did not resolve to a safe path " +
                 "under {Folder}.")]
-        public static partial void RefusingToDeleteTd(this ILogger logger, string assetName, string folder);
+        public static partial void RefusingToDeleteTd(
+            this ILogger logger,
+            string assetName,
+            [FilePath] string folder);
 
         /// <summary>
         /// Logs failure to delete a persisted Thing Description.
@@ -2353,7 +2360,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <param name="folder">The directory containing persisted Thing Descriptions.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 23, Level = LogLevel.Information,
             Message = "MaxPersistedThingDescriptionFiles is {Limit}; no persisted TDs will be loaded from {Folder}.")]
-        public static partial void NoPersistedTdsLoaded(this ILogger logger, int limit, string folder);
+        public static partial void NoPersistedTdsLoaded(this ILogger logger, int limit, [FilePath] string folder);
 
         /// <summary>
         /// Logs that the persisted Thing Description loading limit has been reached.
@@ -2364,7 +2371,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 24, Level = LogLevel.Warning,
             Message = "Reached MaxPersistedThingDescriptionFiles ({Limit}); skipping the remaining " +
                 "persisted TDs in {Folder}.")]
-        public static partial void MaxPersistedTdFilesReached(this ILogger logger, int limit, string folder);
+        public static partial void MaxPersistedTdFilesReached(
+            this ILogger logger,
+            int limit,
+            [FilePath] string folder);
 
         /// <summary>
         /// Logs a persisted Thing Description skipped because its asset name is invalid.
@@ -2373,7 +2383,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 25, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: name does not pass asset-name validation.")]
-        public static partial void SkippingPersistedTdNameValidation(this ILogger logger, string file);
+        public static partial void SkippingPersistedTdNameValidation(this ILogger logger, [FilePath] string file);
 
         /// <summary>
         /// Logs a persisted Thing Description skipped because its file metadata cannot be read.
@@ -2383,7 +2393,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 26, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: file metadata could not be read.")]
-        public static partial void SkippingPersistedTdMetadata(this ILogger logger, Exception ex, string file);
+        public static partial void SkippingPersistedTdMetadata(
+            this ILogger logger,
+            Exception ex,
+            [FilePath] string file);
 
         /// <summary>
         /// Logs a persisted Thing Description skipped because it exceeds the document size limit.
@@ -2396,7 +2409,7 @@ namespace Opc.Ua.WotCon.Server.Assets
             Message = "Skipping persisted TD {File}: size {Bytes} exceeds MaxThingDescriptionSize ({Limit}).")]
         public static partial void SkippingPersistedTdTooLarge(
             this ILogger logger,
-            string file,
+            [FilePath] string file,
             long bytes,
             long limit);
 
@@ -2413,7 +2426,7 @@ namespace Opc.Ua.WotCon.Server.Assets
         public static partial void SkippingPersistedTdJsonDeserialization(
             this ILogger logger,
             Exception ex,
-            string file,
+            [FilePath] string file,
             int depth);
 
         /// <summary>
@@ -2424,7 +2437,10 @@ namespace Opc.Ua.WotCon.Server.Assets
         /// <param name="file">The path of the persisted Thing Description file.</param>
         [LoggerMessage(EventId = WotConServerEventIds.AssetRegistry + 29, Level = LogLevel.Warning,
             Message = "Skipping persisted TD {File}: I/O failure while reading.")]
-        public static partial void SkippingPersistedTdIoFailure(this ILogger logger, Exception ex, string file);
+        public static partial void SkippingPersistedTdIoFailure(
+            this ILogger logger,
+            Exception ex,
+            [FilePath] string file);
 
         /// <summary>
         /// Logs an asset provider exception during shutdown.

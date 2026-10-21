@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Pcap.DependencyInjection
 {
@@ -170,18 +171,18 @@ namespace Opc.Ua.PubSub.Pcap.DependencyInjection
         public static partial void PubSubPcapAutoCaptureEnabled(
             this ILogger logger,
             string pcapEnvVar,
-            string? pcapFile);
+            [FilePath] string? pcapFile);
 
         [LoggerMessage(EventId = PubSubDiagnosticsEventIds.PubSubPcapEnvironmentAutoStartHostedService + 1,
             Level = LogLevel.Information, Message = "Wrote {Count} PubSub frames to {PcapFile}.")]
-        public static partial void WrotePubSubFrames(this ILogger logger, long count, string pcapFile);
+        public static partial void WrotePubSubFrames(this ILogger logger, long count, [FilePath] string pcapFile);
 
         [LoggerMessage(EventId = PubSubDiagnosticsEventIds.PubSubPcapEnvironmentAutoStartHostedService + 2,
             Level = LogLevel.Error, Message = "Failed to write PubSub capture to {PcapFile}.")]
         public static partial void FailedToWritePubSubCapture(
             this ILogger logger,
             Exception exception,
-            string pcapFile);
+            [FilePath] string pcapFile);
     }
 
 }

@@ -34,14 +34,16 @@ namespace Opc.Ua.PubSub.Redundancy
 {
     /// <summary>
     /// Shares the live per-DataSetWriter message SequenceNumber across a redundant PubSub
-    /// set so a promoted Hot standby continues the sequence without a reset, per OPC UA
+    /// set for checkpoint-based restoration by a promoted Hot standby, per OPC UA
     /// Part 14 §9.1.6 (Hot redundancy) and §7.2.5.4.1 (SequenceNumber handling).
     /// </summary>
     /// <remarks>
     /// The active publisher periodically checkpoints its writers' SequenceNumbers. On
-    /// take-over a standby seeds each writer from the last checkpoint plus a safety margin so
-    /// the emitted numbers are strictly increasing — a forward gap (which subscribers tolerate)
-    /// rather than a reset (which forces subscribers to reset de-duplication). The default
+    /// take-over the default publisher adds a fixed offset of 1,000 to the stored checkpoint
+    /// and advances the local counter only if the calculated value is higher. Checkpoint age,
+    /// publication rate, store lag and sequence-number wrap affect continuity; the offset does
+    /// not guarantee that the restored stream advances beyond every message subscribers accepted.
+    /// The default
     /// <see cref="NullPubSubWriterCheckpointStore"/> is a no-op so the non-redundant publish
     /// path is unaffected. Implementations are a provider extension point and must be injectable.
     /// </remarks>

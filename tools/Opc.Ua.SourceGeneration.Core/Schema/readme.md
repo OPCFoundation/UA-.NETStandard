@@ -2,9 +2,9 @@
 
 ## Overview
 
-The **UA Model Design Schema** is a proprietary schema that supports a more visual modelling
-experience defining OPC UA types and instances. This definition is used by the model compiler
-and source generator to generate code, documentation, and validate model consistency. 
+The **UA Model Design Schema** is an XML authoring format for OPC UA types and instances.
+The model compiler and source generator use it to generate code and documentation and
+validate model consistency.
 
 The schema allows modellers to:
 - Define **Types** ([ObjectType](#objecttypedesign), [VariableType](#variabletypedesign), [DataType](#datatypedesign), [ReferenceType](#referencetypedesign))
@@ -1169,5 +1169,4 @@ See also: [Root Element: ModelDesign](#1-root-element-modeldesign)
 - [UA Part 3 - Address Space Model](https://reference.opcfoundation.org/Core/Part3/v105/)
 - [UA Part 5 - Information Model](https://reference.opcfoundation.org/Core/Part5/v105/)
 - [UA Part 6 - Mappings](https://reference.opcfoundation.org/Core/Part6/v105/)
-
 

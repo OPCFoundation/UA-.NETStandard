@@ -226,7 +226,7 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   that the MCP tools command, and a viewport prim pick can become a robot command through
   `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
-* [`PumpDeviceIntegrationServer`](../samples/DI/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
+* [`PumpDeviceIntegrationServer`](../samples/Di/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
 * [`GeneratorServer`](../samples/OpenUsd/GeneratorServer) — the Generators companion
   specification with a datasheet-driven simulation and one independent twin per
@@ -305,7 +305,8 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
 
-> The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
+> The viewport requires .NET 8 or later, a matching optional viewer assembly, and the OpenUSD packages
+> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
 > correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.8.0-alpha`, a
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
@@ -313,9 +314,9 @@ and the callback fires when that target changes.
 > own RID:
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
-> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
+> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -f net10.0 -r win-x64 --self-contained false -o out
 > ```
-> Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
+> Publishing both into the same directory puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
 
 #### Viewport colour, materials and cameras
@@ -425,8 +426,9 @@ A partial anchor is never published: a wrong position is worse than no position.
 `UsdaReader` and `UsdaWriter` convert between `.usda` and the scene document model, and
 `UsdSceneExporter` reads a materialized address space back out, so the full round trip is
 
-```text
-.usda → UsdStage → address space → UsdStage → .usda
+```mermaid
+flowchart LR
+    source[".usda"] --> first["UsdStage"] --> address["Address space"] --> second["UsdStage"] --> output[".usda"]
 ```
 
 The contract (§7.4) is **composed-scene lossless**: the exported stage is prim-for-prim,

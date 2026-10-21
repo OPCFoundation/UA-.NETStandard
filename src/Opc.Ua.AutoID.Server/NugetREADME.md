@@ -1,10 +1,9 @@
 # OPC UA AutoID server hosting
 
 `OPCFoundation.NetStandard.Opc.Ua.AutoID.Server` hosts OPC 30010 AutoID readers
-on the Device Integration node manager. A reader is the OPC UA face of a
-hardware provider: the package implements the methods, events, device status and
-conformance claims, and the provider stands in for the RFID, OCR, optical,
-optical verifier or RTLS hardware.
+on the Device Integration node manager. The package implements the OPC UA
+methods, events, device status and conformance claims. A provider connects each
+reader to RFID, OCR, optical, optical verifier or RTLS hardware.
 
 ```csharp
 services.AddOpcUa()
