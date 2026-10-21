@@ -145,6 +145,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 var selected = new List<WoTResourceSelectorDataType>();
                 foreach (WotResource resource in snapshot.AllResources())
                 {
+                    recordedViews.TryGetValue(resource.Xid, out WotCanonicalViewPublication? view);
+                    if (view is { Active: false } && resource.ActiveVersionId is not null)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState,
+                            "A committed projection Resource is inactive in the canonical View history.");
+                    }
+                    if (view is null &&
+                        resource.Kind is WoTDocumentKindEnum.ThingDescription or WoTDocumentKindEnum.ThingModel &&
+                        resource.CommittedVersion is { } committedVersion)
+                    {
+                        ByteString content = await m_registry.ReadContentAsync(
+                            committedVersion, cancellationToken).ConfigureAwait(false);
+                        if (GetProjectionAdmission(resource, committedVersion, content).IsProjection)
+                        {
+                            throw new ServiceResultException(
+                                StatusCodes.BadInvalidState,
+                                "A committed projection Resource is missing from the canonical View history.");
+                        }
+                    }
                     if (resource.ActiveVersionId is null)
                     {
                         continue;
@@ -155,7 +175,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             StatusCodes.BadInvalidState,
                             "An active publication has no exact committed input record; recovery cannot infer its bytes.");
                     }
-                    recordedViews.TryGetValue(resource.Xid, out WotCanonicalViewPublication? view);
                     if (WotProjectionAdmission.UsesProjectionFormat(
                         resource.CommittedVersion.Format, resource.CommittedVersion.ContentType) &&
                         view is not { Active: true })
