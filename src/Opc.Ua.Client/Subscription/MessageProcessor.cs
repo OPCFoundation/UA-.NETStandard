@@ -118,13 +118,8 @@ namespace Opc.Ua.Client.Subscriptions
             Logger = Observability.LoggerFactory.CreateLogger<Subscription>();
             m_services = services;
             AckQueue = completion;
-            m_messages = Channel.CreateUnboundedPrioritized(
-                new UnboundedPrioritizedChannelOptions<IncomingMessage>
-                {
-                    SingleReader = true,
-                    Comparer = Comparer<IncomingMessage>.Create(
-                        IncomingMessage.Compare)
-                });
+            m_messages = new SingleReaderPriorityQueue<IncomingMessage>(
+                IncomingMessage.Compare);
             m_messageCapacity = new SemaphoreSlim(kIncomingMessageCapacity);
             m_messageWorkerTask = ProcessReceivedMessagesAsync(m_cts.Token);
         }
@@ -168,18 +163,13 @@ namespace Opc.Ua.Client.Subscriptions
                     : null;
                 await m_messageCapacity.WaitAsync(admission?.Token ?? m_cts.Token).ConfigureAwait(false);
             }
-            try
-            {
-                await m_messages.Writer.WriteAsync(new IncomingMessage(message, stringTable,
-                    availableSequenceNumberSnapshot,
-                    TimeProvider.GetUtcNow(),
-                    generation))
-                    .ConfigureAwait(false);
-            }
-            catch
+            if (!m_messages.TryWrite(new IncomingMessage(message, stringTable,
+                availableSequenceNumberSnapshot,
+                TimeProvider.GetUtcNow(),
+                generation)))
             {
                 m_messageCapacity.Release();
-                throw;
+                throw new ChannelClosedException();
             }
         }
 
@@ -201,7 +191,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    m_messages.Writer.TryComplete();
+                    m_messages.TryComplete();
                     await m_cts.CancelAsync().ConfigureAwait(false);
                     await m_messageWorkerTask.ConfigureAwait(false);
                 }
@@ -210,7 +200,7 @@ namespace Opc.Ua.Client.Subscriptions
                     m_messageDispatchGate.Dispose();
                     m_cts.Dispose();
                     m_messageCapacity.Dispose();
-                    (m_messages as IDisposable)?.Dispose();
+                    m_messages.Dispose();
                     m_pendingMessages.Clear();
                     Disposed = true;
                 }
@@ -330,12 +320,12 @@ namespace Opc.Ua.Client.Subscriptions
                 //
                 // At most one read wait is outstanding. A wait that lost the
                 // race against the gap timer is reused rather than abandoned,
-                // because an abandoned wait can consume the only wake-up for
-                // the next Publish response.
+                // because the queue has a single reader and the wait owns the
+                // next wake-up.
                 Task<bool>? waitForMessage = null;
                 while (true)
                 {
-                    if (m_messages.Reader.TryRead(out IncomingMessage incoming))
+                    if (m_messages.TryRead(out IncomingMessage incoming))
                     {
                         try
                         {
@@ -363,10 +353,13 @@ namespace Opc.Ua.Client.Subscriptions
                         continue;
                     }
 
-                    waitForMessage ??= m_messages.Reader.WaitToReadAsync(ct).AsTask();
                     if (!HasUnresolvedGap)
                     {
-                        bool readable = await waitForMessage.ConfigureAwait(false);
+                        // Common path: await the queue's reusable waiter
+                        // directly; only the gap race below needs a Task.
+                        bool readable = waitForMessage != null
+                            ? await waitForMessage.ConfigureAwait(false)
+                            : await m_messages.WaitToReadAsync(ct).ConfigureAwait(false);
                         waitForMessage = null;
                         if (!readable)
                         {
@@ -375,6 +368,7 @@ namespace Opc.Ua.Client.Subscriptions
                         continue;
                     }
 
+                    waitForMessage ??= m_messages.WaitToReadAsync(ct).AsTask();
                     TimeSpan remaining = kGapRecoveryTimeout -
                         TimeProvider.GetElapsedTime(m_gapStartedTimestamp);
                     var gapTimeout = new TaskCompletionSource<bool>(
@@ -1764,11 +1758,11 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageDispatchGate = new(1, 1);
         private readonly CancellationTokenSource m_cts = new();
         private readonly SemaphoreSlim m_messageCapacity;
+        private readonly SingleReaderPriorityQueue<IncomingMessage> m_messages;
 #pragma warning restore CA2213
         private long m_generation;
         private AcknowledgementScope? m_acknowledgementScope;
         private readonly Task m_messageWorkerTask;
-        private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;
         private const int kMaxPendingMessages = kIncomingMessageCapacity;
         private const int kMaxNotDispatched = 1024;
