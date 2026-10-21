@@ -227,7 +227,10 @@ namespace Opc.Ua.Server
                     return;
                 }
                 m_disposed = true;
-                if (m_operationCount == 0)
+                // Operations enter without the lock: publish the flag before counting them, so
+                // an operation entering now either is counted here or reads the flag and backs out.
+                Interlocked.MemoryBarrier();
+                if (m_operationCount.Count == 0)
                 {
                     m_operationsDrained.TrySetResult(true);
                 }
@@ -264,21 +267,25 @@ namespace Opc.Ua.Server
         /// Admits an operation until it exits, allowing nested access by an admitted operation or teardown callback.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
+        /// <remarks>
+        /// Admission runs per service call and per monitored-item notification on every core, so it
+        /// counts in a per-processor slot instead of taking the operation lifetime lock.
+        /// The operation is counted before the disposal flag is read: disposal either counts it or
+        /// the operation reads the flag, backs out and exits (completing the drain if it was last).
+        /// </remarks>
         private protected NodeManagerOperation BeginNodeManagerOperation()
         {
-            lock (m_operationLifetimeLock)
+            NodeManagerOperationContext? previous = m_operationContext.Value;
+            int slot = m_operationCount.Enter();
+            if (m_disposed && previous?.Active != true &&
+                (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
             {
-                NodeManagerOperationContext? previous = m_operationContext.Value;
-                if (m_disposed && previous?.Active != true &&
-                    (!m_disposeAsyncCoreActive || !m_disposeAsyncCoreContext.Value))
-                {
-                    throw new ObjectDisposedException(GetType().Name);
-                }
-                var context = new NodeManagerOperationContext(previous);
-                m_operationContext.Value = context;
-                m_operationCount++;
-                return new NodeManagerOperation(this, context);
+                ExitNodeManagerOperation(slot);
+                throw new ObjectDisposedException(GetType().Name);
             }
+            var context = new NodeManagerOperationContext(previous, slot);
+            m_operationContext.Value = context;
+            return new NodeManagerOperation(this, context);
         }
 
         /// <summary>
@@ -347,22 +354,26 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CompleteNodeManagerOperation(NodeManagerOperationContext context)
         {
-            lock (m_operationLifetimeLock)
+            if (!context.Deactivate())
             {
-                if (!context.Active)
-                {
-                    return;
-                }
-                context.Active = false;
-                if (ReferenceEquals(m_operationContext.Value, context))
-                {
-                    m_operationContext.Value = context.Previous;
-                }
-                m_operationCount--;
-                if (m_disposed && m_operationCount == 0)
-                {
-                    m_operationsDrained.TrySetResult(true);
-                }
+                return;
+            }
+            if (ReferenceEquals(m_operationContext.Value, context))
+            {
+                m_operationContext.Value = context.Previous;
+            }
+            ExitNodeManagerOperation(context.Slot);
+        }
+
+        /// <summary>
+        /// Exits an admitted operation and signals a pending disposal when it was the last one.
+        /// </summary>
+        private void ExitNodeManagerOperation(int slot)
+        {
+            m_operationCount.Exit(slot);
+            if (m_disposed && m_operationCount.Count == 0)
+            {
+                m_operationsDrained.TrySetResult(true);
             }
         }
 
@@ -450,7 +461,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Tracks whether an operation inherited through an execution context is still admitted.
         /// </summary>
-        private protected sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous)
+        private protected sealed class NodeManagerOperationContext(NodeManagerOperationContext? previous, int slot)
         {
             /// <summary>
             /// Gets the surrounding operation to restore when this scope completes.
@@ -458,9 +469,25 @@ namespace Opc.Ua.Server
             public NodeManagerOperationContext? Previous { get; } = previous;
 
             /// <summary>
-            /// Gets or sets whether this scope still retains operation admission.
+            /// Gets the admission counter slot the operation exits from.
             /// </summary>
-            public bool Active { get; set; } = true;
+            public int Slot { get; } = slot;
+
+            /// <summary>
+            /// Gets whether this scope still retains operation admission.
+            /// </summary>
+            public bool Active => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Ends the admission once.
+            /// </summary>
+            /// <returns><c>true</c> for the call that ended it.</returns>
+            public bool Deactivate()
+            {
+                return Interlocked.Exchange(ref m_active, 0) != 0;
+            }
+
+            private int m_active = 1;
         }
 
         /// <summary>
@@ -11178,10 +11205,10 @@ namespace Opc.Ua.Server
                 [];
 #endif
         private List<LocalReference> m_removedExternalReferences = [];
-        private bool m_disposed;
+        private volatile bool m_disposed;
 
         /// <summary>
-        /// Protects operation admission, the active-operation count, and teardown-context activation.
+        /// Protects closing operation admission and teardown-context activation.
         /// </summary>
         private readonly Lock m_operationLifetimeLock = new();
 
@@ -11205,12 +11232,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Limits teardown access to the callback's lifetime, rejecting captured contexts afterward.
         /// </summary>
-        private bool m_disposeAsyncCoreActive;
+        private volatile bool m_disposeAsyncCoreActive;
 
         /// <summary>
         /// Counts admitted operations until their semaphore work and deferred callbacks finish.
         /// </summary>
-        private int m_operationCount;
+        private readonly StripedCounter m_operationCount = new();
 
         /// <summary>The admitted operation inherited by nested callbacks.</summary>
         private readonly AsyncLocal<NodeManagerOperationContext?> m_operationContext = new();
