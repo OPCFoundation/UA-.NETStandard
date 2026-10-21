@@ -345,11 +345,11 @@ classification attributes of `Opc.Ua.Redaction` (see
   `services.AddLogging(...)`, your own `ILoggerFactory`), call
   `EnableOpcUaRedaction()` (or `EnableRedaction()`) on its
   `ILoggingBuilder`, e.g. `builder.Logging.EnableOpcUaRedaction()`.
-- **Source breaking (warning):** `Redact`, `RedactionWrapper<T>`,
+- **Source breaking:** `Redact`, `RedactionWrapper<T>`,
   `IRedactionStrategy`, `RedactionStrategies` and `SimpleRedactionStrategy`
-  are `[Obsolete]` and no longer used by the stack. Replace
-  `RedactionStrategies.SetStrategy(...)` with `services.AddRedaction(...)`
-  redactors per `OpcUaDataClassifications` value.
+  were removed. Replace `RedactionStrategies.SetStrategy(...)` with
+  `services.AddRedaction(...)` redactors per `OpcUaDataClassifications`
+  value.
 - Log messages that used to pass a redacted exception as a message
   parameter now pass the exception message as a `[SensitiveText]` string.
 

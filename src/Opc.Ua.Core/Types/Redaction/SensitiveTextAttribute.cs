@@ -27,26 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using Microsoft.Extensions.Compliance.Classification;
 
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Represents a redaction (censoring) strategy.
+    /// Marks a value as <see cref="OpcUaDataClassifications.SensitiveText"/>.
     /// </summary>
-    /// <remarks>
-    /// Use redaction to hide sensitive data in log messages, exception messages, etc.
-    /// To set your redaction strategy see <see cref="RedactionStrategies"/>.
-    /// </remarks>
-    [Obsolete(
-        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
-        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
-        "See docs/Diagnostics.md.")]
-    public interface IRedactionStrategy
+    public sealed class SensitiveTextAttribute : DataClassificationAttribute
     {
         /// <summary>
-        /// Returns a string representation of <paramref name="value"/> without sensitive data.
+        /// Initializes a new instance of the <see cref="SensitiveTextAttribute"/> class.
         /// </summary>
-        string Redact(object value);
+        public SensitiveTextAttribute()
+            : base(OpcUaDataClassifications.SensitiveText)
+        {
+        }
     }
 }

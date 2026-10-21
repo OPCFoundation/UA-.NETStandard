@@ -27,34 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using Microsoft.Extensions.Compliance.Classification;
 
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Wraps the supplied value and applies the redaction strategy when converting to string.
+    /// Marks a value as <see cref="OpcUaDataClassifications.ApplicationIdentity"/>.
     /// </summary>
-    /// <typeparam name="T">Type of the supplied value.</typeparam>
-    [Obsolete(
-        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
-        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
-        "See docs/Diagnostics.md.")]
-    public class RedactionWrapper<T>
+    public sealed class ApplicationIdentityAttribute : DataClassificationAttribute
     {
-        private readonly T m_value;
-
         /// <summary>
-        /// Initializes a new instance of the <see cref="RedactionWrapper{T}"/> class.
+        /// Initializes a new instance of the <see cref="ApplicationIdentityAttribute"/> class.
         /// </summary>
-        public RedactionWrapper(T value)
+        public ApplicationIdentityAttribute()
+            : base(OpcUaDataClassifications.ApplicationIdentity)
         {
-            m_value = value;
-        }
-
-        /// <inheritdoc />
-        public override string ToString()
-        {
-            return RedactionStrategies.CurrentStrategy.Redact(m_value!);
         }
     }
 }

@@ -27,29 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System;
+using Microsoft.Extensions.Compliance.Classification;
 
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Helper class for redacting sensitive data.
+    /// Marks a value as <see cref="OpcUaDataClassifications.UserIdentity"/>.
     /// </summary>
-    [Obsolete(
-        "Annotate log message parameters with the Opc.Ua.Redaction data classification attributes " +
-        "(e.g. [NetworkAddress]) and configure redaction with Microsoft.Extensions.Compliance.Redaction. " +
-        "See docs/Diagnostics.md.")]
-    public static class Redact
+    public sealed class UserIdentityAttribute : DataClassificationAttribute
     {
         /// <summary>
-        /// Creates a wrapper to hold <paramref name="value"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// it will invoke the redaction strategy to censor the
-        /// sensitive data held by <paramref name="value"/>.
+        /// Initializes a new instance of the <see cref="UserIdentityAttribute"/> class.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static RedactionWrapper<T> Create<T>(T value)
+        public UserIdentityAttribute()
+            : base(OpcUaDataClassifications.UserIdentity)
         {
-            return new RedactionWrapper<T>(value);
         }
     }
 }

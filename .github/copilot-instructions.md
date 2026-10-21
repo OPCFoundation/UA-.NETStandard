@@ -114,7 +114,7 @@ This is the official OPC UA .NET Standard Stack from the OPC Foundation. It prov
 - **Secrets**: All secrets must be managed through the secret store system (see `docs/CertificateManager.md`)
 - **Security Profiles**: do not use hash algorithms other than SHA2 or higher.
 - **Authentication**: Properly implement anonymous, username, and X.509 certificate user authentication
-- **Audit and Redaction**: Use the audit APIs for security events. Classify sensitive log parameters (addresses, application and user identities, paths, exception texts) with the `Opc.Ua.Redaction` data classification attributes; the obsolete `Redact`/`RedactionWrapper` API must not be used
+- **Audit and Redaction**: Use the audit APIs for security events. Classify sensitive log parameters (addresses, application and user identities, paths, exception texts) with the `Opc.Ua.Redaction` data classification attributes
 
 ### Testing Standards
 - Use NUnit or TUNIT framework (match existing test projects)

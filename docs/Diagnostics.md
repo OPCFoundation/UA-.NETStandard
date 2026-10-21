@@ -311,13 +311,12 @@ keys.
 - The few log calls whose level is decided at run time (`logger.Log(level,
   ...)`), which cannot carry attributes.
 
-#### The obsolete redaction API
+#### The removed redaction API
 
 `Redact.Create(...)`, `RedactionWrapper<T>`, `IRedactionStrategy`,
-`RedactionStrategies` and `SimpleRedactionStrategy` are obsolete. The stack
-no longer uses them, so a strategy set with `RedactionStrategies.SetStrategy`
-no longer affects the stack's logs. Configure redactors with `AddRedaction`
-instead.
+`RedactionStrategies` and `SimpleRedactionStrategy` were removed.
+Configure redactors with `AddRedaction` instead of
+`RedactionStrategies.SetStrategy`.
 
 ### Extensibility patterns
 
