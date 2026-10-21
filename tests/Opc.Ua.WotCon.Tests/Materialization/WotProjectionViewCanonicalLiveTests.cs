@@ -125,11 +125,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that a local-only affordance in a projection is materialized and organized by its canonical View.
         /// </summary>
-        [Test]
-        public async Task ProjectionLocalOnlyAffordanceIsMaterializedAndOrganizedAsync()
+        /// <param name="affordanceMap">The local affordance map.</param>
+        /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
+        [TestCase("properties", NodeClass.Variable)]
+        [TestCase("actions", NodeClass.Method)]
+        [TestCase("events", NodeClass.ObjectType)]
+        public async Task ProjectionLocalOnlyAffordanceIsMaterializedAndOrganizedAsync(
+            string affordanceMap,
+            NodeClass expectedNodeClass)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
             string sourceUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/local-unused-source";
+            string schema = affordanceMap switch
+            {
+                "properties" => "\"type\":\"number\",",
+                "events" => "\"data\":{\"type\":\"object\",\"properties\":{}},",
+                _ => string.Empty
+            };
             await harness.RegisterTdAsync("local-unused-source", """
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
@@ -154,10 +166,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "type":"application/td+json",
                     "uav:selectAll":false
                   }],
-                  "properties":{
+                  "{{{affordanceMap}}}":{
                     "localOnly":{
                       "uav:id":"nsu=urn:wot:thingdescriptions/projection-local;s=ProjectionLocal/localOnly",
-                      "type":"number",
+                      {{{schema}}}
                       "forms":[{"href":"https://example.test/local"}]
                     }
                   }
@@ -181,7 +193,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.Multiple(() =>
             {
                 Assert.That(local.BrowseName.Name, Is.EqualTo("localOnly"));
-                Assert.That(local.NodeClass, Is.EqualTo(NodeClass.Variable));
+                Assert.That(local.NodeClass, Is.EqualTo(expectedNodeClass));
                 Assert.That(harness.Target(local), Is.EqualTo(harness.Identity(
                     "urn:wot:thingdescriptions/projection-local", "ProjectionLocal/localOnly")));
                 Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), load.Message);
@@ -189,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     "Local affordance materialization must not replace the canonical View identity.");
             });
             Assert.That(await ReadNodeClassAsync(harness, harness.Target(local)).ConfigureAwait(false),
-                Is.EqualTo(NodeClass.Variable));
+                Is.EqualTo(expectedNodeClass));
         }
 
         /// <summary>

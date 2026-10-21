@@ -1329,16 +1329,18 @@ can tell a complete View from a partial one without diffing its membership.
 Two omission causes are distinguished, because they have different remedies.
 
 **A source that is itself a projection.** `uav:resolvedFrom` names, per *WoT
-Binding* §12, "the reference the selection was made by" — the immediate
+Projections* §12, "the reference the selection was made by" — the immediate
 selection, not the ultimate origin. A projection that selects from another
-projection therefore names an intermediate document, and an intermediate
-materializes a View rather than Nodes. The conversion records exactly that
+projection therefore names an intermediate document. Its imported affordances
+refer to existing Nodes rather than clones; its local definitions materialize
+their own Nodes. The conversion records exactly that
 immediate reference: a `uav:resolvedFrom` the selected source already carries is
 validated (it must be a non-empty string, otherwise `ProjectionSourceUnresolved`
 is reported) but is not propagated as the new
 selection's provenance, so the ultimate origin stays reachable by walking the
 intermediate's own metadata. Resolution follows the chain depth-first
-to the Nodes the ultimate sources materialized, as WoT Connectivity §7.13
+to the Nodes the source materialized, stopping at a projection-local Node when
+applicable, as WoT Connectivity §7.13
 requires; only when no document in the chain materialized the affordance is the
 member omitted, and the omission names the deepest source the walk reached.
 
