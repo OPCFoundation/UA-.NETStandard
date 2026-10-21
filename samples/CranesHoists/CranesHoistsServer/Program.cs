@@ -89,6 +89,7 @@ namespace CranesHoistsSample.Server
             string endpoint = FormattableString.Invariant($"opc.tcp://localhost:{port}/CranesHoistsServer");
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("CranesHoistsSample", LogLevel.Information);

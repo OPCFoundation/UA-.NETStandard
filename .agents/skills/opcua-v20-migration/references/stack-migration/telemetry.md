@@ -44,6 +44,7 @@ ISession session = await factory.CreateAsync(/* ... */);
 - [ETW `EventSource` provider removal](#etw-eventsource-provider-removal)
   - [`ClientTraceFlags.EventLog` removed (source breaking)](#clienttraceflagseventlog-removed-source-breaking)
   - [Migrating `EventListener` / `dotnet-trace` consumers](#migrating-eventlistener--dotnet-trace-consumers)
+- [Sensitive log data is classified](#sensitive-log-data-is-classified)
 - [Migration utilities](#migration-utilities)
 
 ## Replacing the static logger surface
@@ -246,6 +247,28 @@ builder.Services.AddOpenTelemetry().WithLogging(l => l
 > **Out of scope.** The OPC UA information-model `EventSourceRegistry` / `HasEventSource` reference type (`Opc.Ua.Server.Fluent`, used for Alarms & Conditions modelling) and the BCL's own `System.Buffers.ArrayPoolEventSource` are unrelated to this removal — neither is a stack-owned ETW provider, and neither is affected by this migration.
 
 ---
+
+## Sensitive log data is classified
+
+The stack's `[LoggerMessage]` parameters that hold network addresses,
+application or user identities, file paths or exception texts carry the data
+classification attributes of `Opc.Ua.Redaction` (see
+[Diagnostics: Sensitive data in logs](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#sensitive-data-in-logs-data-classification)).
+
+- **Behavior breaking:** a plain `ILoggerFactory` logs `(null)` in place of
+  classified values. `AddOpcUa().AddLogging(...)` and
+  `DefaultTelemetry.Create(...)` enable the redaction-aware logger
+  themselves. If you configure logging yourself (generic host,
+  `services.AddLogging(...)`, your own `ILoggerFactory`), call
+  `EnableOpcUaRedaction()` (or `EnableRedaction()`) on its
+  `ILoggingBuilder`, e.g. `builder.Logging.EnableOpcUaRedaction()`.
+- **Source breaking:** `Redact`, `RedactionWrapper<T>`,
+  `IRedactionStrategy`, `RedactionStrategies` and `SimpleRedactionStrategy`
+  were removed. Replace `RedactionStrategies.SetStrategy(...)` with
+  `services.AddRedaction(...)` redactors per `OpcUaDataClassifications`
+  value.
+- Log messages that used to pass a redacted exception as a message
+  parameter now pass the exception message as a `[SensitiveText]` string.
 
 ## Migration utilities
 

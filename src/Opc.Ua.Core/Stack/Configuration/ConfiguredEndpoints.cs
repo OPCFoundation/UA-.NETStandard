@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -231,7 +232,7 @@ namespace Opc.Ua
                 ILogger logger = telemetry.CreateLogger<ConfiguredEndpointCollection>();
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.ConfiguredEndpointsLogMessage0(Redaction.Redact.Create(e));
+                    logger.ConfiguredEndpointsLogMessage0(e.Message);
                 }
                 throw;
             }
@@ -1671,6 +1672,6 @@ namespace Opc.Ua
             Message = "Unexpected error loading ConfiguredEndpoints: {Message}")]
         public static partial void ConfiguredEndpointsLogMessage0(
             this ILogger logger,
-            Redaction.RedactionWrapper<Exception> message);
+            [SensitiveText] string message);
     }
 }

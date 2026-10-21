@@ -40,6 +40,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Redaction;
 using MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
@@ -799,7 +800,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 "engine / DefaultSubscriptionEngineFactory). Monitoring is optional; continuing without it.")]
         public static partial void ModelChangeMonitoringSubscriptionManagerNotAvailable(
             this ILogger logger,
-            string? endpointUrl);
+            [NetworkAddress] string? endpointUrl);
 
         [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 1, Level = LogLevel.Information,
             Message = "ServerSession: model-change event monitoring is not available.")]
@@ -833,7 +834,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             Message = "Connecting external server session to {EndpointUrl} ({SecurityMode}).")]
         public static partial void ConnectingExternalServerSession(
             this ILogger logger,
-            string? endpointUrl,
+            [NetworkAddress] string? endpointUrl,
             MessageSecurityMode securityMode);
     }
 

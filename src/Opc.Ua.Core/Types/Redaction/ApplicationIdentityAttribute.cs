@@ -27,20 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Compliance.Classification;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Represents a redaction (censoring) strategy.
+    /// Marks a value as <see cref="OpcUaDataClassifications.ApplicationIdentity"/>.
     /// </summary>
-    /// <remarks>
-    /// Use redaction to hide sensitive data in log messages, exception messages, etc.
-    /// To set your redaction strategy see <see cref="RedactionStrategies"/>.
-    /// </remarks>
-    public interface IRedactionStrategy
+    public sealed class ApplicationIdentityAttribute : DataClassificationAttribute
     {
         /// <summary>
-        /// Returns a string representation of <paramref name="value"/> without sensitive data.
+        /// Initializes a new instance of the <see cref="ApplicationIdentityAttribute"/> class.
         /// </summary>
-        string Redact(object value);
+        public ApplicationIdentityAttribute()
+            : base(OpcUaDataClassifications.ApplicationIdentity)
+        {
+        }
     }
 }

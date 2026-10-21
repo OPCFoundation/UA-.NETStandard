@@ -35,6 +35,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -1404,13 +1405,15 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal static partial class TcpListenerChannelLog
     {
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 0, Level = LogLevel.Debug,
             Message = "{Channel} TRANSPORT ATTACHED: {RemoteEndpoint}, ChannelId={ChannelId}")]
         public static partial void TcpListenChannelLog0(
             this ILogger logger,
             string channel,
-            EndPoint? remoteEndpoint,
+            [NetworkAddress] EndPoint? remoteEndpoint,
             uint channelId);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 1, Level = LogLevel.Information,
             Message = "{Channel} ChannelId={ChannelId}: closing for certificate rotation (thumbprint {Thumbprint}).")]
@@ -1418,14 +1421,14 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             string channel,
             uint channelId,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 2, Level = LogLevel.Error,
             Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
         public static partial void TcpListenChannelLog2(
             this ILogger logger,
             uint id,
-            string message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 3, Level = LogLevel.Error,
             Message = "ChannelId {Id}: ForceChannelFault due to {Message}.")]
@@ -1433,29 +1436,33 @@ namespace Opc.Ua.Bindings
             this ILogger logger,
             Exception? exception,
             uint id,
-            string message);
+            [SensitiveText] string message);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 4, Level = LogLevel.Error,
             Message = "{Channel} ForceChannelFault Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
                 "TokenId={TokenId}, Reason={Reason}")]
         public static partial void TcpListenChannelLog4(
             this ILogger logger,
             string channel,
-            EndPoint? remoteEndpoint,
+            [NetworkAddress] EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
             ServiceResult reason);
+#pragma warning restore LOGGEN036
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 5, Level = LogLevel.Information,
             Message = "{Channel} Cleanup Transport={RemoteEndpoint}, ChannelId={ChannelId}, " +
                 "TokenId={TokenId}, Reason={Reason}")]
         public static partial void TcpListenChannelLog5(
             this ILogger logger,
             string channel,
-            EndPoint? remoteEndpoint,
+            [NetworkAddress] EndPoint? remoteEndpoint,
             uint channelId,
             uint tokenId,
-            string reason);
+            [SensitiveText] string reason);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpListenerChannel + 6, Level = LogLevel.Debug,
             Message = "ChannelId {ChannelId}: SendErrorMessage={Status}")]

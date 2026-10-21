@@ -39,6 +39,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
 using Opc.Ua.Gds.Server.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -3393,7 +3394,7 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 1, Level = LogLevel.Information,
             Message = "Server Found at {DiscoveryUrl}")]
-        public static partial void ServerFound(this ILogger logger, string? discoveryUrl);
+        public static partial void ServerFound(this ILogger logger, [NetworkAddress] string? discoveryUrl);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 2, Level = LogLevel.Error,
             Message = "Could not connect to the Database!")]
@@ -3416,12 +3417,15 @@ namespace Opc.Ua.Gds.Server
         public static partial void UnexpectedErrorRevokingCertificate(
             this ILogger logger,
             Exception e,
-            string subject,
+            [ApplicationIdentity] string subject,
             NodeId certificateGroupId);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 7, Level = LogLevel.Warning,
             Message = "Failed to build issuer chain for {Subject}; falling back to the immediate issuing CA.")]
-        public static partial void FailedToBuildIssuerChain(this ILogger logger, Exception ex, string subject);
+        public static partial void FailedToBuildIssuerChain(
+            this ILogger logger,
+            Exception ex,
+            [ApplicationIdentity] string subject);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 8, Level = LogLevel.Error,
             Message = "Unexpected error initializing certificateGroup: {CertificateGroupId}")]
@@ -3432,22 +3436,29 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 9, Level = LogLevel.Information,
             Message = "QueryServers: {ApplicationUri} {ApplicationName}")]
-        public static partial void QueryServers(this ILogger logger, string applicationUri, string applicationName);
+        public static partial void QueryServers(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri,
+            string applicationName);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 10, Level = LogLevel.Information,
             Message = "QueryApplications: {ApplicationUri} {ApplicationName}")]
         public static partial void QueryApplications(
             this ILogger logger,
-            string applicationUri,
+            [ApplicationIdentity] string applicationUri,
             string applicationName);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 11, Level = LogLevel.Information,
             Message = "OnRegisterApplication: {ApplicationUri}")]
-        public static partial void OnRegisterApplication(this ILogger logger, string? applicationUri);
+        public static partial void OnRegisterApplication(
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 12, Level = LogLevel.Information,
             Message = "OnUpdateApplication: {ApplicationUri}")]
-        public static partial void OnUpdateApplication(this ILogger logger, string? applicationUri);
+        public static partial void OnUpdateApplication(
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 13, Level = LogLevel.Information,
             Message = "OnUnregisterApplication: {ApplicationId}")]
@@ -3459,7 +3470,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 15, Level = LogLevel.Information,
             Message = "OnFindApplications: {ApplicationUri}")]
-        public static partial void OnFindApplications(this ILogger logger, string applicationUri);
+        public static partial void OnFindApplications(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 16, Level = LogLevel.Information,
             Message = "OnGetApplication: {ApplicationId}")]
@@ -3471,7 +3484,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 18, Level = LogLevel.Information,
             Message = "OnKeyCredentialStartRequest: {ApplicationUri}")]
-        public static partial void OnKeyCredentialStartRequest(this ILogger logger, string applicationUri);
+        public static partial void OnKeyCredentialStartRequest(
+            this ILogger logger,
+            [ApplicationIdentity] string applicationUri);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 19, Level = LogLevel.Information,
             Message = "OnKeyCredentialFinishRequest: {RequestId}")]
@@ -3487,6 +3502,6 @@ namespace Opc.Ua.Gds.Server
             this ILogger logger,
             Exception exception,
             NodeId requestId,
-            string? applicationUri);
+            [ApplicationIdentity] string? applicationUri);
     }
 }

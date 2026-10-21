@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -603,6 +604,24 @@ namespace Opc.Ua.Server.Tests.FileSystem
                         return Physical.CopyAsync(source, target, ct);
                     });
                 Logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+                // The source-generated log state is reused and cleared after each call,
+                // so keep the formatted message while the call is in progress.
+#pragma warning disable CA1873 // Moq setup expression, not a log call
+                Logger.Setup(value => value.Log(
+                        It.IsAny<LogLevel>(),
+                        It.IsAny<EventId>(),
+                        It.IsAny<It.IsAnyType>(),
+                        It.IsAny<Exception?>(),
+                        It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
+                    .Callback(new InvocationAction(invocation =>
+                    {
+                        var eventId = (EventId)invocation.Arguments[1]!;
+                        var formatter = (Delegate)invocation.Arguments[4]!;
+                        m_messages.Enqueue((
+                            eventId.Name,
+                            (string?)formatter.DynamicInvoke(invocation.Arguments[2], invocation.Arguments[3])));
+                    }));
+#pragma warning restore CA1873
                 var factory = new Mock<ILoggerFactory>();
                 factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(Logger.Object);
                 var telemetry = new Mock<ITelemetryContext>();
@@ -725,14 +744,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// </summary>
             public void VerifyRefreshCommitState(bool committed, int count)
             {
-                Logger.Verify(logger => logger.Log(
-                    LogLevel.Error,
-                    It.Is<EventId>(id => id.Name == "FileDirectoryRefreshFailed"),
-                    It.Is<It.IsAnyType>((state, _) =>
-                        state != null &&
-                        state.ToString()!.Contains("current provider mutation committed: " + committed)),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Exactly(count));
+                string expected = "current provider mutation committed: " + committed;
+                Assert.That(
+                    m_messages.Count(message => message.EventName == "FileDirectoryRefreshFailed" &&
+                        message.Text != null &&
+                        message.Text.Contains(expected, StringComparison.Ordinal)),
+                    Is.EqualTo(count));
             }
 
             /// <summary>
@@ -771,6 +788,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             /// Counts provider mutations independently of address-space refresh success.
             /// </summary>
             private int m_mutationCount;
+            private readonly ConcurrentQueue<(string? EventName, string? Text)> m_messages = new();
         }
 
         /// <summary>

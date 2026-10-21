@@ -34,6 +34,8 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
+    <PackageReference Include="Microsoft.Extensions.Telemetry" />
+    <PackageReference Include="Microsoft.Extensions.Telemetry.Abstractions" />
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />
     <PackageReference Include="System.Threading.Channels" />
     <PackageReference Include="System.Threading.RateLimiting" />

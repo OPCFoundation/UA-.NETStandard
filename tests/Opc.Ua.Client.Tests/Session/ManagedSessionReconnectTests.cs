@@ -937,9 +937,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Where(record => record.EventId.Name == "ChannelReconnectDeadlineExpired")];
             Assert.That(expirations, Has.Length.EqualTo(1));
             Assert.That(expirations[0].Properties.TryGetValue("Duration", out object? duration), Is.True);
-            Assert.That(duration, Is.EqualTo(s_recoveryTimeout));
+            // The generated log state holds the value or, on .NET Framework, its invariant text.
+            Assert.That(
+                Convert.ToString(duration, CultureInfo.InvariantCulture),
+                Is.EqualTo(s_recoveryTimeout.ToString("c", CultureInfo.InvariantCulture)));
             Assert.That(expirations[0].Properties.TryGetValue("Elapsed", out object? elapsed), Is.True);
-            Assert.That(elapsed, Is.EqualTo(s_recoveryTimeout));
+            Assert.That(
+                Convert.ToString(elapsed, CultureInfo.InvariantCulture),
+                Is.EqualTo(s_recoveryTimeout.ToString("c", CultureInfo.InvariantCulture)));
         }
 
         private static async Task<WirePublish> AssertRecreatedSubscriptionAsync(

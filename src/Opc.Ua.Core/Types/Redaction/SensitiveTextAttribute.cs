@@ -27,23 +27,21 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using Microsoft.Extensions.Compliance.Classification;
+
 namespace Opc.Ua.Redaction
 {
     /// <summary>
-    /// Helper class for redacting sensitive data.
+    /// Marks a value as <see cref="OpcUaDataClassifications.SensitiveText"/>.
     /// </summary>
-    public static class Redact
+    public sealed class SensitiveTextAttribute : DataClassificationAttribute
     {
         /// <summary>
-        /// Creates a wrapper to hold <paramref name="value"/>.
-        /// When <see cref="object.ToString()"/> is called on the resulting wrapper
-        /// it will invoke the redaction strategy to censor the
-        /// sensitive data held by <paramref name="value"/>.
+        /// Initializes a new instance of the <see cref="SensitiveTextAttribute"/> class.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        public static RedactionWrapper<T> Create<T>(T value)
+        public SensitiveTextAttribute()
+            : base(OpcUaDataClassifications.SensitiveText)
         {
-            return new RedactionWrapper<T>(value);
         }
     }
 }

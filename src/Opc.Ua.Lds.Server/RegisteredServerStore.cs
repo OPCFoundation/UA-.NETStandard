@@ -34,6 +34,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Lds.Server
 {
@@ -695,7 +696,7 @@ namespace Opc.Ua.Lds.Server
             Message = "LDS: removed registration for {Uri} (IsOnline={Online}, SemaphoreOk={Sem}).")]
         public static partial void LdsRemovedRegistration(
             this ILogger logger,
-            string uri,
+            [ApplicationIdentity] string uri,
             bool online,
             bool sem);
     }

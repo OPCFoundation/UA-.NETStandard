@@ -279,6 +279,7 @@ namespace CompanionSuite
         private static void ConfigureLogging(HostApplicationBuilder builder)
         {
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
         }

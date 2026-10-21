@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Kafka.Internal
 {
@@ -694,18 +695,24 @@ namespace Opc.Ua.PubSub.Kafka.Internal
             this ILogger logger,
             Exception exception,
             ErrorCode code,
-            string? reason);
+            [SensitiveText] string? reason);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 1, Level = LogLevel.Trace,
             Message = "librdkafka [{Facility}] {Message}")]
-        public static partial void LibrdkafkaTrace(this ILogger logger, string facility, string message);
+        public static partial void LibrdkafkaTrace(
+            this ILogger logger,
+            string facility,
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 2, Level = LogLevel.Error,
             Message = "Kafka fatal error {Code}: {Reason}")]
-        public static partial void KafkaFatalError(this ILogger logger, ErrorCode code, string? reason);
+        public static partial void KafkaFatalError(
+            this ILogger logger,
+            ErrorCode code,
+            [SensitiveText] string? reason);
 
         [LoggerMessage(EventId = PubSubKafkaEventIds.ConfluentKafkaClientAdapter + 3, Level = LogLevel.Warning,
             Message = "Kafka error {Code}: {Reason}")]
-        public static partial void KafkaError(this ILogger logger, ErrorCode code, string? reason);
+        public static partial void KafkaError(this ILogger logger, ErrorCode code, [SensitiveText] string? reason);
     }
 }

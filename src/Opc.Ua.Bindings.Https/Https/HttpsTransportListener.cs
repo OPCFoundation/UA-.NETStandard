@@ -51,6 +51,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -3645,11 +3646,14 @@ namespace Opc.Ua.Bindings
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 1, Level = LogLevel.Warning,
             Message = "HTTPSLISTENER cannot share Kestrel host on {Key}; falling back to private host.")]
-        public static partial void CannotShareKestrelHost(this ILogger logger, Exception exception, SharedHostKey key);
+        public static partial void CannotShareKestrelHost(
+            this ILogger logger,
+            Exception exception,
+            [NetworkAddress] SharedHostKey key);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 2, Level = LogLevel.Trace,
             Message = "Copy of the private key for https was denied: {Message}")]
-        public static partial void PrivateKeyCopyDenied(this ILogger logger, string message);
+        public static partial void PrivateKeyCopyDenied(this ILogger logger, [SensitiveText] string message);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 3, Level = LogLevel.Error,
             Message = "{Message}")]

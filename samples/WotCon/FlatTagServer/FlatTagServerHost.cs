@@ -90,6 +90,7 @@ namespace FlatTagServer
         {
             Validate(options);
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Services.AddSingleton(options);
 

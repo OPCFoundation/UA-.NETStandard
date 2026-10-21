@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Capture.Sources
 {
@@ -301,13 +302,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
     {
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 0, Level = LogLevel.Trace,
             Message = "Read keylog {KeyLogFilePath} as JSON.")]
-        public static partial void ReadKeyLogAsJson(this ILogger logger, string keyLogFilePath);
+        public static partial void ReadKeyLogAsJson(this ILogger logger, [FilePath] string keyLogFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 1, Level = LogLevel.Trace,
             Message = "Unable to read keylog {KeyLogFilePath} as JSON; trying text.")]
         public static partial void ReadKeyLogAsJsonFailed(
             this ILogger logger,
             Exception exception,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
     }
 }

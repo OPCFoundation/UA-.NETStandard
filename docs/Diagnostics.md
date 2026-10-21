@@ -260,6 +260,105 @@ calls are not allowed.
 > (`CA1873`, enabled solution-wide) live in the
 > [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated).
 
+### Sensitive data in logs (data classification)
+
+The stack's log messages contain values that can be confidential in a
+deployment: network addresses describe the plant network, certificate
+subjects and application URIs identify installations, user names and file
+paths identify people and hosts, and exception texts can contain any of
+them. The stack does not decide what to hide. It classifies these values,
+and the application decides per classification what reaches its logs. It
+uses the standard .NET
+[data classification and redaction](https://learn.microsoft.com/dotnet/core/extensions/data-redaction)
+packages (`Microsoft.Extensions.Compliance.*`, `Microsoft.Extensions.Telemetry`).
+
+Every `[LoggerMessage]` parameter that holds such a value carries one of the
+attributes of `Opc.Ua.Redaction.OpcUaDataClassifications` (taxonomy `OpcUa`):
+
+| Classification | Attribute | Examples |
+|---|---|---|
+| `NetworkAddress` | `[NetworkAddress]` | endpoint, discovery, proxy, reverse connect and broker URLs; host and domain names; IP and MAC addresses; socket end points; ports |
+| `ApplicationIdentity` | `[ApplicationIdentity]` | certificates; certificate subject, issuer, thumbprint and serial number; application URIs |
+| `UserIdentity` | `[UserIdentity]` | user names, identity token subjects and claims, identity mapping criteria |
+| `FilePath` | `[FilePath]` | file, directory and certificate store paths |
+| `SensitiveText` | `[SensitiveText]` | exception messages and diagnostic text passed as a parameter |
+
+Identifiers that correlate entries, such as `ChannelId`, `SessionId`,
+`SubscriptionId` and status codes, are not classified.
+
+#### The logging pipeline must be redaction-aware
+
+Classified values are only written by the redaction-aware ("extended")
+logger of `Microsoft.Extensions.Telemetry`. **A plain `ILoggerFactory`
+(`LoggerFactory.Create(...)` or `services.AddLogging(...)` without
+`EnableRedaction()`) logs `(null)` in place of every classified value.**
+
+The stack enables the extended logger itself in
+`services.AddOpcUa().AddLogging(...)` and `DefaultTelemetry.Create(...)`.
+Without further configuration the values are logged unchanged, as before.
+`services.AddOpcUa()` alone does not change the host's logging. An
+application that configures logging itself (a generic host, or its own
+`ILoggerFactory` passed to the stack) enables it there:
+
+```csharp
+// Generic host
+builder.Logging.EnableOpcUaRedaction();
+
+// Own factory
+using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging
+    .EnableOpcUaRedaction()   // EnableRedaction(), discriminator off
+    .AddConsole());
+```
+
+`EnableOpcUaRedaction()` is `EnableRedaction()` with
+`LoggerRedactionOptions.ApplyDiscriminator = false`. With the discriminator
+on, values that are not redacted get the parameter name appended
+(`opc.tcp://host:4840:Url`).
+
+#### Redacting
+
+Register redactors per classification with `AddRedaction` (package
+`Microsoft.Extensions.Compliance.Redaction`). Once any redactor is
+registered, every classification without its own redactor is erased by the
+fallback redactor:
+
+```csharp
+services.AddOpcUa().AddLogging(logging => logging.AddConsole());
+services.AddRedaction(redaction => redaction
+    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.NetworkAddress)
+    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.UserIdentity)
+    .SetHmacRedactor(
+        options => { options.Key = hmacKey; options.KeyId = 1; },
+        OpcUaDataClassifications.ApplicationIdentity)
+    .SetFallbackRedactor<NullRedactor>()); // keep FilePath and SensitiveText
+```
+
+With an HMAC redactor the same value always produces the same token, so
+entries stay correlatable without exposing the value. Redaction applies to
+the formatted message and to the structured state, so OpenTelemetry and
+other structured exporters only receive redacted values. A downstream
+collector that redacts by itself gets the raw values when the
+classifications are mapped to `NullRedactor`, and filters on the structured
+keys.
+
+#### What is not classified
+
+- The `Exception` passed to a log call. Its message and stack trace are
+  written by the logger provider. With the extended logger,
+  `LoggerEnrichmentOptions.IncludeExceptionMessage = false` removes
+  exception messages from the log state.
+- Exception and `ServiceResult` messages created by the stack. They are
+  returned to callers and peers and can contain addresses.
+- The few log calls whose level is decided at run time (`logger.Log(level,
+  ...)`), which cannot carry attributes.
+
+#### The removed redaction API
+
+`Redact.Create(...)`, `RedactionWrapper<T>`, `IRedactionStrategy`,
+`RedactionStrategies` and `SimpleRedactionStrategy` were removed.
+Configure redactors with `AddRedaction` instead of
+`RedactionStrategies.SetStrategy`.
+
 ### Extensibility patterns
 
 #### Custom `ITelemetryContext` implementations
