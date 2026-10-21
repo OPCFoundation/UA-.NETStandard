@@ -1,0 +1,4 @@
+# GC modes of the server child (harness client unchanged)
+workstation|SERVER_DOTNET_gcServer=0|
+server-datas|SERVER_DOTNET_gcServer=1|
+server-no-datas|SERVER_DOTNET_gcServer=1 SERVER_DOTNET_GCDynamicAdaptationMode=0|

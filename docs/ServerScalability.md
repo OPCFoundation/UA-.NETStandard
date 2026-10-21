@@ -81,7 +81,7 @@ The .NET runtime settings below are read once, at process start. They are set in
 
 ### Garbage collector mode
 
-A server allocates per request on many threads at once. In the reported deep-pipeline workload, Workstation GC collected hundreds of times per second and paused the process for about half of the wall-clock time. In a 20-session Read load (100 values per request, 24 logical processors), enabling Server GC on the same build increased the request rate from 21k to 44k Reads per second and cut the 90th-percentile latency from 2.1 ms to 0.6 ms. The working set rose from about 210 MB to 430 MB.
+A server allocates per request on many threads at once. In the [measured GC comparison](Benchmarks.md#garbage-collector-modes) (2026-10-21, 24 logical processors, 5 rounds per mode), Workstation GC paused the server for 30–46 % of the measurement window. In a 20-session Read load (100 values per request), Server GC on the same build increased the request rate from 45.6k to 66.1k Reads per second and cut the 99th-percentile latency from 1.8 ms to 1.15 ms; the working set rose from about 210 MB to 325 MB. With the native Read workers the rate rose from 385k to 661k Reads per second, and the event rate of 50 sessions × 15 event subscriptions from 44 to 83 events per second.
 
 Use Server GC for servers under load. Enable it in the server's project file:
 
@@ -106,13 +106,13 @@ Disabling DATAS removes heap-count adaptation from the measurement: Server GC st
 </PropertyGroup>
 ```
 
-or `DOTNET_GCDynamicAdaptationMode=0`. The trade-off is memory: every heap has its own gen0 budget, so the working set is larger, also when the server is idle. `DOTNET_GCHeapCount` limits the number of heaps when that is too much.
+or `DOTNET_GCDynamicAdaptationMode=0`. The trade-off is memory: every heap has its own gen0 budget, so the working set is larger, also when the server is idle. `DOTNET_GCHeapCount` limits the number of heaps when that is too much. In the [measured comparison](Benchmarks.md#garbage-collector-modes) on 24 logical processors, disabling DATAS cut the GC pause time of the window 4.6–8 times at 1.9–2.8 times the working set (for example 803 MB to 2 GB with 750 event monitored items); throughput and CPU per operation stayed within the ranges measured with DATAS.
 
 ### Hybrid CPUs and processor affinity
 
 On hybrid processors (Intel performance and efficiency cores, AMD Zen 5 and Zen 5c cores), work can run on either core type. In the reported Ryzen AI 9 HX 370 measurement, a Read served on a Zen 5c core took 1.37 times the CPU time of one served on a Zen 5 core.
 
-Restricting the server process to the performance cores can therefore cost less CPU for the same work. In one measurement (2026-10-15, 10 clients with 100 Reads each in flight) the server restricted to the performance cores reached the same throughput as on the whole machine at about half the CPU time. This depends on the workload, the processor and the other processes on the machine, so treat it as an option to measure, not a rule.
+Restricting the server process to the performance cores can therefore cost less CPU for the same work. In the [measured placement comparison](Benchmarks.md#processor-placement) (2026-10-21, 10 clients with 100 Reads each in flight, 5 rounds) the server restricted to the eight Zen 5 logical processors reached a median throughput within 7 % of the default placement at about half the CPU per Read (11.7 against 22.9 µs; with SignAndEncrypt 14.6 against 24.5 µs at the same throughput). This depends on the workload, the processor and the other processes on the machine, so treat it as an option to measure, not a rule.
 
 Thread hand-offs between core complexes (CCX) added cost in the tested configuration. On this Ryzen AI 9 HX 370, CCX0 held the 4 Zen 5 cores (logical processors 0–7) and CCX1 the 8 Zen 5c cores (logical processors 8–23). An ETW analysis on 2026-10-20 (`master` 014f99a53, the external open62541 benchmark client, 10 clients with 100 single-value Reads each in flight, steady state) recorded:
 
