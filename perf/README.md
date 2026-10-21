@@ -8,6 +8,8 @@ part of the product build (not in `UA.slnx`) and target `net10.0` only.
 | `ServerLoadHarness/` | Starts a reference server in a child process and drives load against it from the parent process, which is also the measured client. |
 | `TraceAnalyzer/` | Aggregates the `dotnet-trace` files the harness records (CPU, allocations, lock contention, garbage collections). |
 | `ab.sh`, `ab-summary.ps1` | Paired A/B runs of two harness builds, and the median summary. |
+| `variants.sh`, `variants-summary.ps1` | Paired runs of one build under several configurations (GC mode, affinity), and the median and range summary. |
+| `benchmarks/` | The variant and scenario files of the published tables in [docs/Benchmarks.md](../docs/Benchmarks.md#reproducing-the-results). |
 | `server-scenarios.txt`, `client-scenarios.txt` | The scenario lists used for the server and client comparisons. |
 
 The server runs in its own process, so the server-side numbers (CPU, allocated bytes, GC count
@@ -23,6 +25,7 @@ measures it.
 - [Analyse a trace](#analyse-a-trace): `TraceAnalyzer` modes for CPU, allocations, lock
   contention, GC, suspensions and thread scheduling
 - [A/B comparison](#ab-comparison): `ab.sh`, `ab-summary.ps1`
+- [Configuration comparison](#configuration-comparison): `variants.sh`, `variants-summary.ps1`
 - [Measurement method](#measurement-method): [run record](#run-record),
   [reading the result block](#reading-the-result-block), [artifacts](#artifacts)
 
@@ -306,6 +309,37 @@ per operation (`calloc`, `ccpu`), GC pause and lock contention in the window (`c
 `ccont`), and the same for the server (`alloc`, `cpu`, `pause`, `cont`). It prints medians
 only; take the ranges from the result blocks in `ab-results.txt`.
 
+## Configuration comparison
+
+`variants.sh` runs one harness build under several configurations of the server, for example
+the GC modes or processor masks of the tables in
+[docs/Benchmarks.md](../docs/Benchmarks.md#reproducing-the-results). `VARIANTS` names a file with
+one variant per line, `<name>|<environment>|<extra arguments>`; `SCENARIOS` a file with the
+harness arguments of one scenario per line. `{workers}` in either file is replaced by `WORKERS`,
+the build directory of the [native workers](#external-benchmark-workers):
+
+```text
+# benchmarks/gc-variants.txt
+workstation|SERVER_DOTNET_gcServer=0|
+server-datas|SERVER_DOTNET_gcServer=1|
+server-no-datas|SERVER_DOTNET_gcServer=1 SERVER_DOTNET_GCDynamicAdaptationMode=0|
+```
+
+```bash
+cd perf
+WORKERS=<workers> VARIANTS=benchmarks/gc-variants.txt SCENARIOS=benchmarks/gc-scenarios.txt OUT=gc.txt ./variants.sh
+pwsh -File variants-summary.ps1 gc.txt
+```
+
+Each round runs every variant once, in reverse order every other round, `ROUNDS` times (default 5).
+While a run is in progress the script checks every 2 seconds for test hosts and for more
+`ServerLoadHarness` processes than the run's own (`OWN`, default 2); such a run is discarded,
+logged in `<OUT>.discarded` and repeated after the machine has been free of them for a minute.
+Other load, such as builds, is not detected. `variants-summary.ps1` prints, per scenario and
+variant, the median and range (min–max) of the rate, delivery, latency, server CPU and allocation
+per operation (and per written value or generated event), GC pause, busy cores and working set,
+and the GC counts of every round.
+
 ## Measurement method
 
 Use the following procedure for comparisons:
@@ -371,4 +405,6 @@ the scenario and all arguments.
 | Result file | `run --out <file>` | `RESULT` blocks, one per run |
 | `ab-results.txt` | `ab.sh` (`OUT`) | `### side=<A/B> round=<n> <scenario>` headers with the result blocks |
 | Summary | `ab-summary.ps1` | medians per scenario, `baseline -> candidate (change)` |
+| `variants-results.txt` | `variants.sh` (`OUT`) | `### variant=<name> round=<n> <scenario>` headers with the result blocks; `<OUT>.discarded` lists the repeated runs |
+| Variant summary | `variants-summary.ps1` | median and range per scenario and variant |
 | `.nettrace` | `run --trace <file>` | `dotnet-trace` recording of the measurement window, input of `TraceAnalyzer` |
