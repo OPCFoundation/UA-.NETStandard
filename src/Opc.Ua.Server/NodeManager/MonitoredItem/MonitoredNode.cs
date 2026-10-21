@@ -1589,6 +1589,22 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Returns <c>true</c> when the exact-source read check of the attribute involves no
+        /// registered Value read authorizer, whose policy must run on every delivery.
+        /// </summary>
+        private bool CanCacheReadAuthorization(uint attributeId)
+        {
+            return NodeManager switch
+            {
+                AsyncCustomNodeManager custom => attributeId != Attributes.Value ||
+                    Node is not BaseVariableState variable ||
+                    !custom.HasValueReadAuthorization(variable),
+                AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 } => true,
+                _ => false
+            };
+        }
+
         private static bool IsUserDependentAttribute(uint attributeId)
         {
             return attributeId is Attributes.UserAccessLevel or
@@ -1625,15 +1641,17 @@ namespace Opc.Ua.Server
                 {
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), cachedContext);
                 }
+                ReadAuthorizationVerdict? readVerdict = null;
                 if (m_permissionCache.TryGetValue(
                     monitoredItem.Id,
                     out (long Generation, ISession? Session,
-                        ServerSystemContext? Context, ServiceResult Result) cached) &&
+                        ServerSystemContext? Context, ServiceResult Result, ReadAuthorizationVerdict? Read) cached) &&
                     cached.Generation == generation &&
                     ReferenceEquals(cached.Session, operationContext.Session) &&
                     ReferenceEquals(cached.Context, cachedContext))
                 {
                     result = cached.Result;
+                    readVerdict = cached.Read;
                 }
                 else
                 {
@@ -1641,13 +1659,41 @@ namespace Opc.Ua.Server
                         operationContext, snapshot.NodeId, permission, ct).ConfigureAwait(false);
                     ct.ThrowIfCancellationRequested();
                     m_permissionCache[monitoredItem.Id] = (
-                        generation, operationContext.Session, cachedContext, result);
+                        generation, operationContext.Session, cachedContext, result, null);
                 }
                 if (!ServiceResult.IsBad(result))
                 {
-                    result = await MonitoredReadAuthorization.ValidateAsync(
-                        NodeManager, Node, cachedContext, monitoredItem.AttributeId, ct).ConfigureAwait(false);
-                    ct.ThrowIfCancellationRequested();
+                    // The exact-source recheck runs per delivery and item. Without a registered Value
+                    // read authorizer (whose policy is never cached) its verdict depends only on the
+                    // inputs keyed here and in the role-permission entry, so a good verdict is reused
+                    // until one of them moves.
+                    long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
+                    bool cacheable = CanCacheReadAuthorization(monitoredItem.AttributeId);
+                    if (cacheable &&
+                        readVerdict != null &&
+                        readVerdict.Matches(defaultsGeneration, endpoint, securityMode, transport, restrictions))
+                    {
+                        result = readVerdict.Result;
+                    }
+                    else
+                    {
+                        ServiceResult roleResult = result;
+                        result = await MonitoredReadAuthorization.ValidateAsync(
+                            NodeManager, Node, cachedContext, monitoredItem.AttributeId, ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
+                        if (cacheable &&
+                            ServiceResult.IsGood(result) &&
+                            defaultsGeneration == NamespaceDefaultPermissionReader.Generation)
+                        {
+                            m_permissionCache[monitoredItem.Id] = (
+                                generation,
+                                operationContext.Session,
+                                cachedContext,
+                                roleResult,
+                                new ReadAuthorizationVerdict(
+                                    defaultsGeneration, endpoint, securityMode, transport, restrictions, result));
+                        }
+                    }
                 }
                 EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)) &&
@@ -1921,7 +1967,8 @@ namespace Opc.Ua.Server
             uint, (long Generation, ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache = new();
 
         private readonly ConcurrentDictionary<
-            uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result)>
+            uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result,
+                ReadAuthorizationVerdict? Read)>
             m_permissionCache = new();
 
         private readonly ConcurrentDictionary<
@@ -2085,6 +2132,35 @@ namespace Opc.Ua.Server
                     ReferenceEquals(Session, other.Session) &&
                     ReferenceEquals(Identity, other.Identity) &&
                     IdentityGeneration == other.IdentityGeneration;
+            }
+        }
+
+        /// <summary>
+        /// A good exact-source read verdict and the channel, restriction and namespace-default
+        /// inputs it was computed with.
+        /// </summary>
+        private sealed class ReadAuthorizationVerdict(
+            long defaultsGeneration,
+            EndpointDescription? endpoint,
+            MessageSecurityMode? securityMode,
+            string? transport,
+            AccessRestrictionType? restrictions,
+            ServiceResult result)
+        {
+            public ServiceResult Result { get; } = result;
+
+            public bool Matches(
+                long currentDefaultsGeneration,
+                EndpointDescription? currentEndpoint,
+                MessageSecurityMode? currentSecurityMode,
+                string? currentTransport,
+                AccessRestrictionType? currentRestrictions)
+            {
+                return defaultsGeneration == currentDefaultsGeneration &&
+                    ReferenceEquals(endpoint, currentEndpoint) &&
+                    securityMode == currentSecurityMode &&
+                    transport == currentTransport &&
+                    restrictions == currentRestrictions;
             }
         }
 
