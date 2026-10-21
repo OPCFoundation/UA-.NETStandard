@@ -39,6 +39,7 @@
     <TextBlock Grid.Row="1" x:Name="HintLabel"
                Foreground="{DynamicResource TextSecondary}" Margin="0,0,0,8" TextWrapping="Wrap" />
     <TextBox Grid.Row="2" x:Name="ValueText"
+             AutomationProperties.LabeledBy="{Binding #HeaderLabel}"
              FontFamily="Cascadia Mono, Consolas, monospace" />
     <TextBlock Grid.Row="3" x:Name="StatusLabel" TextWrapping="Wrap" Margin="0,8,0,0" />
 

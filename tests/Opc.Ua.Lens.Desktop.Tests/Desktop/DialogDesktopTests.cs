@@ -42,6 +42,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.Plugins.FileSystem;
 using UaLens.StructuredValues;
 using UaLens.Subscriptions;
 using UaLens.ViewModels;
@@ -251,6 +252,44 @@ public sealed class DialogDesktopTests
             Assert.That(item.DataChangeFilter?.DeadbandValue, Is.EqualTo(100));
             Assert.That(item.NodeId, Is.EqualTo(node.NodeId));
             Assert.That(scope.Window.OwnedWindows, Is.Empty);
+        });
+    }
+
+    /// <summary>
+    /// Prompt inputs expose the current visible label through their automation peers.
+    /// </summary>
+    [TestCase(false)]
+    [TestCase(true)]
+    public Task PromptInputsExposeTheirDynamicLabels(bool fileName)
+    {
+        return DesktopApplication.RunAsync(async () =>
+        {
+            await using DesktopWindowScope scope = await DesktopWindowScope.OpenAsync().ConfigureAwait(true);
+            Window dialog = fileName
+                ? new NameInputDialog("New folder", "Folder name:", "Initial")
+                : new PrimitiveValuePromptDialog(BuiltInType.Int32, Variant.From(12));
+            Task modal = dialog.ShowDialog(scope.Window);
+            try
+            {
+                await DesktopWindowScope.FrameAsync(dialog).ConfigureAwait(true);
+                TextBox input = dialog.FindControl<TextBox>(fileName ? "NameBox" : "ValueText")!;
+                TextBlock label = dialog.FindControl<TextBlock>(fileName ? "PromptLabel" : "HeaderLabel")!;
+                string expected = fileName ? "Folder name:" : "Edit element  (Int32)";
+                Assert.That(input.Focus(NavigationMethod.Tab), Is.True);
+                Assert.That(label.Text, Is.EqualTo(expected));
+                Assert.That(AutomationProperties.GetLabeledBy(input), Is.SameAs(label));
+                AutomationPeer peer = ControlAutomationPeer.CreatePeerForElement(input);
+                Assert.That(peer.GetName(), Is.EqualTo(expected));
+
+                label.Text = "Updated prompt";
+                await DesktopWindowScope.FrameAsync(dialog).ConfigureAwait(true);
+                Assert.That(peer.GetName(), Is.EqualTo("Updated prompt"));
+            }
+            finally
+            {
+                dialog.Close();
+                await modal.WaitAsync(DesktopApplication.Timeout).ConfigureAwait(true);
+            }
         });
     }
 
