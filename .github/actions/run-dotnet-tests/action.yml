@@ -223,6 +223,14 @@ runs:
       CI_HANG_TIMEOUT: ${{ inputs.hang-timeout }}
       CI_PER_PROJECT_TIMEOUT: ${{ inputs.per-project-timeout }}
       CI_COVERAGE: ${{ inputs.coverage }}
+      # Record an allocation stack (and the owning fixture) per Certificate
+      # handle, so a teardown "Certificate leak detected" failure names the
+      # leaked handle's origin. The rare one-certificate Sessions.Tests leak on
+      # macOS (~1 % of those shards) never reproduced locally, and without this
+      # the report only carries the counts. A tracked handle is dropped from the
+      # tracker on dispose; the Sessions.Tests WSS/HTTPS fixtures ran no slower
+      # with it on.
+      OPCUA_CERTIFICATE_LEAK_TRACKING: '1'
     run: |
       # The core_pattern set by 'Enable native core dumps' only takes effect for
       # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
