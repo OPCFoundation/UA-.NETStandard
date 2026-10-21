@@ -2864,7 +2864,16 @@ namespace Opc.Ua.Server
             /// Gets or sets the number of outstanding source-emission cutoff reservations that block immediate
             /// dispatch.
             /// </summary>
-            public int EmissionCutoffReservations { get; set; }
+            /// <remarks>
+            /// A reservation closes the lock-free admission path before the cutoff publishes its
+            /// routes, so emissions admitted from then on observe the routes and the cutoff flag
+            /// together under the lock.
+            /// </remarks>
+            public int EmissionCutoffReservations
+            {
+                get => Volatile.Read(ref m_emissionCutoffReservations);
+                set => Interlocked.Exchange(ref m_emissionCutoffReservations, value);
+            }
 
             /// <summary>
             /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
@@ -2901,9 +2910,9 @@ namespace Opc.Ua.Server
             public long FastDispatches => m_fastDispatches.Count;
 
             /// <summary>
-            /// Admits a lease without the lock while business emissions are enabled and no drain
-            /// waits. Source emissions run per data change on every core, so the admission counts
-            /// in a per-processor slot instead of under the master's lock.
+            /// Admits a lease without the lock while business emissions are enabled, no cutoff is
+            /// reserved and no drain waits. Source emissions run per data change on every core, so
+            /// the admission counts in a per-processor slot instead of under the master's lock.
             /// </summary>
             /// <param name="slot">The counter slot to release the lease from.</param>
             /// <param name="releaseRequired">
@@ -2914,12 +2923,12 @@ namespace Opc.Ua.Server
             {
                 releaseRequired = false;
                 slot = -1;
-                if (!BusinessEmissionsEnabled || DispatchesDrained is not null)
+                if (!IsFastAdmissionOpen)
                 {
                     return false;
                 }
                 int entered = m_fastDispatches.Enter();
-                if (BusinessEmissionsEnabled && DispatchesDrained is null)
+                if (IsFastAdmissionOpen)
                 {
                     slot = entered;
                     return true;
@@ -2939,8 +2948,14 @@ namespace Opc.Ua.Server
                 return DispatchesDrained is not null;
             }
 
+            private bool IsFastAdmissionOpen =>
+                BusinessEmissionsEnabled &&
+                EmissionCutoffReservations == 0 &&
+                DispatchesDrained is null;
+
             private readonly StripedCounter m_fastDispatches = new();
             private bool m_businessEmissionsEnabled = true;
+            private int m_emissionCutoffReservations;
             private TaskCompletionSource<bool>? m_dispatchesDrained;
             private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
         }
