@@ -639,7 +639,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
                 "\"tm\":\"https://www.w3.org/2019/wot/tm#\"}]," +
-                "\"@type\":\"uav:projection\",\"uav:projectionKind\":\"ThingDescription\"," +
+                "\"@type\":[\"Thing\",\"uav:projection\"]," +
                 "\"id\":\"urn:view\",\"title\":\"View\"," +
                 "\"uav:scenario\":\"http://example.com/scenario/View\"," +
                 "\"securityDefinitions\":{" + securityDefinitions + "}," +

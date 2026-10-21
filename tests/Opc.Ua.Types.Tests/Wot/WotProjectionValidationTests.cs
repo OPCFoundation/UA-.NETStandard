@@ -294,25 +294,31 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
-        public void AProjectedAffordanceWithoutTmRefIsReported()
+        public void AProjectionMayDefineACompleteLocalAffordance()
         {
             string json = Projection(affordances: """
-              "properties": { "alpha": { "type": "number" } },
+              "properties": {
+                "alpha": {
+                  "type": "number",
+                  "forms": [{ "href": "https://example.com/alpha" }]
+                }
+              },
             """);
             WotProjection projection = ParseProjection(json, out List<WotDiagnostic> diagnostics);
 
-            AssertHas(diagnostics, WotDiagnosticCode.ProjectionDefinesAffordance);
-            Assert.That(projection.References.Count, Is.Zero,
-                "A projection declares affordances; one that defines a body is not a reference.");
+            Assert.That(diagnostics, Is.Empty);
+            Assert.That(projection.References.Count, Is.Zero);
+            Assert.That(projection.LocalAffordances.Count, Is.EqualTo(1));
+            Assert.That(projection.LocalAffordances[0].Name, Is.EqualTo("alpha"));
         }
 
         [Test]
         public void AProjectedAffordanceWithTmRefBecomesAReference()
         {
             string json = Projection(affordances: """
-              "properties": { "alpha": { "tm:ref": "a#alpha" } },
-              "actions": { "run": { "tm:ref": "a#run" } },
-              "events": { "tick": { "tm:ref": "a#tick" } },
+              "properties": { "alpha": { "tm:ref": "urn:sourceA#/properties/alpha" } },
+              "actions": { "run": { "tm:ref": "urn:sourceA#/actions/run" } },
+              "events": { "tick": { "tm:ref": "urn:sourceA#/events/tick" } },
             """);
             WotProjection projection = ParseProjection(json, out List<WotDiagnostic> diagnostics);
 

@@ -186,7 +186,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
                 {
                     Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
-                        Is.All.EqualTo(WotProjection.ContentType), sample.Path);
+                        Is.All.EqualTo("application/td+json"), sample.Path);
                 }
             }
         }

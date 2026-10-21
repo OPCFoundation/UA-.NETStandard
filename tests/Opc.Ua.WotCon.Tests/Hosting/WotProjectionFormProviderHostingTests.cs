@@ -181,7 +181,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         private const string Plan = /*lang=json,strict*/ """
             {
               "@context":"https://www.w3.org/2022/wot/td/v1.1",
-              "@type":"uav:projection","uav:projectionKind":"ThingDescription",
+              "@type":["Thing","uav:projection"],
               "id":"https://host.test/plan.json","base":"https://host.test/runtime/","title":"Host",
               "uav:scenario":"urn:scenario:host-forms",
               "security":"host","securityDefinitions":{"host":{"scheme":"basic"}},

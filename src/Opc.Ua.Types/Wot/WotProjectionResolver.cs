@@ -43,17 +43,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// Resolves a projection document (OPC 10101-2) into a resolved
     /// view: an ordinary Thing Description or Thing Model that carries no
     /// <c>uav:projection</c> marker, so a consumer needs no projection support
-    /// to use it.
+    /// to use it. The view combines source selections with local definitions,
+    /// with local definitions taking precedence by affordance name.
     /// </summary>
     /// <remarks>
     /// The resolver performs no network I/O of its own. It obtains source
     /// documents through the supplied <see cref="IWotThingResolver"/> and
     /// bounds the work through a <see cref="WotResolutionContext"/>, exactly as
     /// <see cref="WotNodeSetConverter"/> does. The four carriage rules of
-    /// Section 12.4 - forms, security, anchors and context - are applied to the
+    /// forms, security, anchors and context carriage rules are applied to the
     /// selected affordances, and every resolved affordance records its origin in
     /// <c>uav:resolvedFrom</c>.
     /// </remarks>
@@ -233,7 +234,28 @@ namespace Opc.Ua.Wot
                 {
                     referenceOwner[jj] = FindSourceIndex(
                         projection.Sources,
-                        SplitDocumentPart(references[jj].Reference));
+                        SplitDocumentPart(references[jj].Reference),
+                        projectionBase);
+                    if (referenceOwner[jj] < 0)
+                    {
+                        AddError(
+                            diagnostics,
+                            WotDiagnosticCode.ProjectionSourceUnresolved,
+                            "A projection-selection reference shall target a document declared in uav:projects.",
+                            references[jj].Reference);
+                    }
+                }
+
+                foreach (WotProjectionLocalAffordance local in projection.LocalAffordances)
+                {
+                    selection.Claim(local.AffordanceKind, local.Name);
+                }
+                for (int jj = 0; jj < references.Count; jj++)
+                {
+                    if (referenceOwner[jj] == -1)
+                    {
+                        selection.Claim(references[jj].AffordanceKind, references[jj].Name);
+                    }
                 }
 
                 for (int ii = 0; ii < count; ii++)
@@ -254,16 +276,30 @@ namespace Opc.Ua.Wot
                     }
                 }
 
+                var localSource = new ResolvedSource
+                {
+                    Source = new WotProjectionManifestSource
+                    {
+                        SourceName = "projection",
+                        Href = projectionOrigin,
+                        Routing = WotProjectionRouting.Source
+                    },
+                    Document = projectionDocument,
+                    DocumentHref = projectionOrigin,
+                    BaseHref = projectionBase
+                };
+                foreach (WotProjectionLocalAffordance local in projection.LocalAffordances)
+                {
+                    AddLocalAffordance(local.AffordanceKind, local.Name, local.Definition,
+                        localSource, selection, diagnostics);
+                }
                 for (int jj = 0; jj < references.Count; jj++)
                 {
                     if (referenceOwner[jj] == -1)
                     {
-                        AddError(
-                            diagnostics,
-                            WotDiagnosticCode.ProjectionSourceUnresolved,
-                            $"The reference '{references[jj].Reference}' names no " +
-                            "source in uav:projects.",
-                            references[jj].Reference);
+                        WotProjectionReference local = references[jj];
+                        AddLocalAffordance(local.AffordanceKind, local.Name, local.Annotations,
+                            localSource, selection, diagnostics);
                     }
                 }
 
@@ -275,7 +311,7 @@ namespace Opc.Ua.Wot
                 CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
                 bool legacyPlan = m_options.ProjectionCompatibilityMode ==
                     WotProjectionCompatibilityMode.DraftProjection11 &&
-                    !projectionDocument.TryGetUav("projectionKind", out _);
+                    projectionDocument.TryGetUav("projectionKind", out _);
                 if (!legacyPlan)
                 {
                     foreach (ResolvedAffordance member in selection.Members)
@@ -290,6 +326,7 @@ namespace Opc.Ua.Wot
                                 "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
                         }
                     }
+
                 }
                 if (CountErrors(diagnostics) > errorsAtEntry ||
                     !await SupplyHostFormsAsync(
@@ -368,6 +405,36 @@ namespace Opc.Ua.Wot
                     openDocuments[ii].Dispose();
                 }
             }
+        }
+
+        private static void AddLocalAffordance(
+            WotAffordanceKind kind,
+            string name,
+            JsonElement definition,
+            ResolvedSource source,
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
+        {
+            string pointer = "/" + MapName(kind) + "/" + EscapePointer(name);
+            JsonObject? value = CloneAffordance(source, definition, pointer, diagnostics);
+            if (value is null)
+            {
+                return;
+            }
+            if (value["forms"] is JsonArray forms)
+            {
+                foreach (JsonNode? formNode in forms)
+                {
+                    if (formNode is JsonObject form &&
+                        form["href"] is JsonValue hrefNode &&
+                        hrefNode.TryGetValue(out string? href) &&
+                        href is not null)
+                    {
+                        form["href"] = ResolveHref(source.BaseHref, href);
+                    }
+                }
+            }
+            selection.Add(kind, name, value, source, name, definition);
         }
 
         private static bool ValidateSourceIdentities(ResolvedSource?[] sources, List<WotDiagnostic> diagnostics)
@@ -592,17 +659,14 @@ namespace Opc.Ua.Wot
             string ordinaryMediaType = document.Kind == WotDocumentKind.ThingModel
                 ? "application/tm+json"
                 : "application/td+json";
-            if (!WotProjection.IsProjection(document))
-            {
-                return string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
-            }
-            if (string.Equals(source.MediaType, WotProjection.ContentType, StringComparison.Ordinal))
+            if (string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal))
             {
                 return true;
             }
-            return m_options.ProjectionCompatibilityMode == WotProjectionCompatibilityMode.DraftProjection11 &&
-                !document.TryGetUav("projectionKind", out _) &&
-                string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
+            return WotProjection.IsProjection(document) &&
+                m_options.ProjectionCompatibilityMode == WotProjectionCompatibilityMode.DraftProjection11 &&
+                document.TryGetUav("projectionKind", out _) &&
+                string.Equals(source.MediaType, WotProjection.LegacyContentType, StringComparison.Ordinal);
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(
@@ -722,7 +786,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Orders the enumerated selections of one source by the total order of
-        /// WoT Binding Section 12.4: affordance kind in the fixed order
+        /// OPC 10101-2: affordance kind in the fixed order
         /// <c>properties</c>, <c>actions</c>, <c>events</c>; then ascending
         /// Unicode code point of the name the selection takes <em>in the
         /// view</em>; then ascending Unicode code point of the affordance's
@@ -769,7 +833,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The position of an affordance kind in the fixed order of
-        /// WoT Binding Section 12.4.
+        /// OPC 10101-2.
         /// </summary>
         private static int KindRank(WotAffordanceKind kind)
         {
@@ -784,7 +848,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the affordance's own name in the source, which is the last
         /// token of the <c>tm:ref</c> JSON Pointer and the final tie-break of
-        /// WoT Binding Section 12.4.
+        /// OPC 10101-2.
         /// </summary>
         private static string SourceAffordanceName(string reference)
         {
@@ -831,7 +895,7 @@ namespace Opc.Ua.Wot
                 source.Source.Routing == WotProjectionRouting.Source;
             if (sourceRouting && CarriesTransportAnnotation(reference.Annotations, out string member))
             {
-                // Section 12.5: under source routing the consumer talks to the
+                // OPC 10101-2: under source routing the consumer talks to the
                 // source's own endpoint, so a member that restates forms or
                 // security makes the document invalid. Dropping it would be
                 // worse than reporting it: a dropped form is one the author
@@ -887,7 +951,7 @@ namespace Opc.Ua.Wot
                 candidates.Add((kind, name, definition));
             }
 
-            // Section 12.4: within one source and group, by affordance kind,
+            // OPC 10101-2: within one source and group, by affordance kind,
             // then by the name the selection takes in the view, then by the
             // affordance's own name in the source. The last key is what makes
             // the order total, because uav:namePrefix upper-cases the first
@@ -1067,7 +1131,7 @@ namespace Opc.Ua.Wot
                     source.DocumentHref + "#" + pointer);
                 return;
             }
-            // WoT Binding Section 12: the reference the selection was made by, not the ultimate origin.
+            // OPC 10101-2: the reference the selection was made by, not the ultimate origin.
             value["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
         }
 
@@ -1103,7 +1167,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Merges the members a projection annotated a declared affordance
-        /// with, honouring the closed set of WoT Binding Section 12.5.
+        /// with, honouring the closed set of OPC 10101-2.
         /// </summary>
         /// <remarks>
         /// The set is checked again here, and not only where the projection is
@@ -1159,7 +1223,7 @@ namespace Opc.Ua.Wot
                         string.Equals(member.Name, "security", StringComparison.Ordinal)))
                 {
                     // A member selected under source routing shall not carry its
-                    // own forms or security (Section 12.5); the source's own form
+                    // own forms or security; the source's own form
                     // is carried and absolutized instead.
                     continue;
                 }
@@ -2297,12 +2361,17 @@ namespace Opc.Ua.Wot
 
         private static int FindSourceIndex(
             ArrayOf<WotProjectionManifestSource> sources,
-            string documentPart)
+            string documentPart,
+            string projectionBase)
         {
+            string referenceUri = ResolveHref(projectionBase, documentPart);
             for (int ii = 0; ii < sources.Count; ii++)
             {
-                if (string.Equals(
-                        sources[ii].Href, documentPart, StringComparison.Ordinal))
+                string sourceUri = ResolveHref(projectionBase, sources[ii].Href);
+                if (Uri.TryCreate(sourceUri, UriKind.Absolute, out Uri? source) &&
+                    Uri.TryCreate(referenceUri, UriKind.Absolute, out Uri? reference)
+                    ? source.Equals(reference)
+                    : string.Equals(sourceUri, referenceUri, StringComparison.Ordinal))
                 {
                     return ii;
                 }

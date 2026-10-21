@@ -970,11 +970,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         retiredMembers);
                 }
 
-                // A projection document declares affordances instead of defining
-                // them: it materializes as a View that Organizes the Nodes of its
-                // sources (Section 12.6), never as affordance Nodes of its own. It
-                // is deferred here and materialized after its sources, whose
-                // materialized roots the View resolves against.
+                // A projection document resolves its source selections against
+                // the materialized roots of those sources. It is deferred here
+                // until its sources have been materialized.
                 ByteString memberContent = await ReadCachedContentAsync(
                         contentCache, version, cancellationToken)
                     .ConfigureAwait(false);
@@ -986,7 +984,30 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     {
                         projectionMembers.Add(member);
                     }
-                    continue;
+                    if (!TryCreateLocalProjectionDocument(
+                            member, memberContent, out ByteString localContent, out string? localError))
+                    {
+                        string reason = localError ??
+                            "The local affordances of the projection could not be materialized.";
+                        foreach (WotResource affected in
+                            activeXids.Contains(member.Xid) ? [member] : activeMembers)
+                        {
+                            results.Add(FailResult(
+                                affected, generation, WoTPhaseEnum.FormatValidation, reason));
+                            projections.Add(FailProjection(affected, reason));
+                            RaiseLoadFailure(
+                                affected, generation, WoTPhaseEnum.FormatValidation, reason);
+                        }
+                        return new ClosureOutcome(
+                            results.ToImmutable(),
+                            projections,
+                            retiredMembers);
+                    }
+                    if (localContent.IsNull)
+                    {
+                        continue;
+                    }
+                    memberContent = localContent;
                 }
                 bool ownsResolutionDefinitions = emitsDeclarations &&
                     activeXids.Contains(member.Xid) && !declarationOwnerAssigned;
@@ -997,7 +1018,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     projectionError is not null
                         ? (null, default, projectionError, WoTPhaseEnum.FormatValidation, [])
                         : await TryConvertAsync(
-                            member, snapshot, contentCache, new WotDocumentConversionContents(
+                            member, memberContent, snapshot, new WotDocumentConversionContents(
                                 contentCache, capture.Inputs.DeclarationInputs, member, conversionMembers,
                                 ownsResolutionDefinitions), cancellationToken)
                             .ConfigureAwait(false);
@@ -1247,7 +1268,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             // Materialize a View for each deferred projection-document member now
             // that its sources are in the address space. The View Organizes the
-            // already-materialized source Nodes (Section 12.6) and creates no
+            // already-materialized source Nodes (OPC 10101-2) and creates no
             // affordance Node of its own.
             var projectionXids = new HashSet<string>(StringComparer.Ordinal);
             var viewResults = new List<WoTResourceLoadResultDataType>();
@@ -1256,7 +1277,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (projectionMembers.Count > 0)
             {
                 await MaterializeProjectionViewsAsync(
-                    snapshot, projectionMembers, perMemberRoot, declarationContext, generation,
+                    snapshot, projectionMembers, perMemberRoot, perMemberNodeCount,
+                    declarationContext, generation,
                     projectionXids, viewResults, viewProjections, viewHandles,
                     contentCache, cancellationToken).ConfigureAwait(false);
             }
@@ -1427,23 +1449,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WoTPhaseEnum FailurePhase,
             ArrayOf<WotProjectedAffordance> Affordances)> TryConvertAsync(
             WotResource resource,
+            ByteString content,
             WotRegistrySnapshot snapshot,
-            Dictionary<string, ByteString> contentCache,
             IReadOnlyDictionary<string, ByteString> conversionContents,
             CancellationToken cancellationToken)
         {
-            WotResourceVersion? version = resource.DefaultVersion;
-            if (version is null)
-            {
-                return (
-                    null,
-                    default,
-                    "Resource has no default version.",
-                    WoTPhaseEnum.FormatValidation,
-                    []);
-            }
-            ByteString content = await ReadCachedContentAsync(contentCache, version, cancellationToken)
-                .ConfigureAwait(false);
             WotConversionOutput output = await m_converter.ConvertAsync(
                 resource, content, snapshot, conversionContents, cancellationToken).ConfigureAwait(false);
             if (!output.Succeeded)
@@ -1453,6 +1463,53 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : string.Join("; ", output.Errors), output.FailurePhase, []);
             }
             return (output.NodeSet, output.RootNodeId, null, WoTPhaseEnum.Projection, output.ProjectedAffordances);
+        }
+
+        private bool TryCreateLocalProjectionDocument(
+            WotResource member,
+            ByteString projectionContent,
+            out ByteString localContent,
+            out string? error)
+        {
+            localContent = default;
+            error = null;
+            using WotDocument? document = TryParseDocument(projectionContent);
+            if (document is null)
+            {
+                error = "The projection document could not be parsed to materialize its local affordances.";
+                return false;
+            }
+
+            var diagnostics = new List<WotDiagnostic>();
+            WotProjection? projection = WotProjection.Parse(
+                document, diagnostics, m_converterOptions.ProjectionCompatibilityMode);
+            if (projection is null ||
+                diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error))
+            {
+                error = string.Join(
+                    "; ",
+                    diagnostics.Where(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error)
+                        .Select(diagnostic => diagnostic.Message));
+                if (error.Length == 0)
+                {
+                    error = "The projection's local affordances could not be read.";
+                }
+                return false;
+            }
+            if (projection.LocalAffordances.IsEmpty)
+            {
+                return true;
+            }
+
+            string rootNodeId = WotPortableIdentity.GenerateNodeId(
+                Namespaces.WotCon,
+                [
+                    new WotBrowsePathElement(Namespaces.WotCon, "ProjectionLocals"),
+                    new WotBrowsePathElement(Namespaces.WotCon, member.Xid)
+                ]);
+            localContent = WotProjectionLocalDocument.Create(
+                document.RootElement, projection.LocalAffordances, rootNodeId);
+            return true;
         }
 
         /// <summary>
@@ -1528,12 +1585,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// the projection's sources (located through the closure's per-member
         /// roots) and never recreates them; a source not present in this address
         /// space is omitted and reported, and the resource still reaches
-        /// <c>Active</c> (WoT Binding Section 12.6).
+        /// <c>Active</c> (OPC 10101-2).
         /// </summary>
         private async ValueTask MaterializeProjectionViewsAsync(
             WotRegistrySnapshot snapshot,
             List<WotResource> projectionMembers,
             Dictionary<string, ExpandedNodeId> perMemberRoot,
+            Dictionary<string, int> perMemberNodeCount,
             WotProjectionDeclarationContext declarationContext,
             uint generation,
             HashSet<string> projectionXids,
@@ -1614,7 +1672,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 try
                 {
                     await MaterializeProjectionViewAsync(
-                        builder, snapshot, namespaces, member, version, generation, contentCache,
+                        builder, snapshot, namespaces, member, version, generation,
+                        perMemberNodeCount.TryGetValue(member.Xid, out int localNodeCount)
+                            ? localNodeCount
+                            : 0,
+                        contentCache,
                         viewResults, viewProjections, viewHandles, cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -1649,6 +1711,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResource member,
             WotResourceVersion version,
             uint generation,
+            int localNodeCount,
             Dictionary<string, ByteString> contentCache,
             List<WoTResourceLoadResultDataType> viewResults,
             List<WotResourceProjection> viewProjections,
@@ -1671,12 +1734,15 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             WotViewProjectionResult build;
             NodeId viewNodeId;
+            string localSourceHref = $"urn:wot:{member.GroupId}/{member.ResourceId}";
             using (document)
             {
                 viewNodeId = ComputeViewNodeId(member, document);
                 build = m_preparing is null
-                    ? await builder.BuildAsync(document, null, cancellationToken).ConfigureAwait(false)
-                    : await builder.BuildCanonicalAsync(document, snapshot, cancellationToken).ConfigureAwait(false);
+                    ? await builder.BuildForResourceAsync(
+                        document, localSourceHref, cancellationToken).ConfigureAwait(false)
+                    : await builder.BuildCanonicalAsync(
+                        document, snapshot, localSourceHref, cancellationToken).ConfigureAwait(false);
             }
 
             if (!build.Success || build.Plan is null)
@@ -1720,7 +1786,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Phase = WoTPhaseEnum.Activation,
                 LoadState = WoTLoadStateEnum.Active,
                 Generation = generation,
-                MaterializedNodeCount = (uint)plan.MaterializedNodeCount,
+                MaterializedNodeCount = (uint)(localNodeCount + plan.MaterializedNodeCount),
                 RootNodeId = viewNodeId,
                 ContentDigest = DigestOf(member),
                 Message = message

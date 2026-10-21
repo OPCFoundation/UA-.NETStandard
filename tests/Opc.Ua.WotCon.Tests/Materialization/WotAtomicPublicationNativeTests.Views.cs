@@ -645,13 +645,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string identity = collideWithSource
                 ? "nsu=urn:c2:prepared-source;s=Source"
                 : $"nsu={kStockViewNamespace};s={id}";
-            string kind = thingModel ? "ThingModel" : "ThingDescription";
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
             string contentType = thingModel ? "application/tm+json" : "application/td+json";
             string content = $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
                     {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":["uav:projection"],"uav:projectionKind":"{{{kind}}}",
+                  "@type":["{{{rootType}}}","uav:projection"],
                   "id":"urn:stock:{{{id}}}","title":"{{{id}}}","uav:scenario":"urn:stock:scenario",
                   "uav:id":"{{{identity}}}",
                   "securityDefinitions":{"none":{"scheme":"nosec"}},"security":"none",
@@ -664,8 +664,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
                 Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
                 ResourceId = id, VersionId = "v1",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
+                ContentType = contentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);

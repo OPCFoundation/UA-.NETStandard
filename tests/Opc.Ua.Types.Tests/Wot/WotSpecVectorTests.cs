@@ -430,7 +430,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.6 separates the semantic membership digest from its
+        /// OPC 10101-2 separates the semantic membership digest from its
         /// persisted publication token.
         /// </summary>
         [Test]
@@ -482,8 +482,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 };
                 var plan = new JsonObject
                 {
-                    ["@type"] = new JsonArray("uav:projection"),
-                    ["uav:projectionKind"] = "ThingDescription",
+                    ["@type"] = new JsonArray("Thing", "uav:projection"),
                     ["uav:scenario"] = "urn:vectors:security",
                     ["uav:projects"] = new JsonArray(new JsonObject
                     {

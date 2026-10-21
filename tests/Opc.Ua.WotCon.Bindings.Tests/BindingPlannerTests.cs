@@ -59,6 +59,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotBindingPlanContext();
         }
 
+        [Test]
+        public void OpcUaBindingAdvertisesDefaultOctetStreamContentType()
+        {
+            var contentTypes = new OpcUaBindingPlanner().Capability.ContentTypes;
+
+            Assert.That(contentTypes, Does.Contain("application/octet-stream"));
+            Assert.That(contentTypes, Does.Not.Contain("application/opcua+uabinary"));
+        }
+
         /// <summary>
         /// Verifies that published URI target vectors match OPC UA planning.
         /// </summary>

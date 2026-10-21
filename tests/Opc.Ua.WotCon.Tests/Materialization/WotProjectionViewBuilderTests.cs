@@ -41,7 +41,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
     /// Exercises <see cref="WotProjectionViewBuilder"/> against the WoT Binding
-    /// Section 12 materialization rules: a projection document materializes as a
+    /// OPC 10101-2 materialization rules: a projection document materializes as a
     /// single View that Organizes the Nodes already materialized from its
     /// sources, creates no affordance Node of its own, grows organizational
     /// Objects from its <c>ua:Organizes</c> links, omits sources that are not in
@@ -61,13 +61,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static readonly NodeId s_levelUnitNode = new("SourceU/Level.EngineeringUnits", 5);
 
         /// <summary>
-        /// Verifies that modern projection plan carries its declared kind into the view.
+        /// Verifies that the ordinary root role determines the materialized view kind.
         /// </summary>
         /// <param name="kind">The document kind text declared by the plan.</param>
         /// <param name="expected">The expected WoT document kind asserted by the test.</param>
         [TestCase("ThingDescription", WotDocumentKind.ThingDescription)]
         [TestCase("ThingModel", WotDocumentKind.ThingModel)]
-        public async Task ModernProjectionPlanCarriesItsDeclaredKindIntoTheView(
+        public async Task OrdinaryRootRoleDeterminesTheMaterializedViewKind(
             string kind, WotDocumentKind expected)
         {
             var index = new MapNodeIndex(new Dictionary<string, NodeId>(StringComparer.Ordinal)
@@ -78,9 +78,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             var builder = new WotProjectionViewBuilder(new MapThingResolver(
                 new Dictionary<string, string>(StringComparer.Ordinal) { ["urn:sourceA"] = SourceA }),
                 index, null, TestNamespaces());
+            string rootType = kind == "ThingModel" ? "tm:ThingModel" : "Thing";
             string json = SimpleProjection.Replace(
                 "\"@type\": [\"Thing\", \"uav:projection\"]",
-                "\"@type\": [\"uav:projection\"], \"uav:projectionKind\": \"" + kind + "\"",
+                "\"@type\": [\"" + rootType + "\", \"uav:projection\"]",
                 StringComparison.Ordinal);
 
             WotViewProjectionResult result = await Build(builder, json).ConfigureAwait(false);
@@ -316,7 +317,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// <i>OPC UA — WoT Binding</i> §12.6 makes ViewVersion a function of the
+        /// OPC 10101-2 makes ViewVersion a function of the
         /// resolved membership alone, taken in a canonical order, so it records
         /// what a View contains rather than how it is arranged. Selecting the
         /// same members through a source that declares them in the opposite
@@ -347,7 +348,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         /// <summary>
         /// A NodeId string identifier may contain U+000A, the separator the
-        /// <c>ViewVersion</c> encoding of <i>OPC UA — WoT Binding</i> §12.6
+        /// <c>ViewVersion</c> encoding of OPC 10101-2
         /// writes after each member, and nothing escapes it. The length prefix
         /// the clause requires is what keeps the encoding injective: without it
         /// a single member embedding a newline would serialize byte-for-byte as
@@ -427,7 +428,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// <i>OPC UA — WoT Binding</i> §12.6 computes <c>ViewVersion</c> over
+        /// OPC 10101-2 computes <c>ViewVersion</c> over
         /// the membership as a <em>set</em>: a Node the view reaches through
         /// more than one organized group is one member of the View and
         /// contributes once, because a View <c>Organizes</c> a Node or it does

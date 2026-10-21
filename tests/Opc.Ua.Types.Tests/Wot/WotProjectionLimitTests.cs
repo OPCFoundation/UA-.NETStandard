@@ -219,10 +219,12 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"title\":\"Source\",\"@type\":\"Thing\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                "\"properties\":{\"a\":{\"type\":\"number\"},\"b\":{\"type\":\"string\"}}")
+                "\"properties\":{\"a\":{\"type\":\"number\",\"forms\":[{\"href\":\"https://source.example/a\"}]}," +
+                "\"b\":{\"type\":\"string\",\"forms\":[{\"href\":\"https://source.example/b\"}]}}")
                 .ConfigureAwait(false);
             string second = await CanonicalViewAsync(
-                "\"properties\":{\"b\":{\"type\":\"string\"},\"a\":{\"type\":\"number\"}}," +
+                "\"properties\":{\"b\":{\"type\":\"string\",\"forms\":[{\"href\":\"https://source.example/b\"}]}," +
+                "\"a\":{\"type\":\"number\",\"forms\":[{\"href\":\"https://source.example/a\"}]}}," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
                 "\"security\":\"nosec_sc\"," +
                 "\"@type\":\"Thing\",\"title\":\"Source\"")
@@ -327,7 +329,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"," +
                 "\"security\":\"nosec_sc\"," +
                 "\"securityDefinitions\":{\"nosec_sc\":{\"scheme\":\"nosec\"}}," +
-                "\"properties\":{\"value\":{\"type\":\"number\"}}}";
+                "\"properties\":{\"value\":{\"type\":\"number\"," +
+                "\"forms\":[{\"href\":\"https://source.example/value\",\"op\":[\"readproperty\"]}]}}}";
         }
 
         private static string Organized(string? next)

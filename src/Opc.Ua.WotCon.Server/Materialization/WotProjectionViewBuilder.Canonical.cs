@@ -43,11 +43,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
     /// Builds a <see cref="WotViewProjectionPlan"/> from a WoT <em>projection
-    /// document</em> (WoT Binding Section 12): it resolves the document to its
+    /// document</em> (OPC 10101-2): it resolves the document to its
     /// resolved view with <see cref="WotProjectionResolver"/>, maps each selected
     /// affordance to the OPC UA Node already materialized from its source with an
     /// <see cref="IWotMaterializedNodeIndex"/>, grows the organizational Objects
-    /// from the document's <c>ua:Organizes</c> links (Section 12.7), and computes
+    /// from the document's <c>ua:Organizes</c> links, and computes
     /// a deterministic <c>ViewVersion</c>. It creates no affordance Node: a
     /// projection selects, it never defines.
     /// </summary>
@@ -58,11 +58,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </summary>
         /// <param name="document">The WoT document.</param>
         /// <param name="snapshot">The WoT registry snapshot.</param>
+        /// <param name="localSourceHref">The registry href for local affordances.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
         internal async ValueTask<WotViewProjectionResult> BuildCanonicalAsync(
-            WotDocument document, WotRegistrySnapshot snapshot, CancellationToken cancellationToken)
+            WotDocument document,
+            WotRegistrySnapshot snapshot,
+            string localSourceHref,
+            CancellationToken cancellationToken)
         {
-            WotViewProjectionResult resolved = await BuildAsync(document, null, cancellationToken)
+            WotViewProjectionResult resolved = await BuildForResourceAsync(
+                    document, localSourceHref, cancellationToken)
                 .ConfigureAwait(false);
             if (!resolved.Success)
             {

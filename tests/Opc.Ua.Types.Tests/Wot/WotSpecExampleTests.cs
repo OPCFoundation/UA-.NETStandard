@@ -49,11 +49,10 @@ namespace Opc.Ua.Types.Tests.Wot
     /// examples through the implementation.
     /// </summary>
     /// <remarks>
-    /// Examples 07 and 08 are a golden pair: 07 is a projection document and 08
-    /// is the resolved view the specification says it resolves to. Asserting
-    /// against 08 checks the selection order, the bulk naming rule, the security
-    /// closure naming and the provenance term against the specification's own
-    /// expectation rather than against our reading of it.
+    /// Example 07 is retained as a hash-pinned legacy fixture and adapted in
+    /// memory to the current projection envelope when paired with example 08.
+    /// The raw legacy plan is rejected by default; migration compatibility is
+    /// explicit rather than implicit.
     /// The conversion harness expands only the pinned local context reference
     /// published beside these examples; embedded source bytes are checked
     /// separately and no network context loading is performed.
@@ -99,7 +98,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             var converted = new List<string>();
             var modelled = new List<string>();
-            var plans = new List<string>();
+            var legacyPlans = new List<string>();
             var needsContext = new List<string>();
             Assert.Multiple(() =>
             {
@@ -113,6 +112,17 @@ namespace Opc.Ua.Types.Tests.Wot
                     };
                     WotConversionResult<UANodeSet> result =
                         WotNodeSetConverter.ToNodeSetResult(document, options);
+
+                    if (WotProjection.IsProjection(document) &&
+                        document.TryGetUav("projectionKind", out _))
+                    {
+                        Assert.That(result.Value, Is.Null, name);
+                        Assert.That(result.Diagnostics.Any(diagnostic =>
+                            diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                            diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, name);
+                        legacyPlans.Add(name);
+                        continue;
+                    }
 
                     Assert.That(
                         result.Diagnostics.Where(IsConformanceDiagnostic).ToList(),
@@ -136,7 +146,6 @@ namespace Opc.Ua.Types.Tests.Wot
                         Assert.That(result.Value, Is.Null, name);
                         Assert.That(result.Diagnostics.Any(diagnostic =>
                             diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid), Is.True, name);
-                        plans.Add(name);
                     }
                     else if (name is "01-opcua-td-pump.jsonld" or "02-thing-model-pump.jsonld" or
                         ConditionExample or TypeBindingExample)
@@ -166,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo(s_standaloneExamples),
                     "Every standalone example must convert and import; projection plans and context-dependent " +
                     "examples have separate explicit contracts.");
-                Assert.That(plans, Has.Count.EqualTo(11));
+                Assert.That(legacyPlans, Is.EqualTo(s_legacyProjectionExamples));
                 Assert.That(needsContext, Is.EqualTo(new[]
                 {
                     "01-opcua-td-pump.jsonld", "02-thing-model-pump.jsonld", ConditionExample, TypeBindingExample
@@ -226,7 +235,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void PredictiveMaintenanceExampleIsRecognisedAsAProjection()
         {
             using WotDocument document = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             Assert.That(WotProjection.IsProjection(document), Is.True);
 
@@ -260,7 +269,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task PredictiveMaintenanceProjectionResolvesToThePublishedViewAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
             using WotDocument expected = WotDocument.Parse(
                 ReadExample(ResolvedExample));
 
@@ -295,7 +304,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ResolvedViewCarriesProvenanceForEverySelectionAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
@@ -328,7 +337,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task BulkSelectionAppliesThePrefixWithAnUpperCasedSourceNameAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
@@ -350,7 +359,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task CarriedFormsBringTheirSecurityClosureUnderQualifiedNamesAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
             using WotDocument expected = WotDocument.Parse(
                 ReadExample(ResolvedExample));
 
@@ -397,6 +406,15 @@ namespace Opc.Ua.Types.Tests.Wot
                 }
             }
             return Encoding.UTF8.GetBytes(root.ToJsonString());
+        }
+
+        private static byte[] ReadCurrentProjectionExample()
+        {
+            using JsonDocument legacy = JsonDocument.Parse(ReadExample(ProjectionExample));
+            JsonObject projection = JsonNode.Parse(legacy.RootElement.GetRawText())!.AsObject();
+            projection["@type"] = new JsonArray("Thing", "uav:projection");
+            projection.Remove("uav:projectionKind");
+            return Encoding.UTF8.GetBytes(projection.ToJsonString());
         }
 
         private static string DescribeErrors(IReadOnlyList<WotDiagnostic> diagnostics)
@@ -876,6 +894,20 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
         private const string DataTypeExample = "23-datatype-definitions.jsonld";
+        private static readonly string[] s_legacyProjectionExamples =
+        [
+            "07-projection-predictive-maintenance.jsonld",
+            "09-asset-instance.jsonld",
+            "10-group-process-data.jsonld",
+            "11-group-condition-data.jsonld",
+            "12-group-alarms.jsonld",
+            "13-group-management.jsonld",
+            "15-asset-model.jsonld",
+            "16-model-group-process-data.jsonld",
+            "17-model-group-condition-data.jsonld",
+            "18-model-group-alarms.jsonld",
+            "19-model-group-management.jsonld"
+        ];
         private static readonly string[] s_standaloneExamples =
         [
             "03-nodeset-preservation-envelope.jsonld",

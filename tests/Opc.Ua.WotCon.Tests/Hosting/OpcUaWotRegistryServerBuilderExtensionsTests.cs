@@ -161,8 +161,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             {
                 GroupId = "plans",
                 ResourceId = "view",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
                     {
                       "@context":"https://www.w3.org/2022/wot/td/v1.1",

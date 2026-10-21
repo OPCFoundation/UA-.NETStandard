@@ -45,7 +45,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// Exercises <see cref="WotProjectionResolver"/> against the worked
-    /// examples of WoT Binding Section 12 and each of the selection, merge and
+    /// examples of OPC 10101-2 and each of the selection, merge and
     /// carriage rules positively and negatively.
     /// </summary>
     [TestFixture]
@@ -117,6 +117,42 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 speed.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo("./01-opcua-td-pump.jsonld#/properties/pumpSpeed"));
+        }
+
+        /// <summary>
+        /// Verifies that local definitions replace imported selections and
+        /// retain ordinary Thing Model references.
+        /// </summary>
+        [Test]
+        public async Task LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync()
+        {
+            WotProjectionResolver resolver = Resolver(
+                ("urn:local-source", LocalAffordanceSourceJson));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(LocalAffordanceProjectionJson));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement properties = view.RootElement.GetProperty("properties");
+            JsonElement overridden = properties.GetProperty("sourceValue");
+            JsonElement ordinaryReference = properties.GetProperty("externalAlias");
+            Assert.Multiple(() =>
+            {
+                Assert.That(overridden.GetProperty("type").GetString(), Is.EqualTo("integer"));
+                Assert.That(overridden.GetProperty("title").GetString(), Is.EqualTo("Local definition"));
+                Assert.That(overridden.TryGetProperty("uav:resolvedFrom", out _), Is.False);
+                Assert.That(
+                    overridden.GetProperty("forms")[0].GetProperty("href").GetString(),
+                    Is.EqualTo("https://projection.example/views/local"));
+                Assert.That(
+                    ordinaryReference.GetProperty("tm:ref").GetString(),
+                    Is.EqualTo("urn:local-source#/schemaDefinitions/Shared"));
+                Assert.That(
+                    ordinaryReference.TryGetProperty("uav:resolvedFrom", out _),
+                    Is.False);
+            });
         }
 
         /// <summary>
@@ -594,7 +630,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Section 12.4 carries the source's <em>effective</em> anchor, which
+        /// OPC 10101-2 carries the source's <em>effective</em> anchor, which
         /// Section 5.1.4 defines as the nearest enclosing
         /// <c>uav:browsePathAnchor</c> and, failing that, the nearest enclosing
         /// <c>uav:id</c>. A source that identifies the Node it describes
@@ -1854,6 +1890,67 @@ namespace Opc.Ua.Types.Tests.Wot
             "pumpSpeed": {
               "tm:ref": "urn:pump#/properties/pumpSpeed",
               "title": "Enumerated wins"
+            }
+          }
+        }
+        """;
+
+        private const string LocalAffordanceProjectionJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/", "tm": "https://www.w3.org/2019/wot/tm#" }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "id": "urn:view:local-affordances",
+          "base": "https://projection.example/views/current.jsonld",
+          "title": "Local affordances",
+          "uav:scenario": "http://example.com/scenario/LocalAffordances",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "uav:projects": [
+            {
+              "uav:sourceName": "source",
+              "href": "urn:local-source",
+              "type": "application/td+json",
+              "uav:selectAll": true
+            }
+          ],
+          "properties": {
+            "sourceValue": {
+              "title": "Local definition",
+              "type": "integer",
+              "forms": [{ "href": "./local", "op": ["readproperty"] }]
+            },
+            "externalAlias": {
+              "tm:ref": "urn:local-source#/schemaDefinitions/Shared",
+              "title": "Ordinary reference",
+              "type": "string",
+              "forms": [{ "href": "https://projection.example/external", "op": ["readproperty"] }]
+            }
+          }
+        }
+        """;
+
+        private const string LocalAffordanceSourceJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": "uav:object",
+          "id": "urn:local-source",
+          "title": "Source",
+          "securityDefinitions": { "nosec_sc": { "scheme": "nosec" } },
+          "security": "nosec_sc",
+          "schemaDefinitions": {
+            "Shared": { "type": "string" }
+          },
+          "properties": {
+            "sourceValue": {
+              "@type": "uav:variable",
+              "type": "number",
+              "forms": [{ "href": "https://source.example/value", "op": ["readproperty"] }]
             }
           }
         }

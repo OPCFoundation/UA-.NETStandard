@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
     /// Exercises how the materialization coordinator wires a projection document
-    /// (WoT Binding Section 12, WoT Connectivity Section 7.13) into the
+    /// (OPC 10101-2, WoT Connectivity Section 7.13) into the
     /// address-space pipeline: it is stored and refreshed as an ordinary
     /// resource, its <c>uav:projects</c> sources are registry dependencies, it
     /// is deferred past its sources and materialized as a View through the view
@@ -468,15 +468,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private async Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
         {
-            using var document = WotDocument.Parse(content);
-            bool projection = WotProjection.IsProjection(document);
             WotRegistryMutationResult result = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Format = projection ? WotProjection.Format : "WoT-TD/1.1",
-                ContentType = projection ? WotProjection.ContentType : "application/td+json",
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(content)
             }).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);

@@ -37,7 +37,7 @@ using Opc.Ua.Export;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// Resolves a projection document (OPC 10101-2) into a resolved
     /// view: an ordinary Thing Description or Thing Model that carries no
     /// <c>uav:projection</c> marker, so a consumer needs no projection support
     /// to use it.

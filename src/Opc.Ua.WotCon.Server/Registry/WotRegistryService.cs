@@ -1062,8 +1062,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 projectionPlan = WotProjection.IsProjection(document);
                 if (request.DetectProjectionFormat && projectionPlan)
                 {
-                    format = WotProjection.Format;
-                    contentType = WotProjection.ContentType;
+                    bool thingModel = request.Kind == WoTDocumentKindEnum.ThingModel;
+                    format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1";
+                    contentType = thingModel ? "application/tm+json" : "application/td+json";
                 }
                 string? projectionError = WotProjectionAdmission.GetError(
                     document, request.Kind, format, contentType, m_projectionCompatibilityMode);
@@ -1072,7 +1073,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     return Rejected(m_snapshot.Generation, projectionError);
                 }
                 documentId = WotRegistryIdentity.ReadSourceId(document.RootElement);
-                // Admission checked the plan's declared result kind; its root is not an ordinary TD/TM.
+                // Admission checked the plan's ordinary root role against the stored TD/TM kind.
                 parsedKind = projectionPlan
                     ? request.Kind == WoTDocumentKindEnum.ThingModel
                         ? WotDocumentKind.ThingModel

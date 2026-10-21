@@ -56,20 +56,54 @@ namespace Opc.Ua.WotCon.Server.Registry
             WotProjectionCompatibilityMode compatibilityMode)
         {
             bool projection = WotProjection.IsProjection(document);
-            bool projectionContentType = string.Equals(contentType, WotProjection.ContentType, StringComparison.Ordinal);
-            if (!projection && !UsesProjectionFormat(format, contentType))
+            bool hasProjectionManifest = document.TryGetUav("projects", out _);
+            if (!projection && !hasProjectionManifest && !UsesProjectionFormat(format, contentType))
             {
                 return null;
             }
 
             if (!projection)
             {
-                return "The projection format requires an unresolved plan carrying the uav:projection role.";
+                return "A projection manifest or legacy projection format requires the uav:projection role in @type.";
             }
-            if (!string.Equals(format, WotProjection.Format, StringComparison.Ordinal) || !projectionContentType)
+
+            bool legacySyntax = document.TryGetUav("projectionKind", out _);
+            bool legacyMetadata = UsesProjectionFormat(format, contentType);
+            if (legacySyntax || legacyMetadata)
             {
-                return $"An unresolved projection requires Format '{WotProjection.Format}' and " +
-                    $"ContentType '{WotProjection.ContentType}', not ordinary TD/TM admission.";
+                if (compatibilityMode != WotProjectionCompatibilityMode.DraftProjection11)
+                {
+                    return "The projection-specific format, media type, and uav:projectionKind are legacy-only; " +
+                        "explicit compatibility must be selected to admit them.";
+                }
+                if (!legacySyntax ||
+                    !string.Equals(format, WotProjection.LegacyFormat, StringComparison.Ordinal) ||
+                    !string.Equals(contentType, WotProjection.LegacyContentType, StringComparison.Ordinal))
+                {
+                    return $"Legacy projection admission requires Format '{WotProjection.LegacyFormat}', " +
+                        $"ContentType '{WotProjection.LegacyContentType}', and uav:projectionKind.";
+                }
+            }
+            else
+            {
+                string expectedFormat = kind switch
+                {
+                    WoTDocumentKindEnum.ThingDescription => "WoT-TD/1.1",
+                    WoTDocumentKindEnum.ThingModel => "WoT-TM/1.1",
+                    _ => string.Empty
+                };
+                string expectedContentType = kind switch
+                {
+                    WoTDocumentKindEnum.ThingDescription => "application/td+json",
+                    WoTDocumentKindEnum.ThingModel => "application/tm+json",
+                    _ => string.Empty
+                };
+                if (!string.Equals(format, expectedFormat, StringComparison.Ordinal) ||
+                    !string.Equals(contentType, expectedContentType, StringComparison.Ordinal))
+                {
+                    return $"A projection plan is stored as its ordinary TD/TM format and media type: " +
+                        $"'{expectedFormat}' and '{expectedContentType}'.";
+                }
             }
 
             var diagnostics = new List<WotDiagnostic>();
@@ -99,7 +133,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         public static bool UsesProjectionFormat(string format, string contentType)
         {
             return format.StartsWith("WoT-Projection/", StringComparison.Ordinal) ||
-                string.Equals(contentType, WotProjection.ContentType, StringComparison.Ordinal);
+                string.Equals(contentType, WotProjection.LegacyContentType, StringComparison.Ordinal);
         }
     }
 }

@@ -37,12 +37,14 @@ namespace Opc.Ua.Wot
     public enum WotProjectionCompatibilityMode
     {
         /// <summary>
-        /// Admit only current plans with an explicit result kind.
+        /// Admit OPC 10101-2 plans whose result kind is carried by the ordinary
+        /// Thing or Thing Model root role.
         /// </summary>
         None,
 
         /// <summary>
-        /// Process DraftProjection1.1 documents whose old TD or TM marker identifies the result kind.
+        /// Explicitly admit legacy plans that use <c>uav:projectionKind</c> and
+        /// the projection-specific registry format.
         /// </summary>
         DraftProjection11
     }
@@ -51,7 +53,7 @@ namespace Opc.Ua.Wot
     /// The endpoint a consumer of a projected affordance talks to.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12.5. The distinction decides which document a
+    /// See OPC 10101-2. The distinction decides which document a
     /// carried form belongs to, and therefore which base its relative
     /// <c>href</c> is resolved against.
     /// </remarks>
@@ -100,7 +102,7 @@ namespace Opc.Ua.Wot
     /// One predicate filter of a source's <c>uav:select</c> array.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12.3. The constraints within one filter are
+    /// See OPC 10101-2. The constraints within one filter are
     /// conjunctive and the filters of a source are disjunctive. The predicate
     /// set is deliberately closed - only affordance kind, semantic identifier
     /// and type tokens - so that a filter is decidable by inspection and two
@@ -138,7 +140,7 @@ namespace Opc.Ua.Wot
     /// One entry of a projection document's <c>uav:projects</c> manifest.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12.2. A source names a document the view is
+    /// See OPC 10101-2. A source names a document the view is
     /// assembled from; it never edits, wraps or copies it, and the source is
     /// unaware that it is projected.
     /// </remarks>
@@ -198,7 +200,7 @@ namespace Opc.Ua.Wot
     /// One enumerated selection of a projection document.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12.3. An enumerated selection names exactly one
+    /// See OPC 10101-2. An enumerated selection names exactly one
     /// affordance through <c>tm:ref</c> and is the only form that can annotate
     /// the definition it selects.
     /// </remarks>
@@ -227,11 +229,33 @@ namespace Opc.Ua.Wot
     }
 
     /// <summary>
+    /// A complete affordance defined by a projection document rather than
+    /// selected from one of its manifest sources.
+    /// </summary>
+    public sealed class WotProjectionLocalAffordance
+    {
+        /// <summary>
+        /// Gets the affordance kind.
+        /// </summary>
+        public WotAffordanceKind AffordanceKind { get; init; }
+
+        /// <summary>
+        /// Gets the member key.
+        /// </summary>
+        public string Name { get; init; } = string.Empty;
+
+        /// <summary>
+        /// Gets the complete local affordance definition.
+        /// </summary>
+        public JsonElement Definition { get; init; }
+    }
+
+    /// <summary>
     /// One <c>ua:Organizes</c> link of a projection document, naming another
     /// projection document that forms a group within the view.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12.7. An organizing link shapes the view without
+    /// See OPC 10101-2. An organizing link shapes the view without
     /// selecting: the organizing document never absorbs the organized group's
     /// affordances, and the graph the links induce shall be acyclic.
     /// </remarks>

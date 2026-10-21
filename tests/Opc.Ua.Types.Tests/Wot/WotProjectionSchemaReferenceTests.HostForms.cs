@@ -201,7 +201,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     ["Value"] = new JsonObject { ["tm:ref"] = "leaf.td.json#/properties/Value" }
                 };
-                plan["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+                plan["uav:projects"]![0]!["type"] = "application/td+json";
                 documents.Setup(resolver => resolver.ResolveThingAsync(
                         SourceHref, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(nested.ToJsonString())));
@@ -257,7 +257,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that host form provider preserves explicit result kind domain and source provenance.
+        /// Verifies that host form provider preserves the result kind and source provenance.
         /// </summary>
         /// <param name="kind">The WoT document kind.</param>
         [TestCase(WotDocumentKind.ThingDescription, "Thing")]
@@ -266,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotDocumentKind kind, string type)
         {
             JsonObject plan = HostPlan();
-            plan["uav:projectionKind"] = kind.ToString();
+            plan["@type"] = new JsonArray(type, "uav:projection");
             plan["uav:projects"]![0]!["type"] = kind == WotDocumentKind.ThingModel
                 ? "application/tm+json" : "application/td+json";
             JsonObject source = Source();

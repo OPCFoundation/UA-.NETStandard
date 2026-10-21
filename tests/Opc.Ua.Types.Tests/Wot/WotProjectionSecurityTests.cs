@@ -135,7 +135,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ReviewedModelAffordanceSecurityCarriesItsClosureWithoutForms()
         {
             JsonObject projection = Projection();
-            projection["uav:projectionKind"] = "ThingModel";
+            projection["@type"] = new JsonArray("tm:ThingModel", "uav:projection");
             JsonObject manifest = Manifest("source", "urn:source");
             manifest["type"] = "application/tm+json";
             projection["uav:projects"] = new JsonArray(manifest);
@@ -538,8 +538,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return new JsonObject
             {
-                ["@type"] = new JsonArray("uav:projection"),
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["title"] = "Security origins",
                 ["uav:scenario"] = "urn:scenario:security"
             };

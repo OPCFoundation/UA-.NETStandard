@@ -46,25 +46,25 @@ using Opc.Ua.XRegistry.Server;
 namespace Opc.Ua.WotCon.Tests.Registry
 {
     /// <summary>
-    /// Contains tests for WoT registry projection format.
+    /// Contains tests for projection plans using ordinary TD/TM registry formats.
     /// </summary>
     [TestFixture]
     [Category("WoT")]
     public sealed class WotRegistryProjectionFormatTests
     {
         /// <summary>
-        /// Verifies that plans require both explicit projection format fields.
+        /// Verifies that projection plans reject mismatched or legacy-only metadata.
         /// </summary>
         /// <param name="format">The projection format text.</param>
         /// <param name="contentType">The content type used by this test case.</param>
-        [TestCase("WoT-TD/1.1", "application/td+json")]
         [TestCase("WoT-TM/1.1", "application/tm+json")]
-        [TestCase(WotProjection.Format, "application/td+json")]
-        [TestCase("WoT-TD/1.1", WotProjection.ContentType)]
-        [TestCase("WoT-Projection/9.9", WotProjection.ContentType)]
-        [TestCase("", WotProjection.ContentType)]
-        [TestCase(WotProjection.Format, "")]
-        public async Task PlansRequireBothExplicitProjectionFormatFields(string format, string contentType)
+        [TestCase(WotProjection.LegacyFormat, "application/td+json")]
+        [TestCase("WoT-TD/1.1", WotProjection.LegacyContentType)]
+        [TestCase(WotProjection.LegacyFormat, WotProjection.LegacyContentType)]
+        [TestCase("WoT-Projection/9.9", WotProjection.LegacyContentType)]
+        [TestCase("", "application/td+json")]
+        [TestCase("WoT-TD/1.1", "")]
+        public async Task ProjectionPlansRejectMismatchedOrLegacyMetadata(string format, string contentType)
         {
             using var service = new WotRegistryService();
             WotUpsertResourceRequest request = Request(WoTDocumentKindEnum.ThingDescription);
@@ -112,18 +112,18 @@ namespace Opc.Ua.WotCon.Tests.Registry
             else
             {
                 Assert.That(result.Resource!.Kind, Is.EqualTo(WoTDocumentKindEnum.ThingModel));
-                Assert.That(result.Resource.DefaultVersion!.Format, Is.EqualTo(WotProjection.Format));
-                Assert.That(result.Resource.DefaultVersion.ContentType, Is.EqualTo(WotProjection.ContentType));
+                Assert.That(result.Resource.DefaultVersion!.Format, Is.EqualTo("WoT-TM/1.1"));
+                Assert.That(result.Resource.DefaultVersion.ContentType, Is.EqualTo("application/tm+json"));
             }
         }
 
         /// <summary>
-        /// Verifies that projection kind controls the stored subtype without rewriting bytes.
+        /// Verifies that the ordinary root role controls the stored subtype without rewriting bytes.
         /// </summary>
         /// <param name="kind">The wo t document kind enum.</param>
         [TestCase(WoTDocumentKindEnum.ThingDescription)]
         [TestCase(WoTDocumentKindEnum.ThingModel)]
-        public async Task ProjectionKindControlsTheStoredSubtypeWithoutRewritingBytes(WoTDocumentKindEnum kind)
+        public async Task ProjectionRootRoleControlsTheStoredSubtypeWithoutRewritingBytes(WoTDocumentKindEnum kind)
         {
             using var service = new WotRegistryService();
             WotUpsertResourceRequest request = Request(kind);
@@ -133,8 +133,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
             Assert.That(result.Resource!.Kind, Is.EqualTo(kind));
             WotResourceVersion version = result.Resource.DefaultVersion!;
-            Assert.That(version.Format, Is.EqualTo(WotProjection.Format));
-            Assert.That(version.ContentType, Is.EqualTo(WotProjection.ContentType));
+            Assert.That(version.Format, Is.EqualTo(kind == WoTDocumentKindEnum.ThingModel
+                ? "WoT-TM/1.1" : "WoT-TD/1.1"));
+            Assert.That(version.ContentType, Is.EqualTo(kind == WoTDocumentKindEnum.ThingModel
+                ? "application/tm+json" : "application/td+json"));
             ByteString actual = await service.ReadContentAsync(version).ConfigureAwait(false);
             Assert.That(actual, Is.EqualTo(request.Content));
             WoTValidationOutcomeDataType validation = await service.ValidateVersionAsync(
@@ -166,30 +168,31 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         /// <summary>
-        /// Verifies that projection format does not admit an ordinary document.
+        /// Verifies that an ordinary document without the projection marker is admitted as ordinary TD.
         /// </summary>
-        [TestCase("Thing")]
-        [TestCase("tm:ThingModel")]
-        public async Task ProjectionFormatDoesNotAdmitAnOrdinaryDocument(string type)
+        [TestCase("Thing", WoTDocumentKindEnum.ThingDescription)]
+        [TestCase("tm:ThingModel", WoTDocumentKindEnum.ThingModel)]
+        public async Task OrdinaryDocumentWithoutProjectionMarkerIsNotTreatedAsAPlan(
+            string type,
+            WoTDocumentKindEnum kind)
         {
             using var service = new WotRegistryService();
-            JsonObject document = Plan(WoTDocumentKindEnum.ThingDescription);
+            JsonObject document = Plan(kind);
             document["@type"] = type;
-            document.Remove("uav:projectionKind");
             document.Remove("uav:projects");
-            WotUpsertResourceRequest request = Request(WoTDocumentKindEnum.ThingDescription);
+            WotUpsertResourceRequest request = Request(kind);
             request.Content = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
 
             WotRegistryMutationResult result = await service.UpsertResourceAsync(request).ConfigureAwait(false);
 
-            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
-            Assert.That(service.Current.Generation, Is.Zero);
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+            Assert.That(service.Current.Generation, Is.EqualTo(1));
         }
 
         /// <summary>
         /// Verifies that current plan admission requires its complete plan header.
         /// </summary>
-        [TestCase("uav:projectionKind")]
+        [TestCase("@type")]
         [TestCase("uav:scenario")]
         [TestCase("uav:projects")]
         public async Task CurrentPlanAdmissionRequiresItsCompletePlanHeader(string missing)
@@ -208,17 +211,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         /// <summary>
-        /// Verifies that legacy registry admission requires explicit compatibility and preserves bytes.
+        /// Verifies that legacy registry metadata requires explicit compatibility and preserves bytes.
         /// </summary>
         /// <param name="kind">The wo t document kind enum.</param>
         [TestCase(WoTDocumentKindEnum.ThingDescription)]
         [TestCase(WoTDocumentKindEnum.ThingModel)]
         public async Task LegacyRegistryAdmissionRequiresExplicitCompatibilityAndPreservesBytes(WoTDocumentKindEnum kind)
         {
-            JsonObject document = Plan(kind);
-            document.Remove("uav:projectionKind");
-            ((JsonArray)document["@type"]!).Add(kind == WoTDocumentKindEnum.ThingModel ? "tm:ThingModel" : "Thing");
+            JsonObject document = LegacyPlan(kind);
             WotUpsertResourceRequest request = Request(kind);
+            request.Format = WotProjection.LegacyFormat;
+            request.ContentType = WotProjection.LegacyContentType;
             request.Content = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
             using var strict = new WotRegistryService();
             using var compatible = new WotRegistryService(null, null, WotProjectionCompatibilityMode.DraftProjection11);
@@ -277,9 +280,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <param name="format">The projection format text.</param>
         /// <param name="contentType">The content type used by this test case.</param>
         /// <param name="storedKind">The stored kind used by this test case.</param>
-        [TestCase("WoT-TD/1.1", "application/td+json", WoTDocumentKindEnum.ThingDescription)]
-        [TestCase(WotProjection.Format, "application/td+json", WoTDocumentKindEnum.ThingDescription)]
-        [TestCase(WotProjection.Format, WotProjection.ContentType, WoTDocumentKindEnum.ThingModel)]
+        [TestCase("WoT-TD/1.1", "application/json", WoTDocumentKindEnum.ThingDescription)]
+        [TestCase(WotProjection.LegacyFormat, "application/td+json", WoTDocumentKindEnum.ThingDescription)]
+        [TestCase(WotProjection.LegacyFormat, WotProjection.LegacyContentType, WoTDocumentKindEnum.ThingModel)]
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
@@ -480,8 +483,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 GroupId = "plans",
                 ResourceId = "view",
                 Kind = kind,
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = kind == WoTDocumentKindEnum.ThingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
+                ContentType = kind == WoTDocumentKindEnum.ThingModel
+                    ? "application/tm+json" : "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(Plan(kind).ToJsonString()))
             };
         }
@@ -491,10 +495,11 @@ namespace Opc.Ua.WotCon.Tests.Registry
             return new JsonObject
             {
                 ["@context"] = "https://www.w3.org/2022/wot/td/v1.1",
-                ["@type"] = new JsonArray("uav:projection"),
+                ["@type"] = new JsonArray(
+                    kind == WoTDocumentKindEnum.ThingModel ? "tm:ThingModel" : "Thing",
+                    "uav:projection"),
                 ["id"] = "urn:registry:projection:view",
                 ["title"] = "Projection view",
-                ["uav:projectionKind"] = kind == WoTDocumentKindEnum.ThingModel ? "ThingModel" : "ThingDescription",
                 ["uav:scenario"] = "urn:scenario:projection",
                 ["uav:projects"] = new JsonArray(new JsonObject
                 {
@@ -504,6 +509,15 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     ["uav:selectAll"] = true
                 })
             };
+        }
+
+        private static JsonObject LegacyPlan(WoTDocumentKindEnum kind)
+        {
+            JsonObject document = Plan(kind);
+            document["@type"] = new JsonArray("uav:projection");
+            document["uav:projectionKind"] = kind == WoTDocumentKindEnum.ThingModel
+                ? "ThingModel" : "ThingDescription";
+            return document;
         }
 
         private sealed class ValidationStore(

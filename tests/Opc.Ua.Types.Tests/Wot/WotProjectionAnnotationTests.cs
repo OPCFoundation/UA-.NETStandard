@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// The closed set of members a projection may annotate a declared
-    /// affordance with (WoT Binding Section 12.5).
+    /// affordance with (OPC 10101-2).
     /// </summary>
     /// <remarks>
     /// A projection declares affordances; it does not define them. Restating a
@@ -167,7 +167,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(
                     "\"title\":\"Condition signal\"," +
                     "\"uav:semanticId\":\"http://example.com/ontology/Signal\"," +
-                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"")));
+                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
 
             WotConversionResult<WotDocument> result =
                 await resolver.ResolveAsync(document).ConfigureAwait(false);
@@ -201,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedFormMakesTheDocumentInvalidAsync()
         {
-            // Section 12.5: a member routed to its source carries the source's
+            // OPC 10101-2: a member routed to its source carries the source's
             // own form, so a member that restates one makes the document
             // invalid. Dropping it would leave a form the author wrote and the
             // consumer silently did not use.
@@ -259,7 +261,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         /// <summary>
         /// A <c>uav:namePrefix</c> upper-cases the first character of the
-        /// source name (Section 12.3), so <c>serialNumber</c> and
+        /// source name (OPC 10101-2), so <c>serialNumber</c> and
         /// <c>SerialNumber</c> in one source both become
         /// <c>deviceSerialNumber</c> in the view. Two bulk selections of the
         /// same kind from the same source can therefore take the same view name

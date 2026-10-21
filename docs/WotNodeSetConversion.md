@@ -897,8 +897,9 @@ alias, keeping one relation in one spelling on output.
 
 Two neighbouring subjects are documented elsewhere so they are stated once:
 
-- A **projection document** declares affordances instead of defining them, and
-  Section 12.5 closes the set of members it may annotate beside `tm:ref`. See
+- A **projection document** combines source selections with complete local
+  affordance definitions; OPC 10101-2 closes the set of members it may annotate
+  beside a source-selection `tm:ref`. See
   [Projection documents and the View NodeClass](WotCon.md#124-projection-documents-and-the-view-nodeclass).
 - The **OPC 10100-1 v1.02 asset surface** (`CreateAsset`, `WoTFile` upload, the
   `AssetRegistry` POCO reader) is a separate code path governed by that

@@ -246,7 +246,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             JsonObject root = Projection("./groups/view.json");
             root["base"] = "https://origin.test/views/root.json";
-            root["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+            root["uav:projects"]![0]!["type"] = "application/td+json";
             JsonObject nested = Projection(leafHref);
             if (nestedBase is not null)
             {
@@ -345,8 +345,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return new JsonObject
             {
-                ["@type"] = new JsonArray("uav:projection"),
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["title"] = "Origin view",
                 ["uav:scenario"] = "urn:scenario:origin",
                 ["uav:projects"] = new JsonArray(new JsonObject

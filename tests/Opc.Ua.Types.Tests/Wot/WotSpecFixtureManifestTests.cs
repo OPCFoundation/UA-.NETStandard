@@ -129,9 +129,11 @@ namespace Opc.Ua.Types.Tests.Wot
             string[] missing = context.RootElement.GetProperty("@context").EnumerateObject()
                 .Select(property => property.Name)
                 .Where(name => name.StartsWith("uav:", StringComparison.Ordinal) &&
+                    name != "uav:projectionKind" &&
                     !WotBindingConformance.IsKnownTerm(name))
                 .ToArray();
             Assert.That(missing, Is.Empty, "The pinned vocabulary context declares these terms.");
+            Assert.That(WotBindingConformance.IsKnownTerm("uav:projectionKind"), Is.False);
         }
 
         [Test]

@@ -99,13 +99,13 @@ namespace Opc.Ua.Wot
         public const string EventTypeAnnotation = "uav:eventType";
 
         // Type-annotation term marking a document as a projection document,
-        // which declares rather than defines its affordances (Section 12.1).
+        // which declares rather than defines its affordances (OPC 10101-2).
         public const string ProjectionAnnotation = "uav:projection";
 
-        // Link relation naming an organized projection group (Section 12.7).
+        // Link relation naming an organized projection group (OPC 10101-2).
         public const string OrganizesRel = "ua:Organizes";
 
-        // Term naming the group an organizing link reaches (Section 12.7).
+        // Term naming the group an organizing link reaches (OPC 10101-2).
         public const string RefNameAnnotation = "uav:refName";
 
         /// <summary>

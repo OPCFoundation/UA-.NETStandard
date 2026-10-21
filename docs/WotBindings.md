@@ -46,7 +46,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
-- [Conformance to WoT Binding 1.1](#conformance-to-wot-binding-11)
+- [Conformance to OPC 10101-1 (WoT Binding)](#conformance-to-opc-10101-1-wot-binding)
   - [Conversion entry points](#conversion-entry-points)
   - [Independent readable models](#independent-readable-models)
   - [Identity and preservation](#identity-and-preservation)
@@ -1365,9 +1365,9 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 <a id="conformance-and-authoring-validation"></a>
 
-## Conformance to WoT Binding 1.1
+## Conformance to OPC 10101-1 (WoT Binding)
 
-The specification defines twelve conformance units and four recommended profiles
+The specification defines eleven conformance units and four recommended profiles
 (Section 11). This is where the implementation stands against them.
 
 | Unit | Status | Where |
@@ -1383,19 +1383,28 @@ The specification defines twelve conformance units and four recommended profiles
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
 | **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
-| **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
 
 The table identifies implementation paths, not certification of every requirement
 in **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
 **WoT-ArchivalConverter**. Full TD/TM JSON Schema and compatibility-policy validation
 remain separate unfinished work; successful conversion does not close those gaps.
 
-The unit and profile names themselves are stated once, in
+The three profiles beyond **WoT-Reader** include the part-qualified
+`2:WoT-Projection` dependency from OPC 10101-2. The Projections conformance unit is
+implemented by `WotProjection`, `WotProjectionResolver` and, for OPC UA View
+materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost`.
+It is not a WoT Binding conformance unit; the separate Connectivity
+`WOTC-ProjectionMaterialization` unit covers the server-side materialization
+contract.
+
+The WoT Binding unit and profile names are stated once in
 `Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
 library implements (`CurrentRevision`, `1.1`) and the profile nesting Section 11
-defines. A document declares what it claims with `uav:profile` and the revision it
-was authored against with `uav:bindingVersion` (Section 4.1); both are validated,
-neither becomes a Node, and both are restated verbatim on a round trip.
+defines. The cross-part projection dependency is kept separately qualified in
+those profile closures. A document declares what it claims with `uav:profile` and
+the revision it was authored against with `uav:bindingVersion` (Section 4.1);
+both are validated, neither becomes a Node, and both are restated verbatim on a
+round trip.
 
 `ConformanceMode` defaults Permissive; Strict reports unknown terms and unmet
 required claims. `AuthoringValidation` separately requires known published
