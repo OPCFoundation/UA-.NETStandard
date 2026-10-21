@@ -1675,8 +1675,9 @@ namespace Opc.Ua.Server
                     // The exact-source recheck runs per delivery and item. Without a registered Value
                     // read authorizer (whose policy is never cached) its verdict depends only on the
                     // inputs keyed here and in the role-permission entry, so a good verdict is reused
-                    // until one of them moves. Namespace defaults served by read callbacks are not
-                    // keyed by any version, so a verdict is only kept while the defaults are stored values.
+                    // until one of them moves. Namespace defaults behind read callbacks or access
+                    // levels are not keyed by any version, so a verdict is only kept while the
+                    // defaults are static.
                     long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
                     bool cacheable = CanCacheReadAuthorization(monitoredItem.AttributeId);
                     if (cacheable &&
@@ -1697,7 +1698,7 @@ namespace Opc.Ua.Server
                         if (cacheable &&
                             ServiceResult.IsGood(result) &&
                             defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
-                            !NamespaceDefaultPermissionReader.HasReadCallback(defaults))
+                            NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults))
                         {
                             m_permissionCache[monitoredItem.Id] = (
                                 generation,
@@ -2158,7 +2159,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// A good exact-source read verdict and the channel, restriction and namespace-default
         /// inputs it was computed with. The namespace metadata node is kept so a read callback
-        /// attached to one of its defaults later (which moves no generation) retires the verdict.
+        /// attached to one of its defaults later, or a revoked read access on one (neither moves a
+        /// generation), retires the verdict.
         /// </summary>
         private sealed class ReadAuthorizationVerdict(
             long defaultsGeneration,
@@ -2183,7 +2185,7 @@ namespace Opc.Ua.Server
                     securityMode == currentSecurityMode &&
                     transport == currentTransport &&
                     restrictions == currentRestrictions &&
-                    !NamespaceDefaultPermissionReader.HasReadCallback(defaults);
+                    NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults);
             }
         }
 

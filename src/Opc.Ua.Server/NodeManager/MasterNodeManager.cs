@@ -2883,6 +2883,28 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Reads <see cref="BusinessEmissionsEnabled"/> without the lock when no cutoff is reserved.
+            /// </summary>
+            /// <remarks>
+            /// A cutoff publishes its routes and clears the flag under the lock while it holds a
+            /// reservation, and releases the reservation after the flag is cleared. Reading the
+            /// reservation first therefore either sees the reservation (the caller must read the flag
+            /// under the lock) or sees the flag as the cutoff left it.
+            /// </remarks>
+            /// <param name="enabled">The flag, when no cutoff is reserved.</param>
+            /// <returns><c>false</c> when a cutoff is reserved.</returns>
+            public bool TryGetBusinessEmissionsEnabled(out bool enabled)
+            {
+                if (EmissionCutoffReservations != 0)
+                {
+                    enabled = false;
+                    return false;
+                }
+                enabled = BusinessEmissionsEnabled;
+                return true;
+            }
+
+            /// <summary>
             /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
             /// </summary>
             public int CustomSourceCreations { get; set; }

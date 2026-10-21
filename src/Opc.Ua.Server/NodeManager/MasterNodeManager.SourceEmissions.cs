@@ -54,10 +54,21 @@ namespace Opc.Ua.Server
                 return true;
             }
             // The table holds the one state of the node manager; the cutoff only clears its flag.
-            return !m_notificationDispatchStateTable.TryGetValue(
+            if (!m_notificationDispatchStateTable.TryGetValue(
                 nodeManager,
-                out NotificationDispatchState? state) ||
-                state.BusinessEmissionsEnabled;
+                out NotificationDispatchState? state))
+            {
+                return true;
+            }
+            if (state.TryGetBusinessEmissionsEnabled(out bool enabled))
+            {
+                return enabled;
+            }
+            // A cutoff is publishing its routes: answer after it, together with the routes.
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                return state.BusinessEmissionsEnabled;
+            }
         }
 
         /// <summary>

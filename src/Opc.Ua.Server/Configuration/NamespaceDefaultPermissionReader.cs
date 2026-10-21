@@ -334,16 +334,16 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Resolves the metadata node of <paramref name="namespaceIndex"/> without awaiting and
-        /// reports whether its defaults are stored values. A default served by a read callback can
-        /// change without moving <see cref="Generation"/>, so callers that remember a verdict
-        /// derived from the defaults must re-read them on every use.
+        /// reports whether its defaults are static (see <see cref="AreDefaultsStatic"/>). Only a
+        /// change of a default value moves <see cref="Generation"/>, so callers that remember a
+        /// verdict derived from dynamic defaults must re-read them on every use.
         /// </summary>
         /// <param name="server">The server.</param>
         /// <param name="namespaceIndex">The namespace index.</param>
         /// <param name="state">The metadata node, or <c>null</c> when the namespace has none.</param>
         /// <returns>
-        /// <c>true</c> when the node (or its absence) is known without awaiting and none of its
-        /// default properties has a read callback.
+        /// <c>true</c> when the node (or its absence) is known without awaiting and its defaults
+        /// are static.
         /// </returns>
         internal static bool TryGetStaticDefaults(
             IServerInternal server,
@@ -360,7 +360,7 @@ namespace Opc.Ua.Server
             {
                 return configuration is INamespaceMetadataSnapshot snapshot &&
                     snapshot.TryGetNamespaceMetadataState(namespaceIndex, out state) &&
-                    !HasReadCallback(state);
+                    AreDefaultsStatic(state);
             }
             catch (Exception)
             {
@@ -369,24 +369,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Returns <c>true</c> when a default property of the metadata node has a read callback.
+        /// Returns <c>true</c> when every default property of the metadata node is a stored value
+        /// that is readable without a callback: no value read callback and no user access level
+        /// callback, and current read access in both access levels. Anything else can change the
+        /// outcome of a read (a callback's answer, a revoked read access) without changing a
+        /// default value, which is all <see cref="Generation"/> observes.
         /// </summary>
         /// <param name="state">The metadata node, or <c>null</c>.</param>
-        internal static bool HasReadCallback(NamespaceMetadataState? state)
+        internal static bool AreDefaultsStatic(NamespaceMetadataState? state)
         {
-            return state != null &&
-                (HasReadCallback(state.DefaultAccessRestrictions) ||
-                    HasReadCallback(state.DefaultRolePermissions) ||
-                    HasReadCallback(state.DefaultUserRolePermissions));
+            return state == null ||
+                (IsStatic(state.DefaultAccessRestrictions) &&
+                    IsStatic(state.DefaultRolePermissions) &&
+                    IsStatic(state.DefaultUserRolePermissions));
         }
 
-        private static bool HasReadCallback(BaseVariableState? property)
+        private static bool IsStatic(BaseVariableState? property)
         {
-            return property != null &&
-                (property.OnReadValue != null ||
-                    property.OnSimpleReadValue != null ||
-                    property.OnReadValueAsync != null ||
-                    property.OnSimpleReadValueAsync != null);
+            return property == null ||
+                (property.OnReadValue == null &&
+                    property.OnSimpleReadValue == null &&
+                    property.OnReadValueAsync == null &&
+                    property.OnSimpleReadValueAsync == null &&
+                    property.OnReadUserAccessLevel == null &&
+                    (property.AccessLevel & AccessLevels.CurrentRead) != 0 &&
+                    (property.UserAccessLevel & AccessLevels.CurrentRead) != 0);
         }
 
         /// <summary>
