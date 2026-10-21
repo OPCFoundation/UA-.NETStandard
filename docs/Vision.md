@@ -378,7 +378,8 @@ supplies, climate controllers, licenses, software components, network devices, a
 Every item has IVisionInfo identification. Unused category folders are omitted; a
 materialized category must satisfy its MandatoryPlaceholder. Manufacturer and serial
 number are required; system assets also require an absolute ProductInstanceUri.
-`WithComponents` exposes the same items through Machinery's Components add-in.
+`WithComponents` exposes the same items through Machinery's Components add-in using
+`HasComponent` references. Their category-folder `Organizes` references remain unchanged.
 Assets are discoverable through Machinery's Machines folder.
 
 `WithMaintenance`, `WithHealth`, `Child`, `Set`, and `Value` reach declared, typed optional
