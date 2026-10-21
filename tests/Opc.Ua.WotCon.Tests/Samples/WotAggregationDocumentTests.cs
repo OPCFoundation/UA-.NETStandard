@@ -182,7 +182,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(plan, Is.Not.Null, sample.Path);
                 Assert.That(diagnostics, Is.Empty, sample.Path);
                 Assert.That(plan.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription), sample.Path);
-                Assert.That(document.TypeTokens, Does.Not.Contain("Thing").And.Not.Contain("tm:ThingModel"), sample.Path);
+                Assert.That(document.TypeTokens, Does.Contain("Thing").And.Contain("uav:projection"), sample.Path);
                 if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
                 {
                     Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
