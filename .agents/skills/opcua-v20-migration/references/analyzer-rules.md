@@ -215,7 +215,7 @@ public class AcmeConfig
 |---|---|
 | **Default severity** | Warning |
 | **Auto-fix** | ✅ Removes the `using` keyword / `Dispose()` call |
-| **Why** | `CertificateIdentifier`, `UserIdentity`, `IUserIdentityTokenHandler` are no longer `IDisposable` in 2.0 — they don't own unmanaged resources. The disposable handlers (`X509IdentityTokenHandler`, etc.) returned by `token.AsTokenHandler()` *are* still disposable. |
+| **Why** | `CertificateIdentifier`, `UserIdentity`, `IUserIdentityTokenHandler` are no longer `IDisposable` in 2.0 — they don't own unmanaged resources. Do not wrap the built-in handlers (including `X509IdentityTokenHandler`) returned by `token.AsTokenHandler()` in `using` or call `Dispose()` on them. |
 
 ```csharp
 // Before
@@ -235,7 +235,7 @@ var user = new UserIdentity(...);
 |---|---|
 | **Default severity** | Info |
 | **Auto-fix** | No |
-| **Why** | The sync methods are shimmed in `Opc.Ua.MigrationAnalyzer.Core` via `Task.Run(...).GetAwaiter().GetResult()` so 1.5.378 call sites continue to compile, but they are a migration aid only. Promote your call chain to `async`/`await` before production. |
+| **Why** | The sync methods in `Opc.Ua.MigrationAnalyzer.Core` block directly on their async counterparts with `.AsTask().GetAwaiter().GetResult()` so 1.5.378 call sites continue to compile. They are a migration aid only; promote your call chain to `async`/`await` before production. |
 
 See [`runtime-shim.md`](runtime-shim.md) for the sync-over-async caveat in
 detail.
@@ -634,7 +634,7 @@ For TreatWarningsAsErrors consumers, see
 [`assets/Directory.Build.targets.example.xml`](../assets/Directory.Build.targets.example.xml).
 
 For one-off in-source suppression of a single line (avoid this unless you
-genuinely cannot migrate now):
+cannot migrate now):
 
 ```csharp
 #pragma warning disable UA0008 // Wrap Session.Call arguments with Variant.From

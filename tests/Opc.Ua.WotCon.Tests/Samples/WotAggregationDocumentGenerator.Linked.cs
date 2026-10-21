@@ -517,12 +517,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "Opc.Ua.Di.tm.json"),
             new(
                 "opc-ua-machinery",
-                Path.Combine("samples", "DI", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Machinery.NodeSet2.xml"),
+                Path.Combine("samples", "Di", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Machinery.NodeSet2.xml"),
                 "OPC UA Machinery",
                 "Opc.Ua.Machinery.tm.json"),
             new(
                 "opc-ua-pumps",
-                Path.Combine("samples", "DI", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml"),
+                Path.Combine("samples", "Di", "PumpDeviceIntegrationServer", "Model", "Opc.Ua.Pumps.NodeSet2.xml"),
                 "OPC UA Pumps",
                 "Opc.Ua.Pumps.tm.json")
         };

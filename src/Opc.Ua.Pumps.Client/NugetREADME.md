@@ -51,8 +51,7 @@ interpretable. That costs one extra round trip per group; pass
 ## Supervision
 
 `PumpSupervisionStatus.ActiveSignals` collapses the roughly 150 boolean fault
-signals across the seven categories into just the ones currently raised —
-which is normally the question being asked.
+signals across the seven categories into just the ones currently raised.
 
 ## Hosting
 

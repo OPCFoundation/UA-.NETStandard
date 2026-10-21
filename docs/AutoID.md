@@ -22,6 +22,9 @@ The [AutoID sample](../samples/AutoID/) runs a simulated RFID reader end to end.
 - [Loading the model](#loading-the-model)
 - [Scan data and scan results](#scan-data-and-scan-results)
 - [Hosting readers](#hosting-readers)
+  - [Coexisting with a server that already owns DI](#coexisting-with-a-server-that-already-owns-di)
+  - [Placement](#placement)
+  - [Direct composition and lifetime](#direct-composition-and-lifetime)
 - [Providers](#providers)
 - [Behavior of the methods](#behavior-of-the-methods)
 - [Events](#events)
@@ -153,8 +156,8 @@ services.AddOpcUa()
 The builder materialises exactly the components the provider supports (a reader
 without a `Scan` provider has no `Scan` method), registers the device, makes it
 an event notifier and attaches the provider. A failure at any step is rolled
-back, so the browse name can be used again, a provider the build owns
-(`OwnsProvider()`) is disposed, and concurrent builds of one name admit exactly
+back: the browse name can be used again and a provider the build owns
+(`OwnsProvider()`) is disposed. Concurrent builds of one name admit exactly
 one. Disposing the runtime (the node manager does so on shutdown)
 stops every reader's scans, detaches its provider and, for a provider the reader
 owns (`OwnsProvider()`), disposes it.
@@ -180,7 +183,7 @@ scans then return `DEVICE_NOT_READY_17` and an active asynchronous scan stops.
 `AddMachinery`, `AddPumps` or `AddScales`, so registering it together with
 another DI owner, in either order, throws `InvalidOperationException` while the
 services are registered; the message names the current owner and the
-composition API. The check is what keeps the address space consistent: two DI
+composition API. The check prevents duplicate DI address spaces: two DI
 owners would each load their own copy of `DeviceSet`, the server would route
 `DeviceSet` to the first one, and readers created in the second one would not
 be browsable.
@@ -277,11 +280,11 @@ reader is a component of a machine only when the application asks for it.
 `AsComponentOf` needs AutoID composed into the Machinery owner
 (`AddAutoIdToMachinery` or a DI owner that loads the Machinery model) and a
 machine of that owner that publishes the `Components` add-in, here built with
-`WithComponents`. The runtime takes the add-in the machine's
-`MachineryBuildingBlocks` folder references with `HasAddIn` (OPC 40001-1 7.1),
-so a container a companion model declares and `WithComponents(existing, ...)`
-binds is found below whatever parent and with whatever browse name it keeps; a
-machine without that folder offers its `MachineComponentsType` child:
+`WithComponents`. The runtime finds the add-in through the `HasAddIn` reference
+from the machine's `MachineryBuildingBlocks` folder (OPC 40001-1 7.1).
+This also finds a container declared by a companion model and bound with
+`WithComponents(existing, ...)`, regardless of its parent or browse name.
+Without that folder, the runtime uses the machine's `MachineComponentsType` child:
 
 ```csharp
 IMachineHandle<BaseObjectState>? press = null;
@@ -357,7 +360,7 @@ such pipeline, so a server built on it uses the subclass route.
 
 ## Providers
 
-A reader is the OPC UA face of a hardware provider. The base contract
+A reader exposes a hardware provider through OPC UA. The base contract
 `IAutoIdReaderProvider` (kind, attach, detach) is enough for a device that scans
 on its own (OPC 30010 6.1.1 option 3): the provider reports through the
 `IAutoIdReaderSink` it receives when attached. Capabilities are added by
@@ -382,10 +385,10 @@ locks and kill), `InMemoryScanReaderProvider` (OCR and optical),
 `InMemoryOpticalVerifierProvider` and `InMemoryRtlsProvider`. Their scan cycle
 defaults to one second (`CycleInterval`), so an unbounded `ScanStart` raises at
 most one scan event per second; pass a `cycleInterval` to the constructor for
-another pace. `InMemoryRtlsProvider` stores each object's location in the type it
+another interval. `InMemoryRtlsProvider` stores each object's location in the type it
 was registered with. A `locationConverter` translates it into the other supported
-types, for example from the local coordinate system the system was configured
-with (OPC 30010 9.3.4) into WGS84:
+types, for example from the configured local coordinate system
+(OPC 30010 9.3.4) into WGS84:
 
 ```csharp
 // A site whose local origin is at 48 N 11 E, X pointing east and Y north, in metres.
@@ -503,8 +506,8 @@ Discovery finds the devices whose type derives from one of the five concrete
 reader types. A browse the server rejects throws `ServiceResultException` rather
 than yielding an empty list, a rejected method call throws with the server's
 status, and every asynchronous member honours cancellation. The status a device
-reports for a tag command is returned as data. `AutoIdReadOptions` narrows
-the Read of `ReadDeviceAsync`: `Default` reads everything the device publishes,
+reports for a tag command is returned as data. `AutoIdReadOptions` limits
+which variables `ReadDeviceAsync` reads: `Default` reads everything the device publishes,
 `StatusOnly` reads `DeviceStatus` and `DeviceName`. Every `ReadDeviceAsync` call
 costs one Browse of the children of the device (and BrowseNext only when the
 server pages the result) and one Read, whatever the options. The snapshot

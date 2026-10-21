@@ -14,6 +14,7 @@ signature, retaining the declared Property NodeIds, argument order, and values.
 ## Contents
 
 - [When to use the runtime NodeSet path](#when-to-use-the-runtime-nodeset-path)
+- [Imported security policy](#imported-security-policy)
 - [Startup and live lifecycle semantics](#startup-and-live-lifecycle-semantics)
   - [Shadow reload](#shadow-reload)
   - [Immediate reload](#immediate-reload)
@@ -28,7 +29,6 @@ signature, retaining the declared Property NodeIds, argument order, and values.
 - [Dependency sorting](#dependency-sorting)
   - [Referencing a Node another NodeManager owns](#referencing-a-node-another-nodemanager-owns)
 - [Complex types](#complex-types)
-- [Imported security policy](#imported-security-policy)
 - [Comparison with source-generated NodeManagers](#comparison-with-source-generated-nodemanagers)
 - [Related documentation](#related-documentation)
 

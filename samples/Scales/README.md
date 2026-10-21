@@ -83,7 +83,9 @@ browse names are stable.
   production output.
 - **Checkweigher.** It has products that are locked, selectable and
   manageable, plus an infeed feeder with a speed range and a labeler.
-- **Laboratory balance.** It is legal for trade and accepts kg, g and mg.
+- **Laboratory balance.** The sample sets its legal-for-trade model flag through
+  `WithLegalForTrade()` and accepts kg, g and mg. This simulated configuration is
+  not regulatory approval for a weighing instrument.
 - **Counting scale.** A piece-counting scale with a selected product.
 - **Weighbridge.** A vehicle scale whose `VehicleInformationProvider`
   answers `GetVehicleInformation`.

@@ -13,12 +13,19 @@ sub-profile) is described in the [REST binding reference](WebApi.md).
 - [When to use the REST binding](#when-to-use-the-rest-binding)
 - [The document is generated](#the-document-is-generated)
 - [Serving the document](#serving-the-document)
+  - [Sessionless only](#sessionless-only)
+  - [Composing your own pipeline](#composing-your-own-pipeline)
 - [Generating the document without a server](#generating-the-document-without-a-server)
 - [Generating a client](#generating-a-client)
 - [Calling the server](#calling-the-server)
+  - [A generated .NET client](#a-generated-net-client)
+  - [Sessions over REST](#sessions-over-rest)
 - [.NET clients without code generation](#net-clients-without-code-generation)
 - [Wire format cheat sheet](#wire-format-cheat-sheet)
 - [Known issues with generated clients](#known-issues-with-generated-clients)
+  - [DataValue status and the published documents](#datavalue-status-and-the-published-documents)
+  - [Validating responses against the published schemas](#validating-responses-against-the-published-schemas)
+  - [Polymorphic structures](#polymorphic-structures)
 - [How the document is kept correct](#how-the-document-is-kept-correct)
 - [Troubleshooting](#troubleshooting)
 
@@ -42,8 +49,8 @@ produced by the model compiler. This stack does not ship those files. The
 routes in `WebApiServiceRoutes` and the structure definitions of the
 request and response types are the source of truth for what the binding
 accepts and sends, so the document is generated from them at runtime by
-`WebApiOpenApiGenerator` (package `Opc.Ua.Core.Schema`). It cannot drift
-from the wire format, and a test compares it with the published documents
+`WebApiOpenApiGenerator` (package `Opc.Ua.Core.Schema`). A test compares the
+generated document with the published documents
 (see [How the document is kept correct](#how-the-document-is-kept-correct)).
 
 Two levels of detail keep the size in check. The published documents are

@@ -2,7 +2,7 @@
 
 The **xRegistry** libraries implement the generic, registry-agnostic *abstract registry base model*
 for OPC UA. They provide the substrate a concrete registry builds on: **structural xRegistry
-identity**, an **Opaque-NodeId content fast path** that resolves a document in a single `Read`, a
+identity**, an **Opaque-NodeId content fast path** that reads a document directly without browsing, a
 **model-driven registration lifecycle** with auto-bootstrap, and a **federation** model for resources
 hosted by another registry, and optional native OPC UA events for registry mutations.
 
@@ -19,6 +19,8 @@ Thing Model documents.
   - [Structural identity and content lookup](#structural-identity-and-content-lookup)
   - [Opaque-NodeId fast path](#opaque-nodeid-fast-path)
   - [Registration lifecycle and auto-bootstrap](#registration-lifecycle-and-auto-bootstrap)
+  - [Resource Meta and default-Version views](#resource-meta-and-default-version-views)
+  - [Source-derived identifier allocation](#source-derived-identifier-allocation)
   - [File open modes](#file-open-modes)
   - [Resource storage](#resource-storage)
   - [Transport security](#transport-security)
@@ -80,8 +82,9 @@ Opaque node while replacing or deleting one Version releases only that Version's
 ### Opaque-NodeId fast path
 
 A registered resource is reachable at an **Opaque `NodeId`** in the registry namespace whose
-Identifier is the *raw content-id bytes*. A consumer that received the id on the wire therefore needs
-no Browse and no fingerprint recomputation — one `Read` of that node's `Value` returns the document:
+Identifier is the *raw content-id bytes*. A consumer that received the id on the wire needs
+no Browse or fingerprint recomputation. It reads the node's `Value` directly;
+larger documents can require multiple range-based `Read` requests:
 
 ```csharp
 var fastPathNodeId = new NodeId(contentId, registryNamespaceIndex);
@@ -165,7 +168,7 @@ explicit Version does not change the default. WoT preserves its own selection po
 `SetDefaultVersion` separately. Generic options do **not** define active/desired selection,
 per-resource retention or metadata reload. Persisting bytes through `IXRegistryResourceStore` alone
 does not restore the generic address-space metadata after restart. Use the existing
-[WoT registry service and persistence](WoTConnectivity.md#112-registry-service-and-persistence)
+[WoT registry service and persistence](WotCon.md#112-registry-service-and-persistence)
 for those domain contracts; this registrar does not invent a retention-lease or reload API.
 
 **Browse compatibility:** clients that previously searched for flattened `resource:version` Group
@@ -329,7 +332,7 @@ the registrar never deletes established content to emulate atomic replacement.
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt
 the shared byte layer without an on-disk migration. See
-[WoT Connectivity — keeping the document bytes in a shared store](WoTConnectivity.md#keeping-the-document-bytes-in-a-shared-store).
+[WoT Connectivity — keeping the document bytes in a shared store](WotCon.md#keeping-the-document-bytes-in-a-shared-store).
 
 ### Transport security
 
@@ -358,7 +361,7 @@ Reactivation rejects an effective-confidentiality downgrade before rebinding, so
 queued confidential document bytes also remain confined to the accepted secure
 transport.
 
-Genuinely server-owned bootstrap calls remain permitted without a channel.
+Server-owned bootstrap calls remain permitted without a channel.
 A requestless monitored context still belongs to its remote subscriber and is
 not treated as a trusted in-process call.
 
@@ -616,7 +619,7 @@ Providers that need an asynchronous owner acquisition can opt into
 `IXRegistryAsyncProjectedResourceFileHandleForwarder`,
 `IXRegistryAsyncProjectedContentlessResourceFile` and `IXRegistryPreparedResourceFile`.
 The existing file and logical pin tables still own the handles; synchronous providers
-retain their existing paths. The stock [WoT Version lease provider](WoT.md#version-leases)
+retain their existing paths. The stock [WoT Version lease provider](WotCon.md#version-leases)
 uses these capabilities without adding retention or activation options to the generic registrar.
 
 ## Server-side usage
@@ -712,15 +715,19 @@ service calls. `XRegistryClient` is an **abstract** base carrying the xRegistry-
 `GenericXRegistryClient` is the sealed implementation for callers that only need the base model,
 and a domain registry client derives from the same base:
 
-```text
-abstract XRegistryClient
-   ├── sealed GenericXRegistryClient   // any registry namespace
-   ├── SchemaRegistryClient  (domain)
-   └── WotRegistryClient     (domain)
+```mermaid
+classDiagram
+    XRegistryClient <|-- GenericXRegistryClient
+    XRegistryClient <|-- SchemaRegistryClient
+    XRegistryClient <|-- WotRegistryClient
+    note for XRegistryClient "Abstract"
+    note for GenericXRegistryClient "Sealed; any registry namespace"
+    note for SchemaRegistryClient "Domain registry"
+    note for WotRegistryClient "Domain registry"
 ```
 
-Resolving a resource from an id received on the wire is a single call. It reads through
-`ReadBytesAsync`, so a document larger than the session's `MaxByteStringLength` is fetched with
+`ResolveResourceAsync` reads through `ReadBytesAsync`, so a document larger than
+the session's `MaxByteStringLength` is fetched with
 range-based reads rather than failing. It returns a **null** `ByteString` — check `IsNull` — when no
 fast-path node is registered, so the caller can fall back to a Browse or a registry-specific download:
 
@@ -780,7 +787,7 @@ elements and still deconstruct when that reads better:
 (NodeId nodeId, string versionId, bool created) = resource;
 ```
 
-The typed proxies are also available directly, which is what a domain client builds on:
+The typed proxies are also available directly for domain clients to build on:
 ```csharp
 GroupTypeClient group = client.GetGroup(groupNodeId);
 (NodeId nodeId, string versionId, uint fileHandle) =

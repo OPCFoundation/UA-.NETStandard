@@ -5,10 +5,8 @@ operations through the APM (Asynchronous Programming Model). APM uses
 `IAsyncResult` and the Begin/End pattern. .NET Framework 1.0 introduced
 this pattern, which remains supported in .NET 8.0.
 
-The stack also supports the TAP (Task Asynchronous Pattern) for server
-operations. TAP uses `Task` and the `async`/`await` keywords introduced
-in .NET Framework 4.0. It is the recommended way to implement asynchronous
-operations in modern .NET applications.
+The stack also supports TAP for server operations. TAP uses task-based APIs
+with `async`/`await` and is the recommended pattern for asynchronous server code.
 
 Server applications can implement node managers with TAP to await I/O without
 blocking a request worker.

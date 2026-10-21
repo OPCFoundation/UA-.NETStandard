@@ -11,13 +11,11 @@
 
     Rendering contract:
 
-    The scene is lit by a single DomeLight (intensity 1000). Do NOT reintroduce
-    a DistantLight or any other bright directional/point light: at intensities
-    that show geometry a DistantLight blows every surface to white regardless of
-    displayColor, and the demo relies on the agent being able to pick "the red
-    part" by looking at the frame. Under a DomeLight the same materials measure
-    red (220, 37, 37), green (37, 208, 49), blue (37, 73, 233) - distinct enough
-    for a language model to reason about.
+    Keep the single DomeLight at intensity 1000. In the sample's original
+    lighting tests, a DistantLight bright enough to show geometry washed every
+    part to white, preventing selection of "the red part". Historical DomeLight
+    captures measured red (220, 37, 37), green (37, 208, 49), blue (37, 73, 233).
+    Re-check captured colors after lighting, material or renderer changes.
 
     Frame tree contract:
 

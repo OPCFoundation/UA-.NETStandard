@@ -189,9 +189,7 @@ is overridden internally per node.
 ### Subscribing to events
 
 ```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()
-    .Build();
+EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
 await foreach (EventNotification evt in streaming
     .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
@@ -202,9 +200,11 @@ await foreach (EventNotification evt in streaming
 }
 ```
 
-`SubscribeEventsAsync` does *not* validate the filter. Use
-`AlarmEventFilterBuilder` for Part 9 events and any custom
-`SimpleAttributeOperand`-based filter for other event types.
+`SubscribeEventsAsync` does *not* validate the filter. Use the
+generated `{Type}Record.EventFilters.Build()` factories for Part 9 and
+other modelled event types, or any custom
+`SimpleAttributeOperand`-based filter; see
+[Alarms and Conditions](AlarmsAndConditions.md).
 
 ### Composing streams
 
@@ -658,9 +658,12 @@ When the per-subscription cap (`MaxMonitoredItemsPerSubscription` from
 the server's capabilities, OPC UA Part 4 §5.13.2) would be exceeded,
 the engine transparently splits monitored items across additional
 server-side **partition** subscriptions and presents one logical
-collection to the caller. Single-partition workloads (the common
-case) keep their pre-existing fast path; partitioning kicks in only
-when needed.
+collection to the caller. With unbounded item mode enabled, the composite
+collection uses partition-placement and indexing logic even while only
+one partition exists. Setting
+`SubscriptionOptions.DisableUnboundedItemMode = true` selects the
+primary-partition delegation path, avoiding the composite collection's
+placement logic and global indexes.
 
 ### How it works
 
@@ -701,10 +704,9 @@ when needed.
 
 * `ISubscriptionNotificationHandler` callbacks always receive the
   logical wrapper as the `ISubscription subscription` parameter.
-  When more than one partition is active the engine serialises calls
-  through a per-wrapper semaphore so consumers observe one handler
-  invocation at a time, matching the single-partition behaviour they
-  came to rely on under V2.
+  With unbounded item mode enabled, the engine serialises calls through
+  a per-wrapper semaphore even while only one partition exists, so
+  consumers observe one handler invocation at a time.
 
 * Notifications include the source partition's server-side id via
   the `PartitionServerId` field on `DataValueChange` and
@@ -864,16 +866,16 @@ down.
 
 ### Performance
 
-Single-partition workloads observe **no overhead** from the wrapper
-— the composite collection short-circuits to the primary's own
-collection without taking any extra locks or building indexes.
-Multi-partition workloads pay:
+With `SubscriptionOptions.DisableUnboundedItemMode = true`, the composite
+delegates collection operations to the primary partition, avoiding its
+own placement logic and global indexes. With unbounded mode enabled,
+coordination and indexing apply even before a second partition is created:
 
-* One semaphore acquire/release per notification callback (small).
+* One semaphore acquire/release per notification callback.
 * O(P) partition scans for `TryGetMonitoredItemByName` /
   `TryGetMonitoredItemByClientHandle` misses against the composite
-  index (P is typically single-digit).
-* One extra `Subscription` instance per partition (each holds its
+  index, where P is the number of partitions.
+* One extra `Subscription` instance per secondary partition (each holds its
   own state machine, ack queue position, and notification pipeline).
 
 ### Limitations and roadmap
@@ -885,10 +887,6 @@ delete + recreate (losing per-item server ids and briefly stopping
 publishing). Plan `Affinity` up-front for items that need to
 participate in a triggering relationship; the engine will keep the
 group co-located for the lifetime of the wrapper.
-
-This is the only multi-partition feature gap — single-partition
-workloads cover the vast majority of OPC UA client use cases
-unchanged.
 
 ## Classic → V2 surface mapping
 
