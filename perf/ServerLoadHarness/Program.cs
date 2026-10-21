@@ -1042,6 +1042,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 {
                     return;
                 }
+                catch (ServiceResultException) when (ct.IsCancellationRequested)
+                {
+                    // the channel ends a cancelled request with BadRequestInterrupted;
+                    // these are the requests in flight when the workload stops
+                    return;
+                }
                 catch (ServiceResultException ex)
                 {
                     if (Interlocked.Increment(ref m_errors) < 5)
@@ -1202,6 +1208,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
                 catch (OperationCanceledException)
                 {
+                    return;
+                }
+                catch (ServiceResultException) when (ct.IsCancellationRequested)
+                {
+                    // a write in flight when the workload stops (BadRequestInterrupted)
                     return;
                 }
                 catch (ServiceResultException ex)
