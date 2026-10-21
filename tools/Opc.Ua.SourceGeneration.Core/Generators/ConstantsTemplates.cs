@@ -51,21 +51,21 @@ namespace Opc.Ua.SourceGeneration
 
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-                public static partial class BrowseNames
+                public static partial class {{Tokens.HelperPrefix}}BrowseNames
                 {
                     {{Tokens.ListOfBrowseNames}}
                 }
 
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-                public static partial class Namespaces
+                public static partial class {{Tokens.HelperPrefix}}Namespaces
                 {
                     {{Tokens.ListOfNamespaceUris}}
                 }
 
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-                public static partial class ModelVersions
+                public static partial class {{Tokens.HelperPrefix}}ModelVersions
                 {
                     /// <summary>
                     /// The version of the target OPC UA model.

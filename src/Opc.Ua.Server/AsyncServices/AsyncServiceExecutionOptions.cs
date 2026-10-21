@@ -28,11 +28,12 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Selects the default-off 0.2.0 experiment and supported exact lifetimes, in milliseconds.
+    /// Selects the default-off RSE experiment and supported exact lifetimes, in milliseconds.
     /// Message and resource limits remain the existing transport and resource-isolation limits.
     /// </summary>
     public sealed class AsyncServiceExecutionOptions
@@ -41,6 +42,13 @@ namespace Opc.Ua.Server
         /// Gets or sets whether the Server installs the experimental execution provider and model at startup.
         /// </summary>
         public bool Enabled { get; set; }
+
+        /// <summary>
+        /// Gets or sets the explicitly enabled recovery modes. Registering a provider alone enables no mode.
+        /// Session is required; optional modes must have their qualifying providers at startup.
+        /// </summary>
+        public ArrayOf<ServiceOperationRecoveryMode> RecoveryModes { get; set; } =
+            [ServiceOperationRecoveryMode.Session];
 
         /// <summary>
         /// Gets or sets the minimum positive execution allowance.
@@ -75,13 +83,28 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Captures validated startup options independently of later host configuration mutations.
         /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         internal AsyncServiceExecutionOptions Snapshot()
         {
             ValidateRange(MinExecutionAllowance, DefaultExecutionAllowance, MaxExecutionAllowance);
             ValidateRange(MinResultRetentionTime, DefaultResultRetentionTime, MaxResultRetentionTime);
+            var modes = new HashSet<ServiceOperationRecoveryMode>();
+            foreach (ServiceOperationRecoveryMode mode in RecoveryModes)
+            {
+                if (mode is < ServiceOperationRecoveryMode.Session or > ServiceOperationRecoveryMode.Durable ||
+                    !modes.Add(mode))
+                {
+                    throw new ArgumentException("Recovery modes must be valid and distinct.", nameof(RecoveryModes));
+                }
+            }
+            if (!modes.Contains(ServiceOperationRecoveryMode.Session))
+            {
+                throw new ArgumentException("Session recovery must remain enabled.", nameof(RecoveryModes));
+            }
             return new AsyncServiceExecutionOptions
             {
                 Enabled = Enabled,
+                RecoveryModes = RecoveryModes.Span.ToArray(),
                 MinExecutionAllowance = MinExecutionAllowance,
                 MaxExecutionAllowance = MaxExecutionAllowance,
                 DefaultExecutionAllowance = DefaultExecutionAllowance,
@@ -97,13 +120,11 @@ namespace Opc.Ua.Server
         /// <exception cref="ArgumentException"></exception>
         private static void ValidateRange(double minimum, double defaultValue, double maximum)
         {
-            if (double.IsNaN(minimum) ||
-                double.IsNaN(defaultValue) ||
-                double.IsNaN(maximum) ||
-                minimum <= 0 ||
+            if (!RecoverableExecutionDurations.TryFromMilliseconds(minimum, out _) ||
+                !RecoverableExecutionDurations.TryFromMilliseconds(defaultValue, out _) ||
+                !RecoverableExecutionDurations.TryFromMilliseconds(maximum, out _) ||
                 minimum > defaultValue ||
-                defaultValue > maximum ||
-                maximum > int.MaxValue)
+                defaultValue > maximum)
             {
                 throw new ArgumentException("Async Service lifetimes require finite, positive, ordered timer ranges.");
             }

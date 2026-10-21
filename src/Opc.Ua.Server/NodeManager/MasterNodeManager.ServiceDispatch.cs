@@ -1011,7 +1011,7 @@ namespace Opc.Ua.Server
                         !channelContext.ProvidesIntegrity &&
                         ((applyRestrictionsToBrowse && browseOperation) || !browseOperation)
                     ) ||
-                    (sessionRequired && context.Session == null))
+                    (sessionRequired && context.Session == null && !context.IsSessionIndependent))
                 {
                     serviceResult = ServiceResult.Create(
                         StatusCodes.BadSecurityModeInsufficient,

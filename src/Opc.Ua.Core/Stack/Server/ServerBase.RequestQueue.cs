@@ -94,7 +94,9 @@ namespace Opc.Ua
                         maxRequestCount,
                         maxRequestCost,
                         decoupleHeldPublishRequests,
-                        CompleteRequest);
+                        CompleteRequest,
+                        request => (m_server.RequestParkingPolicy as IRequestControlPolicy)?
+                            .IsControlRequest(request) == true);
                 }
 
                 m_workers = [];

@@ -699,7 +699,8 @@ namespace Opc.Ua.Server
                 {
                     // an in-flight ActivateSession has no Session context yet, but it is
                     // aborted with the Session it is activating.
-                    if (request.RequestId != excludedRequestId &&
+                    if (!request.IsSessionIndependent &&
+                        request.RequestId != excludedRequestId &&
                         (request.SessionId == sessionId ||
                             request.ActivationTargetSessionId == sessionId))
                     {

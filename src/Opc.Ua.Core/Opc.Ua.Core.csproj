@@ -26,6 +26,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.WotCon.Server" />
   </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
@@ -54,10 +55,18 @@
   <PropertyGroup>
     <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
     <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+    <ModelSourceGeneratorEmitNodeSetNodesOnly>true</ModelSourceGeneratorEmitNodeSetNodesOnly>
   </PropertyGroup>
   <ItemGroup>
     <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.xml" />
     <AdditionalFiles Include="Programs\Model\OpcUaProgramsModel.csv" />
+    <AdditionalFiles Include="AsyncServices\Model\Opc.Ua.RSE.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/RSE/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Rse</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.RSE.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="AsyncServices\Model\Opc.Ua.RSE.NodeIds.csv" />
   </ItemGroup>
   <!-- Stack source generation -->
   <PropertyGroup>

@@ -63,7 +63,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
   LLMs / Copilot can drive an OPC UA client.
-- **Recoverable execution and Async Services** — the experimental [RSE prototype](docs/AsyncServices.md) keeps ordinary `ISession` calls recoverable across temporary disconnections, with explicit acknowledgement for external storage or RPC coordination.
+- **Recoverable execution and Async Services** — the default-off [RSE prototype](docs/AsyncServices.md) uses five manager Methods beneath ordinary `ISession` calls, explicit acknowledgement, and separately qualified Session, Owner and Durable recovery.
 
 For the full feature breakdown see
 **[OPC UA Profiles and Facets](docs/Profiles.md)** and the

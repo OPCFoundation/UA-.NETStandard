@@ -29,6 +29,8 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
 
@@ -37,7 +39,7 @@ namespace Microsoft.Extensions.DependencyInjection
     public static partial class OpcUaServerBuilderExtensions
     {
         /// <summary>
-        /// Explicitly enables the experimental 0.2.0 recoverable Services at runtime, without a build switch.
+        /// Explicitly enables the experimental RSE manager Methods at runtime, without a build switch.
         /// Existing transport and resource-isolation configuration supplies the finite admission limits.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
@@ -55,7 +57,96 @@ namespace Microsoft.Extensions.DependencyInjection
             });
             builder.Services.TryAddSingleton<IAsyncServiceExecutionProviderFactory>(services =>
                 new DefaultAsyncServiceExecutionProviderFactory(
-                    services.GetService<IAsyncServiceAuthorizationPolicy>()));
+                    services.GetService<IAsyncServiceAuthorizationPolicy>(),
+                    services.GetService<IRecoverableExecutionOwnerProvider>(),
+                    services.GetService<IRecoverableExecutionEligibilityProvider>(),
+                    services.GetService<ISharedKeyValueStore>(),
+                    services.GetService<IRecordProtector>(),
+                    services.GetService<IRecoverableExecutionClock>(),
+                    services.GetService<IRecoverableExecutionCodecQualifier>()));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers explicit stable-owner mappings without enabling recoverable execution or a recovery mode.
+        /// Certificate renewal requires an explicit alias and does not bypass normal trust validation.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder WithRecoverableExecutionOwners(
+            this IOpcUaServerBuilder builder,
+            Uuid authorityId,
+            ArrayOf<RecoverableExecutionApplicationMapping> applications,
+            ArrayOf<RecoverableExecutionUserMapping> users)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            var provider = new ConfiguredRecoverableExecutionOwnerProvider(authorityId, applications, users);
+            builder.Services.AddSingleton<IRecoverableExecutionOwnerProvider>(provider);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers application-qualified restart timing without enabling a recovery mode.
+        /// An unchecked wall clock or a reset process clock does not satisfy this contract.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder WithRecoverableExecutionClock(
+            this IOpcUaServerBuilder builder,
+            IRecoverableExecutionClock clock)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (clock == null)
+            {
+                throw new ArgumentNullException(nameof(clock));
+            }
+            builder.Services.AddSingleton(clock);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers application-owned reservations that qualify independent inputs and self-contained responses.
+        /// Registration does not enable Owner or Durable recovery by itself.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder WithRecoverableExecutionEligibility(
+            this IOpcUaServerBuilder builder,
+            IRecoverableExecutionEligibilityProvider provider)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (provider == null)
+            {
+                throw new ArgumentNullException(nameof(provider));
+            }
+            builder.Services.AddSingleton(provider);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers explicit revisions for custom codecs used in protected durable payloads.
+        /// Registration does not enable a recovery mode or qualify otherwise unknown type definitions.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder WithRecoverableExecutionCodecQualifier(
+            this IOpcUaServerBuilder builder,
+            IRecoverableExecutionCodecQualifier qualifier)
+        {
+            if (builder == null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (qualifier == null)
+            {
+                throw new ArgumentNullException(nameof(qualifier));
+            }
+            builder.Services.AddSingleton(qualifier);
             return builder;
         }
     }

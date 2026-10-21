@@ -203,6 +203,10 @@ namespace Opc.Ua.Client
                 throw new ServiceResultException(errors[0]);
             }
 
+            if (releaseContinuationPoint)
+            {
+                return (responseHeader, default, []);
+            }
             Debug.Assert(referencesList.Count == 1);
             Debug.Assert(revisedContinuationPoints.Count == 1);
             return (responseHeader, revisedContinuationPoints[0], referencesList[0]);
@@ -711,8 +715,9 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseResult> results = response.Results;
             ArrayOf<DiagnosticInfo> diagnosticInfos = response.DiagnosticInfos;
 
-            ClientBase.ValidateResponse(results, continuationPoints);
-            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, continuationPoints);
+            ArrayOf<ByteString> expected = releaseContinuationPoint ? [] : continuationPoints;
+            ClientBase.ValidateResponse(results, expected);
+            ClientBase.ValidateDiagnosticInfos(diagnosticInfos, expected);
 
             int ii = 0;
             var errors = new List<ServiceResult>();

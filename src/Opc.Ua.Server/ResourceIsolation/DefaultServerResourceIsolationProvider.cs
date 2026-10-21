@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     public sealed class DefaultServerResourceIsolationProvider :
         IServerResourceIsolationProvider, IResourceIsolationRevalidationProvider,
         IResourceIsolationReassemblyProvider, IResourceIsolationCapacitySource,
-        IResourceIsolationAdmissionEvidence, IDisposable
+        IResourceIsolationAdmissionEvidence, IRecoverableExecutionResourceIsolationProvider, IDisposable
     {
         /// <summary>
         /// Creates a provider from an immutable runtime plan.
@@ -133,6 +133,21 @@ namespace Opc.Ua.Server
                 return CreateMappedOwner(identity, out _);
             }
             return CreateOwner(PeerKey(remoteEndpoint?.Address), ResourceIsolationClass.Established, out _);
+        }
+
+        /// <inheritdoc/>
+        public ResourceIsolationOwner ClassifyRecoverableOwner(RecoverableExecutionOwnerId owner)
+        {
+            ThrowIfDisposed();
+            if (owner.AuthorityId == Uuid.Empty ||
+                owner.ApplicationId == Uuid.Empty ||
+                owner.UserId == Uuid.Empty)
+            {
+                throw new ArgumentException("A validated stable owner is required.", nameof(owner));
+            }
+            string key = "rse:" + Hash(Encoding.UTF8.GetBytes(
+                $"{owner.AuthorityId}|{owner.ApplicationId}|{owner.UserId}"));
+            return CreateOwner(key, ResourceIsolationClass.Established, out _);
         }
 
         /// <inheritdoc/>

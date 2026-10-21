@@ -29,11 +29,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Opc.Ua.Export;
 
 namespace Opc.Ua.Server
 {
@@ -43,11 +41,10 @@ namespace Opc.Ua.Server
     public partial class DiagnosticsNodeManager
     {
         /// <summary>
-        /// Imports the frozen type overlay and creates complete live instances with application-namespace children.
+        /// Installs generated RSE types and creates live manager Methods with application-namespace child identities.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         /// <exception cref="InvalidOperationException"></exception>
-        /// <exception cref="InvalidDataException"></exception>
         internal async ValueTask InstallAsyncServiceModelAsync(
             AsyncServiceExecutionOptions options,
             IAsyncServiceExecutionProvider provider,
@@ -60,55 +57,71 @@ namespace Opc.Ua.Server
                 throw new ArgumentException("Runtime instance children require an application namespace.",
                     nameof(instanceNamespaceUri));
             }
+            ushort modelNamespace = SystemContext.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            var managerId = ExpandedNodeId.ToNodeId(RseObjectIds.RecoverableExecutionManager,
+                SystemContext.NamespaceUris);
+            var capabilitiesId = ExpandedNodeId.ToNodeId(RseObjectIds.RecoverableExecutionManager_Capabilities,
+                SystemContext.NamespaceUris);
+            var diagnosticsId = ExpandedNodeId.ToNodeId(RseObjectIds.RecoverableExecutionDiagnostics,
+                SystemContext.NamespaceUris);
             using NodeManagerOperation operation = await EnterDiagnosticsOperationAsync(ct).ConfigureAwait(false);
             try
             {
-                if (!NamespaceUris.Contains(instanceNamespaceUri, StringComparer.Ordinal))
+                foreach (string uri in new[] { instanceNamespaceUri, RseNamespaces.Rse })
                 {
-                    SetNamespaces([.. NamespaceUris, instanceNamespaceUri]);
-                    Server.NodeManager.RegisterNamespaceManager(instanceNamespaceUri, this);
+                    if (!NamespaceUris.Contains(uri, StringComparer.Ordinal))
+                    {
+                        SetNamespaces([.. NamespaceUris, uri]);
+                        Server.NodeManager.RegisterNamespaceManager(uri, this);
+                    }
                 }
-                using Stream stream = typeof(DiagnosticsNodeManager).Assembly.GetManifestResourceStream(
-                    "Opc.Ua.Server.AsyncServices.NodeSet2.xml") ??
-                    throw new InvalidOperationException("The experimental model resource is missing.");
-                UANodeSet model = UANodeSet.Read(stream) ??
-                    throw new InvalidDataException("The experimental model resource is invalid.");
-                var nodes = new NodeStateCollection();
-                model.Import(SystemContext, nodes, linkParentChild: true);
-                foreach (NodeState node in nodes)
+                Server.Factory.Builder.AddOpcUaRse().Commit();
+                foreach (NodeState node in OpcUaRseExtensions.AddOpcUaRse([], SystemContext))
                 {
-                    if (node.NodeId == s_asyncCapabilitiesId ||
-                        node.NodeId == s_asyncDiagnosticsId ||
+                    if (node.NodeId == managerId ||
+                        node.NodeId == capabilitiesId ||
+                        node.NodeId == diagnosticsId ||
                         node is BaseInstanceState { Parent: not null })
                     {
                         continue;
                     }
-                    if (node.NodeId == ObjectTypeIds.AuditServiceOperationEventType)
+                    if (node.NodeId == ExpandedNodeId.ToNodeId(
+                        RseObjectTypeIds.AuditServiceOperationEventType, SystemContext.NamespaceUris))
                     {
                         node.RolePermissions = CreateAsyncPermissions(receiveEvents: true);
                     }
                     await AddPredefinedNodeAsync(SystemContext, node, ct).ConfigureAwait(false);
                 }
 
-                var capabilities = new AsyncServiceCapabilitiesState(null);
-                capabilities.Create(SystemContext, s_asyncCapabilitiesId,
-                    new QualifiedName("AsyncServiceCapabilities"),
-                    new LocalizedText("Async Service capabilities"), false);
-                AssignAsyncInstanceChildren(capabilities, instanceNamespace, privileged: false);
-                capabilities.ContractVersion!.Value = "0.2.0";
+                var manager = new RecoverableExecutionManagerState(null);
+                manager.Create(SystemContext, managerId,
+                    new QualifiedName(RseBrowseNames.RecoverableExecutionManager, modelNamespace),
+                    new LocalizedText("Recoverable execution manager"), false);
+                AssignAsyncInstanceChildren(manager, instanceNamespace, privileged: false);
+                RecoverableExecutionCapabilitiesState capabilities = manager.Capabilities!;
+                capabilities.NodeId = capabilitiesId;
+                capabilities.ContractVersion!.Value = "0.4.0";
                 capabilities.SupportedServices!.Value = provider.SupportedServices;
+                capabilities.SupportedRecoveryModes!.Value = provider.SupportedRecoveryModes;
+                capabilities.SupportedRecoveryModes.OnSimpleReadValue = (_, _, ref value) =>
+                {
+                    value = Variant.From(provider.SupportedRecoveryModes);
+                    return ServiceResult.Good;
+                };
                 capabilities.MinExecutionAllowance!.Value = options.MinExecutionAllowance;
                 capabilities.MaxExecutionAllowance!.Value = options.MaxExecutionAllowance;
                 capabilities.DefaultExecutionAllowance!.Value = options.DefaultExecutionAllowance;
                 capabilities.MinResultRetentionTime!.Value = options.MinResultRetentionTime;
                 capabilities.MaxResultRetentionTime!.Value = options.MaxResultRetentionTime;
                 capabilities.DefaultResultRetentionTime!.Value = options.DefaultResultRetentionTime;
-                await AddAsyncRootAsync(capabilities, ObjectIds.Server_ServerCapabilities, ct).ConfigureAwait(false);
+                BindRecoverableMethods(manager, provider);
+                provider.BindManager(manager);
+                await AddAsyncRootAsync(manager, ObjectIds.Server, ct).ConfigureAwait(false);
 
-                var diagnostics = new AsyncServiceDiagnosticsState(null);
-                diagnostics.Create(SystemContext, s_asyncDiagnosticsId,
-                    new QualifiedName("AsyncServiceDiagnostics"),
-                    new LocalizedText("Async Service diagnostics"), false);
+                var diagnostics = new RecoverableExecutionDiagnosticsState(null);
+                diagnostics.Create(SystemContext, diagnosticsId,
+                    new QualifiedName(RseBrowseNames.RecoverableExecutionDiagnostics, modelNamespace),
+                    new LocalizedText("Recoverable execution diagnostics"), false);
                 diagnostics.RolePermissions = CreateAsyncPermissions();
                 AssignAsyncInstanceChildren(diagnostics, instanceNamespace, privileged: true);
                 BindAsyncCounter(
@@ -125,12 +138,78 @@ namespace Opc.Ua.Server
                 BindAsyncCounter(diagnostics.ExpiredCount!, provider, static value => value.ExpiredCount);
                 BindAsyncCounter(
                     diagnostics.ExecutionDeadlineCount!, provider, static value => value.ExecutionDeadlineCount);
+                BindAsyncCounter(diagnostics.ExecutionIndeterminateCount!, provider,
+                    static value => value.ExecutionIndeterminateCount);
                 await AddAsyncRootAsync(diagnostics, ObjectIds.Server_ServerDiagnostics, ct).ConfigureAwait(false);
             }
             finally
             {
                 m_modifyAddressSpaceSemaphoreSlim.Release();
             }
+        }
+
+        /// <summary>
+        /// Wires the five generated scalar Method handlers through ordinary Call validation and diagnostics.
+        /// </summary>
+        private void BindRecoverableMethods(
+            RecoverableExecutionManagerState manager, IAsyncServiceExecutionProvider provider)
+        {
+            SubmitMethodState submit = PromoteMethod(new SubmitMethodState(manager), manager.Submit!);
+            GetResultMethodState getResult = PromoteMethod(new GetResultMethodState(manager), manager.GetResult!);
+            AcknowledgeMethodState acknowledge =
+                PromoteMethod(new AcknowledgeMethodState(manager), manager.Acknowledge!);
+            CancelMethodState cancel = PromoteMethod(new CancelMethodState(manager), manager.Cancel!);
+            AbandonMethodState abandon = PromoteMethod(new AbandonMethodState(manager), manager.Abandon!);
+            manager.CreateOrReplaceSubmit(SystemContext, submit, assignInstanceNodeIds: false);
+            manager.CreateOrReplaceGetResult(SystemContext, getResult, assignInstanceNodeIds: false);
+            manager.CreateOrReplaceAcknowledge(SystemContext, acknowledge, assignInstanceNodeIds: false);
+            manager.CreateOrReplaceCancel(SystemContext, cancel, assignInstanceNodeIds: false);
+            manager.CreateOrReplaceAbandon(SystemContext, abandon, assignInstanceNodeIds: false);
+            submit.OnCallAsync = async (context, _, _, request, ct) => new SubmitMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Response = await provider.SubmitAsync(RequireOperation(context), request, ct).ConfigureAwait(false)
+            };
+            getResult.OnCallAsync = async (context, _, _, request, ct) => new GetResultMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Response = await provider.GetAsync(RequireOperation(context), request, ct).ConfigureAwait(false)
+            };
+            acknowledge.OnCallAsync = async (context, _, _, request, ct) => new AcknowledgeMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Response = await provider.AcknowledgeAsync(RequireOperation(context), request, ct).ConfigureAwait(false)
+            };
+            cancel.OnCallAsync = async (context, _, _, request, ct) => new CancelMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Response = await provider.CancelAsync(RequireOperation(context), request, ct).ConfigureAwait(false)
+            };
+            abandon.OnCallAsync = async (context, _, _, request, ct) => new AbandonMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                Response = await provider.AbandonAsync(RequireOperation(context), request, ct).ConfigureAwait(false)
+            };
+        }
+
+        /// <summary>
+        /// Promotes a generated declaration's live child to its generated typed handler, preserving its metadata.
+        /// </summary>
+        /// <typeparam name="T">The source-generated typed Method state.</typeparam>
+        private T PromoteMethod<T>(T typed, MethodState source) where T : MethodState
+        {
+            typed.Create(SystemContext, source);
+            return typed;
+        }
+
+        /// <summary>
+        /// Requires an ordinary authenticated Call context rather than accepting an internal model invocation.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static OperationContext RequireOperation(ISystemContext context)
+        {
+            return (context as ServerSystemContext)?.OperationContext ??
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
         }
 
         /// <summary>
@@ -214,11 +293,5 @@ namespace Opc.Ua.Server
                 }
             ];
         }
-
-        /// <summary>Frozen provisional root anchor from the 0.2.0 contract.</summary>
-        private static readonly NodeId s_asyncCapabilitiesId = new(1200100u);
-
-        /// <summary>Frozen provisional root anchor from the 0.2.0 contract.</summary>
-        private static readonly NodeId s_asyncDiagnosticsId = new(1200101u);
     }
 }

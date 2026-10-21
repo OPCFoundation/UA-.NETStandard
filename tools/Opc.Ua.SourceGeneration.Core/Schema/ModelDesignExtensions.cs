@@ -457,6 +457,40 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Separates foreign-model helpers from the standard helpers when public types share Opc.Ua.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        internal static string GetModelHelperPrefix(this Namespace modelNamespace)
+        {
+            if (modelNamespace == null)
+            {
+                throw new ArgumentNullException(nameof(modelNamespace));
+            }
+            if (modelNamespace.Prefix != "Opc.Ua" || modelNamespace.Value == Namespaces.OpcUa)
+            {
+                return string.Empty;
+            }
+            if (string.IsNullOrWhiteSpace(modelNamespace.Name))
+            {
+                throw new ArgumentException(
+                    "A model sharing Opc.Ua must have a distinct name.", nameof(modelNamespace));
+            }
+            return modelNamespace.Name.ToCSharpIdentifierPreserveCase();
+        }
+
+        /// <summary>
+        /// Gets a model-specific output stem without moving its public types to a different C# namespace.
+        /// </summary>
+        internal static string GetGeneratedFilePrefix(this Namespace modelNamespace)
+        {
+            string helperPrefix = modelNamespace.GetModelHelperPrefix();
+            return helperPrefix.Length == 0
+                ? modelNamespace.Prefix
+                : modelNamespace.Prefix + "." + helperPrefix;
+        }
+
+        /// <summary>
         /// Returns a constant string for the namespace uri.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -482,7 +516,8 @@ namespace Opc.Ua.Schema.Model
             {
                 return CoreUtils.Format("Namespaces.{0}", ns.Name);
             }
-            return CoreUtils.Format("global::{0}.Namespaces.{1}", ns.Prefix, ns.Name);
+            return CoreUtils.Format("global::{0}.{1}Namespaces.{2}",
+                ns.Prefix, ns.GetModelHelperPrefix(), ns.Name);
         }
 
         /// <summary>
@@ -3115,10 +3150,12 @@ namespace Opc.Ua.Schema.Model
                 if (!string.IsNullOrEmpty(ns.XmlNamespace) &&
                     !string.Equals(ns.XmlNamespace, ns.Value, StringComparison.Ordinal))
                 {
-                    return CoreUtils.Format("{1}.Namespaces.{0}Xsd", ns.Name, ns.Prefix);
+                    return CoreUtils.Format("{0}.{1}Namespaces.{2}Xsd",
+                        ns.Prefix, ns.GetModelHelperPrefix(), ns.Name);
                 }
 
-                return CoreUtils.Format("{1}.Namespaces.{0}", ns.Name, ns.Prefix);
+                return CoreUtils.Format("{0}.{1}Namespaces.{2}",
+                    ns.Prefix, ns.GetModelHelperPrefix(), ns.Name);
             }
             return null;
         }

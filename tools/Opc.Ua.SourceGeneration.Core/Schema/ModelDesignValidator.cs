@@ -1471,7 +1471,9 @@ namespace Opc.Ua.Schema.Model
             {
                 foreach (HierarchyNode child in metadata.Hierarchy.NodeList)
                 {
-                    if (child.Instance!.BrowseName == "StaticNumericNodeIdRange")
+                    // A NodeSet declares its own static-identity promise, including empty or absent values.
+                    if (child.Instance!.BrowseName == "StaticNumericNodeIdRange" &&
+                        !dictionary.IsSourceNodeSet)
                     {
                         var variable = child.Instance as VariableDesign;
                         variable!.SetDefaultValue(ranges.ToArray(), m_context);
@@ -6952,9 +6954,6 @@ namespace Opc.Ua.Schema.Model
 
                 "QueryFirst" or "QueryNext"
                     => ServiceCategory.Query,
-
-                "SubmitService" or "GetServiceResult" or "ControlServiceExecution"
-                    => ServiceCategory.Asynchronous,
 
                 // Session lifecycle: CreateSession, ActivateSession, CloseSession, Cancel
                 _ => ServiceCategory.Session

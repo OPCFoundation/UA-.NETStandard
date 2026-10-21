@@ -48,7 +48,7 @@ namespace Opc.Ua.Client
             ServiceResultException? failure)
         {
             m_operation = CoreUtils.Clone(operation)!;
-            OriginalResponse = originalResponse;
+            m_originalResponse = CoreUtils.Clone(originalResponse);
             m_value = value;
             m_failure = failure != null ? ExceptionDispatchInfo.Capture(failure) : null;
         }
@@ -63,7 +63,7 @@ namespace Opc.Ua.Client
         /// Gets the complete original response, including its header, diagnostics and per-item results.
         /// Null denotes a terminal protocol outcome, not a fabricated original Service response.
         /// </summary>
-        public IServiceResponse? OriginalResponse { get; }
+        public IServiceResponse? OriginalResponse => CoreUtils.Clone(m_originalResponse);
 
         /// <summary>
         /// Gets whether the validated projection produced a value rather than an original/protocol failure.
@@ -91,6 +91,7 @@ namespace Opc.Ua.Client
         }
 
         private readonly ServiceOperationInfoDataType m_operation;
+        private readonly IServiceResponse? m_originalResponse;
         private readonly TResult m_value;
         private readonly ExceptionDispatchInfo? m_failure;
     }

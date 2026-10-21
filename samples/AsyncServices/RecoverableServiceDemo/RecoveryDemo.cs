@@ -32,13 +32,13 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
-using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using RecoverableServiceDemo.Model;
 
@@ -87,7 +87,7 @@ namespace RecoverableServiceDemo
                 ApplicationName = "RecoverableDemoServer",
                 ApplicationType = ApplicationType.Server
             };
-            await using var serverLifetime = serverApplication.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable serverLifetime = serverApplication.ConfigureAwait(false);
             _ = await serverApplication
                 .Build("urn:localhost:OPCFoundation:RecoverableDemoServer", "urn:OPCFoundation:RecoverableDemo")
                 .SetMaxMessageSize(131_072)
@@ -119,14 +119,14 @@ namespace RecoverableServiceDemo
             }
 
             var relay = new LoopbackOutageRelay(port, telemetry);
-            await using var relayLifetime = relay.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable relayLifetime = relay.ConfigureAwait(false);
             string clientRoot = Path.Combine(root, "client");
             var clientApplication = new ApplicationInstance(telemetry)
             {
                 ApplicationName = "RecoverableDemoClient",
                 ApplicationType = ApplicationType.Client
             };
-            await using var clientLifetime = clientApplication.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable clientLifetime = clientApplication.ConfigureAwait(false);
             ApplicationConfiguration configuration = await clientApplication
                 .Build("urn:localhost:OPCFoundation:RecoverableDemoClient", "urn:OPCFoundation:RecoverableDemo")
                 .SetMaxMessageSize(131_072)
@@ -152,14 +152,14 @@ namespace RecoverableServiceDemo
                 .WithCheckDomain()
                 .PreferRecoverableExecution()
                 .ConnectAsync(ct).ConfigureAwait(false);
-            await using var sessionLifetime = session.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable sessionLifetime = session.ConfigureAwait(false);
             NodeId originalSessionId = session.SessionId;
             var device = new DemoDeviceTypeClient(
                 session, ExpandedNodeId.ToNodeId(Model.ObjectIds.DemoDevice, session.NamespaceUris), telemetry);
 
             RecoverableAcknowledgementScope acknowledgement =
                 session.BeginAcknowledgementScope(requireRecoverableReceipt: true);
-            await using var acknowledgementLifetime = acknowledgement.ConfigureAwait(false);
+            await using ConfiguredAsyncDisposable acknowledgementLifetime = acknowledgement.ConfigureAwait(false);
             Task<int> operation = device.SlowIncrementAsync(7, ct).AsTask();
             try
             {

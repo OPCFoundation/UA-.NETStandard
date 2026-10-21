@@ -83,7 +83,8 @@ namespace Opc.Ua.Server
                     continue;
                 }
                 BaseInstanceState? hint = method.FindChild(
-                    systemContext, QualifiedName.From("SupportsRecoverableExecution"));
+                    systemContext, new QualifiedName(
+                        "SupportsRecoverableExecution", Server.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse)));
                 if (hint != null &&
                     (hint is not BaseVariableState property ||
                         !ReadBooleanAttribute(property, systemContext, Attributes.Value, out bool supported) ||
@@ -93,6 +94,57 @@ namespace Opc.Ua.Server
                         StatusCodes.BadServiceUnsupported,
                         "A Method does not support recoverable execution under the current Server policy.");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Re-evaluates the original successful permission checks without replaying any original work.
+        /// </summary>
+        internal async ValueTask ValidateRetainedPermissionsAsync(
+            OperationContext context, ArrayOf<RecoverableNodePermission> permissions, CancellationToken ct)
+        {
+            for (int i = 0; i < permissions.Count; i++)
+            {
+                RecoverableNodePermission permission = permissions[i];
+                if ((permission.Permission & PermissionType.AddNode) != 0 &&
+                    permission.NodeId.TryGetValue(out uint identifier) &&
+                    identifier == 0)
+                {
+                    RequireAccess(await ValidateAddNodeNamespacePermissionAsync(
+                        context, permission.NodeId.NamespaceIndex, ct).ConfigureAwait(false));
+                }
+                else
+                {
+                    RequireAccess(await m_serviceDispatch.ValidatePermissionsAsync(
+                        context, permission.NodeId, permission.Permission, permissionsOnly: true, cancellationToken: ct)
+                        .ConfigureAwait(false));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Rechecks the invoked manager Method's current Call permission and executable attributes after waiting.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask ValidateRecoverableManagerMethodAsync(
+            OperationContext context, CallMethodRequest request, CancellationToken ct)
+        {
+            RequireAccess(await m_serviceDispatch.ValidateCallRequestItemAsync(
+                context, request, permissionsOnly: true, cancellationToken: ct).ConfigureAwait(false));
+            (_, IAsyncNodeManager? owner) = await GetManagerHandleAsync(request.ObjectId, ct).ConfigureAwait(false);
+            if (owner == null)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+            }
+            MethodState method = await owner.FindMethodStateAsync(context, request, ct).ConfigureAwait(false);
+            ServerSystemContext systemContext = Server.DefaultSystemContext.Copy(context);
+            if (method == null ||
+                !ReadBooleanAttribute(method, systemContext, Attributes.Executable, out bool executable) ||
+                !executable ||
+                !ReadBooleanAttribute(method, systemContext, Attributes.UserExecutable, out bool userExecutable) ||
+                !userExecutable)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }
         }
 
@@ -155,8 +207,119 @@ namespace Opc.Ua.Server
                             context, item, permissionsOnly: true, cancellationToken: ct).ConfigureAwait(false));
                     }
                     return;
+                case HistoryReadRequest history when response is HistoryReadResponse result &&
+                    result.Results.Count == history.NodesToRead.Count:
+                    for (int i = 0; i < history.NodesToRead.Count; i++)
+                    {
+                        if (!StatusCode.IsBad(result.Results[i].StatusCode))
+                        {
+                            RequireAccess(await m_serviceDispatch.ValidateHistoryReadRequestAsync(
+                                context, history.NodesToRead[i], ct).ConfigureAwait(false));
+                            await ValidateRetainedValueAccessAsync(
+                                context, history.NodesToRead[i].NodeId, ct, AccessLevels.HistoryRead)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    return;
+                case HistoryUpdateRequest history when response is HistoryUpdateResponse result &&
+                    result.Results.Count == history.HistoryUpdateDetails.Count:
+                    for (int i = 0; i < history.HistoryUpdateDetails.Count; i++)
+                    {
+                        if (!StatusCode.IsBad(result.Results[i].StatusCode))
+                        {
+                            if (!history.HistoryUpdateDetails[i].TryGetValue(out HistoryUpdateDetails? details))
+                            {
+                                throw new ServiceResultException(StatusCodes.BadDecodingError);
+                            }
+                            RequireAccess(await m_serviceDispatch.ValidateHistoryUpdateRequestAsync(
+                                context, details, ct).ConfigureAwait(false));
+                        }
+                    }
+                    return;
+                case BrowseRequest browse when response is BrowseResponse result &&
+                    result.Results.Count == browse.NodesToBrowse.Count:
+                    await ValidateRetainedBrowseTargetsAsync(context, result.Results, ct).ConfigureAwait(false);
+                    return;
+                case BrowseNextRequest browse when response is BrowseNextResponse result &&
+                    (result.Results.Count == browse.ContinuationPoints.Count ||
+                        (browse.ReleaseContinuationPoints && result.Results.Count == 0)):
+                    await ValidateRetainedBrowseTargetsAsync(context, result.Results, ct).ConfigureAwait(false);
+                    return;
+                case TranslateBrowsePathsToNodeIdsRequest translate
+                    when response is TranslateBrowsePathsToNodeIdsResponse result &&
+                        result.Results.Count == translate.BrowsePaths.Count:
+                    for (int i = 0; i < result.Results.Count; i++)
+                    {
+                        BrowsePathResult path = result.Results[i];
+                        if (!StatusCode.IsBad(path.StatusCode))
+                        {
+                            for (int j = 0; j < path.Targets.Count; j++)
+                            {
+                                await ValidateRetainedBrowseTargetAsync(context, path.Targets[j].TargetId, ct)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    return;
+                case RegisterNodesRequest register when response is RegisterNodesResponse result &&
+                    result.RegisteredNodeIds.Count == register.NodesToRegister.Count:
+                    return;
+                case UnregisterNodesRequest when response is UnregisterNodesResponse:
+                    return;
+                case AddNodesRequest add when response is AddNodesResponse result &&
+                    result.Results.Count == add.NodesToAdd.Count:
+                    return;
+                case AddReferencesRequest add when response is AddReferencesResponse result &&
+                    result.Results.Count == add.ReferencesToAdd.Count:
+                    return;
+                case DeleteNodesRequest delete when response is DeleteNodesResponse result &&
+                    result.Results.Count == delete.NodesToDelete.Count:
+                    return;
+                case DeleteReferencesRequest delete when response is DeleteReferencesResponse result &&
+                    result.Results.Count == delete.ReferencesToDelete.Count:
+                    return;
                 default:
                     throw new ServiceResultException(StatusCodes.BadDecodingError);
+            }
+        }
+
+        /// <summary>
+        /// Checks current visibility of returned reference targets while preserving the immutable result.
+        /// </summary>
+        private async ValueTask ValidateRetainedBrowseTargetsAsync(
+            OperationContext context, ArrayOf<BrowseResult> results, CancellationToken ct)
+        {
+            for (int i = 0; i < results.Count; i++)
+            {
+                BrowseResult result = results[i];
+                if (!StatusCode.IsBad(result.StatusCode))
+                {
+                    for (int j = 0; j < result.References.Count; j++)
+                    {
+                        await ValidateRetainedBrowseTargetAsync(context, result.References[j].NodeId, ct)
+                            .ConfigureAwait(false);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Revalidates local targets; an external target remains governed by its local source's captured check.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private async ValueTask ValidateRetainedBrowseTargetAsync(
+            OperationContext context, ExpandedNodeId target, CancellationToken ct)
+        {
+            if (target.ServerIndex == 0)
+            {
+                var local = ExpandedNodeId.ToNodeId(target, Server.NamespaceUris);
+                if (local.IsNull)
+                {
+                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                }
+                RequireAccess(await m_serviceDispatch.ValidatePermissionsAsync(
+                    context, local, PermissionType.Browse, permissionsOnly: true, cancellationToken: ct)
+                    .ConfigureAwait(false));
             }
         }
 
@@ -165,7 +328,10 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         private async ValueTask ValidateRetainedValueAccessAsync(
-            OperationContext context, NodeId nodeId, CancellationToken ct)
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken ct,
+            byte requiredAccess = AccessLevels.CurrentRead)
         {
             (object? handle, IAsyncNodeManager? owner) = await GetManagerHandleAsync(nodeId, ct).ConfigureAwait(false);
             NodeMetadata? metadata = handle == null || owner == null
@@ -173,7 +339,7 @@ namespace Opc.Ua.Server
                 : await owner.GetNodeMetadataAsync(context, handle, BrowseResultMask.NodeClass, ct)
                     .ConfigureAwait(false);
             if (metadata == null ||
-                (metadata.NodeClass == NodeClass.Variable && (metadata.AccessLevel & AccessLevels.CurrentRead) == 0))
+                (metadata.NodeClass == NodeClass.Variable && (metadata.AccessLevel & requiredAccess) == 0))
             {
                 throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
             }

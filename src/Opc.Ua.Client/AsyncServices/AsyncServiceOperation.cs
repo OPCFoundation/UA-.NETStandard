@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -52,34 +53,31 @@ namespace Opc.Ua.Client
         /// Creates local identity and generated-client plumbing without sending the original request.
         /// </summary>
         internal AsyncServiceOperation(
-            SessionRequestContext binding,
+            RecoverableExecutionBinding binding,
             NodeId requestType,
             Func<ISessionClient, CancellationToken, ValueTask<TResult>> invoke,
-            bool ownsBinding = true)
+            bool ownsBinding = true,
+            Uuid clientOperationId = default)
         {
             m_binding = binding;
             m_ownsBinding = ownsBinding;
             m_requestType = requestType;
+            m_typeWitness = binding.TypeContext?.Witness ?? default;
+            m_requiresMethodProjection =
+                requestType == DataTypeIds.CallRequest && typeof(TResult) != typeof(CallResponse);
             m_invoke = invoke;
-            ClientOperationId = Uuid.NewUuid();
+            ClientOperationId = clientOperationId == Uuid.Empty ? Uuid.NewUuid() : clientOperationId;
             SessionConfiguration configuration = binding.Session.SaveSessionConfiguration();
             m_authenticationToken = configuration.AuthenticationToken;
             m_logger = binding.Session.MessageContext.Telemetry.CreateLogger<AsyncServiceOperation<TResult>>();
             m_captureTransport = new CaptureTransport(this, binding.Session.TransportChannel);
-            m_client = new CaptureClient(m_captureTransport, binding.Session.MessageContext.Telemetry)
+            m_client = new CaptureClient(this, m_captureTransport, binding.Session.MessageContext.Telemetry)
             {
                 ReturnDiagnostics = binding.Session.ReturnDiagnostics,
                 DefaultTimeoutHint = binding.Session.DefaultTimeoutHint
             };
             m_client.SessionCreated(configuration.SessionId, configuration.AuthenticationToken);
-            binding.ResponseReceived += ObserveSubmissionReply;
         }
-
-        /// <summary>
-        /// Gets whether a decoded outer ServiceFault proved that Submit rejected unsupported recovery.
-        /// Transport errors and embedded original outcomes never set this flag.
-        /// </summary>
-        internal bool UnsupportedSubmissionRejected => Volatile.Read(ref m_unsupportedSubmissionRejected) != 0;
 
         /// <summary>
         /// Gets the nonzero Client ID, including before submission and after local disposal.
@@ -87,9 +85,14 @@ namespace Opc.Ua.Client
         public Uuid ClientOperationId { get; }
 
         /// <summary>
-        /// Gets the original Server Session ID. A replacement Session is never adopted.
+        /// Gets the original issuing Server Session ID, even when explicit Owner recovery uses another Session.
         /// </summary>
         public NodeId SessionId => m_binding.SessionId;
+
+        /// <summary>
+        /// Gets the exact selected recovery contract; collection and replacement Sessions never downgrade it.
+        /// </summary>
+        public ServiceOperationRecoveryMode RecoveryMode => m_binding.Options.RecoveryMode;
 
         /// <summary>
         /// Gets the Server token once recovered or admitted. It is not an authorization credential.
@@ -133,7 +136,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the last explicit ACK response, independently of the accepted original result.
         /// </summary>
-        public ControlServiceExecutionResponse? LastAcknowledgement
+        public ControlResponseDataType? LastAcknowledgement
         {
             get
             {
@@ -157,6 +160,11 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Gets or sets whether the enclosing typed caller operation owns the final local acceptance commit.
+        /// </summary>
+        internal bool DeferAcceptanceCheckpoint { get; set; }
 
         /// <summary>
         /// Selects explicit application acknowledgement. Configure before calling SubmitAsync.
@@ -196,6 +204,7 @@ namespace Opc.Ua.Client
         /// Sends the original request once with exact requested lifetimes and a bounded or zero initial wait.
         /// Any uncertain exchange failure leaves this handle available for Collect, never another Submit.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<ServiceOperationInfoDataType> SubmitAsync(
             double executionAllowance, double resultRetentionTime, double waitTime = 0, CancellationToken ct = default)
         {
@@ -214,6 +223,14 @@ namespace Opc.Ua.Client
             await m_exchanges.WaitAsync(linked.Token).ConfigureAwait(false);
             try
             {
+                RecoverableCapabilities capabilities = await m_binding.DiscoverAsync(linked.Token)
+                    .ConfigureAwait(false);
+                if (!capabilities.Available ||
+                    !capabilities.SupportedServices.Contains(m_requestType) ||
+                    !capabilities.SupportedRecoveryModes.Contains((int)RecoveryMode))
+                {
+                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
+                }
                 m_invocation = InvokeAsync();
                 _ = ObserveInvocationAsync(m_invocation);
                 if (m_invocation.IsCompleted)
@@ -233,19 +250,38 @@ namespace Opc.Ua.Client
                     }
                     throw;
                 }
-                SubmitServiceResponse response = await m_binding.Session.SubmitServiceAsync(
-                    null, ClientOperationId, new ExtensionObject(request),
-                    executionAllowance, resultRetentionTime, waitTime, linked.Token).ConfigureAwait(false);
+                await SaveCheckpointAsync(
+                    RecoverableCheckpointAcceptance.SubmissionAttempted, linked.Token).ConfigureAwait(false);
+                RecoverableManagerClient manager = await m_binding.GetManagerAsync(
+                    linked.Token, allowReplacement: false).ConfigureAwait(false);
+                var submission = new SubmitRequestDataType
+                {
+                    ClientOperationId = ClientOperationId,
+                    RecoveryMode = RecoveryMode,
+                    Request = new ExtensionObject(request),
+                    ExecutionAllowance = executionAllowance,
+                    ResultRetentionTime = resultRetentionTime,
+                    WaitTime = waitTime
+                };
+                SubmitResponseDataType response;
+                m_exchangeFailure = null;
                 try
                 {
-                    ValidateMetadata(response.Operation, response.Result, queriedByClientId: true);
-                    await AcceptAsync(response.Operation, response.Result, linked.Token).ConfigureAwait(false);
-                    return CoreUtils.Clone(response.Operation)!;
+                    response = await manager.SubmitAsync(submission, linked.Token).ConfigureAwait(false);
                 }
-                finally
+                catch (ServiceResultException failure)
                 {
-                    response.Reuse();
+                    m_exchangeFailure = failure;
+                    throw;
                 }
+                if (response.Operation.State == ServiceOperationState.Unknown)
+                {
+                    throw InvalidResponse();
+                }
+                ValidateMetadata(response.Operation, response.Result, queriedByClientId: true);
+                await SaveCheckpointAsync(m_checkpointAcceptance, linked.Token).ConfigureAwait(false);
+                await AcceptAsync(response.Operation, response.Result, linked.Token).ConfigureAwait(false);
+                return CoreUtils.Clone(response.Operation)!;
             }
             finally
             {
@@ -273,19 +309,38 @@ namespace Opc.Ua.Client
                 }
                 ByteString token = ServerToken;
                 bool byClientId = token.IsNull;
-                GetServiceResultResponse response = await m_binding.Session.GetServiceResultAsync(
-                    null, byClientId ? ClientOperationId : Uuid.Empty,
-                    byClientId ? default : token, waitTime, linked.Token).ConfigureAwait(false);
+                if (m_savedOutcome is { } saved)
+                {
+                    ExtensionObject payload = saved.OriginalResponse == null
+                        ? default : new ExtensionObject(CoreUtils.Clone(saved.OriginalResponse)!);
+                    ValidateMetadata(saved.Operation!, payload, queriedByClientId: true);
+                    await AcceptAsync(saved.Operation!, payload, linked.Token).ConfigureAwait(false);
+                    m_savedOutcome = null;
+                    return CoreUtils.Clone(saved.Operation)!;
+                }
+                RecoverableManagerClient manager = await m_binding.GetManagerAsync(linked.Token).ConfigureAwait(false);
+                var collection = new GetResultRequestDataType
+                {
+                    RecoveryMode = RecoveryMode,
+                    ClientOperationId = byClientId ? ClientOperationId : Uuid.Empty,
+                    ServerToken = byClientId ? default : token,
+                    WaitTime = waitTime
+                };
+                GetResultResponseDataType response;
+                m_exchangeFailure = null;
                 try
                 {
-                    ValidateMetadata(response.Operation, response.Result, byClientId);
-                    await AcceptAsync(response.Operation, response.Result, linked.Token).ConfigureAwait(false);
-                    return CoreUtils.Clone(response.Operation)!;
+                    response = await manager.GetResultAsync(collection, linked.Token).ConfigureAwait(false);
                 }
-                finally
+                catch (ServiceResultException failure)
                 {
-                    response.Reuse();
+                    m_exchangeFailure = failure;
+                    throw;
                 }
+                ValidateMetadata(response.Operation, response.Result, byClientId);
+                await SaveCheckpointAsync(m_checkpointAcceptance, linked.Token).ConfigureAwait(false);
+                await AcceptAsync(response.Operation, response.Result, linked.Token).ConfigureAwait(false);
+                return CoreUtils.Clone(response.Operation)!;
             }
             finally
             {
@@ -308,7 +363,9 @@ namespace Opc.Ua.Client
                         .ConfigureAwait(false);
             }
             catch (ServiceResultException exception) when (
-                !ct.IsCancellationRequested && IsTransportFailure(exception.StatusCode))
+                !ct.IsCancellationRequested &&
+                ReferenceEquals(exception, m_exchangeFailure) &&
+                IsTransportFailure(exception.StatusCode))
             {
                 m_logger.AsyncServiceSubmissionUncertain(ClientOperationId, exception.StatusCode);
                 await m_binding.RecoverAsync(ct).ConfigureAwait(false);
@@ -334,7 +391,9 @@ namespace Opc.Ua.Client
                     info = await CollectAsync(waitTime, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException exception) when (
-                    !ct.IsCancellationRequested && IsTransportFailure(exception.StatusCode))
+                    !ct.IsCancellationRequested &&
+                    ReferenceEquals(exception, m_exchangeFailure) &&
+                    IsTransportFailure(exception.StatusCode))
                 {
                     await m_binding.RecoverAsync(ct).ConfigureAwait(false);
                     continue;
@@ -352,25 +411,25 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Requests stopping work without promising rollback or abandoning recovery.
         /// </summary>
-        public ValueTask<ControlServiceExecutionResponse> CancelAsync(CancellationToken ct = default)
+        public ValueTask<ControlResponseDataType> CancelAsync(CancellationToken ct = default)
         {
-            return ControlAsync(ServiceOperationControlAction.Cancel, ct);
+            return ControlAsync(ControlMethod.Cancel, ct);
         }
 
         /// <summary>
         /// Acknowledges an accepted outcome. Retrying this method retries only ACK, never original work.
         /// </summary>
-        public ValueTask<ControlServiceExecutionResponse> AcknowledgeAsync(CancellationToken ct = default)
+        public ValueTask<ControlResponseDataType> AcknowledgeAsync(CancellationToken ct = default)
         {
-            return ControlAsync(ServiceOperationControlAction.Acknowledge, ct);
+            return ControlAsync(ControlMethod.Acknowledge, ct);
         }
 
         /// <summary>
         /// Gives up Server result recovery without requesting cancellation of work.
         /// </summary>
-        public ValueTask<ControlServiceExecutionResponse> AbandonAsync(CancellationToken ct = default)
+        public ValueTask<ControlResponseDataType> AbandonAsync(CancellationToken ct = default)
         {
-            return ControlAsync(ServiceOperationControlAction.Abandon, ct);
+            return ControlAsync(ControlMethod.Abandon, ct);
         }
 
         /// <inheritdoc/>
@@ -388,7 +447,6 @@ namespace Opc.Ua.Client
             {
                 m_client.Dispose();
                 m_captureTransport.Dispose();
-                m_binding.ResponseReceived -= ObserveSubmissionReply;
                 if (m_ownsBinding)
                 {
                     await m_binding.DisposeAsync().ConfigureAwait(false);
@@ -403,17 +461,62 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Separates a decoded pre-admission refusal from failures of transport, collection or the original Service.
+        /// Initializes a recovery-only handle from protected state; no restored handle may invoke Submit.
         /// </summary>
-        private void ObserveSubmissionReply(IServiceRequest request, IServiceResponse response)
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask RestoreAsync(
+            RecoverableOperationCheckpoint checkpoint, ByteString version, CancellationToken ct)
         {
-            if (request is SubmitServiceRequest submit &&
-                submit.ClientOperationId == ClientOperationId &&
-                response is ServiceFault &&
-                response.ResponseHeader.ServiceResult == StatusCodes.BadServiceUnsupported)
+            if (checkpoint.RecoveryMode != RecoveryMode ||
+                checkpoint.ClientOperationId != ClientOperationId ||
+                checkpoint.ServiceId != m_requestType ||
+                m_binding.Identity == null ||
+                !checkpoint.Identity.Matches(m_binding.Identity) ||
+                (RecoveryMode == ServiceOperationRecoveryMode.Session && checkpoint.SessionId != SessionId))
             {
-                Volatile.Write(ref m_unsupportedSubmissionRejected, 1);
+                throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected);
             }
+            m_submissionAttempted = true;
+            m_automaticAcknowledgement = false;
+            m_executionAllowance = checkpoint.ExecutionAllowance;
+            m_resultRetentionTime = checkpoint.ResultRetentionTime;
+            m_serverToken = checkpoint.ServerToken.Copy();
+            m_checkpointVersion = version;
+            m_typeWitness = checkpoint.TypeWitness;
+            m_checkpointAcceptance = checkpoint.Acceptance;
+            m_restoredRequest = CoreUtils.Clone(checkpoint.Request);
+            m_invocation = InvokeAsync();
+            _ = ObserveInvocationAsync(m_invocation);
+            _ = await m_prepared.Task.WaitAsync(ct).ConfigureAwait(false);
+            if (checkpoint.Acceptance >= RecoverableCheckpointAcceptance.OutcomeValidated)
+            {
+                m_savedOutcome = checkpoint;
+                if (checkpoint.Acceptance >= RecoverableCheckpointAcceptance.Accepted)
+                {
+                    m_restoringAccepted = true;
+                    try
+                    {
+                        _ = await CollectAsync(ct: ct).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        m_restoringAccepted = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Commits the validated original outcome and local acceptance state before an enclosing receipt may ACK it.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        internal ValueTask CommitAcceptanceAsync(CancellationToken ct)
+        {
+            if (m_candidate == null)
+            {
+                throw new InvalidOperationException("No validated original outcome is available for acceptance.");
+            }
+            return SaveCheckpointAsync(RecoverableCheckpointAcceptance.Accepted, ct);
         }
 
         /// <summary>
@@ -482,7 +585,17 @@ namespace Opc.Ua.Client
                 }
                 if (ExpandedNodeId.ToNodeId(request.TypeId, m_client.MessageContext.NamespaceUris) == m_requestType)
                 {
-                    m_originalRequest = CoreUtils.Clone(request)!;
+                    if (m_restoredRequest != null)
+                    {
+                        IServiceRequest projected = CoreUtils.Clone(request)!;
+                        projected.RequestHeader = CoreUtils.Clone(m_restoredRequest.RequestHeader)!;
+                        if (!CoreUtils.IsEqual(projected, m_restoredRequest))
+                        {
+                            throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                                "The restored typed invocation does not match its saved original request.");
+                        }
+                    }
+                    m_originalRequest = CoreUtils.Clone(m_restoredRequest ?? request)!;
                     m_prepared.TrySetResult(m_originalRequest);
                     return new ValueTask<IServiceResponse>(m_originalReply.Task);
                 }
@@ -504,7 +617,7 @@ namespace Opc.Ua.Client
         {
             if (info == null ||
                 info.State is < ServiceOperationState.Unknown or > ServiceOperationState.Expired ||
-                info.OutcomeKind is < ServiceOperationOutcome.None or > ServiceOperationOutcome.ResultUnavailable)
+                info.OutcomeKind is < ServiceOperationOutcome.None or > ServiceOperationOutcome.ExecutionIndeterminate)
             {
                 throw InvalidResponse();
             }
@@ -513,6 +626,7 @@ namespace Opc.Ua.Client
                 if (info.ClientOperationId != (queriedByClientId ? ClientOperationId : Uuid.Empty) ||
                     !info.ServerToken.IsNull ||
                     !info.ServiceId.IsNull ||
+                    info.RecoveryMode != ServiceOperationRecoveryMode.Unspecified ||
                     info.OutcomeKind != ServiceOperationOutcome.None ||
                     info.OutcomeStatus != StatusCodes.Good ||
                     info.CancellationRequested ||
@@ -534,6 +648,7 @@ namespace Opc.Ua.Client
                     info.ServerToken.Length is <= 0 or > 64 ||
                     (!token.IsNull && token != info.ServerToken) ||
                     info.ServiceId != m_requestType ||
+                    info.RecoveryMode != RecoveryMode ||
                     info.ExecutionAllowance != m_executionAllowance ||
                     info.ResultRetentionTime != m_resultRetentionTime ||
                     !IsRemaining(info.ExecutionRemaining, m_executionAllowance) ||
@@ -560,9 +675,25 @@ namespace Opc.Ua.Client
                         info.OutcomeStatus != StatusCodes.BadTimeout) ||
                     (info.OutcomeKind == ServiceOperationOutcome.ResultUnavailable &&
                         info.OutcomeStatus != StatusCodes.BadResponseTooLarge &&
-                        info.OutcomeStatus != StatusCodes.BadEncodingError))
+                        info.OutcomeStatus != StatusCodes.BadEncodingError) ||
+                    (info.OutcomeKind == ServiceOperationOutcome.ExecutionIndeterminate &&
+                        (RecoveryMode != ServiceOperationRecoveryMode.Durable ||
+                            info.OutcomeStatus != StatusCodes.BadUnexpectedError)) ||
+                    (info.State is ServiceOperationState.Acknowledged or ServiceOperationState.Expired &&
+                        info.OutcomeKind == ServiceOperationOutcome.None) ||
+                    (info.OutcomeKind == ServiceOperationOutcome.None && info.OutcomeStatus != StatusCodes.Good))
                 {
                     throw InvalidResponse();
+                }
+                if (m_candidate is { } accepted)
+                {
+                    ServiceOperationInfoDataType previous = accepted.Operation;
+                    if (pending ||
+                        info.OutcomeKind != previous.OutcomeKind ||
+                        info.OutcomeStatus != previous.OutcomeStatus)
+                    {
+                        throw InvalidResponse();
+                    }
                 }
                 lock (m_state)
                 {
@@ -582,6 +713,16 @@ namespace Opc.Ua.Client
         private async ValueTask AcceptAsync(
             ServiceOperationInfoDataType info, ExtensionObject payload, CancellationToken ct)
         {
+            await m_binding.VerifyTypeContextAsync(ct).ConfigureAwait(false);
+            if (m_candidate != null &&
+                info.State == ServiceOperationState.OutcomeAvailable &&
+                info.OutcomeKind == ServiceOperationOutcome.ServiceResponse &&
+                (m_candidate.OriginalResponse is not { } retained ||
+                    !payload.TryGetValue(out IServiceResponse? repeated, m_binding.MessageContext) ||
+                    !CoreUtils.IsEqual(repeated, retained)))
+            {
+                throw InvalidResponse();
+            }
             if (m_completion.Task.IsCompleted || info.State != ServiceOperationState.OutcomeAvailable)
             {
                 return;
@@ -593,20 +734,29 @@ namespace Opc.Ua.Client
                 ServiceResultException? failure = null;
                 if (info.OutcomeKind == ServiceOperationOutcome.ServiceResponse)
                 {
-                    if (!payload.TryGetValue(out original, m_binding.Session.MessageContext) ||
+                    if (!payload.TryGetValue(out original, m_binding.MessageContext) ||
                         original.ResponseHeader == null ||
                         original.ResponseHeader.RequestHandle != m_originalRequest!.RequestHeader.RequestHandle ||
                         original.ResponseHeader.ServiceResult != info.OutcomeStatus)
                     {
                         throw InvalidResponse();
                     }
-                    ValidateOriginalResponse(original);
-                    m_originalReply.TrySetResult(original);
+                    original = CoreUtils.Clone(original)!;
+                    RecoverableServiceRequests.ValidateResponse(m_originalRequest!, original);
+                    if (StatusCode.IsBad(original.ResponseHeader.ServiceResult))
+                    {
+                        m_originalFailure = CaptureClient.CreateOriginalFailure(original.ResponseHeader);
+                        m_originalReply.TrySetException(m_originalFailure);
+                    }
+                    else
+                    {
+                        m_originalReply.TrySetResult(CoreUtils.Clone(original)!);
+                    }
                     try
                     {
                         value = await m_invocation!.ConfigureAwait(false);
                     }
-                    catch (ServiceResultException exception) when (IsOriginalFailure(original, exception.StatusCode))
+                    catch (ServiceResultException exception) when (IsOriginalFailure(exception))
                     {
                         failure = exception;
                     }
@@ -619,9 +769,17 @@ namespace Opc.Ua.Client
                 }
                 m_candidate = new AsyncServiceResult<TResult>(info, original, value, failure);
             }
-            if (m_accept != null)
+            if (!m_restoringAccepted)
             {
-                await m_accept(m_candidate, ct).ConfigureAwait(false);
+                await SaveCheckpointAsync(RecoverableCheckpointAcceptance.OutcomeValidated, ct).ConfigureAwait(false);
+                if (m_accept != null)
+                {
+                    await m_accept(m_candidate, ct).ConfigureAwait(false);
+                }
+                if (!DeferAcceptanceCheckpoint)
+                {
+                    await CommitAcceptanceAsync(ct).ConfigureAwait(false);
+                }
             }
             if (!m_completion.TrySetResult(m_candidate))
             {
@@ -634,105 +792,48 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Preserves the original ServiceFault exception and ordinary batch validation semantics.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        private void ValidateOriginalResponse(IServiceResponse response)
-        {
-            if (response is ServiceFault)
-            {
-                if (!StatusCode.IsBad(response.ResponseHeader.ServiceResult))
-                {
-                    throw InvalidResponse();
-                }
-                return;
-            }
-            switch (m_originalRequest)
-            {
-                case ReadRequest request when response is ReadResponse read:
-                    if (StatusCode.IsGood(read.ResponseHeader.ServiceResult))
-                    {
-                        ClientBase.ValidateResponse(read.Results, request.NodesToRead);
-                        ClientBase.ValidateDiagnosticInfos(read.DiagnosticInfos, request.NodesToRead);
-                    }
-                    break;
-                case WriteRequest request when response is WriteResponse write:
-                    if (StatusCode.IsGood(write.ResponseHeader.ServiceResult))
-                    {
-                        ClientBase.ValidateResponse(write.Results, request.NodesToWrite);
-                        ClientBase.ValidateDiagnosticInfos(write.DiagnosticInfos, request.NodesToWrite);
-                    }
-                    break;
-                case CallRequest request when response is CallResponse call:
-                    if (StatusCode.IsGood(call.ResponseHeader.ServiceResult))
-                    {
-                        ClientBase.ValidateResponse(call.Results, request.MethodsToCall);
-                        ClientBase.ValidateDiagnosticInfos(call.DiagnosticInfos, request.MethodsToCall);
-                    }
-                    break;
-                default:
-                    throw InvalidResponse();
-            }
-        }
-
-        /// <summary>
         /// Distinguishes a legitimate original/per-Method failure from a local typed-decoding failure.
         /// </summary>
-        private static bool IsOriginalFailure(IServiceResponse original, StatusCode status)
+        private bool IsOriginalFailure(ServiceResultException failure)
         {
-            if (StatusCode.IsBad(original.ResponseHeader.ServiceResult) &&
-                original.ResponseHeader.ServiceResult == status)
-            {
-                return true;
-            }
-            if (original is CallResponse call)
-            {
-                foreach (CallMethodResult result in call.Results)
-                {
-                    if (StatusCode.IsBad(result.StatusCode) && result.StatusCode == status)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
+            return ReferenceEquals(failure, m_originalFailure) ||
+                m_originalFailures.Exists(original => ReferenceEquals(original, failure));
         }
 
         /// <summary>
         /// Serializes explicit controls while preserving their distinct wire actions.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        private async ValueTask<ControlServiceExecutionResponse> ControlAsync(
-            ServiceOperationControlAction action, CancellationToken ct)
+        private async ValueTask<ControlResponseDataType> ControlAsync(ControlMethod method, CancellationToken ct)
         {
             ThrowIfDisposed();
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, m_lifetime.Token);
             await m_exchanges.WaitAsync(linked.Token).ConfigureAwait(false);
             try
             {
-                if (action == ServiceOperationControlAction.Acknowledge && !m_completion.Task.IsCompletedSuccessfully)
+                if (method == ControlMethod.Acknowledge && !m_completion.Task.IsCompletedSuccessfully)
                 {
                     throw new InvalidOperationException("An outcome must be accepted before acknowledging it.");
                 }
-                if (action == ServiceOperationControlAction.Acknowledge &&
+                if (method == ControlMethod.Acknowledge &&
                     AcknowledgementFailure is { } failure &&
                     IsTransportFailure(failure.StatusCode))
                 {
                     await m_binding.RecoverAsync(linked.Token).ConfigureAwait(false);
                 }
-                return await SendControlAsync(action, linked.Token).ConfigureAwait(false);
+                return await SendControlAsync(method, linked.Token).ConfigureAwait(false);
             }
-            catch (ServiceResultException error) when (action == ServiceOperationControlAction.Acknowledge)
+            catch (ServiceResultException error) when (method == ControlMethod.Acknowledge)
             {
                 SetAcknowledgementFailure(error.Result);
                 throw;
             }
-            catch (OperationCanceledException) when (action == ServiceOperationControlAction.Acknowledge)
+            catch (OperationCanceledException) when (method == ControlMethod.Acknowledge)
             {
                 SetAcknowledgementFailure(new ServiceResult(StatusCodes.BadRequestCancelledByClient));
                 throw;
             }
-            catch (Exception error) when (action == ServiceOperationControlAction.Acknowledge &&
+            catch (Exception error) when (method == ControlMethod.Acknowledge &&
                 error is IOException or HttpRequestException or SocketException)
             {
                 SetAcknowledgementFailure(new ServiceResult(StatusCodes.BadCommunicationError));
@@ -751,9 +852,7 @@ namespace Opc.Ua.Client
         {
             try
             {
-                ControlServiceExecutionResponse response = await SendControlAsync(
-                    ServiceOperationControlAction.Acknowledge, ct).ConfigureAwait(false);
-                response.Reuse();
+                _ = await SendControlAsync(ControlMethod.Acknowledge, ct).ConfigureAwait(false);
             }
             catch (ServiceResultException exception)
             {
@@ -778,50 +877,99 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        private async ValueTask<ControlServiceExecutionResponse> SendControlAsync(
-            ServiceOperationControlAction action, CancellationToken ct)
+        private async ValueTask<ControlResponseDataType> SendControlAsync(ControlMethod method, CancellationToken ct)
         {
             ByteString token = ServerToken;
             if (token.IsNull)
             {
                 throw new InvalidOperationException("Recover the Server token before issuing a control.");
             }
-            ControlServiceExecutionResponse response = await m_binding.Session.ControlServiceExecutionAsync(
-                null, token, action, ct).ConfigureAwait(false);
-            try
+            if (method == ControlMethod.Acknowledge &&
+                m_binding.Options.CheckpointStore != null &&
+                m_checkpointAcceptance < RecoverableCheckpointAcceptance.Accepted)
             {
-                if (response.Result is < ServiceOperationControlResult.Applied or
-                    > ServiceOperationControlResult.UnknownOperation)
+                throw new InvalidOperationException("The accepted outcome must be durably checkpointed before ACK.");
+            }
+            RecoverableManagerClient manager = await m_binding.GetManagerAsync(ct).ConfigureAwait(false);
+            var request = new OperationControlRequestDataType { ServerToken = token };
+            ControlResponseDataType response = method switch
+            {
+                ControlMethod.Acknowledge => await manager.AcknowledgeAsync(request, ct).ConfigureAwait(false),
+                ControlMethod.Cancel => await manager.CancelAsync(request, ct).ConfigureAwait(false),
+                ControlMethod.Abandon => await manager.AbandonAsync(request, ct).ConfigureAwait(false),
+                _ => throw new InvalidOperationException()
+            };
+            if (response.Result is < ServiceOperationControlResult.Applied or
+                > ServiceOperationControlResult.UnknownOperation)
+            {
+                throw InvalidResponse();
+            }
+            ValidateMetadata(response.Operation, default, queriedByClientId: false, control: true);
+            if (response.Result == ServiceOperationControlResult.UnknownOperation !=
+                (response.Operation.State == ServiceOperationState.Unknown))
+            {
+                throw InvalidResponse();
+            }
+            bool applied = response.Result is ServiceOperationControlResult.Applied or
+                ServiceOperationControlResult.AlreadyApplied;
+            if ((method == ControlMethod.Cancel && applied && !response.Operation.CancellationRequested) ||
+                (method == ControlMethod.Abandon &&
+                    applied &&
+                    response.Operation.State != ServiceOperationState.Abandoned) ||
+                (method == ControlMethod.Abandon &&
+                    response.Result == ServiceOperationControlResult.NotApplicable &&
+                    response.Operation.State is not
+                        (ServiceOperationState.Acknowledged or ServiceOperationState.Expired)) ||
+                (method == ControlMethod.Acknowledge &&
+                    response.Result == ServiceOperationControlResult.NotApplicable &&
+                    response.Operation.State is not (ServiceOperationState.Pending or ServiceOperationState.Abandoned or
+                        ServiceOperationState.Expired)))
+            {
+                throw InvalidResponse();
+            }
+            if (method == ControlMethod.Acknowledge)
+            {
+                if (applied && response.Operation.State != ServiceOperationState.Acknowledged)
                 {
                     throw InvalidResponse();
                 }
-                ValidateMetadata(response.Operation, default, queriedByClientId: false, control: true);
-                if (response.Result == ServiceOperationControlResult.UnknownOperation !=
-                    (response.Operation.State == ServiceOperationState.Unknown))
+                if (response.Result is
+                    ServiceOperationControlResult.Applied or ServiceOperationControlResult.AlreadyApplied)
                 {
-                    throw InvalidResponse();
+                    await SaveCheckpointAsync(RecoverableCheckpointAcceptance.Acknowledged, ct).ConfigureAwait(false);
                 }
-                if (action == ServiceOperationControlAction.Acknowledge)
+                lock (m_state)
                 {
-                    if (response.Result is ServiceOperationControlResult.Applied or
-                        ServiceOperationControlResult.AlreadyApplied &&
-                        response.Operation.State != ServiceOperationState.Acknowledged)
-                    {
-                        throw InvalidResponse();
-                    }
-                    lock (m_state)
-                    {
-                        m_lastAcknowledgement = CoreUtils.Clone(response);
-                        m_acknowledgementFailure = null;
-                    }
+                    m_lastAcknowledgement = CoreUtils.Clone(response);
+                    m_acknowledgementFailure = null;
                 }
-                return response;
             }
-            catch
+            return response;
+        }
+
+        /// <summary>
+        /// Writes protected recovery state without credentials and never overwrites a concurrent collector.
+        /// </summary>
+        private async ValueTask SaveCheckpointAsync(RecoverableCheckpointAcceptance acceptance, CancellationToken ct)
+        {
+            RecoverableOperationCheckpointStore? store = m_binding.Options.CheckpointStore;
+            if (store == null)
             {
-                response.Reuse();
-                throw;
+                return;
             }
+            if (acceptance < m_checkpointAcceptance)
+            {
+                acceptance = m_checkpointAcceptance;
+            }
+            var checkpoint = new RecoverableOperationCheckpoint(
+                ClientOperationId, RecoveryMode, m_binding.Identity!, SessionId, m_requestType,
+                m_binding.NamespaceUris, m_binding.ServerUris, m_executionAllowance, m_resultRetentionTime,
+                m_originalRequest!, ServerToken, m_candidate?.Operation ?? LastOperation,
+                m_candidate?.OriginalResponse, acceptance,
+                DeferAcceptanceCheckpoint || m_accept != null, m_requiresMethodProjection, m_typeWitness);
+            m_checkpointVersion = await store.SaveAsync(
+                checkpoint, m_checkpointVersion, m_binding.Session.MessageContext, ct).ConfigureAwait(false);
+            m_checkpointAcceptance = acceptance;
         }
 
         /// <summary>
@@ -903,11 +1051,48 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Disables proxy fallback on the capturing client without inspecting ordinary clients' transports.
         /// </summary>
-        private sealed class CaptureClient(ITransportChannel transport, ITelemetryContext telemetry) :
-            SessionClient(transport, telemetry), IMethodCallRetryPolicy
+        private sealed class CaptureClient(
+            AsyncServiceOperation<TResult> operation, ITransportChannel transport, ITelemetryContext telemetry) :
+            SessionClient(transport, telemetry), IMethodCallRetryPolicy, IClientOperationContext
         {
             /// <inheritdoc/>
             public bool AllowMethodIdFallback => false;
+
+            /// <inheritdoc/>
+            public bool RequiresTypedOperationContext => true;
+
+            /// <inheritdoc/>
+            public bool HasOperationContext => true;
+
+            /// <inheritdoc/>
+            public void ObserveOriginalFailure(ServiceResultException failure)
+            {
+                operation.m_originalFailures.Add(failure);
+            }
+
+            /// <inheritdoc/>
+            public ValueTask<TValue> ExecuteOperationAsync<TValue>(
+                Func<CancellationToken, ValueTask<TValue>> invoke, CancellationToken ct)
+            {
+                return invoke(ct);
+            }
+
+            /// <summary>
+            /// Uses the ordinary header validator to preserve diagnostics and the exact original exception instance.
+            /// </summary>
+            /// <exception cref="ServiceResultException"></exception>
+            internal static ServiceResultException CreateOriginalFailure(ResponseHeader header)
+            {
+                try
+                {
+                    ValidateResponse(header);
+                }
+                catch (ServiceResultException failure)
+                {
+                    return failure;
+                }
+                throw InvalidResponse();
+            }
         }
 
         /// <summary>
@@ -947,7 +1132,17 @@ namespace Opc.Ua.Client
             }
         }
 
-        private readonly SessionRequestContext m_binding;
+        /// <summary>
+        /// Selects a generated control Method locally; no action or mode field is added to its wire request.
+        /// </summary>
+        private enum ControlMethod
+        {
+            Acknowledge,
+            Cancel,
+            Abandon
+        }
+
+        private readonly RecoverableExecutionBinding m_binding;
         private readonly NodeId m_requestType;
         private readonly NodeId m_authenticationToken;
         private readonly Func<ISessionClient, CancellationToken, ValueTask<TResult>> m_invoke;
@@ -970,17 +1165,29 @@ namespace Opc.Ua.Client
         private Task<TResult>? m_invocation;
         private IServiceRequest? m_originalRequest;
         private readonly bool m_ownsBinding;
-        private int m_unsupportedSubmissionRejected;
+        private readonly bool m_requiresMethodProjection;
         private Func<AsyncServiceResult<TResult>, CancellationToken, ValueTask>? m_accept;
         private AsyncServiceResult<TResult>? m_candidate;
         private ByteString m_serverToken;
         private ServiceOperationInfoDataType? m_lastOperation;
-        private ControlServiceExecutionResponse? m_lastAcknowledgement;
+        private ControlResponseDataType? m_lastAcknowledgement;
         private ServiceResult? m_acknowledgementFailure;
         private double m_executionAllowance;
         private double m_resultRetentionTime;
         private bool m_submissionAttempted;
         private bool m_automaticAcknowledgement = true;
+        private readonly List<ServiceResultException> m_originalFailures = [];
+        private ServiceResultException? m_originalFailure;
+        private ServiceResultException? m_exchangeFailure;
+        private IServiceRequest? m_restoredRequest;
+        private RecoverableOperationCheckpoint? m_savedOutcome;
+        private ByteString m_checkpointVersion;
+        private ByteString m_typeWitness;
+
+        private RecoverableCheckpointAcceptance m_checkpointAcceptance =
+            RecoverableCheckpointAcceptance.SubmissionAttempted;
+
+        private bool m_restoringAccepted;
         private int m_disposed;
     }
 

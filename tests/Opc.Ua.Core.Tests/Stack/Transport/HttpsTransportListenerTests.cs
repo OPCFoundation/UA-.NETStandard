@@ -36,9 +36,11 @@ using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Tests;
 #if NET8_0_OR_GREATER
+using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Opc.Ua.Security.Certificates;
@@ -714,6 +716,110 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 response.ResponseHeader.ServiceResult,
                 Is.EqualTo((StatusCode)StatusCodes.BadSecurityPolicyRejected));
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(2024u));
+        }
+
+        /// <summary>
+        /// A returned response is released after encoding, encoding failure, or cancellation before encoding.
+        /// </summary>
+        [TestCase(false, "success")]
+        [TestCase(true, "success")]
+        [TestCase(false, "aborted")]
+        [TestCase(true, "aborted")]
+        [TestCase(false, "encoding")]
+        [TestCase(true, "encoding")]
+        public async Task ResponseOwnershipEndsOnEveryHttpDeliveryPath(bool json, string outcome)
+        {
+            await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
+            var messages = ServiceMessageContext.Create(m_telemetry);
+            SetPrivateField(listener, "m_quotas", new ChannelQuotas(messages));
+            SetPrivateField(listener, "m_descriptions", new List<EndpointDescription>());
+            using var cancellation = new CancellationTokenSource();
+            var response = new TrackedHttpResponse
+            {
+                ThrowOnEncode = outcome == "encoding",
+                ResponseHeader = new ResponseHeader { RequestHandle = 71 }
+            };
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(async (SecureChannelContext _, IServiceRequest _, CancellationToken _) =>
+                {
+                    if (outcome == "aborted")
+                    {
+                        await cancellation.CancelAsync().ConfigureAwait(false);
+                    }
+                    return response;
+                });
+            SetPrivateField(listener, "m_callback", callback.Object);
+            var request = new GetEndpointsRequest { RequestHeader = new RequestHeader { RequestHandle = 71 } };
+            byte[] encoded = json
+                ? [.. JsonEncoder.EncodeMessage(request, new byte[4096], messages)]
+                : BinaryEncoder.EncodeMessage(request, messages);
+            var context = new DefaultHttpContext { RequestAborted = cancellation.Token };
+            context.Request.Method = "POST";
+            context.Request.ContentType = json ? Profiles.OpcUaJsonContentType : "application/octet-stream";
+            context.Request.ContentLength = encoded.Length;
+            using var input = new MemoryStream(encoded);
+            using var output = new MemoryStream();
+            context.Request.Body = input;
+            context.Response.Body = output;
+
+            if (json)
+            {
+                await listener.SendJsonAsync(context).ConfigureAwait(false);
+            }
+            else
+            {
+                await listener.SendBinaryAsync(context).ConfigureAwait(false);
+            }
+
+            callback.Verify(value => value.ProcessRequestAsync(
+                It.IsAny<SecureChannelContext>(), It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()),
+                Times.Once);
+            Assert.That(response.Releases, Is.EqualTo(1));
+            Assert.That(response.Encodes, Is.EqualTo(outcome == "aborted" ? 0 : 1));
+            if (outcome == "encoding")
+            {
+                Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.InternalServerError));
+            }
+            else if (outcome == "aborted")
+            {
+                Assert.That(output.Length, Is.Zero);
+            }
+            else
+            {
+                Assert.That(context.Response.StatusCode, Is.EqualTo((int)HttpStatusCode.OK));
+                Assert.That(output.Length, Is.GreaterThan(0));
+            }
+        }
+
+        /// <summary>
+        /// Exposes encoder failure and exact reuse counts without a network, Server or pooled-response dependency.
+        /// </summary>
+        private sealed class TrackedHttpResponse : GetEndpointsResponse
+        {
+            public bool ThrowOnEncode { get; init; }
+            public int Encodes { get; private set; }
+            public int Releases { get; private set; }
+
+            /// <inheritdoc/>
+            /// <exception cref="InvalidOperationException"></exception>
+            public override void Encode(IEncoder encoder)
+            {
+                Encodes++;
+                if (ThrowOnEncode)
+                {
+                    throw new InvalidOperationException("Synthetic HTTP response encoding failure.");
+                }
+                base.Encode(encoder);
+            }
+
+            /// <inheritdoc/>
+            protected override void ReuseCore()
+            {
+                Releases++;
+                base.ReuseCore();
+            }
         }
 
         private static ReadRequest CreateReadRequestWithLongNodeId(uint requestHandle, int nodeIdLength)

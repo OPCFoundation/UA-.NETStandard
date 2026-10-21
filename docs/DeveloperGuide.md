@@ -208,6 +208,16 @@ native binary; running its managed assembly alone is not NativeAOT evidence.
 When formatting a single test target, set the `CustomTestTarget` environment
 variable too, so the formatter does not analyze an unrestored first TFM.
 
+The net10.0 Server test build stages the console sample's complete runtime output
+under `rse-process-host/` beside the test assembly. The Windows process-restart
+test selects that child apphost explicitly, with its own dependencies and
+runtimeconfig rather than the test host's shared frameworks. With
+`BuildProjectReferences=false`, build `RecoverableServiceDemo` first; the staging
+target only queries its existing output metadata and fails if the built host is
+missing. A `--no-build` test run uses the existing stage without rebuilding or
+recopying it. Generated credentials and PKI must remain in run-owned temporary
+storage, not in the staged build output.
+
 ## Coding standards (dos and don'ts)
 
 All rules apply to new code and to existing code you touch. The `.editorconfig` is authoritative and enforced at build time; the highlights below are the ones most often missed.
@@ -337,7 +347,12 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - **Add a dependency** — declare the version in `Directory.Packages.props` (Central Package Management), prefer AOT/trimmable and permissively licensed packages, and get maintainer approval first.
 - **Certificates and secrets** — see [Certificates.md](Certificates.md) and [CertificateManager.md](CertificateManager.md).
 - **Source-generated node managers / data types** — see [NodeManagers.md](NodeManagers.md#source-generated-node-managers) and [SourceGeneratedDataTypes.md](SourceGeneratedDataTypes.md).
-- **Experimental RSE (Async Services) definitions** — synchronize the reviewed contract with the authoritative stack inputs using [the contract tooling](../tools/AsyncServices/README.md). OPC 10000-27 is the publication name; the Async Service APIs and provisional IDs are unchanged. New proposal Services are TAP-only; their optional model is not installed by the default address-space initializer.
+- **Experimental RSE (Async Services) definitions** — verify the pinned OPC 10000-29
+  draft 0.4.0 inputs using [the contract tooling](../tools/AsyncServices/README.md).
+  The RSE-namespaced five-Method model replaces the retired dedicated experimental
+  Services. Runtime activation remains opt-in, and Owner/Durable need their
+  explicit qualifying providers.
+  Do not hand-edit generated C# or treat static model checks as runtime conformance.
 - **Server namespace metadata / history advertisement** — see [NodeManagers.md](NodeManagers.md#server-address-space-metadata).
 - **Dependency injection** — see [DependencyInjection.md](DependencyInjection.md).
 - **NativeAOT** — see [NativeAoT.md](NativeAoT.md).

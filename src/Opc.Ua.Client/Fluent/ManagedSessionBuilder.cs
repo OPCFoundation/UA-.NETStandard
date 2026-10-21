@@ -102,8 +102,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Prefers recoverable execution behind ordinary asynchronous Read, Write and Call operations.
-        /// Only proven unsupported recovery permits ordinary fallback.
+        /// Selects recoverable execution behind eligible ordinary asynchronous Services.
+        /// Session is the default preference and permits fallback only after unsupported discovery before Submit.
+        /// Explicit Owner and Durable selections never downgrade.
         /// </summary>
         public ManagedSessionBuilder PreferRecoverableExecution(RecoverableSessionOptions? options = null)
         {

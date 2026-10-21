@@ -27,13 +27,16 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Security.Cryptography;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
+using Opc.Ua.Redundancy;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
+using Opc.Ua.Storage;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -52,6 +55,9 @@ namespace Opc.Ua.Aot.Tests
         {
             ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning));
             var context = ServiceMessageContext.Create(telemetry);
+            context.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            ushort applicationNamespace = context.NamespaceUris.GetIndexOrAppend("urn:rse-aot:synthetic");
+            context.Factory.Builder.AddOpcUaRse().Commit();
             var original = new ReadRequest
             {
                 RequestHeader = new RequestHeader { RequestHandle = 17 },
@@ -61,26 +67,144 @@ namespace Opc.Ua.Aot.Tests
                     new ReadValueId { NodeId = VariableIds.Server_ServerStatus_State, AttributeId = Attributes.Value }
                 ]
             };
-            var request = new SubmitServiceRequest
+            var submission = new SubmitRequestDataType
             {
-                RequestHeader = new RequestHeader { RequestHandle = 29 },
                 ClientOperationId = Uuid.NewUuid(),
+                RecoveryMode = ServiceOperationRecoveryMode.Session,
                 Request = new ExtensionObject(original),
                 ExecutionAllowance = 10_000,
                 ResultRetentionTime = 30_000
             };
+            var request = new CallRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 29 },
+                MethodsToCall =
+                [
+                    new CallMethodRequest
+                    {
+                        ObjectId = ExpandedNodeId.ToNodeId(
+                            RseObjectIds.RecoverableExecutionManager, context.NamespaceUris),
+                        MethodId = new NodeId("synthetic-live-submit", applicationNamespace),
+                        InputArguments = [Variant.FromStructure(submission)]
+                    }
+                ]
+            };
             byte[] encoded = json
                 ? [.. JsonEncoder.EncodeMessage(request, new byte[4096], context)]
                 : BinaryEncoder.EncodeMessage(request, context);
-            SubmitServiceRequest decoded = json
-                ? JsonDecoder.DecodeMessage<SubmitServiceRequest>(encoded, context)
-                : BinaryDecoder.DecodeMessage<SubmitServiceRequest>(encoded, context);
-            await Assert.That(decoded.ClientOperationId).IsEqualTo(request.ClientOperationId);
+            CallRequest decoded = json
+                ? JsonDecoder.DecodeMessage<CallRequest>(encoded, context)
+                : BinaryDecoder.DecodeMessage<CallRequest>(encoded, context);
+            await Assert.That(decoded.MethodsToCall[0].InputArguments[0].TryGetValue<SubmitRequestDataType>(
+                out SubmitRequestDataType? restoredSubmission, context)).IsTrue();
+            await Assert.That(restoredSubmission!.ClientOperationId).IsEqualTo(submission.ClientOperationId);
+            await Assert.That(restoredSubmission.TypeId).IsEqualTo(new ExpandedNodeId(15u, RseNamespaces.Rse));
+            await Assert.That(restoredSubmission.BinaryEncodingId)
+                .IsEqualTo(new ExpandedNodeId(16u, RseNamespaces.Rse));
             await Assert.That(decoded.RequestHeader.RequestHandle).IsEqualTo(29u);
-            await Assert.That(decoded.Request.TryGetValue(out ReadRequest? restored, context)).IsTrue();
+            await Assert.That(restoredSubmission.Request.TryGetValue(out ReadRequest? restored, context)).IsTrue();
             await Assert.That(restored!.RequestHeader.RequestHandle).IsEqualTo(17u);
-            await Assert.That(decoded.ExecutionAllowance).IsEqualTo(10_000);
+            await Assert.That(restoredSubmission.ExecutionAllowance).IsEqualTo(10_000);
             decoded.Reuse();
+        }
+
+        /// <summary>
+        /// Revalidates persisted interpretation against fresh generated registrations without reflection.
+        /// </summary>
+        [Test]
+        public async Task QualifiedRecoverableInterpretationSurvivesFreshFactoryAndRejectsUriDrift()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.Warning));
+            using var telemetryLifetime = telemetry as IDisposable;
+            ServiceMessageContext originalContext = CreateQualifiedContext(telemetry);
+            var compatibility = new RecoverableExecutionTypeCompatibility();
+            RecoverableExecutionTypeContext captured = await compatibility.CaptureAsync(originalContext)
+                .ConfigureAwait(false);
+            var original = new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    RequestHandle = 73,
+                    Timestamp = new DateTime(2026, 1, 2, 3, 4, 5, DateTimeKind.Utc),
+                    ServiceResult = StatusCodes.Good
+                },
+                Results = [new DataValue(Variant.From(42))]
+            };
+            ByteString encoded = captured.Encode(original);
+            ServiceMessageContext current = CreateQualifiedContext(telemetry);
+            RecoverableExecutionTypeContext restored = await compatibility.RestoreAsync(current, captured.Witness)
+                .ConfigureAwait(false);
+            ReadResponse decoded = restored.Decode<ReadResponse>(encoded);
+            try
+            {
+                await Assert.That(captured.Witness.Length).IsEqualTo(37);
+                await Assert.That(restored.Witness).IsEqualTo(captured.Witness);
+                await Assert.That(decoded.ResponseHeader.RequestHandle).IsEqualTo(73u);
+                await Assert.That(decoded.ResponseHeader.Timestamp).IsEqualTo(original.ResponseHeader.Timestamp);
+                await Assert.That(decoded.Results.Count).IsEqualTo(1);
+                await Assert.That(decoded.Results[0].WrappedValue.TryGetValue(out int value)).IsTrue();
+                await Assert.That(value).IsEqualTo(42);
+                await Assert.That(restored.Encode(decoded)).IsEqualTo(encoded);
+            }
+            finally
+            {
+                decoded.Reuse();
+                original.Reuse();
+            }
+            current.NamespaceUris.GetIndexOrAppend("urn:rse-aot:changed-interpretation");
+            _ = await Assert.That(
+                async () => _ = await compatibility.RestoreAsync(current, captured.Witness).ConfigureAwait(false))
+                .Throws<ServiceResultException>();
+        }
+
+        /// <summary>
+        /// Actual native file barriers, protected reopening and unchanged capacity rejection remain AOT-safe.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        [Test]
+        public async Task ProtectedDurableStoreReopensAndKeepsCleanupAvailableUnderAot()
+        {
+            string parent = Path.Combine(Path.GetTempPath(), "ua-rse-store-aot-" + Guid.NewGuid().ToString("N"));
+            string directory = Path.Combine(parent, "store");
+            Directory.CreateDirectory(parent);
+            var secrets = new InMemorySecretStore();
+            var keyId = new SecretIdentifier("rse-native-test", InMemorySecretStore.DefaultStoreType);
+            byte[] generated = RandomNumberGenerator.GetBytes(32);
+            try
+            {
+                await secrets.SetAsync(keyId, generated).ConfigureAwait(false);
+                using ISecret key = await secrets.GetAsync(keyId).ConfigureAwait(false) ??
+                    throw new InvalidOperationException("The generated test key is unavailable.");
+                using var protector = new AesCbcHmacRecordProtector(key.Bytes);
+                var value = ByteString.From(1, 2, 3, 4);
+                await using (var store = new FileSharedKeyValueStore(directory, "urn:rse-aot:store", protector, 4096))
+                {
+                    await store.VerifyDurabilityAsync().ConfigureAwait(false);
+                    await Assert.That(await store.TryCompareAndSwapAsync("original", default, value)
+                        .ConfigureAwait(false)).IsEqualTo(SharedKeyValueStoreWriteResult.Applied);
+                    await Assert.That(await store.TryCompareAndSwapAsync(
+                        "overflow", default, new ByteString(new byte[4096])).ConfigureAwait(false))
+                        .IsEqualTo(SharedKeyValueStoreWriteResult.CapacityRejected);
+                    await store.VerifyDurabilityAsync().ConfigureAwait(false);
+                }
+                await using var reopened =
+                    new FileSharedKeyValueStore(directory, "urn:rse-aot:store", protector, 4096);
+                (bool found, ByteString restored) = await reopened.TryGetAsync("original").ConfigureAwait(false);
+                await Assert.That(found).IsTrue();
+                await Assert.That(restored).IsEqualTo(value);
+                (bool overflow, _) = await reopened.TryGetAsync("overflow").ConfigureAwait(false);
+                await Assert.That(overflow).IsFalse();
+                await Assert.That(await reopened.TryCompareAndSwapAsync("original", value, default)
+                    .ConfigureAwait(false)).IsEqualTo(SharedKeyValueStoreWriteResult.Applied);
+                (bool retained, _) = await reopened.TryGetAsync("original").ConfigureAwait(false);
+                await Assert.That(retained).IsFalse();
+            }
+            finally
+            {
+                CryptographicOperations.ZeroMemory(generated);
+                _ = await secrets.RemoveAsync(keyId).ConfigureAwait(false);
+                Directory.Delete(parent, recursive: true);
+            }
         }
 
         /// <summary>
@@ -166,11 +290,12 @@ namespace Opc.Ua.Aot.Tests
                 ServiceOperationInfoDataType collected = await operation.CollectAsync(ct: timeout.Token)
                     .ConfigureAwait(false);
                 await Assert.That(collected.State).IsEqualTo(ServiceOperationState.OutcomeAvailable);
-                ControlServiceExecutionResponse receipt = await operation.AcknowledgeAsync(timeout.Token)
+                ControlResponseDataType receipt = await operation.AcknowledgeAsync(timeout.Token)
                     .ConfigureAwait(false);
                 await Assert.That(receipt.Result).IsEqualTo(ServiceOperationControlResult.Applied);
                 receipt.Reuse();
-                Node capability = await session.ReadNodeAsync(new NodeId(1200100u), timeout.Token)
+                Node capability = await session.ReadNodeAsync(ExpandedNodeId.ToNodeId(
+                    RseObjectIds.RecoverableExecutionManager_Capabilities, session.NamespaceUris), timeout.Token)
                     .ConfigureAwait(false);
                 await Assert.That(capability.NodeClass).IsEqualTo(NodeClass.Object);
                 await using RecoverableAcknowledgementScope acknowledgement = session.BeginAcknowledgementScope(true);
@@ -189,6 +314,21 @@ namespace Opc.Ua.Aot.Tests
                     Directory.Delete(root, recursive: true);
                 }
             }
+        }
+
+        /// <summary>
+        /// Creates independent standard/RSE registrations and exactly matching URI tables.
+        /// </summary>
+        private static ServiceMessageContext CreateQualifiedContext(ITelemetryContext telemetry)
+        {
+            IEncodeableFactory factory = EncodeableFactory.Create();
+            factory.Builder.AddOpcUaRse().Commit();
+            var context = new ServiceMessageContext(telemetry, factory)
+            {
+                MaxMessageSize = 65_536
+            };
+            context.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            return context;
         }
     }
 }

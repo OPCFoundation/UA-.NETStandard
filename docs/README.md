@@ -307,11 +307,16 @@ The subscription guides assume the client path; the sizing guides assume
   queued notifications while clients are disconnected.
 - [Generation-bound session clients](SessionBindings.md) — capture dispatch,
   session identity and mapping snapshots without reconnecting to a replacement peer.
-- [Recoverable Service Execution (RSE)](AsyncServices.md) — default-off OPC 10000-27
-  draft prototype behind ordinary `ISession` calls, explicit acknowledgement
-  scopes, typed acceptance, a [long-running/outage sample](../samples/AsyncServices/README.md)
-  and a two-hop certificate integration fixture.
+- [Recoverable Service Execution (RSE)](AsyncServices.md) — default-off OPC 10000-29
+  draft 0.4.0 manager Methods, explicit Session/Owner/Durable qualification,
+  ordinary `ISession` calls, typed acceptance, a
+  [long-running/outage sample](../samples/AsyncServices/README.md) and a two-hop
+  certificate integration fixture.
+- [RSE 0.4 Client recovery](ClientRecoverableExecution.md) — explicit Session, Owner and Durable
+  selection, protected Client checkpoints, typed reattachment and acknowledgement scopes.
 - [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
+- [Local durable shared storage](DurableStorage.md) — protected, bounded local
+  commits and fail-closed recovery through the shared key/value store interface.
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 
 <a id="global-discovery-server-gds"></a>

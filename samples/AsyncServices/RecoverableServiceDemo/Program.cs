@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
+using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -37,7 +37,7 @@ using System.Threading.Tasks;
 namespace RecoverableServiceDemo
 {
     /// <summary>
-    /// Runs a local long-running Method, optionally disconnecting its native transport.
+    /// Runs a local long-running Method or an explicitly supervised child-process restart TEST.
     /// </summary>
     internal static class Program
     {
@@ -46,16 +46,50 @@ namespace RecoverableServiceDemo
         /// </summary>
         public static async Task<int> Main(string[] args)
         {
-            if (args.Length > 1 || (args.Length == 1 && args[0] != "--network-outage"))
+            bool child = args.Length == 3 && args[0] == "--process-restart-child";
+            bool restart = args.Length == 1 && args[0] == "--process-restart-test";
+            bool outage = args.Length == 1 && args[0] == "--network-outage";
+            int supervisorPid = 0;
+            if ((args.Length != 0 && !outage && !restart && !child) ||
+                (child &&
+                    (!args[1].StartsWith("ua-rse-restart-test-", StringComparison.Ordinal) ||
+                        !Guid.TryParseExact(args[1]["ua-rse-restart-test-".Length..], "N", out _) ||
+                        !int.TryParse(args[2], NumberStyles.None, CultureInfo.InvariantCulture, out supervisorPid) ||
+                        supervisorPid <= 0 ||
+                        supervisorPid == Environment.ProcessId)))
             {
                 await Console.Error.WriteLineAsync(
-                    "Usage: RecoverableServiceDemo [--network-outage]").ConfigureAwait(false);
+                    "Usage: RecoverableServiceDemo [--network-outage | --process-restart-test]").ConfigureAwait(false);
                 return 2;
             }
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             try
             {
-                _ = await RecoveryDemo.RunAsync(args.Length == 1, Console.Out, timeout.Token).ConfigureAwait(false);
+                if (child || restart)
+                {
+                    if (!OperatingSystem.IsWindows())
+                    {
+                        // Main catches this and returns exit code 1; it is not an escaping API exception.
+                        // TODO: Remove when RCS1140 recognizes locally handled exceptions in Main.
+#pragma warning disable RCS1140
+                        throw new PlatformNotSupportedException(
+                            "The process-restart TEST uses current-user-only Windows pipes " +
+                            "with OS peer-PID verification.");
+#pragma warning restore RCS1140
+                    }
+                    if (child)
+                    {
+                        await ProcessRestartHost.RunAsync(args[1], supervisorPid, timeout.Token).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        _ = await ProcessRestartDemo.RunTestAsync(Console.Out, timeout.Token).ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    _ = await RecoveryDemo.RunAsync(outage, Console.Out, timeout.Token).ConfigureAwait(false);
+                }
                 return 0;
             }
             catch (Exception ex)

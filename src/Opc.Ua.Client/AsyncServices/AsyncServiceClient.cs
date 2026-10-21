@@ -34,10 +34,50 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Creates typed, same-Session operation handles before any cancellable submission can execute work.
+    /// Creates typed operation handles before any cancellable submission can execute work.
     /// </summary>
     public sealed class AsyncServiceClient
     {
+        /// <summary>
+        /// Creates a Session-mode factory with advertised defaults and caller-completion acceptance.
+        /// </summary>
+        public AsyncServiceClient()
+            : this(new RecoverableSessionOptions())
+        {
+        }
+
+        /// <summary>
+        /// Creates a factory with an explicit mode, authenticated continuity and optional protected recovery storage.
+        /// </summary>
+        public AsyncServiceClient(RecoverableSessionOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            RecoverableSessionExecution.ValidateOptions(options);
+            m_options = options with { };
+        }
+
+        /// <summary>
+        /// Prepares any of the sixteen eligible generated request/response pairs without sending original work.
+        /// </summary>
+        /// <typeparam name="TResponse">The exact generated original response type.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
+        public ValueTask<AsyncServiceOperation<TResponse>> CreateAsync<TResponse>(
+            ISession session, IServiceRequest request, CancellationToken ct = default)
+            where TResponse : class, IServiceResponse
+        {
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+            NodeId serviceId = RecoverableServiceRequests.GetRequestType<TResponse>(request);
+            IServiceRequest captured = CoreUtils.Clone(request)!;
+            return CreateAsync(session, serviceId,
+                (client, token) => RecoverableServiceRequests.InvokeAsync<TResponse>(client, captured, token), ct);
+        }
+
         /// <summary>
         /// Prepares one generated Read request without batching it into separate recoverable operations.
         /// </summary>
@@ -129,24 +169,188 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Captures the shared managed lifecycle seam and transfers only local context ownership to the handle.
+        /// Reattaches a protected checkpoint to an authenticated managed owner without ever submitting it again.
+        /// Restored handles use explicit acknowledgement; previously accepted outcomes are restored locally.
         /// </summary>
-        /// <typeparam name="TResult">The generated response or method result.</typeparam>
-        private static async ValueTask<AsyncServiceOperation<TResult>> CreateAsync<TResult>(
-            ISession session, NodeId requestType,
-            Func<ISessionClient, CancellationToken, ValueTask<TResult>> invoke, CancellationToken ct)
+        /// <typeparam name="TResponse">The exact generated original response type.</typeparam>
+        /// <exception cref="InvalidOperationException"></exception>
+        public async ValueTask<AsyncServiceOperation<TResponse>> ReattachAsync<TResponse>(
+            ISession session, Uuid clientOperationId,
+            Func<AsyncServiceResult<TResponse>, CancellationToken, ValueTask>? accept = null,
+            CancellationToken ct = default) where TResponse : class, IServiceResponse
         {
-            SessionRequestContext context = await SessionRequestContext.CaptureRecoverableAsync(session, ct)
+            RecoverableOperationCheckpointStore store = m_options.CheckpointStore ??
+                throw new InvalidOperationException("Configure protected Client recovery storage before reattachment.");
+            RecoverableExecutionBinding binding = await RecoverableExecutionBinding.CaptureAsync(session, m_options, ct)
                 .ConfigureAwait(false);
+            AsyncServiceOperation<TResponse>? operation = null;
             try
             {
-                return new AsyncServiceOperation<TResult>(context, requestType, invoke);
+                (RecoverableOperationCheckpoint checkpoint, ByteString version) =
+                    await store.LoadAsync(clientOperationId, binding.Session.MessageContext, ct).ConfigureAwait(false);
+                ValidateRestoredAcceptance(checkpoint, accept != null, methodProjection: false);
+                NodeId serviceId = RecoverableServiceRequests.GetRequestType<TResponse>(checkpoint.Request);
+                operation = new AsyncServiceOperation<TResponse>(binding, serviceId,
+                    (client, token) => RecoverableServiceRequests.InvokeAsync<TResponse>(
+                        client, checkpoint.Request, token),
+                    clientOperationId: clientOperationId);
+                Configure(operation);
+                if (accept != null)
+                {
+                    operation.WithAcceptancePolicy(accept);
+                }
+                await operation.RestoreAsync(checkpoint, version, ct).ConfigureAwait(false);
+                return operation;
             }
             catch
             {
-                await context.DisposeAsync().ConfigureAwait(false);
+                if (operation != null)
+                {
+                    await operation.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
                 throw;
             }
         }
+
+        /// <summary>
+        /// Reattaches a generated typed Method projection. Its captured original Call must match the saved Call.
+        /// No new original request or compatibility fallback may be sent.
+        /// </summary>
+        /// <typeparam name="TResult">The generated Method's typed result.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="method"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<AsyncServiceOperation<TResult>> ReattachMethodAsync<TResult>(
+            ISession session, Uuid clientOperationId,
+            Func<ISessionClient, CancellationToken, ValueTask<TResult>> method,
+            Func<AsyncServiceResult<TResult>, CancellationToken, ValueTask>? accept = null,
+            CancellationToken ct = default)
+        {
+            if (method == null)
+            {
+                throw new ArgumentNullException(nameof(method));
+            }
+            RecoverableOperationCheckpointStore store = m_options.CheckpointStore ??
+                throw new InvalidOperationException("Configure protected Client recovery storage before reattachment.");
+            RecoverableExecutionBinding binding = await RecoverableExecutionBinding.CaptureAsync(session, m_options, ct)
+                .ConfigureAwait(false);
+            AsyncServiceOperation<TResult>? operation = null;
+            try
+            {
+                (RecoverableOperationCheckpoint checkpoint, ByteString version) =
+                    await store.LoadAsync(clientOperationId, binding.Session.MessageContext, ct).ConfigureAwait(false);
+                ValidateRestoredAcceptance(checkpoint, accept != null, methodProjection: true);
+                if (checkpoint.Request is not CallRequest || checkpoint.ServiceId != DataTypeIds.CallRequest)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTypeMismatch);
+                }
+                operation = new AsyncServiceOperation<TResult>(
+                    binding, DataTypeIds.CallRequest, method, clientOperationId: clientOperationId);
+                Configure(operation);
+                if (accept != null)
+                {
+                    operation.WithAcceptancePolicy(accept);
+                }
+                await operation.RestoreAsync(checkpoint, version, ct).ConfigureAwait(false);
+                return operation;
+            }
+            catch
+            {
+                if (operation != null)
+                {
+                    await operation.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await binding.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Captures the shared managed lifecycle seam and transfers only local context ownership to the handle.
+        /// </summary>
+        /// <typeparam name="TResult">The generated response or method result.</typeparam>
+        private async ValueTask<AsyncServiceOperation<TResult>> CreateAsync<TResult>(
+            ISession session, NodeId requestType,
+            Func<ISessionClient, CancellationToken, ValueTask<TResult>> invoke, CancellationToken ct)
+        {
+            RecoverableExecutionBinding context = await RecoverableExecutionBinding.CaptureAsync(session, m_options, ct)
+                .ConfigureAwait(false);
+            AsyncServiceOperation<TResult>? operation = null;
+            try
+            {
+                operation = new AsyncServiceOperation<TResult>(context, requestType, invoke);
+                Configure(operation);
+                return operation;
+            }
+            catch
+            {
+                if (operation != null)
+                {
+                    await operation.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    await context.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Applies the explicitly supplied application policy to the final typed handle result.
+        /// </summary>
+        /// <typeparam name="TResult">The generated response or Method projection.</typeparam>
+        private void Configure<TResult>(AsyncServiceOperation<TResult> operation)
+        {
+            if (m_options.AcceptAsync is { } accept)
+            {
+                operation.WithAcceptancePolicy(async (outcome, token) =>
+                {
+                    RecoverableAcceptanceContext context;
+                    try
+                    {
+                        context = RecoverableAcceptanceContext.Create(outcome.GetValueOrThrow(), null);
+                    }
+                    catch (ServiceResultException failure)
+                    {
+                        context = RecoverableAcceptanceContext.ForFailure(failure.Result, null);
+                    }
+                    await accept(context, token).ConfigureAwait(false);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Prevents restart from replacing unfinished typed or application acceptance with decoding alone.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        private void ValidateRestoredAcceptance(
+            RecoverableOperationCheckpoint checkpoint, bool applicationAcceptance, bool methodProjection)
+        {
+            if (checkpoint.Acceptance >= RecoverableCheckpointAcceptance.Accepted)
+            {
+                return;
+            }
+            if (checkpoint.RequiresMethodProjection && !methodProjection)
+            {
+                throw new ServiceResultException(StatusCodes.BadTypeMismatch,
+                    "This checkpoint requires reattachment through its original typed Method projection.");
+            }
+            if (checkpoint.RequiresApplicationAcceptance && !applicationAcceptance && m_options.AcceptAsync == null)
+            {
+                throw new InvalidOperationException(
+                    "Supply the original application or enclosing-operation acceptance policy before reattachment.");
+            }
+        }
+
+        private readonly RecoverableSessionOptions m_options;
     }
 }

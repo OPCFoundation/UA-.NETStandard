@@ -114,7 +114,7 @@ namespace Opc.Ua.TestModels.AsyncExecution
         {
             if (operation.AcknowledgementFailure != null)
             {
-                ControlServiceExecutionResponse acknowledgement = await operation.AcknowledgeAsync(ct)
+                ControlResponseDataType acknowledgement = await operation.AcknowledgeAsync(ct)
                     .ConfigureAwait(false);
                 acknowledgement.Reuse();
             }

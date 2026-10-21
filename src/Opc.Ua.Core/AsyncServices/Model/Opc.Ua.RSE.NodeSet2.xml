@@ -1,0 +1,932 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Experimental RSE model. Namespace-local allocations are provisional. -->
+<UANodeSet xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd" xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris><Uri>http://opcfoundation.org/UA/RSE/</Uri></NamespaceUris>
+  <Models>
+    <Model ModelUri="http://opcfoundation.org/UA/RSE/" Version="0.4.0" PublicationDate="2026-10-20T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.04" PublicationDate="2024-05-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="Boolean">i=1</Alias>
+    <Alias Alias="UInt32">i=7</Alias>
+    <Alias Alias="UInt64">i=9</Alias>
+    <Alias Alias="String">i=12</Alias>
+    <Alias Alias="Guid">i=14</Alias>
+    <Alias Alias="ByteString">i=15</Alias>
+    <Alias Alias="NodeId">i=17</Alias>
+    <Alias Alias="StatusCode">i=19</Alias>
+    <Alias Alias="LocalizedText">i=21</Alias>
+    <Alias Alias="Structure">i=22</Alias>
+    <Alias Alias="DiagnosticInfo">i=25</Alias>
+    <Alias Alias="Enumeration">i=29</Alias>
+    <Alias Alias="IntegerId">i=288</Alias>
+    <Alias Alias="Counter">i=289</Alias>
+    <Alias Alias="Duration">i=290</Alias>
+    <Alias Alias="UtcTime">i=294</Alias>
+    <Alias Alias="RequestHeader">i=389</Alias>
+    <Alias Alias="ResponseHeader">i=392</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasEncoding">i=38</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasProperty">i=46</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+  </Aliases>
+  <UADataType NodeId="ns=1;i=1" BrowseName="1:ServiceOperationState" SymbolicName="ServiceOperationState">
+    <DisplayName>ServiceOperationState</DisplayName>
+    <Description>The state reported for a recoverable Service operation. Unknown is a lookup result, not a stored execution outcome.</Description>
+    <Category>RSE-Execution</Category>
+    <Category>RSE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=2</Reference>
+    </References>
+    <Definition Name="ServiceOperationState"><Field Name="Unknown" Value="0"><Description>No record is disclosed for this lookup. This does not establish whether work ran or may still be admitted.</Description></Field><Field Name="Pending" Value="1"><Description>The operation is admitted and has no committed final outcome.</Description></Field><Field Name="OutcomeAvailable" Value="2"><Description>An immutable original response or terminal protocol outcome is available.</Description></Field><Field Name="Acknowledged" Value="3"><Description>The Client acknowledged the available outcome and its payload was released.</Description></Field><Field Name="Abandoned" Value="4"><Description>The Client waived result recovery. This state does not establish that work stopped.</Description></Field><Field Name="Expired" Value="5"><Description>The result-retention interval elapsed and its payload was released.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=2" BrowseName="0:EnumStrings" SymbolicName="EnumStrings" ParentNodeId="ns=1;i=1" DataType="LocalizedText" ValueRank="1" ArrayDimensions="6">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=1</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unknown</Text></LocalizedText><LocalizedText><Text>Pending</Text></LocalizedText><LocalizedText><Text>OutcomeAvailable</Text></LocalizedText><LocalizedText><Text>Acknowledged</Text></LocalizedText><LocalizedText><Text>Abandoned</Text></LocalizedText><LocalizedText><Text>Expired</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=3" BrowseName="1:ServiceOperationOutcome" SymbolicName="ServiceOperationOutcome">
+    <DisplayName>ServiceOperationOutcome</DisplayName>
+    <Description>The kind of committed outcome. A protocol outcome does not fabricate an original Service response.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=4</Reference>
+    </References>
+    <Definition Name="ServiceOperationOutcome"><Field Name="None" Value="0"><Description>No final outcome is reported.</Description></Field><Field Name="ServiceResponse" Value="1"><Description>The original Service produced a complete response or ServiceFault.</Description></Field><Field Name="ExecutionDeadlineExceeded" Value="2"><Description>The execution allowance ended before an outcome was committed. Effects may remain unknown.</Description></Field><Field Name="ResultUnavailable" Value="3"><Description>The original response could not be retained within the accepted encoding or message limits.</Description></Field><Field Name="ExecutionIndeterminate" Value="4"><Description>Restart recovery found durable admission without a committed final outcome. No redispatch occurs; effects remain unknown.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=4" BrowseName="0:EnumStrings" SymbolicName="EnumStrings" ParentNodeId="ns=1;i=3" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>None</Text></LocalizedText><LocalizedText><Text>ServiceResponse</Text></LocalizedText><LocalizedText><Text>ExecutionDeadlineExceeded</Text></LocalizedText><LocalizedText><Text>ResultUnavailable</Text></LocalizedText><LocalizedText><Text>ExecutionIndeterminate</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=5" BrowseName="1:ServiceOperationControlResult" SymbolicName="ServiceOperationControlResult">
+    <DisplayName>ServiceOperationControlResult</DisplayName>
+    <Description>The disposition of a well-formed, authorized control request.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=6</Reference>
+    </References>
+    <Definition Name="ServiceOperationControlResult"><Field Name="Unspecified" Value="0"><Description>Invalid in a response.</Description></Field><Field Name="Applied" Value="1"><Description>The requested state change or cancellation signal was applied.</Description></Field><Field Name="AlreadyApplied" Value="2"><Description>The same action was applied previously; no new change was made.</Description></Field><Field Name="NotApplicable" Value="3"><Description>The action cannot be applied to the reported state; no new change was made.</Description></Field><Field Name="UnknownOperation" Value="4"><Description>No record is disclosed for the token; this is not proof of earlier acknowledgement or non-execution.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=6" BrowseName="0:EnumStrings" SymbolicName="EnumStrings" ParentNodeId="ns=1;i=5" DataType="LocalizedText" ValueRank="1" ArrayDimensions="5">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=5</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unspecified</Text></LocalizedText><LocalizedText><Text>Applied</Text></LocalizedText><LocalizedText><Text>AlreadyApplied</Text></LocalizedText><LocalizedText><Text>NotApplicable</Text></LocalizedText><LocalizedText><Text>UnknownOperation</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=7" BrowseName="1:ServiceOperationAuditAction" SymbolicName="ServiceOperationAuditAction">
+    <DisplayName>ServiceOperationAuditAction</DisplayName>
+    <Description>An action recorded by the privileged operation audit.</Description>
+    <Category>RSE-Auditing</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=8</Reference>
+    </References>
+    <Definition Name="ServiceOperationAuditAction"><Field Name="Admitted" Value="0"><Description>Identity and resources were committed before dispatch.</Description></Field><Field Name="OutcomeCommitted" Value="1"><Description>An immutable outcome became available.</Description></Field><Field Name="CancellationRequested" Value="2"><Description>A cancellation signal was recorded; stopping is not asserted.</Description></Field><Field Name="Acknowledged" Value="3"><Description>The available outcome was acknowledged.</Description></Field><Field Name="Abandoned" Value="4"><Description>The result was abandoned.</Description></Field><Field Name="Expired" Value="5"><Description>The result-retention interval ended.</Description></Field><Field Name="Rejected" Value="6"><Description>Submission was rejected without a new dispatch.</Description></Field><Field Name="Denied" Value="7"><Description>A request was denied by authorization or Session checks.</Description></Field><Field Name="Collected" Value="8"><Description>An available outcome was selected for delivery.</Description></Field><Field Name="SessionClosed" Value="9"><Description>The issuing Session ended. Only Session-mode recoverable state is discarded.</Description></Field><Field Name="HistoryForgotten" Value="10"><Description>The bounded terminal record was removed.</Description></Field><Field Name="InvocationEnded" Value="11"><Description>Owned invocation resources were released after the invocation actually ended, possibly after a protocol deadline.</Description></Field><Field Name="RestartRecovered" Value="12"><Description>A durable record was recovered without original-request redispatch.</Description></Field><Field Name="ExecutionIndeterminate" Value="13"><Description>A durable admission without a committed final outcome was resolved to an indeterminate outcome.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=8" BrowseName="0:EnumStrings" SymbolicName="EnumStrings" ParentNodeId="ns=1;i=7" DataType="LocalizedText" ValueRank="1" ArrayDimensions="14">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=7</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Admitted</Text></LocalizedText><LocalizedText><Text>OutcomeCommitted</Text></LocalizedText><LocalizedText><Text>CancellationRequested</Text></LocalizedText><LocalizedText><Text>Acknowledged</Text></LocalizedText><LocalizedText><Text>Abandoned</Text></LocalizedText><LocalizedText><Text>Expired</Text></LocalizedText><LocalizedText><Text>Rejected</Text></LocalizedText><LocalizedText><Text>Denied</Text></LocalizedText><LocalizedText><Text>Collected</Text></LocalizedText><LocalizedText><Text>SessionClosed</Text></LocalizedText><LocalizedText><Text>HistoryForgotten</Text></LocalizedText><LocalizedText><Text>InvocationEnded</Text></LocalizedText><LocalizedText><Text>RestartRecovered</Text></LocalizedText><LocalizedText><Text>ExecutionIndeterminate</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=9" BrowseName="1:ServiceOperationRecoveryMode" SymbolicName="ServiceOperationRecoveryMode">
+    <DisplayName>ServiceOperationRecoveryMode</DisplayName>
+    <Description>The explicitly selected ownership and persistence contract. Higher modes include the lower mode's recovery guarantees, not its Session-bound ownership.</Description>
+    <Category>RSE-Execution</Category>
+    <Category>RSE-OwnerRecovery</Category>
+    <Category>RSE-DurableRecovery</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=29</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=10</Reference>
+    </References>
+    <Definition Name="ServiceOperationRecoveryMode"><Field Name="Unspecified" Value="0"><Description>Invalid for submission or lookup. Used only in Unknown metadata.</Description></Field><Field Name="Session" Value="1"><Description>Recovery requires the issuing Session and validated creator; Session closure releases recoverable state.</Description></Field><Field Name="Owner" Value="2"><Description>A stable authenticated application-and-user owner may recover through a replacement Session. Restart survival is not promised.</Description></Field><Field Name="Durable" Value="3"><Description>Owner-scoped recovery with durable admission, immutable outcomes and release history across supported restarts; interrupted execution is not resumed.</Description></Field></Definition>
+  </UADataType>
+  <UAVariable NodeId="ns=1;i=10" BrowseName="0:EnumStrings" SymbolicName="EnumStrings" ParentNodeId="ns=1;i=9" DataType="LocalizedText" ValueRank="1" ArrayDimensions="4">
+    <DisplayName>EnumStrings</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=9</Reference>
+    </References>
+    <Value><ListOfLocalizedText xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><LocalizedText><Text>Unspecified</Text></LocalizedText><LocalizedText><Text>Session</Text></LocalizedText><LocalizedText><Text>Owner</Text></LocalizedText><LocalizedText><Text>Durable</Text></LocalizedText></ListOfLocalizedText></Value>
+  </UAVariable>
+  <UADataType NodeId="ns=1;i=11" BrowseName="1:ServiceOperationInfoDataType" SymbolicName="ServiceOperationInfoDataType">
+    <DisplayName>ServiceOperationInfoDataType</DisplayName>
+    <Description>Operation identity, state and remaining intervals. It contains no original response payload.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=12</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=13</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=14</Reference>
+    </References>
+    <Definition Name="ServiceOperationInfoDataType"><Field Name="ClientOperationId" DataType="i=14"><Description>The accepted Client ID. An unknown Client-ID lookup echoes the requested ID; an unknown token lookup reports a null Guid.</Description></Field><Field Name="ServerToken" DataType="i=15"><Description>The opaque token, between 1 and 64 bytes for a known record; null for an unknown lookup.</Description></Field><Field Name="ServiceId" DataType="i=17"><Description>The DataType NodeId of the original request, or a null NodeId for an unknown lookup.</Description></Field><Field Name="RecoveryMode" DataType="ns=1;i=9"><Description>The exact accepted mode for a known record; Unspecified for Unknown metadata.</Description></Field><Field Name="State" DataType="ns=1;i=1"><Description>The disclosed operation state or Unknown lookup result.</Description></Field><Field Name="OutcomeKind" DataType="ns=1;i=3"><Description>The committed outcome kind; None while pending or unknown.</Description></Field><Field Name="OutcomeStatus" DataType="i=19"><Description>The original serviceResult for ServiceResponse, or the terminal protocol error. Good with OutcomeKind None carries no business-success claim.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>The accepted execution allowance in milliseconds; zero for an unknown lookup.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>The accepted result and subsequent history interval in milliseconds; zero for an unknown lookup.</Description></Field><Field Name="ExecutionRemaining" DataType="i=290"><Description>Nonnegative remaining execution allowance while Pending; otherwise zero.</Description></Field><Field Name="ResultRemaining" DataType="i=290"><Description>Nonnegative remaining result retention while OutcomeAvailable; otherwise zero.</Description></Field><Field Name="HistoryRemaining" DataType="i=290"><Description>Nonnegative remaining terminal-history retention after release; otherwise zero.</Description></Field><Field Name="CancellationRequested" DataType="i=1"><Description>A cancellation signal has been requested. This is not confirmation that work stopped.</Description></Field><Field Name="RetryAfter" DataType="i=290"><Description>Nonnegative advisory delay while Pending, no greater than ExecutionRemaining and strictly less than ResultRetentionTime when positive; zero for every other state.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=12" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=11">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=11</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=13" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=11">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=11</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=14" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=11">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=11</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=15" BrowseName="1:SubmitRequestDataType" SymbolicName="SubmitRequestDataType">
+    <DisplayName>SubmitRequestDataType</DisplayName>
+    <Description>Submit one eligible original Service request under the recoverable contract.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=16</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=17</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=18</Reference>
+    </References>
+    <Definition Name="SubmitRequestDataType"><Field Name="ClientOperationId" DataType="i=14"><Description>A fresh nonzero random Client operation ID.</Description></Field><Field Name="RecoveryMode" DataType="ns=1;i=9"><Description>Session, Owner or Durable. The Server honours this exact mode or rejects before dispatch.</Description></Field><Field Name="Request" DataType="i=22"><Description>An ExtensionObject containing exactly one eligible original Service request.</Description></Field><Field Name="ExecutionAllowance" DataType="i=290"><Description>Requested positive finite execution budget in milliseconds, starting at admission.</Description></Field><Field Name="ResultRetentionTime" DataType="i=290"><Description>Exact positive finite milliseconds of result retention, then the same interval for terminal history.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum completion wait starting at admission commit; excludes admission and response delivery. Zero does not park a waiter.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=16" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=15">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=15</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=17" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=15">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=15</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=18" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=15">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=15</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=19" BrowseName="1:SubmitResponseDataType" SymbolicName="SubmitResponseDataType">
+    <DisplayName>SubmitResponseDataType</DisplayName>
+    <Description>The admitted operation state and any available original response.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=20</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=21</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=22</Reference>
+    </References>
+    <Definition Name="SubmitResponseDataType"><Field Name="Operation" DataType="ns=1;i=11"><Description>The admitted identity, exact lifetime values and state.</Description></Field><Field Name="Result" DataType="i=22"><Description>The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=20" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=19">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=19</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=21" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=19">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=19</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=22" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=19">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=19</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=23" BrowseName="1:GetResultRequestDataType" SymbolicName="GetResultRequestDataType">
+    <DisplayName>GetResultRequestDataType</DisplayName>
+    <Description>Recover or collect an operation using exactly one identifier.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=24</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=25</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=26</Reference>
+    </References>
+    <Definition Name="GetResultRequestDataType"><Field Name="RecoveryMode" DataType="ns=1;i=9"><Description>Selects the Session or stable-owner lookup scope and exact recorded mode; not a request to change it.</Description></Field><Field Name="ClientOperationId" DataType="i=14"><Description>A nonzero Client ID for recovery, or a null Guid when ServerToken is used.</Description></Field><Field Name="ServerToken" DataType="i=15"><Description>A nonempty token of at most 64 bytes, or null when ClientOperationId is used. Supplying both or neither is invalid.</Description></Field><Field Name="WaitTime" DataType="i=290"><Description>Nonnegative finite maximum completion wait starting when authorized lookup first finds Pending; excludes lookup and response delivery. Zero means polling.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=24" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=23">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=23</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=25" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=23">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=23</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=26" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=23">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=23</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=27" BrowseName="1:GetResultResponseDataType" SymbolicName="GetResultResponseDataType">
+    <DisplayName>GetResultResponseDataType</DisplayName>
+    <Description>A declared collection response containing state and an optional original response.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=28</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=29</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=30</Reference>
+    </References>
+    <Definition Name="GetResultResponseDataType"><Field Name="Operation" DataType="ns=1;i=11"><Description>The operation snapshot or Unknown lookup result.</Description></Field><Field Name="Result" DataType="i=22"><Description>The immutable complete original response when State is OutcomeAvailable and OutcomeKind is ServiceResponse; otherwise a null ExtensionObject.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=28" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=27">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=27</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=29" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=27">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=27</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=30" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=27">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=27</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=31" BrowseName="1:OperationControlRequestDataType" SymbolicName="OperationControlRequestDataType">
+    <DisplayName>OperationControlRequestDataType</DisplayName>
+    <Description>Identify one operation for Acknowledge, Cancel or Abandon. The invoked Method selects the action.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=32</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=33</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=34</Reference>
+    </References>
+    <Definition Name="OperationControlRequestDataType"><Field Name="ServerToken" DataType="i=15"><Description>A nonempty Server token of at most 64 bytes; Client ID lookup is not a control action.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=32" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=31">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=31</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=33" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=31">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=31</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=34" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=31">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=31</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=1;i=35" BrowseName="1:ControlResponseDataType" SymbolicName="ControlResponseDataType">
+    <DisplayName>ControlResponseDataType</DisplayName>
+    <Description>The disposition of a control action and the resulting operation metadata.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=36</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=37</Reference>
+      <Reference ReferenceType="HasEncoding">ns=1;i=38</Reference>
+    </References>
+    <Definition Name="ControlResponseDataType"><Field Name="Result" DataType="ns=1;i=5"><Description>Whether the action was applied, already applied, not applicable or unknown.</Description></Field><Field Name="Operation" DataType="ns=1;i=11"><Description>The current disclosed metadata. This response never carries an original response payload.</Description></Field></Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=36" BrowseName="0:Default Binary" SymbolicName="DefaultBinary" ParentNodeId="ns=1;i=35">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=35</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=37" BrowseName="0:Default XML" SymbolicName="DefaultXml" ParentNodeId="ns=1;i=35">
+    <DisplayName>Default XML</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=35</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=38" BrowseName="0:Default JSON" SymbolicName="DefaultJson" ParentNodeId="ns=1;i=35">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=35</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=39" BrowseName="1:RecoverableExecutionCapabilitiesType" SymbolicName="RecoverableExecutionCapabilitiesType">
+    <DisplayName>RecoverableExecutionCapabilitiesType</DisplayName>
+    <Description>Supported recoverable Service requests and exact lifetime ranges/defaults. Existing message and operation limits remain applicable.</Description>
+    <Category>RSE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=40</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=41</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=42</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=43</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=44</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=45</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=46</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=47</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=48</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=40" BrowseName="1:ContractVersion" SymbolicName="ContractVersion" ParentNodeId="ns=1;i=39" DataType="String" ValueRank="-1">
+    <DisplayName>ContractVersion</DisplayName>
+    <Description>Experimental contract revision; 0.4.0 for this model.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=41" BrowseName="1:SupportedServices" SymbolicName="SupportedServices" ParentNodeId="ns=1;i=39" DataType="NodeId" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>SupportedServices</DisplayName>
+    <Description>The request DataType NodeIds that this Server explicitly supports for recoverable submission.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=42" BrowseName="1:MinExecutionAllowance" SymbolicName="MinExecutionAllowance" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>MinExecutionAllowance</DisplayName>
+    <Description>The minimum positive execution allowance accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=43" BrowseName="1:MaxExecutionAllowance" SymbolicName="MaxExecutionAllowance" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>MaxExecutionAllowance</DisplayName>
+    <Description>The maximum finite execution allowance accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=44" BrowseName="1:DefaultExecutionAllowance" SymbolicName="DefaultExecutionAllowance" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>DefaultExecutionAllowance</DisplayName>
+    <Description>An execution allowance a Client may explicitly select within the advertised range.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=45" BrowseName="1:MinResultRetentionTime" SymbolicName="MinResultRetentionTime" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>MinResultRetentionTime</DisplayName>
+    <Description>The minimum positive result/history interval accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=46" BrowseName="1:MaxResultRetentionTime" SymbolicName="MaxResultRetentionTime" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>MaxResultRetentionTime</DisplayName>
+    <Description>The maximum finite result/history interval accepted by this Server.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=47" BrowseName="1:DefaultResultRetentionTime" SymbolicName="DefaultResultRetentionTime" ParentNodeId="ns=1;i=39" DataType="Duration" ValueRank="-1">
+    <DisplayName>DefaultResultRetentionTime</DisplayName>
+    <Description>A result/history interval a Client may explicitly select within the advertised range.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=48" BrowseName="1:SupportedRecoveryModes" SymbolicName="SupportedRecoveryModes" ParentNodeId="ns=1;i=39" DataType="ns=1;i=9" ValueRank="1" ArrayDimensions="0">
+    <DisplayName>SupportedRecoveryModes</DisplayName>
+    <Description>Explicitly supported admission modes; Session is required. Owner and Durable require their conformance units and current storage/identity readiness.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=39</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=49" BrowseName="1:RecoverableExecutionDiagnosticsType" SymbolicName="RecoverableExecutionDiagnosticsType">
+    <DisplayName>RecoverableExecutionDiagnosticsType</DisplayName>
+    <Description>Privileged aggregate diagnostics. There is no caller-visible operation list.</Description>
+    <Category>RSE-Diagnostics</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=50</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=51</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=52</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=53</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=54</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=55</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=56</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=57</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=59</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=60</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=50" BrowseName="1:ActiveOperationCount" SymbolicName="ActiveOperationCount" ParentNodeId="ns=1;i=49" DataType="UInt32" ValueRank="-1">
+    <DisplayName>ActiveOperationCount</DisplayName>
+    <Description>Owned invocations that have not actually ended, including those past their protocol deadline.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=51" BrowseName="1:RetainedOutcomeCount" SymbolicName="RetainedOutcomeCount" ParentNodeId="ns=1;i=49" DataType="UInt32" ValueRank="-1">
+    <DisplayName>RetainedOutcomeCount</DisplayName>
+    <Description>Outcomes still available for collection.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=52" BrowseName="1:RetainedOutcomeBytes" SymbolicName="RetainedOutcomeBytes" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>RetainedOutcomeBytes</DisplayName>
+    <Description>Charged retained-outcome storage, including storage still leased to in-flight senders.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=53" BrowseName="1:TerminalRecordCount" SymbolicName="TerminalRecordCount" ParentNodeId="ns=1;i=49" DataType="UInt32" ValueRank="-1">
+    <DisplayName>TerminalRecordCount</DisplayName>
+    <Description>Retained metadata records after payload release, including required still-running-work identities.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=54" BrowseName="1:AdmittedCount" SymbolicName="AdmittedCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AdmittedCount</DisplayName>
+    <Description>Cumulative admitted operations.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=55" BrowseName="1:RejectedCount" SymbolicName="RejectedCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>RejectedCount</DisplayName>
+    <Description>Cumulative submissions rejected without a new dispatch.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=56" BrowseName="1:AcknowledgedCount" SymbolicName="AcknowledgedCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AcknowledgedCount</DisplayName>
+    <Description>Cumulative first acknowledgements; retries do not increase this count.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=57" BrowseName="1:AbandonedCount" SymbolicName="AbandonedCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>AbandonedCount</DisplayName>
+    <Description>Cumulative first abandonments; retries do not increase this count.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=58" BrowseName="1:ExpiredCount" SymbolicName="ExpiredCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>ExpiredCount</DisplayName>
+    <Description>Cumulative result-retention expirations.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=59" BrowseName="1:ExecutionDeadlineCount" SymbolicName="ExecutionDeadlineCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>ExecutionDeadlineCount</DisplayName>
+    <Description>Cumulative committed execution-deadline outcomes.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=60" BrowseName="1:ExecutionIndeterminateCount" SymbolicName="ExecutionIndeterminateCount" ParentNodeId="ns=1;i=49" DataType="UInt64" ValueRank="-1">
+    <DisplayName>ExecutionIndeterminateCount</DisplayName>
+    <Description>Cumulative indeterminate outcomes committed during durable restart recovery; not a count of proved business failures.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=49</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=61" BrowseName="1:AuditServiceOperationEventType" SymbolicName="AuditServiceOperationEventType">
+    <DisplayName>AuditServiceOperationEventType</DisplayName>
+    <Description>Privileged audit metadata for recoverable operation actions. Tokens, credentials and copied request/result payloads are not fields of this event.</Description>
+    <Category>RSE-Auditing</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=2069</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=62</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=63</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=64</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=65</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=66</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=67</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=68</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=62" BrowseName="1:ClientOperationId" SymbolicName="ClientOperationId" ParentNodeId="ns=1;i=61" DataType="Guid" ValueRank="-1">
+    <DisplayName>ClientOperationId</DisplayName>
+    <Description>The Client correlation ID, or a null Guid when no operation was identified.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=63" BrowseName="1:ServiceId" SymbolicName="ServiceId" ParentNodeId="ns=1;i=61" DataType="NodeId" ValueRank="-1">
+    <DisplayName>ServiceId</DisplayName>
+    <Description>The original request DataType NodeId, when known.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=64" BrowseName="1:Action" SymbolicName="Action" ParentNodeId="ns=1;i=61" DataType="ns=1;i=7" ValueRank="-1">
+    <DisplayName>Action</DisplayName>
+    <Description>The action recorded by this event.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=65" BrowseName="1:OperationState" SymbolicName="OperationState" ParentNodeId="ns=1;i=61" DataType="ns=1;i=1" ValueRank="-1">
+    <DisplayName>OperationState</DisplayName>
+    <Description>The reported operation state or Unknown when no record is disclosed.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=66" BrowseName="1:OutcomeKind" SymbolicName="OutcomeKind" ParentNodeId="ns=1;i=61" DataType="ns=1;i=3" ValueRank="-1">
+    <DisplayName>OutcomeKind</DisplayName>
+    <Description>The recorded outcome kind, without the original response payload.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=67" BrowseName="1:OutcomeStatus" SymbolicName="OutcomeStatus" ParentNodeId="ns=1;i=61" DataType="StatusCode" ValueRank="-1">
+    <DisplayName>OutcomeStatus</DisplayName>
+    <Description>The original serviceResult or terminal protocol error when known; the inherited audit Status reports success of the audited action separately.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=68" BrowseName="1:RecoveryMode" SymbolicName="RecoveryMode" ParentNodeId="ns=1;i=61" DataType="ns=1;i=9" ValueRank="-1">
+    <DisplayName>RecoveryMode</DisplayName>
+    <Description>The recorded recovery mode when known; Unspecified for an undisclosed record.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=61</Reference>
+    </References>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=69" BrowseName="1:RecoverableExecutionManagerType" SymbolicName="RecoverableExecutionManagerType">
+    <DisplayName>RecoverableExecutionManagerType</DisplayName>
+    <Description>Standard manager with recoverable execution capabilities and Submit, GetResult, Acknowledge, Cancel and Abandon Methods through ordinary Call.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=70</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=74</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=77</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=80</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=83</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=86</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=70" BrowseName="1:Capabilities" SymbolicName="Capabilities" ParentNodeId="ns=1;i=69">
+    <DisplayName>Capabilities</DisplayName>
+    <Description>The supported recoverable execution contract, original request types, recovery modes and exact lifetime ranges/defaults.</Description>
+    <Category>RSE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=39</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=71" BrowseName="1:Capabilities" SymbolicName="Capabilities" ParentNodeId="ns=1;i=73">
+    <DisplayName>Capabilities</DisplayName>
+    <Description>Recoverable execution capabilities under RecoverableExecutionManager; absent with the manager when the feature is disabled.</Description>
+    <Category>RSE-Model</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=39</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=73</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=72" BrowseName="1:RecoverableExecutionDiagnostics" SymbolicName="RecoverableExecutionDiagnostics" ParentNodeId="i=2274">
+    <DisplayName>RecoverableExecutionDiagnostics</DisplayName>
+    <Description>Privileged aggregate diagnostics under ServerDiagnostics.</Description>
+    <Category>RSE-Diagnostics</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=49</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2274</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=73" BrowseName="1:RecoverableExecutionManager" SymbolicName="RecoverableExecutionManager" ParentNodeId="i=2253">
+    <DisplayName>RecoverableExecutionManager</DisplayName>
+    <Description>Well-known manager under Server. Mandatory Method instance children have Server-assigned NodeIds.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=2253</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=71</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=1;i=74" BrowseName="1:Submit" SymbolicName="Submit" ParentNodeId="ns=1;i=69" Executable="true" UserExecutable="true">
+    <DisplayName>Submit</DisplayName>
+    <Description>Admit one original request under the exact selected recovery mode, lifetimes and bounded wait.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=75</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=76</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=75" BrowseName="0:InputArguments" SymbolicName="InputArguments" ParentNodeId="ns=1;i=74" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Description>One scalar SubmitRequestDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=74</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Request</Name><DataType><Identifier>ns=1;i=15</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Admit one original request under the exact selected recovery mode, lifetimes and bounded wait.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=76" BrowseName="0:OutputArguments" SymbolicName="OutputArguments" ParentNodeId="ns=1;i=74" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <Description>One scalar SubmitResponseDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=74</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Response</Name><DataType><Identifier>ns=1;i=19</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Admit one original request under the exact selected recovery mode, lifetimes and bounded wait.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=77" BrowseName="1:GetResult" SymbolicName="GetResult" ParentNodeId="ns=1;i=69" Executable="true" UserExecutable="true">
+    <DisplayName>GetResult</DisplayName>
+    <Description>Recover by Client ID or token within the selected ownership scope without original-request replay.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=78</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=79</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=78" BrowseName="0:InputArguments" SymbolicName="InputArguments" ParentNodeId="ns=1;i=77" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Description>One scalar GetResultRequestDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=77</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Request</Name><DataType><Identifier>ns=1;i=23</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Recover by Client ID or token within the selected ownership scope without original-request replay.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=79" BrowseName="0:OutputArguments" SymbolicName="OutputArguments" ParentNodeId="ns=1;i=77" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <Description>One scalar GetResultResponseDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=77</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Response</Name><DataType><Identifier>ns=1;i=27</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Recover by Client ID or token within the selected ownership scope without original-request replay.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=80" BrowseName="1:Acknowledge" SymbolicName="Acknowledge" ParentNodeId="ns=1;i=69" Executable="true" UserExecutable="true">
+    <DisplayName>Acknowledge</DisplayName>
+    <Description>Accept an available outcome and release its payload, with current authorization.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=81</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=82</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=81" BrowseName="0:InputArguments" SymbolicName="InputArguments" ParentNodeId="ns=1;i=80" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Description>One scalar OperationControlRequestDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=80</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Request</Name><DataType><Identifier>ns=1;i=31</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Accept an available outcome and release its payload, with current authorization.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=82" BrowseName="0:OutputArguments" SymbolicName="OutputArguments" ParentNodeId="ns=1;i=80" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <Description>One scalar ControlResponseDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=80</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Response</Name><DataType><Identifier>ns=1;i=35</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Accept an available outcome and release its payload, with current authorization.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=83" BrowseName="1:Cancel" SymbolicName="Cancel" ParentNodeId="ns=1;i=69" Executable="true" UserExecutable="true">
+    <DisplayName>Cancel</DisplayName>
+    <Description>Request cancellation of owned work without abandoning result recovery or implying rollback. Distinct from the Cancel Service.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=84</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=85</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=84" BrowseName="0:InputArguments" SymbolicName="InputArguments" ParentNodeId="ns=1;i=83" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Description>One scalar OperationControlRequestDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=83</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Request</Name><DataType><Identifier>ns=1;i=31</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Request cancellation of owned work without abandoning result recovery or implying rollback. Distinct from the Cancel Service.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=85" BrowseName="0:OutputArguments" SymbolicName="OutputArguments" ParentNodeId="ns=1;i=83" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <Description>One scalar ControlResponseDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=83</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Response</Name><DataType><Identifier>ns=1;i=35</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Request cancellation of owned work without abandoning result recovery or implying rollback. Distinct from the Cancel Service.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=86" BrowseName="1:Abandon" SymbolicName="Abandon" ParentNodeId="ns=1;i=69" Executable="true" UserExecutable="true">
+    <DisplayName>Abandon</DisplayName>
+    <Description>Waive result recovery without requesting cancellation of owned work, with current authorization.</Description>
+    <Category>RSE-Execution</Category>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=69</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=87</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=88</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=87" BrowseName="0:InputArguments" SymbolicName="InputArguments" ParentNodeId="ns=1;i=86" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>InputArguments</DisplayName>
+    <Description>One scalar OperationControlRequestDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=86</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Request</Name><DataType><Identifier>ns=1;i=31</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Waive result recovery without requesting cancellation of owned work, with current authorization.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=88" BrowseName="0:OutputArguments" SymbolicName="OutputArguments" ParentNodeId="ns=1;i=86" DataType="i=296" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>OutputArguments</DisplayName>
+    <Description>One scalar ControlResponseDataType argument.</Description>
+    <References>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=86</Reference>
+    </References>
+    <Value><ListOfExtensionObject xmlns="http://opcfoundation.org/UA/2008/02/Types.xsd"><ExtensionObject><TypeId><Identifier>i=297</Identifier></TypeId><Body><Argument><Name>Response</Name><DataType><Identifier>ns=1;i=35</Identifier></DataType><ValueRank>-1</ValueRank><ArrayDimensions /><Description><Text>Waive result recovery without requesting cancellation of owned work, with current authorization.</Text></Description></Argument></Body></ExtensionObject></ListOfExtensionObject></Value>
+  </UAVariable>
+  <UAObject NodeId="ns=1;i=89" BrowseName="1:http://opcfoundation.org/UA/RSE/" SymbolicName="RseNamespace" ParentNodeId="i=11715">
+    <DisplayName>http://opcfoundation.org/UA/RSE/</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=11616</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">i=11715</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=90</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=91</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=92</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=93</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=94</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=95</Reference>
+      <Reference ReferenceType="HasProperty">ns=1;i=96</Reference>
+    </References>
+  </UAObject>
+  <UAVariable NodeId="ns=1;i=90" BrowseName="0:NamespaceUri" SymbolicName="NamespaceUri" ParentNodeId="ns=1;i=89" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceUri</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:String>http://opcfoundation.org/UA/RSE/</uax:String></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=91" BrowseName="0:NamespaceVersion" SymbolicName="NamespaceVersion" ParentNodeId="ns=1;i=89" DataType="String" ValueRank="-1">
+    <DisplayName>NamespaceVersion</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:String>0.4.0</uax:String></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=92" BrowseName="0:NamespacePublicationDate" SymbolicName="NamespacePublicationDate" ParentNodeId="ns=1;i=89" DataType="i=13" ValueRank="-1">
+    <DisplayName>NamespacePublicationDate</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:DateTime>2026-10-20T00:00:00Z</uax:DateTime></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=93" BrowseName="0:IsNamespaceSubset" SymbolicName="IsNamespaceSubset" ParentNodeId="ns=1;i=89" DataType="Boolean" ValueRank="-1">
+    <DisplayName>IsNamespaceSubset</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:Boolean>false</uax:Boolean></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=94" BrowseName="0:StaticNodeIdTypes" SymbolicName="StaticNodeIdTypes" ParentNodeId="ns=1;i=89" DataType="i=256" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>StaticNodeIdTypes</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ListOfInt32><uax:Int32>0</uax:Int32></uax:ListOfInt32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=95" BrowseName="0:StaticNumericNodeIdRange" SymbolicName="StaticNumericNodeIdRange" ParentNodeId="ns=1;i=89" DataType="i=291" ValueRank="1" ArrayDimensions="1">
+    <DisplayName>StaticNumericNodeIdRange</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:ListOfString><uax:String>1:96</uax:String></uax:ListOfString></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=96" BrowseName="0:StaticStringNodeIdPattern" SymbolicName="StaticStringNodeIdPattern" ParentNodeId="ns=1;i=89" DataType="String" ValueRank="-1">
+    <DisplayName>StaticStringNodeIdPattern</DisplayName>
+    <References>
+      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=89</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+    </References>
+    <Value xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"><uax:String></uax:String></Value>
+  </UAVariable>
+</UANodeSet>

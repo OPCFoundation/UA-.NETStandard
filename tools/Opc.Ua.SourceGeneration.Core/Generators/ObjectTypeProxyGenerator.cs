@@ -83,7 +83,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.OutputFolder,
                 CoreUtils.Format(
                     "{0}.TypeProxies.g.cs",
-                    m_context.ModelDesign.TargetNamespace.Prefix));
+                    m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -649,8 +649,9 @@ namespace Opc.Ua.SourceGeneration
                 s_methodArgumentCodeNameScope);
 
             string methodIdConstant = CoreUtils.Format(
-                "global::{0}.MethodIds.{1}",
+                "global::{0}.{1}MethodIds.{2}",
                 m_context.ModelDesign.TargetNamespace.Prefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(),
                 method.SymbolicId.Name);
 
             // The instance-method browse name + namespace are emitted as

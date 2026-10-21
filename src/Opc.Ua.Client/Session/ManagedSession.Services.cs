@@ -76,6 +76,17 @@ namespace Opc.Ua.Client
             ArrayOf<HistoryReadValueId> nodesToRead,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<HistoryReadResponse>(new HistoryReadRequest
+                {
+                    RequestHeader = requestHeader!,
+                    HistoryReadDetails = historyReadDetails,
+                    TimestampsToReturn = timestampsToReturn,
+                    ReleaseContinuationPoints = releaseContinuationPoints,
+                    NodesToRead = nodesToRead
+                }, ct);
+            }
             return CallServiceAsync(
                 (
                     requestHeader,
@@ -120,6 +131,14 @@ namespace Opc.Ua.Client
             ArrayOf<ExtensionObject> historyUpdateDetails,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<HistoryUpdateResponse>(new HistoryUpdateRequest
+                {
+                    RequestHeader = requestHeader!,
+                    HistoryUpdateDetails = historyUpdateDetails
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, historyUpdateDetails),
                 static (session, a, ct) => session.HistoryUpdateAsync(
@@ -135,6 +154,16 @@ namespace Opc.Ua.Client
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<BrowseResponse>(new BrowseRequest
+                {
+                    RequestHeader = requestHeader!,
+                    View = view!,
+                    RequestedMaxReferencesPerNode = requestedMaxReferencesPerNode,
+                    NodesToBrowse = nodesToBrowse
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse),
                 static (session, a, ct) => session.BrowseAsync(
@@ -149,6 +178,15 @@ namespace Opc.Ua.Client
             ArrayOf<ByteString> continuationPoints,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<BrowseNextResponse>(new BrowseNextRequest
+                {
+                    RequestHeader = requestHeader!,
+                    ReleaseContinuationPoints = releaseContinuationPoints,
+                    ContinuationPoints = continuationPoints
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, releaseContinuationPoints, continuationPoints),
                 static (session, a, ct) => session.BrowseNextAsync(
@@ -162,6 +200,15 @@ namespace Opc.Ua.Client
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<TranslateBrowsePathsToNodeIdsResponse>(
+                    new TranslateBrowsePathsToNodeIdsRequest
+                    {
+                        RequestHeader = requestHeader!,
+                        BrowsePaths = browsePaths
+                    }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, browsePaths),
                 static (session, a, ct) => session.TranslateBrowsePathsToNodeIdsAsync(
@@ -175,6 +222,14 @@ namespace Opc.Ua.Client
             ArrayOf<NodeId> nodesToRegister,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<RegisterNodesResponse>(new RegisterNodesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    NodesToRegister = nodesToRegister
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, nodesToRegister),
                 static (session, a, ct) => session.RegisterNodesAsync(
@@ -188,6 +243,14 @@ namespace Opc.Ua.Client
             ArrayOf<NodeId> nodesToUnregister,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<UnregisterNodesResponse>(new UnregisterNodesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    NodesToUnregister = nodesToUnregister
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, nodesToUnregister),
                 static (session, a, ct) => session.UnregisterNodesAsync(
@@ -434,6 +497,14 @@ namespace Opc.Ua.Client
             ArrayOf<AddNodesItem> nodesToAdd,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<AddNodesResponse>(new AddNodesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    NodesToAdd = nodesToAdd
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, nodesToAdd),
                 static (session, a, ct) => session.AddNodesAsync(
@@ -447,6 +518,14 @@ namespace Opc.Ua.Client
             ArrayOf<AddReferencesItem> referencesToAdd,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<AddReferencesResponse>(new AddReferencesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    ReferencesToAdd = referencesToAdd
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, referencesToAdd),
                 static (session, a, ct) => session.AddReferencesAsync(
@@ -460,6 +539,14 @@ namespace Opc.Ua.Client
             ArrayOf<DeleteNodesItem> nodesToDelete,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<DeleteNodesResponse>(new DeleteNodesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    NodesToDelete = nodesToDelete
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, nodesToDelete),
                 static (session, a, ct) => session.DeleteNodesAsync(
@@ -473,6 +560,14 @@ namespace Opc.Ua.Client
             ArrayOf<DeleteReferencesItem> referencesToDelete,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<DeleteReferencesResponse>(new DeleteReferencesRequest
+                {
+                    RequestHeader = requestHeader!,
+                    ReferencesToDelete = referencesToDelete
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, referencesToDelete),
                 static (session, a, ct) => session.DeleteReferencesAsync(
@@ -490,6 +585,18 @@ namespace Opc.Ua.Client
             uint maxReferencesToReturn,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<QueryFirstResponse>(new QueryFirstRequest
+                {
+                    RequestHeader = requestHeader!,
+                    View = view!,
+                    NodeTypes = nodeTypes,
+                    Filter = filter!,
+                    MaxDataSetsToReturn = maxDataSetsToReturn,
+                    MaxReferencesToReturn = maxReferencesToReturn
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, view, nodeTypes, filter, maxDataSetsToReturn, maxReferencesToReturn),
                 static (session, a, ct) => session.QueryFirstAsync(
@@ -510,6 +617,15 @@ namespace Opc.Ua.Client
             ByteString continuationPoint,
             CancellationToken ct)
         {
+            if (IsRecoverableApplicationFlow)
+            {
+                return m_recoverableExecution!.RequestAsync<QueryNextResponse>(new QueryNextRequest
+                {
+                    RequestHeader = requestHeader!,
+                    ReleaseContinuationPoint = releaseContinuationPoint,
+                    ContinuationPoint = continuationPoint
+                }, ct);
+            }
             return CallServiceAsync(
                 (requestHeader, releaseContinuationPoint, continuationPoint),
                 static (session, a, ct) => session.QueryNextAsync(

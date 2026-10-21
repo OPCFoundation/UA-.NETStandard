@@ -99,7 +99,8 @@ namespace Opc.Ua.SourceGeneration
             }
             string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder,
-                CoreUtils.Format("{0}.StateMachineIds.g.cs", namespacePrefix));
+                CoreUtils.Format("{0}.StateMachineIds.g.cs",
+                    m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);

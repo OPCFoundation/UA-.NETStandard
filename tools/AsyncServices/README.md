@@ -1,90 +1,99 @@
 # Experimental RSE (Async Services) generator inputs
 
-This directory maintains the **OPC 10000-27: Recoverable Service Execution
-(RSE)** draft 0.2.0 inputs, dated 2026-10-16. The publication name does not rename
-the Async Service APIs, source paths, ASE capability/conformance identifiers or
-namespace-zero allocations. The proposal is not an adopted OPC UA standard.
-Its identifiers are provisional, and the now-closed
+This directory maintains the pinned model inputs for **OPC 10000-29:
+Recoverable Service Execution (RSE)** draft 0.4.0. The proposal is not an adopted
+OPC UA standard. Its identifiers are provisional, and the now-closed
 [#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813) is not an
 active approval record.
 
-`..\Opc.Ua.SourceGeneration.Core\Design\AsyncServices.model-contract.json`
-records field order, enumeration values, identifiers and protocol invariants.
-The stack's existing source generators consume the synchronized
-`UA Core Services.xml`, `StandardTypes.xml` and `StandardTypes.csv` inputs.
-Do not edit generated C# to change the protocol.
+Client and Server use the five manager Methods; the earlier dedicated Services
+are removed. The [runtime guide](../../docs/AsyncServices.md#samples-and-validation-scope)
+separates integrated recovery tests, native transports, process restarts and
+NativeAOT evidence. Activation and Owner/Durable qualification remain explicit.
+Importing or checking artifacts does not enable those modes or establish runtime
+conformance.
+
+The corrected NodeSet is consumed by the existing Core model source generator
+under `Opc.Ua`, including typed structures, states and manager proxies.
+Namespace-local helper containers use the `Rse` prefix, such as
+`RseDataTypeIds`, so Core and RSE numeric identifiers do not share a lookup table.
+The producer correction uses local SymbolicNames and composed CSV labels;
+no naming workaround was added to the importer. Code generation and compilation
+alone do not establish Server or Client runtime conformance.
 
 ## Source revision
 
 The adopted source is `OPCF-Members/OPC10000-Core` commit
-`8710615ed5765ff780fd54b7f58a6db884d315c8`. Its
+`533587684928669b0cd183fc9ab61b5b0730a576`. Its
 `source\async-services\model-contract.json` supplies the canonical JSON;
-`model\Opc.Ua.AsyncServices.NodeSet2.xml` supplies the runtime overlay.
-`source\async-services\manifest.json` identifies the publication, and
+`model\Opc.Ua.RSE.NodeSet2.xml` and
+`model\Opc.Ua.RSE.NodeIds.csv` supply the primary model and identifiers.
 `extras\async-services\revision-contract.json` records its semantic fingerprints.
 
 | Fingerprint | SHA-256 |
 | --- | --- |
-| Schema semantics | `4a6a505de7fbb9085c9940cbf72c53f7269057acfba282b8e6f180dd8036e13b` |
-| Model semantics | `2843d83052ca0a2b45c60e53845370a0807b90b71ef1d46c261d68e541f56387` |
-| Runtime NodeSet bytes (Git blob) | `76be09ab2e25e459d22c0fbe6fea4c42f91a5b710505ca1ae98740918bbc7ed9` |
+| Schema semantics | `cf7adc567a97eef517456c66b7dc1bc55edc1f0b64376cb262a5494a113c7220` |
+| Model semantics | `e080235527ba02f74fe9857878b6cbc76f539a9fcf51549e607b63775aaf3702` |
+| Canonical JSON bytes | `f84345ba67b070723a37eec66c35cb2dcb7b22b698fa78d9b0f94f55ce52c75f` |
+| NodeSet bytes | `36083b885c033206b22f754fb53b7491b868757a1de1df97c7b459345fa49904` |
+| NodeIds CSV bytes | `6449c0f65179f91de1148ae5425ffd93f081270aa7d1b670fbc274e1f7dda14c` |
 
-The JSON content and runtime NodeSet bytes match that committed source. Relative
-to the original Core `70bf376` acceptance baseline, only the
-`SubmitServiceRequest.ExecutionAllowance` description and the NodeSet's human
-title changed. Field order, types, enums, encodings, namespaces, NodeIds and the
-semantic fingerprints did not change. The older raw NodeSet fingerprint,
-`5e675dd56cf8b296bc3739905777f93d5a3e0e68832e17d98b39ffe300dc4028`,
-belongs to the earlier snapshot, not this adoption.
+All 96 definitions use the namespace URI `http://opcfoundation.org/UA/RSE/`,
+with contiguous local numeric IDs 1..96. Namespace index 1 belongs to the
+supplied file; runtime consumers must resolve the URI, not hard-code that index.
+Core dependencies remain in namespace zero. The primary model includes
+NamespaceMetadata (89) and its properties (90..96); there is no separate
+metadata-only model for this revision.
 
-Git checkout line-ending conversion can change a local file's raw-byte hash;
-the recorded fingerprint identifies the committed artifact.
+The manager is local ID 73, with Capabilities at 71 and its Mandatory type
+declaration at 70. Submit, GetResult, Acknowledge, Cancel and Abandon declarations
+and argument variables occupy 74..88. These are declarations, not the
+Server-assigned Method instance IDs. Each Method has one scalar request and one
+scalar response argument, without wrapper headers.
+The CSV name of instance 71 is `RecoverableExecutionManager_Capabilities`; its
+BrowseName remains the RSE-qualified `Capabilities`.
 
-Keep the publication-only `Opc.Ua.AsyncServices.Metadata.NodeSet2.xml` separate.
-It is not an input to the runtime overlay or a Server dependency.
+Conformance units use `RSE-*`, the capability identifier is `RSE`, and the
+verification assertions are `RSE3-001` through `RSE3-070`. The experimental
+Session, Owner and Durable profile suffixes remain `0.4`.
 
-## Synchronize generator inputs
+## Import and verify inputs
 
-From the repository root:
+Export the four named files from the exact committed source into a local
+directory: `model-contract.json`, `Opc.Ua.RSE.NodeSet2.xml`,
+`Opc.Ua.RSE.NodeIds.csv` and `revision-contract.json`. Then, from the
+repository root:
 
 ```powershell
-python tools\AsyncServices\sync_contract.py
-python tools\AsyncServices\sync_contract.py --check
+python -B tools\AsyncServices\sync_contract.py --import-from <export-directory>
+python -B tools\AsyncServices\sync_contract.py --check
+python -B -m unittest discover -s tools\AsyncServices -p test_sync_contract.py -v
 ```
 
-The synchronizer changes only its marked XML sections and the contract's CSV
-allocations. It rejects identifier collisions and preserves the rest of the
-standard model. Its check mode fails on drift without writing files.
-Update the JSON and runtime overlay from the same reviewed source revision,
-then run the synchronizer; it does not fetch or rewrite the runtime NodeSet.
+The importer verifies every pinned hash and the complete snapshot before writing
+any destination. It checks namespace-local identities, the NodeSet/CSV inventory,
+ordered structure fields, scalar Method arguments and conformance identifiers.
+It does not fetch a moving branch. Check mode is read-only; repeated imports of
+the same content do not rewrite the files. CRLF checkout conversion is normalized
+to the committed LF bytes for hash comparison.
 
-## Generated surfaces
+The JSON is kept at
+`..\Opc.Ua.SourceGeneration.Core\Design\AsyncServices.model-contract.json`.
+The NodeSet and CSV are kept together under
+`..\..\src\Opc.Ua.Core\AsyncServices\Model`; the revision contract is in this
+directory. Model C# must come from the existing source generator, not
+handwritten replacement DTOs.
 
-Two model categories keep the experiment separate from existing behavior:
+## Legacy implementation
 
-- `RuntimeOptional` omits a definition from the generated default address-space
-  initializer while retaining its typed state and factory surfaces. Runtime
-  feature activation must install the optional model explicitly.
-- `AsyncOnly` emits only TAP Client methods for a Service. Existing Services
-  retain their compatibility methods; the new Services have no synchronous or
-  Begin/End API.
+The namespace-zero experimental definitions in `UA Core Services.xml`,
+`StandardTypes.xml` and `StandardTypes.csv`, the dedicated ServiceSet and the
+Server's old runtime overlay are removed. Their provisional identities are not
+reassigned or registered as an alternate binding. Diagnostics type 49 and
+instance 72 are `RecoverableExecutionDiagnosticsType` and
+`RecoverableExecutionDiagnostics`.
 
-The request and response messages remain normal generated `IServiceRequest` and
-`IServiceResponse` types. JSON uses the standard DataType identifier for
-`UaTypeId`; the explicitly allocated Default JSON encoding Objects remain
-available in the model. The two well-known capability/diagnostic roots have
-fixed proposal IDs. Their instance children use Server-assigned IDs in the
-application namespace, not the IDs of the corresponding type declarations.
-
-The three operations have their own `Asynchronous` Service Set category and
-generated `IAsynchronousServiceSetClientMethods` interface. The Session client
-and endpoint host that set because it requires a Session; it is not classified
-as one of the four Session lifecycle Services.
-
-The encoder tests independently check Binary field order, both Binary and JSON
-round trips, the original response header and diagnostics, and exclusion of the
-experimental definitions from the normal address-space initializer.
-
-See the [runtime and typed-Client guide](../../docs/AsyncServices.md) and
-[protocol reference](../../docs/AsyncServices.md#protocol-reference) for opt-in installation,
-acceptance/ACK, lifetimes, ownership and evidence boundaries.
+See the [runtime guide](../../docs/AsyncServices.md),
+[five-Method binding](../../docs/AsyncServices.md#five-manager-methods) and
+[Client guide](../../docs/ClientRecoverableExecution.md) for current activation,
+acceptance, lifetimes and evidence boundaries.

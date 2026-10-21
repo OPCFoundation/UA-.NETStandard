@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public static partial class {{Tokens.NodeClass}}s
+            public static partial class {{Tokens.HelperPrefix}}{{Tokens.NodeClass}}s
             {
                 {{Tokens.ListOfIdentifiers}}
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.SourceGeneration
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public static partial class {{Tokens.NodeClass}}Ids
+            public static partial class {{Tokens.HelperPrefix}}{{Tokens.NodeClass}}Ids
             {
                 {{Tokens.ListOfIdentifiers}}
 
@@ -104,7 +104,8 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString NodeIdDeclarationAbsolute = TemplateString.Parse(
             $$"""
             public static readonly global::Opc.Ua.ExpandedNodeId {{Tokens.SymbolicName}} =
-                new global::Opc.Ua.ExpandedNodeId(global::{{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}}, {{Tokens.NamespaceUri}});
+                new global::Opc.Ua.ExpandedNodeId(
+                    {{Tokens.IdentifierType}}.{{Tokens.SymbolicName}}, {{Tokens.NamespaceUri}});
 
             """);
 
@@ -114,7 +115,7 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString NodeIdDeclaration = TemplateString.Parse(
             $$"""
             public static global::Opc.Ua.NodeId {{Tokens.SymbolicName}} =>
-                new global::Opc.Ua.NodeId(global::{{Tokens.NamespacePrefix}}.{{Tokens.NodeClass}}s.{{Tokens.SymbolicName}});
+                new global::Opc.Ua.NodeId({{Tokens.IdentifierType}}.{{Tokens.SymbolicName}});
 
             """);
 

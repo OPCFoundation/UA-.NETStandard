@@ -114,14 +114,18 @@ namespace Opc.Ua.SourceGeneration
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.NodeStates.g.cs",
-                nsPrefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(templateWriter, NodeStateTemplates.File);
             template.AddReplacement(Tokens.NamespacePrefix, nsPrefix);
             template.AddReplacement(
                 Tokens.Namespace,
-                nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                    .Replace(".", string.Empty, StringComparison.Ordinal));
+            template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix());
             template.AddReplacement(
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -153,10 +157,11 @@ namespace Opc.Ua.SourceGeneration
         private TextFileResource EmitNodeSetImportSupport()
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
-            string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
+            string typeStem = m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                .Replace(".", string.Empty, StringComparison.Ordinal);
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.NodeSetImportSupport.g.cs",
-                nsPrefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(
@@ -615,7 +620,7 @@ namespace Opc.Ua.SourceGeneration
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string fileName = Path.Combine(m_context.OutputFolder, CoreUtils.Format(
                 "{0}.NodeStates.ex.g.cs",
-                nsPrefix));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
             var template = new Template(
@@ -625,7 +630,11 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(Tokens.NamespacePrefix, nsPrefix);
             template.AddReplacement(
                 Tokens.Namespace,
-                nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal));
+                m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()
+                    .Replace(".", string.Empty, StringComparison.Ordinal));
+            template.AddReplacement(
+                Tokens.HelperPrefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix());
             template.AddReplacement(
                 Tokens.NamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
@@ -2765,6 +2774,10 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     variableType.DataTypeNode.SymbolicId.Namespace));
             context.Template.AddReplacement(
+                Tokens.DataTypeHelperPrefix,
+                m_context.ModelDesign.Namespaces.GetNamespace(
+                    variableType.DataTypeNode.SymbolicId.Namespace)?.GetModelHelperPrefix() ?? string.Empty);
+            context.Template.AddReplacement(
                 Tokens.DataTypeNamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
                     variableType.DataTypeNode.SymbolicId.Namespace));
@@ -3192,13 +3205,17 @@ namespace Opc.Ua.SourceGeneration
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
                             "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
-                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesXsd.ToArray()));");
+                            "global::Opc.Ua.ByteString.From(" +
+                            m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix() +
+                            "XmlSchemas.TypesXsd.ToArray()));");
                         return;
                     case "OPCBinarySchema_TypeSystem":
                         context.Template.AddReplacement(
                             Tokens.ValueCode,
                             "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
-                            "global::Opc.Ua.ByteString.From(XmlSchemas.TypesBsd.ToArray()));");
+                            "global::Opc.Ua.ByteString.From(" +
+                            m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix() +
+                            "XmlSchemas.TypesBsd.ToArray()));");
                         return;
                 }
                 // unknown type system
@@ -3330,8 +3347,10 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.DataTypeDefinition,
                     CoreUtils.Format(
-                        "new global::Opc.Ua.ExtensionObject(global::{0}.DataTypeDefinitions.Create{1}({2}))",
+                        "new global::Opc.Ua.ExtensionObject(global::{0}.{1}DataTypeDefinitions.Create{2}({3}))",
                         m_context.ModelDesign.Namespaces.GetNamespacePrefix(node.SymbolicName.Namespace),
+                        m_context.ModelDesign.Namespaces.GetNamespace(
+                            node.SymbolicName.Namespace)?.GetModelHelperPrefix() ?? string.Empty,
                         node.SymbolicName.Name,
                         kNamespaceTableContextVariable));
             }
@@ -4892,7 +4911,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
-            string resourceName = CoreUtils.Format("Values.{0}", node.SymbolicId.Name);
+            string resourceName = CoreUtils.Format("{0}Values.{1}",
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(), node.SymbolicId.Name);
             string uniqueName = resourceName;
             for (int i = 0; i < 1000; i++)
             {
@@ -4935,7 +4955,7 @@ namespace Opc.Ua.SourceGeneration
             var initializers = new ResourceGenerator(m_context);
             return initializers.Embed(
                 m_context.ModelDesign.TargetNamespace.Prefix,
-                "NodeStates.i",
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix() + "NodeStates.i",
                 internalAccess: true,
                 [.. m_initializers.Values]);
         }

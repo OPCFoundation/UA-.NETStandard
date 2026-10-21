@@ -35,7 +35,8 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// An opaque, same-Session receipt for an accepted caller operation. It never contains a public Server token.
+    /// An opaque receipt for an accepted caller operation and its selected recovery mode.
+    /// It never contains a public Server token.
     /// </summary>
     public sealed class RecoverableReceipt
     {
@@ -48,7 +49,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Gets the Session to which this receipt belongs.
+        /// Gets the original issuing Session, including when explicit Owner recovery uses a replacement Session.
         /// </summary>
         public NodeId SessionId => m_group.SessionId;
 
@@ -110,10 +111,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Acknowledges the accepted operation; ordinary fallback cannot manufacture a successful receipt.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         public ValueTask AcknowledgeAsync(CancellationToken ct = default)
         {
-            return (Receipt ?? throw new ServiceResultException(
-                StatusCodes.BadNotSupported, "This operation has no recoverable receipt.")).AcknowledgeAsync(ct);
+            return (Receipt ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "This operation has no recoverable receipt.")).AcknowledgeAsync(ct);
         }
 
         /// <inheritdoc/>
@@ -140,6 +143,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Claims the scope exactly once; unrelated or concurrent calls cannot share its receipt.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
         internal RecoverableOperationGroup Claim(NodeId sessionId)
         {
             lock (m_gate)
@@ -172,6 +177,8 @@ namespace Opc.Ua.Client
         /// Begins a local explicit-acknowledgement scope on an already opted-in ManagedSession.
         /// The scope must be disposed in reverse nesting order in the same asynchronous flow.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="session"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
         public static RecoverableAcknowledgementScope BeginAcknowledgementScope(
             this ISession session,
             bool requireRecoverableReceipt = false,
@@ -202,7 +209,7 @@ namespace Opc.Ua.Client
             SessionId = sessionId;
             RequireReceipt = requireReceipt;
             Scope = scope;
-            m_token = m_lifetime.Token;
+            Token = m_lifetime.Token;
             m_receipt = new RecoverableReceipt(this);
         }
 
@@ -229,7 +236,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets cancellation of local waiting, never a remote work-control action.
         /// </summary>
-        internal CancellationToken Token => m_token;
+        internal CancellationToken Token { get; }
 
         /// <summary>
         /// Gets whether the logical operation includes ordinary dispatch.
@@ -244,7 +251,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Gets the shared same-Session binding.
         /// </summary>
-        internal SessionRequestContext? Binding { get; private set; }
+        internal RecoverableExecutionBinding? Binding { get; private set; }
 
         /// <summary>
         /// Gets a receipt only after a real recoverable outcome has been received.
@@ -277,6 +284,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Shares one capability lookup between nested requests without caching it across caller operations.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         internal Task<RecoverableCapabilities> GetCapabilitiesAsync(Func<Task<RecoverableCapabilities>> discover)
         {
             lock (m_gate)
@@ -292,7 +300,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Transfers binding ownership only if the scope has not already been disposed.
         /// </summary>
-        internal bool TryAttachBinding(SessionRequestContext binding)
+        internal bool TryAttachBinding(RecoverableExecutionBinding binding)
         {
             lock (m_gate)
             {
@@ -309,6 +317,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Records ordinary dispatch or refuses it when a recoverable receipt is required.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal void MarkOrdinary()
         {
             if (RequireReceipt)
@@ -322,6 +331,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Takes ownership of an operation before its cancellable submission starts.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         internal void Add(IRecoverableOperation operation)
         {
             lock (m_gate)
@@ -335,13 +345,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Returns ownership of an operation whose unsupported submission was never admitted.
+        /// Commits local acceptance only after the whole typed caller operation and application policy succeeded.
         /// </summary>
-        internal void Remove(IRecoverableOperation operation)
+        /// <exception cref="OperationCanceledException"></exception>
+        internal async ValueTask CommitAcceptanceAsync(CancellationToken ct)
         {
+            ct.ThrowIfCancellationRequested();
+            IRecoverableOperation[] operations;
             lock (m_gate)
             {
-                m_operations.Remove(operation);
+                if (m_disposed != 0)
+                {
+                    throw new OperationCanceledException(Token);
+                }
+                operations = [.. m_operations];
+            }
+            foreach (IRecoverableOperation operation in operations)
+            {
+                await operation.CommitAcceptanceAsync(ct).ConfigureAwait(false);
             }
         }
 
@@ -400,6 +421,9 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Serializes idempotent receipt confirmation without rerunning original work.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         internal async ValueTask AcknowledgeAsync(CancellationToken ct)
         {
             lock (m_gate)
@@ -417,7 +441,7 @@ namespace Opc.Ua.Client
                     throw new ServiceResultException(StatusCodes.BadNotSupported, "No recoverable receipt exists.");
                 }
             }
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, m_token);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, Token);
             await m_acknowledgement.WaitAsync(linked.Token).ConfigureAwait(false);
             try
             {
@@ -477,7 +501,6 @@ namespace Opc.Ua.Client
         private readonly List<IRecoverableOperation> m_operations = [];
         private readonly List<ServiceResultException> m_originalFailures = [];
         private readonly CancellationTokenSource m_lifetime = new();
-        private readonly CancellationToken m_token;
         private readonly SemaphoreSlim m_acknowledgement = new(1, 1);
         private readonly RecoverableReceipt m_receipt;
         private Task<RecoverableCapabilities>? m_capabilities;
@@ -499,6 +522,11 @@ namespace Opc.Ua.Client
         /// Gets whether the Server confirmed this outcome's receipt.
         /// </summary>
         bool Acknowledged { get; }
+
+        /// <summary>
+        /// Commits local acceptance after typed caller completion validation and before any acknowledgement.
+        /// </summary>
+        ValueTask CommitAcceptanceAsync(CancellationToken ct);
 
         /// <summary>
         /// Acknowledges only this original operation.

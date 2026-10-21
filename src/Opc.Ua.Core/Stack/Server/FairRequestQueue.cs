@@ -71,7 +71,8 @@ namespace Opc.Ua
             int maxQueuedRequests,
             long requestCost,
             bool decoupleHeldPublishRequests,
-            Action<IEndpointIncomingRequest, StatusCode> complete)
+            Action<IEndpointIncomingRequest, StatusCode> complete,
+            Func<IServiceRequest, bool>? isControlRequest = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             if (maxQueuedRequests <= 0)
@@ -90,6 +91,7 @@ namespace Opc.Ua
             m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
             m_complete = complete ?? throw new ArgumentNullException(nameof(complete));
+            m_isControlRequest = isControlRequest;
             m_hot.SpinScore = kMaxSpinScore;
             m_provider.CapacityAvailable += OnCapacityAvailable;
         }
@@ -502,10 +504,9 @@ namespace Opc.Ua
         /// <summary>
         /// Identifies recovery and cancellation control services.
         /// </summary>
-        private static bool IsControlRequest(IServiceRequest request)
+        private bool IsControlRequest(IServiceRequest request)
         {
-            return request is CancelRequest or CloseSessionRequest or
-                GetServiceResultRequest or ControlServiceExecutionRequest;
+            return request is CancelRequest or CloseSessionRequest || m_isControlRequest?.Invoke(request) == true;
         }
 
         /// <summary>
@@ -1561,6 +1562,7 @@ namespace Opc.Ua
         /// Reports terminal outcomes outside queue and provider gates.
         /// </summary>
         private readonly Action<IEndpointIncomingRequest, StatusCode> m_complete;
+        private readonly Func<IServiceRequest, bool>? m_isControlRequest;
 
         /// <summary>
         /// Scheduling FIFOs retained while nonempty, keyed by owner in weighted mode

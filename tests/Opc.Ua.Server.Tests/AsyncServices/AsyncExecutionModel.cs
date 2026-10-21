@@ -63,7 +63,8 @@ namespace Opc.Ua.TestModels.AsyncExecution
             {
                 MethodState method = builder.Probe.DeclaredAdd.Node;
                 var property = PropertyState<bool>.With<VariantBuilder>(method, allowed);
-                property.BrowseName = QualifiedName.From("SupportsRecoverableExecution");
+                property.BrowseName = new QualifiedName(
+                    "SupportsRecoverableExecution", SystemContext.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse));
                 property.DisplayName = new LocalizedText("SupportsRecoverableExecution");
                 property.TypeDefinitionId = VariableTypeIds.PropertyType;
                 property.DataType = DataTypeIds.Boolean;

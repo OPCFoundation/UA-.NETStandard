@@ -232,10 +232,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             Assert.That(afterRotation.State, Is.EqualTo(ServiceOperationState.OutcomeAvailable));
             Assert.That(retained.Invalidated.IsCompleted, Is.False);
             Assert.That(await retained.Completion.ConfigureAwait(false), Is.SameAs(beforeRotation));
-            ControlServiceExecutionResponse receipt = await retained.AcknowledgeAsync(device.Timeout)
+            ControlResponseDataType receipt = await retained.AcknowledgeAsync(device.Timeout)
                 .ConfigureAwait(false);
             Assert.That(receipt.Result, Is.EqualTo(ServiceOperationControlResult.Applied));
-            receipt.Reuse();
             await using AsyncServiceOperation<(ArrayOf<NodeId>, ArrayOf<ByteString>)> certificates =
                 await client.CreateMethodAsync(gateway.Owner,
                     (session, ct) => new ServerConfigurationTypeClient(session, target, gateway.Telemetry)
@@ -309,10 +308,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             _ = await operation.CollectAsync(ct: wire.Timeout).ConfigureAwait(false);
             Assert.That(scenario.BlobReads, Is.EqualTo(1));
             Assert.That(operation.LastOperation!.OutcomeKind, Is.EqualTo(ServiceOperationOutcome.ResultUnavailable));
-            ControlServiceExecutionResponse receipt = await operation.AcknowledgeAsync(wire.Timeout)
+            ControlResponseDataType receipt = await operation.AcknowledgeAsync(wire.Timeout)
                 .ConfigureAwait(false);
             Assert.That(receipt.Result, Is.EqualTo(ServiceOperationControlResult.Applied));
-            receipt.Reuse();
         }
 
         /// <summary>
@@ -475,7 +473,8 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             {
                 PropertyState<bool> property = scenario.RecoveryProperty!;
                 Assert.That(property.NodeId.NamespaceIndex, Is.GreaterThan(0));
-                Assert.That(property.BrowseName.NamespaceIndex, Is.Zero);
+                Assert.That(wire.Owner.NamespaceUris.GetString(property.BrowseName.NamespaceIndex),
+                    Is.EqualTo(RseNamespaces.Rse));
                 DataValue advertised = await wire.Owner.ReadValueAsync(property.NodeId, wire.Timeout)
                     .ConfigureAwait(false);
                 Assert.That(advertised.WrappedValue.TryGetValue(out bool available), Is.True);
@@ -683,10 +682,9 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 await wire.Faults.Dropped.WaitAsync(wire.Timeout).ConfigureAwait(false);
                 Assert.That(operation.AcknowledgementFailure, Is.Not.Null);
                 await wire.RecoverAsync().ConfigureAwait(false);
-                ControlServiceExecutionResponse acknowledgement = await operation.AcknowledgeAsync(wire.Timeout)
+                ControlResponseDataType acknowledgement = await operation.AcknowledgeAsync(wire.Timeout)
                     .ConfigureAwait(false);
                 Assert.That(acknowledgement.Result, Is.EqualTo(ServiceOperationControlResult.AlreadyApplied));
-                acknowledgement.Reuse();
                 Assert.That(accepted.GetValueOrThrow(), Is.EqualTo(42));
             }
             Assert.That(wire.Owner.SessionId, Is.EqualTo(originalSession));
@@ -792,7 +790,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             var scenario = new AsyncExecutionScenario();
             await using WireContext wire = await WireContext.CreateAsync(
                 json, scenario, recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
-#pragma warning disable CA1859 // Exercise the unchanged interface. TODO: exclude interface-conformance tests from CA1859.
+#pragma warning disable CA1859 // Exercise the unchanged interface.
             Client.ISession session = wire.Owner;
 #pragma warning restore CA1859
             var counter = ExpandedNodeId.ToNodeId(Model.VariableIds.Probe_Counter, session.NamespaceUris);
@@ -884,21 +882,24 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         }
 
         /// <summary>
-        /// A decoded unsupported Submit rejection allows the original Method to run ordinarily once.
+        /// Even an explicit unsupported admission response cannot permit ordinary fallback after a Submit attempt.
         /// </summary>
         [Test]
-        public async Task PreferRecoverableSessionFallsBackAfterUnsupportedMethodAdmission()
+        public async Task PreferRecoverableSessionDoesNotFallbackAfterUnsupportedSubmitAttempt()
         {
             var scenario = new AsyncExecutionScenario { RecoverableHint = false };
             await using WireContext wire = await WireContext.CreateAsync(
                 json, scenario, recoverable: new RecoverableSessionOptions()).ConfigureAwait(false);
             var probe = ExpandedNodeId.ToNodeId(Model.ObjectIds.Probe, wire.Owner.NamespaceUris);
             await using RecoverableAcknowledgementScope scope = wire.Owner.BeginAcknowledgementScope();
-            int result = await new ProbeTypeClient(wire.Owner, probe, wire.Telemetry)
-                .DeclaredAddAsync(2, wire.Timeout).ConfigureAwait(false);
-            Assert.That(result, Is.EqualTo(9));
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await new ProbeTypeClient(wire.Owner, probe, wire.Telemetry)
+                    .DeclaredAddAsync(2, wire.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
+            Assert.That(wire.Faults.Submissions, Is.EqualTo(1));
+            Assert.That(scenario.Invocations, Is.Zero);
+            Assert.That(scenario.Counter, Is.EqualTo(7));
             Assert.That(scope.Receipt, Is.Null);
-            Assert.That(scenario.Invocations, Is.EqualTo(1));
             Assert.That(wire.Faults.Acknowledgements, Is.Zero);
         }
 
@@ -956,6 +957,110 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             await scope.AcknowledgeAsync(wire.Timeout).ConfigureAwait(false);
             Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
             Assert.That(wire.Faults.Acknowledgements, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Fault injection rejects unrelated identities, malformed scalar inputs and unsuccessful output layers.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
+        [TestCase("not-call", 0)]
+        [TestCase("empty-call", 0)]
+        [TestCase("wrong-object", 0)]
+        [TestCase("wrong-method", 0)]
+        [TestCase("array-argument", 0)]
+        [TestCase("wrong-argument", 0)]
+        [TestCase("outer-fault", 1)]
+        [TestCase("method-fault", 1)]
+        [TestCase("wrong-output", 1)]
+        [TestCase("missing-result", 1)]
+        public async Task FaultInjectionRequiresExactManagerCallAndSuccessfulTypedResult(
+            string mismatch, int submissions)
+        {
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            ushort application = context.NamespaceUris.GetIndexOrAppend("urn:opcfoundation:tests:rse-fault-targets");
+            _ = context.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            var manager = new RecoverableExecutionManagerState(null)
+            {
+                NodeId = ExpandedNodeId.ToNodeId(RseObjectIds.RecoverableExecutionManager, context.NamespaceUris)
+            };
+            manager.Submit = new SubmitMethodState(manager) { NodeId = new NodeId(Guid.NewGuid(), application) };
+            manager.GetResult = new GetResultMethodState(manager) { NodeId = new NodeId(Guid.NewGuid(), application) };
+            manager.Acknowledge = new AcknowledgeMethodState(manager)
+            {
+                NodeId = new NodeId(Guid.NewGuid(), application)
+            };
+            var faults = new ResponseFaults(new NativeChannelBindings()) { MessageContext = context };
+            faults.BindManager(manager);
+            faults.Arm("submit");
+            var argument = new SubmitRequestDataType
+            {
+                ClientOperationId = Uuid.NewUuid(),
+                RecoveryMode = ServiceOperationRecoveryMode.Session
+            };
+            var item = new CallMethodRequest
+            {
+                ObjectId = manager.NodeId,
+                MethodId = manager.Submit.NodeId,
+                InputArguments = [Variant.FromStructure(argument)]
+            };
+            var call = new CallRequest { MethodsToCall = [item] };
+            var result = new CallMethodResult
+            {
+                OutputArguments = [Variant.FromStructure(new SubmitResponseDataType())]
+            };
+            IServiceRequest request = call;
+            IServiceResponse response = new CallResponse { Results = [result] };
+            switch (mismatch)
+            {
+                case "not-call":
+                    request = new ReadRequest();
+                    break;
+                case "empty-call":
+                    call.MethodsToCall = [];
+                    break;
+                case "wrong-object":
+                    item.ObjectId = ObjectIds.Server;
+                    break;
+                case "wrong-method":
+                    item.MethodId = new NodeId(Guid.NewGuid(), application);
+                    break;
+                case "array-argument":
+                    item.InputArguments =
+                        [new Variant(new ArrayOf<ExtensionObject>([new ExtensionObject(argument)]))];
+                    break;
+                case "wrong-argument":
+                    item.InputArguments = [Variant.FromStructure(new OperationControlRequestDataType())];
+                    break;
+                case "outer-fault":
+                    response = new ServiceFault
+                    {
+                        ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.BadServerTooBusy }
+                    };
+                    break;
+                case "method-fault":
+                    result.StatusCode = StatusCodes.BadInvalidArgument;
+                    break;
+                case "wrong-output":
+                    result.OutputArguments = [Variant.FromStructure(new GetResultResponseDataType())];
+                    break;
+                case "missing-result":
+                    ((CallResponse)response).Results = [];
+                    break;
+                default:
+                    throw new ArgumentException("Unknown fault-target mismatch.", nameof(mismatch));
+            }
+
+            IServiceResponse unchanged = await faults.MutateResponseAsync(request, response).ConfigureAwait(false);
+
+            Assert.That(unchanged, Is.SameAs(response));
+            Assert.That(faults.Submissions, Is.EqualTo(submissions));
+            Assert.That(faults.Acknowledgements, Is.Zero);
+            Assert.That(faults.Drops, Is.Zero);
+            Assert.That(faults.Dropped.IsCompleted, Is.False);
+            Assert.That(faults.OriginalResponses, Is.Empty);
+            Assert.That(faults.CollectionHandles, Is.Empty);
+            Assert.That(faults.CollectionRetention, Is.Empty);
+            ((IPooledEncodeable)response).Reuse();
         }
 
         /// <summary>
@@ -1034,6 +1139,13 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                     ];
                     StandardServer server = await context.m_server.StartAsync().ConfigureAwait(false);
                     context.Faults.MessageContext = server.MessageContext;
+                    if (enabled)
+                    {
+                        RecoverableExecutionManagerState manager = server.CurrentInstance.DiagnosticsNodeManager
+                            .FindPredefinedNode<RecoverableExecutionManagerState>(ExpandedNodeId.ToNodeId(
+                                RseObjectIds.RecoverableExecutionManager, server.MessageContext.NamespaceUris));
+                        context.Faults.BindManager(manager);
+                    }
                     server.CurrentInstance.IdentityRegistry.Register(new UserNamePasswordAuthenticator((token, ct) =>
                     {
                         ct.ThrowIfCancellationRequested();
@@ -1225,6 +1337,14 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             public int Drops => Volatile.Read(ref m_drops);
             public int Acknowledgements => Volatile.Read(ref m_acknowledgements);
 
+            public void BindManager(RecoverableExecutionManagerState manager)
+            {
+                m_manager = manager.NodeId;
+                m_submit = manager.Submit!.NodeId;
+                m_getResult = manager.GetResult!.NodeId;
+                m_acknowledge = manager.Acknowledge!.NodeId;
+            }
+
             public void Arm(string point)
             {
                 m_point = point;
@@ -1234,36 +1354,61 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             public async ValueTask<IServiceResponse> MutateResponseAsync(
                 IServiceRequest request, IServiceResponse response, CancellationToken cancellationToken = default)
             {
-                if (request is SubmitServiceRequest)
+                if (request is not CallRequest call || m_manager.IsNull)
                 {
-                    Interlocked.Increment(ref m_submissions);
+                    return response;
                 }
-                if (request is ControlServiceExecutionRequest { Action: ServiceOperationControlAction.Acknowledge })
+                bool match = false;
+                for (int index = 0; index < call.MethodsToCall.Count; index++)
                 {
-                    Interlocked.Increment(ref m_acknowledgements);
-                }
-                if (request is GetServiceResultRequest &&
-                    response is GetServiceResultResponse collection &&
-                    collection.Result.TryGetValue(out IServiceResponse? original))
-                {
-                    OriginalResponses.Enqueue(BinaryEncoder.EncodeMessage(original, MessageContext));
-                    CollectionHandles.Enqueue(collection.ResponseHeader.RequestHandle);
-                    CollectionRetention.Enqueue(collection.Operation.ResultRemaining);
-                }
-                bool match = m_point switch
-                {
-                    "submit" => request is SubmitServiceRequest && response is SubmitServiceResponse,
-                    "result" => response is GetServiceResultResponse
+                    CallMethodRequest item = call.MethodsToCall[index];
+                    if (item.ObjectId != m_manager)
                     {
-                        Operation.State: ServiceOperationState.OutcomeAvailable
-                    },
-                    "ack" => request is ControlServiceExecutionRequest
+                        continue;
+                    }
+                    bool submit = item.MethodId == m_submit && HasInput<SubmitRequestDataType>(item);
+                    bool get = item.MethodId == m_getResult && HasInput<GetResultRequestDataType>(item);
+                    bool acknowledge = item.MethodId == m_acknowledge &&
+                        HasInput<OperationControlRequestDataType>(item);
+                    if (submit)
                     {
-                        Action: ServiceOperationControlAction.Acknowledge
-                    } &&
-                        response is ControlServiceExecutionResponse,
-                    _ => false
-                };
+                        Interlocked.Increment(ref m_submissions);
+                    }
+                    if (acknowledge)
+                    {
+                        Interlocked.Increment(ref m_acknowledgements);
+                    }
+                    if (response is not CallResponse outer ||
+                        StatusCode.IsBad(outer.ResponseHeader.ServiceResult) ||
+                        outer.Results.Count != call.MethodsToCall.Count)
+                    {
+                        continue;
+                    }
+                    CallMethodResult result = outer.Results[index];
+                    if (submit && TryOutput(result, out SubmitResponseDataType? _))
+                    {
+                        match |= m_point == "submit";
+                    }
+                    if (acknowledge && TryOutput(result, out ControlResponseDataType? _))
+                    {
+                        match |= m_point == "ack";
+                    }
+                    if (get && TryOutput(result, out GetResultResponseDataType? collection))
+                    {
+                        if (collection!.Result.TryGetValue(out IServiceResponse? original, MessageContext))
+                        {
+                            Assert.That(collection.Operation.OutcomeKind,
+                                Is.EqualTo(ServiceOperationOutcome.ServiceResponse));
+                            Assert.That(collection.Operation.OutcomeStatus,
+                                Is.EqualTo(original.ResponseHeader.ServiceResult));
+                            OriginalResponses.Enqueue(BinaryEncoder.EncodeMessage(original, MessageContext));
+                            CollectionHandles.Enqueue(outer.ResponseHeader.RequestHandle);
+                            CollectionRetention.Enqueue(collection.Operation.ResultRemaining);
+                        }
+                        match |= m_point == "result" &&
+                            collection.Operation.State == ServiceOperationState.OutcomeAvailable;
+                    }
+                }
                 if (match && Interlocked.CompareExchange(ref m_armed, 0, 1) == 1)
                 {
                     await channels.CloseCurrentAsync().ConfigureAwait(false);
@@ -1273,10 +1418,30 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 return response;
             }
 
+            private bool HasInput<T>(CallMethodRequest item) where T : class, IEncodeable
+            {
+                return item.InputArguments.Count == 1 &&
+                    item.InputArguments[0].TryGetValue(out ExtensionObject argument) &&
+                    argument.TryGetValue(out T? _, MessageContext);
+            }
+
+            private bool TryOutput<T>(CallMethodResult item, out T? output) where T : class, IEncodeable
+            {
+                output = null;
+                return StatusCode.IsGood(item.StatusCode) &&
+                    item.OutputArguments.Count == 1 &&
+                    item.OutputArguments[0].TryGetValue(out ExtensionObject result) &&
+                    result.TryGetValue(out output, MessageContext);
+            }
+
             private readonly TaskCompletionSource<bool> m_dropped =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
 
             private string? m_point;
+            private NodeId m_manager;
+            private NodeId m_submit;
+            private NodeId m_getResult;
+            private NodeId m_acknowledge;
             private int m_armed;
             private int m_submissions;
             private int m_drops;

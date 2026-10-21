@@ -29,7 +29,9 @@
 
 using System;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Opc.Ua;
 using Opc.Ua.Client;
+using Opc.Ua.Redundancy;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
@@ -49,6 +51,44 @@ namespace Microsoft.Extensions.DependencyInjection
                 throw new ArgumentNullException(nameof(services));
             }
             services.TryAddSingleton<AsyncServiceClient>();
+            return services;
+        }
+
+        /// <summary>
+        /// Registers explicit Client recovery settings with injectable owner-continuity and checkpoint providers.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddExperimentalAsyncServiceClient(
+            this IServiceCollection services, Func<IServiceProvider, RecoverableSessionOptions> configure)
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            if (configure == null)
+            {
+                throw new ArgumentNullException(nameof(configure));
+            }
+            services.TryAddSingleton(provider => new AsyncServiceClient(configure(provider)));
+            return services;
+        }
+
+        /// <summary>
+        /// Registers protected Client checkpoints using an explicitly registered durable store and protector.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="services"/> is <c>null</c>.</exception>
+        public static IServiceCollection AddRecoverableOperationCheckpoints(
+            this IServiceCollection services, string keyPrefix = "rse-client/")
+        {
+            if (services == null)
+            {
+                throw new ArgumentNullException(nameof(services));
+            }
+            services.AddRecoverableExecutionTypeCompatibility();
+            services.TryAddSingleton(provider => new RecoverableOperationCheckpointStore(
+                provider.GetRequiredService<ISharedKeyValueStore>(),
+                provider.GetRequiredService<IRecordProtector>(), keyPrefix,
+                provider.GetRequiredService<RecoverableExecutionTypeCompatibility>()));
             return services;
         }
     }

@@ -36,11 +36,11 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Encoders.Tests
 {
     /// <summary>
-    /// Verifies the provisional 0.2.0 contract through the real standard encoders and generated type factory.
+    /// Verifies retained RSE outcomes and their separation from ordinary Call exchange status.
     /// </summary>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
-    public sealed class AsyncServiceContractTests
+    public sealed class RseOutcomeContractTests
     {
         /// <summary>
         /// Both mappings preserve the original request, separate exchange header and exact duration values.
@@ -49,7 +49,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [TestCase(true)]
         public void SubmissionRoundTripsDeclaredEnvelope(bool json)
         {
-            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            ServiceMessageContext context = CreateContext();
             var original = new ReadRequest
             {
                 RequestHeader = new RequestHeader { RequestHandle = 13 },
@@ -57,65 +57,56 @@ namespace Opc.Ua.Core.Encoders.Tests
                 TimestampsToReturn = TimestampsToReturn.Both,
                 NodesToRead = [new ReadValueId { NodeId = new NodeId(2258u), AttributeId = Attributes.Value }]
             };
-            var request = new SubmitServiceRequest
+            var submission = new SubmitRequestDataType
             {
-                RequestHeader = new RequestHeader { RequestHandle = 29 },
                 ClientOperationId = new Uuid(new Guid("95c03745-16c4-4f97-9bf5-0948d733a5bd")),
+                RecoveryMode = ServiceOperationRecoveryMode.Session,
                 Request = new ExtensionObject(original),
                 ExecutionAllowance = 2500.5,
                 ResultRetentionTime = 5000.25,
                 WaitTime = 0
             };
+            var request = new CallRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 29 },
+                MethodsToCall = [new CallMethodRequest { InputArguments = [Variant.FromStructure(submission)] }]
+            };
             byte[] encoded = json
                 ? [.. JsonEncoder.EncodeMessage(request, new byte[4096], context)]
                 : BinaryEncoder.EncodeMessage(request, context);
-            SubmitServiceRequest decoded = json
-                ? JsonDecoder.DecodeMessage<SubmitServiceRequest>(encoded, context)
-                : BinaryDecoder.DecodeMessage<SubmitServiceRequest>(encoded, context);
+            CallRequest outer = json
+                ? JsonDecoder.DecodeMessage<CallRequest>(encoded, context)
+                : BinaryDecoder.DecodeMessage<CallRequest>(encoded, context);
+            Assert.That(outer.MethodsToCall[0].InputArguments[0].TryGetValue<SubmitRequestDataType>(
+                out SubmitRequestDataType? decoded, context), Is.True);
 
-            Assert.That(decoded.TypeId, Is.EqualTo(new ExpandedNodeId(1200020u)));
-            Assert.That(decoded.BinaryEncodingId, Is.EqualTo(new ExpandedNodeId(1202020u)));
-            Assert.That(ObjectIds.SubmitServiceRequest_Encoding_DefaultJson, Is.EqualTo(new NodeId(1204020u)));
-            Assert.That(decoded.ClientOperationId, Is.EqualTo(request.ClientOperationId));
+            Assert.That(decoded!.TypeId, Is.EqualTo(new ExpandedNodeId(15u, RseNamespaces.Rse)));
+            Assert.That(decoded.BinaryEncodingId, Is.EqualTo(new ExpandedNodeId(16u, RseNamespaces.Rse)));
+            Assert.That(RseObjectIds.SubmitRequestDataType_Encoding_DefaultJson,
+                Is.EqualTo(new ExpandedNodeId(18u, RseNamespaces.Rse)));
+            Assert.That(decoded.ClientOperationId, Is.EqualTo(submission.ClientOperationId));
             Assert.That(decoded.ExecutionAllowance, Is.EqualTo(2500.5));
             Assert.That(decoded.ResultRetentionTime, Is.EqualTo(5000.25));
             Assert.That(decoded.WaitTime, Is.Zero);
-            Assert.That(decoded.RequestHeader.RequestHandle, Is.EqualTo(29u));
+            Assert.That(outer.RequestHeader.RequestHandle, Is.EqualTo(29u));
             Assert.That(decoded.Request.TryGetValue(out ReadRequest? recovered), Is.True);
             Assert.That(recovered!.RequestHeader.RequestHandle, Is.EqualTo(13u));
             Assert.That(recovered.NodesToRead[0].NodeId, Is.EqualTo(new NodeId(2258u)));
         }
 
         /// <summary>
-        /// Independently reads the frozen binary field order rather than relying on symmetric generated codecs.
+        /// Keeps Core and RSE numeric lookup tables separate despite sharing the public code namespace.
         /// </summary>
         [Test]
-        public void SubmissionUsesCanonicalBinaryFieldOrder()
+        public void SharedCodeNamespaceDoesNotMergeNumericIdentifiers()
         {
-            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-            var id = new Uuid(new Guid("95c03745-16c4-4f97-9bf5-0948d733a5bd"));
-            var request = new SubmitServiceRequest
-            {
-                RequestHeader = new RequestHeader { RequestHandle = 31 },
-                ClientOperationId = id,
-                Request = new ExtensionObject(new ReadRequest { RequestHeader = new RequestHeader() }),
-                ExecutionAllowance = 101.5,
-                ResultRetentionTime = 202.75,
-                WaitTime = 3.25
-            };
-            byte[] bytes = BinaryEncoder.EncodeMessage(request, context);
-            using var decoder = new BinaryDecoder(bytes, context);
-            Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(1202020u)));
-            var header = new RequestHeader();
-            header.Decode(decoder);
-            Assert.That(header.RequestHandle, Is.EqualTo(31u));
-            Assert.That(decoder.ReadGuid(null), Is.EqualTo(id));
-            Assert.That(decoder.ReadExtensionObject(null).TryGetValue(out ReadRequest? original), Is.True);
-            Assert.That(original, Is.Not.Null);
-            Assert.That(decoder.ReadDouble(null), Is.EqualTo(101.5));
-            Assert.That(decoder.ReadDouble(null), Is.EqualTo(202.75));
-            Assert.That(decoder.ReadDouble(null), Is.EqualTo(3.25));
-            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+            Assert.That(typeof(SubmitRequestDataType).Namespace, Is.EqualTo("Opc.Ua"));
+            Assert.That(DataTypes.GetBrowseName(1), Is.EqualTo("Boolean"));
+            Assert.That(RseDataTypes.GetBrowseName(1), Is.EqualTo("ServiceOperationState"));
+            Assert.That(RseObjectTypeIds.RecoverableExecutionDiagnosticsType,
+                Is.EqualTo(new ExpandedNodeId(49u, RseNamespaces.Rse)));
+            Assert.That(RseObjectIds.RecoverableExecutionDiagnostics,
+                Is.EqualTo(new ExpandedNodeId(72u, RseNamespaces.Rse)));
         }
 
         /// <summary>
@@ -125,7 +116,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [TestCase(true)]
         public void CollectionPreservesCompleteOriginalServiceFault(bool json)
         {
-            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            ServiceMessageContext context = CreateContext();
             var original = new ServiceFault
             {
                 ResponseHeader = new ResponseHeader
@@ -136,14 +127,14 @@ namespace Opc.Ua.Core.Encoders.Tests
                     ServiceDiagnostics = new DiagnosticInfo { AdditionalInfo = "synthetic failure" }
                 }
             };
-            var response = new GetServiceResultResponse
+            var outcome = new GetResultResponseDataType
             {
-                ResponseHeader = new ResponseHeader { RequestHandle = 29 },
                 Operation = new ServiceOperationInfoDataType
                 {
                     ClientOperationId = new Uuid(new Guid("95c03745-16c4-4f97-9bf5-0948d733a5bd")),
                     ServerToken = ByteString.From(new byte[32]),
                     ServiceId = DataTypeIds.CallRequest,
+                    RecoveryMode = ServiceOperationRecoveryMode.Durable,
                     State = ServiceOperationState.OutcomeAvailable,
                     OutcomeKind = ServiceOperationOutcome.ServiceResponse,
                     OutcomeStatus = StatusCodes.BadUserAccessDenied,
@@ -153,15 +144,24 @@ namespace Opc.Ua.Core.Encoders.Tests
                 },
                 Result = new ExtensionObject(original)
             };
+            var response = new CallResponse
+            {
+                ResponseHeader = new ResponseHeader { RequestHandle = 29 },
+                Results = [new CallMethodResult { OutputArguments = [Variant.FromStructure(outcome)] }]
+            };
             byte[] encoded = json
                 ? [.. JsonEncoder.EncodeMessage(response, new byte[4096], context)]
                 : BinaryEncoder.EncodeMessage(response, context);
-            GetServiceResultResponse decoded = json
-                ? JsonDecoder.DecodeMessage<GetServiceResultResponse>(encoded, context)
-                : BinaryDecoder.DecodeMessage<GetServiceResultResponse>(encoded, context);
-            Assert.That(decoded.TypeId, Is.EqualTo(new ExpandedNodeId(1200023u)));
-            Assert.That(decoded.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
-            Assert.That(decoded.ResponseHeader.RequestHandle, Is.EqualTo(29u));
+            CallResponse outer = json
+                ? JsonDecoder.DecodeMessage<CallResponse>(encoded, context)
+                : BinaryDecoder.DecodeMessage<CallResponse>(encoded, context);
+            Assert.That(outer.Results[0].OutputArguments[0].TryGetValue<GetResultResponseDataType>(
+                out GetResultResponseDataType? decoded, context), Is.True);
+            Assert.That(decoded!.TypeId, Is.EqualTo(new ExpandedNodeId(27u, RseNamespaces.Rse)));
+            Assert.That(outer.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(outer.ResponseHeader.RequestHandle, Is.EqualTo(29u));
+            Assert.That(outer.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(decoded.Operation.RecoveryMode, Is.EqualTo(ServiceOperationRecoveryMode.Durable));
             Assert.That(decoded.Operation.OutcomeStatus, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(decoded.Operation.ResultRemaining, Is.EqualTo(4000));
             Assert.That(decoded.Result.TryGetValue(out ServiceFault? result), Is.True);
@@ -173,28 +173,21 @@ namespace Opc.Ua.Core.Encoders.Tests
         }
 
         /// <summary>
-        /// The three control actions and their dispositions have the reviewed numeric values and declared headers.
+        /// Every control Method uses the same token-only argument and the declared control disposition values.
         /// </summary>
-        [TestCase(ServiceOperationControlAction.Cancel, 1)]
-        [TestCase(ServiceOperationControlAction.Acknowledge, 2)]
-        [TestCase(ServiceOperationControlAction.Abandon, 3)]
-        public void ControlUsesCanonicalActionValues(ServiceOperationControlAction action, int wireValue)
+        [Test]
+        public void ControlUsesCanonicalTokenAndDispositionValues()
         {
-            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
-            var request = new ControlServiceExecutionRequest
+            ServiceMessageContext context = CreateContext();
+            var request = new OperationControlRequestDataType
             {
-                RequestHeader = new RequestHeader { RequestHandle = 73 },
-                ServerToken = ByteString.From(new byte[32]),
-                Action = action
+                ServerToken = ByteString.From(1, 0, 255, 127)
             };
             byte[] bytes = BinaryEncoder.EncodeMessage(request, context);
             using var decoder = new BinaryDecoder(bytes, context);
-            Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(1202024u)));
-            var header = new RequestHeader();
-            header.Decode(decoder);
-            Assert.That(header.RequestHandle, Is.EqualTo(73u));
+            Assert.That(decoder.ReadNodeId(null),
+                Is.EqualTo(new NodeId(32u, context.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse))));
             Assert.That(decoder.ReadByteString(null), Is.EqualTo(request.ServerToken));
-            Assert.That(decoder.ReadInt32(null), Is.EqualTo(wireValue));
             Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
             Assert.That((int)ServiceOperationControlResult.Applied, Is.EqualTo(1));
             Assert.That((int)ServiceOperationControlResult.AlreadyApplied, Is.EqualTo(2));
@@ -231,6 +224,17 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(names, Does.Not.Contain("ServiceOperationInfoDataType"));
             Assert.That(names, Does.Not.Contain("ServiceOperationState"));
             Assert.That(names, Does.Not.Contain("AuditServiceOperationEventType"));
+            Assert.That(names, Does.Not.Contain("RecoverableExecutionManager"));
+            Assert.That(names, Does.Not.Contain("RecoverableExecutionDiagnostics"));
+        }
+
+        private static ServiceMessageContext CreateContext()
+        {
+            var context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            context.NamespaceUris.GetIndexOrAppend("urn:rse-codec-test:application");
+            context.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            context.Factory.Builder.AddOpcUaRse().Commit();
+            return context;
         }
     }
 }

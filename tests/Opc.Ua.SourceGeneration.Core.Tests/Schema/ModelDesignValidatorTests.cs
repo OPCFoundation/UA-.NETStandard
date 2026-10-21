@@ -294,7 +294,11 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidatedValidator();
 
-            Assert.That(validator.GetListOfServices(), Has.Length.EqualTo(42));
+            Service[] services = validator.GetListOfServices();
+            Assert.That(services, Has.Length.EqualTo(39));
+            Assert.That(Array.ConvertAll(services, static service => service.Name),
+                Has.None.EqualTo("SubmitService").And.None.EqualTo("GetServiceResult")
+                    .And.None.EqualTo("ControlServiceExecution"));
         }
 
         [Test]
@@ -303,10 +307,6 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidatedValidator();
 
             Assert.That(validator.GetListOfServices(ServiceCategory.Session), Has.Length.EqualTo(4));
-            Service[] asynchronous = validator.GetListOfServices(ServiceCategory.Asynchronous);
-            Assert.That(asynchronous, Has.Length.EqualTo(3));
-            Assert.That(Array.ConvertAll(asynchronous, static service => service.Name),
-                Is.EquivalentTo(s_asynchronousServices));
             Assert.That(validator.GetListOfServices(ServiceCategory.None), Is.Empty);
         }
 
@@ -646,8 +646,6 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         private static readonly int[] s_hugeSetBits = [0, 95, 96, 130, 131];
-        private static readonly string[] s_asynchronousServices =
-            ["SubmitService", "GetServiceResult", "ControlServiceExecution"];
 
         /// <summary>
         /// D4: an OptionSet field names one bit (OPC 10000-3 8.40, 8.52); a

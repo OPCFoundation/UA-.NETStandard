@@ -60,6 +60,10 @@ assembly. A `ModelDesign` declaration without a `DefaultValue` keeps the default
 DataType. A server that wants such a variable to hold a value before it has one to publish sets
 it when it creates the node, for example an empty structure for a structured DataType.
 
+Imported `NamespaceMetadata.StaticNumericNodeIdRange` values are also preserved,
+including an empty list or an omitted Value. The generator does not widen a
+NodeSet's declared static-identifier range to cover unspecified identifiers.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |
@@ -89,6 +93,31 @@ specification version without maintaining a second literal.
 
 See [Source-Generated NodeManagers](../../docs/NodeManagers.md#mixing-modeldesign-and-nodeset2-in-one-project)
 for the end-to-end pattern.
+
+### Models sharing the Core C# namespace
+
+A model with a URI other than `http://opcfoundation.org/UA/` may generate its
+public types in `Opc.Ua`. Set its `ModelSourceGeneratorPrefix` to `Opc.Ua` and
+give it a distinct `ModelSourceGeneratorName`. Its OPC UA namespace URI does not
+change, and its namespace index is still resolved at runtime.
+
+For this case, helper classes are qualified with the model name rather than
+merged into the standard Core helpers. For a model named `Rse`, examples include
+`Opc.Ua.RseDataTypeIds`, `Opc.Ua.RseDataTypes`, `Opc.Ua.RseBrowseNames`,
+`Opc.Ua.RseNamespaces`, `Opc.Ua.RseModelVersions` and `Opc.Ua.OpcUaRseExtensions`.
+The generated data types, states and proxies themselves remain in `Opc.Ua`.
+Output file names are model-qualified as well.
+
+Use the corresponding model helper when looking up a namespace-local identifier.
+For example, numeric ID 1 in a foreign model is not Core Boolean merely because
+both public type sets share a C# namespace. The model's lookup tables and
+registration methods remain separate. Standard Core generation and models with
+their own C# namespace retain their existing helper names.
+
+This does not merge duplicate public type names. A replaced experimental model
+must be retired before a new model can declare those same C# types in the same
+assembly. Code-generation support is separate from runtime model installation
+and feature activation.
 
 ## Generate code from WoT Thing Models / Thing Descriptions
 

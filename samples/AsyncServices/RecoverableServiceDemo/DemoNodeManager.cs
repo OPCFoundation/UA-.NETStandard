@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
-using RecoverableServiceDemo.Model;
 
 namespace RecoverableServiceDemo
 {
@@ -48,8 +47,23 @@ namespace RecoverableServiceDemo
         /// </summary>
         internal DemoWork Work { get; init; } = new();
 
+        /// <summary>
+        /// Gets the separately supervised TEST binding; null preserves both original sample modes.
+        /// </summary>
+        internal RestartWork? RestartWork { get; init; }
+
         partial void Configure(IDemoNodeManagerBuilder builder)
         {
+            if (RestartWork != null)
+            {
+                if (!OperatingSystem.IsWindows())
+                {
+                    throw new PlatformNotSupportedException(
+                        "The supervised restart TEST uses Windows peer-verified pipes.");
+                }
+                RestartWork.Bind(builder.DemoDevice.Node, builder.DemoDevice.SlowIncrement.Node);
+                return;
+            }
             builder.DemoDevice.SlowIncrement.OnCall(Work.IncrementAsync);
         }
     }

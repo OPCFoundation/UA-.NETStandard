@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -76,6 +77,46 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                     Assert.That(output.ToString(), Does.Contain("Server finished while disconnected"));
                 }
                 Assert.That(output.ToString(), Does.Contain("acceptance file; acknowledging now"));
+            });
+        }
+
+        /// <summary>
+        /// Binds the bounded real-child restart TEST; Windows peer-PID IPC is not a cross-platform qualification.
+        /// The net10 build target stages the sample's own runtime closure in an isolated test-output directory.
+        /// </summary>
+        [Test]
+        [Platform("Win")]
+        [SupportedOSPlatform("windows")]
+        public async Task RealServerProcessRestartPreservesOwnerOutcomesEffectsAndBoundaries()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var output = new StringWriter(CultureInfo.InvariantCulture);
+            ProcessRestartDemoResult result;
+            try
+            {
+                string childHost = Path.Combine(
+                    TestContext.CurrentContext.TestDirectory, "rse-process-host", "RecoverableServiceDemo.exe");
+                await TestContext.Out.WriteLineAsync("Restart child host: " + childHost).ConfigureAwait(false);
+                await TestContext.Out.WriteLineAsync(
+                    "Restart child runtimeconfig: " + Path.ChangeExtension(childHost, ".runtimeconfig.json"))
+                    .ConfigureAwait(false);
+                result = await ProcessRestartDemo.RunTestAsync(childHost, output, timeout.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                await TestContext.Out.WriteLineAsync(output.ToString()).ConfigureAwait(false);
+                throw;
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.OwnerValue, Is.EqualTo(3));
+                Assert.That(result.RetainedValue, Is.EqualTo(10));
+                Assert.That(result.BusinessValue, Is.EqualTo(21));
+                Assert.That(result.Invocations, Is.EqualTo(3));
+                Assert.That(result.LaunchedChildren, Is.EqualTo(5));
+                Assert.That(result.KilledChildren, Is.EqualTo(4));
+                Assert.That(result.HistoryBoundaryVerified, Is.True);
+                Assert.That(result.ClockFailureVerified, Is.True);
             });
         }
     }

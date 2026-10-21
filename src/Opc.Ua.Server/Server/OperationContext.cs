@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -74,6 +75,7 @@ namespace Opc.Ua.Server
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
+            AuthenticationToken = requestHeader.AuthenticationToken;
             OperationDeadline = DateTime.MaxValue;
             RequestLifetime = requestLifetime ?? RequestLifetime.None;
 
@@ -90,12 +92,29 @@ namespace Opc.Ua.Server
             OperationContext admitted,
             RequestHeader requestHeader,
             RequestType requestType,
-            RequestLifetime requestLifetime)
+            RequestLifetime requestLifetime,
+            RecoverablePermissionCapture? permissions = null,
+            RecoverableExecutionIdentity? independentIdentity = null)
             : this(requestHeader, admitted.ChannelContext!, requestType, requestLifetime, admitted.Session)
         {
             UserIdentity = admitted.UserIdentity;
-            PreferredLocales = admitted.PreferredLocales;
+            AuthenticationToken = admitted.AuthenticationToken;
+            PreferredLocales = [.. admitted.PreferredLocales];
+            OperationDeadline = DateTime.MaxValue;
+            RequestHeader diagnosticHeader = CoreUtils.Clone(requestHeader)!;
+            diagnosticHeader.ReturnDiagnostics &= ~(uint)DiagnosticsMasks.UserPermissionAdditionalInfo;
+            admitted.Session.ValidateDiagnosticInfo(diagnosticHeader);
+            DiagnosticsMask = (DiagnosticsMasks)diagnosticHeader.ReturnDiagnostics;
             IsOwnedInvocation = true;
+            m_retainedPermissions = permissions;
+            if (independentIdentity != null)
+            {
+                UserIdentity = independentIdentity;
+                m_admissionSessionId = admitted.SessionId;
+                IsSessionIndependent = true;
+                Session = null!;
+                ChannelContext = independentIdentity.CaptureChannel(admitted.ChannelContext!, PreferredLocales);
+            }
         }
 
         /// <summary>
@@ -130,6 +149,7 @@ namespace Opc.Ua.Server
             RequestId = Utils.IncrementIdentifier(ref s_lastRequestId);
             RequestType = requestType;
             ClientHandle = requestHeader.RequestHandle;
+            AuthenticationToken = requestHeader.AuthenticationToken;
             OperationDeadline = DateTime.MaxValue;
             RequestLifetime = requestLifetime ?? RequestLifetime.None;
 
@@ -244,6 +264,11 @@ namespace Opc.Ua.Server
         internal bool IsOwnedInvocation { get; }
 
         /// <summary>
+        /// Gets whether an admitted invocation owns its identity without depending on the issuing Session's lifetime.
+        /// </summary>
+        internal bool IsSessionIndependent { get; }
+
+        /// <summary>
         /// A unique identifier assigned to the request by the server.
         /// </summary>
         /// <value>The request id.</value>
@@ -254,6 +279,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <value>The client handle.</value>
         public uint ClientHandle { get; }
+
+        /// <summary>
+        /// Gets the validated exchange token without changing an enclosed original request header.
+        /// </summary>
+        internal NodeId AuthenticationToken { get; }
 
         /// <summary>
         /// The time the client sent the request (RequestHeader.Timestamp), or
@@ -308,7 +338,7 @@ namespace Opc.Ua.Server
                     return Session.Id;
                 }
 
-                return default;
+                return m_admissionSessionId;
             }
         }
 
@@ -407,7 +437,14 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    try
+                    {
+                        Interlocked.Exchange(ref m_responseResources, null)?.Dispose();
+                    }
+                    finally
+                    {
+                        Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    }
                 }
             }
         }
@@ -420,6 +457,91 @@ namespace Opc.Ua.Server
         internal void AttachRequestScope(IDisposable requestScope)
         {
             m_requestScope = requestScope;
+        }
+
+        /// <summary>
+        /// Holds a selected result until the complete outer Call response takes ownership or dispatch fails.
+        /// </summary>
+        internal void RetainResponseResource(IDisposable resource)
+        {
+            ResponseResources? resources = Volatile.Read(ref m_responseResources);
+            if (resources == null)
+            {
+                var created = new ResponseResources();
+                resources = Interlocked.CompareExchange(ref m_responseResources, created, null);
+                if (resources == null)
+                {
+                    resources = created;
+                }
+                else
+                {
+                    created.Dispose();
+                }
+            }
+            resources.Add(resource);
+        }
+
+        /// <summary>
+        /// Transfers every selected result in a batch to its single transport-owned response.
+        /// </summary>
+        internal IDisposable? TakeResponseResources()
+        {
+            return Interlocked.Exchange(ref m_responseResources, null);
+        }
+
+        /// <summary>
+        /// Records a successful ordinary permission decision for later current-authority revalidation.
+        /// </summary>
+        internal void RecordRetainedPermission(NodeId nodeId, PermissionType permission)
+        {
+            m_retainedPermissions?.Record(nodeId, permission);
+        }
+
+        /// <summary>
+        /// Owns independently selected results while concurrent Method callbacks populate a batch.
+        /// </summary>
+        private sealed class ResponseResources : IDisposable
+        {
+            /// <summary>
+            /// Retains a resource until response transfer or request failure.
+            /// </summary>
+            public void Add(IDisposable resource)
+            {
+                lock (m_gate)
+                {
+                    m_resources.Add(resource);
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                IDisposable[] resources;
+                lock (m_gate)
+                {
+                    resources = [.. m_resources];
+                    m_resources.Clear();
+                }
+                List<Exception>? failures = null;
+                foreach (IDisposable resource in resources)
+                {
+                    try
+                    {
+                        resource.Dispose();
+                    }
+                    catch (Exception exception)
+                    {
+                        (failures ??= []).Add(exception);
+                    }
+                }
+                if (failures != null)
+                {
+                    throw new AggregateException(failures);
+                }
+            }
+
+            private readonly Lock m_gate = new();
+            private readonly List<IDisposable> m_resources = [];
         }
 
         /// <summary>
@@ -604,6 +726,9 @@ namespace Opc.Ua.Server
 
         private StringTable? m_stringTable;
         private IDisposable? m_requestScope;
+        private ResponseResources? m_responseResources;
+        private readonly RecoverablePermissionCapture? m_retainedPermissions;
+        private readonly NodeId m_admissionSessionId;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
         private SystemContextCacheEntry? m_systemContextCache;

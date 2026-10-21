@@ -1,42 +1,97 @@
-# Recoverable Service Execution (RSE) and Async Services
+# Recoverable Service Execution (RSE)
 
-**Status: default-off prototype of OPC 10000-27, draft 0.2.0, dated 2026-10-16,
-with provisional namespace-zero identifiers.** The source revision is Core
-`8710615ed5765ff780fd54b7f58a6db884d315c8`. RSE is the publication name;
-Async Service APIs, ASE capability/conformance identifiers and source paths
-remain unchanged. This is not an adopted OPC UA standard, a production
-durability guarantee or an independent-SDK interoperability claim.
+RSE separates one original OPC UA request from the exchanges used to collect
+and acknowledge its outcome. Losing a reply is not permission to repeat a
+mutation.
 
-The prototype separates one original Read, Write or Call from the exchanges
-that collect and acknowledge its outcome. A lost response must not cause a
-second mutation. [The protocol reference](#protocol-reference) records
-the exact messages, identifiers, controls, lifetimes and authorization rules.
-The initial proposal issue,
-[#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813), is closed;
-it is not an active approval record.
+This default-off reference implementation targets the experimental
+**OPC 10000-29 draft 0.4.0** contract pinned at Core
+`533587684928669b0cd183fc9ab61b5b0730a576`. It is not an adopted standard,
+a certification claim or an exactly-once business transaction.
+The [contract tooling](../tools/AsyncServices/README.md) records the canonical
+inputs and fingerprints. Focused validation covers the integrated recovery
+engine, Client, storage, native transports and the process-restart and NativeAOT
+paths described below. Compilation or a local storage test alone is not complete
+restart-conformance evidence.
+
+The original proposal is
+[#4813](https://github.com/OPCFoundation/UA-.NETStandard/issues/4813).
+The current specification is
+[OPCF-Members/OPC10000-Core#8](https://github.com/OPCF-Members/OPC10000-Core/pull/8).
+The earlier three-Service prototype is retired, not a second supported binding.
+
+## Five manager Methods
+
+The feature uses ordinary `Call`, generated Structures and generated Method
+bindings. It does not add a transport or dedicated ServiceSet.
+
+| Method | Purpose |
+| --- | --- |
+| `Submit` | Admit one original request and start it at most once |
+| `GetResult` | Look up state and collect the shared retained outcome |
+| `Acknowledge` | Release an outcome accepted by the Client |
+| `Cancel` | Request stopping owned work, without promising rollback |
+| `Abandon` | Give up recovery without requesting work cancellation |
+
+Each Method has one scalar typed request argument and one scalar typed response
+argument. The declared wrapper Structures have no request or response headers.
+The invoked control Method selects the action; there is no control Action field.
+The complete original request and complete immutable original response remain
+inside their declared envelopes.
+
+Keep three result layers separate: the outer `Call` exchange, the individual
+manager Method's `CallMethodResult`, and the original or protocol outcome.
+Every outer exchange has a fresh header and ordinary per-exchange
+`requestHandle`. Collection does not rewrite the saved original header,
+diagnostics or item results.
+
+Multiple manager invocations in one `Call` do not form an ordered or atomic
+transaction. A sibling failure or a lost outer reply does not undo another
+admission. The whole outer response owns any selected retained data until its
+transport has finished using it.
+
+### Model identity and discovery
+
+All RSE definitions use `http://opcfoundation.org/UA/RSE/`; Core references remain
+in namespace zero. Resolve namespace indices from the live URI table.
+The canonical `Opc.Ua.RSE.NodeSet2.xml` contains 96 nodes and 16 types, including
+NamespaceMetadata. Generated public C# types are in `Opc.Ua`, with model-scoped
+`Rse*` identifier helpers.
+
+Discover `Server/RecoverableExecutionManager/Capabilities` and the live manager
+Methods. The manager's RSE identifier is 73, its Capabilities identifier is 71,
+and its type identifier is 69. The type's Submit/GetResult/Acknowledge/Cancel/
+Abandon declaration triples occupy 74 through 88. Runtime Method children have
+Server-assigned application-namespace identities: **do not call a type
+declaration or calculate an instance MethodId from it**.
+
+Capabilities reports contract version, original request DataTypes, currently
+qualified recovery modes and the supported minimum/default/maximum E and R.
+`SupportedServices` is not a promise that every parameter or mode is eligible.
+A disabled Server neither installs the manager nor executes its Methods.
+The `rse-session-0.4`, `rse-owner-0.4` and `rse-durable-0.4` facet URIs and
+`RSE-*` conformance identifiers remain experimental.
 
 ## Enable the Server explicitly
 
-There is no extra build switch. Normal Servers do not advertise or execute
-the experiment. With an existing configured Server host:
+There is no extra build switch. Session mode is the default when the feature is
+enabled:
 
 ```csharp
 services.AddOpcUa()
     .AddServer(options =>
     {
         options.ApplicationName = "RecoverableServicePrototype";
-        // Configure the normal endpoints, certificate stores and authorization.
+        // Configure ordinary endpoints, certificate stores and authorization.
     })
     .WithExperimentalAsyncServices(options =>
     {
         options.MaxExecutionAllowance = 60_000;
         options.MaxResultRetentionTime = 60_000;
     });
-
-services.AddExperimentalAsyncServiceClient();
 ```
 
-Direct construction is also available:
+Direct construction uses the same implementation:
 
 ```csharp
 var server = new StandardServer(telemetry)
@@ -44,433 +99,416 @@ var server = new StandardServer(telemetry)
     AsyncServices = new AsyncServiceExecutionOptions
     {
         Enabled = true,
+        RecoveryModes = [ServiceOperationRecoveryMode.Session],
         MaxExecutionAllowance = 60_000,
         MaxResultRetentionTime = 60_000
     }
 };
 ```
 
-The host supplies the usual `ApplicationConfiguration`, finite
-`TransportQuotas.MaxMessageSize`, Session limits and existing
-[resource-isolation configuration](ServerScalability.md). The provider
-reserves work, input/result capacity and history before dispatch. Disabling
-isolation or configuring an unbounded message size is not permission to accept
-an unbounded recovery obligation: admission fails with BadResourceUnavailable.
-There is no second Async quota hierarchy or result-size policy Node.
+The host supplies finite `TransportQuotas.MaxMessageSize` and the existing
+[resource-isolation infrastructure](ServerScalability.md). Admission reserves
+work, input, outcome and history capacity before dispatch. Unlimited message
+capacity or missing isolation does not permit an unbounded recovery obligation.
+There is no separate RSE quota hierarchy or result-size policy Node.
 
-Startup installs the embedded 67-node
-`Opc.Ua.AsyncServices.NodeSet2.xml` overlay only when enabled. Root Objects use
-the proposal's fixed IDs; their children receive application-namespace IDs.
-Browse the typed model or namespace-qualified paths; never calculate child IDs
-from type-member declaration IDs. Do not install the publication-only
-`Opc.Ua.AsyncServices.Metadata.NodeSet2.xml` package.
+`DefaultAsyncServiceExecutionProviderFactory` accepts the same dependencies as
+the direct `AsyncServiceExecutionProvider` constructor.
+`IAsyncServiceExecutionProviderFactory` is the replacement-provider interface.
+Startup awaits initialization before installing the manager. Shutdown stops new
+exchanges and drains owned local work and maintenance before disposing journal
+synchronization.
 
-`IAsyncServiceAuthorizationPolicy` adds current action-specific application
-authorization to the mandatory Session, creator and node permission checks.
-Register it in DI, or pass it to `DefaultAsyncServiceExecutionProviderFactory`
-and assign `StandardServer.AsyncServiceExecutionProviderFactory`.
-`IAsyncServiceExecutionProviderFactory` is the replacement-provider seam.
-Each Server owns its provider and its shutdown; operation state is not shared
-between Servers.
+### Original requests
 
-The default provider uses StandardServer's shared, validated Read/Write/Call
-paths and ordinary node-manager callbacks. A derived Server's replacement
-public Service override is not implicitly invoked as an owned continuation.
-Such custom execution must be integrated through node managers or a provider
-that preserves the same ownership and recovery contract. Ordinary Service
-dispatch is unchanged.
+The implementation wraps the existing ordinary handlers for fourteen families:
+Read, Write, Call, HistoryRead, HistoryUpdate, Browse, BrowseNext,
+TranslateBrowsePathsToNodeIds, RegisterNodes, UnregisterNodes, AddNodes,
+AddReferences, DeleteNodes and DeleteReferences.
 
-Session/security lifecycle, subscription/monitored-item/Publish machinery,
-ordinary Cancel, recursive wrapper Services and other unadvertised families
-cannot be enclosed. A current False `SupportsRecoverableExecution` declaration
-on an otherwise callable Method rejects the entire recoverable Call batch
-before any item runs. Missing/True declarations still undergo normal admission
-checks. Ordinary invalid or unauthorized items remain per-item Call failures;
-wrapping is not an all-items-authorized transaction.
+QueryFirst and QueryNext remain unsupported. No query engine is added.
+Discovery, SecureChannel and Session lifecycle, Subscription/MonitoredItem
+operations, Publish/Republish and the ordinary Cancel Service cannot be submitted.
+An original Call containing any RSE manager Method is rejected before any item
+executes.
 
-## Use ordinary ISession calls
+Ordinary limits, permission checks, diagnostics and per-item results still
+apply. A positive `SupportsRecoverableExecution` Method hint cannot override
+mode or resource restrictions. A current False hint on an otherwise callable
+Method rejects the whole recoverable submission; ordinary invalid or
+unauthorized items retain their ordinary per-item failure behavior.
+The hint's BrowseName is qualified by `http://opcfoundation.org/UA/RSE/`,
+not namespace zero. Resolve the namespace URI when declaring or finding it.
+An unconfigured, recognized recovery mode is rejected with `BadNotSupported`;
+an ineligible original Service or Session-bound resource uses `BadServiceUnsupported`.
 
-Select prefer-recoverable execution when creating a managed session. It is off
-by default and does not add required members to `ISession`:
+BrowseNext release calls retain their ordinary empty `Results` and
+`DiagnosticInfos` arrays. Normal continuation requests still require a result
+for every input continuation point.
+
+The default provider uses StandardServer's shared handlers and node-manager
+callbacks. It does not invoke an arbitrary derived Server's public Service
+override as an owned continuation. Custom execution must use those ordinary
+handler interfaces or an execution provider that preserves the same contract.
+
+## Recovery modes and ownership
+
+| Mode | Recovery scope | Required Server qualification |
+| --- | --- | --- |
+| Session | Original Server Session and validated creator | Ordinary activation, transport and authorization rules |
+| Owner | Stable authenticated application-and-user owner across Sessions | Owner mapping, held independent-execution eligibility and stable resource accounting |
+| Durable | The same stable owner across Server restart | Owner requirements, protected durable storage, qualified restart-safe time, codec compatibility and recoverable work fencing |
+
+Session mode remains enabled in every supported configuration. Owner and
+Durable must be selected explicitly; missing qualification is an error, not a
+request to downgrade.
+
+Session closure ends Session-mode recovery but does not cancel Owner or Durable
+work. Independently owned invocation contexts copy validated identity, roles,
+locales and channel facts instead of retaining a live Session. Original enclosed
+headers remain unchanged; effective authentication and diagnostic permissions
+are held separately.
+
+### Stable authenticated owners
+
+`IRecoverableExecutionOwnerProvider` maps authenticated proof to an opaque
+`RecoverableExecutionOwnerId`. The configured adapter uses explicit SHA-256
+application-certificate mappings and exact validated issuer/subject mappings.
+Display names, claimed ApplicationUri values, TLS alone or possession of a
+control token are not ownership evidence.
+
+`WithRecoverableExecutionOwners` registers configured mappings.
+`ConfiguredRecoverableExecutionOwnerProvider` also supports direct construction.
+Keep authority, application and user identities stable across restart.
+Certificate renewal requires an explicit alias and ordinary trust and
+application-authentication validation. Preserve original mapping evidence while
+retained records depend on it; missing or inconsistent evidence fails closed.
+
+Session duplicates are scoped to the actual Session and validated creator.
+Owner and Durable share one stable-owner Client-ID namespace. Changing mode,
+opening a new Session or using an authorized certificate alias cannot bypass
+duplicate detection or multiply the owner's existing resource ceiling.
+
+### Eligibility is a held guarantee
+
+`IRecoverableExecutionEligibilityProvider.AcquireAsync` must establish before
+admission that the exact original inputs and every possible response are
+independent of the issuing Session. Its reservation holds the required
+routing/configuration/resource conditions through invocation completion.
+
+The absence of an input continuation point is insufficient: Browse and
+HistoryRead can create Session-scoped resources in their responses. Without an
+applicable transfer contract, reject Session aliases, continuation points,
+Session-dependent Methods and response-created Session resources before
+dispatch. The prototype rejects BrowseNext and nonempty HistoryRead continuation
+inputs for non-Session modes independently of application qualification.
+Guaranteed bounded, self-contained responses can qualify; probing the operation
+to discover eligibility cannot.
+
+Durable mode requires `IRecoverableExecutionDurableEligibilityProvider`.
+`AcquireDurableAsync` associates the held conditions with a unique execution
+identity before admission. On restart, `RecoverAsync` must establish termination
+or hold a fence excluding conflicting work, including ordinary handler calls.
+A new process, expired lease or absent local Task is not termination proof.
+The Server neither executes nor resumes the saved original request.
+
+A recovered invocation without termination proof remains charged even after
+its outcome and public history expire. Disposing local recovery resources during
+shutdown must not remove the underlying protection against surviving work.
+When termination is established at a subsequent qualified recovery, the journal
+records that fact without changing the selected outcome or renewing retention.
+
+### Current authorization
+
+`IAsyncServiceAuthorizationPolicy` adds current action-specific authorization.
+It does not replace ordinary authentication, owner validation or node checks.
+Collection rechecks current owner identity, admitted roles, the invoked manager
+Method and the relevant original permissions after waits. Successful original
+permission checks are captured in a bounded descriptor rather than recreated by
+executing the request again.
+
+A lost read permission denies disclosure without repeating the Value callback.
+Foreign owner scopes and exact-mode mismatches produce canonical Unknown
+metadata, not an existence-revealing result. A known authorized scope with
+revoked permissions can return `BadUserAccessDenied`.
+
+## Time, outcomes and controls
+
+E (`ExecutionAllowance`) and R (`ResultRetentionTime`) are exact positive finite
+milliseconds. Unsupported or unreservable values are rejected before dispatch,
+not clamped. WaitTime is finite and nonnegative; zero is a poll.
+Supported values must roundtrip unchanged through the implementation's
+100-nanosecond ticks. This check and metadata projection are consistent across
+target frameworks; an adjacent floating-point value is not silently revised.
+Remaining-duration fields conservatively floor to whole milliseconds.
+
+E starts at admission commit. The initial Submit wait starts at the same point;
+GetResult waiting starts with its first authorized Pending lookup. Outer
+timeoutHint and cancellation of a wrapper wait do not shorten E.
+R starts with the committed final outcome. A result returned directly by Submit
+has the same retention and explicit acknowledgement contract as a later result.
+
+At E, the Server selects an immutable `ExecutionDeadlineExceeded`/`BadTimeout`
+outcome and requests cancellation where possible. Late original output cannot
+replace it. Work remains charged until actual completion is established.
+Polling and repeated controls renew neither E nor R.
+
+Only `OutcomeAvailable` plus `ServiceResponse` carries an original payload.
+The original response type and complete header remain intact. Good at the
+original Service level does not make all item results successful.
+`ResultUnavailable`, `ExecutionDeadlineExceeded` and `ExecutionIndeterminate`
+are protocol outcomes without an original payload; none proves absence of
+business effects.
+
+| Action | Effect |
+| --- | --- |
+| Ordinary Cancel by outer requestHandle | Ends that wrapper wait after admission; does not cancel owned work |
+| RSE Cancel | Requests work cancellation; does not promise rollback |
+| Acknowledge | Releases an accepted available outcome |
+| Abandon | Waives recovery without cancelling work |
+| R expiry | Releases the retained outcome at its existing deadline |
+
+After release, small terminal history remains for another R, called H here.
+Acknowledgement and abandonment retries return their remembered dispositions
+within that interval. Expiry uses the original R deadline as its release time.
+History expiration is not proof that an unresolved invocation stopped.
+
+The Client chooses a nonzero random Guid before submission. The Server uses a
+32-byte random token within the protocol's 64-byte maximum. GetResult accepts
+exactly one selector: Client ID with a null token, or token with a null Guid.
+Controls require the token. These identifiers are non-bearer references.
+Remembered duplicate Client IDs are rejected regardless of input equality;
+there is no fingerprint-based resubmission replay.
+
+Unknown has canonical empty metadata and no payload. It is a lookup result,
+not proof of non-execution and not permission to submit again.
+
+## Durable storage and restart
+
+The reference backend is
+[`FileSharedKeyValueStore`](DurableStorage.md), a bounded local store with one
+live owner. Merely linearizable or in-memory storage is not durable.
+The journal requires durability verification, authenticated record protection,
+stable ownership and a qualified time authority.
+
+Supply these through DI or direct construction. The following variables represent
+application-qualified providers and mappings, not built-in permissive defaults:
 
 ```csharp
-ISession session = await new ManagedSessionBuilder(configuration, telemetry)
+services.AddSingleton<IRecordProtector>(recordProtector);
+
+services.AddOpcUa()
+    .AddFileSharedKeyValueStore(
+        storeDirectory, "urn:example:rse-store", maximumSnapshotBytes: 64 * 1024 * 1024)
+    .AddServer(options =>
+    {
+        options.ApplicationName = "DurableRecoverableServer";
+    })
+    .WithRecoverableExecutionOwners(authorityId, applicationMappings, userMappings)
+    .WithRecoverableExecutionEligibility(durableEligibility)
+    .WithRecoverableExecutionClock(qualifiedClock)
+    .WithRecoverableExecutionCodecQualifier(customCodecQualifier)
+    .WithExperimentalAsyncServices(options =>
+    {
+        options.RecoveryModes =
+        [
+            ServiceOperationRecoveryMode.Session,
+            ServiceOperationRecoveryMode.Owner,
+            ServiceOperationRecoveryMode.Durable
+        ];
+    });
+```
+
+Manage protection keys through the
+[secret-store infrastructure](CertificateManager.md). The logical Server URI,
+store identity, owner mappings and key availability must remain consistent.
+Do not persist reusable credentials as a substitute for current authentication.
+No token, original payload or protection key belongs in diagnostics or logs.
+
+### Qualified time and serialized decisions
+
+`IRecoverableExecutionClock` supplies a qualified elapsed-time domain that
+includes downtime. The host supplies this provider explicitly. An unchecked UTC
+clock or a new process-relative origin is not a substitute. A missing domain,
+rollback or unavailable proof withdraws Durable readiness.
+
+This implementation uses the following serialized commit interpretation:
+
+1. Persist admission, sample qualified time after that write returns, then persist
+   E's origin/deadline before original dispatch. The first write's latency
+   consumes neither E nor the initial Submit wait; the second write's latency
+   consumes both.
+2. Persist a candidate outcome and sample time inside the per-operation
+   serializer. Before E, that original outcome wins; at or after E, the deadline
+   outcome wins instead. Persist R's origin/deadline before exposing O.
+   This final write consumes R and cannot extend it.
+3. For acknowledgement or abandonment, sample the logical release decision and
+   atomically persist state, reason, release time and H's deadline. Publication
+   latency consumes H. Result expiry uses its recorded R deadline.
+
+On recovery:
+
+| Durable state | Recovery action |
+| --- | --- |
+| Admission without a recorded E origin/deadline | Commit ExecutionIndeterminate; do not dispatch |
+| Pending admission without a committed final outcome | Commit ExecutionIndeterminate; do not resume |
+| Candidate outcome without a recorded R origin/deadline | Discard its uncommitted original payload and commit ExecutionIndeterminate |
+| Outcome with its R origin/deadline | Restore it unchanged, including elapsed downtime |
+| Released state | Keep it released, with the existing H deadline |
+
+ExecutionIndeterminate has `BadUnexpectedError` and no original payload.
+Its new R starts at its recovery commit. A subsequent restart restores that
+committed outcome rather than starting another interval.
+
+### Capacity, interpretation and failure
+
+Admission reserves both existing isolation capacity and a protected storage slot
+large enough for the bounded future record. The private stored envelope is padded
+while unreleased; selecting the outcome cannot grow that slot. Release shrinks
+it to terminal history. This is an internal storage representation, not an
+additional wire field, result-size configuration or policy Node.
+
+`ISharedKeyValueStoreCapacity` distinguishes a known pre-publication capacity
+rejection from an ambiguous failed mutation. A full store rejects new admission
+without disabling collection, acknowledgement or expiration of existing records.
+Unexpected storage failures can have committed and withdraw readiness instead.
+They do not become Unknown or permission to repeat original work.
+
+Existing message limits include wrapper overhead and complete outer Call batches.
+Oversized original output becomes a small explicit `ResultUnavailable` outcome,
+not an overflowing retained response or a re-execution. A later smaller delivery
+ceiling does not rewrite the saved outcome. In-flight senders and collectors
+retain their own storage ownership after logical release.
+
+`RecoverableExecutionTypeCompatibility` binds persisted interpretation to exact
+URI tables, registrations, ordered definitions, encoding identities and qualified
+codec revisions. The Server revalidates the live factory before interpreting,
+collecting or releasing stored data. Unknown or opaque nested types fail closed.
+Custom codecs need an explicit `IRecoverableExecutionCodecQualifier`; metadata
+alone cannot prove arbitrary handwritten encoding semantics.
+
+Startup reconstructs indices, reservations and required fences before
+advertising Durable. Loss of qualification returns `BadResourceUnavailable`
+and removes Durable from current SupportedRecoveryModes. It does not silently
+renegotiate an existing admission to Owner, Session or ordinary execution.
+
+## Client use and acceptance
+
+The [Client guide](ClientRecoverableExecution.md) covers transparent calls,
+explicit modes, handle-first submission, receipt scopes, protected checkpoints
+and typed reattachment.
+
+```csharp
+await using ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
     .UseEndpoint(endpoint)
     .PreferRecoverableExecution()
     .ConnectAsync(ct);
 
-int value = await session.ReadValueAsync<int>(nodeId, ct);
-```
-
-The existing asynchronous Read, Write and Call methods, convenience reads and
-generated Method proxies keep their signatures and result types. The Client
-performs capability discovery and the submission/collection exchanges
-internally. A regular session uses its existing ordinary behavior.
-
-Direct construction selects the same implementation:
-
-```csharp
-ISession session = await ManagedSession.CreateAsync(
-    new ManagedSessionOptions
-    {
-        Endpoint = endpoint,
-        RecoverableExecution = new RecoverableSessionOptions()
-    },
-    configuration,
-    new DefaultSessionFactory(telemetry),
-    telemetry: telemetry,
-    ct: ct);
-```
-
-For DI, configure the session options before obtaining a session from
-`IManagedSessionFactory`:
-
-```csharp
-services.AddOpcUa().AddClient(options =>
-{
-    options.Session = options.Session with
-    {
-        RecoverableExecution = new RecoverableSessionOptions()
-    };
-});
-
-ISession session = await serviceProvider.GetRequiredService<IManagedSessionFactory>()
-    .ConnectAsync(endpoint, ct);
-```
-
-The Client uses the Server's advertised execution and retention defaults.
-Optional `ExecutionAllowance` and `ResultRetentionTime` settings select exact
-positive finite milliseconds. They are independent of the original
-`RequestHeader.TimeoutHint` and caller cancellation. Overrides are not clamped,
-and missing or invalid required defaults are errors.
-
-Ordinary fallback is allowed only when unsupported recovery and non-admission
-are established before original execution. An absent capability root or a
-decoded outer Submit rejection can establish this. Resource, lifetime,
-validation, authorization and security failures do not trigger fallback.
-Neither a timeout, lost reply, Unknown lookup, collection/control failure nor
-an embedded original failure proves non-admission. The original request is
-never replayed to resolve uncertainty.
-
-Session maintenance and capability discovery stay on the internal ordinary
-path; they do not create application receipt obligations or invoke application
-acceptance callbacks. Other Service families and obsolete sync/APM entry points
-remain ordinary. The mode is not enabled on arbitrary/custom sessions or
-silently applied to an existing connection.
-
-Generated Method proxies must use the current generator's typed completion
-integration. Older generated proxies still work on ordinary sessions, but
-cannot silently claim typed recoverable acceptance: incompatible proxy calls
-on an opted-in session fail before dispatch and require regeneration.
-
-## Coordinate acknowledgement with an external system
-
-An optional operation-local scope defers ACK while leaving the operation call
-and result unchanged:
-
-```csharp
-await using var acknowledgement = session.BeginAcknowledgementScope(
+await using var acceptance = session.BeginAcknowledgementScope(
     requireRecoverableReceipt: true);
-
-ReadResponse response = await session.ReadAsync(
-    null, 0, TimestampsToReturn.Both, nodesToRead, ct);
-
-await resultStore.SaveAsync(response, ct);
-// Or wait for the selected MQTT/RPC handoff to complete.
-await acknowledgement.AcknowledgeAsync(ct);
+int value = await session.ReadValueAsync<int>(nodeId, ct);
+await applicationStore.AcceptAsync(value, ct);
+await acceptance.AcknowledgeAsync(ct);
 ```
 
-The scope is local to the current asynchronous flow and belongs to one logical
-caller operation. Independent concurrent operations use separate scopes;
-accidental reuse fails rather than mixing receipts. Nest scopes in disposal
-order. There is no session-wide "last receipt".
+Session remains the default preference. Owner and Durable selection is strict.
+Ordinary `ISession` signatures, generated proxies and typed results do not change.
+The existing strict request context remains strict; verified same-Session
+reactivation and authenticated owner-scoped replacement use distinct opt-in
+bindings.
 
-`Receipt` is an opaque receipt bound to the original Session. It is null when
-no recoverable request was admitted, including ordinary fallback. Calling
-`AcknowledgeAsync` without a receipt fails; it is not a successful no-op.
-`requireRecoverableReceipt: true` rejects unsupported recovery or an excluded
-application Service before ordinary dispatch. A composed convenience operation
-can involve several original requests; its receipt does not make them an
-atomic transaction.
+Ordinary fallback is allowed only after conclusive lack of support **before any
+Submit attempt**. An explicit rejected Submit, malformed reply, lost connection,
+Unknown lookup, store error or unsupported selected mode cannot authorize
+ordinary dispatch of the original request.
 
-An asynchronous acceptance callback may be configured in
-`RecoverableSessionOptions.AcceptAsync` or on the scope:
+Default SDK acknowledgement follows decoding, complete typed validation and
+acceptance into the caller completion context. Application acceptance or durable
+storage policies are Client-local and use the same Acknowledge Method.
+If its reply is lost, retry Acknowledge only. A failed acknowledgement exchange
+does not replace already accepted caller data.
 
-```csharp
-await using var acknowledgement = session.BeginAcknowledgementScope(
-    requireRecoverableReceipt: true,
-    acceptAsync: async (acceptance, token) =>
-    {
-        if (!acceptance.TryGetResult<ReadResponse>(out var response))
-        {
-            throw new InvalidOperationException("Expected the ordinary Read response.");
-        }
-        await resultStore.SaveAsync(response, token);
-    });
+A protected Client checkpoint records identity and interpretation context for
+reattachment. Reattachment collects or retries controls; it cannot submit again.
+Server durability and Client acceptance/storage are separate obligations.
+An indeterminate operation requires application/operator reconciliation.
 
-ReadResponse response = await session.ReadAsync(
-    null, 0, TimestampsToReturn.Both, nodesToRead, ct);
-await acknowledgement.AcknowledgeAsync(ct);
-```
+## Security, native mappings and certificate management
 
-Callbacks receive the final SDK result after typed decoding. A legitimate
-failed original outcome is exposed through `Failure` instead of a fabricated
-typed result. Without an explicit scope, successful callback and caller
-completion are followed by automatic ACK. Use an explicit scope when receipt
-ownership and ACK retry must outlive the ordinary call.
+The demonstrated native mappings are UA Binary over UA-TCP and HTTPS UA JSON.
+HTTPS protection comes from an established TLS handshake; the stack does not
+relabel UA MessageSecurityMode or SecurityPolicy. URI schemes, profile strings
+and caller headers are not transport-security evidence.
 
-Callback failure/cancellation and scope disposal never acknowledge, abandon,
-resubmit or extend the remote operation. Disposal stops local waiting and
-releases local resources only. A callback cannot reenter the same session or
-acknowledge before caller acceptance. An ACK failure leaves the accepted
-original result intact; retry only the receipt's ACK.
+Session reactivation preserves the existing Core requirements for mode, policy,
+Client certificate and validated user. Anonymous plus Sign is rejected for
+recoverable admission. A renewed Server certificate still requires normal trust
+and intended-peer validation. Endpoint refresh is not permission to weaken
+security or recreate an operation.
 
-The original E/R and same-Session restrictions still apply while an external
-system processes the result. This does not provide restart durability,
-cross-system transactions or an MQTT delivery guarantee.
+The two-hop certificate fixture
+[`CertificateCycleAcrossRecoverableGateway`](../tests/Opc.Ua.Server.Tests/AsyncServices/AsyncServiceTransportTests.cs)
+and [forwarder](../tests/Opc.Ua.Server.Tests/AsyncServices/AsyncCertificateForwarder.cs)
+reuse CertificateManager, trust-list transactions, pending-key/secret stores and
+normal Push Management ownership. They perform CSR generation, local test-CA
+issuance, UpdateCertificate, ApplyChanges and private-key/communication
+verification over all four UA-TCP/HTTPS combinations, including lost replies.
+All PKI material is synthetic and generated at run time.
 
-<a id="create-a-handle-before-submission"></a>
+These Push Management operations remain Session-mode demonstrations. Selecting
+Owner or Durable does not transfer a device transaction, pending key, file handle
+or issuing Session. A device shutdown or rejected trust change can still end
+that recovery scope. ApplyChanges is not a substitute for GetResult.
 
-## Advanced: create a handle before submission
+## Samples and validation scope
 
-Use a stack `ManagedSession`. A classic/custom `ISession` cannot provide the
-managed lifecycle proof and is rejected. The handle captures an explicitly
-[recoverable same-Session context](Sessions.md#opt-in-same-session-recovery).
-The retargeting `RedundantClientSession` facade also rejects raw Submit/Get/Control
-calls: select the original ManagedSession explicitly rather than transferring
-operation ownership to a new leader Session.
-
-```csharp
-var client = new AsyncServiceClient();
-
-await using AsyncServiceOperation<ReadResponse> operation =
-    await client.CreateReadAsync(managedSession, new ReadRequest
-    {
-        TimestampsToReturn = TimestampsToReturn.Neither,
-        NodesToRead =
-        [
-            new ReadValueId
-            {
-                NodeId = VariableIds.Server_ServerStatus_State,
-                AttributeId = Attributes.Value
-            }
-        ]
-    }, ct);
-
-Uuid clientId = operation.ClientOperationId; // Exists before submission.
-AsyncServiceResult<ReadResponse> accepted = await operation.ExecuteAsync(
-    executionAllowance: 10_000,
-    resultRetentionTime: 30_000,
-    initialWaitTime: 0,
-    collectionWaitTime: 1000,
-    ct: ct);
-
-ReadResponse original = accepted.GetValueOrThrow();
-StatusCode itemStatus = original.Results[0].StatusCode;
-```
-
-`CreateWriteAsync` and `CreateCallAsync` retain one complete original batch.
-They do not split it into independently retained item operations. All durations
-are milliseconds; the requested positive finite E/R are accepted exactly or
-rejected, never silently revised.
-
-`ExecuteAsync` submits once and performs bounded collection exchanges. On an
-uncertain transport failure it requests shared managed recovery, then collects
-by the already-created Client ID when the Server token is not yet known.
-It never retries SubmitService. An Unknown lookup produces an honest local
-BadNoData availability error, not proof of non-execution.
-
-For application-controlled scheduling use `SubmitAsync`, `CollectAsync` and
-`WaitForResultAsync` separately. `Completion` does not start a background
-polling loop. Zero Submit/Get wait is a poll; cancelling a wait does not cancel
-admitted work. Calling SubmitAsync a second time on the same handle is rejected,
-including after an uncertain first exchange.
-
-Each exchange is sent once on a physical transport. Fresh collection/control
-can follow verified reactivation of the original Session, not merely channel
-readiness. A replacement incarnation, changed creator/Client certificate,
-policy/mode, transport mapping or unsafe encoding/namespace mapping invalidates
-the binding. Existing strict contexts still invalidate as soon as recovery
-begins.
-
-<a id="use-generated-method-proxies"></a>
-
-## Advanced: capture generated Method proxies
-
-Construct the generated proxy with the callback's `ISessionClient`, not with
-the outer managed Session:
-
-```csharp
-await using AsyncServiceOperation<ByteString> csr =
-    await client.CreateMethodAsync(managedSession,
-        (session, token) => new ServerConfigurationTypeClient(
-            session, ObjectIds.ServerConfiguration, telemetry)
-            .CreateSigningRequestAsync(
-                ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
-                ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                subjectName,
-                true,
-                entropy,
-                token),
-        ct);
-
-ByteString request = (await csr.ExecuteAsync(60_000, 60_000, ct: ct))
-    .GetValueOrThrow();
-```
-
-The callback must issue and await exactly one eligible original request.
-Read-only proxy preparation is allowed before capture; another request after
-capture is rejected. The normal proxy validates typed output before acceptance.
-Its ordinary MethodId compatibility fallback is disabled for this one-request
-capture, so a failure cannot quietly cause a second original Call. Ordinary
-proxy usage retains its existing fallback.
-
-The overload for a generated Method with no outputs returns
-`AsyncServiceOperation<StatusCode>`. It is used for ApplyChanges in the
-certificate demonstration; ApplyChanges is never a result-polling operation.
-
-<a id="acceptance-and-acknowledged-release"></a>
-
-## Advanced handle acceptance and acknowledged release
-
-Default acceptance requires decoding, response/type validation and successful
-acceptance into the handle's caller-facing `Completion`. Only then is ACK
-attempted. An original ServiceFault or Method failure can be an accepted
-outcome: receipt does not turn it into success. `GetValueOrThrow` preserves that
-failure, while `OriginalResponse` retains its complete original header and
-diagnostics.
-
-Select policies **before** submission:
-
-```csharp
-operation.RequireExplicitAcknowledgement();
-```
-
-This still validates and exposes the outcome through Completion but sends no
-automatic ACK. After application acceptance:
-
-```csharp
-ControlServiceExecutionResponse receipt = await operation.AcknowledgeAsync(ct);
-try
-{
-    ServiceOperationControlResult disposition = receipt.Result;
-    // Applied and AlreadyApplied confirm acknowledged release.
-}
-finally
-{
-    receipt.Reuse();
-}
-```
-
-Alternatively attach a local storage/acceptance callback:
-
-```csharp
-operation.WithAcceptancePolicy(async (outcome, token) =>
-{
-    await acceptanceStore.SaveAsync(operation.ClientOperationId, outcome, token);
-});
-```
-
-`acceptanceStore` is application-owned: there is no new wire storage policy.
-A failed/cancelled callback leaves Completion unaccepted and sends no ACK;
-collection can retry local acceptance while the Server still retains the
-outcome. Closing the local completion context during acceptance also prevents
-ACK. This is not persistence of the Server operation across process restart.
-
-An ACK delivery/reply failure does not replace the accepted result.
-Inspect `AcknowledgementFailure` and `LastAcknowledgement`; call
-`AcknowledgeAsync` to retry **only ACK**. If history has ended, UnknownOperation
-cannot prove that the earlier ACK was or was not applied.
-
-`CancelAsync` requests stopping work where possible, without rollback.
-`AbandonAsync` gives up recovery without requesting work cancellation.
-Both require the recovered Server token. Dispose releases only local handle
-resources; it does not send either control.
-
-## Security and certificate rotation
-
-References are Session-scoped. Foreign-Session IDs/tokens look unknown after
-normal authorization. A known operation in the requesting Session still
-returns BadUserAccessDenied for a changed creator or revoked permission.
-Permissions are rechecked after waits and before disclosure.
-Retained Value reads also recheck the node's effective current read access,
-including `UserAccessLevel` callbacks. Revocation denies collection without
-running the Value callback again, acknowledging or changing the stored outcome.
-
-HTTPS UA JSON uses its real TLS transport protection without relabelling UA
-MessageSecurityMode or policy. The native listener sets
-`SecureChannelContext.HasTransportSecurity` from an established TLS handshake.
-The .NET Framework binding uses Kestrel 2.x's TLS connection-adapter feature;
-newer targets use the negotiated handshake feature.
-Custom transports must supply truthful server-side evidence. A profile URI,
-URL scheme or caller header alone is not evidence. The shared
-`ProvidesEncryption`/`ProvidesIntegrity` checks are used by access restrictions
-and Push Management; SecurityAdmin/application authorization remains separate.
-
-The replacement-channel same-certificate guard pins the **Client** certificate.
-A rotated peer **Server** certificate can be accepted through normal
-CertificateManager trust validation against the intended Server identity plus
-successful ActivateSession of the original Session. HTTPS transport-certificate
-validation and OPC UA application authentication remain separate mapping
-requirements. In the known ApplyChanges workflow the demonstration refreshes
-endpoint discovery before reconnecting:
-
-```csharp
-await managedSession.ConfiguredEndpoint.UpdateFromServerAsync(
-    clientConfiguration, telemetry, ct);
-await managedSession.ReconnectAsync(null, null, ct);
-```
-
-The channel manager replaces a native transport that still holds the earlier
-peer certificate. Existing recovery handles must still pass all Session,
-identity, mapping and encoding guards. An endpoint refresh is not authorization
-to downgrade a mapping or recreate an operation.
-Before a recoverable request is sent, the binding checks the actual peer
-certificate against its captured Server identity, rather than trusting a copied
-ApplicationUri in refreshed discovery. UA-TCP ApplicationCertificates must
-identify that application; HTTPS TLS certificates must identify the captured
-transport host and need not contain the OPC UA application URI. Existing domain
-validation requirements still apply. A mismatched or missing replacement
-certificate invalidates the binding before the original request or collection
-payload is dispatched.
-
-An explicit change confined to current transport `MaxMessageSize` is delivery
-capacity, not a new Session or a new encoding interpretation. The manager opens
-a fresh transport with that capacity. A too-small response fails without ACK,
-outcome replacement, submission replay or handle invalidation; restore a
-suitable capacity and collect while the original R remains. The binding refuses
-to use a transport above a captured finite safety ceiling, including a later
-zero/unlimited setting, without permanently invalidating the handle. Other
-encoder/decoder limits and factory/profile/namespace checks remain unchanged.
-
-## Run the long-running operation sample
-
-The [RecoverableServiceDemo console sample](../samples/AsyncServices/README.md)
-hosts a local Server and Client and invokes a five-second Method through the
-ordinary generated proxy. With `--network-outage`, it closes the actual TCP
-connections and rejects reconnects while the Server finishes its work. After
-connectivity returns, the original call receives its retained result without
-replaying the Method. It verifies one invocation, one increment, the original
-Session and explicit acknowledgement after a sample acceptance-file write.
+The [console sample](../samples/AsyncServices/README.md) demonstrates an ordinary
+generated Method call across a real loopback TCP outage, with one invocation and
+explicit acknowledgement after local acceptance:
 
 ```powershell
 dotnet run --project samples\AsyncServices\RecoverableServiceDemo -- --network-outage
 ```
 
-This is a temporary connection outage with the Server process and Session still
-alive, not a restart or failover demonstration. The sample README includes the
-no-fault run, expected output, safety settings and the server-restart boundary.
+That scenario keeps the original Server process and Session alive. It is not
+restart or failover evidence.
 
-## Run the local two-hop demonstration
+On Windows, the process-restart scenario launches five Server incarnations and
+terminates four specifically owned child processes:
 
-The certificate demonstration lives in
-[`CertificateCycleAcrossRecoverableGateway`](../tests/Opc.Ua.Server.Tests/AsyncServices/AsyncServiceTransportTests.cs),
-with the downstream adapter in
-[`AsyncCertificateForwarder.cs`](../tests/Opc.Ua.Server.Tests/AsyncServices/AsyncCertificateForwarder.cs).
-It is an executable integration fixture rather than a separate interactive
-certificate-management application.
+```powershell
+dotnet run --project samples\AsyncServices\RecoverableServiceDemo -- --process-restart-test
+```
 
-From the repository root with the pinned .NET SDK:
+It checks Owner recovery through a replacement Session, byte-preserving Durable
+outcome recovery, released history, and interruption after a committed business
+effect but before the outcome commit. Recovery returns ExecutionIndeterminate
+without dispatching that original again. It also checks the exact history
+boundary and loss of the qualified clock domain.
+
+The surviving supervisor supplies explicitly simulated **TEST time**. This is
+real process-termination evidence, not a physical-host reboot, power-loss test or
+production clock qualification. The separate qualified-clock entry point
+requires an application-supplied `IRecoverableExecutionClock`; it has no permissive
+UTC fallback. The sample's certificates, protection keys and stores are created
+at run time in owned temporary storage.
+
+Keep evidence categories separate:
+
+| Selection | What it exercises |
+| --- | --- |
+| `RseModelContractTests`, `RseOutcomeContractTests` | Canonical identities, generated codecs and envelope rules |
+| Client recoverable-context and managed-session fixtures | Send-once lifecycle, typed acceptance, current interpretation and receipts |
+| `AsyncServiceExecutionTests` | Real in-process handlers, exact lifetimes, permissions and retained delivery |
+| Owner execution/identity/resource fixtures | Replacement Sessions, bounded independent identity and stable quotas |
+| Journal/record-codec fixtures | Serialized durable decisions, fault phases and unchanged deadlines |
+| `RecoverableDurableExecutionTests` | Integrated admission, restoration, current authorization, fencing, capacity and cleanup |
+| File shared-store fixtures | Actual local publication/reopen, bounded capacity and uncertainty handling |
+| `AsyncServiceTransportTests` | Native wire loss, mapping/protection observation and certificate cycles |
+| `RecoverableServiceDemoTests` | Ordinary/outage examples and the Windows child-process restart script |
+| `AsyncServicesAotTests` | Generated codecs, typed Session Read/ACK, interpretation witness and protected local storage in a published native executable |
+
+Run the certificate fixture with the repository's pinned SDK:
 
 ```powershell
 dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
@@ -478,481 +516,22 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
     --filter FullyQualifiedName~CertificateCycleAcrossRecoverableGateway
 ```
 
-The integration fixture hosts a local GDS-role Client, gateway and device with
-separate stable management Sessions. Both hops use the typed recoverable
-Client. It generates a real CSR and pending key through Push Management,
-issues a certificate with the local test CA, stages UpdateCertificate, invokes
-ApplyChanges once and verifies the installed private key by signing a challenge.
-It then checks communication and the peer certificate after recovery.
-
-The four cases cover both same-mapping and mixed-mapping combinations of
-UA-TCP/Binary and HTTPS UA JSON. Initial CSR replies are physically lost on
-both hops. The assertions require one device key generation, no gateway-local
-replacement key, original Sessions and a pre-rotation handle that remains
-collectible after the peer certificate changes. CertificateManager, trust-list
-transactions, pending-key/secret stores and the normal Push transaction owner
-are reused. PKI material and credentials are synthetic and created at run time;
-isolated stores, listeners and Sessions are cleaned up.
-
-`DrainPendingApplyChangesAsync` waits for actual deferred server-side apply
-effects in the fixture. It does not invoke ApplyChanges again or substitute
-ApplyChanges for GetServiceResult.
-
-This demonstration uses a device Server that preserves its Sessions while
-affected channels renegotiate after the ApplyChanges response. Part 12 also
-permits a Server to shut down when applying changes, and a trust change may
-prevent reconnection. Neither case extends this prototype's same-Session
-guarantee: report lost recovery rather than recreating the operation. The
-device's CSR, pending key and transaction do not become the gateway's own
-application-certificate transaction.
-
-## Evidence boundaries
-
-| Selection | What it exercises |
-| --- | --- |
-| `AsyncServiceContractTests` | Generated Binary/JSON codecs, ordered fields and IDs; not a network test |
-| `RecoverableManagedSessionTests` | Unchanged caller interfaces, options/builder/DI, unsupported-only fallback, exact budgets, typed acceptance, concurrent receipt scopes and local failure semantics |
-| `RecoverableSessionRequestContextTests`, `AsyncServiceClientTests` | Real managed lifecycle with scripted transport: activation proofs, no replay, payload validation and acceptance/ACK gates |
-| `AsyncServiceExecutionTests` | Generated in-process endpoint, real handlers/isolation, injected elapsed time, exact encoder boundaries and release/accounting races |
-| `AsyncServiceTransportTests` | Native free-port UA-TCP/Binary and TLS HTTPS UA JSON, observed Server encoding/protection, Read/Write/Call and physical reply loss |
-| `CertificateCycleAcrossRecoverableGateway` | Actual four-combination two-hop CSR/CA/update/apply/verification cycle |
-| `RecoverableServiceDemoTests` | Runnable sample: five-second typed Method, real loopback TCP outage, no replay and explicit acknowledgement after local file acceptance |
-| `AsyncServicesAotTests` | Codec, DI, optional model, live explicit-handle and transparent `ISession` Read/receipt paths; NativeAOT evidence requires publishing and executing the native binary, not merely a JIT test run |
-
-Lost Submit/result/ACK replies are separate native test cases. Exact encoded
-thresholds and reduced Session ceilings are in-process evidence. The separate
-`NativeDeliveryCapacityCanShrinkAndRecoverWithinTheOriginalSession` test
-reduces and restores actual native capacity with one original handle and
-invocation: UACP HEL capacity for UA-TCP, and the bounded HTTP response-body
-reader for HTTPS UA JSON. It does not pretend that HTTPS negotiates UACP HEL.
-The prototype does not claim WebSocket/OpenAPI mapping support, independent
-SDK interoperability, persistent operations, failover recovery or restart
-durability.
-
-The canonical generator inputs and synchronization command are documented in
-[`tools\AsyncServices`](../tools/AsyncServices/README.md). Changes to the
-contract belong there, not in generated C#. The model and protocol reference
-must remain reconciled with the frozen proposal before publication.
-
-### Evidence provenance
-
-The original acceptance, NativeAOT and focused coverage records describe
-prototype commit `66c3b8415d7d05291d7937a6d704e561ba80fab9` against Core
-`70bf3762a8223a7382dc97a38358a6d053cabd8e`. The subsequent merge checks describe
-`ecb1efe7ec5f20465fd0feebde420cda4560c7c4`. Adopting Core `8710615` does not
-relabel those runs or establish new full-solution, NativeAOT or coverage results.
-Its description and model-title updates change full JSON content and raw
-NodeSet bytes, while leaving the schema/model semantics and NodeIds unchanged.
-See the [source revision and fingerprints](../tools/AsyncServices/README.md#source-revision)
-for the current snapshot.
-
-## Scenario-to-test mapping
-
-The ASE2 identifiers from the original acceptance baseline remain unchanged.
-The mapping also covers the more explicit Method-eligibility, actual-mapping,
-typed-acceptance, capacity-recovery and certificate-renewal stimuli in Core
-`8710615`. It identifies executable checks, not new test-run results,
-certification or a promise that every platform's full solution suite is green.
-Record the exact command, TFM, source commit and outcome when reporting a run;
-do not sum overlapping selections or replace the provenance above.
-
-Class prefixes below are `E` = `AsyncServiceExecutionTests` (in-process
-endpoint), `N` = `AsyncServiceTransportTests` (native transport), `C` =
-`AsyncServiceClientTests` (scripted Client), `B` =
-`RecoverableSessionRequestContextTests` (scripted managed lifecycle), and `X` =
-`AsyncServiceContractTests` (codec/model).
-
-| Scenario | Requirement | Test methods |
-| --- | --- | --- |
-| ASE2-001 | Default-off behaviour | E.`DisabledFeatureDoesNotAdvertiseOrExecute`; X.`StandardAddressSpaceExcludesExperimentalDefinitions` |
-| ASE2-002 | Activated Session required | E.`WrapperWithoutSessionCannotExecuteOrDisclose` |
-| ASE2-003 | Whole-request eligibility, including current False and absent/True Method hints | E.`ExcludedOriginalServiceRejectsBeforeDispatch`; N.`CurrentMethodEligibilityIsCheckedBeforeAnyBatchEffect`; N.`MethodEligibilityDoesNotReplaceOrdinaryPerItemPermissionFailures` |
-| ASE2-004 | Exact supported E/R | E.`UnsupportedPositiveDurationRejectsBeforeDispatch` |
-| ASE2-005 | Invalid durations | E.`InvalidDurationsRejectBeforeDispatch`; E.`InvalidAdmissionEnvelopeRejectsBeforeDispatch` |
-| ASE2-006 | Exchange handle is not operation identity | E.`ReusedExchangeHandleDoesNotAliasRetainedOperations`; E.`ExchangeCancellationDoesNotCancelAdmittedWork` |
-| ASE2-007 | Remembered duplicate IDs | E.`DuplicateClientIdRejectsEqualAndChangedInputs` |
-| ASE2-008 | Lost submission reply | N.`LostReplyRecoversWithoutRepeatingTheMethod` (`submit`); C.`LostSubmissionReplyCollectsByClientIdWithoutResubmission` |
-| ASE2-009 | Lookup overtakes admission | E.`LookupCanOvertakeAdmissionWithoutDecidingExecution` |
-| ASE2-010 | Fast retained result | E.`FastReadRetainsOriginalOutcomeUntilAcknowledged` |
-| ASE2-011 | Bounded and zero waiting | N.`BoundedWaitsDoNotCancelOrRestartOwnedWork`; E.`CurrentCollectionAuthorizationIsRecheckedAfterWait` |
-| ASE2-012 | Read/Write/Call typing with observed Server encoding/protection | N.`ReadWriteAndDelayedCallRoundTripOverNativeTransport` |
-| ASE2-013 | Original failure and diagnostics | E.`OriginalServiceFaultRetainsItsHeaderAndDiagnostics`; C.`OriginalServiceFaultOrDeadlineIsAcceptedAndAcknowledged`; X.`CollectionPreservesCompleteOriginalServiceFault` |
-| ASE2-014 | Immutable result, fresh outer header | N.`LostReplyRecoversWithoutRepeatingTheMethod` (`result`); E.`InFlightCollectorsSurviveLogicalRelease` |
-| ASE2-015 | Reject malformed envelope or typed Method output; no hidden original retry | C.`MalformedEnvelopeIsNotAcknowledged`; C.`GeneratedProxyValidatesTypedOutputBeforeAcknowledgement`; C.`GeneratedProxyDoesNotRetryAnOriginalMethodId` |
-| ASE2-016 | Complete batch, not a transaction | N.`MixedCallBatchRetainsAllOriginalItemResults`; N.`MethodEligibilityDoesNotReplaceOrdinaryPerItemPermissionFailures` |
-| ASE2-017 | Deadline wins over late completion | E.`LateCompletionCannotReplaceAvailableDeadlineOutcome` |
-| ASE2-018 | Active identity/charges beyond public history | E.`DeadlineAndHistoryDoNotReleaseStillRunningWork` |
-| ASE2-019 | R starts at readiness | E.`LateReadyOutcomeReceivesFullRetentionInterval` |
-| ASE2-020 | Caller-context acceptance before ACK | C.`HandlePrecedesSubmissionAndAcceptedReadIsAcknowledged`; C.`DelayedAcceptanceIsNotAcknowledgedAfterDecoding`; C.`RejectedCallerCompletionContextDoesNotAcknowledge` |
-| ASE2-021 | Lost ACK, ACK-only retry | N.`LostReplyRecoversWithoutRepeatingTheMethod` (`ack`); C.`LostAcknowledgementDoesNotReplaceAcceptedOutcome` |
-| ASE2-022 | Manual/storage acceptance | C.`ManualAcceptanceDoesNotSendAutomaticAcknowledgement`; C.`FailedAcceptanceCanBeRetriedWithoutAcknowledgingOrRepeatingWork`; C.`CancelledAcceptanceCanBeRetriedWithoutAcknowledgement` |
-| ASE2-023 | Receipt of failed outcomes | C.`OriginalServiceFaultOrDeadlineIsAcceptedAndAcknowledged`; E.`DeadlineAndHistoryDoNotReleaseStillRunningWork` |
-| ASE2-024 | Abandon is not cancellation | E.`AbandonAndCancelHaveIndependentEffects` |
-| ASE2-025 | Cancel applicability | E.`AbandonAndCancelHaveIndependentEffects` |
-| ASE2-026 | Ordinary Cancel across admission | E.`ExchangeCancellationDoesNotCancelAdmittedWork`; E.`LookupCanOvertakeAdmissionWithoutDecidingExecution` |
-| ASE2-027 | Release/send races | E.`CompetingReleaseActionsKeepOneWinningReason`; E.`InFlightCollectorsSurviveLogicalRelease` |
-| ASE2-028 | Bounded concurrent collectors | E.`PendingCollectorsAreBoundedByExistingRequestQuota`; E.`InFlightCollectorsSurviveLogicalRelease` |
-| ASE2-029 | Non-renewing terminal history | E.`PollingAndRepeatedAcknowledgementDoNotRenewWindows` |
-| ASE2-030 | Current creator and permission | E.`CurrentCollectionAuthorizationIsRecheckedAfterWait`; E.`SameSessionWrongCreatorIsDeniedAndOriginalCreatorCanStillCollect`; E.`ControlAuthorizationIsActionSpecific` |
-| ASE2-031 | Foreign Session is unknown | E.`ForeignSessionTokenHasTheSameUnknownLookupAndControlDisposition` |
-| ASE2-032 | Verified same-Session recovery | N.`LostReplyRecoversWithoutRepeatingTheMethod`; B.`FreshRequestFollowsVerifiedSameSessionReactivation` |
-| ASE2-033 | No replacement-Session adoption | N.`ReplacementNativeSessionDoesNotAdoptAnOperation`; B.`ReplacementSessionIsNeverAdopted` |
-| ASE2-034 | Anonymous + Sign rejected | E.`AnonymousSignAdmissionIsRejectedBeforeDispatch` |
-| ASE2-035 | Admission pressure and cleanup | E.`FullOperationQuotaStillPermitsRecoveryAndCleanup`; E.`ProviderShutdownWaitsForOwnedInvocationCleanup` |
-| ASE2-036 | Real encoded size boundaries | E.`EncodedEnvelopeBoundaryIncludesWrapperOverhead`; N.`OversizedNativeReadRetainsFailureWithoutExecutingAgain` |
-| ASE2-037 | Native capacity reduction/restoration with the same handle, Session and original R | N.`NativeDeliveryCapacityCanShrinkAndRecoverWithinTheOriginalSession`; E.`SmallerDeliveryLimitDoesNotRewriteRetainedOutcome` |
-| ASE2-038 | Elapsed lifetimes and safe advice | E.`WallClockChangesDoNotRenewOrExpireElapsedLifetimes`; C.`MalformedEnvelopeIsNotAcknowledged` (`retry-after-retention`) |
-| ASE2-039 | Privileged metadata diagnostics/audit | E.`OperationAuditingUsesExistingGateAndMetadataOnly`; E.`EnabledModelUsesApplicationIdsAndPrivilegedDiagnostics` |
-| ASE2-040 | Two-hop certificate cycle, validated renewal and pre-rotation operation recovery | N.`CertificateCycleAcrossRecoverableGateway` (all four mapping combinations) |
-
-Run the Server mapping, Client mapping and independent codec checks separately:
-
-```powershell
-dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
-    -f net10.0 -p:CustomTestTarget=net10.0 `
-    --filter FullyQualifiedName~AsyncServices
-
-dotnet test tests\Opc.Ua.Client.Tests\Opc.Ua.Client.Tests.csproj `
-    -f net10.0 -p:CustomTestTarget=net10.0 `
-    --filter "FullyQualifiedName~RecoverableManagedSessionTests|FullyQualifiedName~AsyncServiceClientTests|FullyQualifiedName~RecoverableSessionRequestContextTests"
-
-dotnet test tests\Opc.Ua.Core.Encoders.Tests\Opc.Ua.Core.Encoders.Tests.csproj `
-    -f net10.0 -p:CustomTestTarget=net10.0 `
-    --filter FullyQualifiedName~AsyncServiceContractTests
-```
-
-These selections supplement, rather than replace, the generator, encoder,
-Core, Client, Server, Sessions, GDS, analyzer, coverage and platform regressions
-described in the [developer guide](DeveloperGuide.md).
-
-## Protocol reference
-
-The canonical JSON contract defines the message layout and provisional
-allocations for the OPC 10000-27 revision identified above. This section
-explains that contract; it does not define another set of DTOs or identifiers.
-Neither the closed proposal issue nor this implementation establishes
-maintainer approval, certification, or adoption into the OPC UA standard.
-
-### Why there are three Services
-
-An ordinary request can finish after its Client has stopped waiting. If the
-response is lost, sending the original request again can repeat its effects.
-This proposal separates starting work from obtaining its result.
-
-| Service | Purpose |
-| --- | --- |
-| `SubmitService` | Admit and start one eligible original request |
-| `GetServiceResult` | Look up that operation and collect its retained result |
-| `ControlServiceExecution` | Request work cancellation, acknowledge a received outcome, or give up result recovery |
-
-The original request is sent once. A failed submission exchange is followed by
-lookup using the Client operation ID, not transparent replay of that request.
-A Server that cannot provide the requested recovery contract rejects admission
-rather than executing through a non-recoverable fallback.
-An SDK retry using a different MethodId is another original request, not
-collection of the admitted operation. The typed Client disables that fallback
-for captured Methods.
-
-Ordinary Service APIs retain their existing behaviour. Support must be
-explicitly enabled; language-level asynchronous execution alone does not
-provide this protocol.
-
-#### Interface choice and alternatives
-
-The prototype implements the selected three-Service interface, not an
-alternative manager Object. A generic manager could expose submission,
-collection and control as Methods over Call and reuse more existing dispatch
-and generator code. It would still need send-once recovery, owned execution,
-typed acceptance, authorization, retained results and bounded accounting.
-It would also need rules for the outer Call status, manager Method status and
-multiple manager invocations in one Call. No equivalent manager prototype or
-total integration-cost comparison has been produced.
-
-For a certificate-only application that can change its Method interface,
-ticket-based Methods may be a simpler choice. Part 12's pull
-StartSigningRequest/FinishRequest workflow is not a drop-in replacement for push
-CreateSigningRequest. A push ticket API would still have to define recovery
-and receipt rules while preserving the device's pending-key and transaction
-ownership. UpdateCertificate and ApplyChanges remain separate installation and
-application steps; ApplyChanges is not result collection.
-
-Subscriptions and Events address notification delivery, while Programs expose
-an application's execution lifecycle. Neither automatically retains an
-unchanged original Service response. These alternatives are design rationale,
-not additional conformance modes of this prototype.
-
-### Namespace and provisional identities
-
-All declarations use namespace URI `http://opcfoundation.org/UA/`, namespace
-index zero. The overlay model version is `1.05.07-ase-draft.0.2.0`; the contract
-revision advertised by an enabled Server is `0.2.0`. These are experimental
-identifiers, not final OPC Foundation assignments.
-
-| Structure | DataType | Default Binary | Default XML | Default JSON |
-| --- | --- | --- | --- | --- |
-| ServiceOperationInfoDataType | 1200010 | 1202010 | 1203010 | 1204010 |
-| SubmitServiceRequest | 1200020 | 1202020 | 1203020 | 1204020 |
-| SubmitServiceResponse | 1200021 | 1202021 | 1203021 | 1204021 |
-| GetServiceResultRequest | 1200022 | 1202022 | 1203022 | 1204022 |
-| GetServiceResultResponse | 1200023 | 1202023 | 1203023 | 1204023 |
-| ControlServiceExecutionRequest | 1200024 | 1202024 | 1203024 | 1204024 |
-| ControlServiceExecutionResponse | 1200025 | 1202025 | 1203025 | 1204025 |
-
-For example, the proposed Binary encoding of SubmitServiceRequest is
-`i=1202020`. UA JSON's `UaTypeId` identifies the DataType, `i=1200020`, rather
-than its allocated Default JSON encoding Object.
-
-`SupportedServices` and `ServiceOperationInfoDataType.ServiceId` identify
-original request DataTypes, not encoding Objects. The three wrapper Services
-are not eligible original requests.
-
-### Ordered fields
-
-Order below is declaration and wire order. `Structure` denotes an
-ExtensionObject-valued field, not permission to submit an arbitrary Structure.
-The standard headers retain their existing layouts.
-
-| Structure | Ordered field/type pairs |
-| --- | --- |
-| ServiceOperationInfoDataType | `ClientOperationId:Guid`, `ServerToken:ByteString`, `ServiceId:NodeId`, `State:ServiceOperationState`, `OutcomeKind:ServiceOperationOutcome`, `OutcomeStatus:StatusCode`, `ExecutionAllowance:Duration`, `ResultRetentionTime:Duration`, `ExecutionRemaining:Duration`, `ResultRemaining:Duration`, `HistoryRemaining:Duration`, `CancellationRequested:Boolean`, `RetryAfter:Duration` |
-| SubmitServiceRequest | `RequestHeader:RequestHeader`, `ClientOperationId:Guid`, `Request:Structure`, `ExecutionAllowance:Duration`, `ResultRetentionTime:Duration`, `WaitTime:Duration` |
-| GetServiceResultRequest | `RequestHeader:RequestHeader`, `ClientOperationId:Guid`, `ServerToken:ByteString`, `WaitTime:Duration` |
-| ControlServiceExecutionRequest | `RequestHeader:RequestHeader`, `ServerToken:ByteString`, `Action:ServiceOperationControlAction` |
-| SubmitServiceResponse | `ResponseHeader:ResponseHeader`, `Operation:ServiceOperationInfoDataType`, `Result:Structure` |
-| GetServiceResultResponse | `ResponseHeader:ResponseHeader`, `Operation:ServiceOperationInfoDataType`, `Result:Structure` |
-| ControlServiceExecutionResponse | `ResponseHeader:ResponseHeader`, `Result:ServiceOperationControlResult`, `Operation:ServiceOperationInfoDataType` |
-
-The response fields named `Result` have different types. Submit/Get return an
-optional original response payload. Control returns a control-result
-enumeration and never transfers that payload.
-
-### Enumerations
-
-| Enumeration | DataType | EnumStrings | Values |
-| --- | --- | --- | --- |
-| ServiceOperationState | 1200000 | 1205000 | `Unknown=0`, `Pending=1`, `OutcomeAvailable=2`, `Acknowledged=3`, `Abandoned=4`, `Expired=5` |
-| ServiceOperationOutcome | 1200001 | 1205001 | `None=0`, `ServiceResponse=1`, `ExecutionDeadlineExceeded=2`, `ResultUnavailable=3` |
-| ServiceOperationControlAction | 1200002 | 1205002 | `Unspecified=0`, `Cancel=1`, `Acknowledge=2`, `Abandon=3` |
-| ServiceOperationControlResult | 1200003 | 1205003 | `Unspecified=0`, `Applied=1`, `AlreadyApplied=2`, `NotApplicable=3`, `UnknownOperation=4` |
-| ServiceOperationAuditAction | 1200004 | 1205004 | `Admitted=0`, `OutcomeCommitted=1`, `CancellationRequested=2`, `Acknowledged=3`, `Abandoned=4`, `Expired=5`, `Rejected=6`, `Denied=7`, `Collected=8`, `SessionClosed=9`, `HistoryForgotten=10`, `InvocationEnded=11` |
-
-Unspecified is invalid as a requested control action or returned control
-result. Unknown is a lookup result: it does not prove that the original work
-never ran, cannot still be admitted, or is safe to repeat.
-
-### Identity and ownership
-
-The Client chooses a nonzero random Guid before submission. An admitted
-operation also has an opaque Server token of 1 to 64 bytes. This prototype uses
-32 random bytes. Neither value is a bearer credential.
-
-GetServiceResult accepts exactly one selector. A nonzero ClientOperationId
-with a **null** ServerToken recovers a lost submission reply. Once the token is
-known, use it with a null Guid. ControlServiceExecution requires the token.
-RequestHeader.requestHandle identifies the individual exchange.
-
-A repeated submission using a remembered Client ID is rejected even if its
-inputs are identical. This is not input-fingerprint-based idempotent
-submission. Do not reuse an ID for another logical operation or automatically
-resend original work after an uncertain result.
-
-The issuing Session, its validated creator and current authorization govern
-collection and control. A new Session is not a continuation merely because
-the application, user or an identifier is the same. Authorization is checked
-again before delayed delivery. The enclosed request cannot select a different
-Session through its own header.
-
-Recovery follows existing activation and trust rules. It does not authorize
-weaker security settings or a new identity. The opt-in shared Client binding
-is distinct from the strict request-context API.
-
-Replacement-channel activation preserves the Client certificate, creator,
-SecurityPolicy and MessageSecurityMode required by Part 4; it does not apply a
-"same or stronger" substitution. The continuity check does not pin the old
-Server certificate. An authorized renewal can be accepted only after validating
-the new certificate against the intended Server identity and the mapping's
-trust requirements, followed by reactivation of the original Session.
-
-Protection is evaluated from the established transport. TLS can provide HTTPS
-integrity and confidentiality without changing UA MessageSecurityMode or policy.
-A claimed profile URI, URL scheme or request header is not proof of TLS.
-Transport protection does not grant application or user permissions.
-HTTPS transport certificates and OPC UA ApplicationCertificates keep their
-separate mapping-defined roles.
-The recoverable Client binding verifies the transport peer's certificate against
-the captured application identity or HTTPS host before sending an exchange;
-discovery metadata alone cannot establish that identity.
-
-### Reading a response
-
-The outer ResponseHeader describes the current Submit/Get exchange. The
-embedded original response includes its own header, results and diagnostics.
-Its contents are fixed once committed. A later collection uses a new outer
-header without rewriting the embedded one.
-
-An original response payload is present only when State is OutcomeAvailable
-and OutcomeKind is ServiceResponse. Its type must match the submitted Service,
-with the normal original ServiceFault exception. OutcomeStatus then equals
-the original header's ServiceResult. A Good ServiceResult does not imply that
-all items in a batch succeeded.
-
-ExecutionDeadlineExceeded and ResultUnavailable carry no original response.
-These outcomes can occur after original work has had effects; they are not
-successful replacements for the original Service response.
-
-Unknown replies have no Server token or ServiceId, zero lifetime values,
-OutcomeKind None, OutcomeStatus Good, CancellationRequested false, RetryAfter
-zero and no Result. A Client-ID lookup echoes the requested ID; a token-only
-unknown lookup has a null Guid. Good in this metadata is not business success.
-
-### Time and resource limits
-
-Durations are milliseconds. ExecutionAllowance and ResultRetentionTime must be
-finite and positive; WaitTime must be finite and nonnegative. Zero wait is a
-poll. The Server accepts requested lifetimes unchanged or rejects them before
-dispatch.
-
-ExecutionAllowance, E, is the requested execution budget starting at admission;
-admission accepts that exact positive finite budget or rejects it.
-ResultRetentionTime, R, starts when the final outcome is available. A fast result
-in SubmitService still has the same retention and acknowledgement requirements
-as a later result.
-
-When E expires first, the operation records an execution-deadline outcome and
-requests cancellation where possible. A late original response cannot replace
-it. Invocation resources stay charged until the invocation actually ends; a
-protocol deadline does not establish that external effects stopped.
-
-ACK, abandonment or result expiry releases the payload. Terminal history then
-lasts another R from release. Polling and repeated controls renew neither
-window. Still-running work can require minimal identity and accounting beyond
-the public intervals.
-
-Remaining durations are elapsed-time measurements, not a new lease starting
-when the Client receives a reply. Transit time consumes the opportunity.
-Positive Pending RetryAfter is at most ExecutionRemaining and strictly less
-than R. If no positive value is safe, it is zero. Other states use zero.
-
-Admission reserves resources before invocation. Existing message/encoding and
-aggregate resource limits apply to the complete envelope, not just its inner
-Result. The prototype caps retained results: oversized original output becomes
-a small ResultUnavailable outcome. This never authorizes repeating work.
-
-A smaller delivery limit after recovery can prevent an exchange from carrying
-an existing result. That failure does not rewrite or acknowledge the saved
-outcome or, by itself, invalidate the operation identity. Collection can resume
-after permitted capacity is restored within the original R. It cannot renew R,
-replay submission, raise an applicable captured safety ceiling or bypass
-security, namespace/type validation or other decoder limits. Storage still used
-by an in-flight sender stays accounted for after logical release.
-
-### Controls and acceptance
-
-Cancel requests stopping active work where possible. It does not promise
-rollback. A repeated request is AlreadyApplied only while that invocation is
-active; ended work is NotApplicable. An original cancellation response is an
-original Service outcome, distinct from a failed control exchange.
-
-Acknowledgement accepts an available outcome and releases its payload.
-Abandonment gives up recovery without requesting work cancellation. These
-actions have distinct applicability; they are not aliases.
-
-ACK is a separate exchange. If its reply is lost, retry ACK, not the original
-request. Failure of that exchange does not replace an already accepted result.
-
-Acceptance policy is Client-local. Default SDK ACK follows decoding,
-validation **and acceptance into the caller completion context**; decoding an
-internal object is insufficient. Selected application/storage acceptance must
-also succeed before ACK. The same wire action is used for every local policy.
-For a typed Method API, this includes decoding and validating its output
-arguments through the generated proxy. Decoding a CallResponse alone is not
-acceptance of its typed Method result.
-
-Ordinary Cancel by requestHandle ends the wrapper wait after admission, not the
-owned invocation. Cancellation observed before admission can prevent dispatch.
-Connection loss and stopping a local wait imply neither abandonment nor work
-cancellation.
-
-### Existing StatusCodes
-
-No new StatusCodes are allocated.
-
-| Condition | Status |
-| --- | --- |
-| Invalid identifier, selector, token, action or duration | `BadInvalidArgument` |
-| Unsupported positive lifetime | `BadOutOfRange` |
-| Remembered duplicate Client ID | `BadInvalidState` |
-| Unsupported or excluded original Service | `BadServiceUnsupported` |
-| Admission reservation failure | `BadResourceUnavailable` |
-| Record known in the requesting Session, but creator or action authorization fails | `BadUserAccessDenied` |
-| Security configuration ineligible for recovery | `BadSecurityModeRejected` |
-| Execution-deadline outcome | `BadTimeout` |
-| Oversized original response | `BadResponseTooLarge` |
-| Other original-response encoding failure | `BadEncodingError` |
-
-Lookup is Session-scoped. For an otherwise authorized request, a token or ID
-belonging only to another Session is indistinguishable from a nonexistent
-reference in this Session. Get returns Good plus Unknown. Control returns Good
-plus UnknownOperation and Unknown metadata. Neither reveals the foreign
-identity, existence or payload.
-
-This does not conceal every authorization failure. A known record in the
-requesting Session can produce BadUserAccessDenied when its creator or current
-permission check fails. Normal authentication and general Service-permission
-errors also retain their ordinary behaviour.
-For a retained Read of a Value, current authorization includes the effective
-`UserAccessLevel.CurrentRead` permission and its metadata callback, not only
-role permissions. This check must not invoke the original Value read again.
-
-### Optional runtime model
-
-The generated overlay contains 67 Nodes and 15 types. Compiling its definitions
-does not enable the feature. A disabled Server neither installs its capability
-root nor executes the new Services.
-
-| Definition or root | NodeId | Base type or parent |
-| --- | --- | --- |
-| AsyncServiceCapabilitiesType | i=1200040 | BaseObjectType, i=58 |
-| AsyncServiceDiagnosticsType | i=1200041 | BaseObjectType, i=58 |
-| AuditServiceOperationEventType | i=1200042 | AuditSessionEventType, i=2069 |
-| AsyncServiceCapabilities | i=1200100 | ServerCapabilities, i=2268 |
-| AsyncServiceDiagnostics | i=1200101 | ServerDiagnostics, i=2274 |
-
-Activation installs the overlay and fixed root anchors. Runtime children get
-Server-assigned NodeIds in the application namespace and retain namespace-zero
-BrowseNames. A type member's declaration NodeId is not an instance child ID.
-
-The capability root reports ContractVersion, SupportedServices and
-minimum/maximum/default E and R. `SupportsRecoverableExecution` is an optional
-read-only Boolean Property on a Method instance. Absence is undeclared; True
-is not an admission guarantee; False reports ineligibility under current
-Server policy. Admission evaluates current policy, not cached Client discovery.
-A provider must not publish current False yet ignore it because Call is in
-its supported-Service list. A current False on an otherwise callable Method
-rejects the whole recoverable Call submission with BadServiceUnsupported before
-any item executes. Ordinary per-item validation and permission failures remain
-per-item results, not an all-items-authorized transaction.
-
-Diagnostics are privileged aggregate measurements, not an operation browser.
-ActiveOperationCount follows invocation lifetime; RetainedOutcomeBytes includes
-storage still used by senders. Cumulative counters saturate at UInt64 maximum.
-
-The new audit Event adds ClientOperationId, ServiceId, Action, OperationState,
-OutcomeKind and OutcomeStatus to inherited audit fields, including SessionId.
-It contains no raw control token, credentials or copied request/result payload.
-Audit action success is separate from the original operation's outcome.
-
-The publication-metadata package is not required at runtime and introduces no
-runtime namespace dependency.
-
-### Limits
-
-The contract provides bounded recovery within one Session. It does not promise
-restart durability, replacement-Session recovery, exactly-once business
-effects, batch rollback, scheduling priority, progress or completion estimates.
-Codec and in-process endpoint tests are not evidence of native reply loss or
-certificate rotation; those require the integration tests described in
-[Evidence boundaries](#evidence-boundaries).
-Evidence for a mapping must observe the Server's actual encoding and established
-protection; configuring an endpoint or silently falling back to another mapping
-does not demonstrate it.
+Use net10.0 and net48 for the applicable focused Server selections.
+Codec tests are not wire tests; in-process reopening is not an OS process crash;
+a managed build is not NativeAOT evidence; a process restart is not proof of a
+physical host reboot or power-loss guarantee. Historical CI and coverage belong
+to their original source revisions, not to later uncommitted changes.
+The focused NativeAOT selection is not full live Owner/Durable NativeAOT
+conformance evidence.
+
+There is no progress/completion notification feature, owner-operation browser,
+generic executor resumption, implicit failover or business rollback.
+Diagnostics remain privileged aggregate metadata, and audit events do not
+contain raw tokens, credentials or copied original payloads.
+
+Cumulative transition counters belong to the live execution-provider instance.
+Restart reconstructs current-state gauges; it does not replay past outcome,
+acknowledgement or abandonment events as new actions. New recovery commits,
+such as resolving an incomplete admission or applying elapsed expiry, are
+counted when they occur. Retrying a remembered control does not increase its
+first-application counter.

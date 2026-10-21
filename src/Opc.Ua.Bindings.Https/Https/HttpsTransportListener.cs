@@ -918,6 +918,10 @@ namespace Opc.Ua.Bindings
                 {
                     await WriteServiceResponseAsync(context, output, ct).ConfigureAwait(false);
                 }
+                else
+                {
+                    (output as IPooledEncodeable)?.Reuse();
+                }
 
                 return;
             }
@@ -1057,6 +1061,10 @@ namespace Opc.Ua.Bindings
                 if (!ct.IsCancellationRequested)
                 {
                     await WriteJsonResponseAsync(context, output, ct).ConfigureAwait(false);
+                }
+                else
+                {
+                    (output as IPooledEncodeable)?.Reuse();
                 }
                 return;
             }
@@ -1897,10 +1905,7 @@ namespace Opc.Ua.Bindings
             IServiceResponse response,
             CancellationToken ct)
         {
-            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] payload = EncodeJsonResponseAndRelease(response, ct);
             context.Response.ContentLength = payload.Length;
             context.Response.ContentType = Profiles.OpcUaJsonContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
@@ -1913,6 +1918,22 @@ namespace Opc.Ua.Bindings
                 .WriteAsync(payload, 0, payload.Length, ct)
                 .ConfigureAwait(false);
 #endif
+        }
+
+        /// <summary>
+        /// Releases the response's owned resources whether JSON encoding completes, fails or is cancelled.
+        /// </summary>
+        private byte[] EncodeJsonResponseAndRelease(IServiceResponse response, CancellationToken ct)
+        {
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                return JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
+            }
+            finally
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
         }
 
         /// <summary>
@@ -2496,12 +2517,7 @@ namespace Opc.Ua.Bindings
                         responseToSend = JsonRequestMapper.CreateFault(m_logger, messageBytes, ex);
                     }
 
-                    byte[] responseBytes = JsonRequestMapper.EncodeResponse(
-                        responseToSend,
-                        m_quotas.MessageContext);
-
-                    // encoded: the response is no longer read (releases pooled and leased payloads).
-                    (responseToSend as IPooledEncodeable)?.Reuse();
+                    byte[] responseBytes = EncodeJsonResponseAndRelease(responseToSend, ct);
 #if NET5_0_OR_GREATER
                     await ws.SendAsync(
                         new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
@@ -3088,11 +3104,7 @@ namespace Opc.Ua.Bindings
                 m_logger.ErrorProcessingOpenApiRequest(exception);
                 response = JsonRequestMapper.CreateFault(m_logger, messageBytes, exception);
             }
-            ct.ThrowIfCancellationRequested();
-            byte[] payload = JsonRequestMapper.EncodeResponse(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] payload = EncodeJsonResponseAndRelease(response, ct);
             await sendGate.WaitAsync(ct).ConfigureAwait(false);
             try
             {
@@ -3119,10 +3131,16 @@ namespace Opc.Ua.Bindings
             IServiceResponse response,
             CancellationToken ct)
         {
-            byte[] encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
-
-            // encoded: the response is no longer read (releases pooled and leased payloads).
-            (response as IPooledEncodeable)?.Reuse();
+            byte[] encodedResponse;
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                encodedResponse = BinaryEncoder.EncodeMessage(response, m_quotas.MessageContext);
+            }
+            finally
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;

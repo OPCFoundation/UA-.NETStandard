@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseNextAsyncShouldBatchRequestsWhenExceedingOperationLimitsAsync(
             RequestHeader requestHeader)
         {
-            const bool releaseContinuationPoints = true;
+            const bool releaseContinuationPoints = false;
 
             var continuationPoints = Enumerable
                 .Repeat(ByteString.Empty, 15)
@@ -1539,7 +1539,7 @@ namespace Opc.Ua.Client.Tests
         public async Task BrowseNextAsyncShouldHandleBatchingWhenSecondOperationFails(
             RequestHeader requestHeader)
         {
-            const bool releaseContinuationPoints = true;
+            const bool releaseContinuationPoints = false;
 
             var continuationPoints = Enumerable
                 .Repeat(ByteString.Empty, 15)
@@ -1578,6 +1578,38 @@ namespace Opc.Ua.Client.Tests
                     It.IsAny<IServiceRequest>(),
                     It.IsAny<CancellationToken>()),
                     Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// A successful release batch has no per-point results, including when the request needs multiple exchanges.
+        /// </summary>
+        [Test]
+        public async Task BrowseNextReleaseBatchesAcceptEmptyResponses()
+        {
+            using var session = SessionMock.Create();
+            session.OperationLimits.MaxNodesPerBrowse = 2;
+            var sizes = new List<int>();
+            session.Channel.Setup(channel => channel.SendRequestAsync(
+                    It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    Assert.That(request, Is.InstanceOf<BrowseNextRequest>());
+                    var browse = (BrowseNextRequest)request;
+                    Assert.That(browse.ReleaseContinuationPoints, Is.True);
+                    sizes.Add(browse.ContinuationPoints.Count);
+                    return new ValueTask<IServiceResponse>(new BrowseNextResponse());
+                });
+
+            BrowseNextResponse response = await session.BrowseNextAsync(null, true,
+                [ByteString.From("a"u8), ByteString.From("b"u8), ByteString.From("c"u8)],
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results, Is.Empty);
+            Assert.That(response.DiagnosticInfos, Is.Empty);
+            Assert.That(sizes, Has.Count.EqualTo(2));
+            Assert.That(sizes[0], Is.EqualTo(2));
+            Assert.That(sizes[1], Is.EqualTo(1));
         }
 
         [Theory]

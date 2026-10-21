@@ -84,7 +84,10 @@ namespace Opc.Ua.SourceGeneration
         public static string FieldName => nameof(FieldName);
         public static string ListOfChildOperations => nameof(ListOfChildOperations);
         public static string Historizing => nameof(Historizing);
+        public static string HelperPrefix => nameof(HelperPrefix);
+        public static string DataTypeHelperPrefix => nameof(DataTypeHelperPrefix);
         public static string Identifier => nameof(Identifier);
+        public static string IdentifierType => nameof(IdentifierType);
         public static string HashCondition => nameof(HashCondition);
         public static string HashValue => nameof(HashValue);
         public static string FieldTable => nameof(FieldTable);

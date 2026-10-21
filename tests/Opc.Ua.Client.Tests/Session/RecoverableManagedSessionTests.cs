@@ -97,7 +97,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             AssertRead(response, 42);
             Assert.That(accepted, Is.EqualTo(1));
-            SubmitServiceRequest submit = peer.Submissions.Single();
+            SubmitRequestDataType submit = peer.Submissions.Single();
             Assert.That(submit.ExecutionAllowance, Is.EqualTo(14001.5));
             Assert.That(submit.ResultRetentionTime, Is.EqualTo(7200.75));
             Assert.That(peer.OrdinaryRequests, Is.Empty);
@@ -155,7 +155,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(original.RequestHeader.TimeoutHint, Is.EqualTo(17u));
             Assert.That(original.RequestHeader.ReturnDiagnostics, Is.EqualTo(3u));
             Assert.That(original.RequestHeader.AuditEntryId, Is.EqualTo("synthetic-audit"));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             Assert.That(peer.OrdinaryRequests, Is.Empty);
             Assert.That(peer.Controls, Has.Count.EqualTo(1));
         }
@@ -195,7 +195,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out CallResponse? call))
+                if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out CallResponse? call))
                 {
                     call.Results[1].StatusCode = StatusCodes.GoodClamped;
                     call.Results[1].OutputArguments = [Variant.From(ByteString.From("synthetic-second-csr"u8))];
@@ -285,12 +285,12 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task ProvedUnsupportedRecoveryFallsBackOnceWithoutManufacturingReceipt(bool outerSubmitFault)
+        public async Task ProvedUnsupportedDiscoveryFallsBackOnceWithoutManufacturingReceipt(bool incompatibleRevision)
         {
             int accepted = 0;
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
-            peer.CapabilityAvailable = outerSubmitFault;
-            peer.SubmitFault = outerSubmitFault ? StatusCodes.BadServiceUnsupported : StatusCodes.Good;
+            peer.CapabilityAvailable = incompatibleRevision;
+            peer.ContractVersion = incompatibleRevision ? "0.3.0" : "0.4.0";
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope(
                 acceptAsync: (context, _) =>
                 {
@@ -311,8 +311,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(1));
             Assert.That(peer.OrdinaryRequests.Single(), Is.TypeOf<ReadRequest>());
-            Assert.That(peer.Submissions, Has.Count.EqualTo(outerSubmitFault ? 1 : 0));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(outerSubmitFault ? 3 : 1));
+            Assert.That(peer.Submissions, Is.Empty);
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(incompatibleRevision ? 4 : 1));
             Assert.That(peer.Controls, Is.Empty);
         }
 
@@ -322,7 +322,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         [TestCase("authorization")]
         [TestCase("security")]
         [TestCase("decode")]
-        public async Task SubmitRejectionOtherThanUnsupportedNeverFallsBack(string rejection)
+        [TestCase("unsupported")]
+        public async Task AnySubmitRejectionNeverFallsBack(string rejection)
         {
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             peer.SubmitFault = RejectionStatus(rejection);
@@ -344,7 +345,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             int attempts = 0;
             peer.BeforeRespondAsync = (request, _) =>
             {
-                if (request is SubmitServiceRequest)
+                if (request is SubmitRequestDataType)
                 {
                     Interlocked.Increment(ref attempts);
                     throw new ServiceResultException(StatusCodes.BadServiceUnsupported);
@@ -380,8 +381,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await peer.AckEntered.Task.WaitAsync(peer.Timeout).ConfigureAwait(false);
 
             AssertRead(result, 42);
-            SubmitServiceRequest original = peer.Submissions.Single();
-            GetServiceResultRequest collection = peer.Collections.Single();
+            SubmitRequestDataType original = peer.Submissions.Single();
+            GetResultRequestDataType collection = peer.Collections.Single();
             Assert.That(collection.ClientOperationId, Is.EqualTo(original.ClientOperationId));
             Assert.That(collection.ServerToken.IsNull, Is.True);
             Assert.That(original.ExecutionAllowance, Is.EqualTo(12345.5));
@@ -449,7 +450,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             AssertNoApplicationDispatch(peer);
         }
 
@@ -483,7 +484,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
 
             Assert.That(error.StatusCode, Is.EqualTo(expected));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             AssertNoApplicationDispatch(peer);
         }
 
@@ -625,7 +626,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             {
                 peer.MutateResponse = (_, response) =>
                 {
-                    if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out CallResponse? call))
+                    if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out CallResponse? call))
                     {
                         call.Results[0].OutputArguments = [];
                     }
@@ -638,7 +639,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(accepted, Is.Zero);
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             Assert.That(peer.Controls, Is.Empty);
             Assert.That(peer.OrdinaryRequests, Is.Empty);
         }
@@ -662,7 +663,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is not SubmitServiceResponse submit)
+                if (response is not SubmitResponseDataType submit)
                 {
                     return;
                 }
@@ -754,7 +755,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMethodInvalid));
             Assert.That(accepted, Is.EqualTo(1));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3), "No method-ID browse fallback is permitted.");
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4), "No method-ID browse fallback is permitted.");
             Assert.That(peer.Controls, Has.Count.EqualTo(1));
             Assert.That(peer.OrdinaryRequests, Is.Empty);
         }
@@ -786,7 +787,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             Assert.That(receipt.IsAcknowledged, Is.True);
             Assert.That(peer.Controls, Has.Count.EqualTo(1));
-            Assert.That(peer.Controls.Single().Action, Is.EqualTo(ServiceOperationControlAction.Acknowledge));
+            Assert.That(peer.Controls.Single().MethodName, Is.EqualTo("Acknowledge"));
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
             Assert.That(peer.Controls, Has.Count.EqualTo(1), "A confirmed receipt must not send another ACK.");
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
@@ -856,33 +857,21 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task BrowseStaysOrdinaryAndRequiredReceiptRejectsBeforeDispatch(bool requireReceipt)
+        public async Task BrowseUsesRecoveryAndPreservesRequiredReceipt(bool requireReceipt)
         {
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             BrowseResponse ordinary = await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             Assert.That(ordinary.Results[0].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(101u)));
             Assert.That(ordinary.Results[0].References[0].BrowseName.Name, Is.EqualTo("SyntheticChild"));
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope(requireReceipt);
-            if (requireReceipt)
-            {
-                ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
-                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
-            }
-            else
-            {
-                BrowseResponse result = await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
-                Assert.That(result.Results[0].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(101u)));
-            }
-
-            Assert.That(scope.Receipt, Is.Null);
-            ServiceResultException noReceipt = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
-            Assert.That(noReceipt.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
-            Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(requireReceipt ? 1 : 2));
-            Assert.That(peer.Submissions, Is.Empty);
-            Assert.That(peer.DiscoveryRequests, Is.Empty);
-            Assert.That(peer.Controls, Is.Empty);
+            BrowseResponse result = await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
+            Assert.That(result.Results[0].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(101u)));
+            Assert.That(scope.Receipt, Is.Not.Null);
+            await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
+            Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
+            Assert.That(peer.OrdinaryRequests, Is.Empty);
+            Assert.That(peer.Submissions, Has.Count.EqualTo(2));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(8));
         }
 
         [TestCase(false)]
@@ -1164,7 +1153,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             AssertRead(result, 42);
             Assert.That(rejected, Is.EqualTo(1));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             Assert.That(peer.OrdinaryRequests, Is.Empty);
             Assert.That(peer.Controls, Is.Empty);
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
@@ -1236,7 +1225,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 await first.WaitAsync(peer.Timeout).ConfigureAwait(false);
                 Assert.That(firstReceipt.IsAcknowledged, Is.True);
                 Assert.That(peer.Controls, Has.Count.EqualTo(2));
-                Assert.That(peer.Controls.Select(control => control.ServerToken).Distinct().Count(), Is.EqualTo(2));
+                Assert.That(
+                    peer.Controls.Select(control => control.Request.ServerToken).Distinct().Count(), Is.EqualTo(2));
                 Assert.That(peer.OrdinaryRequests, Is.Empty);
             }
             finally
@@ -1287,7 +1277,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
                 Assert.That(scope.Receipt, Is.SameAs(receipt));
                 Assert.That(peer.Submissions, Has.Count.EqualTo(1));
-                Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+                Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
                 await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
                 Assert.That(peer.Controls, Has.Count.EqualTo(1));
                 Assert.That(receipt.IsAcknowledged, Is.True);
@@ -1374,8 +1364,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(scope.Receipt.IsAcknowledged, Is.True);
             Assert.That(peer.Session.SessionId, Is.EqualTo(originalSession));
             Assert.That(peer.Controls, Has.Count.EqualTo(2));
-            Assert.That(peer.Controls.Select(control => control.ServerToken).Distinct().Count(), Is.EqualTo(1));
-            Assert.That(peer.Controls.Select(control => control.Action), Is.All.EqualTo(ServiceOperationControlAction.Acknowledge));
+            Assert.That(peer.Controls.Select(control => control.Request.ServerToken).Distinct().Count(), Is.EqualTo(1));
+            Assert.That(peer.Controls.Select(control => control.MethodName), Is.All.EqualTo("Acknowledge"));
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(peer.Collections, Is.Empty);
             Assert.That(peer.OrdinaryRequests, Is.Empty);
@@ -1501,7 +1491,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.FastResult = false;
             peer.BeforeRespondAsync = async (request, ct) =>
             {
-                if (request is GetServiceResultRequest)
+                if (request is GetResultRequestDataType)
                 {
                     Interlocked.Increment(ref collectionAttempts);
                     entered.TrySetResult(true);
@@ -1546,7 +1536,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(scope.Receipt!.IsAcknowledged, Is.True);
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(peer.Controls, Has.Count.EqualTo(1));
-            Assert.That(peer.Controls.Single().Action, Is.EqualTo(ServiceOperationControlAction.Acknowledge));
+            Assert.That(peer.Controls.Single().MethodName, Is.EqualTo("Acknowledge"));
         }
 
         [TestCase(false)]
@@ -1635,7 +1625,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(first.ResponseHeader.RequestHandle, Is.EqualTo(137u));
                 Assert.That(second.ResponseHeader.RequestHandle, Is.EqualTo(219u));
                 Assert.That(first.ResponseHeader.StringTable.ToArray(), Is.EqualTo(s_originalStrings));
-                Assert.That(peer.DeliveredResponses.OfType<SubmitServiceResponse>().Count(), Is.EqualTo(2));
+                Assert.That(peer.DeliveredEnvelopes.OfType<SubmitResponseDataType>().Count(), Is.EqualTo(2));
                 Assert.That(peer.DeliveredResponses, Is.All.InstanceOf<IPooledEncodeable>());
                 Assert.That(peer.Submissions, Has.Count.EqualTo(2));
                 Assert.That(peer.Controls, Has.Count.EqualTo(2));
@@ -1654,18 +1644,19 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         [TestCase("remote-target")]
         [TestCase("version-type")]
         [TestCase("service-list-type")]
+        [TestCase("null-service-id")]
         public async Task MalformedOrDeniedCapabilityDiscoveryNeverFallsBack(string invalid)
         {
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
             peer.MutateResponse = (request, response) =>
             {
-                if (request is ReadRequest { NodesToRead.Count: 1 } read &&
-                    read.NodesToRead[0].NodeId == new NodeId(1200100u) &&
-                    response is ReadResponse root)
+                if (request is TranslateBrowsePathsToNodeIdsRequest { BrowsePaths.Count: 1 } path &&
+                    path.BrowsePaths[0].StartingNode == ObjectIds.Server &&
+                    response is TranslateBrowsePathsToNodeIdsResponse root)
                 {
                     if (invalid == "root-denied")
                     {
-                        root.Results = [new DataValue(Variant.From((int)NodeClass.Object), StatusCodes.BadUserAccessDenied)];
+                        root.Results = [new BrowsePathResult { StatusCode = StatusCodes.BadUserAccessDenied }];
                     }
                     else if (invalid == "root-shape")
                     {
@@ -1676,7 +1667,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 {
                     switch (invalid)
                     {
-                        case "translate-denied":
+                        case "translate-denied" when translated.Results.Count > 2:
                             translated.Results[2].StatusCode = StatusCodes.BadNodeIdUnknown;
                             break;
                         case "partial-target":
@@ -1687,20 +1678,30 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                             break;
                     }
                 }
-                if (request is ReadRequest { NodesToRead.Count: 4 } && response is ReadResponse values)
+                if (request is ReadRequest { NodesToRead.Count: 5 } && response is ReadResponse values)
                 {
                     if (invalid == "version-type")
                     {
                         values.Results =
                         [
-                            new DataValue(Variant.From(2)), values.Results[1], values.Results[2], values.Results[3]
+                            new DataValue(Variant.From(2)), values.Results[1], values.Results[2], values.Results[3],
+                            values.Results[4]
                         ];
                     }
                     else if (invalid == "service-list-type")
                     {
                         values.Results =
                         [
-                            values.Results[0], new DataValue(Variant.From("Read")), values.Results[2], values.Results[3]
+                            values.Results[0], new DataValue(Variant.From("Read")), values.Results[2],
+                            values.Results[3], values.Results[4]
+                        ];
+                    }
+                    else if (invalid == "null-service-id")
+                    {
+                        values.Results =
+                        [
+                            values.Results[0], new DataValue(Variant.From(ArrayOf.Wrapped(NodeId.Null))),
+                            values.Results[2], values.Results[3], values.Results[4]
                         ];
                     }
                 }
@@ -1754,7 +1755,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             Assert.That(result, Is.EqualTo(85));
             Assert.That(scope.Receipt!.IsFullyRecoverable, Is.True);
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             Assert.That(peer.Submissions, Has.Count.EqualTo(2));
             Assert.That(peer.Submissions.Select(submit => submit.ExecutionAllowance), Is.All.EqualTo(12345.5));
             Assert.That(peer.Submissions.Select(submit => submit.ResultRetentionTime), Is.All.EqualTo(6789.25));
@@ -1762,27 +1763,28 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
             Assert.That(scope.Receipt.IsAcknowledged, Is.True);
             Assert.That(peer.Controls, Has.Count.EqualTo(2));
-            Assert.That(peer.Controls.Select(control => control.ServerToken).Distinct().Count(), Is.EqualTo(2));
+            Assert.That(peer.Controls.Select(control => control.Request.ServerToken).Distinct().Count(), Is.EqualTo(2));
         }
 
         [Test]
         public async Task MixedCompoundOutcomeMarksReceiptPartialAndAcknowledgesOnlyRetainedOriginal()
         {
             await using RecoverableSessionPeer peer = await RecoverableSessionPeer.CreateAsync().ConfigureAwait(false);
+            peer.SupportedServices = [DataTypeIds.ReadRequest];
             await using RecoverableAcknowledgementScope scope = peer.Session.BeginAcknowledgementScope();
             int result = await ClientOperationContext.ExecuteAsync(peer.Session, async token =>
             {
                 int first = await peer.Session.ReadValueAsync<int>(new NodeId(100u), token).ConfigureAwait(false);
-                peer.SubmitFault = StatusCodes.BadServiceUnsupported;
-                int second = await peer.Session.ReadValueAsync<int>(new NodeId(101u), token).ConfigureAwait(false);
-                int third = await peer.Session.ReadValueAsync<int>(new NodeId(100u), token).ConfigureAwait(false);
-                return first + second + third;
+                BrowseResponse second = await BrowseAsync(peer.Session, token).ConfigureAwait(false);
+                int third = await peer.Session.ReadValueAsync<int>(new NodeId(101u), token).ConfigureAwait(false);
+                return first + second.Results[0].References.Count + third;
             }, peer.Timeout).ConfigureAwait(false);
 
-            Assert.That(result, Is.EqualTo(127));
+            Assert.That(result, Is.EqualTo(86));
             Assert.That(scope.Receipt!.IsFullyRecoverable, Is.False);
             Assert.That(scope.Receipt.IsAcknowledged, Is.False);
-            Assert.That(peer.Submissions, Has.Count.EqualTo(2), "An ordinary fallback is not retried for the third read.");
+            Assert.That(
+                peer.Submissions, Has.Count.EqualTo(1), "Only pre-dispatch unsupported discovery permits fallback.");
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(2));
             Assert.That(peer.Controls, Is.Empty);
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
@@ -1870,7 +1872,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ReadResponse response = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             peer.BeforeRespondAsync = async (request, ct) =>
             {
-                if (request is ControlServiceExecutionRequest)
+                if (request is OperationControlRequestDataType)
                 {
                     Interlocked.Increment(ref controlAttempts);
                     entered.TrySetResult(true);
@@ -1931,7 +1933,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out ReadResponse? read))
+                if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out ReadResponse? read))
                 {
                     read.Results = [new DataValue(Variant.Null, StatusCodes.BadNodeIdUnknown)];
                 }
@@ -2009,7 +2011,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             int submissions = 0;
             transport.RequestHandler = (request, _) =>
             {
-                if (request is SubmitServiceRequest)
+                if (request is CallRequest)
                 {
                     Interlocked.Increment(ref submissions);
                 }
@@ -2071,7 +2073,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             StatusCode expected = deadline ? StatusCodes.BadTimeout : StatusCodes.BadResponseTooLarge;
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit)
+                if (response is SubmitResponseDataType submit)
                 {
                     submit.Operation.OutcomeKind = deadline
                         ? ServiceOperationOutcome.ExecutionDeadlineExceeded : ServiceOperationOutcome.ResultUnavailable;
@@ -2192,7 +2194,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out CallResponse? call))
+                if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out CallResponse? call))
                 {
                     call.Results[1].StatusCode = StatusCodes.BadSubscriptionIdInvalid;
                 }
@@ -2234,7 +2236,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 }).ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is not SubmitServiceResponse submit || Interlocked.Increment(ref submissions) != 1)
+                if (response is not SubmitResponseDataType submit || Interlocked.Increment(ref submissions) != 1)
                 {
                     return;
                 }
@@ -2288,7 +2290,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             peer.FastResult = false;
             peer.BeforeRespondAsync = async (request, ct) =>
             {
-                if (request is GetServiceResultRequest)
+                if (request is GetResultRequestDataType)
                 {
                     collecting.TrySetResult(true);
                     await release.Task.WaitAsync(ct).ConfigureAwait(false);
@@ -2367,7 +2369,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 AssertRead(await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false), 42);
             }
             Assert.That(scope.Receipt, Is.Null);
-            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+            Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
             Assert.That(peer.Submissions, Is.Empty);
             Assert.That(peer.OrdinaryRequests, Has.Count.EqualTo(required ? 0 : 1));
             Assert.That(peer.Controls, Is.Empty);
@@ -2381,7 +2383,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ReadResponse result = await ReadAsync(peer.Session, peer.Timeout).ConfigureAwait(false);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is ControlServiceExecutionResponse control)
+                if (response is ControlResponseDataType control)
                 {
                     control.Result = ServiceOperationControlResult.UnknownOperation;
                     control.Operation = RecoverableSessionPeer.UnknownInfo(Uuid.Empty);
@@ -2513,9 +2515,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(peer.Submissions, Has.Count.EqualTo(1));
             Assert.That(scope.Receipt!.IsFullyRecoverable, Is.True);
             Assert.That(peer.Controls, Is.Empty);
-            ServiceResultException excluded = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
-            Assert.That(excluded.StatusCode, Is.EqualTo(StatusCodes.BadServiceUnsupported));
+            _ = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await BrowseAsync(peer.Session, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(peer.Submissions, Has.Count.EqualTo(1), "An eligible Browse cannot reuse this claimed scope.");
             AssertOnlyPreparationBrowses(peer, 1);
             await scope.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
             Assert.That(scope.Receipt.IsAcknowledged, Is.True);
@@ -2686,7 +2688,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             ClientVariable<int> variable = CreateConvenienceVariable(peer);
             peer.MutateResponse = (_, response) =>
             {
-                if (bad && response is SubmitServiceResponse submit && submit.Result.TryGetValue(out WriteResponse? write))
+                if (bad &&
+                    response is SubmitResponseDataType submit &&
+                    submit.Result.TryGetValue(out WriteResponse? write))
                 {
                     write.Results = [StatusCodes.BadUserAccessDenied];
                 }
@@ -2773,7 +2777,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var proxy = new UninstrumentedProxy(peer.Session, peer.Channels.Telemetry);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out CallResponse? call))
+                if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out CallResponse? call))
                 {
                     call.Results =
                     [
@@ -2841,7 +2845,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var proxy = new UninstrumentedProxy(peer.Session, peer.Channels.Telemetry);
             peer.MutateResponse = (_, response) =>
             {
-                if (response is SubmitServiceResponse submit && submit.Result.TryGetValue(out CallResponse? call))
+                if (response is SubmitResponseDataType submit && submit.Result.TryGetValue(out CallResponse? call))
                 {
                     if (diagnostics)
                     {
@@ -2913,8 +2917,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(peer.AckObservedCallerCompletion, Is.True);
                 Assert.That(peer.Controls, Has.Count.EqualTo(4));
                 Assert.That(peer.AckCallerCompletions, Is.All.True);
-                Assert.That(peer.Controls.Select(control => control.ServerToken).Distinct().Count(), Is.EqualTo(4));
-                Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(3));
+                Assert.That(
+                    peer.Controls.Select(control => control.Request.ServerToken).Distinct().Count(), Is.EqualTo(4));
+                Assert.That(peer.DiscoveryRequests, Has.Count.EqualTo(4));
                 Assert.That(peer.OrdinaryRequests, Is.Empty);
             }
             finally
@@ -3134,7 +3139,8 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 Assert.That(acceptances, Is.EqualTo(1));
                 Assert.That(peer.Controls, Has.Count.EqualTo(reads));
                 Assert.That(peer.AckCallerCompletions, Is.All.True);
-                Assert.That(peer.Controls.Select(control => control.ServerToken).Distinct().Count(), Is.EqualTo(reads));
+                Assert.That(
+                    peer.Controls.Select(control => control.Request.ServerToken).Distinct().Count(), Is.EqualTo(reads));
                 Assert.That(peer.AckObservedCallerCompletion, Is.True);
                 Assert.That(ConvenienceReadRanges(peer), Is.EqualTo(s_convenienceChunkRanges.Take(reads)));
                 Assert.That(peer.OrdinaryRequests, Is.Empty);
@@ -3201,7 +3207,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             int received = 0;
             peer.MutateResponse = (_, response) =>
             {
-                if (response is ControlServiceExecutionResponse && Interlocked.Increment(ref received) == expected)
+                if (response is ControlResponseDataType && Interlocked.Increment(ref received) == expected)
                 {
                     completed.TrySetResult(true);
                 }

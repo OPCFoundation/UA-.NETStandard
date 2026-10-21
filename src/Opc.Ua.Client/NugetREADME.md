@@ -74,15 +74,19 @@ validate it during `StartAsync`, and read it back through the public
 `ManagedSessionOptions.RecoverableExecution` selects the default-off RSE prototype
 behind the existing asynchronous `ISession` Read/Write/Call interface. Typed
 helpers and generated Method proxies retain their normal signatures.
-Unsupported recovery may fall back before original execution; uncertain
-submission never causes replay.
+Ordinary fallback is permitted only after conclusive unsupported discovery
+**before Submit is attempted**. Once Submit has been attempted, the Client
+never falls back or replays the original request—even if Submit returns
+`BadServiceUnsupported`.
 
 Use `session.BeginAcknowledgementScope(requireRecoverableReceipt: true)` when
 external storage or an RPC handoff must finish before acknowledgement. An
 ordinary fallback has no receipt and cannot produce a successful no-op ACK.
 See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AsyncServices.md)
 for acceptance callbacks, exact lifetime defaults and same-Session limits.
-This is an experimental OPC 10000-27 draft, not an adopted standard.
+This remains the earlier 0.2.0 prototype. Migration to OPC 10000-29 draft 0.4.0
+is in progress; this package does not yet implement its five-Method interface
+or Owner/Durable recovery. It is not an adopted standard.
 
 ## Reverse connect lifecycle
 

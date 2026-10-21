@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -109,21 +110,29 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using ScriptedOperationServer peer =
                 await ScriptedOperationServer.CreateAsync().ConfigureAwait(false);
             var id = Uuid.NewUuid();
-            SubmitServiceResponse admission = await peer.Owner.SubmitServiceAsync(
-                null, id, new ExtensionObject(CreateReadRequest()), 10_000, 5000, 0, peer.Timeout)
-                .ConfigureAwait(false);
+            await using RecoverableExecutionBinding binding = await RecoverableExecutionBinding.CaptureAsync(
+                peer.Owner, new RecoverableSessionOptions(), peer.Timeout).ConfigureAwait(false);
+            RecoverableManagerClient manager = await binding.GetManagerAsync(peer.Timeout).ConfigureAwait(false);
+            SubmitResponseDataType admission = await manager.SubmitAsync(new SubmitRequestDataType
+            {
+                ClientOperationId = id,
+                RecoveryMode = ServiceOperationRecoveryMode.Session,
+                Request = new ExtensionObject(CreateReadRequest()),
+                ExecutionAllowance = 10_000,
+                ResultRetentionTime = 5000
+            }, peer.Timeout).ConfigureAwait(false);
             ByteString token = admission.Operation.ServerToken;
-            admission.Reuse();
-            GetServiceResultResponse collection = await peer.Owner.GetServiceResultAsync(
-                null, Uuid.Empty, token, 0, peer.Timeout).ConfigureAwait(false);
+            GetResultResponseDataType collection = await manager.GetResultAsync(new GetResultRequestDataType
+            {
+                RecoveryMode = ServiceOperationRecoveryMode.Session,
+                ServerToken = token
+            }, peer.Timeout).ConfigureAwait(false);
             Assert.That(collection.Operation.ClientOperationId, Is.EqualTo(id));
             Assert.That(collection.Result.TryGetValue(out ReadResponse? original), Is.True);
             Assert.That(original!.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            collection.Reuse();
-            ControlServiceExecutionResponse receipt = await peer.Owner.ControlServiceExecutionAsync(
-                null, token, ServiceOperationControlAction.Acknowledge, peer.Timeout).ConfigureAwait(false);
+            ControlResponseDataType receipt = await manager.AcknowledgeAsync(
+                new OperationControlRequestDataType { ServerToken = token }, peer.Timeout).ConfigureAwait(false);
             Assert.That(receipt.Result, Is.EqualTo(ServiceOperationControlResult.Applied));
-            receipt.Reuse();
             Assert.That(peer.Submissions, Is.EqualTo(1));
             Assert.That(peer.Acknowledgements, Is.EqualTo(1));
         }
@@ -137,10 +146,18 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             await using ScriptedOperationServer peer =
                 await ScriptedOperationServer.CreateAsync().ConfigureAwait(false);
             peer.LoseSubmission = true;
+            await using RecoverableExecutionBinding binding = await RecoverableExecutionBinding.CaptureAsync(
+                peer.Owner, new RecoverableSessionOptions(), peer.Timeout).ConfigureAwait(false);
+            RecoverableManagerClient manager = await binding.GetManagerAsync(peer.Timeout).ConfigureAwait(false);
             ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await peer.Owner.SubmitServiceAsync(
-                    null, Uuid.NewUuid(), new ExtensionObject(CreateReadRequest()), 10_000, 5000, 0, peer.Timeout)
-                    .ConfigureAwait(false)).ConfigureAwait(false))!;
+                await manager.SubmitAsync(new SubmitRequestDataType
+                {
+                    ClientOperationId = Uuid.NewUuid(),
+                    RecoveryMode = ServiceOperationRecoveryMode.Session,
+                    Request = new ExtensionObject(CreateReadRequest()),
+                    ExecutionAllowance = 10_000,
+                    ResultRetentionTime = 5000
+                }, peer.Timeout).ConfigureAwait(false)).ConfigureAwait(false))!;
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadConnectionClosed));
             Assert.That(peer.Submissions, Is.EqualTo(1));
         }
@@ -199,10 +216,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             Assert.That(operation.AcknowledgementFailure, Is.Not.Null);
             Assert.That(operation.LastAcknowledgement, Is.Null);
             await peer.RecoverAsync().ConfigureAwait(false);
-            ControlServiceExecutionResponse retry =
+            ControlResponseDataType retry =
                 await operation.AcknowledgeAsync(peer.Timeout).ConfigureAwait(false);
             Assert.That(retry.Result, Is.EqualTo(ServiceOperationControlResult.AlreadyApplied));
-            retry.Reuse();
             Assert.That(operation.AcknowledgementFailure, Is.Null);
             Assert.That(peer.Submissions, Is.EqualTo(1));
             Assert.That(peer.Acknowledgements, Is.EqualTo(2));
@@ -228,10 +244,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                 .ConfigureAwait(false);
             Assert.That(result.HasValue, Is.True);
             Assert.That(peer.Acknowledgements, Is.Zero);
-            ControlServiceExecutionResponse acknowledged = await operation.AcknowledgeAsync(peer.Timeout)
+            ControlResponseDataType acknowledged = await operation.AcknowledgeAsync(peer.Timeout)
                 .ConfigureAwait(false);
             Assert.That(acknowledged.Result, Is.EqualTo(ServiceOperationControlResult.Applied));
-            acknowledged.Reuse();
             Assert.That(peer.Acknowledgements, Is.EqualTo(1));
         }
 
@@ -461,7 +476,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             _ = await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout).ConfigureAwait(false);
             peer.MutateResponse = response =>
             {
-                if (response is not GetServiceResultResponse result)
+                if (response is not GetResultResponseDataType result)
                 {
                     return;
                 }
@@ -577,105 +592,31 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         [Test]
         public async Task HandlePrecedesSubmissionAndAcceptedReadIsAcknowledged()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            int submissions = 0;
-            int acknowledgements = 0;
-            Uuid clientId = default;
-            uint originalHandle = 0;
-            var token = ByteString.From(new byte[32]);
-            await using var channels = new SessionChannelHarness(
-                configureChannel: channel => channel.RequestHandler = (request, _) =>
-                {
-                    switch (request)
-                    {
-                        case SubmitServiceRequest submit:
-                            submissions++;
-                            clientId = submit.ClientOperationId;
-                            Assert.That(submit.Request.TryGetValue(out ReadRequest? original), Is.True);
-                            originalHandle = original!.RequestHeader.RequestHandle;
-                            return new ValueTask<IServiceResponse>(new SubmitServiceResponse
-                            {
-                                ResponseHeader = channel.CreateGoodHeader(),
-                                Operation = Info(ServiceOperationState.Pending)
-                            });
-                        case GetServiceResultRequest:
-                            return new ValueTask<IServiceResponse>(new GetServiceResultResponse
-                            {
-                                ResponseHeader = channel.CreateGoodHeader(),
-                                Operation = Info(ServiceOperationState.OutcomeAvailable),
-                                Result = new ExtensionObject(new ReadResponse
-                                {
-                                    ResponseHeader = new ResponseHeader { RequestHandle = originalHandle },
-                                    Results = [new DataValue(Variant.From(42))]
-                                })
-                            });
-                        case ControlServiceExecutionRequest control:
-                            Assert.That(control.Action, Is.EqualTo(ServiceOperationControlAction.Acknowledge));
-                            acknowledgements++;
-                            return new ValueTask<IServiceResponse>(new ControlServiceExecutionResponse
-                            {
-                                ResponseHeader = channel.CreateGoodHeader(),
-                                Result = ServiceOperationControlResult.Applied,
-                                Operation = Info(ServiceOperationState.Acknowledged)
-                            });
-                        default:
-                            return new ValueTask<IServiceResponse>(channel.CreateResponse(request));
-                    }
-                });
-            await using Client.ManagedSession owner = await Client.ManagedSession.CreateAsync(
-                new ManagedSessionOptions { Endpoint = SessionChannelHarness.CreateEndpoint() },
-                channels.Configuration,
-                new DefaultSessionFactory(channels.Telemetry),
-                telemetry: channels.Telemetry,
-                channelManager: channels.Manager,
-                updateBeforeConnect: false,
-                ct: timeout.Token).ConfigureAwait(false);
+            await using ScriptedOperationServer peer =
+                await ScriptedOperationServer.CreateAsync().ConfigureAwait(false);
             var client = new AsyncServiceClient();
-            await using AsyncServiceOperation<ReadResponse> operation = await client.CreateReadAsync(owner,
-                new ReadRequest
-                {
-                    RequestHeader = new RequestHeader { RequestHandle = 13 },
-                    TimestampsToReturn = TimestampsToReturn.Neither,
-                    NodesToRead = [new ReadValueId { NodeId = new NodeId(100u), AttributeId = Attributes.Value }]
-                }, timeout.Token).ConfigureAwait(false);
+            await using AsyncServiceOperation<ReadResponse> operation = await client.CreateReadAsync(
+                peer.Owner, CreateReadRequest(), peer.Timeout).ConfigureAwait(false);
             Assert.That(operation.ClientOperationId, Is.Not.EqualTo(Uuid.Empty));
             Assert.That(operation.ServerToken.IsNull, Is.True);
-            Assert.That(submissions, Is.Zero);
+            Assert.That(peer.Submissions, Is.Zero);
             Assert.That(operation.Completion.IsCompleted, Is.False);
 
-            ServiceOperationInfoDataType pending = await operation.SubmitAsync(10_000, 5000, ct: timeout.Token)
+            ServiceOperationInfoDataType pending = await operation.SubmitAsync(10_000, 5000, ct: peer.Timeout)
                 .ConfigureAwait(false);
             Assert.That(pending.State, Is.EqualTo(ServiceOperationState.Pending));
-            Assert.That(submissions, Is.EqualTo(1));
-            Assert.That(acknowledgements, Is.Zero);
-            _ = await operation.CollectAsync(ct: timeout.Token).ConfigureAwait(false);
-            AsyncServiceResult<ReadResponse> accepted = await operation.Completion.WaitAsync(timeout.Token)
+            Assert.That(peer.Submissions, Is.EqualTo(1));
+            Assert.That(peer.Acknowledgements, Is.Zero);
+            _ = await operation.CollectAsync(ct: peer.Timeout).ConfigureAwait(false);
+            AsyncServiceResult<ReadResponse> accepted = await operation.Completion.WaitAsync(peer.Timeout)
                 .ConfigureAwait(false);
             ReadResponse value = accepted.GetValueOrThrow();
             Assert.That(value.Results[0].WrappedValue.TryGetValue(out int scalar), Is.True);
             Assert.That(scalar, Is.EqualTo(42));
             Assert.That(value.ResponseHeader.RequestHandle, Is.EqualTo(13u));
-            Assert.That(submissions, Is.EqualTo(1));
-            Assert.That(acknowledgements, Is.EqualTo(1));
+            Assert.That(peer.Submissions, Is.EqualTo(1));
+            Assert.That(peer.Acknowledgements, Is.EqualTo(1));
             Assert.That(operation.LastAcknowledgement!.Result, Is.EqualTo(ServiceOperationControlResult.Applied));
-
-            ServiceOperationInfoDataType Info(ServiceOperationState state)
-            {
-                return new ServiceOperationInfoDataType
-                {
-                    ClientOperationId = clientId,
-                    ServerToken = token,
-                    ServiceId = DataTypeIds.ReadRequest,
-                    State = state,
-                    OutcomeKind = state == ServiceOperationState.Pending
-                        ? ServiceOperationOutcome.None : ServiceOperationOutcome.ServiceResponse,
-                    ExecutionAllowance = 10_000,
-                    ResultRetentionTime = 5000,
-                    ExecutionRemaining = state == ServiceOperationState.Pending ? 9999 : 0,
-                    ResultRemaining = state == ServiceOperationState.OutcomeAvailable ? 4999 : 0,
-                    HistoryRemaining = state == ServiceOperationState.Acknowledged ? 4999 : 0
-                };
-            }
         }
 
         /// <summary>
@@ -696,222 +637,116 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         /// </summary>
         private sealed class ScriptedOperationServer : IAsyncDisposable
         {
-            private ScriptedOperationServer()
+            private ScriptedOperationServer(RecoverableSessionPeer peer)
             {
-                m_channels = new SessionChannelHarness(configureChannel: channel =>
+                m_peer = peer;
+                m_peer.FastResult = false;
+                m_peer.MutateResponse = (_, response) =>
                 {
-                    channel.Channel.MessageContext.ServerUris.Update(["urn:localhost:server"]);
-                    channel.RequestHandler = (request, _) => Dispatch(channel, request);
-                });
+                    if (ProtocolDeadline)
+                    {
+                        switch (response)
+                        {
+                            case SubmitResponseDataType submit:
+                                SetDeadline(submit.Operation);
+                                submit.Result = default;
+                                break;
+                            case GetResultResponseDataType get:
+                                SetDeadline(get.Operation);
+                                get.Result = default;
+                                break;
+                            case ControlResponseDataType control:
+                                SetDeadline(control.Operation);
+                                break;
+                        }
+                    }
+                    MutateResponse?.Invoke(response);
+                };
             }
 
-            public Client.ManagedSession Owner { get; private set; } = null!;
-            public ITelemetryContext Telemetry => m_channels.Telemetry;
-            public CancellationToken Timeout => m_timeout.Token;
-            public bool LoseSubmission { get; set; }
-            public bool LoseAcknowledgement { get; set; }
-            public bool FastResult { get; set; }
-            public bool InvalidMethodOutput { get; set; }
-            public StatusCode MethodStatus { get; set; }
-            public StatusCode OriginalFailure { get; set; }
+            public Client.ManagedSession Owner => m_peer.Owner;
+            public ITelemetryContext Telemetry => m_peer.Channels.Telemetry;
+            public CancellationToken Timeout => m_peer.Timeout;
+
+            public bool LoseSubmission
+            {
+                get => m_peer.LoseSubmitReply;
+                set => m_peer.LoseSubmitReply = value;
+            }
+
+            public bool LoseAcknowledgement
+            {
+                get => m_peer.LoseAckReply;
+                set => m_peer.LoseAckReply = value;
+            }
+
+            public bool FastResult
+            {
+                get => m_peer.FastResult;
+                set => m_peer.FastResult = value;
+            }
+
+            public bool InvalidMethodOutput
+            {
+                get => m_peer.InvalidMethodOutput;
+                set => m_peer.InvalidMethodOutput = value;
+            }
+
+            public StatusCode MethodStatus
+            {
+                get => m_peer.MethodStatus;
+                set => m_peer.MethodStatus = value;
+            }
+
+            public StatusCode OriginalFailure
+            {
+                get => m_peer.OriginalFailure;
+                set => m_peer.OriginalFailure = value;
+            }
+
             public bool ProtocolDeadline { get; set; }
-            public Action<IServiceResponse>? MutateResponse { get; set; }
-            public Func<bool>? IsAccepted { get; set; }
-            public bool AckObservedAcceptance { get; private set; }
-            public bool LastLookupUsedClientId { get; private set; }
-            public int Submissions { get; private set; }
-            public int Acknowledgements { get; private set; }
-            public int PreparationBrowses { get; private set; }
+            public Action<IEncodeable>? MutateResponse { get; set; }
+
+            public Func<bool>? IsAccepted
+            {
+                get => m_peer.CallerHasCompleted;
+                set => m_peer.CallerHasCompleted = value;
+            }
+
+            public bool AckObservedAcceptance => m_peer.AckObservedCallerCompletion;
+
+            public bool LastLookupUsedClientId => m_peer.Collections.TryPeek(out GetResultRequestDataType? get) &&
+                get.ClientOperationId != Uuid.Empty;
+
+            public int Submissions => m_peer.Submissions.Count;
+            public int Acknowledgements => m_peer.Controls.Count;
+
+            public int PreparationBrowses =>
+                m_peer.OrdinaryRequests.OfType<TranslateBrowsePathsToNodeIdsRequest>().Count();
 
             public static async Task<ScriptedOperationServer> CreateAsync()
             {
-                var peer = new ScriptedOperationServer();
-                try
-                {
-                    peer.Owner = await Client.ManagedSession.CreateAsync(
-                        new ManagedSessionOptions { Endpoint = SessionChannelHarness.CreateEndpoint() },
-                        peer.m_channels.Configuration,
-                        new DefaultSessionFactory(peer.Telemetry),
-                        telemetry: peer.Telemetry,
-                        channelManager: peer.m_channels.Manager,
-                        updateBeforeConnect: false,
-                        ct: peer.Timeout).ConfigureAwait(false);
-                    return peer;
-                }
-                catch
-                {
-                    await peer.m_channels.DisposeAsync().ConfigureAwait(false);
-                    peer.m_timeout.Dispose();
-                    throw;
-                }
+                return new ScriptedOperationServer(
+                    await RecoverableSessionPeer.CreateAsync(enabled: false).ConfigureAwait(false));
             }
 
             public ValueTask RecoverAsync()
             {
-                return m_channels.Manager.ReconnectAsync((IManagedTransportChannel)Owner.TransportChannel, Timeout);
+                return m_peer.RecoverAsync();
             }
 
-            public async ValueTask DisposeAsync()
+            public ValueTask DisposeAsync()
             {
-                await Owner.DisposeAsync().ConfigureAwait(false);
-                await m_channels.DisposeAsync().ConfigureAwait(false);
-                m_timeout.Dispose();
+                return m_peer.DisposeAsync();
             }
 
-            private ValueTask<IServiceResponse> Dispatch(ScriptedChannel channel, IServiceRequest request)
+            private static void SetDeadline(ServiceOperationInfoDataType info)
             {
-                IServiceResponse response;
-                switch (request)
-                {
-                    case SubmitServiceRequest submit:
-                        Submissions++;
-                        m_clientId = submit.ClientOperationId;
-                        m_execution = submit.ExecutionAllowance;
-                        m_retention = submit.ResultRetentionTime;
-                        Assert.That(submit.Request.TryGetValue(out IServiceRequest? original), Is.True);
-                        m_serviceId = ExpandedNodeId.ToNodeId(
-                            original!.TypeId, channel.Channel.MessageContext.NamespaceUris);
-                        m_original = original switch
-                        {
-                            ReadRequest => new ReadResponse
-                            {
-                                ResponseHeader = new ResponseHeader
-                                {
-                                    RequestHandle = original.RequestHeader.RequestHandle
-                                },
-                                Results = [new DataValue(Variant.From(42))]
-                            },
-                            CallRequest => new CallResponse
-                            {
-                                ResponseHeader = new ResponseHeader
-                                {
-                                    RequestHandle = original.RequestHeader.RequestHandle
-                                },
-                                Results =
-                                [
-                                    new CallMethodResult
-                                    {
-                                        StatusCode = MethodStatus,
-                                        OutputArguments = InvalidMethodOutput
-                                            ? [Variant.From(42)] : [Variant.From(ByteString.From("synthetic-csr"u8))]
-                                    }
-                                ]
-                            },
-                            _ => throw new InvalidOperationException("Unexpected original Service.")
-                        };
-                        if (StatusCode.IsBad(OriginalFailure))
-                        {
-                            m_original = new ServiceFault
-                            {
-                                ResponseHeader = new ResponseHeader
-                                {
-                                    RequestHandle = original.RequestHeader.RequestHandle,
-                                    ServiceResult = OriginalFailure
-                                }
-                            };
-                        }
-                        m_state = FastResult ? ServiceOperationState.OutcomeAvailable : ServiceOperationState.Pending;
-                        if (LoseSubmission)
-                        {
-                            LoseSubmission = false;
-                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
-                        }
-                        response = new SubmitServiceResponse
-                        {
-                            ResponseHeader = channel.CreateGoodHeader(),
-                            Operation = Info(),
-                            Result = m_state == ServiceOperationState.OutcomeAvailable && !ProtocolDeadline
-                                ? new ExtensionObject(CoreUtils.Clone(m_original)!) : default
-                        };
-                        break;
-                    case GetServiceResultRequest get:
-                        LastLookupUsedClientId = get.ClientOperationId != Uuid.Empty;
-                        if (LastLookupUsedClientId)
-                        {
-                            Assert.That(get.ClientOperationId, Is.EqualTo(m_clientId));
-                            Assert.That(get.ServerToken.IsNull, Is.True);
-                        }
-                        else
-                        {
-                            Assert.That(get.ServerToken, Is.EqualTo(m_token));
-                        }
-                        if (m_state == ServiceOperationState.Pending)
-                        {
-                            m_state = ServiceOperationState.OutcomeAvailable;
-                        }
-                        response = new GetServiceResultResponse
-                        {
-                            ResponseHeader = channel.CreateGoodHeader(),
-                            Operation = Info(),
-                            Result = m_state == ServiceOperationState.OutcomeAvailable && !ProtocolDeadline
-                                ? new ExtensionObject(CoreUtils.Clone(m_original)!) : default
-                        };
-                        break;
-                    case ControlServiceExecutionRequest control:
-                        Assert.That(control.ServerToken, Is.EqualTo(m_token));
-                        Assert.That(control.Action, Is.EqualTo(ServiceOperationControlAction.Acknowledge));
-                        Acknowledgements++;
-                        AckObservedAcceptance = IsAccepted?.Invoke() ?? true;
-                        ServiceOperationControlResult disposition = m_state == ServiceOperationState.Acknowledged
-                            ? ServiceOperationControlResult.AlreadyApplied : ServiceOperationControlResult.Applied;
-                        m_state = ServiceOperationState.Acknowledged;
-                        if (LoseAcknowledgement)
-                        {
-                            LoseAcknowledgement = false;
-                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
-                        }
-                        response = new ControlServiceExecutionResponse
-                        {
-                            ResponseHeader = channel.CreateGoodHeader(),
-                            Result = disposition,
-                            Operation = Info()
-                        };
-                        break;
-                    case TranslateBrowsePathsToNodeIdsRequest:
-                        PreparationBrowses++;
-                        throw new InvalidOperationException(
-                            "A captured method must not fall back to another method ID.");
-                    default:
-                        response = channel.CreateResponse(request);
-                        break;
-                }
-                response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
-                MutateResponse?.Invoke(response);
-                return new ValueTask<IServiceResponse>(response);
+                info.OutcomeKind = ServiceOperationOutcome.ExecutionDeadlineExceeded;
+                info.OutcomeStatus = StatusCodes.BadTimeout;
             }
 
-            private ServiceOperationInfoDataType Info()
-            {
-                return new ServiceOperationInfoDataType
-                {
-                    ClientOperationId = m_clientId,
-                    ServerToken = m_token,
-                    ServiceId = m_serviceId,
-                    State = m_state,
-                    OutcomeKind = m_state == ServiceOperationState.Pending
-                        ? ServiceOperationOutcome.None : ProtocolDeadline
-                            ? ServiceOperationOutcome.ExecutionDeadlineExceeded
-                            : ServiceOperationOutcome.ServiceResponse,
-                    OutcomeStatus = m_state == ServiceOperationState.Pending ? StatusCodes.Good :
-                        ProtocolDeadline ? StatusCodes.BadTimeout :
-                            m_original?.ResponseHeader.ServiceResult ?? StatusCodes.Good,
-                    ExecutionAllowance = m_execution,
-                    ResultRetentionTime = m_retention,
-                    ExecutionRemaining = m_state == ServiceOperationState.Pending ? m_execution - 1 : 0,
-                    ResultRemaining = m_state == ServiceOperationState.OutcomeAvailable ? m_retention - 1 : 0,
-                    HistoryRemaining = m_state == ServiceOperationState.Acknowledged ? m_retention - 1 : 0
-                };
-            }
-
-            private readonly SessionChannelHarness m_channels;
-            private readonly CancellationTokenSource m_timeout = new(TimeSpan.FromSeconds(15));
-            private readonly ByteString m_token = ByteString.From(new byte[32]);
-            private Uuid m_clientId;
-            private NodeId m_serviceId;
-            private double m_execution;
-            private double m_retention;
-            private IServiceResponse? m_original;
-            private ServiceOperationState m_state;
+            private readonly RecoverableSessionPeer m_peer;
         }
     }
 }

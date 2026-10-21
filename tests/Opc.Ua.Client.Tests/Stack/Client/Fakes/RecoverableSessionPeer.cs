@@ -39,13 +39,24 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
     /// </summary>
     internal sealed class RecoverableSessionPeer : IAsyncDisposable
     {
-        private RecoverableSessionPeer()
+        private RecoverableSessionPeer(ushort namespaceIndex, Action<ScriptedChannel>? configureChannel)
         {
+            string[] namespaces = new string[namespaceIndex + 1];
+            namespaces[0] = Namespaces.OpcUa;
+            for (int i = 1; i < namespaceIndex; i++)
+            {
+                namespaces[i] = $"urn:synthetic:namespace:{i}";
+            }
+            namespaces[namespaceIndex] = RecoverableManagerClient.NamespaceUri;
+            m_namespaces = namespaces;
+            RseNamespaceIndex = namespaceIndex;
             Channels = new SessionChannelHarness(configureChannel: channel =>
             {
                 channel.SupportedFeatures = TransportChannelFeatures.Reconnect;
+                channel.Channel.MessageContext.NamespaceUris.Update(m_namespaces.ToList());
                 channel.Channel.MessageContext.ServerUris.Update(["urn:localhost:server"]);
                 channel.RequestHandler = (request, ct) => DispatchAsync(channel, request, ct);
+                configureChannel?.Invoke(channel);
             });
         }
 
@@ -54,10 +65,29 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public ISession Session => Owner;
         public CancellationToken Timeout => m_timeout.Token;
         public bool CapabilityAvailable { get; set; } = true;
-        public string ContractVersion { get; set; } = "0.2.0";
+        public string ContractVersion { get; set; } = "0.4.0";
+        public ushort RseNamespaceIndex { get; }
+        public NodeId ManagerId { get; } = new("actual-manager", 1);
+        public NodeId CapabilitiesId { get; } = new("actual-capabilities", 1);
+
+        public ArrayOf<NodeId> MethodIds { get; } =
+        [
+            new("actual-submit", 1), new("actual-get", 1), new("actual-ack", 1),
+            new("actual-cancel", 1), new("actual-abandon", 1)
+        ];
 
         public ArrayOf<NodeId> SupportedServices { get; set; } =
-            [DataTypeIds.ReadRequest, DataTypeIds.WriteRequest, DataTypeIds.CallRequest];
+        [
+            DataTypeIds.ReadRequest, DataTypeIds.WriteRequest, DataTypeIds.CallRequest,
+            DataTypeIds.HistoryReadRequest, DataTypeIds.HistoryUpdateRequest, DataTypeIds.BrowseRequest,
+            DataTypeIds.BrowseNextRequest, DataTypeIds.TranslateBrowsePathsToNodeIdsRequest,
+            DataTypeIds.RegisterNodesRequest, DataTypeIds.UnregisterNodesRequest,
+            DataTypeIds.AddNodesRequest, DataTypeIds.AddReferencesRequest,
+            DataTypeIds.DeleteNodesRequest, DataTypeIds.DeleteReferencesRequest
+        ];
+
+        public ArrayOf<int> SupportedRecoveryModes { get; set; } =
+            [(int)ServiceOperationRecoveryMode.Session];
 
         public DataValue ExecutionDefault { get; set; } = new(Variant.From(12_345.5));
         public DataValue RetentionDefault { get; set; } = new(Variant.From(6789.25));
@@ -76,17 +106,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public bool BinaryRoundTripResponses { get; set; }
         public Func<ReadValueId, DataValue>? ReadValueFactory { get; set; }
         public Func<BrowseDescription, ArrayOf<ReferenceDescription>>? BrowseReferenceFactory { get; set; }
-        public Func<IServiceRequest, CancellationToken, ValueTask>? BeforeRespondAsync { get; set; }
-        public Action<IServiceRequest, IServiceResponse>? MutateResponse { get; set; }
+        public Func<IEncodeable, CancellationToken, ValueTask>? BeforeRespondAsync { get; set; }
+        public Action<IEncodeable, IEncodeable>? MutateResponse { get; set; }
+        public Action<CallRequest, CallResponse>? MutateManagerResponse { get; set; }
+        public bool NullManagerResponse { get; set; }
         public Func<bool>? CallerHasCompleted { get; set; }
         public bool AckObservedCallerCompletion { get; private set; }
-        public ConcurrentQueue<SubmitServiceRequest> Submissions { get; } = new();
-        public ConcurrentQueue<GetServiceResultRequest> Collections { get; } = new();
-        public ConcurrentQueue<ControlServiceExecutionRequest> Controls { get; } = new();
+        public ConcurrentQueue<SubmitRequestDataType> Submissions { get; } = new();
+        public ConcurrentQueue<GetResultRequestDataType> Collections { get; } = new();
+        public ConcurrentQueue<(string MethodName, OperationControlRequestDataType Request)> Controls { get; } = new();
+        public ConcurrentQueue<CallRequest> ManagerCalls { get; } = new();
         public ConcurrentQueue<bool> AckCallerCompletions { get; } = new();
         public ConcurrentQueue<IServiceRequest> OrdinaryRequests { get; } = new();
         public ConcurrentQueue<IServiceRequest> DiscoveryRequests { get; } = new();
         public ConcurrentQueue<IServiceResponse> DeliveredResponses { get; } = new();
+        public ConcurrentQueue<IEncodeable> DeliveredEnvelopes { get; } = new();
         public TaskCompletionSource<bool> AckEntered { get; } = NewSignal();
 
         public static TaskCompletionSource<bool> NewSignal()
@@ -98,9 +132,11 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             RecoverableSessionOptions? options = null,
             bool enabled = true,
             string construction = "options",
-            Action<ConfiguredEndpoint>? configureEndpoint = null)
+            Action<ConfiguredEndpoint>? configureEndpoint = null,
+            ushort namespaceIndex = 4,
+            Action<ScriptedChannel>? configureChannel = null)
         {
-            var peer = new RecoverableSessionPeer();
+            var peer = new RecoverableSessionPeer(namespaceIndex, configureChannel);
             try
             {
                 var sessionOptions = new ManagedSessionOptions
@@ -173,7 +209,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
             m_timeout.Dispose();
         }
 
-        public static IServiceRequest Original(SubmitServiceRequest submit)
+        public static IServiceRequest Original(SubmitRequestDataType submit)
         {
             Assert.That(submit.Request.TryGetValue(out IServiceRequest? original), Is.True);
             return original!;
@@ -202,37 +238,59 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         private async ValueTask<IServiceResponse> DispatchAsync(
             ScriptedChannel channel, IServiceRequest request, CancellationToken ct)
         {
-            if (BeforeRespondAsync != null)
+            bool managerCall = request is CallRequest managerRequest &&
+                managerRequest.MethodsToCall.Count == 1 &&
+                managerRequest.MethodsToCall[0].ObjectId == ManagerId;
+            if (!managerCall && BeforeRespondAsync != null)
             {
                 await BeforeRespondAsync(request, ct).ConfigureAwait(false);
             }
             IServiceResponse response;
             switch (request)
             {
-                case ReadRequest { NodesToRead.Count: 1 } read when read.NodesToRead[0].NodeId == s_root:
-                    DiscoveryRequests.Enqueue(CoreUtils.Clone(request)!);
-                    Assert.That(read.NodesToRead[0].AttributeId, Is.EqualTo(Attributes.NodeClass));
+                case ReadRequest { NodesToRead.Count: 2 } read when
+                    read.NodesToRead[0].NodeId == VariableIds.Server_NamespaceArray:
                     response = new ReadResponse
                     {
-                        Results = [new DataValue(Variant.From((int)NodeClass.Object),
-                            CapabilityAvailable ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown)]
+                        Results =
+                        [
+                            new DataValue(Variant.From(m_namespaces)),
+                            new DataValue(Variant.From(ArrayOf.Wrapped("urn:localhost:server")))
+                        ]
                     };
                     break;
-                case TranslateBrowsePathsToNodeIdsRequest translate:
+                case TranslateBrowsePathsToNodeIdsRequest translate when
+                    translate.BrowsePaths[0].StartingNode == ObjectIds.Server:
                     DiscoveryRequests.Enqueue(CoreUtils.Clone(request)!);
-                    Assert.That(translate.BrowsePaths.ToList().Select(path => path.StartingNode),
-                        Is.All.EqualTo(s_root));
+                    Assert.That(translate.BrowsePaths.Count, Is.EqualTo(1));
+                    Assert.That(translate.BrowsePaths[0].RelativePath.Elements[0].TargetName,
+                        Is.EqualTo(new QualifiedName("RecoverableExecutionManager", RseNamespaceIndex)));
+                    response = new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        Results = CapabilityAvailable
+                            ? [Target(ManagerId)] : [new BrowsePathResult { StatusCode = StatusCodes.BadNoMatch }]
+                    };
+                    break;
+                case TranslateBrowsePathsToNodeIdsRequest translate when
+                    translate.BrowsePaths[0].StartingNode == ManagerId:
+                    DiscoveryRequests.Enqueue(CoreUtils.Clone(request)!);
+                    Assert.That(translate.BrowsePaths.ToList().Select(path =>
+                        path.RelativePath.Elements[0].TargetName.Name), Is.EqualTo(s_memberNames));
+                    Assert.That(translate.BrowsePaths.ToList().Select(path =>
+                        path.RelativePath.Elements[0].TargetName.NamespaceIndex), Is.All.EqualTo(RseNamespaceIndex));
+                    response = new TranslateBrowsePathsToNodeIdsResponse
+                    {
+                        Results = new[] { CapabilitiesId }.Concat(MethodIds.ToList()).Select(Target).ToArray()
+                    };
+                    break;
+                case TranslateBrowsePathsToNodeIdsRequest translate when
+                    translate.BrowsePaths[0].StartingNode == CapabilitiesId:
+                    DiscoveryRequests.Enqueue(CoreUtils.Clone(request)!);
                     Assert.That(translate.BrowsePaths.ToList().Select(path =>
                         path.RelativePath.Elements[0].TargetName.Name), Is.EqualTo(s_propertyNames));
                     response = new TranslateBrowsePathsToNodeIdsResponse
                     {
-                        Results = s_propertyIds.Select(id => new BrowsePathResult
-                        {
-                            Targets = [new BrowsePathTarget
-                            {
-                                TargetId = new ExpandedNodeId(id), RemainingPathIndex = uint.MaxValue
-                            }]
-                        }).ToArray()
+                        Results = s_propertyIds.Select(Target).ToArray()
                     };
                     break;
                 case ReadRequest read when read.NodesToRead.ToList().Any(node => s_propertyIds.Contains(node.NodeId)):
@@ -246,21 +304,92 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                             new DataValue(Variant.From(ContractVersion)),
                             new DataValue(Variant.From(SupportedServices)),
                             ExecutionDefault,
-                            RetentionDefault
+                            RetentionDefault,
+                            new DataValue(Variant.From(SupportedRecoveryModes))
                         ]
                     };
                     break;
-                case SubmitServiceRequest submit:
+                case CallRequest call when managerCall:
+                    response = await DispatchManagerAsync(channel, call, ct).ConfigureAwait(false);
+                    break;
+                case ReadRequest read when read.NodesToRead.ToList().All(node =>
+                    node.NodeId == new NodeId(100u) || node.NodeId == new NodeId(101u)):
+                case WriteRequest:
+                case CallRequest:
+                case BrowseRequest:
+                case BrowseNextRequest:
+                case TranslateBrowsePathsToNodeIdsRequest:
+                case HistoryReadRequest:
+                case HistoryUpdateRequest:
+                case RegisterNodesRequest:
+                case UnregisterNodesRequest:
+                case QueryFirstRequest:
+                case QueryNextRequest:
+                case AddNodesRequest:
+                case AddReferencesRequest:
+                case DeleteNodesRequest:
+                case DeleteReferencesRequest:
+                    OrdinaryRequests.Enqueue(CoreUtils.Clone(request)!);
+                    response = CreateOriginalResponse(request);
+                    break;
+                default:
+                    return channel.CreateResponse(request);
+            }
+            if (!managerCall)
+            {
+                response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+                MutateResponse?.Invoke(request, response);
+            }
+            if (managerCall && NullManagerResponse)
+            {
+                return null!;
+            }
+            if (BinaryRoundTripResponses)
+            {
+                IServiceMessageContext context = channel.Channel.MessageContext;
+                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
+                    BinaryEncoder.EncodeMessage(response, context), context);
+                DeliveredResponses.Enqueue(response);
+                if (managerCall &&
+                    response is CallResponse { Results.Count: 1 } delivered &&
+                    delivered.Results[0].OutputArguments.Count == 1 &&
+                    delivered.Results[0].OutputArguments[0].TryGetValue(out ExtensionObject output) &&
+                    output.TryGetValue(out IEncodeable? envelope, context))
+                {
+                    DeliveredEnvelopes.Enqueue(envelope);
+                }
+            }
+            return response;
+        }
+
+        private async ValueTask<CallResponse> DispatchManagerAsync(
+            ScriptedChannel channel, CallRequest call, CancellationToken ct)
+        {
+            ManagerCalls.Enqueue(CoreUtils.Clone(call)!);
+            CallMethodRequest invocation = call.MethodsToCall[0];
+            Assert.That(invocation.InputArguments.Count, Is.EqualTo(1));
+            Assert.That(invocation.InputArguments[0].TryGetValue(out ExtensionObject input), Is.True);
+            Assert.That(input.TryGetValue(out IEncodeable? argument, channel.Channel.MessageContext), Is.True);
+            if (BeforeRespondAsync != null)
+            {
+                await BeforeRespondAsync(argument!, ct).ConfigureAwait(false);
+            }
+            IEncodeable? output;
+            StatusCode status = StatusCodes.Good;
+            switch (argument)
+            {
+                case SubmitRequestDataType submit:
+                    Assert.That(invocation.MethodId, Is.EqualTo(MethodIds[0]));
                     Submissions.Enqueue(CoreUtils.Clone(submit)!);
                     if (StatusCode.IsBad(SubmitFault))
                     {
-                        response = Fault(SubmitFault, request.RequestHeader.RequestHandle);
+                        status = SubmitFault;
+                        output = null;
                         break;
                     }
                     IServiceRequest original = Original(submit);
                     var token = ByteString.From(Encoding.UTF8.GetBytes(submit.ClientOperationId.ToString()));
-                    var retained = new Retained(
-                        CoreUtils.Clone(submit)!, token, CreateOriginalResponse(original),
+                    var retained = new Retained(CoreUtils.Clone(submit)!, token, CreateOriginalResponse(original),
                         ExpandedNodeId.ToNodeId(original.TypeId, channel.Channel.MessageContext.NamespaceUris));
                     Assert.That(m_operations.TryAdd(submit.ClientOperationId, retained), Is.True,
                         "The original operation must never be submitted twice.");
@@ -269,84 +398,125 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                         LoseSubmitReply = false;
                         throw new ServiceResultException(LostSubmitStatus);
                     }
-                    response = new SubmitServiceResponse
+                    output = new SubmitResponseDataType
                     {
                         Operation = Info(retained, FastResult
                             ? ServiceOperationState.OutcomeAvailable : ServiceOperationState.Pending),
                         Result = FastResult ? new ExtensionObject(CoreUtils.Clone(retained.Response)!) : default
                     };
                     break;
-                case GetServiceResultRequest get:
+                case GetResultRequestDataType get:
+                    Assert.That(invocation.MethodId, Is.EqualTo(MethodIds[1]));
                     Collections.Enqueue(CoreUtils.Clone(get)!);
                     if (StatusCode.IsBad(CollectionFault))
                     {
-                        response = Fault(CollectionFault, request.RequestHeader.RequestHandle);
+                        status = CollectionFault;
+                        output = null;
                         break;
                     }
                     Retained collected = Find(get.ClientOperationId, get.ServerToken);
+                    Assert.That(get.RecoveryMode, Is.EqualTo(collected.Submission.RecoveryMode));
                     if (LoseCollectionReply)
                     {
                         LoseCollectionReply = false;
                         throw new ServiceResultException(StatusCodes.BadConnectionClosed);
                     }
-                    response = UnknownCollection
-                        ? new GetServiceResultResponse
-                        {
-                            Operation = UnknownInfo(get.ClientOperationId),
-                            Result = default
-                        }
-                        : new GetServiceResultResponse
-                        {
-                            Operation = Info(collected, ServiceOperationState.OutcomeAvailable),
-                            Result = new ExtensionObject(CoreUtils.Clone(collected.Response)!)
-                        };
-                    break;
-                case ControlServiceExecutionRequest control:
-                    Controls.Enqueue(CoreUtils.Clone(control)!);
-                    Assert.That(control.Action, Is.EqualTo(ServiceOperationControlAction.Acknowledge));
-                    Retained acknowledged = Find(Uuid.Empty, control.ServerToken);
-                    if (StatusCode.IsBad(ControlFault))
+                    ServiceOperationState state = collected.Acknowledged != 0
+                        ? ServiceOperationState.Acknowledged : collected.Abandoned != 0
+                            ? ServiceOperationState.Abandoned : ServiceOperationState.OutcomeAvailable;
+                    output = new GetResultResponseDataType
                     {
-                        response = Fault(ControlFault, request.RequestHeader.RequestHandle);
-                        break;
-                    }
-                    bool already = Interlocked.Exchange(ref acknowledged.Acknowledged, 1) != 0;
-                    AckObservedCallerCompletion = CallerHasCompleted?.Invoke() ?? true;
-                    AckCallerCompletions.Enqueue(AckObservedCallerCompletion);
-                    AckEntered.TrySetResult(true);
-                    if (LoseAckReply)
-                    {
-                        LoseAckReply = false;
-                        throw new ServiceResultException(StatusCodes.BadConnectionClosed);
-                    }
-                    response = new ControlServiceExecutionResponse
-                    {
-                        Result = already
-                            ? ServiceOperationControlResult.AlreadyApplied : ServiceOperationControlResult.Applied,
-                        Operation = Info(acknowledged, ServiceOperationState.Acknowledged)
+                        Operation = UnknownCollection ? UnknownInfo(get.ClientOperationId) : Info(collected, state),
+                        Result = !UnknownCollection && state == ServiceOperationState.OutcomeAvailable
+                            ? new ExtensionObject(CoreUtils.Clone(collected.Response)!) : default
                     };
                     break;
-                case ReadRequest read when read.NodesToRead.ToList().All(node =>
-                    node.NodeId == new NodeId(100u) || node.NodeId == new NodeId(101u)):
-                case WriteRequest:
-                case CallRequest:
-                case BrowseRequest:
-                    OrdinaryRequests.Enqueue(CoreUtils.Clone(request)!);
-                    response = CreateOriginalResponse(request);
+                case OperationControlRequestDataType control:
+                    string method = invocation.MethodId == MethodIds[2] ? "Acknowledge" :
+                        invocation.MethodId == MethodIds[3] ? "Cancel" :
+                        invocation.MethodId == MethodIds[4] ? "Abandon" :
+                        throw new InvalidOperationException("An actual control Method instance is required.");
+                    Controls.Enqueue((method, CoreUtils.Clone(control)!));
+                    Retained controlled = Find(Uuid.Empty, control.ServerToken);
+                    if (StatusCode.IsBad(ControlFault))
+                    {
+                        status = ControlFault;
+                        output = null;
+                        break;
+                    }
+                    bool already = false;
+                    bool applicable = true;
+                    switch (method)
+                    {
+                        case "Acknowledge" when controlled.Abandoned != 0:
+                        case "Abandon" when controlled.Acknowledged != 0:
+                            applicable = false;
+                            break;
+                        case "Acknowledge":
+                            already = Interlocked.Exchange(ref controlled.Acknowledged, 1) != 0;
+                            break;
+                        case "Abandon":
+                            already = Interlocked.Exchange(ref controlled.Abandoned, 1) != 0;
+                            break;
+                        case "Cancel":
+                            already = Interlocked.Exchange(ref controlled.CancellationRequested, 1) != 0;
+                            break;
+                    }
+                    if (method == "Acknowledge")
+                    {
+                        AckObservedCallerCompletion = CallerHasCompleted?.Invoke() ?? true;
+                        AckCallerCompletions.Enqueue(AckObservedCallerCompletion);
+                        AckEntered.TrySetResult(true);
+                        if (LoseAckReply)
+                        {
+                            LoseAckReply = false;
+                            throw new ServiceResultException(StatusCodes.BadConnectionClosed);
+                        }
+                    }
+                    output = new ControlResponseDataType
+                    {
+                        Result = !applicable ? ServiceOperationControlResult.NotApplicable : already
+                            ? ServiceOperationControlResult.AlreadyApplied : ServiceOperationControlResult.Applied,
+                        Operation = Info(controlled, method switch
+                        {
+                            "Acknowledge" => ServiceOperationState.Acknowledged,
+                            "Abandon" => ServiceOperationState.Abandoned,
+                            _ => ServiceOperationState.OutcomeAvailable
+                        })
+                    };
                     break;
                 default:
-                    return channel.CreateResponse(request);
+                    throw new InvalidOperationException("Unexpected manager argument.");
             }
-            response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
-            MutateResponse?.Invoke(request, response);
-            if (BinaryRoundTripResponses)
+            if (output != null)
             {
-                IServiceMessageContext context = channel.Channel.MessageContext;
-                response = BinaryDecoder.DecodeMessage<IServiceResponse>(
-                    BinaryEncoder.EncodeMessage(response, context), context);
-                DeliveredResponses.Enqueue(response);
+                MutateResponse?.Invoke(argument!, output);
             }
+            var response = new CallResponse
+            {
+                ResponseHeader = new ResponseHeader { RequestHandle = call.RequestHeader.RequestHandle },
+                Results =
+                [
+                    new CallMethodResult
+                    {
+                        StatusCode = status,
+                        OutputArguments = output == null ? default : [Variant.From(new ExtensionObject(output))]
+                    }
+                ]
+            };
+            MutateManagerResponse?.Invoke(call, response);
             return response;
+        }
+
+        private static BrowsePathResult Target(NodeId id)
+        {
+            return new BrowsePathResult
+            {
+                Targets =
+                [
+                    new BrowsePathTarget { TargetId = new ExpandedNodeId(id), RemainingPathIndex = uint.MaxValue }
+                ]
+            };
         }
 
         private IServiceResponse CreateOriginalResponse(IServiceRequest request)
@@ -397,6 +567,55 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                                 }]
                     }).ToArray()
                 },
+                HistoryReadRequest history => new HistoryReadResponse
+                {
+                    ResponseHeader = header,
+                    Results = history.NodesToRead.ToList().Select(_ => new HistoryReadResult()).ToArray()
+                },
+                HistoryUpdateRequest history => new HistoryUpdateResponse
+                {
+                    ResponseHeader = header,
+                    Results = history.HistoryUpdateDetails.ToList().Select(_ => new HistoryUpdateResult()).ToArray()
+                },
+                BrowseNextRequest browse => new BrowseNextResponse
+                {
+                    ResponseHeader = header,
+                    Results = browse.ReleaseContinuationPoints
+                        ? [] : browse.ContinuationPoints.ToList().Select(_ => new BrowseResult()).ToArray()
+                },
+                TranslateBrowsePathsToNodeIdsRequest translate => new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    ResponseHeader = header,
+                    Results = translate.BrowsePaths.ToList().Select(_ => Target(new NodeId(100u))).ToArray()
+                },
+                RegisterNodesRequest register => new RegisterNodesResponse
+                {
+                    ResponseHeader = header,
+                    RegisteredNodeIds = register.NodesToRegister
+                },
+                UnregisterNodesRequest => new UnregisterNodesResponse { ResponseHeader = header },
+                QueryFirstRequest or QueryNextRequest => Fault(StatusCodes.BadServiceUnsupported, header.RequestHandle),
+                AddNodesRequest add => new AddNodesResponse
+                {
+                    ResponseHeader = header,
+                    Results = add.NodesToAdd.ToList().Select(_ => new AddNodesResult { AddedNodeId = new NodeId(100u) })
+                        .ToArray()
+                },
+                AddReferencesRequest add => new AddReferencesResponse
+                {
+                    ResponseHeader = header,
+                    Results = add.ReferencesToAdd.ToList().Select(_ => StatusCodes.Good).ToArray()
+                },
+                DeleteNodesRequest delete => new DeleteNodesResponse
+                {
+                    ResponseHeader = header,
+                    Results = delete.NodesToDelete.ToList().Select(_ => StatusCodes.Good).ToArray()
+                },
+                DeleteReferencesRequest delete => new DeleteReferencesResponse
+                {
+                    ResponseHeader = header,
+                    Results = delete.ReferencesToDelete.ToList().Select(_ => StatusCodes.Good).ToArray()
+                },
                 _ => throw new InvalidOperationException("Unexpected original service.")
             };
         }
@@ -421,11 +640,21 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
 
         private static ServiceOperationInfoDataType Info(Retained retained, ServiceOperationState state)
         {
+            if (retained.Acknowledged != 0)
+            {
+                state = ServiceOperationState.Acknowledged;
+            }
+            else if (retained.Abandoned != 0)
+            {
+                state = ServiceOperationState.Abandoned;
+            }
             return new ServiceOperationInfoDataType
             {
                 ClientOperationId = retained.Submission.ClientOperationId,
                 ServerToken = retained.Token,
                 ServiceId = retained.ServiceId,
+                RecoveryMode = retained.Submission.RecoveryMode,
+                CancellationRequested = retained.CancellationRequested != 0,
                 State = state,
                 OutcomeKind = state == ServiceOperationState.Pending
                     ? ServiceOperationOutcome.None : ServiceOperationOutcome.ServiceResponse,
@@ -437,24 +666,30 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     ? retained.Submission.ExecutionAllowance / 2 : 0,
                 ResultRemaining = state == ServiceOperationState.OutcomeAvailable
                     ? retained.Submission.ResultRetentionTime / 2 : 0,
-                HistoryRemaining = state == ServiceOperationState.Acknowledged
+                HistoryRemaining = state is ServiceOperationState.Acknowledged or ServiceOperationState.Abandoned
                     ? retained.Submission.ResultRetentionTime / 2 : 0
             };
         }
 
         private sealed record Retained(
-            SubmitServiceRequest Submission, ByteString Token, IServiceResponse Response, NodeId ServiceId)
+            SubmitRequestDataType Submission, ByteString Token, IServiceResponse Response, NodeId ServiceId)
         {
             public int Acknowledged;
+            public int Abandoned;
+            public int CancellationRequested;
         }
 
-        private static readonly NodeId s_root = new(1200100u);
+        private readonly ArrayOf<string> m_namespaces;
+
+        private static readonly string[] s_memberNames =
+            ["Capabilities", "Submit", "GetResult", "Acknowledge", "Cancel", "Abandon"];
 
         private static readonly string[] s_propertyNames =
-            ["ContractVersion", "SupportedServices", "DefaultExecutionAllowance", "DefaultResultRetentionTime"];
+            ["ContractVersion", "SupportedServices", "DefaultExecutionAllowance", "DefaultResultRetentionTime",
+                "SupportedRecoveryModes"];
 
         private static readonly NodeId[] s_propertyIds =
-            [new("cap-contract", 0), new(93001u), new("cap-execution", 0), new(77123u)];
+            [new("cap-contract", 0), new(93001u), new("cap-execution", 0), new(77123u), new("cap-modes", 0)];
 
         private readonly ConcurrentDictionary<Uuid, Retained> m_operations = new();
         private readonly CancellationTokenSource m_timeout = new(TimeSpan.FromSeconds(15));

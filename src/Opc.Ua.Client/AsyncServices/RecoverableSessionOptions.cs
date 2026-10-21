@@ -35,10 +35,25 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Client
 {
     /// <summary>
-    /// Selects prefer-recoverable execution for ordinary asynchronous Read, Write and Call operations.
+    /// Selects recoverable execution for the sixteen eligible ordinary asynchronous Service request pairs.
     /// </summary>
     public sealed record RecoverableSessionOptions
     {
+        /// <summary>
+        /// Gets the exact recovery contract. Session is preferred by default; Owner and Durable never downgrade.
+        /// </summary>
+        public ServiceOperationRecoveryMode RecoveryMode { get; init; } = ServiceOperationRecoveryMode.Session;
+
+        /// <summary>
+        /// Gets the explicit authenticated-continuity mapping required for Owner, Durable or persistent checkpoints.
+        /// </summary>
+        public IRecoverableExecutionIdentityProvider? IdentityProvider { get; init; }
+
+        /// <summary>
+        /// Gets protected, durability-qualified Client recovery storage. Durable mode requires this store.
+        /// </summary>
+        public RecoverableOperationCheckpointStore? CheckpointStore { get; init; }
+
         /// <summary>
         /// Gets the exact execution allowance in milliseconds, or null to use the Server's advertised default.
         /// </summary>

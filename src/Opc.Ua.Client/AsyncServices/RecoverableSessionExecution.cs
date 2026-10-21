@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -88,13 +87,35 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Rejects invalid explicit budgets before connecting.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal static void ValidateOptions(RecoverableSessionOptions? options)
         {
-            if (options?.ExecutionAllowance is { } execution)
+            if (options == null)
+            {
+                return;
+            }
+            if (options.RecoveryMode is
+                < ServiceOperationRecoveryMode.Session or > ServiceOperationRecoveryMode.Durable)
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Select an explicit recovery mode.");
+            }
+            if ((options.RecoveryMode != ServiceOperationRecoveryMode.Session || options.CheckpointStore != null) &&
+                options.IdentityProvider == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported, "Recovery requires an explicit authenticated identity provider.");
+            }
+            if (options.RecoveryMode == ServiceOperationRecoveryMode.Durable && options.CheckpointStore == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    "Durable Client recovery requires protected durable checkpoint storage.");
+            }
+            if (options.ExecutionAllowance is { } execution)
             {
                 ValidateBudget(execution);
             }
-            if (options?.ResultRetentionTime is { } retention)
+            if (options.ResultRetentionTime is { } retention)
             {
                 ValidateBudget(retention);
             }
@@ -123,6 +144,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Refuses excluded application dispatch when a real receipt is required.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         internal void ValidateOrdinaryDispatch()
         {
             if (IsSuppressed)
@@ -149,6 +171,7 @@ namespace Opc.Ua.Client
         /// Returns the actual caller completion task before starting any acknowledgement.
         /// </summary>
         /// <typeparam name="TResult">The final typed caller result.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="operation"/> is <c>null</c>.</exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "RunAsync owns automatic groups; an explicit scope owns deferred groups. " +
                 "TODO: teach disposal analysis this asynchronous handoff.")]
@@ -214,6 +237,20 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Captures any other eligible original Service through the same caller-level acceptance engine.
+        /// </summary>
+        /// <typeparam name="TResponse">The exact generated original response type.</typeparam>
+        internal ValueTask<TResponse> RequestAsync<TResponse>(IServiceRequest request, CancellationToken ct)
+            where TResponse : class, IServiceResponse
+        {
+            NodeId serviceId = RecoverableServiceRequests.GetRequestType<TResponse>(request);
+            IServiceRequest snapshot = CoreUtils.Clone(request)!;
+            return ExecuteAsync(token => DispatchAsync(serviceId,
+                (client, cancellation) => RecoverableServiceRequests.InvokeAsync<TResponse>(
+                    client, snapshot, cancellation), token), ct);
+        }
+
+        /// <summary>
         /// Completes typed validation and local acceptance before confirming receipt.
         /// </summary>
         /// <typeparam name="TResult">The final typed caller result.</typeparam>
@@ -240,6 +277,7 @@ namespace Opc.Ua.Client
                     await AcceptAsync(group, accept,
                         RecoverableAcceptanceContext.Create(result, group.Receipt), linked.Token).ConfigureAwait(false);
                 }
+                await group.CommitAcceptanceAsync(linked.Token).ConfigureAwait(false);
                 accepted = group.TryAccept(() => completion.TrySetResult(result));
                 if (!accepted)
                 {
@@ -257,6 +295,7 @@ namespace Opc.Ua.Client
                             RecoverableAcceptanceContext.ForFailure(error.Result, group.Receipt), linked.Token)
                             .ConfigureAwait(false);
                     }
+                    await group.CommitAcceptanceAsync(linked.Token).ConfigureAwait(false);
                     accepted = group.TryAccept(() => completion.TrySetException(error));
                     if (!accepted)
                     {
@@ -321,6 +360,8 @@ namespace Opc.Ua.Client
         /// Chooses one ordinary dispatch or the existing recoverable operation engine.
         /// </summary>
         /// <typeparam name="TResponse">The unchanged original Service response.</typeparam>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ServiceResultException"></exception>
         [SuppressMessage("Reliability", "CA2000:Dispose objects before losing scope",
             Justification = "The caller group owns registered handles until receipt disposal; failed registration " +
                 "disposes locally. TODO: teach disposal analysis the group registration transfer.")]
@@ -335,14 +376,22 @@ namespace Opc.Ua.Client
             ct = linked.Token;
             RecoverableCapabilities capabilities = await group.GetCapabilitiesAsync(() => DiscoverAsync(group, ct))
                 .ConfigureAwait(false);
-            SessionRequestContext binding = group.Binding ??
-                throw new InvalidOperationException("No same-Session binding exists.");
+            RecoverableExecutionBinding binding = group.Binding ??
+                throw new InvalidOperationException("No recoverable ownership binding exists.");
             if (binding.Invalidated.IsCompleted)
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
-            if (group.UsedOrdinary || !capabilities.Available || !capabilities.SupportedServices.Contains(serviceId))
+            if (group.UsedOrdinary ||
+                !capabilities.Available ||
+                !capabilities.SupportedServices.Contains(serviceId) ||
+                !capabilities.SupportedRecoveryModes.Contains((int)m_options.RecoveryMode))
             {
+                if (m_options.RecoveryMode != ServiceOperationRecoveryMode.Session)
+                {
+                    throw new ServiceResultException(StatusCodes.BadServiceUnsupported,
+                        "The explicitly selected recovery mode and Service must be supported without downgrade.");
+                }
                 group.MarkOrdinary();
                 return await invoke(binding.Session, ct).ConfigureAwait(false);
             }
@@ -361,19 +410,9 @@ namespace Opc.Ua.Client
                 throw;
             }
             AsyncServiceOperation<TResponse> operation = owned.Operation;
-            AsyncServiceResult<TResponse> outcome;
-            try
-            {
-                outcome = await operation.ExecuteAsync(execution, retention, ct: ct).ConfigureAwait(false);
-            }
-            catch (ServiceResultException) when (operation.UnsupportedSubmissionRejected)
-            {
-                group.Remove(owned);
-                await owned.DisposeAsync().ConfigureAwait(false);
-                group.MarkOrdinary();
-                return await invoke(binding.Session, ct).ConfigureAwait(false);
-            }
             group.RecordOutcome(serviceId == DataTypeIds.CallRequest);
+            AsyncServiceResult<TResponse> outcome = await operation.ExecuteAsync(execution, retention, ct: ct)
+                .ConfigureAwait(false);
             try
             {
                 return outcome.GetValueOrThrow();
@@ -388,129 +427,17 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads capability metadata through the bound ordinary path, without recursive recovery.
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         private async Task<RecoverableCapabilities> DiscoverAsync(RecoverableOperationGroup group, CancellationToken ct)
         {
-            SessionRequestContext binding = await SessionRequestContext.CaptureRecoverableAsync(m_owner, ct)
+            RecoverableExecutionBinding binding = await RecoverableExecutionBinding.CaptureAsync(m_owner, m_options, ct)
                 .ConfigureAwait(false);
             if (!group.TryAttachBinding(binding))
             {
                 await binding.DisposeAsync().ConfigureAwait(false);
                 throw new ObjectDisposedException(nameof(RecoverableAcknowledgementScope));
             }
-            NodeId root = s_capabilitiesId;
-            ReadResponse existence = await binding.Session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                [new ReadValueId { NodeId = root, AttributeId = Attributes.NodeClass }], ct).ConfigureAwait(false);
-            try
-            {
-                if (existence.Results.Count != 1)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-                if (existence.Results[0].StatusCode == StatusCodes.BadNodeIdUnknown)
-                {
-                    return new RecoverableCapabilities(false, default, 0, 0);
-                }
-                RequireGood(existence.Results[0].StatusCode);
-            }
-            finally
-            {
-                existence.Reuse();
-            }
-            string[] names =
-            [
-                "ContractVersion", "SupportedServices", "DefaultExecutionAllowance", "DefaultResultRetentionTime"
-            ];
-            var paths = new BrowsePath[names.Length];
-            for (int i = 0; i < names.Length; i++)
-            {
-                paths[i] = new BrowsePath
-                {
-                    StartingNode = root,
-                    RelativePath = new RelativePath
-                    {
-                        Elements =
-                        [
-                            new RelativePathElement
-                            {
-                                ReferenceTypeId = ReferenceTypeIds.HierarchicalReferences,
-                                IncludeSubtypes = true,
-                                TargetName = new QualifiedName(names[i])
-                            }
-                        ]
-                    }
-                };
-            }
-            TranslateBrowsePathsToNodeIdsResponse translated = await binding.Session.TranslateBrowsePathsToNodeIdsAsync(
-                null, paths, ct).ConfigureAwait(false);
-            var nodes = new ReadValueId[names.Length];
-            try
-            {
-                if (translated.Results.Count != names.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-                for (int i = 0; i < nodes.Length; i++)
-                {
-                    BrowsePathResult result = translated.Results[i];
-                    RequireGood(result.StatusCode);
-                    if (result.Targets.Count != 1 || result.Targets[0].RemainingPathIndex != uint.MaxValue)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadDecodingError);
-                    }
-                    NodeId node = ExpandedNodeId.ToNodeId(result.Targets[0].TargetId, binding.Session.NamespaceUris);
-                    if (node.IsNull || result.Targets[0].TargetId.ServerIndex != 0)
-                    {
-                        throw new ServiceResultException(StatusCodes.BadDecodingError);
-                    }
-                    nodes[i] = new ReadValueId { NodeId = node, AttributeId = Attributes.Value };
-                }
-            }
-            finally
-            {
-                translated.Reuse();
-            }
-            ReadResponse values = await binding.Session.ReadAsync(null, 0, TimestampsToReturn.Neither, nodes, ct)
-                .ConfigureAwait(false);
-            try
-            {
-                if (values.Results.Count != names.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-                RequireGood(values.Results[0].StatusCode);
-                RequireGood(values.Results[1].StatusCode);
-                if (!values.Results[0].WrappedValue.TryGetValue(out string? revision) ||
-                    string.IsNullOrEmpty(revision) ||
-                    !values.Results[1].WrappedValue.TryGetValue(out ArrayOf<NodeId> services))
-                {
-                    throw new ServiceResultException(StatusCodes.BadDecodingError);
-                }
-                if (revision != "0.2.0")
-                {
-                    return new RecoverableCapabilities(false, default, 0, 0);
-                }
-                double execution = m_options.ExecutionAllowance ?? ReadBudget(values.Results[2]);
-                double retention = m_options.ResultRetentionTime ?? ReadBudget(values.Results[3]);
-                return new RecoverableCapabilities(true, services, execution, retention);
-            }
-            finally
-            {
-                values.Reuse();
-            }
-        }
-
-        /// <summary>
-        /// Reads an exact finite budget rather than inventing or clamping a default.
-        /// </summary>
-        private static double ReadBudget(in DataValue value)
-        {
-            RequireGood(value.StatusCode);
-            if (!value.WrappedValue.TryGetValue(out double budget))
-            {
-                throw new ServiceResultException(StatusCodes.BadDecodingError);
-            }
-            ValidateBudget(budget);
-            return budget;
+            return await binding.DiscoverAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -535,6 +462,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Rejects callback reentry before any original dispatch.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private void ThrowIfAccepting()
         {
             if (m_operation.Value?.AcceptanceInProgress == true)
@@ -547,23 +475,13 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Applies the positive finite millisecond contract.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private static void ValidateBudget(double budget)
         {
             if (double.IsNaN(budget) || double.IsInfinity(budget) || budget <= 0)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                     "Recovery budgets must be positive finite milliseconds.");
-            }
-        }
-
-        /// <summary>
-        /// Preserves capability read errors instead of interpreting them as unsupported recovery.
-        /// </summary>
-        private static void RequireGood(StatusCode status)
-        {
-            if (!StatusCode.IsGood(status))
-            {
-                throw new ServiceResultException(status);
             }
         }
 
@@ -576,11 +494,12 @@ namespace Opc.Ua.Client
             /// <summary>
             /// Creates a handle that borrows the group's same-Session binding.
             /// </summary>
-            public OwnedOperation(SessionRequestContext binding, NodeId serviceId,
+            public OwnedOperation(RecoverableExecutionBinding binding, NodeId serviceId,
                 Func<ISessionClient, CancellationToken, ValueTask<TResponse>> invoke)
             {
                 Operation = new AsyncServiceOperation<TResponse>(binding, serviceId, invoke, ownsBinding: false);
                 Operation.RequireExplicitAcknowledgement();
+                Operation.DeferAcceptanceCheckpoint = true;
             }
 
             /// <summary>
@@ -595,23 +514,22 @@ namespace Opc.Ua.Client
             public bool Acknowledged { get; private set; }
 
             /// <inheritdoc/>
+            public ValueTask CommitAcceptanceAsync(CancellationToken ct)
+            {
+                return Operation.CommitAcceptanceAsync(ct);
+            }
+
+            /// <inheritdoc/>
             public async ValueTask AcknowledgeAsync(CancellationToken ct)
             {
-                ControlServiceExecutionResponse response = await Operation.AcknowledgeAsync(ct).ConfigureAwait(false);
-                try
+                ControlResponseDataType response = await Operation.AcknowledgeAsync(ct).ConfigureAwait(false);
+                if (response.Result is not (ServiceOperationControlResult.Applied or
+                    ServiceOperationControlResult.AlreadyApplied))
                 {
-                    if (response.Result is not (ServiceOperationControlResult.Applied or
-                        ServiceOperationControlResult.AlreadyApplied))
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNoData, "The Server did not confirm acknowledgement.");
-                    }
-                    Acknowledged = true;
+                    throw new ServiceResultException(
+                        StatusCodes.BadNoData, "The Server did not confirm acknowledgement.");
                 }
-                finally
-                {
-                    response.Reuse();
-                }
+                Acknowledged = true;
             }
 
             /// <inheritdoc/>
@@ -637,7 +555,7 @@ namespace Opc.Ua.Client
                 owner.m_suppression.Value = previous;
             }
         }
-        private static readonly NodeId s_capabilitiesId = new(1200100u);
+
         private readonly ManagedSession m_owner;
         private readonly RecoverableSessionOptions m_options;
         private readonly ILogger m_logger;
@@ -650,7 +568,20 @@ namespace Opc.Ua.Client
     /// The capability values observed for one bound logical operation, never a renewable lease.
     /// </summary>
     internal sealed record RecoverableCapabilities(
-        bool Available, ArrayOf<NodeId> SupportedServices, double ExecutionAllowance, double ResultRetentionTime);
+        bool Available, ArrayOf<NodeId> SupportedServices, ArrayOf<int> SupportedRecoveryModes,
+        double ExecutionAllowance, double ResultRetentionTime, RecoverableManagerClient? Manager) : IDisposable
+    {
+        /// <summary>
+        /// Gets a conclusive pre-submission absence, never an interpretation of a failed Submit exchange.
+        /// </summary>
+        internal static RecoverableCapabilities Unsupported { get; } = new(false, default, default, 0, 0, null);
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            Manager?.Dispose();
+        }
+    }
 
     /// <summary>
     /// Reports receipt failures without replacing accepted caller results or logging operation tokens.
@@ -660,7 +591,8 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.RecoverableSessionExecution, Level = LogLevel.Warning,
             Message = "Caller result accepted for Session {SessionId}; " +
                 "recoverable acknowledgement is unconfirmed: {Status}.")]
-        internal static partial void AcknowledgementUnconfirmed(this ILogger logger, StatusCode status, NodeId sessionId);
+        internal static partial void AcknowledgementUnconfirmed(
+            this ILogger logger, StatusCode status, NodeId sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.RecoverableSessionExecution + 1, Level = LogLevel.Warning,
             Message = "Local recoverable operation cleanup failed for Session {SessionId}.")]

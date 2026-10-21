@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public IEnumerable<Resource> Emit()
         {
-            string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+            string namespacePrefix = m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix();
             string schemaFile = Path.Combine(
                 m_context.OutputFolder,
                 CoreUtils.Format("{0}.Types.bsd", namespacePrefix));

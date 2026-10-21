@@ -30,19 +30,45 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redundancy;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
     /// Owns one Server's experimental recoverable executions, immutable outcomes and bounded terminal history.
-    /// Returned responses keep their delivery resources until the transport calls IPooledEncodeable.Reuse.
+    /// Delivery resources are transferred to the whole outer Call response until transport completion.
     /// </summary>
-    public interface IAsyncServiceExecutionProvider : IAsyncDisposable, IRequestParkingPolicy
+    public interface IAsyncServiceExecutionProvider : IAsyncDisposable, IRequestParkingPolicy, IRequestControlPolicy
     {
         /// <summary>
         /// Gets the explicitly eligible original request DataType identifiers.
         /// </summary>
         ArrayOf<NodeId> SupportedServices { get; }
+
+        /// <summary>
+        /// Gets the recovery modes currently qualified for admission.
+        /// </summary>
+        ArrayOf<ServiceOperationRecoveryMode> SupportedRecoveryModes { get; }
+
+        /// <summary>
+        /// Restores qualified state and reservations before the Server publishes the optional manager.
+        /// </summary>
+        ValueTask InitializeAsync(CancellationToken ct);
+
+        /// <summary>
+        /// Captures the generated live manager and its Server-assigned Method identities at startup.
+        /// </summary>
+        void BindManager(RecoverableExecutionManagerState manager);
+
+        /// <summary>
+        /// Recognizes an invocation of an installed manager Method without authorizing it.
+        /// </summary>
+        bool IsManagerCall(CallMethodRequest request);
+
+        /// <summary>
+        /// Enforces the current message limit on the complete outer response, including all batch siblings.
+        /// </summary>
+        void ValidateCallResponse(OperationContext context, CallResponse response);
 
         /// <summary>
         /// Reads aggregate metadata only; it does not enumerate operations or expose tokens.
@@ -52,20 +78,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Admits and dispatches one original request, or rejects it without dispatch.
         /// </summary>
-        ValueTask<SubmitServiceResponse> SubmitAsync(
-            OperationContext context, SubmitServiceRequest request, CancellationToken ct);
+        ValueTask<SubmitResponseDataType> SubmitAsync(
+            OperationContext context, SubmitRequestDataType request, CancellationToken ct);
 
         /// <summary>
         /// Collects shared operation state without dispatching the original request again.
         /// </summary>
-        ValueTask<GetServiceResultResponse> GetAsync(
-            OperationContext context, GetServiceResultRequest request, CancellationToken ct);
+        ValueTask<GetResultResponseDataType> GetAsync(
+            OperationContext context, GetResultRequestDataType request, CancellationToken ct);
 
         /// <summary>
-        /// Applies an explicit token-authorized control action.
+        /// Acknowledges an accepted outcome without renewing retention.
         /// </summary>
-        ValueTask<ControlServiceExecutionResponse> ControlAsync(
-            OperationContext context, ControlServiceExecutionRequest request, CancellationToken ct);
+        ValueTask<ControlResponseDataType> AcknowledgeAsync(
+            OperationContext context, OperationControlRequestDataType request, CancellationToken ct);
+
+        /// <summary>
+        /// Requests stopping owned work without promising rollback.
+        /// </summary>
+        ValueTask<ControlResponseDataType> CancelAsync(
+            OperationContext context, OperationControlRequestDataType request, CancellationToken ct);
+
+        /// <summary>
+        /// Waives result recovery without cancelling work.
+        /// </summary>
+        ValueTask<ControlResponseDataType> AbandonAsync(
+            OperationContext context, OperationControlRequestDataType request, CancellationToken ct);
     }
 
     /// <summary>
@@ -130,6 +168,7 @@ namespace Opc.Ua.Server
     /// <param name="AbandonedCount">Cumulative first abandonments.</param>
     /// <param name="ExpiredCount">Cumulative result expirations.</param>
     /// <param name="ExecutionDeadlineCount">Cumulative immutable execution-deadline outcomes.</param>
+    /// <param name="ExecutionIndeterminateCount">Cumulative restart-indeterminate outcomes.</param>
     public readonly record struct AsyncServiceExecutionStatistics(
         uint ActiveOperationCount,
         uint RetainedOutcomeCount,
@@ -140,7 +179,8 @@ namespace Opc.Ua.Server
         ulong AcknowledgedCount,
         ulong AbandonedCount,
         ulong ExpiredCount,
-        ulong ExecutionDeadlineCount);
+        ulong ExecutionDeadlineCount,
+        ulong ExecutionIndeterminateCount = 0);
 
     /// <summary>
     /// Constructs an independently owned execution provider for a Server at startup.
@@ -165,9 +205,22 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates a factory with an optional application authorization policy.
         /// </summary>
-        public DefaultAsyncServiceExecutionProviderFactory(IAsyncServiceAuthorizationPolicy? authorizationPolicy = null)
+        public DefaultAsyncServiceExecutionProviderFactory(
+            IAsyncServiceAuthorizationPolicy? authorizationPolicy = null,
+            IRecoverableExecutionOwnerProvider? ownerProvider = null,
+            IRecoverableExecutionEligibilityProvider? eligibilityProvider = null,
+            ISharedKeyValueStore? durableStore = null,
+            IRecordProtector? recordProtector = null,
+            IRecoverableExecutionClock? durableClock = null,
+            IRecoverableExecutionCodecQualifier? codecQualifier = null)
         {
             m_authorizationPolicy = authorizationPolicy;
+            m_ownerProvider = ownerProvider;
+            m_eligibilityProvider = eligibilityProvider;
+            m_durableStore = durableStore;
+            m_recordProtector = recordProtector;
+            m_durableClock = durableClock;
+            m_codecQualifier = codecQualifier;
         }
 
         /// <summary>
@@ -183,9 +236,16 @@ namespace Opc.Ua.Server
             TimeProvider timeProvider)
         {
             return new AsyncServiceExecutionProvider(
-                server, configuration, options, timeProvider, m_authorizationPolicy);
+                server, configuration, options, timeProvider, m_authorizationPolicy, m_ownerProvider,
+                m_eligibilityProvider, m_durableStore, m_recordProtector, m_durableClock, m_codecQualifier);
         }
 
         private readonly IAsyncServiceAuthorizationPolicy? m_authorizationPolicy;
+        private readonly IRecoverableExecutionOwnerProvider? m_ownerProvider;
+        private readonly IRecoverableExecutionEligibilityProvider? m_eligibilityProvider;
+        private readonly ISharedKeyValueStore? m_durableStore;
+        private readonly IRecordProtector? m_recordProtector;
+        private readonly IRecoverableExecutionClock? m_durableClock;
+        private readonly IRecoverableExecutionCodecQualifier? m_codecQualifier;
     }
 }
