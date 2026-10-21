@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -75,6 +76,14 @@ namespace Opc.Ua.Client.Subscriptions
             IMessageAckQueue queue,
             SubscriptionLoadState? loadState = null,
             Action<IManagedSubscription>? initialize = null);
+
+        /// <summary>
+        /// Applies the session's existing mutable acknowledgement-deferral callback.
+        /// </summary>
+        /// <param name="acknowledgements">Acknowledgements eligible for the next request.</param>
+        /// <returns>The acknowledgements to send and those to retain for a later request.</returns>
+        (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+            PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements);
 
         /// <summary>
         /// Publish service

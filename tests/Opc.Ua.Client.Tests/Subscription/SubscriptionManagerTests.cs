@@ -362,6 +362,143 @@ namespace Opc.Ua.Client.Subscriptions
             Assert.That(manager.PublishWorkerCount, Is.EqualTo(2));
         }
 
+        /// <summary>
+        /// Deferred acknowledgements survive empty Publish cycles and policy failures,
+        /// while retirement removes only the matching subscription generation.
+        /// </summary>
+        /// <param name="action">Action applied before the policy releases acknowledgements.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase("release")]
+        [TestCase("drop")]
+        [TestCase("fault")]
+        [TestCase("publish-fault")]
+        [TestCase("complete")]
+        [TestCase("complete-cancelled")]
+        [CancelAfter(10_000)]
+        public async Task DeferredAcknowledgementsAreRetainedUntilReleasedOrDroppedAsync(
+            string action,
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            int nextSubscription = 0;
+            var partitions = new List<FakeManagedSubscription>();
+            context.CreateSubscriptionFactory = (_, _, _) =>
+            {
+                var partition = new FakeManagedSubscription
+                {
+                    Id = (uint)Interlocked.Increment(ref nextSubscription),
+                    Created = true,
+                    CurrentPublishingInterval = TimeSpan.FromMilliseconds(1),
+                    CurrentKeepAliveCount = 1
+                };
+                partitions.Add(partition);
+                return partition;
+            };
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            var deferredIds = new ConcurrentDictionary<uint, bool>();
+            var sentIds = new ConcurrentQueue<uint>();
+            var policyFaulted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int release = 0;
+            int faultOnce = 0;
+            int publishFaultOnce = action == "publish-fault" ? 1 : 0;
+            int publishCount = 0;
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                if (Interlocked.Exchange(ref faultOnce, 0) != 0)
+                {
+                    policyFaulted.TrySetResult(true);
+                    throw new InvalidOperationException("Injected acknowledgement policy failure.");
+                }
+                if (Volatile.Read(ref release) != 0)
+                {
+                    return (acknowledgements, []);
+                }
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    deferredIds.TryAdd(acknowledgement.SubscriptionId, true);
+                }
+                return ([], acknowledgements);
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                if (acknowledgements.Count != 0 && Interlocked.Exchange(ref publishFaultOnce, 0) != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTimeout);
+                }
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sentIds.Enqueue(acknowledgement.SubscriptionId);
+                }
+                Interlocked.Increment(ref publishCount);
+                await Task.Delay(20, ct).ConfigureAwait(false);
+                return new PublishResponse
+                {
+                    SubscriptionId = 1,
+                    NotificationMessage = new NotificationMessage(),
+                    AvailableSequenceNumbers = [],
+                    Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                };
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            manager.Resume();
+            await manager.QueueAsync(
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 },
+                testCt).ConfigureAwait(false);
+            await manager.QueueAsync(
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 11 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => deferredIds.Count == 2, testCt).ConfigureAwait(false);
+            int heldAt = Volatile.Read(ref publishCount);
+            await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= heldAt + 2, testCt)
+                .ConfigureAwait(false);
+            Assert.That(sentIds, Is.Empty);
+
+            if (action == "drop")
+            {
+                await manager.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    Assert.That(manager.DropPendingForSubscription(1), Is.EqualTo(1));
+                    return default;
+                }, testCt).ConfigureAwait(false);
+            }
+            else if (action == "fault")
+            {
+                Volatile.Write(ref faultOnce, 1);
+                await policyFaulted.Task.WaitAsync(testCt).ConfigureAwait(false);
+            }
+            else if (action is "complete" or "complete-cancelled")
+            {
+                using var completionCancellation = new CancellationTokenSource();
+                if (action == "complete-cancelled")
+                {
+                    completionCancellation.Cancel();
+                }
+                await manager.CompleteAsync(partitions[0], 1, completionCancellation.Token).ConfigureAwait(false);
+            }
+            Volatile.Write(ref release, 1);
+
+            bool retired = action is "drop" or "complete" or "complete-cancelled";
+            int expectedCount = retired ? 1 : 2;
+            await WaitUntilAsync(() => sentIds.Count >= expectedCount, testCt).ConfigureAwait(false);
+            uint[] expected = retired ? [2u] : [1u, 2u];
+            Assert.That(sentIds.ToArray(), Is.EquivalentTo(expected));
+            if (action is "fault" or "publish-fault")
+            {
+                Assert.That(manager.BadPublishRequestCount, Is.GreaterThanOrEqualTo(1));
+            }
+        }
+
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {

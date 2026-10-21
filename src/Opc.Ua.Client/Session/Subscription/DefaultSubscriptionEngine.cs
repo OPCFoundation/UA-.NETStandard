@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -260,6 +261,13 @@ namespace Opc.Ua.Client
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
                     options, m_context.Telemetry, loadState, m_timeProvider, initialize);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+            {
+                return m_context.PrepareAcknowledgementsToSend(acknowledgements);
             }
 
             /// <inheritdoc/>

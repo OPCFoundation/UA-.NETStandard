@@ -385,6 +385,22 @@ can be skipped when Publish latency exceeds the publishing interval or the serve
 reports `MoreNotifications`. A quiet subscription therefore does not need another
 notification or a reduction in the worker count to release its pending acknowledgement.
 
+V2 publishing also honors the existing
+`ISession.PublishSequenceNumbersToAcknowledge` event. A handler can move entries
+from `AcknowledgementsToSend` to `DeferredAcknowledgementsToSend` until the
+application has confirmed downstream delivery. Deferred entries are reconsidered
+on later Publish attempts even if no new notification arrives, and are removed
+when their subscription identifier is retired during recovery, deletion or
+subscription completion. Without a handler,
+the default acknowledgement behavior is unchanged.
+
+Completing or throwing from a notification handler is not itself a downstream
+delivery guarantee. Use the acknowledgement-preparation event when that
+distinction matters. The event handler must be thread-safe and idempotent:
+multiple Publish workers can invoke it, and an acknowledgement selected for a
+failed Publish request can be presented again on retry. Do not block the callback
+waiting for external delivery.
+
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
 attempt parked at the shared channel's ready gate, without terminating its
