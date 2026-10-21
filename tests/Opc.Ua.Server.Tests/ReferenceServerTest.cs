@@ -1706,7 +1706,8 @@ namespace Opc.Ua.Server.Tests
                 m_requestHeader,
                 subscriptionIds,
                 sendInitialData,
-                !useSecurity).ConfigureAwait(false);
+                !useSecurity,
+                expectAuthorizationInvalidation: useSecurity).ConfigureAwait(false);
 
             if (useSecurity)
             {

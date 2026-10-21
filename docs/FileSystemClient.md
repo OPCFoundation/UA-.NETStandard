@@ -49,6 +49,7 @@ prefer its asynchronous methods to avoid blocking. See [Streams](#streams).
 - [Generation-bound transfers](#generation-bound-transfers)
 - [What lives where](#what-lives-where)
 - [Server-side file bindings](#server-side-file-bindings)
+  - [Physical provider confinement](#physical-provider-confinement)
 - [See also](#see-also)
 
 ## Getting started
@@ -501,6 +502,35 @@ query the provider asynchronously without allocating retained handle state.
 Closed or failed opens release idle handle bags; pending opens remain
 protected by their reservations. Extended Windows roots (`\\?\...`) retain
 literal trailing-dot names rather than conflating distinct directory entries.
+
+### Physical provider confinement
+
+`PhysicalFileSystemProvider` rejects paths outside its configured root and
+rejects symbolic links, Windows junctions, and other reparse points with
+`UnauthorizedAccessException`. This no-link policy applies even to links
+whose targets are inside the mount, dangling links, and the configured root
+and every existing ancestor of that root. Use a physical root path without
+linked ancestors (for example, avoid the `/var` alias on systems where it is
+a symlink). The checks run before root creation and again on operations.
+On .NET 8 and later, the ReferenceServer resolves system temporary-directory
+aliases before selecting its default mount; provider-relative links remain rejected.
+Enumeration fails on a linked entry rather than exposing its target metadata.
+Recursive copy, move, and delete validate the source tree one directory level
+at a time, before entering any child directory. Copy validates its source tree
+before creating the destination; deletion does not use unchecked recursive
+traversal. Ordinary in-root files, directories, and creation of missing paths
+remain supported.
+
+These are **path-based checks, not a race-free filesystem sandbox**. An
+untrusted local process could replace a checked file or ancestor between
+validation and I/O (TOCTOU). Protect the mount and its ancestors with host
+permissions so untrusted processes cannot rename, replace, or introduce
+entries while provider operations run. Existing open handles are not
+revalidated. Hard links and filesystem mount points that are not reported as
+reparse points are outside this policy; use a dedicated filesystem or
+OS-level isolation when local filesystem attackers are in scope. Recursive
+operations are not transactional and concurrent changes or I/O errors can
+leave partial results.
 
 Materialized directory bindings serialize capacity admission, provider
 mutations, refresh, and teardown. Creates and cross-directory moves/copies

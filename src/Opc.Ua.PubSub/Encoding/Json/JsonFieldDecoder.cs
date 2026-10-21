@@ -53,7 +53,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// </remarks>
     public static class JsonFieldDecoder
     {
-        private static readonly ConditionalWeakTable<DataSetMetaDataType, FieldIndex> s_fieldIndexes = new();
+        private static readonly ConditionalWeakTable<DataSetMetaDataType, FieldIndex> s_fieldIndexes =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
 
         /// <summary>
         /// Decodes the <c>Payload</c> object into a list of
@@ -158,6 +163,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
             bool tolerant)
         {
             JsonElement value = property.Value;
+            Uuid fieldId = metaData is not null &&
+                string.Equals(metaData.Name, property.Name, StringComparison.Ordinal)
+                    ? metaData.DataSetFieldId : Uuid.Empty;
             // A { "Value" } object of a field with a multi-dimensional or
             // abstract ValueRank is a Variant (Part 14 §7.2.5.4.3 Table 186).
             if (LooksLikeDataValue(value) &&
@@ -172,6 +180,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 return new DataSetField
                 {
                     Name = property.Name,
+                    DataSetFieldId = fieldId,
                     Value = dv.WrappedValue,
                     StatusCode = dv.StatusCode,
                     SourceTimestamp = dv.SourceTimestamp,
@@ -184,14 +193,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
-            Variant variant;
-            if (!TryDecodeVariant(value, detectedMode, metaData, context, tolerant, out variant))
+            if (!TryDecodeVariant(value, detectedMode, metaData, context, tolerant, out Variant variant))
             {
                 return null;
             }
             return new DataSetField
             {
                 Name = property.Name,
+                DataSetFieldId = fieldId,
                 Value = variant,
                 Encoding = encoding
             };

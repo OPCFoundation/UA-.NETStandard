@@ -131,4 +131,57 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             bool unsubscribe);
     }
+
+    /// <summary>
+    /// Provides lifecycle-owned semantic resampling for monitored-item managers.
+    /// </summary>
+    internal static class MonitoredItemManagerSemanticResampling
+    {
+        /// <summary>
+        /// Queues a force-resample for the exact node and monitored item currently owned by the manager.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="source">The exact source node whose semantics changed.</param>
+        /// <param name="item">The monitored item that must be resampled.</param>
+        /// <returns><c>true</c> when the manager admitted the request.</returns>
+        internal static bool TryQueueSemanticResample(
+            this IMonitoredItemManager manager,
+            NodeState source,
+            ISampledDataChangeMonitoredItem item)
+        {
+            if (manager == null || source == null || item == null)
+            {
+                return false;
+            }
+
+            return manager switch
+            {
+                MonitoredNodeMonitoredItemManager monitoredNodeManager =>
+                    monitoredNodeManager.TryQueueSemanticResample(source, item),
+                SamplingGroupMonitoredItemManager samplingGroupManager =>
+                    samplingGroupManager.TryQueueSemanticResample(source, item),
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Waits for semantic resample work already admitted by the manager.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="cancellationToken">Cancels the wait.</param>
+        /// <returns>A task for the admitted work that was pending when called.</returns>
+        internal static ValueTask WaitForPendingSemanticResamplesAsync(
+            this IMonitoredItemManager manager,
+            CancellationToken cancellationToken = default)
+        {
+            return manager switch
+            {
+                MonitoredNodeMonitoredItemManager monitoredNodeManager =>
+                    monitoredNodeManager.WaitForPendingSemanticResamplesAsync(cancellationToken),
+                SamplingGroupMonitoredItemManager samplingGroupManager =>
+                    samplingGroupManager.WaitForPendingSemanticResamplesAsync(cancellationToken),
+                _ => default
+            };
+        }
+    }
 }

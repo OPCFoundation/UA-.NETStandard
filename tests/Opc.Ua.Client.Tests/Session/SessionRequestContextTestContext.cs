@@ -36,6 +36,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Opc.Ua.Tests;
+using StackManagedSession = global::Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Client.Tests.SessionContexts
 {
@@ -47,7 +48,9 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         /// <summary>
         /// Creates a connected managed session without opening a socket or starting recovery.
         /// </summary>
-        internal SessionRequestContextTestContext(ITelemetryContext? telemetry = null)
+        internal SessionRequestContextTestContext(
+            ITelemetryContext? telemetry = null,
+            MessageSecurityMode securityMode = MessageSecurityMode.None)
         {
             Telemetry = telemetry ?? NUnitTelemetryContext.Create();
             TimeProvider = new FakeTimeProvider();
@@ -57,8 +60,10 @@ namespace Opc.Ua.Client.Tests.SessionContexts
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
-                SecurityMode = MessageSecurityMode.None,
-                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityMode = securityMode,
+                SecurityPolicyUri = securityMode == MessageSecurityMode.None
+                    ? SecurityPolicies.None
+                    : SecurityPolicies.Basic256Sha256,
                 Server = new ApplicationDescription { ApplicationUri = "urn:request-context:server" }
             }, endpointConfiguration);
             var configuration = new ApplicationConfiguration(Telemetry)
@@ -82,17 +87,17 @@ namespace Opc.Ua.Client.Tests.SessionContexts
 
             var factory = new Mock<ISessionFactory>();
             factory.SetupGet(value => value.Telemetry).Returns(Telemetry);
-            ConstructorInfo constructor = typeof(Client.ManagedSession)
+            ConstructorInfo constructor = typeof(StackManagedSession)
                 .GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance)
                 .Single();
-            ManagedSession = (Client.ManagedSession)constructor.Invoke(
+            ManagedSession = (StackManagedSession)constructor.Invoke(
             [
                 configuration, endpoint, factory.Object, new ReconnectPolicy(), null,
-                Telemetry.CreateLogger<Client.ManagedSession>(), null, null, TimeProvider,
+                Telemetry.CreateLogger<StackManagedSession>(), null, null, TimeProvider,
                 default(ArrayOf<string>), "RequestContextTests", 60_000u,
                 false, false, false, false, null, null, null, null
             ]);
-            SetField(ManagedSession, typeof(Client.ManagedSession), "m_session", InnerSession);
+            SetField(ManagedSession, typeof(StackManagedSession), "m_session", InnerSession);
             SetField(ManagedSession.StateMachine, typeof(ConnectionStateMachine), "m_servicesAvailable", true);
             SetField(ManagedSession.StateMachine, typeof(ConnectionStateMachine), "m_state", ConnectionState.Connected);
             foreach (string name in new[] { "m_servicesReady", "m_settled" })
@@ -102,7 +107,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
                     .GetValue(ManagedSession.StateMachine)!;
                 ready.Set();
             }
-            ServiceGate = (AsyncReaderWriterLock)typeof(Client.ManagedSession)
+            ServiceGate = (AsyncReaderWriterLock)typeof(StackManagedSession)
                 .GetField("m_serviceLock", BindingFlags.NonPublic | BindingFlags.Instance)!
                 .GetValue(ManagedSession)!;
         }
@@ -135,7 +140,7 @@ namespace Opc.Ua.Client.Tests.SessionContexts
         /// <summary>
         /// Gets the managed owner passed to the public capture API.
         /// </summary>
-        internal Client.ManagedSession ManagedSession { get; }
+        internal StackManagedSession ManagedSession { get; }
 
         /// <summary>
         /// Gets the existing private gate solely for deterministic race tests.

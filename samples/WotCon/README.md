@@ -221,10 +221,13 @@ bounds a manually launched client; specify `1200` for the same budget.
 | `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
 | `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
-`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName`
+`AggregationServer` reads `endpoint`, `host` (`127.0.0.1`), `port` (`62550`), `applicationName`
 (`AggregationServer`), `pkiRoot`, `storageFolder` (the `registry` directory beside
 the application), and `maximumDocumentBytes` (`33554432`). The demo script gives
 registry storage its own directory under the isolated run root.
+Its numeric-loopback default keeps the anonymous aggregation demonstration
+local-only; explicit host or endpoint overrides require appropriate remote-access
+security.
 
 `AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
 `applicationName` (`AggregationClient`), `pkiRoot`, `documentsDirectory`,

@@ -209,7 +209,7 @@ namespace Opc.Ua.Mcp
                     .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
                 using ISecret? secret = input.NonceReference is null ? null :
-                    await m_access.Secrets.ResolveAsync(input.NonceReference, endpoint.Resource,
+                    await m_access.Secrets.ResolveAsync(input.NonceReference, endpoint.SecretResource,
                         McpCapability.CertificateAdministration, token).ConfigureAwait(false);
                 ByteString nonce = secret is null ? default : ByteString.From(secret.Bytes.ToArray());
                 if (input.RegeneratePrivateKey && nonce.Length < 32)
@@ -317,6 +317,11 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await PushAsync(configurationNodeId, sessionName, token)
                     .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                if (input.PrivateKeyReference is not null)
+                {
+                    // Keep the key's application audience distinct from approval of this receiving endpoint.
+                    _ = endpoint.SecretResource;
+                }
                 ByteString certificate = await PublicCertificateAsync(input.CertificatePath, token)
                     .ConfigureAwait(false);
                 string resource = await PushApplicationResourceAsync(endpoint, token).ConfigureAwait(false);

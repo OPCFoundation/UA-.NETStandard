@@ -572,6 +572,31 @@ Capture requires the stack's `ManagedSession` and a supported transport;
 unsupported custom sessions or managed transports return `BadNotSupported`.
 For ordinary independent calls, continue using the managed session directly.
 
+Use `CaptureConfidentialAsync` for password, private-key or other secret-bearing
+method arguments. It additionally requires confidentiality on the actual
+captured transport and rechecks that requirement at dispatch:
+
+```csharp
+static async Task<CallResponse> SendConfidentialCallsAsync(
+    ISession session,
+    ArrayOf<CallMethodRequest> calls,
+    CancellationToken ct)
+{
+    SessionRequestContext context =
+        await SessionRequestContext.CaptureConfidentialAsync(session, ct).ConfigureAwait(false);
+    await using (context.ConfigureAwait(false))
+    {
+        return await context.Session.CallAsync(null, calls, ct).ConfigureAwait(false);
+    }
+}
+```
+
+The caller still handles the returned per-method results and performs normal
+authorization. Capture rejects insecure channels with `BadSecurityModeInsufficient`
+and unsupported custom sessions with `BadNotSupported`; it never retries secret
+arguments on a replacement channel. Built-in password-management helpers and
+certificate private-key uploads use this path automatically.
+
 See [generation-bound file transfers](FileSystemClient.md#generation-bound-transfers),
 [historical reads](HistoricalAccess.md#bounded-pages-and-session-lifetime), and
 [role snapshots](RoleBasedUserManagement.md#bounded-role-snapshots) for the

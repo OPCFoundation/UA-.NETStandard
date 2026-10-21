@@ -43,12 +43,15 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     /// <remarks>
     /// <para>
-    /// All operations are sandboxed: any provider-relative path that
+    /// Any provider-relative path that
     /// resolves outside the configured root (for example via
     /// <c>..</c> segments) is rejected with
-    /// <see cref="UnauthorizedAccessException"/>. The check is done
-    /// with <see cref="Path.GetFullPath(string)"/> followed by a
-    /// prefix-match against the canonicalised root.
+    /// <see cref="UnauthorizedAccessException"/>. Symbolic links, junctions and
+    /// other reparse points are rejected, including in the root and its ancestors.
+    /// Recursive operations validate entries before descending into directories.
+    /// These path-based checks are not atomic with subsequent I/O: the host must
+    /// prevent untrusted local users from replacing entries or root ancestors
+    /// during operations. Hard links and filesystem mount points are not isolated.
     /// </para>
     /// <para>
     /// Write streams exclude other readers and writers until disposed. Explicit
@@ -69,7 +72,8 @@ namespace Opc.Ua.Server.FileSystem
         /// </summary>
         /// <param name="rootDirectory">
         /// Absolute path to the directory to expose. Created if it
-        /// does not already exist.
+        /// does not already exist. Neither it nor its ancestors may
+        /// be symbolic links, junctions or other reparse points.
         /// </param>
         /// <param name="mountName">
         /// BrowseName of the root mount node. Defaults to the
@@ -94,6 +98,12 @@ namespace Opc.Ua.Server.FileSystem
             }
 
             m_rootDirectory = Path.GetFullPath(rootDirectory);
+            string volumeRoot = Path.GetPathRoot(m_rootDirectory)!;
+            if (m_rootDirectory.Length > volumeRoot.Length)
+            {
+                m_rootDirectory = m_rootDirectory.TrimEnd(
+                    Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
             // Normalise the root prefix so subsequent path-traversal
             // checks have a stable, separator-terminated comparison
             // anchor that won't accept "/root123" when the actual
@@ -106,10 +116,12 @@ namespace Opc.Ua.Server.FileSystem
                 m_rootPrefix += Path.DirectorySeparatorChar;
             }
 
+            RejectLinks(m_rootDirectory);
             if (!Directory.Exists(m_rootDirectory))
             {
                 Directory.CreateDirectory(m_rootDirectory);
             }
+            RejectLinks(m_rootDirectory);
 
             MountName = !string.IsNullOrEmpty(mountName)
                 ? mountName!
@@ -165,18 +177,29 @@ namespace Opc.Ua.Server.FileSystem
                     $"Directory '{path}' does not exist.");
             }
 
-            foreach (string entryPath in Directory.EnumerateDirectories(full))
+            var files = new List<string>();
+            foreach (string entryPath in Directory.EnumerateFileSystemEntries(full))
             {
                 ct.ThrowIfCancellationRequested();
-                yield return BuildEntry(
-                    JoinProviderPath(path, Path.GetFileName(entryPath)),
-                    entryPath,
-                    isDirectory: true);
+                RejectLinks(entryPath);
+                FileAttributes attributes = RejectLink(entryPath);
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    yield return BuildEntry(
+                        JoinProviderPath(path, Path.GetFileName(entryPath)),
+                        entryPath,
+                        isDirectory: true);
+                }
+                else
+                {
+                    files.Add(entryPath);
+                }
             }
 
-            foreach (string entryPath in Directory.EnumerateFiles(full))
+            foreach (string entryPath in files)
             {
                 ct.ThrowIfCancellationRequested();
+                RejectLinks(entryPath);
                 yield return BuildEntry(
                     JoinProviderPath(path, Path.GetFileName(entryPath)),
                     entryPath,
@@ -256,7 +279,19 @@ namespace Opc.Ua.Server.FileSystem
             EnsureNotRoot(full);
             if (Directory.Exists(full))
             {
-                Directory.Delete(full, recursive: true);
+                GetDirectoryTree(full, ct, out List<string> directories, out List<string> files);
+                foreach (string file in files)
+                {
+                    RejectLinks(file);
+                    File.Delete(file);
+                }
+                for (int ii = directories.Count - 1; ii >= 0; ii--)
+                {
+                    RejectLinks(directories[ii]);
+                    Directory.Delete(directories[ii]);
+                }
+                RejectLinks(full);
+                Directory.Delete(full);
                 return default;
             }
             if (File.Exists(full))
@@ -292,6 +327,9 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (Directory.Exists(sourceFull))
             {
+                GetDirectoryTree(sourceFull, ct, out _, out _);
+                RejectLinks(sourceFull);
+                RejectLinks(targetFull);
                 Directory.Move(sourceFull, targetFull);
                 return default;
             }
@@ -323,7 +361,7 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (Directory.Exists(sourceFull))
             {
-                CopyDirectoryRecursive(sourceFull, targetFull);
+                CopyDirectoryRecursive(sourceFull, targetFull, ct);
                 return default;
             }
             throw new FileNotFoundException(
@@ -360,10 +398,11 @@ namespace Opc.Ua.Server.FileSystem
         /// <summary>
         /// Translates a provider-relative path to an absolute host
         /// path while rejecting any attempt to escape the configured
-        /// root via <c>..</c> segments or rooted paths.
+        /// root via <c>..</c> segments or rooted paths, and rejecting linked components.
         /// </summary>
         /// <exception cref="UnauthorizedAccessException">
-        /// <paramref name="path"/> escapes the configured provider root.
+        /// <paramref name="path"/> escapes the configured provider root or
+        /// contains a link, including in the root or one of its ancestors.
         /// </exception>
         private string ResolveAbsolute(string path)
         {
@@ -381,7 +420,52 @@ namespace Opc.Ua.Server.FileSystem
                     $"Path '{path}' escapes the provider root.");
             }
 
+            RejectLinks(full);
             return full;
+        }
+
+        /// <summary>
+        /// Rejects links in every existing component, including the root's ancestors.
+        /// Missing components are permitted for creation; other I/O failures propagate.
+        /// This check is not atomic with the subsequent filesystem operation.
+        /// </summary>
+        private static void RejectLinks(string fullPath)
+        {
+            string current = Path.GetPathRoot(fullPath)!;
+            string[] segments = fullPath[current.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries);
+            RejectLink(current);
+            foreach (string segment in segments)
+            {
+                current = Path.Combine(current, segment);
+                try
+                {
+                    RejectLink(current);
+                }
+                catch (FileNotFoundException)
+                {
+                    break;
+                }
+                catch (DirectoryNotFoundException)
+                {
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks attributes without using Exists, which can hide dangling links and access failures.
+        /// </summary>
+        private static FileAttributes RejectLink(string fullPath)
+        {
+            FileAttributes attributes = File.GetAttributes(fullPath);
+            if ((attributes & FileAttributes.ReparsePoint) != 0)
+            {
+                throw new UnauthorizedAccessException(
+                    $"Symbolic links, junctions and reparse points are not allowed: '{fullPath}'.");
+            }
+            return attributes;
         }
 
         /// <summary>
@@ -396,6 +480,11 @@ namespace Opc.Ua.Server.FileSystem
                 return string.Empty;
             }
             string relative = path.TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
+            if (Path.IsPathRooted(relative) ||
+                (Path.DirectorySeparatorChar == '\\' && relative.Contains(':', StringComparison.Ordinal)))
+            {
+                throw new UnauthorizedAccessException($"Path '{path}' must be provider-relative.");
+            }
             if (Path.DirectorySeparatorChar == '\\' &&
                 !m_rootDirectory.StartsWith(@"\\?\", StringComparison.Ordinal))
             {
@@ -477,22 +566,69 @@ namespace Opc.Ua.Server.FileSystem
             };
         }
 
-        private static void CopyDirectoryRecursive(string source, string target)
+        /// <summary>
+        /// Snapshots a directory tree one level at a time, rejecting links before traversal.
+        /// </summary>
+        private static void GetDirectoryTree(
+            string source,
+            CancellationToken ct,
+            out List<string> directories,
+            out List<string> files)
+        {
+            directories = [];
+            files = [];
+            var pending = new Stack<string>();
+            pending.Push(source);
+            while (pending.Count != 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                string current = pending.Pop();
+                RejectLinks(current);
+                foreach (string entry in Directory.EnumerateFileSystemEntries(current))
+                {
+                    ct.ThrowIfCancellationRequested();
+                    RejectLinks(entry);
+                    FileAttributes attributes = RejectLink(entry);
+                    if ((attributes & FileAttributes.Directory) != 0)
+                    {
+                        directories.Add(entry);
+                        pending.Push(entry);
+                    }
+                    else
+                    {
+                        files.Add(entry);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Copies a validated snapshot, rechecking source and destination paths before I/O.
+        /// </summary>
+        private static void CopyDirectoryRecursive(string source, string target, CancellationToken ct)
         {
             // Enumerate the source before creating the target so a target inside
             // the source never becomes part of the copy.
-            string[] directories = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
-            string[] files = Directory.GetFiles(source, "*", SearchOption.AllDirectories);
+            GetDirectoryTree(source, ct, out List<string> directories, out List<string> files);
+            RejectLinks(target);
             Directory.CreateDirectory(target);
             foreach (string dir in directories)
             {
+                ct.ThrowIfCancellationRequested();
                 string sub = dir[source.Length..].TrimStart(Path.DirectorySeparatorChar);
-                Directory.CreateDirectory(Path.Combine(target, sub));
+                string destination = Path.Combine(target, sub);
+                RejectLinks(dir);
+                RejectLinks(destination);
+                Directory.CreateDirectory(destination);
             }
             foreach (string file in files)
             {
+                ct.ThrowIfCancellationRequested();
                 string sub = file[source.Length..].TrimStart(Path.DirectorySeparatorChar);
-                File.Copy(file, Path.Combine(target, sub), overwrite: false);
+                string destination = Path.Combine(target, sub);
+                RejectLinks(file);
+                RejectLinks(destination);
+                File.Copy(file, destination, overwrite: false);
             }
         }
 

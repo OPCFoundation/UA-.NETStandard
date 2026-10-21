@@ -140,7 +140,8 @@ namespace Opc.Ua.PubSub.Mqtt
         /// <summary>
         /// TLS options. <see langword="null"/> picks up scheme-derived
         /// defaults (TLS off for <c>mqtt://</c>, on for
-        /// <c>mqtts://</c>).
+        /// <c>mqtts://</c>). A non-null options object cannot disable
+        /// the TLS protection required by <c>mqtts://</c> or <c>wss://</c>.
         /// </summary>
         public MqttTlsOptions? Tls { get; set; }
 

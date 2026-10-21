@@ -355,6 +355,8 @@ namespace Opc.Ua.Server.Tests.Historian
             ServerSystemContext systemContext = CreateSystemContext(
                 continuationPoints);
             var nodeId = new NodeId("event-retry", 1);
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                systemContext, [ObjectTypeIds.BaseEventType, nodeId]);
             NodeState node = CreateVariable(nodeId);
             var provider = new Mock<IHistorianProvider>();
             provider

@@ -107,10 +107,12 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
             IList<ContentBlock> text =
                 await PubSubDecodeTools.DissectCaptureAsync(
+                    McpTestEnvironment.Services,
                     manager,
                     "text").ConfigureAwait(false);
             IList<ContentBlock> json =
                 await PubSubDecodeTools.DissectCaptureAsync(
+                    McpTestEnvironment.Services,
                     manager,
                     "json").ConfigureAwait(false);
             Assert.That(text, Has.Count.EqualTo(1));

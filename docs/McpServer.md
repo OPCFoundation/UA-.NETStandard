@@ -104,7 +104,12 @@ confused with Boolean false or numeric zero. See the
 Key export, decode and replay are disabled until the host opts in. Treat
 capture/key-log output as secret material, not ordinary logs. Caller-supplied
 paths stay within the capture root; replay does not grant arbitrary outbound
-access. For registration, selectors, paths and output formats, see the
+access. Retained captures and implicitly loaded key material are scoped to the
+host and authenticated caller; another caller or embedding host cannot reuse
+that state. Failed PubSub capture startup detaches its observer before a retry.
+Loaded PubSub keys are copied on storage and retrieval; disposing a returned
+copy or clearing another caller's keys does not change the owner's retained
+material. For registration, selectors, paths and output formats, see the
 [Diagnostics package reference](../tools/Opc.Ua.Mcp.Diagnostics/NugetREADME.md).
 
 ## Tool Profiles
@@ -644,6 +649,10 @@ contracts and examples.
 The host exposes connected sessions as MCP resources for inspection of status,
 security and namespace tables. URI templates and protocol details are in the
 [Core reference](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#arguments-and-json-results).
+Resource listing and reading use the authenticated transport caller's request
+scope. A caller sees only sessions it owns or sessions granted to that exact
+caller by the host; an unauthenticated request does not inherit the embedding
+host's local identity. A named read outside that scope is denied.
 
 ### Multi-Session Support
 
@@ -840,6 +849,23 @@ and history continuation points to their actual UA generation. Reconnection
 must fail or invalidate the old operation, not send an old handle to a new
 session.
 
+Borrowing a host-provisioned session requires an exact `SessionNames` grant.
+Caller-created connections remain private to their caller; a session-use grant
+does not authorize replacing or disconnecting a host registration. A reused name
+does not inherit the previous registration's secret authority.
+
+Protected secret bindings include the approved registration and authenticated
+endpoint/certificate identity, not only advertised application URI and model
+NodeId. Legacy host aliases are pinned on first approved use. Caller-created or
+autoaccepted targets cannot consume those protected aliases. GDS keeps public
+resource labels and third-party audiences separate from its bound secret issuer.
+
+Local peer-trust changes also require `CertificateAdministration` before opening
+or mutating a store; listing a rejected certificate does not authorize trusting
+it. Vision file handles are opaque caller/target/registration/generation-bound
+host mappings, even though their wire type remains `uint`. A Vision file tool
+cannot use an arbitrary server handle to modify a protected TrustList.
+
 Generic mutation tools refuse unsupported session lifetimes instead of risking
 dispatch to a replacement. Custom-session embedding requirements are documented
 in the [Core package](../tools/Opc.Ua.Mcp.Core/NugetREADME.md#generic-mutations-and-session-lifetime).
@@ -852,6 +878,16 @@ selectors and Modbus unit/function/range selectors are separate operation
 checks. UDP and Ethernet additionally require their explicit local interface,
 peer and frame selectors. No MCP tool installs a capture driver or grants OS
 privileges.
+
+Remote PubSub configuration also requires a `configure-connect` grant for every
+effective endpoint, using an empty resource selector for connection activation.
+This applies to connections without writer or reader groups: authentication,
+discovery and status traffic can still start. Separate publish/subscribe grants
+must cover every effective writer-group, per-writer and metadata queue, including
+aggregate-message fallbacks. Mutation tools authorize their actual direction and
+existing parent connection, not a caller-supplied mode or substitute endpoint.
+Unreadable parent address/transport settings fail authorization rather than
+falling back to caller-provided settings.
 
 Named runtimes default to eight per host, two per caller, five minutes of idle
 time and a thirty-minute absolute lease. Pending activation and closing

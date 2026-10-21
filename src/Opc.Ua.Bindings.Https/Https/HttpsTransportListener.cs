@@ -28,15 +28,17 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Security.Authentication;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,16 +46,12 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
-using System.Collections.Generic;
-
-using System.Security.Cryptography;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
 {
@@ -343,7 +341,10 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Manages the connections for a UA HTTPS server.
     /// </summary>
-    public class HttpsTransportListener : ITransportListener, ITransportListenerCertificateRotation
+    public class HttpsTransportListener :
+        ITransportListener,
+        ITransportListenerCertificateRotation,
+        ITransportListenerPeerCertificateChainRotation
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="HttpsTransportListener"/> class.
@@ -400,6 +401,14 @@ namespace Opc.Ua.Bindings
         public string ListenerId { get; private set; } = default!;
 
         /// <summary>
+        /// Gets a value indicating whether this listener requires mutual TLS for application authentication.
+        /// </summary>
+        internal bool MutualTlsEnabled => m_mutualTlsEnabled;
+
+        /// <inheritdoc/>
+        public TrustListIdentifier PeerCertificateTrustListScope => TrustListIdentifier.Peers;
+
+        /// <summary>
         /// Raised when a new connection is waiting for a client. Fired by
         /// the WSS reverse-connect handoff in
         /// <see cref="HttpsTransportListener"/> when
@@ -452,6 +461,18 @@ namespace Opc.Ua.Bindings
             TransportListenerSettings settings,
             ITransportListenerCallback callback,
             CancellationToken ct = default)
+        {
+            Initialize(baseAddress, settings, callback);
+            await StartAsync(ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Initializes listener-bound dispatch resources before the host starts accepting requests.
+        /// </summary>
+        internal void Initialize(
+            Uri baseAddress,
+            TransportListenerSettings settings,
+            ITransportListenerCallback callback)
         {
             // assign a unique guid to the listener.
             ListenerId = Guid.NewGuid().ToString();
@@ -532,8 +553,6 @@ namespace Opc.Ua.Bindings
                     m_quotas.MaxBufferSize,
                     m_telemetry));
 
-            // start the listener
-            await StartAsync(ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -795,30 +814,6 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
-                {
-                    // Match the TLS certificate against the application certificate in
-                    // CreateSessionRequest. The request may carry the leaf followed by its
-                    // issuers; TLS presents only the leaf.
-                    byte[]? tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
-                    ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
-
-                    if (!IsLeafOfCertificateChain(tlsClientCertificate, opcUaClientCertificate))
-                    {
-                        m_logger.ClientTlsCertificateMismatch(
-                            "Client TLS certificate does not match with ClientCertificate " +
-                            "provided in CreateSessionRequest");
-                        IServiceResponse mismatchFault = EndpointBase.CreateFault(
-                            m_logger,
-                            input,
-                            new ServiceResultException(
-                                StatusCodes.BadSecurityChecksFailed,
-                                "The TLS client certificate does not match the ClientCertificate."));
-                        await WriteServiceResponseAsync(context, mismatchFault, ct).ConfigureAwait(false);
-                        return;
-                    }
-                }
-
                 // extract the JWT token from the HTTP headers.
                 input.RequestHeader ??= new RequestHeader();
 
@@ -845,6 +840,13 @@ namespace Opc.Ua.Bindings
                         out Microsoft.Extensions.Primitives.StringValues header))
                 {
                     header = SecurityPolicies.None;
+                }
+
+                if (input is CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } createSessionAdmissionFault)
+                {
+                    await WriteServiceResponseAsync(context, createSessionAdmissionFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 EndpointDescription? endpoint = null;
@@ -891,6 +893,13 @@ namespace Opc.Ua.Bindings
                             .ConfigureAwait(false);
                         return;
                     }
+                }
+
+                if (input is not CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } requestAdmissionFault)
+                {
+                    await WriteServiceResponseAsync(context, requestAdmissionFault, ct).ConfigureAwait(false);
+                    return;
                 }
 
                 var secureChannelContext = new SecureChannelContext(
@@ -1004,6 +1013,13 @@ namespace Opc.Ua.Bindings
                     input.RequestHeader.AuthenticationToken = authenticationToken;
                 }
 
+                if (input is CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } createSessionAdmissionFault)
+                {
+                    await WriteJsonResponseAsync(context, createSessionAdmissionFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
                 // The JSON sub-protocol is restricted to SecurityPolicy = None
                 // (Part 6 §7.4.5); pick the matching endpoint up front.
                 EndpointDescription? endpoint = null;
@@ -1029,6 +1045,13 @@ namespace Opc.Ua.Bindings
                             StatusCodes.BadSecurityPolicyRejected,
                             "Channel can only be used for discovery."));
                     await WriteJsonResponseAsync(context, discoveryFault, ct).ConfigureAwait(false);
+                    return;
+                }
+
+                if (input is not CreateSessionRequest &&
+                    GetClientCertificateAdmissionFault(context, input) is { } requestAdmissionFault)
+                {
+                    await WriteJsonResponseAsync(context, requestAdmissionFault, ct).ConfigureAwait(false);
                     return;
                 }
 
@@ -1058,6 +1081,46 @@ namespace Opc.Ua.Bindings
 
             await WriteResponseAsync(context.Response, message, HttpStatusCode.InternalServerError)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Applies the same mutual-TLS admission to binary and JSON service requests.
+        /// The TLS handshake validates a presented leaf; discovery may omit it.
+        /// </summary>
+        private ServiceFault? GetClientCertificateAdmissionFault(HttpContext context, IServiceRequest request)
+        {
+            if (!m_mutualTlsEnabled || IsDiscoveryRequest(request.TypeId))
+            {
+                return null;
+            }
+
+            NodeId authenticationToken = NodeId.Null;
+            if (request.RequestHeader != null)
+            {
+                authenticationToken = request.RequestHeader.AuthenticationToken;
+            }
+
+            if (request is not CreateSessionRequest &&
+                (authenticationToken.IsNull || authenticationToken.TryGetValue(out string _)))
+            {
+                // Session-less calls authenticate anonymous identities and access tokens in SessionManager.
+                return null;
+            }
+
+            byte[]? tlsCertificate = context.Connection.ClientCertificate?.RawData;
+            if (tlsCertificate != null &&
+                (request is not CreateSessionRequest create ||
+                    IsLeafOfCertificateChain(tlsCertificate, create.ClientCertificate)))
+            {
+                return null;
+            }
+
+            return EndpointBase.CreateFault(
+                m_logger,
+                request,
+                new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "A TLS client certificate matching the application certificate is required."));
         }
 
         /// <summary>
@@ -1202,6 +1265,60 @@ namespace Opc.Ua.Bindings
             // HTTP), so there is nothing meaningful to return for
             // diagnostics here.
             return [];
+        }
+
+        /// <inheritdoc/>
+        async ValueTask<IReadOnlyList<string>>
+            ITransportListenerPeerCertificateRotation.CloseChannelsForUntrustedPeersAsync(
+                Func<Certificate, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+                CancellationToken ct)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+            ArrayOf<string> closed = await CloseChannelsForUntrustedPeerChainsAsync(
+                (chain, token) => isPeerTrustedAsync(chain[0], token), ct).ConfigureAwait(false);
+            return closed.ToArray() ?? [];
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<ArrayOf<string>> CloseChannelsForUntrustedPeerChainsAsync(
+            Func<CertificateCollection, CancellationToken, ValueTask<bool>> isPeerTrustedAsync,
+            CancellationToken ct = default)
+        {
+            if (isPeerTrustedAsync == null)
+            {
+                throw new ArgumentNullException(nameof(isPeerTrustedAsync));
+            }
+            TcpListenerChannel[] channels = [.. m_wssChannels.Values, .. m_reverseConnectChannels.Keys];
+            var closed = new List<string>(channels.Length);
+            foreach (TcpListenerChannel channel in channels)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    using CertificateCollection? chain = channel.SnapshotClientCertificateChainForRevalidation();
+                    if (chain == null || await isPeerTrustedAsync(chain, ct).ConfigureAwait(false))
+                    {
+                        continue;
+                    }
+                    if (channel.CloseForUntrustedPeerCertificate(out string? globalChannelId) &&
+                        !string.IsNullOrEmpty(globalChannelId))
+                    {
+                        closed.Add(globalChannelId);
+                    }
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    m_logger.WssPeerTrustRevalidationFailed(ex, channel.GlobalChannelId);
+                }
+            }
+            return closed.ToArrayOf();
         }
 
         /// <summary>
@@ -1417,7 +1534,8 @@ namespace Opc.Ua.Bindings
 #if NET8_0_OR_GREATER
             EndPoint? remote = connection.RemoteEndPoint;
 #else
-            IHttpConnectionFeature? endpoints = connection.Features.Get<IHttpConnectionFeature>();
+            Microsoft.AspNetCore.Http.Features.IHttpConnectionFeature? endpoints =
+                connection.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpConnectionFeature>();
             EndPoint? remote = MakeEndpoint(endpoints?.RemoteIpAddress, endpoints?.RemotePort ?? 0);
 #endif
             if (admission == null)
@@ -1709,7 +1827,12 @@ namespace Opc.Ua.Bindings
             return m_sharedHostSettings + ";contributors=" + string.Join(",", contributors);
         }
 
-        private static readonly ConditionalWeakTable<IHttpsListenerStartupContributor, string> s_contributorIds = new();
+        private static readonly ConditionalWeakTable<IHttpsListenerStartupContributor, string> s_contributorIds =
+#if NET8_0_OR_GREATER
+            [];
+#else
+            new();
+#endif
         private static long s_nextContributorId;
 
         /// <summary>
@@ -2103,6 +2226,7 @@ namespace Opc.Ua.Bindings
                     .ConfigureAwait(false);
 
                 TcpListenerChannel? channel = null;
+                uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
                 try
                 {
                     using var transport = new WebSocketServerByteTransport(
@@ -2114,7 +2238,6 @@ namespace Opc.Ua.Bindings
                         m_telemetry);
                     lease.Attach(transport);
                     var perWsListener = new WssChannelListener(this);
-                    uint channelId = (uint)Interlocked.Increment(ref m_nextChannelId);
                     channel = m_reverseConnectListener
                         ? new TcpReverseConnectChannel(
                             ListenerId,
@@ -2159,7 +2282,11 @@ namespace Opc.Ua.Bindings
                 }
                 finally
                 {
-                    channel?.Dispose();
+                    if (channel != null)
+                    {
+                        m_wssChannels.TryRemove(channelId, out _);
+                        channel.Dispose();
+                    }
                 }
             }
         }
@@ -2855,11 +2982,8 @@ namespace Opc.Ua.Bindings
                     // The connection's existing body lease continues to cover its receive buffer.
                     byte[] messageBytes = new byte[totalRead];
                     Buffer.BlockCopy(receiveBuffer, 0, messageBytes, 0, totalRead);
-                    Task request = admission.RunAsync(async () =>
-                    {
-                        await ProcessAdmittedOpenApiWebSocketRequestAsync(
-                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false);
-                    });
+                    Task request = admission.RunAsync(async () => await ProcessAdmittedOpenApiWebSocketRequestAsync(
+                            ws, sendGate, channelContext, messageBytes, requestCancellation).ConfigureAwait(false));
                     requests.Add(request);
                 }
             }
@@ -3439,12 +3563,14 @@ namespace Opc.Ua.Bindings
             public void ChannelClosed(uint channelId)
             {
                 // Physical transport close, not channel registration, ends the request.
+                m_owner.m_wssChannels.TryRemove(channelId, out _);
             }
 
             internal void AttachChannel(uint channelId, TcpListenerChannel channel)
             {
                 m_channelId = channelId;
                 m_channel = channel;
+                m_owner.m_wssChannels[channelId] = channel;
             }
 
             private readonly HttpsTransportListener m_owner;
@@ -3498,6 +3624,11 @@ namespace Opc.Ua.Bindings
         /// teardown must close them explicitly.
         /// </summary>
         private readonly ConcurrentDictionary<TcpServerChannel, byte> m_reverseConnectChannels = new();
+
+        /// <summary>
+        /// Tracks binary WebSocket channels for application peer-trust revalidation.
+        /// </summary>
+        private readonly ConcurrentDictionary<uint, TcpListenerChannel> m_wssChannels = new();
         private int m_nextChannelId;
         private readonly ILogger m_logger;
         private readonly ITelemetryContext m_telemetry;
@@ -3595,5 +3726,15 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 18, Level = LogLevel.Error,
             Message = "WSSLISTENER - opcua+openapi upgrade rejected: identity resolution threw.")]
         public static partial void OpenApiIdentityResolverThrew(this ILogger logger, Exception exception);
+
+        /// <summary>
+        /// Reports a failed peer-trust sweep without interrupting revalidation of other channels.
+        /// </summary>
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 19, Level = LogLevel.Error,
+            Message = "WSSLISTENER - failed to revalidate or close peer channel {ChannelId}.")]
+        public static partial void WssPeerTrustRevalidationFailed(
+            this ILogger logger,
+            Exception exception,
+            string channelId);
     }
 }

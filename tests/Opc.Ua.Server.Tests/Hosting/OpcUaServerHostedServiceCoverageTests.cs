@@ -533,7 +533,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)
         {
             string testRoot = System.IO.Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                System.IO.Path.GetTempPath(),
                 nameof(OpcUaServerHostedServiceCoverageTests),
                 applicationName,
                 Guid.NewGuid().ToString("N"));

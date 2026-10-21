@@ -455,7 +455,7 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                         {
                             Endpoint = input.Connection.Endpoint,
                             NetworkInterface = input.Connection.NetworkInterface!,
-                            LocalAddress = "127.0.0.1", Operations = ["configure-publish"]
+                            LocalAddress = "127.0.0.1", Operations = ["configure-connect", "configure-publish"]
                         }
                     ]
                 };

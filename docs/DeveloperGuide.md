@@ -445,25 +445,22 @@ gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
 ./.github/scripts/update-test-durations.ps1 -ResultsPath ./ci-results -Source 'Run <run-id>'
 ```
 
-GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
+GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) checks that both scopes fit, every `*.Tests.csproj` is scheduled or explicitly excluded, project/profile/shard workloads are unique, and narrowed matrices remain nonempty.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
-The WoT aggregation sample tests run their complete companion-model corpus in a
-dedicated CI batch. That batch has a 240-minute combined build/test budget
-and a 65-minute inactivity limit; ordinary projects retain their 45-minute combined
-budget. The sample's full generation-replacement case includes two complete
-publications and needs the extended budget.
-The Server, WoT and Types integration projects also run separately, with a 90-minute
-combined budget. Server and WoT keep the 10-minute inactivity guard; Types uses
-30 minutes for complete instrumented companion-model conversions. Hosted cold builds
-have consumed 20-28 minutes before test execution; the extended budgets leave
-time for the suites while retaining the inactivity guards.
-The .NET Framework WoT profile reserves 150 combined minutes because its complete
-regeneration and server-integration run exceeded an hour after a 27-minute cold
-build. Its per-test inactivity guard remains unchanged.
+Each project or filtered shard has a **45-minute test-execution budget**.
+Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
+of larger project-specific timeouts. For example, the modern WoT sample suite
+separates ordinary cases, full generation replacement, and native comparisons.
+The matrix records each shard and its filter; no test is dropped to fit a budget.
 
-That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
+The executor measures build and test time separately. Builds do not consume the
+test-execution budget, but remain bounded by the overall job timeout. The matrix
+sets that timeout to `20 + projectCount × perProjectTimeout` minutes, including
+20 minutes for setup/build overhead. Per-test hang guards are independent and
+can vary by shard. A batch exceeding the job ceiling fails matrix generation
+rather than having its timeout silently clamped.
 
 The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 

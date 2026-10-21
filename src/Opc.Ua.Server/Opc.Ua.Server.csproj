@@ -13,6 +13,7 @@
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AI.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Redundancy.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Server.TestFramework" />

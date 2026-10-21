@@ -36,7 +36,8 @@ namespace Opc.Ua.AutoID.Client
     /// The defaults read the mandatory variables and everything optional the device publishes: the
     /// nameplate, the optional device properties and the last scan. <see cref="StatusOnly"/>
     /// limits the value read to <c>DeviceStatus</c> and <c>DeviceName</c>; each call still
-    /// browses the reader to discover its published variables and methods.
+    /// browses the reader to discover its published variables and methods. To poll a device
+    /// without browsing, pass the snapshot to <see cref="AutoIdClient.RefreshDeviceAsync"/>.
     /// </remarks>
     public sealed record AutoIdReadOptions
     {

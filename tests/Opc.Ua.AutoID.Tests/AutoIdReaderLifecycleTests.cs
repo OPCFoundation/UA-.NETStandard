@@ -287,6 +287,11 @@ namespace Opc.Ua.AutoID.Tests
                         new EUInformation(), new EUInformation(), new EUInformation(), new EUInformation()));
                 IAutoIdReaderBuilder builder = runtime.Reader(m_fixture.Name(Unique("X")), rfid);
                 Assert.Throws<ArgumentNullException>(() => builder.WithParent(null!));
+                Assert.Throws<ArgumentNullException>(() => builder.AsComponentOf(null!));
+                Assert.Throws<InvalidOperationException>(() => runtime.Reader(m_fixture.Name(Unique("X")), rfid)
+                    .WithParent(new BaseObjectState(null)).AsComponentOf(new BaseObjectState(null)));
+                Assert.Throws<InvalidOperationException>(() => runtime.Reader(m_fixture.Name(Unique("X")), rfid)
+                    .AsComponentOf(new BaseObjectState(null)).WithParent(new BaseObjectState(null)));
                 Assert.Throws<ArgumentException>(() => builder.WithDeviceName(string.Empty));
                 Assert.Throws<ArgumentNullException>(() => builder.WithDeviceInfo(null!));
                 Assert.Throws<ArgumentNullException>(() => builder.WithDeviceLocation(null!));
@@ -320,7 +325,191 @@ namespace Opc.Ua.AutoID.Tests
             {
                 Assert.That(inner.Device.Parent, Is.SameAs(outer.Device));
                 Assert.That(deviceSet.FindChild(m_fixture.Context, m_fixture.Name(Unique("Inner"))), Is.Null);
+                Assert.That(OrganizedFrom(deviceSet, inner.Device), Is.False,
+                    "DeviceSet reaches the reader through its parent, the root (OPC 10000-100 4.9)");
             });
+        }
+
+        [Test]
+        public async Task AReaderBelowAParentOutsideTheDeviceSetIsStillOrganizedByItAsync()
+        {
+            NodeState deviceSet = m_fixture!.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, m_fixture.Context.NamespaceUris))!;
+            var line = new FolderState(null)
+            {
+                SymbolicName = Unique("Line"),
+                BrowseName = m_fixture.Name(Unique("Line")),
+                DisplayName = new LocalizedText(Unique("Line")),
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
+                NodeId = new NodeId(Unique("Line"), m_fixture.Manager.InstanceNamespaceIndex)
+            };
+            await m_fixture.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
+
+            AutoIdReader reader = await m_fixture.Runtime.Reader(m_fixture.Name(Unique("Portal")), new FakeProvider())
+                .WithParent(line).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Device.Parent, Is.SameAs(line));
+                Assert.That(OrganizedFrom(deviceSet, reader.Device), Is.True,
+                    "every ComponentType instance stays reachable from DeviceSet (OPC 10000-100 4.9)");
+                Assert.That(reader.Device.ReferenceExists(
+                    Types.ReferenceTypeIds.Organizes, true, deviceSet.NodeId), Is.True);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AReaderBelowANonHierarchicalChildOfAReachableDeviceIsOrganizedAsync(bool belowIt)
+        {
+            NodeState deviceSet = m_fixture!.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, m_fixture.Context.NamespaceUris))!;
+            AutoIdReader gate = await m_fixture.Runtime.CreateReaderAsync(
+                m_fixture.Name(Unique("Gate")), new FakeProvider()).ConfigureAwait(false);
+            // Attached the way a condition is: a child of the reader by HasCondition only.
+            var condition = new BaseObjectState(gate.Device)
+            {
+                SymbolicName = Unique("Condition"),
+                BrowseName = m_fixture.Name(Unique("Condition")),
+                DisplayName = new LocalizedText(Unique("Condition")),
+                TypeDefinitionId = Ua.ObjectTypeIds.BaseObjectType,
+                ReferenceTypeId = Types.ReferenceTypeIds.HasCondition,
+                NodeId = new NodeId(Unique("Condition"), m_fixture.Manager.InstanceNamespaceIndex)
+            };
+            gate.Device.AddChild(condition);
+            NodeState parent = condition;
+            if (belowIt)
+            {
+                var folder = new FolderState(condition)
+                {
+                    SymbolicName = Unique("Folder"),
+                    BrowseName = m_fixture.Name(Unique("Folder")),
+                    DisplayName = new LocalizedText(Unique("Folder")),
+                    TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
+                    ReferenceTypeId = Types.ReferenceTypeIds.HasComponent,
+                    NodeId = new NodeId(Unique("Folder"), m_fixture.Manager.InstanceNamespaceIndex)
+                };
+                condition.AddChild(folder);
+                parent = folder;
+            }
+            await m_fixture.Manager.AddPredefinedNodeAsync(condition).ConfigureAwait(false);
+
+            AutoIdReader reader = await m_fixture.Runtime.Reader(m_fixture.Name(Unique("Portal")), new FakeProvider())
+                .WithParent(parent).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.Device.Parent, Is.SameAs(parent));
+                Assert.That(OrganizedFrom(deviceSet, reader.Device), Is.True,
+                    "HasCondition is no hierarchical path from DeviceSet (OPC 10000-100 4.9)");
+            });
+        }
+
+        [Test]
+        public async Task AFailedCreationBelowAnOutsideParentLeavesNoDeviceSetReferenceAsync()
+        {
+            await using AutoIdManagerFixture own = await StartOwnFixtureAsync().ConfigureAwait(false);
+            NodeState deviceSet = own.Manager.FindPredefinedNode(
+                NodeId.Create(Di.Objects.DeviceSet, Di.Namespaces.OpcUaDi, own.Context.NamespaceUris))!;
+            var line = new FolderState(null)
+            {
+                SymbolicName = "Line",
+                BrowseName = own.Name("Line"),
+                DisplayName = new LocalizedText("Line"),
+                TypeDefinitionId = Ua.ObjectTypeIds.FolderType,
+                NodeId = new NodeId("Line", own.Manager.InstanceNamespaceIndex)
+            };
+            await own.Manager.AddPredefinedNodeAsync(line).ConfigureAwait(false);
+            int before = References(own.Context, deviceSet);
+            own.Runtime.ReaderRegisteredForTest = _ => throw new InvalidOperationException("injected");
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () => await own.Runtime
+                .Reader(own.Name("Portal"), new FakeProvider()).WithParent(line).BuildAsync().ConfigureAwait(false));
+            own.Runtime.ReaderRegisteredForTest = null;
+            AutoIdReader retried = await own.Runtime.Reader(own.Name("Portal"), new FakeProvider())
+                .WithParent(line).BuildAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(References(own.Context, deviceSet), Is.EqualTo(before + 1),
+                    "only the retried reader is organized");
+                Assert.That(OrganizedFrom(deviceSet, retried.Device), Is.True);
+            });
+        }
+
+        [Test]
+        public async Task AStandaloneReaderCannotBeAComponentOfAMachineAsync()
+        {
+            var machine = new BaseObjectState(null)
+            {
+                BrowseName = m_fixture!.Name(Unique("Press")),
+                NodeId = new NodeId(Unique("Press"), m_fixture.Manager.InstanceNamespaceIndex)
+            };
+
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await m_fixture
+                    .Runtime.Reader(m_fixture.Name(Unique("Component")), new FakeProvider())
+                    .AsComponentOf(machine)
+                    .WithIdentification(nameplate =>
+                    {
+                        nameplate.Manufacturer = new LocalizedText("Contoso");
+                        nameplate.SerialNumber = "R-1";
+                    })
+                    .BuildAsync().ConfigureAwait(false)))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadConfigurationError));
+                Assert.That(error.Message, Does.Contain("AddAutoIdToMachinery"));
+                Assert.That(m_fixture.Runtime.Readers.ToArray()!.Select(reader => reader.Name.Name),
+                    Does.Not.Contain(Unique("Component")));
+            });
+        }
+
+        [TestCase("Identification")]
+        [TestCase("Component")]
+        [TestCase("DuplicateName")]
+        public async Task AFailedBuildDisposesAnOwnedProviderNoReaderTookOverAsync(string failure)
+        {
+            await using AutoIdManagerFixture own = await StartOwnFixtureAsync().ConfigureAwait(false);
+            if (failure == "DuplicateName")
+            {
+                await own.Runtime.CreateReaderAsync(own.Name("Dock"), new FakeProvider()).ConfigureAwait(false);
+            }
+            var provider = new FakeProvider();
+            IAutoIdReaderBuilder builder = own.Runtime.Reader(own.Name("Dock"), provider).OwnsProvider();
+            if (failure == "Identification")
+            {
+                builder.WithIdentification(_ => throw new InvalidOperationException("injected"));
+            }
+            else if (failure == "Component")
+            {
+                builder.AsComponentOf(new BaseObjectState(null)
+                {
+                    BrowseName = own.Name("Press"),
+                    NodeId = new NodeId("Press", own.Manager.InstanceNamespaceIndex)
+                });
+            }
+            int readersBefore = own.Runtime.Readers.Count;
+
+            Exception error = (await Assert.CatchAsync<Exception>(
+                async () => await builder.BuildAsync().ConfigureAwait(false)))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error, failure == "Identification"
+                    ? Is.InstanceOf<InvalidOperationException>()
+                    : Is.InstanceOf<ServiceResultException>());
+                Assert.That(provider.Disposed, Is.True, "the build owned the provider and no reader took it");
+                Assert.That(provider.AttachCalls, Is.Zero);
+                Assert.That(own.Runtime.Readers.Count, Is.EqualTo(readersBefore), "nothing was registered");
+            });
+            if (failure != "DuplicateName")
+            {
+                AutoIdReader retried = await own.Runtime.CreateReaderAsync(own.Name("Dock"), new FakeProvider())
+                    .ConfigureAwait(false);
+                Assert.That(retried.Name, Is.EqualTo(own.Name("Dock")), "the failed build left the name free");
+            }
         }
 
         [TestCase(false)]
@@ -464,6 +653,18 @@ namespace Opc.Ua.AutoID.Tests
         private static string Unique(string name)
         {
             return TestContext.CurrentContext.Test.Name + "_" + name;
+        }
+
+        private static bool OrganizedFrom(NodeState deviceSet, NodeState device)
+        {
+            return deviceSet.ReferenceExists(Types.ReferenceTypeIds.Organizes, false, device.NodeId);
+        }
+
+        private static int References(ISystemContext context, NodeState node)
+        {
+            var references = new System.Collections.Generic.List<IReference>();
+            node.GetReferences(context, references);
+            return references.Count;
         }
 
         private static async Task<AutoIdManagerFixture> StartOwnFixtureAsync()

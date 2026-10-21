@@ -406,7 +406,7 @@ its own asynchronous disposal.
 | --- | --- |
 | `AllowSelection()` | `SelectProduct`, `DeselectProduct`, `SwitchProduct` and `CurrentProducts` (*SelectProduct*) |
 | `AllowManagement()` | `AddProduct` and `RemoveProduct` (*ManageProduct*, *DynamicProductAddressSpace*) |
-| `WithLocking()` | A DI `Lock` on every product. A client changes a product only while holding the lock (§7.8.3) |
+| `WithLocking()` | A DI `Lock` on every product. A held lock excludes other sessions from remote product mutation (§7.8.3) |
 | `AddProduct(id, name, configure)` | A product of the kind's product type. `configure` gets the typed node, for example to set a checkweigher's `NominalWeight` |
 | `Select(id)` | Puts the product into processing |
 
@@ -506,9 +506,12 @@ The methods and the local API share the same rules.
 - **Products.** `AddProduct`, `RemoveAsync`, `Select`, `Deselect` and
   `Switch`. `Switch` fails with `BadInvalidState` when more than one product
   is in processing (§7.7.8).
-- **Locking.** On a preset built `WithLocking`, a client changes a product
-  only while holding its DI lock. Otherwise the change fails with
-  `BadUserAccessDenied`.
+- **Locking.** On a preset built `WithLocking`, a held DI product lock rejects
+  other sessions' mutations with `BadUserAccessDenied`, including direct Value
+  writes, nested or later-created descendants and scale-level methods that
+  change the product. The creating/owning session is distinct even when another
+  session has the same username. Unlocked products retain ordinary access
+  checks, and trusted equipment updates remain available through the local API.
 - **Catchweigher zones.** Zones come from `AddZone`.
 - **Vehicle information.** `VehicleInformationProvider` answers
   `GetVehicleInformation` from the application's vehicle database.

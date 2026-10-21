@@ -270,6 +270,12 @@ sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
 
+Binary WSS SecureChannels participate in application peer-trust revalidation.
+A committed `Peers` TrustList or CRL change closes only channels whose complete
+peer chain no longer validates, including outbound reverse connections, without
+restarting the shared HTTPS host. Ordinary request-scoped HTTPS remains governed
+by its TLS validation rather than this application-channel sweep.
+
 All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
 to match the endpoint hostname before invoking a configured OPC UA certificate
 validator. Trusting a certificate or its issuer does not bypass hostname

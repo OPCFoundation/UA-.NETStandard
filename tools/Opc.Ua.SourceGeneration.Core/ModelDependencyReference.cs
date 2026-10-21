@@ -106,13 +106,17 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Decodes and memoises the <see cref="Payload"/> as a
         /// <see cref="ModelDependencyV1"/>. Returns <c>null</c> when the
-        /// payload is empty, malformed, or carries an unknown version.
+        /// legacy payload is empty, malformed, or carries an unknown version.
+        /// Unreadable security extensions instead fail generation.
         /// </summary>
         /// <remarks>
         /// Memoisation is keyed on the payload string to avoid re-decoding
         /// the same multi-kilobyte byte block when the same dependency
         /// flows through Roslyn's incremental cache multiple times.
         /// </remarks>
+        /// <exception cref="InvalidOperationException">
+        /// The dependency contains security metadata this generator cannot preserve.
+        /// </exception>
         public ModelDependencyV1? GetDependency()
         {
             if (string.IsNullOrEmpty(Payload))
@@ -129,11 +133,11 @@ namespace Opc.Ua.SourceGeneration
                 return new DecodedDependency(ModelDependencyV1.FromBase64Payload(payload));
             }
             catch (Exception ex) when (
-                ex is InvalidDataException ||
-                ex is IOException ||
-                ex is ArgumentException ||
-                ex is FormatException ||
-                ex is OverflowException)
+                ex is InvalidDataException or
+                IOException or
+                ArgumentException or
+                FormatException or
+                OverflowException)
             {
                 return new DecodedDependency(null);
             }
@@ -150,7 +154,12 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static readonly ConditionalWeakTable<string, DecodedDependency> s_decoded
-            = new();
+            =
+#if NET8_0_OR_GREATER
+                [];
+#else
+                new();
+#endif
 
         /// <inheritdoc/>
         public bool Equals(ModelDependencyReference other)

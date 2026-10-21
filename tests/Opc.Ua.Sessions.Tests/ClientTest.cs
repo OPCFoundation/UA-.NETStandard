@@ -2246,33 +2246,50 @@ namespace Opc.Ua.Sessions.Tests
                             certIdentifier,
                             new CertificatePasswordProvider(),
                             inProcProvider));
-
-                    // the first channel determines the endpoint
-                    ConfiguredEndpoint endpoint = await ClientFixture
-                        .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
-                        .ConfigureAwait(false);
-                    Assert.That(endpoint, Is.Not.Null);
-
-                    UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
-                        userIdentity.TokenType,
-                        userIdentity.IssuedTokenType,
-                        endpoint.Description.SecurityPolicyUri!)!;
-                    if (identityPolicy == null)
+                    ICertificateManager certificateManager = ServerFixture.Config.CertificateManager;
+                    await using (ITrustListTransaction transaction = await certificateManager
+                        .BeginUpdateAsync(TrustListIdentifier.Users).ConfigureAwait(false))
                     {
-                        Assert.Ignore(
-                            $"No UserTokenPolicy found for {userIdentity.TokenType}" +
-                            $" / {userIdentity.IssuedTokenType}");
+                        await transaction.AddTrustedCertificateAsync(cert).ConfigureAwait(false);
+                        await transaction.CommitAsync().ConfigureAwait(false);
                     }
 
-                    // the active channel
-                    using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
-                        .ConfigureAwait(false);
-                    Assert.That(session1, Is.Not.Null);
+                    try
+                    {
+                        // the first channel determines the endpoint
+                        ConfiguredEndpoint endpoint = await ClientFixture
+                            .GetEndpointAsync(ServerUrl, securityPolicy, Endpoints)
+                            .ConfigureAwait(false);
+                        Assert.That(endpoint, Is.Not.Null);
 
-                    ServerStatusDataType value1 =
-                        await session1.ReadValueAsync<ServerStatusDataType>(
-                        VariableIds.Server_ServerStatus).ConfigureAwait(false);
-                    Assert.That(value1, Is.Not.Null);
+                        UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
+                            userIdentity.TokenType,
+                            userIdentity.IssuedTokenType,
+                            endpoint.Description.SecurityPolicyUri!)!;
+                        if (identityPolicy == null)
+                        {
+                            Assert.Ignore(
+                                $"No UserTokenPolicy found for {userIdentity.TokenType}" +
+                                $" / {userIdentity.IssuedTokenType}");
+                        }
+
+                        // the active channel
+                        using ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
+                            .ConfigureAwait(false);
+                        Assert.That(session1, Is.Not.Null);
+
+                        ServerStatusDataType value1 =
+                            await session1.ReadValueAsync<ServerStatusDataType>(
+                            VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                        Assert.That(value1, Is.Not.Null);
+                    }
+                    finally
+                    {
+                        await using ITrustListTransaction transaction = await certificateManager
+                            .BeginUpdateAsync(TrustListIdentifier.Users).ConfigureAwait(false);
+                        await transaction.RemoveTrustedCertificateAsync(cert.Thumbprint).ConfigureAwait(false);
+                        await transaction.CommitAsync().ConfigureAwait(false);
+                    }
                 }
             }
         }

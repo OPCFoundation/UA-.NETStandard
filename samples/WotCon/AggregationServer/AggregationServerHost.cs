@@ -80,19 +80,20 @@ namespace AggregationServer
         }
 
         /// <summary>
-        /// Builds and runs a host from command-line configuration.
+        /// Builds a host from command-line configuration without starting its listeners.
         /// </summary>
-        /// <param name="args">The command-line arguments passed to the host configuration builder.</param>
-        /// <param name="cancellationToken">The cancellation token passed to the asynchronous operation.</param>
-        public static async Task RunAsync(
-            string[] args,
-            CancellationToken cancellationToken = default)
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IHost BuildFromCommandLine(ArrayOf<string> args)
         {
-            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+            if (args.IsNull)
+            {
+                throw new ArgumentNullException(nameof(args));
+            }
+            HostApplicationBuilder builder = Host.CreateApplicationBuilder(args.ToArray());
             var options = new AggregationServerOptions
             {
                 EndpointUrl = builder.Configuration["endpoint"],
-                Host = builder.Configuration["host"] ?? "localhost",
+                Host = builder.Configuration["host"] ?? "127.0.0.1",
                 Port = ReadPort(builder.Configuration),
                 ApplicationName =
                     builder.Configuration["applicationName"] ?? "AggregationServer",
@@ -102,7 +103,17 @@ namespace AggregationServer
                 MaximumDocumentBytes = ReadMaximumDocumentBytes(builder.Configuration)
             };
             Configure(builder, options);
-            using IHost host = builder.Build();
+            return builder.Build();
+        }
+
+        /// <summary>
+        /// Builds and runs a host from command-line configuration.
+        /// </summary>
+        public static async Task RunAsync(
+            string[] args,
+            CancellationToken cancellationToken = default)
+        {
+            using IHost host = BuildFromCommandLine(args);
             await host.RunAsync(cancellationToken).ConfigureAwait(false);
         }
 
@@ -116,7 +127,7 @@ namespace AggregationServer
             builder.Services.AddSingleton(options);
 
             string endpoint = options.EndpointUrl ??
-                $"opc.tcp://{options.Host}:{options.Port}/AggregationServer";
+                new UriBuilder("opc.tcp", options.Host, options.Port, "AggregationServer").Uri.AbsoluteUri;
             IOpcUaBuilder opcUa = builder.Services.AddOpcUa();
             opcUa.AddOpcTcpTransport();
             opcUa.AddServer(server =>

@@ -352,8 +352,18 @@ var options = new XRegistryServerOptions
 };
 ```
 
-An in-process call carries no channel at all — the server's own bootstrap, or a test — and is always
-allowed.
+The encrypted-read option covers both FileType access and the complete document
+stored in registered or seeded Opaque content-id variables. Direct reads,
+monitored admission and later delivery enforce the subscriber's current endpoint;
+missing endpoint evidence does not imply encryption.
+The session's original HTTPS label cannot authorize a later plaintext channel.
+Reactivation rejects an effective-confidentiality downgrade before rebinding, so
+queued confidential document bytes also remain confined to the accepted secure
+transport.
+
+Server-owned bootstrap calls remain permitted without a channel.
+A requestless monitored context still belongs to its remote subscriber and is
+not treated as a trusted in-process call.
 
 ### Federation
 

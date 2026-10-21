@@ -1384,6 +1384,17 @@ routes the declared `uav:conditionAction` / `uav:actsOn` Methods back to their
 owning source. A local EventType is distinct from its mutable Condition instance
 and occurrence EventIds.
 
+Calling a generated Condition Method does not grant the caller authority on the
+original action receiver. Remote aliases re-enter normal Call dispatch with the
+original ObjectId/MethodId and the same caller context, so original permissions,
+channel/session restrictions and live executability must also allow the action.
+If the original nodes have been retired, the alias cannot dispatch upstream.
+This routing remains authoritative after address-space registration initializes
+the Condition's typed callbacks; an alias never falls back to a local-only transition.
+The OPC UA binding similarly applies outbound endpoint policy to discovery-selected
+destinations before connecting, not just to the document's initial endpoint;
+custom factories must preserve that policy when rediscovering or rewriting URLs.
+
 The Supervision and Management projections organize existing signal Variables,
 Methods, and EventTypes; they do not create copies or overlay missing Nodes on
 an authoritative native partition. See [the sample README](../samples/WotCon/README.md)

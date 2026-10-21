@@ -92,7 +92,7 @@ namespace Opc.Ua.PubSub.Udp
         private IPEndPoint? m_sendDestination;
         private bool m_socketIsConnected;
         private readonly bool m_useConnectedUnicastClient;
-        private readonly bool m_trackLastSeenUnicastPeer;
+        private readonly IUdpDatagramIo? m_datagramIo;
 
         /// <summary>
         /// Initializes a new <see cref="UdpDatagramTransport"/>.
@@ -160,7 +160,8 @@ namespace Opc.Ua.PubSub.Udp
             UdpTransportOptions options,
             IPubSubDiagnostics? diagnostics,
             bool useConnectedUnicastClient,
-            bool trackLastSeenUnicastPeer)
+            bool trackLastSeenUnicastPeer,
+            IUdpDatagramIo? datagramIo = null)
         {
             if (connection is null)
             {
@@ -192,7 +193,9 @@ namespace Opc.Ua.PubSub.Udp
             m_options = options;
             m_diagnostics = diagnostics;
             m_useConnectedUnicastClient = useConnectedUnicastClient;
-            m_trackLastSeenUnicastPeer = trackLastSeenUnicastPeer;
+            // Retained for internal constructor compatibility; inbound traffic never selects a publication peer.
+            _ = trackLastSeenUnicastPeer;
+            m_datagramIo = datagramIo;
             m_logger = telemetry.CreateLogger<UdpDatagramTransport>();
             m_repeater = new UdpMessageRepeater(
                 options.MessageRepeatCount,
@@ -328,8 +331,15 @@ namespace Opc.Ua.PubSub.Udp
                     ProtocolType.Udp);
                 try
                 {
-                    ConfigureSocket(socket);
-                    BindAndJoin(socket);
+                    if (m_datagramIo is null)
+                    {
+                        ConfigureSocket(socket);
+                        BindAndJoin(socket);
+                    }
+                    else
+                    {
+                        m_sendDestination = new IPEndPoint(Endpoint.Address, Endpoint.Port);
+                    }
                 }
                 catch
                 {
@@ -475,7 +485,7 @@ namespace Opc.Ua.PubSub.Udp
         }
 
         /// <summary>
-        /// Sends one datagram to an explicit destination endpoint, falling back to the last-seen
+        /// Sends one datagram to an explicit destination endpoint, falling back to the configured
         /// unicast peer when none is supplied. Used by the DTLS transport to route a handshake reply
         /// to the specific source that sent the corresponding ClientHello.
         /// </summary>
@@ -574,9 +584,10 @@ namespace Opc.Ua.PubSub.Udp
             ReadOnlyMemory<byte> payload,
             CancellationToken cancellationToken)
         {
-            if (socket.AddressFamily == AddressFamily.InterNetwork &&
+            if (m_datagramIo is not null ||
+                (socket.AddressFamily == AddressFamily.InterNetwork &&
                 socket.LocalEndPoint is IPEndPoint localEndPoint &&
-                !IPAddress.IsLoopback(localEndPoint.Address))
+                !IPAddress.IsLoopback(localEndPoint.Address)))
             {
                 await SendOnceAsync(
                     socket,
@@ -661,7 +672,13 @@ namespace Opc.Ua.PubSub.Udp
             }
             try
             {
-                if (isConnectedSocket)
+                if (m_datagramIo is not null)
+                {
+                    await m_datagramIo.SendAsync(payload, actualDestination ??
+                        throw new InvalidOperationException("UDP transport has no send destination configured."),
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else if (isConnectedSocket)
                 {
 #if NET8_0_OR_GREATER
                     await socket.SendAsync(payload, SocketFlags.None, cancellationToken)
@@ -727,6 +744,13 @@ namespace Opc.Ua.PubSub.Udp
                     SocketReceiveMessageFromResult result;
                     try
                     {
+                        if (m_datagramIo is not null)
+                        {
+                            result = await m_datagramIo.ReceiveAsync(
+                                receiveBuffer.AsMemory(0, maxFrameSize), cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
 #if NET8_0_OR_GREATER
                         result = await socket.ReceiveMessageFromAsync(
                             receiveBuffer,
@@ -739,6 +763,7 @@ namespace Opc.Ua.PubSub.Udp
                             SocketFlags.None,
                             anyEndPoint).ConfigureAwait(false);
 #endif
+                        }
                     }
                     catch (OperationCanceledException)
                     {
@@ -783,16 +808,6 @@ namespace Opc.Ua.PubSub.Udp
                         topic: null,
                         receivedAt: new DateTimeUtc(m_timeProvider.GetUtcNow().UtcDateTime),
                         sourceEndpoint: sourceEndpoint);
-                    if (Endpoint.AddressType == UdpAddressType.Unicast &&
-                        m_trackLastSeenUnicastPeer &&
-                        sourceEndpoint is not null)
-                    {
-                        lock (m_sync)
-                        {
-                            m_sendDestination = sourceEndpoint;
-                        }
-                    }
-
                     m_diagnostics?.Increment(PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
                     try
                     {

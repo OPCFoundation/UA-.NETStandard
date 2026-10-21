@@ -59,6 +59,18 @@ declaration without a `DefaultValue` keeps the default value of its DataType.
 To initialize a variable before publishing data, set its value when creating the node,
 for example to an empty structure for a structured DataType.
 
+Generated node factories preserve `UserWriteMask` independently of `WriteMask`
+and explicit `UserExecutable=false` independently of `Executable`, including
+inherited, optional and standalone declarations. Valid `RolePermissions` RoleIds
+retain their namespace URI and identifier even when the role node is supplied
+only at runtime. Unrepresentable policy identities report `MODELGEN003` rather
+than silently removing an ACL entry.
+
+Referenced-model security metadata uses the versioned `SEC1` extension. Legacy
+dependency payloads remain readable, but malformed security extensions fail
+generation. Upgrade producer and consumer generators together and regenerate
+affected model assemblies; older generators cannot preserve this policy metadata.
+
 Per-file behaviour is controlled with `AdditionalFiles` metadata:
 
 | Metadata | Description |

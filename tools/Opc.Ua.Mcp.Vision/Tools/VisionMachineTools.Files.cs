@@ -51,11 +51,12 @@ namespace Opc.Ua.Mcp.Tools
         [McpServerTool(Name = "vision_machine_file")]
         [Description("Chunked OPC 40100 file operation. GenerateRead/GenerateWrite/Commit use a RecipeTransfer, " +
             "ConfigurationTransfer, or ResultTransfer node. " +
-            "Read/Write/Close/GetPosition/SetPosition/Open use a FileType node. " +
+            "Read/Write/Close/GetPosition/SetPosition use the returned FileType node and opaque MCP handle. " +
+            "MCP callers cannot Open arbitrary files or use raw server handle numbers. " +
             "kind is Recipe, Configuration, or Result; id is the internal document ID for Generate*. " +
             "Generated handles are already open. Commit publishes a write; " +
             "Close without Commit aborts a temporary upload. Chunks are capped at 1 MiB. " +
-            "ReadCompletion/WaitForCompletion use the returned completion-state-machine NodeId; " +
+            "ReadCompletion/WaitForCompletion require the transfer's handle and returned completion NodeId; " +
             "WaitForCompletion waits at most 60 seconds and fails on Error, timeout, or unavailable state.")]
         public static async Task<JsonElement> FileAsync(
             VisionClientAccessor accessor,
@@ -68,7 +69,7 @@ namespace Opc.Ua.Mcp.Tools
             string kind = "Recipe",
             [Description("Internal document identifier for GenerateRead/GenerateWrite; not a NodeId or filename.")]
             string id = "",
-            [Description("Session-bound file handle returned by Open or GenerateRead/GenerateWrite.")]
+            [Description("Caller-bound opaque MCP handle returned by GenerateRead/GenerateWrite; not a UA handle.")]
             uint handle = 0,
             [Description("Requested Read chunk size in bytes, from 1 to 1048576; default 65536.")]
             [Range(1, 1048576)] int length = 65536,
@@ -85,6 +86,15 @@ namespace Opc.Ua.Mcp.Tools
             if (length is <= 0 or > 1048576)
             {
                 throw new ArgumentOutOfRangeException(nameof(length));
+            }
+            ArgumentNullException.ThrowIfNull(accessor);
+            ArgumentException.ThrowIfNullOrWhiteSpace(nodeId);
+            ArgumentException.ThrowIfNullOrWhiteSpace(operation);
+            if (!accessor.SessionManager.IsTrustedHostCall)
+            {
+                return await CallerFileAsync(
+                    accessor, nodeId, operation, kind, id, handle, length, dataBase64, position, sessionName, ct)
+                    .ConfigureAwait(false);
             }
             VisionClient client = accessor.CreateClient(sessionName);
             NodeId target = OpcUaJsonHelper.ParseNodeId(nodeId);

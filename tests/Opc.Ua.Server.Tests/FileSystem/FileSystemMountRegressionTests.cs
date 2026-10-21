@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             [Values("delete", "move", "copy")] string operation,
             [Values("", "/", ".", "child/..")] string source)
         {
-            string root = Path.Combine(Path.GetTempPath(), "fs-root-regression-" + Guid.NewGuid().ToString("N"));
+            string root = Path.Combine(AppContext.BaseDirectory, "fs-root-regression-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(root, "child"));
             string sentinel = Path.Combine(root, "keep.txt");
             await WriteTextAsync(sentinel, "unchanged").ConfigureAwait(false);
@@ -339,7 +339,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public async Task OrdinaryChildMutationsRemainSupportedAsync(
             [Values("delete", "move", "copy")] string operation)
         {
-            string rootPath = Path.Combine(Path.GetTempPath(), "fs-child-regression-" + Guid.NewGuid().ToString("N"));
+            string rootPath = Path.Combine(
+                AppContext.BaseDirectory, "fs-child-regression-" + Guid.NewGuid().ToString("N"));
             var provider = new PhysicalFileSystemProvider(rootPath, "ChildRegression");
             try
             {

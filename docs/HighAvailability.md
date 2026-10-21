@@ -349,6 +349,21 @@ You enable mirroring by registering the seams below on the server builder; each 
   See the consistency requirements below for
   eventually consistent payload stores, where absence is not authoritative.
 
+  Replicated topology uses the `NSRP` version-1 envelope, which preserves
+  `RolePermissions`, `UserRolePermissions` and `AccessRestrictions` for every
+  descendant. Role identities use namespace URIs, and null versus explicit empty
+  permissions retain their distinct meanings. Policy updates apply to existing
+  replica nodes as well as newly hydrated nodes. Invalid live policy withdraws
+  the affected tree until a valid topology update repairs it; value-only updates
+  cannot reopen it. Callback-dependent authorization must be expressed as
+  serializable policy or kept replica-local.
+
+  **Storage and peer compatibility:** all peers must support this envelope.
+  Legacy unversioned records, unsupported versions, missing role namespaces and
+  incomplete policy coverage fail closed. Upgrade peers together and re-encode
+  or reseed topology from the trusted authoritative application model; omitted
+  permissions cannot be recovered safely from legacy serialized records.
+
 Notes:
 
 - Hydration fully materializes the mirrored node graph (topology plus values): the snapshot + delta log reduces the store round trips and per-node work, but the whole graph is resident. True on-demand fault-in (materializing a node only when it is first browsed/read) would further cut time-to-ready and memory for very large, sparsely-accessed graphs; it requires an asynchronous node-resolution seam through the core node-manager read/browse path and is tracked as future work in OPCFoundation/UA-.NETStandard#3938. The eventual-consistency conflict-free replicated data type (CRDT) path already exchanges a compact state snapshot plus deltas.

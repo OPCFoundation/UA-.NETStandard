@@ -78,8 +78,10 @@ namespace Opc.Ua
     /// capability with that scope.
     /// </para>
     /// <para>
-    /// The UA-HTTPS transport deliberately does <i>not</i> implement this
-    /// capability. Its binding is request-scoped over HTTP, so there is no
+    /// The HTTPS listener implements this capability for its long-lived
+    /// binary WebSocket SecureChannels, using the
+    /// <see cref="TrustListIdentifier.Peers"/> scope. Its ordinary UA-HTTPS
+    /// binding is request-scoped over HTTP, so there is no
     /// long-lived per-peer SecureChannel keyed by the client application
     /// certificate to cut; any client TLS certificate (mutual TLS) is
     /// validated at the TLS handshake by the shared certificate validator,

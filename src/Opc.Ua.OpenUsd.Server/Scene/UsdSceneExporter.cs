@@ -204,8 +204,9 @@ namespace Opc.Ua.OpenUsd.Server.Scene
                 Custom = ReadBool(attributeNode.Custom) ?? false,
                 Interpolation = ReadString(attributeNode.Interpolation),
                 // §9 Mode A is a per-attribute property independent of whether the Server
-                // retains history: the materializer grants CurrentWrite to every live
-                // attribute but only sets Historizing when it also keeps the timeline.
+                // retains history: the materializer grants CurrentWrite to validated live
+                // types, but opaque values remain remotely read-only. Historizing is
+                // independently set when the server also keeps the timeline.
                 // Infer liveness from the write access, so a Mode A attribute that is not
                 // historized still exports as live.
                 Live = (attributeNode.AccessLevel & Opc.Ua.AccessLevels.CurrentWrite) != 0,

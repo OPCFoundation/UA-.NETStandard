@@ -54,6 +54,7 @@ for pluggable cryptography and hardware-held keys, or use the
     - [RejectUnknownRevocationStatus](#rejectunknownrevocationstatus)
     - [MinimumCertificateKeySize](#minimumcertificatekeysize)
     - [UseValidatedCertificates](#usevalidatedcertificates)
+    - [JWKS signing-key trust lifetime](#jwks-signing-key-trust-lifetime)
     - [MaxRejectedCertificates](#maxrejectedcertificates)
   - [Suppressible Validation Errors](#suppressible-validation-errors)
     - [CA (issuer) KeyUsage validation](#ca-issuer-keyusage-validation)
@@ -686,6 +687,12 @@ The certificate validation behavior is controlled by several configuration setti
 configuration.SecurityConfiguration.AutoAcceptUntrustedCertificates = true;
 ```
 
+Application autoaccept is not a user-identity enrollment mechanism. The Reference
+Server always uses a rejecting per-call policy for the Users trust list, including
+in `--provision` and `--autoaccept` modes. Add approved users or their trusted
+issuers to the user stores; application/Peers trust and cached permissive
+validation do not confer user trust.
+
 #### RejectSHA1SignedCertificates
 
 - **Type**: `bool`
@@ -723,12 +730,29 @@ configuration.SecurityConfiguration.MinimumCertificateKeySize = 2048;
 
 - **Type**: `bool`
 - **Default**: `false`
-- **Description**: When `true`, the validator can reuse a previously accepted certificate and skip rebuilding chain policy. Issuer discovery and revocation checks still run before cached acceptance is used; a detected revocation prevents reuse. The cache is maintained by the validator rather than per Session.
+- **Description**: When `true`, caches accepted certificate paths within the retained validator. Revocation checks still run. A cache hit requires the complete matching issuer path and a time strictly before the earliest certificate expiry; a missing peer intermediate, changed path or expired issuer triggers normal validation. The cache does not retain native certificate handles.
 - **Example**:
 
 ```csharp
 configuration.SecurityConfiguration.UseValidatedCertificates = true;
 ```
+
+#### JWKS signing-key trust lifetime
+
+`JwksIssuerKeyResolver` checks keyset age before **every** lookup, including known
+`kid` values and JWTs without `kid`. The default maximum trust age is five
+minutes. At that deadline the resolver refreshes; an outage or a throttled
+refresh returns no trusted keys rather than authenticating with an expired
+snapshot. The retry throttle does not extend trust. The additive constructor
+overload accepts an independent `maxKeysetAge` when a host needs another bounded
+rotation policy; existing constructors and DI-created resolvers use the same
+five-minute default.
+
+Already returned key objects remain valid for an in-flight signature check, but
+new lookups cannot borrow them after expiry. Issuers must keep keys published for
+the intended overlap period, and hosts should plan for authentication rejection
+during issuer outages exceeding the configured age. See
+[Identity Providers](IdentityProviders.md) for issuer and audience configuration.
 
 #### MaxRejectedCertificates
 

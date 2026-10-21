@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
     /// the conservative default of <see cref="DataTypeIds.BaseDataType"/> /
     /// <see cref="BuiltInType.Variant"/> / <see cref="ValueRanks.Scalar"/>.
     /// </remarks>
-    public sealed class DataSetMetaDataBuilder : IDataSetMetaDataBuilder, IDisposable
+    public sealed class DataSetMetaDataBuilder : IDataSetMetaDataBuilder, IDisposable, IAsyncDisposable
     {
         private readonly PublishedDataSetDataType m_configuration;
         private readonly IServerSession m_session;
@@ -88,7 +88,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             ITelemetryContext telemetry,
             AdapterMetrics? metrics = null)
         {
-            m_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            m_configuration = configuration is null
+                ? throw new ArgumentNullException(nameof(configuration))
+                : (PublishedDataSetDataType)configuration.Clone();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             if (telemetry is null)
             {
@@ -118,6 +120,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         public async ValueTask<DataSetMetaDataType> ResolveAsync(
             CancellationToken cancellationToken = default)
         {
+            ThrowIfDisposed();
             StartModelChangeMonitoring();
 
             DataSetMetaDataType? resolved = Volatile.Read(ref m_resolved);
@@ -131,6 +134,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             bool changed;
             try
             {
+                ThrowIfDisposed();
                 if (m_resolved is not null && m_fullyResolved)
                 {
                     return m_resolved;
@@ -143,7 +147,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 m_gate.Release();
             }
 
-            if (changed)
+            if (changed && Volatile.Read(ref m_disposed) == 0)
             {
                 MetaDataChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -153,10 +157,12 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <inheritdoc/>
         public async ValueTask<bool> RefreshAsync(CancellationToken cancellationToken = default)
         {
+            ThrowIfDisposed();
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             bool changed;
             try
             {
+                ThrowIfDisposed();
                 (_, changed) = await ResolveCoreAsync(cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -164,7 +170,7 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                 m_gate.Release();
             }
 
-            if (changed)
+            if (changed && Volatile.Read(ref m_disposed) == 0)
             {
                 MetaDataChanged?.Invoke(this, EventArgs.Empty);
             }
@@ -203,8 +209,53 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// </summary>
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
+            {
+                return;
+            }
             m_session.ModelChanged -= OnSessionModelChanged;
-            m_gate.Dispose();
+            MetaDataChanged = null;
+            _ = DisposeGateAsync();
+        }
+
+        /// <summary>
+        /// Retires metadata notifications and waits for an admitted resolution before releasing its gate.
+        /// </summary>
+        public ValueTask DisposeAsync()
+        {
+            Dispose();
+            return new ValueTask(m_disposeCompletion.Task);
+        }
+
+        /// <summary>
+        /// Releases the semaphore only after its admitted resolver and queued callers have relinquished it.
+        /// </summary>
+        private async Task DisposeGateAsync()
+        {
+            try
+            {
+                await m_gate.WaitAsync().ConfigureAwait(false);
+                m_gate.Dispose();
+                m_disposeCompletion.TrySetResult(true);
+            }
+            catch (Exception ex)
+            {
+                m_disposeCompletion.TrySetException(ex);
+            }
+        }
+
+        /// <summary>
+        /// Rejects metadata work after retirement has begun.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">
+        /// The metadata builder has been retired.
+        /// </exception>
+        private void ThrowIfDisposed()
+        {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                throw new ObjectDisposedException(nameof(DataSetMetaDataBuilder));
+            }
         }
 
         private void StartModelChangeMonitoring()
@@ -232,6 +283,10 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
 
         private void OnSessionModelChanged(object? sender, EventArgs e)
         {
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
+                return;
+            }
             if (Interlocked.CompareExchange(ref m_modelChangeRefreshRunning, 1, 0) != 0)
             {
                 Volatile.Write(ref m_modelChangeRefreshPending, 1);
@@ -256,12 +311,14 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                         m_logger.MetadataRefreshAfterModelChangeFailed(ex);
                     }
                 }
-                while (Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) != 0);
+                while (Volatile.Read(ref m_disposed) == 0 &&
+                    Interlocked.Exchange(ref m_modelChangeRefreshPending, 0) != 0);
             }
             finally
             {
                 Volatile.Write(ref m_modelChangeRefreshRunning, 0);
-                if (Volatile.Read(ref m_modelChangeRefreshPending) != 0 &&
+                if (Volatile.Read(ref m_disposed) == 0 &&
+                    Volatile.Read(ref m_modelChangeRefreshPending) != 0 &&
                     Interlocked.CompareExchange(ref m_modelChangeRefreshRunning, 1, 0) == 0)
                 {
                     _ = RefreshFromModelChangeAsync();
@@ -519,6 +576,17 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         }
 
         private readonly record struct UnresolvedField(int FieldIndex, NodeId SourceNode);
+
+        /// <summary>
+        /// Completes after an in-flight metadata resolution has relinquished the semaphore.
+        /// </summary>
+        private readonly TaskCompletionSource<bool> m_disposeCompletion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>
+        /// Prevents retired metadata builders from admitting new reads or notifications.
+        /// </summary>
+        private int m_disposed;
     }
 
     /// <summary>

@@ -16,6 +16,7 @@ space, or to import it into another system.
   - [Namespace Handling](#namespace-handling)
   - [References](#references)
 - [Limitations](#limitations)
+  - [MCP server export paths](#mcp-server-export-paths)
 - [API Reference](#api-reference)
   - [CoreClientUtils.ExportNodesToNodeSet2](#coreclientutilsexportnodestonodeset2)
   - [ClientSamples.ExportNodesToNodeSet2](#clientsamplesexportnodestonodeset2)
@@ -172,6 +173,22 @@ All references between nodes are preserved in the export, including:
 - Dynamic values are captured as they exist at export time
 - Not all server-specific internal state may be preserved
 - Complex type definitions require the complex types system to be loaded
+
+### MCP server export paths
+
+The MCP server's `ExportNodeSet` tools use a separate, per-user export root.
+`OpcUaMcpOptions.NodeSetExportRoot` takes precedence over the
+`OPCUA_MCP_EXPORT_ROOT` environment variable, followed by the per-user default.
+Both relative and absolute output paths must remain inside that root. The MCP
+writer rejects existing files, filesystem reparse points and unsafe Unix
+directory permissions, and creates new output files exclusively rather than
+truncating an existing destination.
+
+Configure the root so no untrusted local account can replace its path
+components. The managed path checks do not pin directory handles across the
+entire operation, so a concurrently writable shared directory is not a
+supported export root. Existing destinations must be moved or removed
+explicitly before exporting again.
 
 ## API Reference
 

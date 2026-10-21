@@ -505,6 +505,151 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             };
         }
 
+        [TestCase("http://requested.test/ua", Profiles.HttpsBinaryTransport)]
+        [TestCase("opc.tcp://requested.test/ua", Profiles.HttpsBinaryTransport)]
+        [TestCase("relative/ua", Profiles.HttpsBinaryTransport)]
+        [TestCase("https://requested.test/ua", Profiles.UaTcpTransport)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR04HttpsChannelRejectsNonHttpsDestinationBeforeSendAsync(string url, string profile)
+        {
+            using var handler = new SecurityRecordingHandler(m_telemetry);
+            using var factory = new SecurityClientFactory(handler);
+            using var channel = new HttpsTransportChannel(
+                Utils.UriSchemeHttps, m_telemetry, httpClientFactory: factory);
+            var uri = new Uri(url, UriKind.RelativeOrAbsolute);
+            TransportChannelSettings settings = CreateMinimalSettings(uri);
+            settings.Description!.TransportProfileUri = profile;
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await channel.OpenAsync(uri, settings, CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(factory.Creations, Is.Zero);
+            Assert.That(handler.Sends, Is.Zero);
+        }
+
+        [TestCase("https")]
+        [TestCase("opc.https")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR04HttpsAndOpcHttpsPreserveConfidentialDispatchAsync(string scheme)
+        {
+            using var handler = new SecurityRecordingHandler(m_telemetry);
+            using var factory = new SecurityClientFactory(handler);
+            using var channel = new HttpsTransportChannel(scheme, m_telemetry, httpClientFactory: factory);
+            var uri = new Uri(scheme + "://requested.test/ua");
+            TransportChannelSettings settings = CreateMinimalSettings(uri);
+            settings.Description!.TransportProfileUri = Profiles.HttpsBinaryTransport;
+            settings.Factory = ServiceMessageContext.Create(m_telemetry).Factory;
+            await channel.OpenAsync(uri, settings, CancellationToken.None).ConfigureAwait(false);
+            IServiceResponse response = await channel.SendRequestAsync(new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 881, AuthenticationToken = new NodeId("original", 0) }
+            }, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(handler.Sends, Is.EqualTo(1));
+            Assert.That(handler.RequestUri, Is.EqualTo(new Uri("https://requested.test/ua")));
+            Assert.That(handler.AuthenticationToken, Is.EqualTo(new NodeId("original", 0)));
+            Assert.That(response, Is.TypeOf<ReadResponse>());
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(881u));
+            var read = (ReadResponse)response;
+            Assert.That(read.Results[0].WrappedValue.TryGetValue(out int marker), Is.True);
+            Assert.That(marker, Is.EqualTo(42));
+        }
+
+        [TestCase("http://requested.test/ua", false)]
+        [TestCase("relative/ua", false)]
+        [TestCase("opc.tcp://requested.test/ua", false)]
+        [TestCase("http://requested.test/ua", true)]
+        [Category("SecurityRegression")]
+        public void SecurityR04EndpointRefreshEnforcesSchemeForSingleAndMultipleMatches(
+            string hostileUrl, bool includeSecureAlternative)
+        {
+            var hostile = new EndpointDescription
+            {
+                EndpointUrl = hostileUrl,
+                TransportProfileUri = Profiles.HttpsBinaryTransport,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityLevel = 255
+            };
+            var secure = new EndpointDescription
+            {
+                EndpointUrl = "https://requested.test/ua",
+                TransportProfileUri = Profiles.HttpsBinaryTransport,
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityLevel = 1
+            };
+            ArrayOf<EndpointDescription> candidates = includeSecureAlternative ? [hostile, secure] : [hostile];
+            if (includeSecureAlternative)
+            {
+                ArrayOf<EndpointDescription> matches = ConfiguredEndpoint.MatchEndpoints(
+                    candidates, new Uri("https://requested.test/ua"), MessageSecurityMode.None,
+                    SecurityPolicies.None, Profiles.HttpsBinaryTransport);
+                Assert.That(matches.Count, Is.EqualTo(1));
+                Assert.That(matches[0], Is.SameAs(secure));
+            }
+            else
+            {
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() =>
+                    ConfiguredEndpoint.MatchEndpoints(
+                        candidates, new Uri("https://requested.test/ua"), MessageSecurityMode.None,
+                        SecurityPolicies.None, Profiles.HttpsBinaryTransport))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            }
+        }
+
+        private sealed class SecurityClientFactory(SecurityRecordingHandler handler) : IOpcUaHttpClientFactory, IDisposable
+        {
+            public HttpClient CreateClient(string name)
+            {
+                Creations++;
+                m_client = new HttpClient(handler, disposeHandler: false);
+                return m_client;
+            }
+
+            public int Creations { get; private set; }
+
+            public void Dispose()
+            {
+                m_client?.Dispose();
+            }
+
+            private HttpClient? m_client;
+        }
+
+        private sealed class SecurityRecordingHandler(ITelemetryContext telemetry) : HttpMessageHandler
+        {
+            internal int Sends { get; private set; }
+            internal Uri? RequestUri { get; private set; }
+            internal NodeId AuthenticationToken { get; private set; }
+
+            protected override async Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                Sends++;
+                RequestUri = request.RequestUri;
+                byte[] payload = await request.Content!.ReadAsByteArrayAsync(
+#if NET8_0_OR_GREATER
+                    cancellationToken
+#endif
+                    ).ConfigureAwait(false);
+                var decoded = BinaryDecoder.DecodeMessage<ReadRequest>(
+                    payload, ServiceMessageContext.Create(telemetry));
+                AuthenticationToken = decoded.RequestHeader.AuthenticationToken;
+                var response = new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = decoded.RequestHeader.RequestHandle },
+                    Results = [new DataValue(Variant.From(42))]
+                };
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(BinaryEncoder.EncodeMessage(
+                        response, ServiceMessageContext.Create(telemetry)))
+                };
+            }
+        }
+
         /// <summary>
         /// Minimal stub for <see cref="ITransportWaitingConnection"/>.
         /// </summary>

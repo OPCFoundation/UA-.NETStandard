@@ -84,6 +84,45 @@ namespace Opc.Ua.Bindings
                 ?? throw new ArgumentNullException(nameof(listenerId));
         }
 
+        /// <summary>
+        /// Creates a dispatcher whose remote authority belongs only to the accepting listener.
+        /// </summary>
+        internal WebApiServer(HttpsTransportListener listener)
+            : this(
+                listener.MessageContext ?? throw new InvalidOperationException("The listener is not initialized."),
+                listener.ListenerId)
+        {
+            m_listenerBound = true;
+            m_callback = listener.Callback;
+            MessageSecurityMode requiredSecurityMode = listener.MutualTlsEnabled
+                ? MessageSecurityMode.SignAndEncrypt
+                : MessageSecurityMode.None;
+            EndpointDescription? fallbackEndpoint = null;
+            foreach (EndpointDescription endpoint in listener.Descriptions ??
+                throw new InvalidOperationException("The listener has no configured endpoints."))
+            {
+                if (endpoint.SecurityMode != requiredSecurityMode ||
+                    endpoint.EndpointUrl == null ||
+                    !Utils.IsUriHttpsScheme(endpoint.EndpointUrl) ||
+                    endpoint.TransportProfileUri is not (
+                        Profiles.HttpsBinaryTransport or
+                        Profiles.HttpsJsonTransport or
+                        Profiles.HttpsOpenApiTransport))
+                {
+                    continue;
+                }
+
+                if (Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri))
+                {
+                    m_defaultEndpoint = CoreUtils.Clone(endpoint);
+                    break;
+                }
+
+                fallbackEndpoint ??= endpoint;
+            }
+            m_defaultEndpoint ??= fallbackEndpoint == null ? null : CoreUtils.Clone(fallbackEndpoint);
+        }
+
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext
         {
@@ -185,8 +224,8 @@ namespace Opc.Ua.Bindings
         /// non-null for service dispatch (e.g.
         /// <c>SessionManager.CreateSession</c> dereferences
         /// <see cref="EndpointDescription.SecurityMode"/>), so the
-        /// startup contributor picks the listener's
-        /// <see cref="MessageSecurityMode.None"/> HTTPS endpoint and
+        /// startup contributor picks the listener's HTTPS endpoint whose
+        /// message security mode matches its mutual-TLS configuration and
         /// installs it here.
         /// </summary>
         /// <param name="endpoint">The default endpoint, or <c>null</c>.</param>
@@ -238,6 +277,19 @@ namespace Opc.Ua.Bindings
                 };
             }
 
+            if (m_listenerBound && defaultEndpoint == null &&
+                request is not GetEndpointsRequest and not FindServersRequest and not FindServersOnNetworkRequest)
+            {
+                return new ServiceFault
+                {
+                    ResponseHeader = new ResponseHeader
+                    {
+                        RequestHandle = request.RequestHeader?.RequestHandle ?? 0,
+                        ServiceResult = StatusCodes.BadSecurityPolicyRejected
+                    }
+                };
+            }
+
             // Match the HTTPS-JSON binding's SecureChannelContext shape:
             // a single stable ListenerId across all REST requests so the
             // server's SessionManager treats Create/Activate/subsequent
@@ -247,7 +299,7 @@ namespace Opc.Ua.Bindings
             // BadSecureChannelIdInvalid.
             var secureChannelContext = new SecureChannelContext(
                 listenerId,
-                context.Endpoint ?? defaultEndpoint,
+                m_listenerBound ? defaultEndpoint : context.Endpoint ?? defaultEndpoint,
                 RequestEncoding.Json,
                 context.ClientCertificate,
                 context.ServerCertificate,
@@ -266,6 +318,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(secureChannelContext, request, ct)
                     .ConfigureAwait(false);
             }
+
             catch (ServiceResultException sre)
             {
                 return new ServiceFault
@@ -281,6 +334,9 @@ namespace Opc.Ua.Bindings
                 };
             }
         }
+
+        /// <summary>Whether this dispatcher is private to an accepting listener.</summary>
+        private readonly bool m_listenerBound;
     }
 }
 #endif

@@ -55,7 +55,7 @@ namespace Opc.Ua.Di.Tests
         public void SetUp()
         {
             m_tempRoot = Path.Combine(
-                Path.GetTempPath(),
+                AppContext.BaseDirectory,
                 "di-sf-tests-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(m_tempRoot);
         }

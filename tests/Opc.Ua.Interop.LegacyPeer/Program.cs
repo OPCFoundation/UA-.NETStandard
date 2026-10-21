@@ -50,6 +50,7 @@ namespace Opc.Ua.Interop.LegacyPeer
     /// client --url &lt;url&gt; --pki &lt;dir&gt; [--policy &lt;uri&gt;] [--mode &lt;mode&gt;]
     ///        [--user &lt;name&gt; --password &lt;password&gt;] [--checks a,b,c]
     ///        [--autoaccept true|false] [--ecc true|false]
+    ///        [--x509-user-cert &lt;pfx&gt;]
     ///        [--expect-connect-error &lt;StatusCode name,...&gt;]
     ///        [--token-lifetime &lt;ms&gt;] [--token-test-seconds &lt;s&gt;]
     ///        [--timeout-seconds &lt;s&gt;]
@@ -114,7 +115,8 @@ namespace Opc.Ua.Interop.LegacyPeer
             Console.Error.WriteLine(
                 "       client --url <url> --pki <dir> [--policy <uri>] [--mode <mode>] " +
                 "[--user <name> --password <password>] [--checks a,b,c] [--autoaccept true|false] " +
-                "[--ecc true|false] [--expect-connect-error <code>] [--token-lifetime <ms>] " +
+                "[--ecc true|false] [--x509-user-cert <pfx>] [--expect-connect-error <code>] " +
+                "[--token-lifetime <ms>] " +
                 "[--token-test-seconds <s>]");
             return ExitUsage;
         }

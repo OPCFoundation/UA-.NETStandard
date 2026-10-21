@@ -34,8 +34,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using Opc.Ua;
-using Opc.Ua.AI;
 using Opc.Ua.AI.Inference;
 using Opc.Ua.Server;
 using Opc.Ua.XRegistry;
@@ -107,8 +105,8 @@ namespace Opc.Ua.AI.Server
             : base(
                 server,
                 configuration,
-                Opc.Ua.AI.Namespaces.AI,
-                Opc.Ua.AI.Namespaces.xRegistry)
+                Namespaces.AI,
+                Namespaces.xRegistry)
         {
             m_backends = backends ?? throw new ArgumentNullException(nameof(backends));
             m_options = options?.Value ?? new AIOptions();
@@ -335,30 +333,99 @@ namespace Opc.Ua.AI.Server
                         $"{parent.BrowseName} declares no {browseName} of type {typeof(TChild).Name}."));
             }
 
-            // Two things a freshly materialised optional child does not have, and
-            // needs before a client can see it or use it.
-            //
-            // Create runs the child's own initialisation, which is what builds the
-            // members ITS type declares - for a Method, that is InputArguments and
-            // OutputArguments. Without it the Method browses correctly, accepts a
-            // call, and rejects it with BadTooManyArguments no matter what is passed,
-            // because as far as the Server is concerned it takes none.
-            //
-            // ReferenceTypeId is what a Browse names the reference by. A child
-            // without one is indexed, readable by NodeId and callable, but no client
-            // can navigate to it - so the whole optional half of the model simply
-            // is not there, without anything failing.
-            SystemContext.CreateInstance(
-                typed,
-                qualifiedName,
-                new LocalizedText(browseName));
+            // Initialize method arguments and other mandatory children, then restore
+            // the declaration before assigning instance identifiers. Generic property
+            // initialization otherwise turns optional read-only outputs into writable values.
+            typed.Create(SystemContext, NodeId.Null, qualifiedName, new LocalizedText(browseName), false);
+            if (FindChildDeclaration(parent, qualifiedName) is { } declaration)
+            {
+                CopyDeclarationAttributes(typed, declaration);
+            }
 
-            typed.ReferenceTypeId = typed is PropertyState
-                ? Opc.Ua.ReferenceTypeIds.HasProperty
-                : Opc.Ua.ReferenceTypeIds.HasComponent;
+            if (typed.ReferenceTypeId.IsNull)
+            {
+                typed.ReferenceTypeId = typed is PropertyState
+                    ? Ua.ReferenceTypeIds.HasProperty
+                    : Ua.ReferenceTypeIds.HasComponent;
+            }
+
+            NodeId previousNodeId = SystemContext.AssignInstanceNodeId(typed);
+            SystemContext.AssignInstanceChildNodeIds(typed, previousNodeId, parent);
+            if (m_nodeOwners.TryGetValue(parent, out InferenceOwner? owner))
+            {
+                ProtectOwnedTree(typed, owner);
+            }
 
             BindMethodDeclaration(parent, typed, qualifiedName);
             return typed;
+        }
+
+        /// <summary>
+        /// Finds a member declaration, including declarations inherited from a supertype.
+        /// </summary>
+        private BaseInstanceState? FindChildDeclaration(NodeState parent, QualifiedName browseName)
+        {
+            if (parent is not BaseInstanceState instance)
+            {
+                return null;
+            }
+
+            NodeId typeId = instance.TypeDefinitionId;
+            var visited = new HashSet<NodeId>();
+            while (!typeId.IsNull && visited.Add(typeId))
+            {
+                if (FindPredefinedNode<NodeState>(typeId) is { } type &&
+                    type.FindChild(SystemContext, browseName) is { } declaration)
+                {
+                    return declaration;
+                }
+
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Retains declaration access, type and method attributes after generic initialization.
+        /// </summary>
+        private void CopyDeclarationAttributes(NodeState target, NodeState declaration)
+        {
+            target.WriteMask = declaration.WriteMask;
+            target.UserWriteMask = declaration.UserWriteMask;
+            target.RolePermissions = declaration.RolePermissions;
+            target.UserRolePermissions = declaration.UserRolePermissions;
+            target.AccessRestrictions = declaration.AccessRestrictions;
+            if (target is BaseInstanceState instance && declaration is BaseInstanceState declaredInstance)
+            {
+                instance.TypeDefinitionId = declaredInstance.TypeDefinitionId;
+                instance.ReferenceTypeId = declaredInstance.ReferenceTypeId;
+            }
+            if (target is BaseVariableState variable && declaration is BaseVariableState declaredVariable)
+            {
+                variable.DataType = declaredVariable.DataType;
+                variable.ValueRank = declaredVariable.ValueRank;
+                variable.ArrayDimensions = declaredVariable.ArrayDimensions;
+                variable.AccessLevel = declaredVariable.AccessLevel;
+                variable.UserAccessLevel = declaredVariable.UserAccessLevel;
+                variable.MinimumSamplingInterval = declaredVariable.MinimumSamplingInterval;
+                variable.Historizing = declaredVariable.Historizing;
+            }
+            if (target is MethodState method && declaration is MethodState declaredMethod)
+            {
+                method.Executable = declaredMethod.Executable;
+                method.UserExecutable = declaredMethod.UserExecutable;
+            }
+
+            var children = new List<BaseInstanceState>();
+            target.GetChildren(SystemContext, children);
+            foreach (BaseInstanceState child in children)
+            {
+                if (declaration.FindChild(SystemContext, child.BrowseName) is { } declaredChild)
+                {
+                    CopyDeclarationAttributes(child, declaredChild);
+                }
+            }
         }
 
         private void BindMethodDeclaration(NodeState parent, BaseInstanceState child, QualifiedName browseName)
@@ -367,9 +434,7 @@ namespace Opc.Ua.AI.Server
             {
                 return;
             }
-            if (parent is not BaseInstanceState instance ||
-                FindPredefinedNode<NodeState>(instance.TypeDefinitionId) is not { } type ||
-                type.FindChild(SystemContext, browseName) is not MethodState declaration)
+            if (FindChildDeclaration(parent, browseName) is not MethodState declaration)
             {
                 throw new InvalidOperationException(
                     $"The {browseName} method has no declaration on {parent.BrowseName}'s type.");
@@ -390,6 +455,16 @@ namespace Opc.Ua.AI.Server
             public required InferenceTransferState Node { get; init; }
 
             public required NodeId DeploymentId { get; init; }
+
+            /// <summary>
+            /// The original deployment method whose authority Execute must recheck.
+            /// </summary>
+            public required NodeId InvocationMethodId { get; init; }
+
+            /// <summary>
+            /// The creating session and identity boundary for every operation on this transfer.
+            /// </summary>
+            public required InferenceOwner Owner { get; init; }
 
             public System.IO.MemoryStream Request { get; } = new();
 

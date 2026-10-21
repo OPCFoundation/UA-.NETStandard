@@ -210,6 +210,15 @@ After acknowledgement changes the occurrence, confirmation uses the updated
 EventId. Unbound standard Methods on a Condition proxy are disabled, so they
 cannot change only the local copy.
 
+Remote calls to standard Condition aliases are dispatched through the original
+action's ObjectId and MethodId using the current caller's OperationContext.
+Both the alias and the original receiver/Method must therefore pass effective
+Call permissions, AccessRestrictions and live Executable/UserExecutable checks.
+Removing the original receiver or Method makes the alias fail closed before
+opening its binding channel. This also applies to Enable and Disable, which
+do not take an EventId; occurrence actions retain their source EventId routing.
+Trusted in-process calls without an OperationContext retain their direct path.
+
 `WotProjectionBindingRuntimeOptions` limits pending notifications per local
 notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration
 (`MaxEventRoutes`). If the notification queue fills, the producer finishes
@@ -673,6 +682,11 @@ chosen:
   position in the response. Where no endpoint is eligible the activation fails with
   `BadSecurityModeRejected` and no session is opened: a client **shall** fail and report
   rather than fall back below a stated floor.
+  Before ranking, every advertised destination (and any proxy URL) is validated
+  against the registry's `WotEndpointPolicy` and its endpoint URL is normalized.
+  Denied or malformed candidates are discarded even when no floor is stated.
+  If discovery returned candidates but none pass destination policy, activation
+  fails with `BadUserAccessDenied` without invoking the selected-endpoint factory.
 * The endpoint-blind `SessionFactory` stays exactly as it was where the form states **no**
   floor. A form that states one and finds only that factory configured fails with
   `BadConfigurationError` naming what to configure, rather than opening a session through
@@ -687,6 +701,36 @@ chosen:
 The clause constrains a choice among the endpoints a Server already offers and nothing
 else: certificate trust, trust-list policy, filtering on any other endpoint attribute and
 transport-profile negotiation stay with the application's own security configuration.
+
+`OpcUaWotSessionRequest.EndpointPolicy` carries the same outbound policy to both
+constrained and selected-endpoint factories. A factory that performs further
+discovery or rewrites a destination must call `request.ValidateEndpoint(url)`
+**before** opening that connection, including any proxy connection. The helper
+returns a normalized URI or throws the policy's validation error. The executor
+also validates the endpoint reported by the returned session before exposing a
+binding channel; this check cannot undo a connection a custom factory already
+opened. The legacy endpoint-only factory cannot receive this context: applications
+using it must independently enforce the same policy on any destination changes,
+or migrate to the constrained factory. This does not change certificate trust
+requirements or the endpoint policy's documented DNS-resolution limitations.
+
+For example, the selected-endpoint factory can enforce the boundary again
+immediately before handing the description to its application-specific connector:
+
+```csharp
+options.SelectedEndpointSessionFactory = async (description, request, ct) =>
+{
+    description.EndpointUrl = request.ValidateEndpoint(description.EndpointUrl).AbsoluteUri;
+    if (description.ProxyUrl is { } proxy)
+    {
+        description.ProxyUrl = request.ValidateEndpoint(proxy.OriginalString);
+    }
+    return await ConnectSelectedEndpointAsync(description, ct).ConfigureAwait(false);
+};
+```
+
+`ConnectSelectedEndpointAsync` is the application's connector; it must not
+silently replace either validated destination with an unvalidated discovery result.
 
 The same selection paths also enforce exact `uav:channelsec` and actual
 `uav:authentication` (Anonymous/UserName/Certificate/IssuedToken) requirements.
@@ -842,6 +886,12 @@ Register a provider with `AddWotCredentialProvider`. Scope credentials by the re
 ### Endpoint policy and custom schemes
 
 `WotEndpointPolicy` is an allow-list that decides which endpoint URIs an executor may reach. It fails closed: the default set covers only the schemes the shipped bindings use (`http`, `https`, `modbus+tcp`, `modbus`, `mqtt`, `mqtts`, `opc.tcp`, `opc.https`, `opc.wss`), and it blocks loopback, RFC1918, CGNAT, link-local (including the cloud metadata address `169.254.169.254`) and IPv6 ULA ranges.
+
+Executable MQTT and Modbus network forms require an explicit, nonempty host.
+Hostless forms do not imply localhost. Their executors validate the effective
+destination against the operation's endpoint policy before resolving credentials
+or creating a connection, including when invoked directly without registry
+activation.
 
 A custom binding almost always introduces a scheme the default set does not know about, so opening a channel fails with `BadSecurityChecksFailed` and `Endpoint scheme '<scheme>' is not in the policy's AllowedSchemes set` until the scheme is opted in:
 

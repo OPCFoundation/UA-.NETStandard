@@ -40,7 +40,7 @@ namespace Opc.Ua.Mcp
     /// focused sub-clients for a named sensor, pipeline, media manager,
     /// feedback object, result, or the frame graph.
     /// </summary>
-    public sealed class VisionClientAccessor
+    public sealed class VisionClientAccessor : IAsyncDisposable
     {
         /// <summary>
         /// Initializes the accessor.
@@ -55,8 +55,9 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public VisionClientAccessor(OpcUaSessionManager sessionManager, TimeProvider timeProvider)
         {
-            m_sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
+            SessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
             TimeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+            FileHandles = new VisionFileHandles();
         }
 
         /// <summary>
@@ -65,12 +66,28 @@ namespace Opc.Ua.Mcp
         public TimeProvider TimeProvider { get; }
 
         /// <summary>
+        /// Gets the shared session authority for caller-bound file operations.
+        /// </summary>
+        internal OpcUaSessionManager SessionManager { get; }
+
+        /// <summary>
+        /// Gets the accessor-owned opaque transfer handles.
+        /// </summary>
+        internal VisionFileHandles FileHandles { get; }
+
+        /// <inheritdoc/>
+        public ValueTask DisposeAsync()
+        {
+            return FileHandles.DisposeAsync();
+        }
+
+        /// <summary>
         /// Opens the released-model interface on a named session using the configured clock.
         /// </summary>
         public MachineVisionClient CreateMachineVisionClient(string? sessionName = null)
         {
-            return new MachineVisionClient(m_sessionManager.GetSessionOrThrow(sessionName),
-                m_sessionManager.Telemetry, TimeProvider);
+            return new MachineVisionClient(SessionManager.GetSessionOrThrow(sessionName),
+                SessionManager.Telemetry, TimeProvider);
         }
 
         /// <summary>
@@ -78,8 +95,8 @@ namespace Opc.Ua.Mcp
         /// </summary>
         public VisionClient CreateClient(string? sessionName = null)
         {
-            ISession session = m_sessionManager.GetSessionOrThrow(sessionName);
-            return new VisionClient(session, m_sessionManager.Telemetry);
+            ISession session = SessionManager.GetSessionOrThrow(sessionName);
+            return new VisionClient(session, SessionManager.Telemetry);
         }
 
         /// <summary>
@@ -195,7 +212,5 @@ namespace Opc.Ua.Mcp
         {
             return CreateClient(sessionName).Inference();
         }
-
-        private readonly OpcUaSessionManager m_sessionManager;
     }
 }
