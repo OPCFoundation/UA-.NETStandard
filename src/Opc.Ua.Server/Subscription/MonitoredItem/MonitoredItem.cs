@@ -3024,21 +3024,16 @@ namespace Opc.Ua.Server
                 value = value.WithSourceTimestamp(DateTimeUtc.MinValue);
             }
 
-            // not pooled: a notification lives until its message was sent and acknowledged, so
-            // a publishing cycle holds all notifications of the cycle at once. Recycling them
-            // through the shared activator pool cost more CPU (pool contention, touching cold
-            // instances again) than allocating them.
-            var item = new MonitoredItemNotification
+            // a value type: the queue and the message's array hold it inline, no allocation.
+            ServerUtils.ReportPublishValue(NodeId, Id, value);
+            notifications.Enqueue(new MonitoredItemNotification
             {
                 ClientHandle = ClientHandle,
                 Value = value
-            };
-
-            ServerUtils.ReportPublishValue(NodeId, Id, value);
-            notifications.Enqueue(item);
+            });
             if (m_publishingFinalValue)
             {
-                m_valuePublication?.TrackNotification(item);
+                m_valuePublication?.TrackNotification(notifications);
             }
 
             // update diagnostic info.

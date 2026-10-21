@@ -1147,7 +1147,7 @@ namespace Opc.Ua.Server
             {
                 int bound = (int)Math.Min(
                     kMaxPooledNotifications,
-                    Math.Max(PooledEncodeableType<MonitoredItemNotification>.DefaultMaximumRetained, total * 2));
+                    Math.Max(PooledEncodeableType<EventFieldList>.DefaultMaximumRetained, total * 2));
                 EventFieldListActivator.Instance.EnsureMaximumRetained(bound);
             }
         }
@@ -2250,6 +2250,7 @@ namespace Opc.Ua.Server
                 Queue<MonitoredItemNotification> datachanges = m_publishDataChanges;
                 Queue<DiagnosticInfo> datachangeDiagnostics = m_publishDataChangeDiagnostics;
                 events.Clear();
+                AdvanceDataChangeOrdinal(null, datachanges.Count);
                 datachanges.Clear();
                 datachangeDiagnostics.Clear();
 
@@ -2559,6 +2560,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 notificationCount += dataChangeCount;
+                AdvanceDataChangeOrdinal(message, dataChangeCount);
 
                 var notification = (DataChangeNotification)DataChangeNotificationActivator.Instance.CreateInstance();
                 notification.MonitoredItems = new ArrayOf<MonitoredItemNotification>(

@@ -1035,7 +1035,8 @@ namespace Opc.Ua
             CheckAndIncrementNestingLevel();
             try
             {
-                if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default!), true))
+                // a value type is never null, also when it equals its default.
+                if (BeginField(fieldName, value is null, true))
                 {
                     value?.Encode(this);
 

@@ -725,7 +725,8 @@ namespace Opc.Ua
         public void WriteEncodeable<T>(string? fieldName, T value, ExpandedNodeId encodeableTypeId)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, also when it equals its default.
+            if (value is null)
             {
                 WriteNull(fieldName);
                 return;
@@ -743,7 +744,8 @@ namespace Opc.Ua
         public void WriteEncodeableAsExtensionObject<T>(string? fieldName, T value)
             where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, also when it equals its default.
+            if (value is null)
             {
                 WriteNull(fieldName);
                 return;

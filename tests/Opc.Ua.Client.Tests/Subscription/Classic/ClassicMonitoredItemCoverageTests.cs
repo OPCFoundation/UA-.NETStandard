@@ -870,11 +870,10 @@ namespace Opc.Ua.Client.Tests
         {
             var notification = new MonitoredItemNotification
             {
-                Value = new DataValue(new Variant(1), StatusCodes.BadInternalError, DateTime.UtcNow),
-                Message = new NotificationMessage()
+                Value = new DataValue(new Variant(1), StatusCodes.BadInternalError, DateTime.UtcNow)
             };
 
-            ServiceResult result = MonitoredItem.GetServiceResult(notification)!;
+            ServiceResult result = MonitoredItem.GetServiceResult(notification, new NotificationMessage())!;
 
             Assert.Multiple(() =>
             {
@@ -891,7 +890,7 @@ namespace Opc.Ua.Client.Tests
                 Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
             };
 
-            ServiceResult? result = MonitoredItem.GetServiceResult(notification);
+            ServiceResult? result = MonitoredItem.GetServiceResult(notification, null);
 
             Assert.That(result, Is.Null);
         }
@@ -899,7 +898,7 @@ namespace Opc.Ua.Client.Tests
         [Test]
         public void GetServiceResultReturnsNullForNonDataChange()
         {
-            ServiceResult? result = MonitoredItem.GetServiceResult(new EventFieldList());
+            ServiceResult? result = MonitoredItem.GetServiceResult(new EventFieldList(), new NotificationMessage());
 
             Assert.That(result, Is.Null);
         }
@@ -939,7 +938,7 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(captured, Is.Not.Null);
-                Assert.That(captured!.NotificationValue, Is.SameAs(notification));
+                Assert.That(captured!.NotificationValue, Is.EqualTo(notification));
             });
         }
 
@@ -968,16 +967,17 @@ namespace Opc.Ua.Client.Tests
             var notification = new MonitoredItemNotification
             {
                 ClientHandle = item.ClientHandle,
-                Value = new DataValue(new Variant(11), StatusCodes.Good, DateTime.UtcNow),
-                Message = message
+                Value = new DataValue(new Variant(11), StatusCodes.Good, DateTime.UtcNow)
             };
+            var diagnosticInfo = new DiagnosticInfo { AdditionalInfo = "info" };
 
-            item.SaveValueInCache(notification);
+            item.SaveValueInCache(notification, message, diagnosticInfo);
 
             Assert.Multiple(() =>
             {
-                Assert.That(item.LastValue, Is.SameAs(notification));
+                Assert.That(item.LastValue, Is.EqualTo(notification));
                 Assert.That(item.LastMessage, Is.SameAs(message));
+                Assert.That(item.GetLastServiceResult()!.AdditionalInfo, Is.EqualTo("info"));
             });
         }
 
@@ -993,9 +993,8 @@ namespace Opc.Ua.Client.Tests
             eventItem.SaveValueInCache(new MonitoredItemNotification
             {
                 ClientHandle = eventItem.ClientHandle,
-                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow),
-                Message = new NotificationMessage()
-            });
+                Value = new DataValue(new Variant(1), StatusCodes.Good, DateTime.UtcNow)
+            }, new NotificationMessage());
 
             MonitoredItem dataItem = CreateItem();
             dataItem.SaveValueInCache(new EventFieldList

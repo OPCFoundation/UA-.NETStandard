@@ -1069,6 +1069,7 @@ namespace Opc.Ua.Schema.Model
                     ImportFields(design, complexType.Field);
                     design.IsAbstract = complexType.IsAbstract;
                     design.IsUnion = complexType.IsUnion;
+                    design.IsValueType = complexType.IsValueType;
                     nodes.Add(design);
                 }
 
@@ -3701,6 +3702,20 @@ namespace Opc.Ua.Schema.Model
                 dataType.Fields = parameters;
 
                 dataType.HasEncodings = ImportEncodings(dataType);
+
+                // A struct has no inheritance and no constructor that runs
+                // for default instances, so only the plain shape qualifies.
+                if (dataType.IsValueType &&
+                    (!dataType.IsStructure ||
+                        dataType.IsAbstract ||
+                        dataType.IsUnion ||
+                        (dataType.Fields?.Any(f => f.IsOptional) ?? false)))
+                {
+                    throw Exception(
+                        "The DataType {0} cannot be a value type: it must be a concrete " +
+                        "structure deriving from Structure without optional fields.",
+                        dataType.SymbolicId.Name);
+                }
             }
 
             // assign missing fields for reference types.

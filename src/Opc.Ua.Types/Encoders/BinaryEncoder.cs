@@ -1134,7 +1134,8 @@ namespace Opc.Ua
         public void WriteEncodeable<T>(string? fieldName, T value)
             where T : IEncodeable, new()
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, and the JIT drops the check for it.
+            if (value is null)
             {
                 // create a default object if a null object specified.
                 value = new T();
@@ -1147,7 +1148,8 @@ namespace Opc.Ua
             T value,
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
-            if (EqualityComparer<T>.Default.Equals(value, default!))
+            // a value type is never null, and the JIT drops the check for it.
+            if (value is null)
             {
                 // create a default object if a null object specified.
                 if (!Context.Factory.TryGetEncodeableType(encodeableTypeId, out IEncodeableType? activator))
