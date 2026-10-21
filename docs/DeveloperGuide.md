@@ -291,6 +291,11 @@ process; the test project does not reference the application. Tests retain TRX,
 stdout/stderr, image digests and timeout/exit evidence. A failed native check
 remains a failure; no debugger replay supplies acceptance.
 
+The Linux live-viewport and native-rendering smoke cases are temporarily excluded
+pending the OpenUSD compositor compatibility fix. Linux startup and ordinary tests
+remain enabled; passing artifact jobs do not currently qualify Linux rendering.
+See the [exclusion scope and re-enablement criteria](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check).
+
 Artifact builds use the public nuget.org dependency versions pinned in
 `Directory.Packages.props` and the checked-in `NuGet.config`. Installation checks
 use only the UaLens packages built by that workflow, not an older published tool.

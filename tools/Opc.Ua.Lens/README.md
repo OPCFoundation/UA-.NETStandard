@@ -46,10 +46,15 @@ tools on these runners:
 | macOS 15, Arm64 | `osx-arm64` | `UaLens` | `ualens` | Logged-in Cocoa desktop and Xcode command-line tools |
 
 These are validation targets, not a record of passing runs. A platform is
-validated for a revision only after **both** artifact jobs pass on that revision.
+validated for a revision only after **both** artifact jobs execute and pass
+their native-rendering checks on that revision.
 Other RIDs, Linux distributions, macOS Intel, signing/notarization, and installer
 integration are not covered by this matrix. The managed package requires a
 .NET 10 runtime; the native artifact does not.
+
+Linux native-rendering checks are temporarily excluded pending the OpenUSD
+compositor compatibility fix described [below](#native-renderer-artifact-check).
+A green Linux artifact job currently proves startup and shutdown, not rendering.
 
 All jobs install the exact .NET SDK pinned in [`global.json`](../../global.json)
 and restore their dependencies from nuget.org. Artifact checks use NUnit in
@@ -272,8 +277,18 @@ command under `xvfb-run --auto-servernum --server-args="-screen 0 1600x1000x24 -
 when no display is available. `UALENS_ARTIFACT_ALLOW_SOFTWARE_GL=true` is a separate
 opt-in for Mesa llvmpipe diagnosis; neither option relaxes acceptance.
 On macOS, run the NUnit command from a logged-in desktop.
-CI runs these cases on both the NativeAOT artifact and installed managed tool for every supported RID.
+CI selects these cases for both the NativeAOT artifact and installed managed tool.
 The ordinary startup check remains separate and does not activate OpenUSD.
+
+**Temporary Linux exclusion:** the native viewport artifact case, the two live
+embedded-viewport workflow cases, and the native workflow smoke case are disabled
+on Linux while OpenUSD/Avalonia Vulkan compositor compatibility with hosted
+Ubuntu/Xvfb is repaired. Linux builds, package installation, ordinary desktop
+tests, startup and shutdown remain enabled. Windows and macOS rendering checks
+are unchanged. Remove the Linux exclusions in `PublishedArtifactTests`,
+`OpenUsdViewportWindowTests` and `DiagnosticCommandTests` after the compatibility
+fix is integrated and the unchanged rendering checks pass on that runner.
+Skipped cases do not qualify Linux rendering.
 
 The native check renders one local cube through D3D12, Vulkan or Metal, captures
 its named camera through the retained Vision adapter, changes the cube's color,

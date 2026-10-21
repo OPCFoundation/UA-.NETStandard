@@ -57,6 +57,9 @@ namespace Opc.Ua.Lens.Artifacts.Tests
         /// Requires two changed native camera frames followed by complete shutdown.
         /// </summary>
         [Test]
+        // TODO: Re-enable Linux after the OpenUSD Vulkan compositor passes hosted-runner qualification.
+        [Platform(Exclude = "Linux",
+            Reason = "Hosted Linux compositor interop is unavailable; awaiting the OpenUSD compatibility fix.")]
         public Task NativeViewportRendersAndDrainsAsync()
         {
             return RunAsync(nativeViewport: true);

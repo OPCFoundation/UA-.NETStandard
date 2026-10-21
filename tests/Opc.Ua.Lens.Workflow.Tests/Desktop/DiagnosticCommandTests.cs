@@ -104,7 +104,9 @@ namespace UaLens.Tests.Desktop
         /// Smoke checks use the real shell and native renderer while retaining ownership of the caller's dispatcher.
         /// </summary>
         [TestCase(false)]
-        [TestCase(true, Category = "LensOpenUsdNative")]
+        // TODO: Re-enable Linux after the OpenUSD Vulkan compositor passes hosted-runner qualification.
+        [TestCase(true, Category = "LensOpenUsdNative", ExcludePlatform = "Linux",
+            Reason = "Hosted Linux compositor interop is unavailable; awaiting the OpenUSD compatibility fix.")]
         public Task DesktopSmokeRendersRequestedSurfaceAndDrainsItsWorkspace(bool nativeViewport)
         {
             return AvaloniaDesktopTestHost.RunAsync(async () =>

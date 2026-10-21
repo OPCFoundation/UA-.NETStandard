@@ -941,6 +941,12 @@ on X11, avoiding a Vulkan-to-OpenGL image import. This selection has no fallback
 to a different compositor; both Vulkan rendering and external-resource support
 must be available on the selected device.
 
+Linux viewport rendering is not currently CI-qualified: its native-rendering
+checks are temporarily disabled while hosted Ubuntu/Xvfb compositor compatibility
+is repaired. Linux startup checks remain active. See
+[artifact qualification](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check)
+for the affected checks and re-enablement criteria.
+
 Matching servers are listed in [Sample Applications](samples.md).
 
 ## Saved workspaces
