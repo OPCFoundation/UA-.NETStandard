@@ -78,16 +78,26 @@ namespace Opc.Ua.Server
                 {
                     throw new ObjectDisposedException(nameof(AsyncCustomNodeManager));
                 }
-                if (m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? previous))
+                if (m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? previous) &&
+                    previous.Authorize != null)
                 {
-                    if (previous.Authorize != null)
-                    {
-                        throw new InvalidOperationException("The variable already has a Value read authorizer.");
-                    }
-                    m_valueReadAuthorizations.Remove(node);
+                    throw new InvalidOperationException("The variable already has a Value read authorizer.");
                 }
                 var registration = new ValueReadAuthorizationRegistration(this, authorize);
-                m_valueReadAuthorizations.Add(node, registration);
+                // Lookups run without the lock: an odd version marks the replacement in progress.
+                Interlocked.Increment(ref m_valueReadAuthorizationVersion);
+                try
+                {
+                    if (previous != null)
+                    {
+                        m_valueReadAuthorizations.Remove(node);
+                    }
+                    m_valueReadAuthorizations.Add(node, registration);
+                }
+                finally
+                {
+                    Interlocked.Increment(ref m_valueReadAuthorizationVersion);
+                }
                 m_activeValueReadAuthorizations.Add(registration);
                 return registration;
             }
@@ -98,9 +108,32 @@ namespace Opc.Ua.Server
         /// </summary>
         internal bool HasValueReadAuthorization(BaseVariableState node)
         {
+            return GetValueReadAuthorization(node) != null;
+        }
+
+        /// <summary>
+        /// Gets the variable's active or retired read-authorization registration.
+        /// </summary>
+        /// <remarks>
+        /// Runs per monitored-item notification, so it reads the thread-safe table without the
+        /// lock and only takes it when a registration was replaced during the lookup.
+        /// </remarks>
+        private ValueReadAuthorizationRegistration? GetValueReadAuthorization(BaseVariableState node)
+        {
+            int version = Volatile.Read(ref m_valueReadAuthorizationVersion);
+            if ((version & 1) == 0)
+            {
+                m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? registration);
+                Interlocked.MemoryBarrier();
+                if (Volatile.Read(ref m_valueReadAuthorizationVersion) == version)
+                {
+                    return registration;
+                }
+            }
             lock (m_operationLifetimeLock)
             {
-                return m_valueReadAuthorizations.TryGetValue(node, out _);
+                m_valueReadAuthorizations.TryGetValue(node, out ValueReadAuthorizationRegistration? registration);
+                return registration;
             }
         }
 
@@ -138,11 +171,7 @@ namespace Opc.Ua.Server
                 return result!;
             }
 
-            ValueReadAuthorizationRegistration? registration;
-            lock (m_operationLifetimeLock)
-            {
-                m_valueReadAuthorizations.TryGetValue(variable, out registration);
-            }
+            ValueReadAuthorizationRegistration? registration = GetValueReadAuthorization(variable);
             if (registration == null)
             {
                 return result!;
@@ -236,6 +265,12 @@ namespace Opc.Ua.Server
 #else
                 new();
 #endif
+
+        /// <summary>
+        /// Incremented before and after a registration replaces another, so lookups without the lock
+        /// detect a concurrent replacement.
+        /// </summary>
+        private int m_valueReadAuthorizationVersion;
 
         /// <summary>Live policy registrations protected by the existing manager operation-admission gate.</summary>
         private readonly HashSet<ValueReadAuthorizationRegistration> m_activeValueReadAuthorizations = [];
