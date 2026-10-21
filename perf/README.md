@@ -333,7 +333,8 @@ pwsh -File variants-summary.ps1 gc.txt
 
 Each round runs every variant once, in reverse order every other round, `ROUNDS` times (default 5).
 While a run is in progress the script checks every 2 seconds for test hosts and for more
-`ServerLoadHarness` processes than the run's own (`OWN`, default 2); such a run is discarded,
+`ServerLoadHarness` processes than the run's own (`OWN`, default 2; one fewer for a variant with
+`--server-exe`, whose server is not a harness process); such a run is discarded,
 logged in `<OUT>.discarded` and repeated after the machine has been free of them for a minute.
 Other load, such as builds, is not detected. `variants-summary.ps1` prints, per scenario and
 variant, the median and range (min–max) of the rate, delivery, latency, server CPU and allocation

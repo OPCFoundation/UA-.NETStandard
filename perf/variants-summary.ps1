@@ -32,7 +32,8 @@ function Num($x) { $f = if ([Math]::Abs($x) -ge 100) { '{0:0}' } else { '{0:0.##
 function Fmt($xs) {
     $s = @($xs | Where-Object { $null -ne $_ } | Sort-Object)
     if ($s.Count -eq 0) { return '' }
-    $m = $s[[int][Math]::Floor($s.Count / 2)]
+    $h = [int][Math]::Floor($s.Count / 2)
+    $m = if ($s.Count % 2 -eq 1) { $s[$h] } else { ($s[$h - 1] + $s[$h]) / 2 }
     if ($s.Count -eq 1 -or $s[0] -eq $s[-1]) { return (Num $m) }
     return "$(Num $m) [$(Num $s[0])-$(Num $s[-1])]"
 }

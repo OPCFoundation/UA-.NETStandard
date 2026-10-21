@@ -6,7 +6,8 @@
 # SCENARIOS: file with the harness arguments of one scenario per line ('#' starts a comment).
 # HARNESS: harness executable (default: the build in this worktree).
 # ROUNDS: rounds per scenario (default 5). OUT: result file (default variants-results.txt).
-# OWN: ServerLoadHarness processes of one run (default 2: the harness and its server child).
+# OWN: ServerLoadHarness processes of one run (default 2: the harness and its server child; one
+#   fewer for a run with --server-exe, whose server is not a harness process).
 # WORKERS: build directory of the native benchmark workers, substituted for {workers}.
 # The variants run in turn and in reverse order every other round. A run during which a test
 # host or another load harness ran on the machine is discarded (logged in <OUT>.discarded) and
@@ -24,7 +25,8 @@ W=$(mktemp -d)
 foreign() {
   local list; list=$(tasklist //FO CSV 2>/dev/null || ps -e -o comm=)
   local hosts; hosts=$(echo "$list" | grep -ci 'testhost')
-  local harness; harness=$(echo "$list" | grep -ci 'ServerLoadHarness')
+  # ps on Linux truncates process names to 15 characters (ServerLoadHarne)
+  local harness; harness=$(echo "$list" | grep -ci 'ServerLoadHarne')
   [ "$hosts" -gt 0 ] || [ "$harness" -gt "$1" ]
 }
 
@@ -46,14 +48,19 @@ while IFS= read -r s || [ -n "$s" ]; do
     [ $((r % 2)) -eq 0 ] && order=$(echo "$order" | sort -rn)
     for i in $order; do
       IFS='|' read -r name envs args <<< "${variants[$i]}"
-      run="${s//\{workers\}/$WORKERS} ${args//\{workers\}/$WORKERS}"
+      # split first, then substitute, so that a WORKERS path with spaces stays one argument
+      read -ra run <<< "$s $args"
+      run=("${run[@]//\{workers\}/$WORKERS}")
+      # with --server-exe the server is not a harness child: the run owns one harness process
+      own=$OWN
+      case " ${run[*]} " in *" --server-exe "*) own=$((OWN - 1));; esac
       while true; do
         rm -f "$W/run.txt" "$W/flag" "$W/done"
-        ( while [ ! -f "$W/done" ]; do foreign "$OWN" && touch "$W/flag"; sleep 2; done ) &
+        ( while [ ! -f "$W/done" ]; do foreign "$own" && touch "$W/flag"; sleep 2; done ) &
         poller=$!
         echo "### variant=$name round=$r $s" > "$W/run.txt"
-        # shellcheck disable=SC2086 # word splitting of the environment and argument lists
-        env $envs timeout 900 "$H" run $run --out "$W/run.txt" </dev/null >/dev/null 2>&1 || echo "FAILED" >> "$W/run.txt"
+        # shellcheck disable=SC2086 # word splitting of the environment list
+        env $envs timeout 900 "$H" run "${run[@]}" --out "$W/run.txt" </dev/null >/dev/null 2>&1 || echo "FAILED" >> "$W/run.txt"
         touch "$W/done"; wait $poller
         if [ ! -f "$W/flag" ]; then cat "$W/run.txt" >> "$O"; break; fi
         echo "$(date +%H:%M:%S) discarded variant=$name round=$r $s" >> "$O.discarded"
