@@ -485,8 +485,8 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(lifetime));
             }
-            LogicalSubscription.InstallDurableHook(this, lifetime);
             TimeSpan? current = lifetime();
+            LogicalSubscription.InstallDurableHook(this, lifetime);
             if (current == null)
             {
                 return TimeSpan.Zero;

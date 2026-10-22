@@ -147,6 +147,69 @@ namespace Opc.Ua.Client.Subscriptions
 
         [Test]
         [CancelAfter(30_000)]
+        public async Task DurableLifetimeProviderThatThrowsInitiallyKeepsPreviousProviderForNewPartitionAsync(
+            CancellationToken ct)
+        {
+            var calls = new ConcurrentQueue<string>();
+            var releaseSecondaryCreate = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            SetupDurableLifetimeServer(calls,
+                id => id == 23 ? releaseSecondaryCreate.Task : Task.CompletedTask);
+            var context = new FakeSubscriptionManagerContext
+            {
+                CreateSubscriptionFactory = (handler, _, queue) => new TestSubscription(
+                    m_session, handler, queue, m_options, m_telemetry)
+            };
+            m_options.Configure(_ => TestSubscription.SubscriptionOptions with
+            {
+                MaxMonitoredItemsPerPartition = 1
+            });
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            ISubscription subscription = manager.Add(m_mockNotificationDataHandler.Object, m_options);
+            TimeSpan? lifetime = TimeSpan.FromHours(10);
+            await MakeDurableWithItemAsync(subscription, calls,
+                s => s.SetAsDurableAsync(() => lifetime, ct)).ConfigureAwait(false);
+
+            Assert.That(
+                async () => await subscription.SetAsDurableAsync(
+                    () => throw new InvalidOperationException("Lifetime unavailable."),
+                    ct).ConfigureAwait(false),
+                Throws.InvalidOperationException);
+
+            lifetime = TimeSpan.FromHours(7);
+            Assert.That(subscription.MonitoredItems.TryAdd("Second",
+                OptionsFactory.Create(TestMonitoredItem.CreatedOptions), out _), Is.True);
+            releaseSecondaryCreate.TrySetResult(true);
+            await WaitForAsync(() => calls.Contains("items:23"), TimeSpan.FromSeconds(10))
+                .ConfigureAwait(false);
+
+            Assert.That(((IPartitionedSubscription)subscription).PartitionCount, Is.EqualTo(2));
+            Assert.That(calls, Is.EqualTo(s_durableRecreateWithCurrentLifetime));
+        }
+
+        [Test]
+        public async Task DurableLifetimeProviderThatThrowsInitiallyKeepsPreviousHookAsync()
+        {
+            m_options.Configure(o => o with { Disabled = true });
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry);
+            await using (sut.ConfigureAwait(false))
+            {
+                Func<CancellationToken, ValueTask> previous = _ => default;
+                sut.OnAfterCreateAsync = previous;
+
+                Assert.That(
+                    async () => await sut.SetAsDurableAsync(
+                        () => throw new InvalidOperationException("Lifetime unavailable."))
+                        .ConfigureAwait(false),
+                    Throws.InvalidOperationException);
+                Assert.That(sut.OnAfterCreateAsync, Is.SameAs(previous));
+            }
+        }
+
+        [Test]
+        [CancelAfter(30_000)]
         public async Task DurableLifetimeProviderReturningNullSendsNoSetSubscriptionDurableAsync(
             CancellationToken ct)
         {

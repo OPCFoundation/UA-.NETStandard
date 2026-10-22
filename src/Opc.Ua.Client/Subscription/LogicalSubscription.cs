@@ -330,9 +330,10 @@ namespace Opc.Ua.Client.Subscriptions
             // creation via the partition state-machine's OnAfterCreateAsync
             // hook, which guarantees the OPC UA Part 4 §5.13.9 ordering
             // requirement (SetSubscriptionDurable must precede any
-            // CreateMonitoredItems).
-            m_durableLifetime = lifetime;
+            // CreateMonitoredItems). Evaluate first so a throwing provider
+            // leaves the previous durable intent in place for every partition.
             TimeSpan? current = lifetime();
+            m_durableLifetime = lifetime;
             TimeSpan minRevised = TimeSpan.MaxValue;
             foreach (IManagedSubscription partition in SnapshotPartitions())
             {
