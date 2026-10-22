@@ -282,7 +282,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Use reverse connect for the configured endpoint.
+        /// Use reverse connect for the configured endpoint. Replaces a previous
+        /// <see cref="UseReverseConnect(IReverseConnectionSource, Uri)"/>.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="manager"/> or
         /// <paramref name="serverUri"/> is <c>null</c>.</exception>
@@ -301,6 +302,35 @@ namespace Opc.Ua.Client
 
             m_reverseConnectManager = manager;
             m_reverseConnectServerUri = serverUri;
+            m_options = m_options with { ReverseConnectionSource = null };
+            ApplyReverseConnectEndpoint();
+            return this;
+        }
+
+        /// <summary>
+        /// Use reverse connect for the configured endpoint with connections
+        /// supplied by <paramref name="source"/>. The session awaits the source
+        /// for the initial connect and once per recovery attempt. Replaces a
+        /// previous <see cref="UseReverseConnect(ReverseConnectManager, Uri)"/>.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> or
+        /// <paramref name="serverUri"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder UseReverseConnect(
+            IReverseConnectionSource source,
+            Uri serverUri)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if (serverUri is null)
+            {
+                throw new ArgumentNullException(nameof(serverUri));
+            }
+
+            m_reverseConnectManager = null;
+            m_reverseConnectServerUri = serverUri;
+            m_options = m_options with { ReverseConnectionSource = source };
             ApplyReverseConnectEndpoint();
             return this;
         }
