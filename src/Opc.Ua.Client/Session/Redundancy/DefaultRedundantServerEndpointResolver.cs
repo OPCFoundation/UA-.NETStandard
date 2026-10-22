@@ -79,6 +79,24 @@ namespace Opc.Ua.Client
             ConfiguredEndpoint currentEndpoint,
             CancellationToken ct = default)
         {
+            (ConfiguredEndpoint? endpoint, _) = await ResolveWithDiscoveryErrorAsync(serverUri, currentEndpoint, ct)
+                .ConfigureAwait(false);
+            return endpoint;
+        }
+
+        /// <summary>
+        /// Resolves <paramref name="serverUri"/> like <see cref="ResolveAsync"/> and also returns the
+        /// first discovery failure when no endpoint was resolved, so a caller can tell a failed
+        /// discovery from a Server without a matching endpoint.
+        /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="serverUri"/> is null or empty.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="currentEndpoint"/> is null.</exception>
+        internal async ValueTask<(ConfiguredEndpoint? Endpoint, ServiceResult? DiscoveryError)>
+            ResolveWithDiscoveryErrorAsync(
+                string serverUri,
+                ConfiguredEndpoint currentEndpoint,
+                CancellationToken ct = default)
+        {
             if (string.IsNullOrEmpty(serverUri))
             {
                 throw new ArgumentException("The server URI cannot be null or empty.", nameof(serverUri));
@@ -90,13 +108,14 @@ namespace Opc.Ua.Client
             }
 
             ct.ThrowIfCancellationRequested();
+            var failure = new DiscoveryFailure();
             if (m_discoveredServers.TryGetValue(serverUri, out ApplicationDescription? cached))
             {
-                ConfiguredEndpoint? resolved = await ResolveServerEndpointsAsync(cached, currentEndpoint, ct)
-                    .ConfigureAwait(false);
+                ConfiguredEndpoint? resolved = await ResolveServerEndpointsAsync(
+                    cached, currentEndpoint, failure, ct).ConfigureAwait(false);
                 if (resolved != null)
                 {
-                    return resolved;
+                    return (resolved, null);
                 }
             }
             foreach (string discoveryUrl in GetDiscoveryUrls(currentEndpoint))
@@ -108,6 +127,7 @@ namespace Opc.Ua.Client
                         serverUri,
                         currentEndpoint,
                         discoveryUrl,
+                        failure,
                         ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -119,21 +139,23 @@ namespace Opc.Ua.Client
                 {
                     ct.ThrowIfCancellationRequested();
                     m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+                    failure.Record(exception);
                     continue;
                 }
                 if (endpoint != null)
                 {
-                    return endpoint;
+                    return (endpoint, null);
                 }
             }
 
-            return null;
+            return (null, failure.First);
         }
 
         private async ValueTask<ConfiguredEndpoint?> ResolveWithDiscoveryUrlAsync(
             string serverUri,
             ConfiguredEndpoint currentEndpoint,
             string discoveryUrl,
+            DiscoveryFailure failure,
             CancellationToken ct)
         {
             Uri discoveryUri = CoreClientUtils.GetDiscoveryUrl(discoveryUrl);
@@ -162,12 +184,13 @@ namespace Opc.Ua.Client
             // Keep the address mapping even when an offline peer cannot yet answer GetEndpoints.
             server = CoreUtils.Clone(server)!;
             m_discoveredServers[serverUri] = server;
-            return await ResolveServerEndpointsAsync(server, currentEndpoint, ct).ConfigureAwait(false);
+            return await ResolveServerEndpointsAsync(server, currentEndpoint, failure, ct).ConfigureAwait(false);
         }
 
         private async ValueTask<ConfiguredEndpoint?> ResolveServerEndpointsAsync(
             ApplicationDescription server,
             ConfiguredEndpoint currentEndpoint,
+            DiscoveryFailure failure,
             CancellationToken ct)
         {
             string serverUri = server.ApplicationUri
@@ -200,6 +223,7 @@ namespace Opc.Ua.Client
                 {
                     ct.ThrowIfCancellationRequested();
                     m_logger.ManagedSessionRedundancyDiscoveryFailed(exception);
+                    failure.Record(exception);
                 }
             }
 
@@ -284,6 +308,24 @@ namespace Opc.Ua.Client
 
         private readonly ConcurrentDictionary<string, ApplicationDescription> m_discoveredServers =
             new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// The first discovery failure of one resolution.
+        /// </summary>
+        private sealed class DiscoveryFailure
+        {
+            public ServiceResult? First { get; private set; }
+
+            public void Record(Exception exception)
+            {
+                First ??= exception switch
+                {
+                    ServiceResultException sre => sre.Result,
+                    TimeoutException => new ServiceResult(StatusCodes.BadTimeout, new LocalizedText(exception.Message)),
+                    _ => new ServiceResult(exception)
+                };
+            }
+        }
     }
 
     /// <summary>
