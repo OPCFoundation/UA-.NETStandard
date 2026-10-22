@@ -387,6 +387,91 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the subscriber context of a monitored item for read checks and reads on its
+        /// notification path, shared by every item of the same session.
+        /// </summary>
+        /// <remarks>
+        /// The context of a session only depends on its effective identity, its notification
+        /// authorization epoch and its accepted endpoint, so all items of the session reuse one
+        /// context until one of them changes, and the context's per-node-manager system context
+        /// copy is reused with it. A notification therefore allocates no context. The returned
+        /// context is shared: callers must not dispose or retain it.
+        /// </remarks>
+        /// <param name="item">The monitored item.</param>
+        public static OperationContext GetSubscriberContext(IMonitoredItem item)
+        {
+            ISession? session = item.Session;
+            if (session == null)
+            {
+                IUserIdentity? identity = item.EffectiveIdentity;
+                SubscriberContext? itemContext = s_itemContexts.TryGetValue(item, out SubscriberContextSlot? itemSlot)
+                    ? Volatile.Read(ref itemSlot.Current) : null;
+                if (itemContext != null && ReferenceEquals(itemContext.Identity, identity))
+                {
+                    return itemContext.Context;
+                }
+                // CA2000: the shared context is owned by the item's entry and never disposed by callers.
+#pragma warning disable CA2000
+                var created = new SubscriberContext(identity, null, 0, null, new OperationContext(item));
+#pragma warning restore CA2000
+                Volatile.Write(ref s_itemContexts.GetValue(item, static _ => new SubscriberContextSlot()).Current, created);
+                return created.Context;
+            }
+
+            // read without the session's lock; a context captured under it is reused only when
+            // every input it captured is still current.
+            // A custom session has no epoch object to compare; its identity refresh generation is.
+            NotificationAuthorization? authorization = (session as Session)?.NotificationAuthorization;
+            long generation = session is Session ? 0 : session.CaptureIdentityRefreshSnapshot().Generation;
+            IUserIdentity effectiveIdentity = session.EffectiveIdentity;
+            EndpointDescription? endpoint = GetEndpoint(session);
+            SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
+            SubscriberContext? current = Volatile.Read(ref slot.Current);
+            if (current != null &&
+                ReferenceEquals(current.Identity, effectiveIdentity) &&
+                current.Generation == generation &&
+                ReferenceEquals(current.Endpoint, endpoint) &&
+                (session is not Session || ReferenceEquals(current.Authorization, authorization)))
+            {
+                return current.Context;
+            }
+            OperationContext context = CreateContext(session);
+            // the constructor captured identity and epoch together; key the entry on what it captured.
+            current = new SubscriberContext(
+                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, context);
+            Volatile.Write(ref slot.Current, current);
+            return context;
+        }
+
+        /// <summary>
+        /// A shared subscriber context and the inputs it was created from.
+        /// </summary>
+        private sealed class SubscriberContext(
+            IUserIdentity? identity,
+            NotificationAuthorization? authorization,
+            long generation,
+            EndpointDescription? endpoint,
+            OperationContext context)
+        {
+            public IUserIdentity? Identity { get; } = identity;
+            public NotificationAuthorization? Authorization { get; } = authorization;
+            public long Generation { get; } = generation;
+            public EndpointDescription? Endpoint { get; } = endpoint;
+            public OperationContext Context { get; } = context;
+        }
+
+        /// <summary>
+        /// Holds the current shared context of a session or sessionless item.
+        /// </summary>
+        private sealed class SubscriberContextSlot
+        {
+            public SubscriberContext? Current;
+        }
+
+        private static readonly ConditionalWeakTable<ISession, SubscriberContextSlot> s_sessionContexts = new();
+        private static readonly ConditionalWeakTable<IMonitoredItem, SubscriberContextSlot> s_itemContexts = new();
+
+        /// <summary>
         /// Creates a read context from the current item owner, never from the change reporter.
         /// </summary>
         public static OperationContext CreateContext(
