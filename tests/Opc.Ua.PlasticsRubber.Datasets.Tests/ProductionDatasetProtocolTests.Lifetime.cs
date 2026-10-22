@@ -244,6 +244,49 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
         }
 
         /// <summary>
+        /// A reclamation tick whose admission wait outlives the operation deadline skips that tick:
+        /// periodic reclamation keeps running and disposal does not report the expired wait as a failure.
+        /// </summary>
+        [Test]
+        public async Task ReclamationTickTimingOutBehindBusyGateKeepsReclaimingAndDisposesCleanlyAsync()
+        {
+            await using var fixture = new ProductionDatasetServerFixture(new ProductionDatasetOptions
+            {
+                TransferTimeout = TimeSpan.FromSeconds(10),
+                OperationTimeout = TimeSpan.FromMilliseconds(100)
+            });
+            await fixture.StartAsync().ConfigureAwait(false);
+            // Hold the serialization gate across at least two one-second reclamation ticks.
+            fixture.Provider.BeforeCommit = (_, _) => new ValueTask(
+                Task.Delay(TimeSpan.FromMilliseconds(2500), CancellationToken.None));
+            using (var content = new MemoryStream([1]))
+            {
+                try
+                {
+                    await fixture.Client.UploadAsync(
+                        WriteOptions(StorageEnumeration.FILE_SYSTEM, "stalled"), content).ConfigureAwait(false);
+                }
+                catch (ServiceResultException)
+                {
+                    // The outcome of the stalled commit itself is not under test.
+                }
+            }
+            fixture.Provider.BeforeCommit = null;
+            UaTemporaryWriteFile abandoned = await fixture.Client.OpenWriteAsync(
+                WriteOptions(StorageEnumeration.FILE_SYSTEM, "abandoned")).ConfigureAwait(false);
+            fixture.Clock.Advance(TimeSpan.FromSeconds(11));
+            DateTime deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+            while (fixture.Manager.FindPredefinedNode<NodeState>(abandoned.FileNodeId) != null &&
+                DateTime.UtcNow < deadline)
+            {
+                await Task.Delay(50).ConfigureAwait(false);
+            }
+            Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(abandoned.FileNodeId), Is.Null);
+            await abandoned.DisposeAsync().ConfigureAwait(false);
+            Assert.That(async () => await fixture.Binding.DisposeAsync().ConfigureAwait(false), Throws.Nothing);
+        }
+
+        /// <summary>
         /// Concurrent disposal cancels an in-flight authority before draining queued operations and cleanup.
         /// </summary>
         [Test]
