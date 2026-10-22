@@ -415,7 +415,8 @@ namespace Opc.Ua.Client
                 probes[ii] = ProbeMemberAsync(snapshot.RedundantServers[ii], current, currentUri, ct);
             }
             RedundantServer[] servers = await Task.WhenAll(probes).ConfigureAwait(false);
-            return new ServerRedundancyInfo
+            // A member whose probe waited for a connection in vain is no longer selectable.
+            return ApplyMemberConnections(new ServerRedundancyInfo
             {
                 Mode = snapshot.Mode,
                 RedundantServers = servers,
@@ -425,7 +426,7 @@ namespace Opc.Ua.Client
                 EstimatedReturnTime = snapshot.EstimatedReturnTime,
                 CurrentServerId = snapshot.CurrentServerId,
                 ReadStatuses = snapshot.ReadStatuses
-            };
+            }, current);
         }
 
         private async Task<RedundantServer> ProbeMemberAsync(
@@ -571,14 +572,10 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
             }
 
-            Uri? endpointUrl = ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
-                connections, serverUri, endpoint);
-            if (endpointUrl == null && !m_connectingMembers.ContainsKey(serverUri))
-            {
-                throw ReverseConnectRedundantServerEndpointResolver.NotConnected();
-            }
+            Uri endpointUrl = SelectMemberEndpointUrl(connections, serverUri, endpoint)
+                ?? throw ReverseConnectRedundantServerEndpointResolver.NotConnected();
             ITransportWaitingConnection connection = await WaitForSourceConnectionAsync(
-                connections, endpoint, endpointUrl ?? endpoint.EndpointUrl!, null, TimeSpan.Zero, ct)
+                connections, endpoint, endpointUrl, null, TimeSpan.Zero, ct)
                 .ConfigureAwait(false);
             try
             {
@@ -633,13 +630,7 @@ namespace Opc.Ua.Client
                 {
                     continue;
                 }
-                if (ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
-                    connections, server.ServerUri, current) != null)
-                {
-                    m_connectingMembers.TryAdd(server.ServerUri, 0);
-                    continue;
-                }
-                if (m_connectingMembers.ContainsKey(server.ServerUri))
+                if (SelectMemberEndpointUrl(connections, server.ServerUri, current) != null)
                 {
                     continue;
                 }
@@ -671,10 +662,42 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// The ServerUris of members seen with an available connection, until a
-        /// probe waits for one of their connections in vain.
+        /// Selects the endpoint url an available connection of the member
+        /// announces and remembers it, or returns the url remembered for a
+        /// member seen with a connection before, which a source keyed by the
+        /// announced url still serves when no connection is held at the moment.
         /// </summary>
-        private readonly ConcurrentDictionary<string, byte> m_connectingMembers = new(StringComparer.Ordinal);
+        private Uri? SelectMemberEndpointUrl(
+            IReverseConnectionAvailability connections,
+            string serverUri,
+            ConfiguredEndpoint endpoint)
+        {
+            Uri? url = ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
+                connections, serverUri, endpoint);
+            if (url != null)
+            {
+                m_connectingMembers[serverUri] = url;
+                return url;
+            }
+            return m_connectingMembers.TryGetValue(serverUri, out Uri? announced) ? announced : null;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="serverUri"/> is the Server the session was
+        /// first connected to, or that Server is not known yet.
+        /// </summary>
+        private bool IsInitialServer(string serverUri)
+        {
+            string? initial = m_initialServerUri;
+            return string.IsNullOrEmpty(initial) || string.Equals(initial, serverUri, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// The ServerUris of members seen with an available connection and the
+        /// endpoint url their connections announced, until a probe waits for one
+        /// of their connections in vain.
+        /// </summary>
+        private readonly ConcurrentDictionary<string, Uri> m_connectingMembers = new(StringComparer.Ordinal);
 
         private RetryBudget CreateRecoveryBudget()
         {

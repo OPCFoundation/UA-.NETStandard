@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.Client.TestFramework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using UaManagedSession = Opc.Ua.Client.ManagedSession;
 
@@ -232,6 +233,142 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// A member whose probe times out because it stopped connecting is
+        /// reported as not connected and is not selected by the same refresh.
+        /// </summary>
+        [Test]
+        public async Task ReverseConnectMemberThatStopsConnectingIsNotSelectedAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
+                .ConfigureAwait(false);
+            set.Primary.SetServiceLevel(250);
+            set.Backup.SetServiceLevel(210);
+            var members = new ControlledMemberConnections(set.Source);
+            var options = new ServerRedundancyOptions
+            {
+                ProbeMemberServiceLevel = true,
+                PeerDiscoveryTimeout = TimeSpan.FromSeconds(3)
+            };
+            await using UaManagedSession session = await set.ConnectAsync(
+                options, null, timeout.Token, members).ConfigureAwait(false);
+            await WaitForMemberAsync(session, set.Backup, server => server.ServiceLevelKnown, timeout.Token)
+                .ConfigureAwait(false);
+
+            members.Stop(set.Backup.ApplicationUri);
+            await Assert.ThatAsync(
+                () => session.FailoverAsync(ct: timeout.Token),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNothingToDo)).ConfigureAwait(false);
+
+            RedundantServer backup = Member(session.RedundancyInfo!, set.Backup);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+                Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+                Assert.That(backup.Endpoint, Is.Null);
+                Assert.That(backup.ResolutionError?.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNotConnected));
+                Assert.That(members.StoppedWaits, Is.EqualTo(1), "Only the probe waits for the stopped member.");
+            });
+        }
+
+        /// <summary>
+        /// The probe and the failover wait for a member on the url its
+        /// connections announce, also when no connection is held at the moment
+        /// and the discovered endpoint has another url.
+        /// </summary>
+        [Test]
+        public async Task ReverseConnectProbeAndFailoverWaitOnAnnouncedUrlAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(true, timeout.Token)
+                .ConfigureAwait(false);
+            set.Primary.SetServiceLevel(250);
+            set.Backup.SetServiceLevel(210);
+            var members = new ControlledMemberConnections(set.Source)
+            {
+                AnnounceAliases = true,
+                HideAfterWait = true
+            };
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = true }, null, timeout.Token, members)
+                .ConfigureAwait(false);
+
+            ServerRedundancyInfo info = await WaitForMemberAsync(
+                session, set.Backup, server => server.ServiceLevelKnown || server.ResolutionError != null,
+                timeout.Token).ConfigureAwait(false);
+            RedundantServer backup = Member(info, set.Backup);
+            Assert.Multiple(() =>
+            {
+                Assert.That(backup.ResolutionError, Is.Null);
+                Assert.That(backup.ServiceLevel, Is.EqualTo(210));
+                Assert.That(
+                    backup.Endpoint?.EndpointUrl?.OriginalString,
+                    Is.Not.EqualTo(ControlledMemberConnections.Alias(set.Backup.ApplicationUri)),
+                    "The discovered endpoint has another url than the announced one.");
+            });
+
+            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+                Assert.That(members.WrongUrlWaits, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// With the primary reached over its own source or reverse connect
+        /// manager and the members over another source, a failover and the
+        /// recovery on the member take the member's connections.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReverseConnectFailoverUsesMemberSourceAsync(bool initialManager)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+            await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(
+                true, timeout.Token, separateMemberListener: true).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(250);
+            set.Backup.SetServiceLevel(210);
+            RecordingMemberConnections memberSource = set.MemberSource!;
+            var primarySource = new SingleServerSource(set.Source, set.Primary.ApplicationUri);
+            var policy = new ReconnectPolicyOptions { MaxTotalReconnectTime = TimeSpan.FromSeconds(10) };
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(), policy, timeout.Token, memberSource, primarySource, initialManager)
+                .ConfigureAwait(false);
+            await WaitForMemberAsync(session, set.Backup, server => server.Endpoint != null, timeout.Token)
+                .ConfigureAwait(false);
+            int requests = memberSource.RequestCount(set.Backup.ApplicationUri);
+
+            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+            Assert.That(memberSource.RequestCount(set.Backup.ApplicationUri), Is.GreaterThan(requests));
+            DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(level.GetValue<byte>(0), Is.EqualTo(210));
+
+            // Closing the member's connection in use makes the recovery wait for the member again.
+            var states = new ConcurrentQueue<ConnectionState>();
+            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+            requests = memberSource.RequestCount(set.Backup.ApplicationUri);
+            ((IUaSCByteTransport)memberSource.LastConnection(set.Backup.ApplicationUri)!.Handle).Close();
+            await WaitUntilAsync(
+                () => states.Contains(ConnectionState.Reconnecting) &&
+                    session.StateMachine.State == ConnectionState.Connected,
+                timeout.Token).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+                Assert.That(memberSource.RequestCount(set.Backup.ApplicationUri), Is.GreaterThan(requests));
+                Assert.That(primarySource.RefusedWaits, Is.Zero);
+            });
+        }
+
         private static async Task<ServerRedundancyInfo> WaitForMemberAsync(
             UaManagedSession session,
             RedundantMember member,
@@ -274,11 +411,26 @@ namespace Opc.Ua.Client.Tests
             public RecordingMemberConnections Source { get; private set; } = null!;
 
             /// <summary>
+            /// The second client listener the backup connects to, when started with one.
+            /// </summary>
+            public ReverseConnectManager? MemberListener { get; private set; }
+
+            /// <summary>
+            /// The connections of <see cref="MemberListener"/>.
+            /// </summary>
+            public RecordingMemberConnections? MemberSource { get; private set; }
+
+            /// <summary>
             /// Starts both members and the client listener they connect to.
             /// </summary>
             /// <param name="backupDials">Whether the backup opens reverse connections.</param>
             /// <param name="ct">Cancellation token.</param>
-            public static async Task<ReverseConnectSet> StartAsync(bool backupDials, CancellationToken ct)
+            /// <param name="separateMemberListener">Whether the backup connects to a
+            /// second client listener instead of the primary's.</param>
+            public static async Task<ReverseConnectSet> StartAsync(
+                bool backupDials,
+                CancellationToken ct,
+                bool separateMemberListener = false)
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
@@ -309,6 +461,10 @@ namespace Opc.Ua.Client.Tests
 
                     var clientUrl = new Uri(set.Client.ReverseConnectUri);
                     set.Primary.DialClient(clientUrl, ReverseConnectTimeoutMs);
+                    if (separateMemberListener)
+                    {
+                        clientUrl = await set.StartMemberListenerAsync().ConfigureAwait(false);
+                    }
                     if (backupDials)
                     {
                         set.Backup.DialClient(clientUrl, ReverseConnectTimeoutMs);
@@ -327,10 +483,21 @@ namespace Opc.Ua.Client.Tests
             /// Connects over a connection of the primary; the members are
             /// reached only through <see cref="ServerRedundancyOptions.MemberConnections"/>.
             /// </summary>
+            /// <param name="options">The redundancy options.</param>
+            /// <param name="policy">The reconnect policy.</param>
+            /// <param name="ct">Cancellation token.</param>
+            /// <param name="members">The member connections, <see cref="Source"/> by default.</param>
+            /// <param name="source">The source of the primary's connections, <see cref="Source"/>
+            /// by default.</param>
+            /// <param name="initialManager">Whether the primary is reached through the
+            /// client's reverse connect manager instead of a source.</param>
             public Task<UaManagedSession> ConnectAsync(
                 ServerRedundancyOptions options,
                 ReconnectPolicyOptions? policy,
-                CancellationToken ct)
+                CancellationToken ct,
+                IReverseConnectionAvailability? members = null,
+                IReverseConnectionSource? source = null,
+                bool initialManager = false)
             {
                 ConfiguredEndpoint endpoint = new(null, m_primaryEndpoint, EndpointConfiguration.Create(Client.Config))
                 {
@@ -346,20 +513,25 @@ namespace Opc.Ua.Client.Tests
                     {
                         Endpoint = endpoint,
                         SessionName = "ReverseConnectRedundancy",
-                        ReverseConnectionSource = Source,
+                        ReverseConnectionSource = initialManager ? null : source ?? Source,
                         EnableServerRedundancy = true,
-                        ServerRedundancy = options with { MemberConnections = Source },
+                        ServerRedundancy = options with { MemberConnections = members ?? Source },
                         ReconnectPolicy = policy ?? new ReconnectPolicyOptions()
                     },
                     Client.Config,
                     Client.SessionFactory,
                     telemetry: m_telemetry,
+                    reverseConnectManager: initialManager ? Client.ReverseConnectManager : null,
                     ct: ct);
             }
 
             public async ValueTask DisposeAsync()
             {
                 await Client.DisposeAsync().ConfigureAwait(false);
+                if (MemberListener != null)
+                {
+                    await MemberListener.DisposeAsync().ConfigureAwait(false);
+                }
                 if (Backup != null)
                 {
                     await Backup.DisposeAsync().ConfigureAwait(false);
@@ -378,6 +550,31 @@ namespace Opc.Ua.Client.Tests
                 catch (IOException)
                 {
                     // A certificate store file may still be open; the temp folder is reclaimed later.
+                }
+            }
+
+            private async Task<Uri> StartMemberListenerAsync()
+            {
+                for (int attempt = 0; ; attempt++)
+                {
+                    var listener = new ReverseConnectManager(m_telemetry)
+                    {
+                        TransportBindings = TestTransportBindings.WithAllSchemes()
+                    };
+                    var url = new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{ServerFixtureUtils.GetNextFreeIPPort()}");
+                    try
+                    {
+                        listener.AddEndpoint(url, Client.Config);
+                        await listener.StartServiceAsync(Client.Config).ConfigureAwait(false);
+                        MemberListener = listener;
+                        MemberSource = new RecordingMemberConnections(listener);
+                        return url;
+                    }
+                    catch (ServiceResultException sre) when (
+                        sre.StatusCode == StatusCodes.BadNoCommunication && attempt < 10)
+                    {
+                        await listener.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             }
 
@@ -446,6 +643,122 @@ namespace Opc.Ua.Client.Tests
             private readonly ConcurrentDictionary<string, int> m_requests = new(StringComparer.Ordinal);
             private readonly ConcurrentDictionary<string, ITransportWaitingConnection> m_connections =
                 new(StringComparer.Ordinal);
+        }
+
+        /// <summary>
+        /// Member connections whose availability and waits the test controls:
+        /// it can announce an alias url per member and hand out connections
+        /// only for waits on that alias, report no held connection once a
+        /// wait completed, and stop a member from connecting.
+        /// </summary>
+        private sealed class ControlledMemberConnections : IReverseConnectionAvailability
+        {
+            public ControlledMemberConnections(IReverseConnectionAvailability inner)
+            {
+                m_inner = inner;
+            }
+
+            public bool AnnounceAliases { get; init; }
+
+            public bool HideAfterWait { get; init; }
+
+            public int StoppedWaits => Volatile.Read(ref m_stoppedWaits);
+
+            public ConcurrentQueue<Uri> WrongUrlWaits { get; } = new();
+
+            public static string Alias(string serverUri)
+            {
+                return $"{Utils.UriSchemeOpcTcp}://announced.invalid:4840/{Uri.EscapeDataString(serverUri)}";
+            }
+
+            public void Stop(string serverUri)
+            {
+                m_stopped[serverUri] = 0;
+            }
+
+            public IReadOnlyList<Uri> GetAvailableEndpointUrls(string serverUri)
+            {
+                if (m_stopped.ContainsKey(serverUri) || m_hidden.ContainsKey(serverUri))
+                {
+                    return [];
+                }
+                IReadOnlyList<Uri> available = m_inner.GetAvailableEndpointUrls(serverUri);
+                if (!AnnounceAliases || available.Count == 0)
+                {
+                    return available;
+                }
+                m_urls[serverUri] = available[0];
+                return [new Uri(Alias(serverUri))];
+            }
+
+            public async ValueTask<ITransportWaitingConnection> WaitForConnectionAsync(
+                Uri endpointUrl,
+                string? serverUri,
+                CancellationToken ct)
+            {
+                string key = serverUri ?? string.Empty;
+                if (m_stopped.ContainsKey(key))
+                {
+                    Interlocked.Increment(ref m_stoppedWaits);
+                    await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                }
+                if (AnnounceAliases)
+                {
+                    if (endpointUrl.OriginalString != Alias(key) || !m_urls.TryGetValue(key, out Uri? url))
+                    {
+                        WrongUrlWaits.Enqueue(endpointUrl);
+                        throw new ServiceResultException(
+                            StatusCodes.BadTcpEndpointUrlInvalid, "No connection announces this url.");
+                    }
+                    endpointUrl = url;
+                }
+                ITransportWaitingConnection connection = await m_inner
+                    .WaitForConnectionAsync(endpointUrl, serverUri, ct).ConfigureAwait(false);
+                if (HideAfterWait)
+                {
+                    m_hidden[key] = 0;
+                }
+                return connection;
+            }
+
+            private readonly IReverseConnectionAvailability m_inner;
+            private readonly ConcurrentDictionary<string, Uri> m_urls = new(StringComparer.Ordinal);
+            private readonly ConcurrentDictionary<string, byte> m_hidden = new(StringComparer.Ordinal);
+            private readonly ConcurrentDictionary<string, byte> m_stopped = new(StringComparer.Ordinal);
+            private int m_stoppedWaits;
+        }
+
+        /// <summary>
+        /// Hands out only the connections of one server and refuses waits for
+        /// any other server.
+        /// </summary>
+        private sealed class SingleServerSource : IReverseConnectionSource
+        {
+            public SingleServerSource(IReverseConnectionSource inner, string serverUri)
+            {
+                m_inner = inner;
+                m_serverUri = serverUri;
+            }
+
+            public int RefusedWaits => Volatile.Read(ref m_refusedWaits);
+
+            public ValueTask<ITransportWaitingConnection> WaitForConnectionAsync(
+                Uri endpointUrl,
+                string? serverUri,
+                CancellationToken ct)
+            {
+                if (!string.Equals(serverUri, m_serverUri, StringComparison.Ordinal))
+                {
+                    Interlocked.Increment(ref m_refusedWaits);
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotConnected, "The source holds no connection of this server.");
+                }
+                return m_inner.WaitForConnectionAsync(endpointUrl, serverUri, ct);
+            }
+
+            private readonly IReverseConnectionSource m_inner;
+            private readonly string m_serverUri;
+            private int m_refusedWaits;
         }
     }
 }

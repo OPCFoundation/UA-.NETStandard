@@ -484,6 +484,7 @@ namespace Opc.Ua.Client
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
                 m_reverseConnectionSource = reverseConnectionSource,
+                m_initialServerUri = endpoint.ReverseConnect?.ServerUri ?? endpoint.Description?.Server?.ApplicationUri,
                 m_initialConnection = connection,
                 m_reverseConnectRequired = reverseConnectManager != null ||
                     reverseConnectionSource != null ||
@@ -1650,6 +1651,10 @@ namespace Opc.Ua.Client
                         PublishEndpoint(endpoint, source);
                     }
                     SetBindingSession(session);
+                    if (string.IsNullOrEmpty(m_initialServerUri))
+                    {
+                        m_initialServerUri = session.ConfiguredEndpoint.Description?.Server?.ApplicationUri;
+                    }
                 }
                 finally
                 {
@@ -2787,22 +2792,28 @@ namespace Opc.Ua.Client
             bool switching,
             CancellationToken ct)
         {
-            if (m_reverseConnectManager != null)
+            string? serverUri = endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri;
+            // A member of a redundant Server set reached over its reverse connections is reached that way again.
+            bool member = m_memberConnections != null &&
+                endpoint.ReverseConnect?.Enabled == true &&
+                !string.IsNullOrEmpty(serverUri);
+            // The initial Server keeps the source or manager it was connected over; every other member
+            // is reached over the member connections.
+            bool otherMember = member && !IsInitialServer(serverUri!);
+            if (m_reverseConnectManager != null && !otherMember)
             {
                 return await m_reverseConnectManager.WaitForConnectionAsync(
                     endpoint.EndpointUrl!,
-                    endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri,
+                    serverUri,
                     ct).ConfigureAwait(false);
             }
-            // A member of a redundant Server set reached over its reverse connections is reached that way again.
-            bool member = m_memberConnections != null && endpoint.ReverseConnect?.Enabled == true;
-            IReverseConnectionSource? source = m_reverseConnectionSource ?? (member ? m_memberConnections : null);
+            IReverseConnectionSource? source = otherMember
+                ? m_memberConnections
+                : m_reverseConnectionSource ?? (member ? m_memberConnections : null);
             if (source != null)
             {
-                string? serverUri = endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri;
-                Uri? announced = member && !string.IsNullOrEmpty(serverUri)
-                    ? ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
-                        m_memberConnections!, serverUri!, endpoint)
+                Uri? announced = member && ReferenceEquals(source, m_memberConnections)
+                    ? SelectMemberEndpointUrl(m_memberConnections!, serverUri!, endpoint)
                     : null;
                 // A switch, also after the reconnect budget ran out, waits for the member's connection.
                 TimeSpan minimumWait = switching && member ? m_peerProbeTimeout : TimeSpan.Zero;
@@ -3648,6 +3659,12 @@ namespace Opc.Ua.Client
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;
         private IReverseConnectionSource? m_reverseConnectionSource;
+
+        /// <summary>
+        /// The ServerUri of the Server the session was first connected to,
+        /// which keeps the reverse connection source or manager of that connect.
+        /// </summary>
+        private string? m_initialServerUri;
         private readonly IReverseConnectionAvailability? m_memberConnections;
 
         /// <summary>

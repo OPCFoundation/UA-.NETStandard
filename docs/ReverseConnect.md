@@ -134,7 +134,13 @@ connections instead of dialing them: endpoint resolution calls `GetEndpoints`
 over a member's connection (`ReverseConnectRedundantServerEndpointResolver`),
 the `ProbeMemberServiceLevel` probe runs over a member's connection, and a
 failover to a member waits for that member's next connection, for at least
-`PeerDiscoveryTimeout` even after the reconnect budget ran out. A member for
+`PeerDiscoveryTimeout` even after the reconnect budget ran out. These waits use
+the endpoint url the member's connections announced, which can differ from the
+url of the endpoint `GetEndpoints` returned. A failover to a member other than
+the Server first connected to, and the later recovery on that member, take the
+member's connections from `MemberConnections` also when the first Server is
+reached over another `ReverseConnectionSource` or a `ReverseConnectManager`; the
+first Server keeps that source or manager. A member for
 which the source reports no available connection carries `BadNotConnected` in
 `RedundantServer.ResolutionError`, has no `Endpoint` and is never selected.
 `ReverseConnectManager` implements `IReverseConnectionAvailability` and reports
