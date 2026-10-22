@@ -1585,31 +1585,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <summary>
-        /// Returns <c>true</c> when the exact-source read check of the attribute involves no
-        /// registered Value read authorizer, whose policy must run on every delivery, and no
-        /// read callback for the node's restrictions or permissions, whose answer may change
-        /// without moving any version the cached verdict is keyed on.
-        /// </summary>
-        private bool CanCacheReadAuthorization(uint attributeId)
-        {
-            NodeState node = Node;
-            if (node.OnReadAccessRestrictions != null ||
-                node.OnReadRolePermissions != null ||
-                node.OnReadUserRolePermissions != null)
-            {
-                return false;
-            }
-            return NodeManager switch
-            {
-                AsyncCustomNodeManager custom => attributeId != Attributes.Value ||
-                    Node is not BaseVariableState variable ||
-                    !custom.HasValueReadAuthorization(variable),
-                AsyncNodeManagerAdapter { SyncNodeManager: CustomNodeManager2 } => true,
-                _ => false
-            };
-        }
-
         private static bool IsUserDependentAttribute(uint attributeId)
         {
             return attributeId is Attributes.UserAccessLevel or
@@ -1632,10 +1607,7 @@ namespace Opc.Ua.Server
                 long generation = authorization.Generation +
                     authorization.RolePermissionsVersion +
                     authorization.IdentityGeneration;
-                EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
-                MessageSecurityMode? securityMode = endpoint?.SecurityMode;
-                string? transport = endpoint?.TransportProfileUri;
-                AccessRestrictionType? restrictions = Node.AccessRestrictions;
+                var inputs = MonitoredReadInputs.Capture(monitoredItem.Session, Node);
                 // the subscriber's own context, also when the reporter's context is not a
                 // ServerSystemContext: every access check of the item uses its identity.
                 ServerSystemContext cachedContext = GetSubscriberContext(
@@ -1646,11 +1618,11 @@ namespace Opc.Ua.Server
                 {
                     return (new ServiceResult(StatusCodes.BadUserAccessDenied), cachedContext);
                 }
-                ReadAuthorizationVerdict? readVerdict = null;
+                MonitoredReadVerdict? readVerdict = null;
                 if (m_permissionCache.TryGetValue(
                     monitoredItem.Id,
                     out (long Generation, ISession? Session,
-                        ServerSystemContext? Context, ServiceResult Result, ReadAuthorizationVerdict? Read) cached) &&
+                        ServerSystemContext? Context, ServiceResult Result, MonitoredReadVerdict? Read) cached) &&
                     cached.Generation == generation &&
                     ReferenceEquals(cached.Session, operationContext.Session) &&
                     ReferenceEquals(cached.Context, cachedContext))
@@ -1668,63 +1640,30 @@ namespace Opc.Ua.Server
                 }
                 if (!ServiceResult.IsBad(result))
                 {
-                    // The exact-source recheck runs per delivery and item. Without a registered Value
-                    // read authorizer (whose policy is never cached) its verdict depends only on the
-                    // inputs keyed here and in the role-permission entry, so a good verdict is reused
-                    // until one of them moves. Namespace defaults behind read callbacks or access
-                    // levels are not keyed by any version, so a verdict is only kept while the
-                    // defaults are static.
-                    long defaultsGeneration = NamespaceDefaultPermissionReader.Generation;
-                    bool cacheable = CanCacheReadAuthorization(monitoredItem.AttributeId);
-                    if (cacheable &&
-                        readVerdict != null &&
-                        readVerdict.Matches(
-                            m_server,
-                            Node.NodeId.NamespaceIndex,
-                            defaultsGeneration,
-                            endpoint,
-                            securityMode,
-                            transport,
-                            restrictions))
+                    // The exact-source recheck runs per delivery and item; a good verdict is kept in
+                    // the role-permission entry, so it is retired with it (see MonitoredReadVerdict).
+                    if (MonitoredReadVerdict.TryReuse(
+                        readVerdict, m_server, NodeManager, Node, monitoredItem.AttributeId, inputs,
+                        out ServiceResult? reused))
                     {
-                        result = readVerdict.Result;
+                        result = reused;
                     }
                     else
                     {
                         ServiceResult roleResult = result;
-                        NamespaceMetadataState? defaults = null;
-                        cacheable = cacheable && NamespaceDefaultPermissionReader.TryGetStaticDefaults(
-                            m_server, Node.NodeId.NamespaceIndex, out defaults);
-                        result = await MonitoredReadAuthorization.ValidateAsync(
-                            NodeManager, Node, cachedContext, monitoredItem.AttributeId, ct).ConfigureAwait(false);
+                        (result, readVerdict) = await MonitoredReadVerdict.ValidateAsync(
+                            m_server, NodeManager, Node, cachedContext, monitoredItem.AttributeId, inputs, ct)
+                            .ConfigureAwait(false);
                         ct.ThrowIfCancellationRequested();
-                        if (cacheable &&
-                            ServiceResult.IsGood(result) &&
-                            defaultsGeneration == NamespaceDefaultPermissionReader.Generation &&
-                            NamespaceDefaultPermissionReader.AreDefaultsStatic(defaults))
+                        if (readVerdict != null)
                         {
                             m_permissionCache[monitoredItem.Id] = (
-                                generation,
-                                operationContext.Session,
-                                cachedContext,
-                                roleResult,
-                                new ReadAuthorizationVerdict(
-                                    defaultsGeneration,
-                                    defaults,
-                                    endpoint,
-                                    securityMode,
-                                    transport,
-                                    restrictions,
-                                    result));
+                                generation, operationContext.Session, cachedContext, roleResult, readVerdict);
                         }
                     }
                 }
-                EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session);
                 if (authorization.Matches(CapturePermissionContext(monitoredItem)) &&
-                    ReferenceEquals(endpoint, currentEndpoint) &&
-                    securityMode == currentEndpoint?.SecurityMode &&
-                    transport == currentEndpoint?.TransportProfileUri &&
-                    restrictions == Node.AccessRestrictions)
+                    inputs.IsCurrent(monitoredItem.Session, Node))
                 {
                     return (result, cachedContext);
                 }
@@ -1949,7 +1888,7 @@ namespace Opc.Ua.Server
 
         private readonly ConcurrentDictionary<
             uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result,
-                ReadAuthorizationVerdict? Read)>
+                MonitoredReadVerdict? Read)>
             m_permissionCache = new();
 
         private readonly ConcurrentDictionary<
@@ -2112,46 +2051,6 @@ namespace Opc.Ua.Server
                     ReferenceEquals(Session, other.Session) &&
                     ReferenceEquals(Identity, other.Identity) &&
                     IdentityGeneration == other.IdentityGeneration;
-            }
-        }
-
-        /// <summary>
-        /// A good exact-source read verdict and the channel, restriction and namespace-default
-        /// inputs it was computed with. The namespace metadata node (or its absence) is kept so
-        /// metadata linked later, a read callback attached to one of its defaults later, or a
-        /// revoked read access on one (none of which moves a generation) retires the verdict.
-        /// </summary>
-        private sealed class ReadAuthorizationVerdict(
-            long defaultsGeneration,
-            NamespaceMetadataState? defaults,
-            EndpointDescription? endpoint,
-            MessageSecurityMode? securityMode,
-            string? transport,
-            AccessRestrictionType? restrictions,
-            ServiceResult result)
-        {
-            public ServiceResult Result { get; } = result;
-
-            public bool Matches(
-                IServerInternal server,
-                ushort namespaceIndex,
-                long currentDefaultsGeneration,
-                EndpointDescription? currentEndpoint,
-                MessageSecurityMode? currentSecurityMode,
-                string? currentTransport,
-                AccessRestrictionType? currentRestrictions)
-            {
-                // The metadata node (or its absence) is resolved again on every reuse: metadata linked
-                // later through a reference alone moves no generation, and the registry only notices
-                // it on lookup. A cached lookup, hit or miss, does not enumerate the namespaces.
-                return defaultsGeneration == currentDefaultsGeneration &&
-                    ReferenceEquals(endpoint, currentEndpoint) &&
-                    securityMode == currentSecurityMode &&
-                    transport == currentTransport &&
-                    restrictions == currentRestrictions &&
-                    NamespaceDefaultPermissionReader.TryGetStaticDefaults(
-                        server, namespaceIndex, out NamespaceMetadataState? current) &&
-                    ReferenceEquals(current, defaults);
             }
         }
 

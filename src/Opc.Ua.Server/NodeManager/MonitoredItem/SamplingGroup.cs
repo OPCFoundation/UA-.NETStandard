@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -771,6 +772,12 @@ namespace Opc.Ua.Server
             // read values.
             await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
+            // one system context for the exact-source checks of this owner's items; an item
+            // without a session is checked with a context of its own.
+            ServerSystemContext? systemContext = context.Session != null
+                ? new ServerSystemContext(m_server, context)
+                : null;
+
             // update monitored items, unless the group stopped while reading: its items
             // may already be deleted.
             for (int ii = 0; ii < items.Count; ii++)
@@ -788,8 +795,13 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
 
-                permissionResult = await ValidateSampleReadAccessAsync(
-                    items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
+                (permissionResult, _, _) = await ValidateSampleReadAccessAsync(
+                    items[ii],
+                    ResolveSampledNode(items[ii]),
+                    context,
+                    systemContext,
+                    permissionResult,
+                    cancellationToken).ConfigureAwait(false);
 
                 // the group may have stopped while the permission check was suspended.
                 if (IsSamplingStopped(loopCts, cancellationToken))
@@ -802,60 +814,116 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rechecks each NodeState-backed sample's current subscriber policy and endpoint before queueing its value.
+        /// Resolves the exact NodeState source of a sampled item, or <c>null</c> for a
+        /// provider-specific handle.
         /// </summary>
-        private async ValueTask<ServiceResult> ValidateSampleReadAccessAsync(
-            ISampledDataChangeMonitoredItem item,
-            OperationContext readContext,
-            ServiceResult permission,
-            CancellationToken cancellationToken)
+        private NodeState? ResolveSampledNode(ISampledDataChangeMonitoredItem item)
         {
-            if (ServiceResult.IsBad(permission))
-            {
-                return permission;
-            }
-            NodeState? node = item.ManagerHandle switch
+            return item.ManagerHandle switch
             {
                 NodeHandle handle => handle.Node,
                 NodeState state => state,
                 _ => (m_nodeManager as AsyncCustomNodeManager)?.Find(item.NodeId)
             };
-            if (node == null)
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when the context of the sampling pass still belongs to the item's
+        /// current owner.
+        /// </summary>
+        private static bool IsCurrentOwner(ISampledDataChangeMonitoredItem item, OperationContext readContext)
+        {
+            return ReferenceEquals(readContext.Session, item.Session) &&
+                ReferenceEquals(readContext.UserIdentity,
+                    item.Session?.EffectiveIdentity ?? item.EffectiveIdentity);
+        }
+
+        /// <summary>
+        /// Returns the cached good exact-source verdict of a sampled item when it is still valid
+        /// for the node, the permission epoch and the subscriber's current channel.
+        /// </summary>
+        /// <remarks>
+        /// The verdict is part of the item's role permission verdict, so it is also retired by
+        /// everything that revalidates that one, including the periodic revalidation.
+        /// </remarks>
+        private bool TryReuseSampleReadAccess(
+            ISampledDataChangeMonitoredItem item,
+            NodeState node,
+            OperationContext readContext,
+            in PermissionVerdict verdict,
+            [NotNullWhen(true)] out ServiceResult? result)
+        {
+            result = null;
+            return verdict.Read != null &&
+                ReferenceEquals(verdict.ReadNode, node) &&
+                verdict.Epoch == PermissionEpoch &&
+                IsCurrentOwner(item, readContext) &&
+                MonitoredReadVerdict.TryReuse(
+                    verdict.Read,
+                    m_server,
+                    m_nodeManager,
+                    node,
+                    item.AttributeId,
+                    MonitoredReadInputs.Capture(item.Session, node),
+                    out result);
+        }
+
+        /// <summary>
+        /// Rechecks each NodeState-backed sample's current subscriber policy and endpoint before queueing its value.
+        /// </summary>
+        /// <param name="item">The sampled item.</param>
+        /// <param name="node">The item's exact source, or <c>null</c> for a provider-specific handle.</param>
+        /// <param name="readContext">The context the values of the pass were read with.</param>
+        /// <param name="systemContext">
+        /// The system context of the pass, shared by the checks of its items, or <c>null</c> to
+        /// create one for an item without a session.
+        /// </param>
+        /// <param name="permission">The item's role permission verdict.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The verdict, and a good verdict that may be reused for later samples.</returns>
+        private async ValueTask<(ServiceResult Result, MonitoredReadVerdict? Verdict, long Epoch)>
+            ValidateSampleReadAccessAsync(
+            ISampledDataChangeMonitoredItem item,
+            NodeState? node,
+            OperationContext readContext,
+            ServerSystemContext? systemContext,
+            ServiceResult permission,
+            CancellationToken cancellationToken)
+        {
+            if (ServiceResult.IsBad(permission) || node == null)
             {
                 // Provider-specific non-NodeState handles retain their existing Read and role validation contracts.
-                return permission;
+                return (permission, null, 0);
             }
             try
             {
                 while (true)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!ReferenceEquals(readContext.Session, item.Session) ||
-                        !ReferenceEquals(readContext.UserIdentity,
-                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity))
+                    if (!IsCurrentOwner(item, readContext))
                     {
-                        return StatusCodes.BadUserAccessDenied;
+                        return (StatusCodes.BadUserAccessDenied, null, 0);
                     }
-                    EndpointDescription? endpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
-                    MessageSecurityMode? securityMode = endpoint?.SecurityMode;
-                    string? transport = endpoint?.TransportProfileUri;
-                    AccessRestrictionType? restrictions = node.AccessRestrictions;
+                    var inputs = MonitoredReadInputs.Capture(item.Session, node);
                     long epoch = PermissionEpoch;
-                    using OperationContext current = MonitoredReadAuthorization.CreateContext(item, m_diagnosticsMask);
-                    var systemContext = new ServerSystemContext(m_server, current);
-                    ServiceResult result = await MonitoredReadAuthorization.ValidateAsync(
-                        m_nodeManager, node, systemContext, item.AttributeId, cancellationToken).ConfigureAwait(false);
-                    EndpointDescription? currentEndpoint = MonitoredReadAuthorization.GetEndpoint(item.Session);
-                    if (ReferenceEquals(readContext.Session, item.Session) &&
-                        ReferenceEquals(readContext.UserIdentity,
-                            item.Session?.EffectiveIdentity ?? item.EffectiveIdentity) &&
-                        ReferenceEquals(endpoint, currentEndpoint) &&
-                        securityMode == currentEndpoint?.SecurityMode &&
-                        transport == currentEndpoint?.TransportProfileUri &&
-                        restrictions == node.AccessRestrictions &&
+                    // ValidateAsync rebinds a context whose endpoint is no longer the session's,
+                    // so the checks of one pass share its context.
+                    using OperationContext? current = systemContext == null
+                        ? MonitoredReadAuthorization.CreateContext(item, m_diagnosticsMask)
+                        : null;
+                    (ServiceResult result, MonitoredReadVerdict? verdict) = await MonitoredReadVerdict.ValidateAsync(
+                        m_server,
+                        m_nodeManager,
+                        node,
+                        systemContext ?? new ServerSystemContext(m_server, current!),
+                        item.AttributeId,
+                        inputs,
+                        cancellationToken).ConfigureAwait(false);
+                    if (IsCurrentOwner(item, readContext) &&
+                        inputs.IsCurrent(item.Session, node) &&
                         epoch == PermissionEpoch)
                     {
-                        return result;
+                        return (result, verdict, epoch);
                     }
                 }
             }
@@ -865,17 +933,17 @@ namespace Opc.Ua.Server
             }
             catch (ObjectDisposedException)
             {
-                return StatusCodes.BadShutdown;
+                return (StatusCodes.BadShutdown, null, 0);
             }
             catch (ServiceResultException error)
             {
-                return error.Result;
+                return (error.Result, null, 0);
             }
             catch (Exception error) when (
                 error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
             {
-                return ServiceResult.Create(
-                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed.");
+                return (ServiceResult.Create(
+                    error, StatusCodes.BadUnexpectedError, "A sampled Value read authorization failed."), null, 0);
             }
         }
 
@@ -1052,6 +1120,13 @@ namespace Opc.Ua.Server
                 long epoch = m_group.PermissionEpoch;
                 int slice = (int)(m_cycle++ % m_revalidationStride);
 
+                // captured once per pass: both take the session's lock. A stale identity is
+                // refreshed elsewhere; until then every item takes the full exact-source check.
+                ISession? session = context.Session;
+                long identityGeneration = session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
+                bool reuseReadVerdicts = session?.IsIdentityStale != true;
+                ServerSystemContext? systemContext = null;
+
                 // update monitored items, unless the group stopped while reading: its items
                 // may already be deleted.
                 for (int ii = 0; ii < items.Length; ii++)
@@ -1072,6 +1147,7 @@ namespace Opc.Ua.Server
                     if (permissionResult == null ||
                         ii % m_revalidationStride == slice ||
                         verdict.Epoch != epoch ||
+                        verdict.IdentityGeneration != identityGeneration ||
                         !ReferenceEquals(verdict.Session, context.Session) ||
                         !ReferenceEquals(verdict.Identity, context.UserIdentity) ||
                         !ReferenceEquals(verdict.Handle, readValueId.Handle))
@@ -1090,15 +1166,45 @@ namespace Opc.Ua.Server
                             return;
                         }
 
-                        m_verdicts[ii] = new PermissionVerdict(
-                            permissionResult, epoch, context.Session, context.UserIdentity, readValueId.Handle);
+                        verdict = new PermissionVerdict(
+                            permissionResult,
+                            epoch,
+                            context.Session,
+                            context.UserIdentity,
+                            readValueId.Handle,
+                            identityGeneration);
+                        m_verdicts[ii] = verdict;
                     }
 
-                    permissionResult = await m_group.ValidateSampleReadAccessAsync(
-                        items[ii], context, permissionResult, cancellationToken).ConfigureAwait(false);
-                    if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                    // the exact-source recheck: a good verdict without a registered Value read
+                    // authorizer is kept with the role permission verdict (see MonitoredReadVerdict).
+                    NodeState? node = m_group.ResolveSampledNode(items[ii]);
+                    if (node == null ||
+                        ServiceResult.IsBad(permissionResult) ||
+                        !reuseReadVerdicts ||
+                        !m_group.TryReuseSampleReadAccess(
+                            items[ii], node, context, verdict, out ServiceResult? reused))
                     {
-                        return;
+                        if (node != null && context.Session != null)
+                        {
+                            systemContext ??= new ServerSystemContext(m_group.m_server, context);
+                        }
+                        (permissionResult, MonitoredReadVerdict? read, long readEpoch) =
+                            await m_group.ValidateSampleReadAccessAsync(
+                                items[ii], node, context, systemContext, permissionResult, cancellationToken)
+                            .ConfigureAwait(false);
+                        if (m_group.IsSamplingStopped(m_loopCts, cancellationToken))
+                        {
+                            return;
+                        }
+                        if (read != null && reuseReadVerdicts && readEpoch == verdict.Epoch)
+                        {
+                            m_verdicts[ii] = verdict with { Read = read, ReadNode = node };
+                        }
+                    }
+                    else
+                    {
+                        permissionResult = reused;
                     }
                     m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult);
                 }
@@ -1135,14 +1241,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The cached result of a role permission validation and the inputs it is valid for.
+        /// The cached result of a role permission validation and the inputs it is valid for,
+        /// and the good exact-source read verdict computed with it, if any.
         /// </summary>
+        /// <param name="Result">The role permission verdict.</param>
+        /// <param name="Epoch">The permission epoch of the group when it was computed.</param>
+        /// <param name="Session">The owning session.</param>
+        /// <param name="Identity">The owner's effective identity.</param>
+        /// <param name="Handle">The item's manager handle.</param>
+        /// <param name="IdentityGeneration">The session's activation and live-role refresh generation.</param>
+        /// <param name="Read">The reusable exact-source read verdict.</param>
+        /// <param name="ReadNode">The exact source <paramref name="Read"/> was computed for.</param>
         private readonly record struct PermissionVerdict(
             ServiceResult? Result,
             long Epoch,
             ISession? Session,
             IUserIdentity? Identity,
-            object? Handle);
+            object? Handle,
+            long IdentityGeneration,
+            MonitoredReadVerdict? Read = null,
+            NodeState? ReadNode = null);
 
         /// <summary>
         /// The longest time a cached role permission verdict of a sampled item is used
