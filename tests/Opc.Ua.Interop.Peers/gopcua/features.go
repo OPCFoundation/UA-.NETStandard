@@ -13,9 +13,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"math/big"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -638,10 +640,36 @@ func checkWrongPassword(c context.Context, x *ctx) error {
 	return nil
 }
 
-func checkX509UserToken(c context.Context, x *ctx) error {
+// userCertificate returns the user certificate the harness trusts on the server
+// (--x509-user-cert-der with --x509-user-key-pem, PKCS#8) or, without those
+// options, a new self-signed one.
+func userCertificate() ([]byte, *rsa.PrivateKey, error) {
+	if certPath, keyPath := opt("x509-user-cert-der", ""), opt("x509-user-key-pem", ""); certPath != "" && keyPath != "" {
+		cert, err := os.ReadFile(certPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		keyPem, err := os.ReadFile(keyPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		block, _ := pem.Decode(keyPem)
+		if block == nil {
+			return nil, nil, fmt.Errorf("%s holds no PEM private key", keyPath)
+		}
+		parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, ok := parsed.(*rsa.PrivateKey)
+		if !ok {
+			return nil, nil, fmt.Errorf("%s holds no RSA private key", keyPath)
+		}
+		return cert, key, nil
+	}
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	serial, _ := rand.Int(rand.Reader, big.NewInt(1<<62))
 	template := &x509.Certificate{
@@ -654,6 +682,14 @@ func checkX509UserToken(c context.Context, x *ctx) error {
 		BasicConstraintsValid: true,
 	}
 	cert, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return cert, key, nil
+}
+
+func checkX509UserToken(c context.Context, x *ctx) error {
+	cert, key, err := userCertificate()
 	if err != nil {
 		return err
 	}
