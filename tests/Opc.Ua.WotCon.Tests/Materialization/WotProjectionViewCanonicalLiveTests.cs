@@ -309,15 +309,34 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <summary>
         /// Verifies that local projection affordances coexist with imported members and override name collisions.
         /// </summary>
-        [Test]
-        public async Task ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync()
+        /// <param name="affordanceMap">The local and imported affordance map.</param>
+        /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
+        /// <param name="thingModel">Whether the projection and source are Thing Models.</param>
+        [TestCase("properties", NodeClass.Variable, false)]
+        [TestCase("actions", NodeClass.Method, false)]
+        [TestCase("events", NodeClass.ObjectType, false)]
+        [TestCase("properties", NodeClass.Variable, true)]
+        [TestCase("actions", NodeClass.Method, true)]
+        [TestCase("events", NodeClass.ObjectType, true)]
+        public async Task ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync(
+            string affordanceMap,
+            NodeClass expectedNodeClass,
+            bool thingModel)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
             const string sourceResource = "mixed-source";
             const string projectionResource = "projection-mixed";
-            string sourceUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/{sourceResource}";
-            string projectionUri =
-                $"urn:wot:{WotRegistryGroups.ThingDescriptions}/{projectionResource}";
+            string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
+            string contentType = thingModel ? "application/tm+json" : "application/td+json";
+            string sourceUri = $"urn:wot:{group}/{sourceResource}";
+            string projectionUri = $"urn:wot:{group}/{projectionResource}";
+            string schema = affordanceMap switch
+            {
+                "properties" => "\"type\":\"number\",",
+                "events" => "\"data\":{\"type\":\"object\",\"properties\":{}},",
+                _ => string.Empty
+            };
             NodeId importedShared = harness.Identity(sourceUri, "MixedSource/shared");
             NodeId importedOnly = harness.Identity(sourceUri, "MixedSource/importedOnly");
             NodeId localShared = harness.Identity(projectionUri, "MixedProjection/shared");
@@ -326,27 +345,31 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await harness.RegisterTdAsync(sourceResource, $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
-                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":"Thing",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":"{{{rootType}}}",
                   "id":"urn:mixed-source","title":"Mixed source",
                   "uav:id":"nsu={{{sourceUri}}};s=MixedSource",
-                  "properties":{
+                  "{{{affordanceMap}}}":{
                     "shared":{
                       "uav:id":"nsu={{{sourceUri}}};s=MixedSource/shared",
-                      "type":"number","forms":[{"href":"https://example.test/imported-shared"}]
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/imported-shared"}]
                     },
                     "importedOnly":{
                       "uav:id":"nsu={{{sourceUri}}};s=MixedSource/importedOnly",
-                      "type":"number","forms":[{"href":"https://example.test/imported-only"}]
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/imported-only"}]
                     }
                   }
                 }
-                """).ConfigureAwait(false);
+                """, thingModel).ConfigureAwait(false);
             await harness.RegisterTdAsync(projectionResource, $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
-                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":["Thing","uav:projection"],
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":["{{{rootType}}}","uav:projection"],
                   "id":"urn:projection:mixed","title":"Mixed projection",
                   "uav:scenario":"urn:scenario:mixed",
                   "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},
@@ -354,25 +377,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                   "uav:projects":[{
                     "uav:sourceName":"source",
                     "href":"{{{sourceUri}}}",
-                    "type":"application/td+json",
+                    "type":"{{{contentType}}}",
                     "uav:selectAll":true
                   }],
-                  "properties":{
+                  "{{{affordanceMap}}}":{
                     "localOnly":{
                       "uav:id":"nsu={{{projectionUri}}};s=MixedProjection/localOnly",
-                      "type":"number","forms":[{"href":"https://example.test/local-only"}]
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/local-only"}]
                     },
                     "shared":{
                       "uav:id":"nsu={{{projectionUri}}};s=MixedProjection/shared",
-                      "type":"number","forms":[{"href":"https://example.test/local-shared"}]
+                      {{{schema}}}
+                      "forms":[{"href":"https://example.test/local-shared"}]
                     }
                   }
                 }
-                """).ConfigureAwait(false);
+                """, thingModel).ConfigureAwait(false);
 
             WotRefreshResult result = await harness.RefreshAsync().ConfigureAwait(false);
 
-            NodeId resourceNode = harness.ResourceNodeId(projectionResource);
+            NodeId resourceNode = harness.ResourceNodeId(projectionResource, thingModel);
             NodeId viewNode = new(resourceNode.IdentifierAsString + "/View", resourceNode.NamespaceIndex);
             WoTResourceLoadResultDataType load = result.Results.Single(
                 row => row.ResourceId == projectionResource);
@@ -401,13 +426,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(membersByName["shared"], Is.EqualTo(localShared),
                     "A local definition wins a same-kind name collision with an imported affordance.");
                 Assert.That(membersByName["shared"], Is.Not.EqualTo(importedShared));
+                Assert.That(load.RootNodeId, Is.EqualTo(viewNode));
+                Assert.That(members.ToArray()!.Select(member => member.NodeClass),
+                    Is.All.EqualTo(expectedNodeClass));
             });
             Assert.That(await ReadNodeClassAsync(harness, importedShared).ConfigureAwait(false),
-                Is.EqualTo(NodeClass.Variable));
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, importedOnly).ConfigureAwait(false),
+                Is.EqualTo(expectedNodeClass));
             Assert.That(await ReadNodeClassAsync(harness, localShared).ConfigureAwait(false),
-                Is.EqualTo(NodeClass.Variable));
+                Is.EqualTo(expectedNodeClass));
             Assert.That(await ReadNodeClassAsync(harness, localOnly).ConfigureAwait(false),
-                Is.EqualTo(NodeClass.Variable));
+                Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, viewNode).ConfigureAwait(false),
+                Is.EqualTo(NodeClass.View));
         }
 
         /// <summary>
