@@ -176,7 +176,7 @@ namespace Pumps
             }
         }
 
-        private const string PlantRootLayerIdentifier = "asset-repo/Plant.usd";
+        private const string PlantRootLayerIdentifier = "Plant.usda";
 
         /// <summary>
         /// Prim scope the configured pumps are composed into. Each pump owns
@@ -222,6 +222,7 @@ namespace Pumps
 
                 m_plantStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages, new QualifiedName("PlantStage", ns));
+                m_plantStage.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 stages.AddChild(m_plantStage);
                 m_plantStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = PlantRootLayerIdentifier;
@@ -259,7 +260,7 @@ namespace Pumps
                 // §5.15 asset content delivery (OU-AssetDelivery): serve this stage's
                 // artist-authored USD layer closure so a connector can render the twin
                 // with no external asset resolver.
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_plantStage, ns, servedAssets);
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_plantStage, ns, servedAssets, "pumps");
 
                 SystemContext.AssignInstanceChildNodeIds(root);
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)
