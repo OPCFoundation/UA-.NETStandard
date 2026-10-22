@@ -29,9 +29,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using Opc.Ua;
 using Opc.Ua.OpenUsd;
+using Opc.Ua.XRegistry;
 
 namespace Opc.Ua.OpenUsd.Server
 {
@@ -56,61 +58,199 @@ namespace Opc.Ua.OpenUsd.Server
     }
 
     /// <summary>
-    /// Serves the draft OPC UA — OpenUSD Bindings asset-content-delivery capability
-    /// (spec §5.15): builds a stage's <c>Assets</c> folder of <c>OpenUsdAssetType</c>
-    /// instances, each exposing an artist-authored USD layer as a read-only Part 5
-    /// <see cref="FileState"/> (Open/Read/Close streaming) plus a SHA-256 digest, so a
-    /// generic connector can fetch, verify, cache, compose, and render the twin with no
-    /// external asset resolver.
+    /// Bootstraps read-only USD resources and their first exact Versions in the
+    /// server's artifact registry. Stage Assets folders are non-owning views.
     /// </summary>
     public static class UsdAssetDelivery
     {
         /// <summary>
-        /// Attaches an <c>Assets</c> folder (if absent) to the stage and materialises one
-        /// <c>OpenUsdAssetType</c> per served layer. Call BEFORE the facility's per-instance
-        /// NodeId assignment + registration; returns the created assets so a caller can link a
-        /// component binding's <c>ComponentAssetNode</c> to one after NodeIds are assigned.
+        /// Uses the stage's symbolic name as its asset container identifier.
+        /// Call before the facility's NodeId assignment and registration.
         /// </summary>
         public static ArrayOf<OpenUsdAssetState> AttachStageAssets(
             ISystemContext context, OpenUsdStageState stage, ushort openUsdNs, ArrayOf<ServedAsset> assets)
         {
+            if (stage is null)
+            {
+                throw new ArgumentNullException(nameof(stage));
+            }
+            return AttachStageAssets(
+                context, stage, openUsdNs, assets, XRegistryIdentifier.FromSourceIdentity(
+                    stage.BrowseName.Name ?? throw new ArgumentException("The stage must be named.", nameof(stage))));
+        }
+
+        /// <summary>
+        /// Registers immutable layers in an asset container and organizes those logical
+        /// Resources through the stage's Assets view. Repeated definitions must have the
+        /// same bytes, kind and content type. Different stages can share one container.
+        /// Call before the facility's NodeId assignment and registration.
+        /// </summary>
+        /// <exception cref="ArgumentException">The container identifier is not symbolic.</exception>
+        /// <exception cref="InvalidOperationException">
+        /// The stage is not under an OpenUSD root, or an existing resource has a conflicting definition.
+        /// </exception>
+        public static ArrayOf<OpenUsdAssetState> AttachStageAssets(
+            ISystemContext context,
+            OpenUsdStageState stage,
+            ushort openUsdNs,
+            ArrayOf<ServedAsset> assets,
+            string assetContainerId)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (stage is null)
+            {
+                throw new ArgumentNullException(nameof(stage));
+            }
+            if (string.IsNullOrEmpty(assetContainerId) ||
+                XRegistryIdentifier.FromSourceIdentity(assetContainerId) != assetContainerId)
+            {
+                throw new ArgumentException("The asset container identifier must be symbolic.", nameof(assetContainerId));
+            }
+            if (stage.Parent is not FolderState { Parent: OpenUsdRootState root })
+            {
+                throw new InvalidOperationException("The stage must belong to the OpenUSD facility's Stages folder.");
+            }
+
+            OpenUsdArtifactRegistryState registry = root.Artifacts ?? root.CreateOrReplaceArtifacts(
+                context, context.CreateOpenUsdRootType_Artifacts(root, forInstance: true));
+            registry.RegistryId!.Value = "openusd-artifacts";
+            registry.AddName(context).Name!.Value = "OpenUSD artifacts";
+            registry.DisplayName = new LocalizedText(registry.Name!.Value);
+            registry.AddXid(context).Xid!.Value = "/";
+            registry.AddEpoch(context).Epoch!.Value = 1;
+            if (registry.Capabilities is null)
+            {
+                registry.AddSpecVersion(context).SpecVersion!.Value = "0.1.0";
+                registry.AddCapabilities(context);
+                WireReadOnlyFile(
+                    registry.Capabilities!,
+                    Encoding.UTF8.GetBytes("{\"specversions\":[\"0.1.0\"],\"mutable\":[]}"),
+                    "application/json");
+            }
+
+            OpenUsdAssetGroupState? group = registry.FindChild(
+                context, new QualifiedName(assetContainerId, openUsdNs)) as OpenUsdAssetGroupState;
+            if (group is null)
+            {
+                group = context.CreateInstanceOfOpenUsdAssetGroupType(
+                    registry, new QualifiedName(assetContainerId, openUsdNs));
+                group.ReferenceTypeId = ReferenceTypeIds.Organizes;
+                group.GroupId!.Value = assetContainerId;
+                group.AssetContainerId!.Value = assetContainerId;
+                group.Name!.Value = assetContainerId;
+                group.DisplayName = new LocalizedText(assetContainerId);
+                group.AddXid(context).Xid!.Value = "/usdassetgroups/" + assetContainerId;
+                group.AddEpoch(context).Epoch!.Value = 1;
+                registry.AddChild(group);
+            }
+
             var created = new List<OpenUsdAssetState>();
-            // Assets is an optional member, so it is not auto-created by the factory;
-            // supply a generated node (passing null! leaves it unnamed/untyped).
             FolderState folder = stage.Assets ?? stage.CreateOrReplaceAssets(
                 context, context.CreateOpenUsdStageType_Assets(stage, forInstance: true));
-
             foreach (ServedAsset a in assets)
             {
-                OpenUsdAssetState asset = context.CreateInstanceOfOpenUsdAssetType(
-                    folder, new QualifiedName(SafeBrowseName(a.Identifier), openUsdNs));
-                asset.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-                folder.AddChild(asset);
-
-                asset.CreateOrReplaceAssetIdentifier(context, null!).Value = a.Identifier;
-                asset.CreateOrReplaceAssetKind(context, null!).Value = a.Kind;
-                asset.CreateOrReplaceMediaType(
-                    context, context.CreateOpenUsdAssetType_MediaType(asset, forInstance: true)).Value = a.MediaType;
-
+                string identifier = a.Identifier;
+                while (identifier.StartsWith("./", StringComparison.Ordinal))
+                {
+                    identifier = identifier[2..];
+                }
+                if (string.IsNullOrEmpty(identifier))
+                {
+                    throw new ArgumentException("A served asset must have an authored identifier.", nameof(assets));
+                }
+                byte[] bytes = (byte[])a.Bytes.Clone();
                 byte[] digest;
 #pragma warning disable CA1850 // Prefer static HashData (net48/netstandard2.0 compatibility)
                 using (var sha = System.Security.Cryptography.SHA256.Create())
                 {
-                    digest = sha.ComputeHash(a.Bytes);
+                    digest = sha.ComputeHash(bytes);
                 }
 #pragma warning restore CA1850
-                asset.CreateOrReplaceDigest(
-                    context, context.CreateOpenUsdAssetType_Digest(asset, forInstance: true)).Value = (ByteString)digest;
-                asset.CreateOrReplaceDigestAlgorithm(
-                    context, context.CreateOpenUsdAssetType_DigestAlgorithm(asset, forInstance: true))
-                    .Value = OpenUsdDigestAlgorithmEnum.Sha256;
 
-                // The asset node itself IS the Part 5 file (OpenUsdAssetType : FileType);
-                // wire the read-only streaming handlers directly onto it.
-                WireReadOnlyFile(asset, a.Bytes, a.MediaType);
+                var siblings = new List<BaseInstanceState>();
+                group.GetChildren(context, siblings);
+                var resourceIds = new List<string>();
+                OpenUsdAssetState? asset = null;
+                foreach (BaseInstanceState child in siblings)
+                {
+                    if (child is OpenUsdAssetState resource)
+                    {
+                        resourceIds.Add(resource.ResourceId!.Value);
+                        if (resource.AssetIdentifier!.Value == identifier)
+                        {
+                            asset = resource;
+                        }
+                    }
+                }
+                if (asset is null)
+                {
+                    string resourceId = XRegistryIdentifier.FromSourceIdentity(identifier, resourceIds);
+                    string xid = group.Xid!.Value + "/usdassets/" + resourceId;
+                    asset = CreateAsset(context, group, openUsdNs, resourceId, identifier, xid, a, bytes, digest);
+                    OpenUsdAssetVersionsState versions = asset.CreateOrReplaceVersions(
+                        context, context.CreateOpenUsdAssetType_Versions(asset, forInstance: true));
+                    OpenUsdAssetState version = CreateAsset(
+                        context, versions, openUsdNs, "1", identifier, xid + "/versions/1", a, bytes, digest);
+                    version.ResourceId!.Value = resourceId;
+                    versions.AddChild(version);
+                    group.AddChild(asset);
+                }
+                else if (asset.AssetKind!.Value != a.Kind ||
+                    asset.ContentType!.Value != a.MediaType ||
+                    !asset.Digest!.Value.Span.SequenceEqual(digest))
+                {
+                    throw new InvalidOperationException(
+                        $"The immutable artifact '{assetContainerId}/{identifier}' is already defined differently.");
+                }
+
+                if (!folder.ReferenceExists(ReferenceTypeIds.Organizes, false, asset.NodeId))
+                {
+                    folder.AddReference(ReferenceTypeIds.Organizes, false, asset.NodeId);
+                }
+                if (!asset.ReferenceExists(ReferenceTypeIds.Organizes, true, folder.NodeId))
+                {
+                    asset.AddReference(ReferenceTypeIds.Organizes, true, folder.NodeId);
+                }
                 created.Add(asset);
             }
             return created;
+        }
+
+        private static OpenUsdAssetState CreateAsset(
+            ISystemContext context,
+            NodeState parent,
+            ushort openUsdNs,
+            string browseName,
+            string identifier,
+            string xid,
+            ServedAsset definition,
+            byte[] bytes,
+            byte[] digest)
+        {
+            OpenUsdAssetState asset = context.CreateInstanceOfOpenUsdAssetType(
+                parent, new QualifiedName(browseName, openUsdNs));
+            asset.ReferenceTypeId = ReferenceTypeIds.Organizes;
+            asset.ResourceId!.Value = browseName;
+            asset.Name!.Value = identifier;
+            asset.DisplayName = new LocalizedText(identifier);
+            asset.AssetIdentifier!.Value = identifier;
+            asset.AssetKind!.Value = definition.Kind;
+            asset.AddVersionId(context).VersionId!.Value = "1";
+            asset.AddXid(context).Xid!.Value = xid;
+            asset.AddEpoch(context).Epoch!.Value = 1;
+            asset.AddContentType(context).ContentType!.Value = definition.MediaType;
+            asset.CreateOrReplaceMediaType(
+                context, context.CreateOpenUsdAssetType_MediaType(asset, forInstance: true)).Value = definition.MediaType;
+            asset.CreateOrReplaceDigest(
+                context, context.CreateOpenUsdAssetType_Digest(asset, forInstance: true)).Value = (ByteString)digest;
+            asset.CreateOrReplaceDigestAlgorithm(
+                context, context.CreateOpenUsdAssetType_DigestAlgorithm(asset, forInstance: true))
+                .Value = OpenUsdDigestAlgorithmEnum.Sha256;
+            WireReadOnlyFile(asset, bytes, definition.MediaType);
+            return asset;
         }
 
         // Attaches read-only Open/Read/Close/GetPosition/SetPosition handlers over an
@@ -156,22 +296,6 @@ namespace Opc.Ua.OpenUsd.Server
                 file.SetPosition.OnCall = backing.OnSetPosition;
             }
             // Read-only: any Write method stays unwired (server rejects the call).
-        }
-
-        // Sanitises an asset identifier into a valid single-segment BrowseName.
-        private static string SafeBrowseName(string identifier)
-        {
-            if (string.IsNullOrEmpty(identifier))
-            {
-                return "Asset";
-            }
-            var sb = new System.Text.StringBuilder(identifier.Length);
-            foreach (char c in identifier)
-            {
-                sb.Append(char.IsLetterOrDigit(c) || c == '_' ? c : '_');
-            }
-            string s = sb.ToString();
-            return char.IsLetter(s[0]) || s[0] == '_' ? s : "_" + s;
         }
 
         /// <summary>

@@ -210,10 +210,37 @@ same `HasAddIn` contract. `CreateRepresentation` is the supported authoring path
 `CreateInstanceOfOpenUsdRepresentationType` and a manually assigned reference type. The sample servers assert the
 reference type in their E2E suites.
 
-`UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets)` serves artist-authored USD layers through the
-address space as read-only Part 5 files with SHA-256 digests, so a generic connector can fetch, verify, cache, and
-render the twin with no external asset resolver. `assets` is an `ArrayOf<ServedAsset>` and the method returns the
-created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
+The binding model tracks the OPC 12001-1 version 0.9.0 draft from `OPC12000-Metaverse` and now depends on the
+stack's xRegistry companion model. The local `IOpenUsdRepresentedType` placeholder retains its `HasAddIn`
+correction. Load `nodes.AddOpcUaXRegistry(context)` before `nodes.AddOpcUaOpenUsd(context)` and include both
+model namespace URIs in the node manager.
+
+`UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets, "pumps")` bootstraps an asset container in
+`Server/OpenUSD/Artifacts`. The registry organizes typed asset groups; each group organizes stable logical
+`OpenUsdAssetType` Resources. Each Resource owns a typed `Versions` folder organizing its first exact Version,
+`1`. Both logical and exact files expose the same immutable bytes through read-only Part 5 streaming, with
+SHA-256 digests and xRegistry identity metadata. The registry also exposes `SpecVersion` and a read-only
+`Capabilities` document. Runtime registration, deletion, and default-Version switching are not implemented by
+this bootstrap helper.
+
+The stage's `Assets` folder contains only explicit `Organizes` references to the logical Resources, never
+duplicate or owned file instances. Stages using the same container and normalized `AssetIdentifier` share the
+same Resource NodeId. Leading `./` segments are removed; resource BrowseNames use `XRegistryIdentifier`, including
+collision disambiguation, rather than the previous underscore substitution. Conflicting bytes, asset kinds,
+or content types for an existing Resource are rejected. Empty asset identifiers are rejected.
+
+`assets` is an `ArrayOf<ServedAsset>`; the return value is an `ArrayOf<OpenUsdAssetState>` containing the logical
+Resources in input order. The four-argument overload remains available and uses the stage's symbolic name as
+the container identifier. Call either overload before the facility's final NodeId assignment and registration.
+Supply the stage's complete layer closure, with exactly one `RootLayer` whose `AssetIdentifier` equals
+`RootLayerIdentifier`. The sample servers now publish their served `.usda` identifiers rather than unrelated
+`asset-repo/*.usd` paths.
+
+Mount each Part 1 stage under `Server/OpenUSD/Stages` with `ReferenceTypeId = ReferenceTypeIds.Organizes`
+before calling `AddChild`. The instance factory leaves the reference type unset; `AddChild` alone registers
+the child but does not make it browsable. A representation's NodeId-valued `Stage` property does not replace
+this hierarchy link. The registry hierarchy and the stage's non-owning `Assets` view let a hierarchy-only
+address-space snapshot discover the stage and its shared asset closure.
 
 ## Samples
 

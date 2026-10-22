@@ -33,6 +33,7 @@ using Opc.Ua.Gpos;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.Robotics.Server;
 using Opc.Ua.Rsl;
+using Opc.Ua.XRegistry;
 
 namespace Robotics
 {
@@ -47,7 +48,8 @@ namespace Robotics
         /// <inheritdoc/>
         public ArrayOf<string> NamespaceUris => new string[]
         {
-            Opc.Ua.OpenUsd.Namespaces.OpenUSD
+            Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.XRegistry.Namespaces.xRegistry
         };
 
         /// <inheritdoc/>
@@ -62,6 +64,7 @@ namespace Robotics
                 throw new ArgumentNullException(nameof(context));
             }
 
+            nodes.AddOpcUaXRegistry(context);
             nodes.AddOpcUaOpenUsd(context);
         }
     }
