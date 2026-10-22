@@ -327,7 +327,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         throw new ServiceResultException(
                             StatusCodes.BadInvalidState, "Recovery changed the decided canonical graph.");
                     }
-                    ValidateRecoveredViewMetadata(snapshot, graph, recoveredViews);
+                    ValidateRecoveredViewMetadata(snapshot, graph, recoveredViews, capture.Closures.Values);
                     WotRegistrySnapshot runtime = RebaseRecoveredRoots(snapshot, capture, recoveredViews);
                     foreach (ClosureState closure in capture.Closures.Values)
                     {
@@ -431,7 +431,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotCanonicalViewState? graph = snapshot.CanonicalViewGraphState.IsNull ||
                 snapshot.CanonicalViewGraphState.Length == 0
                 ? null : WotCanonicalViewState.Parse(snapshot.CanonicalViewGraphState);
-            ValidateRecoveredViewMetadata(snapshot, graph, previous.Views);
+            ValidateRecoveredViewMetadata(snapshot, graph, previous.Views, m_closures.Values);
             var roots = previous.RegistrySnapshot.AllResources()
                 .Where(resource => resource.ActiveVersionId is not null && !resource.RootNodeId.IsNull)
                 .ToDictionary(resource => resource.Xid, resource => resource.RootNodeId, StringComparer.Ordinal);
@@ -503,7 +503,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private void ValidateRecoveredViewMetadata(
             WotRegistrySnapshot snapshot,
             WotCanonicalViewState? graph,
-            ArrayOf<WotViewProjectionHandle> views)
+            ArrayOf<WotViewProjectionHandle> views,
+            IEnumerable<ClosureState> closures)
         {
             var active = graph?.Views.ToList().Where(view => view.Active)
                 .ToDictionary(view => view.ResourceXid, StringComparer.Ordinal)
@@ -519,7 +520,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WotResource? resource = snapshot.FindResourceByXid(view.ResourceXid);
                 if (!bound.Add(view.ResourceXid) || !active.TryGetValue(view.ResourceXid, out var recorded) ||
                     resource is null || resource.ActiveVersionId is null || resource.CommittedVersion is null ||
-                    resource.MaterializedNodeCount != recorded.MaterializedNodeCount ||
+                    resource.MaterializedNodeCount != recorded.MaterializedNodeCount +
+                        GetLocalProjectionNodeCount(closures, view.ResourceXid) ||
                     view.MaterializedNodeCount != recorded.MaterializedNodeCount ||
                     resource.RootNodeId.IsNull || view.ViewNodeId.IsNull ||
                     resource.RootNodeId.WithNamespaceIndex(0) != view.ViewNodeId.WithNamespaceIndex(0) ||

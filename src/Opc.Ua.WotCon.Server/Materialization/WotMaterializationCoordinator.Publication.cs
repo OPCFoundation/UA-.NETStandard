@@ -760,7 +760,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     var namespaces = new NamespaceTable(graph.CapturedNamespaceUris.ToArray()!);
                     row.RootNodeId = ResolveRootNodeId(NodeId.ToExpandedNodeId(view.ViewNodeId, namespaces));
-                    row.MaterializedNodeCount = (uint)view.MaterializedNodeCount;
+                    row.MaterializedNodeCount = (uint)(view.MaterializedNodeCount +
+                        GetLocalProjectionNodeCount(capture.Closures.Values, view.ResourceXid));
                     if (!view.Omissions.IsEmpty)
                     {
                         row.Outcome = WoTOutcomeEnum.Warning;
@@ -1092,7 +1093,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     handle is null ? inactiveState : WoTLoadStateEnum.Active,
                     handle is null ? null : previous is null ? resource.ActiveVersionId : previous.ActiveVersionId,
                     checked(snapshot.RefreshGeneration + 1),
-                    handle?.MaterializedNodeCount ?? 0,
+                    handle is null ? 0 : handle.MaterializedNodeCount +
+                        GetLocalProjectionNodeCount(capture.Closures.Values, xid),
                     handle is null ? default : handle.ViewNodeId,
                     previous is null ? resource.Validation : previous.Validation,
                     previous is null ? resource.Diagnostics : previous.Diagnostics,
@@ -1110,7 +1112,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         continue;
                     }
                     row.RootNodeId = handle is null ? NodeId.Null : handle.ViewNodeId;
-                    row.MaterializedNodeCount = (uint)(handle?.MaterializedNodeCount ?? 0);
+                    row.MaterializedNodeCount = handle is null ? 0 :
+                        (uint)(handle.MaterializedNodeCount +
+                            GetLocalProjectionNodeCount(capture.Closures.Values, xid));
                     if (handle is not null && !handle.Omissions.IsEmpty)
                     {
                         row.Outcome = WoTOutcomeEnum.Warning;
@@ -1118,6 +1122,23 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Counts the locally materialized Nodes separately from the canonical View graph's ownership count.
+        /// </summary>
+        /// <param name="closures">The prepared or committed materialization closures.</param>
+        /// <param name="resourceXid">The projection resource.</param>
+        private static int GetLocalProjectionNodeCount(IEnumerable<ClosureState> closures, string resourceXid)
+        {
+            foreach (ClosureState closure in closures)
+            {
+                if (closure.LocalProjectionNodeCounts.TryGetValue(resourceXid, out int count))
+                {
+                    return count;
+                }
+            }
+            return 0;
         }
 
         private static ArrayOf<WotResource> GetAffectedViewResources(
@@ -1233,7 +1254,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         PublishedMetadata = entry.Value.PublishedMetadata,
                         ModelNamespaceUris = entry.Value.ModelNamespaceUris,
                         BindingPlans = entry.Value.BindingPlans,
-                        ViewHandles = entry.Value.ViewHandles
+                        ViewHandles = entry.Value.ViewHandles,
+                        LocalProjectionNodeCounts = entry.Value.LocalProjectionNodeCounts
                     },
                     StringComparer.Ordinal);
                 Namespaces = new HashSet<string>(namespaces, StringComparer.Ordinal);

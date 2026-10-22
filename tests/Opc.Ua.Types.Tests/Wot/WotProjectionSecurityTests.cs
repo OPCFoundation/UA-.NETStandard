@@ -50,6 +50,86 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotProjectionSecurityTests
     {
         /// <summary>
+        /// Local security requirements and URI-template closure retain the projection's scheme ownership.
+        /// </summary>
+        /// <param name="map">The local affordance map.</param>
+        /// <param name="requirement">The location of the security requirement.</param>
+        [Test]
+        public async Task LocalAffordanceSecurityRetainsProjectionOwnershipAsync(
+            [Values("properties", "actions", "events")] string map,
+            [Values("affordance", "form", "inherited-template")] string requirement)
+        {
+            JsonObject projection = Projection();
+            JsonObject manifest = Manifest("source", "urn:source");
+            manifest["uav:selectAll"] = false;
+            projection["uav:projects"] = new JsonArray(manifest);
+            projection["securityDefinitions"] = new JsonObject
+            {
+                ["auth"] = new JsonObject { ["scheme"] = "basic" }
+            };
+            projection["security"] = "auth";
+            projection["uriVariables"] = new JsonObject
+            {
+                ["zone"] = new JsonObject { ["type"] = "string" }
+            };
+            var form = new JsonObject
+            {
+                ["href"] = requirement == "inherited-template"
+                    ? "https://example.test/{zone}" : "https://example.test/local",
+                ["op"] = map switch
+                {
+                    "actions" => "invokeaction",
+                    "events" => "subscribeevent",
+                    _ => "readproperty"
+                }
+            };
+            var local = new JsonObject
+            {
+                ["type"] = "number",
+                ["forms"] = new JsonArray(form)
+            };
+            if (requirement == "affordance")
+            {
+                local["security"] = "auth";
+            }
+            else if (requirement == "form")
+            {
+                form["security"] = "auth";
+            }
+            projection[map] = new JsonObject { ["local"] = local };
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(
+                projection, new Dictionary<string, JsonObject>
+                {
+                    ["urn:source"] = Source("unused", "auth", "nosec")
+                }).ConfigureAwait(false);
+            using WotDocument? view = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(view, Is.Not.Null);
+            JsonElement selected = view!.RootElement.GetProperty(map).GetProperty("local");
+            JsonElement selectedForm = selected.GetProperty("forms")[0];
+            if (requirement == "affordance")
+            {
+                Assert.That(selected.GetProperty("security").GetString(), Is.EqualTo("q:p:YXV0aA"));
+            }
+            if (selectedForm.TryGetProperty("security", out JsonElement security))
+            {
+                Assert.That(security.ValueKind == JsonValueKind.Array
+                    ? security[0].GetString() : security.GetString(), Is.EqualTo("q:p:YXV0aA"));
+            }
+            else
+            {
+                Assert.That(requirement, Is.Not.EqualTo("form"),
+                    "An explicit form requirement must not disappear during resolution.");
+                Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo("q:p:YXV0aA"));
+            }
+            Assert.That(view.SecurityDefinitions["q:p:YXV0aA"].GetProperty("scheme").GetString(),
+                Is.EqualTo("basic"));
+            Assert.That(selected.TryGetProperty("uav:resolvedFrom", out _), Is.False);
+        }
+
+        /// <summary>
         /// Verifies that reviewed source affordance security retains its owner.
         /// </summary>
         /// <param name="enumerated">The enumerated flag for this test case.</param>

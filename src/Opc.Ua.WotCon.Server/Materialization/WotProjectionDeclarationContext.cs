@@ -36,6 +36,8 @@ using System.Threading.Tasks;
 using Opc.Ua.Export;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Registry;
+using RuntimeAffordanceKind = Opc.Ua.WotCon.Bindings.WotAffordanceKind;
+using WotProjectedAffordance = Opc.Ua.WotCon.Bindings.WotProjectedAffordance;
 
 namespace Opc.Ua.WotCon.Server.Materialization
 {
@@ -71,8 +73,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="nodeSet">The node set.</param>
         /// <param name="root">The root.</param>
         /// <param name="document">The byte string.</param>
+        /// <param name="affordances">The converter-authoritative affordance identities.</param>
         public void AddNodeSet(
-            string resourceXid, UANodeSet nodeSet, ExpandedNodeId root, ByteString document)
+            string resourceXid, UANodeSet nodeSet, ExpandedNodeId root, ByteString document,
+            ArrayOf<WotProjectedAffordance> affordances = default)
         {
             using var json = JsonDocument.Parse(
                 document.Memory, new JsonDocumentOptions { MaxDepth = m_maxJsonDepth });
@@ -81,6 +85,21 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var nodes = new HashSet<ExpandedNodeId>();
             m_roots[resourceXid] = m_native.Add(nodeSet, rootIdentifier, root, nodes);
             m_partitionNodes[resourceXid] = nodes;
+            foreach (WotProjectedAffordance affordance in affordances)
+            {
+                if (string.IsNullOrEmpty(affordance.NodeId))
+                {
+                    continue;
+                }
+                WotAffordanceKind kind = affordance.Kind switch
+                {
+                    RuntimeAffordanceKind.Property => WotAffordanceKind.Property,
+                    RuntimeAffordanceKind.Action => WotAffordanceKind.Action,
+                    RuntimeAffordanceKind.Event => WotAffordanceKind.Event,
+                    _ => throw new ArgumentOutOfRangeException(nameof(affordances))
+                };
+                m_affordances[(resourceXid, kind, affordance.Name)] = ExpandedNodeId.Parse(affordance.NodeId);
+            }
             if (json.RootElement.TryGetProperty("uav:nodes", out _) ||
                 json.RootElement.TryGetProperty("uav:nodeSet", out _))
             {
@@ -181,6 +200,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         /// <summary>
+        /// Gets a converted affordance's actual identity instead of guessing it from its container root.
+        /// </summary>
+        /// <param name="resourceXid">The resource owning the affordance.</param>
+        /// <param name="kind">The affordance kind.</param>
+        /// <param name="name">The affordance name.</param>
+        public ExpandedNodeId GetAffordance(string resourceXid, WotAffordanceKind kind, string name)
+        {
+            return m_affordances.TryGetValue((resourceXid, kind, name), out ExpandedNodeId identity)
+                ? identity : ExpandedNodeId.Null;
+        }
+
+        /// <summary>
         /// Classifies a resource through declaration containment, rejecting cycles in the containment graph.
         /// </summary>
         /// <param name="resource">The registry resource to classify or return in the result.</param>
@@ -252,5 +283,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly Dictionary<string, ExpandedNodeId> m_roots = new(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<ExpandedNodeId>> m_partitionNodes = new(StringComparer.Ordinal);
         private readonly HashSet<string> m_nativeRoots = new(StringComparer.Ordinal);
+
+        /// <summary>Converter-authoritative local identities, qualified by resource and affordance kind.</summary>
+        private readonly Dictionary<(string ResourceXid, WotAffordanceKind Kind, string Name), ExpandedNodeId>
+            m_affordances = [];
     }
 }

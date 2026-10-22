@@ -1070,7 +1070,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         retiredMembers);
                 }
 
-                declarationContext.AddNodeSet(member.Xid, nodeSet, root, memberContent);
+                declarationContext.AddNodeSet(member.Xid, nodeSet, root, memberContent, affordances);
                 if (activeXids.Contains(member.Xid))
                 {
                     WotBindingPlanRequest planRequest = (await BuildPlanRequestAsync(
@@ -1218,7 +1218,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             var document = new WotProjectionDocument(
-                closure.Key, sources.ToImmutable(), bindingPlans.ToArrayOf());
+                closure.Key, sources.ToImmutable(), bindingPlans.ToArrayOf())
+            {
+                DefaultNamespaceUri = activeMembers
+                    .Select(member => perMemberRoot.TryGetValue(member.Xid, out ExpandedNodeId root)
+                        ? root.NamespaceUri : null)
+                    .FirstOrDefault(uri => !string.IsNullOrEmpty(uri))
+            };
             WotProjectionHandle? handle = tracked?.Handle;
             if (sources.Count > 0)
             {
@@ -1320,7 +1326,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 })],
                 ModelNamespaceUris = [.. sources.SelectMany(s => s.ModelNamespaceUris)],
                 BindingPlans = [.. bindingPlans],
-                ViewHandles = [.. viewHandles]
+                ViewHandles = [.. viewHandles],
+                LocalProjectionNodeCounts = projectionMembers.ToImmutableDictionary(
+                    member => member.Xid,
+                    member => perMemberNodeCount.TryGetValue(member.Xid, out int count) ? count : 0,
+                    StringComparer.Ordinal)
             };
             foreach (string namespaceUri in sources.SelectMany(s => s.ModelNamespaceUris))
             {
@@ -1501,11 +1511,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return true;
             }
 
+            string localNamespaceUri = "urn:opcfoundation:wot:projection-locals:" + Uri.EscapeDataString(member.Xid);
             string rootNodeId = WotPortableIdentity.GenerateNodeId(
-                Namespaces.WotCon,
+                localNamespaceUri,
                 [
-                    new WotBrowsePathElement(Namespaces.WotCon, "ProjectionLocals"),
-                    new WotBrowsePathElement(Namespaces.WotCon, member.Xid)
+                    new WotBrowsePathElement(localNamespaceUri, "ProjectionLocals"),
+                    new WotBrowsePathElement(localNamespaceUri, member.Xid)
                 ]);
             localContent = WotProjectionLocalDocument.Create(
                 document.RootElement, projection.LocalAffordances, rootNodeId);
@@ -1655,7 +1666,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     : NodeId.ToExpandedNodeId(nodeId, namespaces)),
                 (xid, nodeId) => declarationContext.ContainsEventType(xid, nodeId.NamespaceIndex == 0
                     ? new ExpandedNodeId(nodeId)
-                    : NodeId.ToExpandedNodeId(nodeId, namespaces)));
+                    : NodeId.ToExpandedNodeId(nodeId, namespaces)),
+                declarationContext.GetAffordance);
             var thingResolver = new SnapshotThingResolver(snapshot, contentCache);
             var builder = new WotProjectionViewBuilder(
                 thingResolver, index, m_converterOptions, namespaces);
@@ -1797,7 +1809,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 WoTLoadStateEnum.Active,
                 member.DefaultVersionId,
                 generation,
-                plan.MaterializedNodeCount,
+                localNodeCount + plan.MaterializedNodeCount,
                 viewNodeId,
                 ProjectionValidation(),
                 OmissionDiagnostics(plan.Omissions),
@@ -2655,6 +2667,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ImmutableArray<WotViewProjectionHandle> ViewHandles { get; set; }
                 = [];
+
+            /// <summary>
+            /// Gets or sets the ordinary Binding-owned node counts independently of canonical View-owned Nodes.
+            /// </summary>
+            public ImmutableDictionary<string, int> LocalProjectionNodeCounts { get; set; }
+                = ImmutableDictionary<string, int>.Empty;
         }
 
         private sealed class ClosureOutcome

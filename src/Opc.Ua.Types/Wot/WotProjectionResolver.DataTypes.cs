@@ -51,8 +51,7 @@ namespace Opc.Ua.Wot
                 IndexDataTypes(m_host);
                 foreach (ResolvedAffordance member in m_selection.Members)
                 {
-                    IndexDataTypes(new ReferenceOwner(
-                        member.Source.Document, member.Source.DocumentHref, member.Source.Source.SourceName));
+                    IndexDataTypes(GetReferenceOwner(member.Source));
                 }
                 bool retainsDefinitions = m_root.ContainsKey(DataTypesTerm);
                 m_root.Remove(DataTypesTerm);

@@ -1236,7 +1236,16 @@ are converted through the ordinary TD/TM and Binding path into Nodes owned by
 the projection resource. The canonical View remains separately identified and
 organizes those local Nodes alongside selected source Nodes; imported Nodes are
 organized by identity and are not cloned. Enumerated source selections may
-carry only the permitted annotations described below.
+carry only the permitted annotations described below. Authored local `uav:id`
+values are preserved; generated identities use a resource-scoped namespace so
+two projections with the same title and member names do not share local Nodes.
+View membership uses the converter's actual affordance identities, not an
+identifier guessed from the local container root.
+For a closure spanning several models, fluent runtime configuration uses the
+first converter-resolved active root namespace as its default; individual
+bindings still target their converter-resolved identities in their own
+namespaces. A document without portable root evidence retains the runtime
+NodeSet builder's normal namespace inference.
 
 An enumerated selection may annotate the affordance it names, but OPC 10101-2
 closes the set of members it may annotate with. Permitted beside `tm:ref` are
@@ -1272,11 +1281,14 @@ is stated over names rather than over document order because `properties`,
 rule that ranked selections by member position would let two conforming
 consumers resolve identical bytes into different views.
 
-Materialization produces a `View` Node that `Organizes` the Nodes already
-materialized from the sources. The View creates **no** affordance Node, so
-`MaterializedNodeCount` counts only the View and any organizational Objects, not
-the Nodes it organizes. `RootNodeId` is the View, and the document resource points
-at it through `HasWoTProjection`, navigable back through `WoTProjectionOf`.
+Materialization produces a `View` Node that `Organizes` imported and locally
+materialized Nodes. The View graph itself owns only the View and any
+organizational Objects. The resource's `MaterializedNodeCount` also includes
+the Nodes created through ordinary Binding conversion of its local definitions,
+but never counts imported Nodes it merely organizes. Dry-run, committed and
+unchanged refresh results use that same total. `RootNodeId` remains the View,
+and the document resource points at it through `HasWoTProjection`, navigable
+back through `WoTProjectionOf`.
 
 `ViewVersion` is a deterministic function of the resolved membership alone, computed
 exactly as *WoT Projections* specifies: each resolved member's ExpandedNodeId in the
@@ -1345,8 +1357,9 @@ requires; only when no document in the chain materialized the affordance is the
 member omitted, and the omission names the deepest source the walk reached.
 
 **A member whose Node does not exist.** An affordance resolves to a NodeId by
-its authored `uav:id` when it has one and by a deterministic scheme anchored at
-the source's root otherwise. Neither is proof that the Node was materialized: a
+its authored `uav:id` when it has one and by the converter's recorded identity
+otherwise (or the deterministic root-based fallback for an older source index).
+Neither is proof that the Node was materialized: a
 document whose affordances never synthesized anything resolves to plausible
 identifiers that address nothing. Every planned member is therefore tested
 against the address space before the View is built, and one that no NodeManager

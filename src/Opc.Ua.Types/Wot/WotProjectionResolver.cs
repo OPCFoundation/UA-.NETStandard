@@ -421,6 +421,7 @@ namespace Opc.Ua.Wot
             {
                 return;
             }
+            QualifyProjectionSecurity(value);
             if (value["forms"] is JsonArray forms)
             {
                 foreach (JsonNode? formNode in forms)

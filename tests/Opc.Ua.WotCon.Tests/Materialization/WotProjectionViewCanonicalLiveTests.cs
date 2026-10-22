@@ -127,12 +127,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// </summary>
         /// <param name="affordanceMap">The local affordance map.</param>
         /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
-        [TestCase("properties", NodeClass.Variable)]
-        [TestCase("actions", NodeClass.Method)]
-        [TestCase("events", NodeClass.ObjectType)]
+        /// <param name="authoredIdentity">Whether the local affordance declares its identity.</param>
+        [TestCase("properties", NodeClass.Variable, true)]
+        [TestCase("actions", NodeClass.Method, true)]
+        [TestCase("events", NodeClass.ObjectType, true)]
+        [TestCase("properties", NodeClass.Variable, false)]
+        [TestCase("actions", NodeClass.Method, false)]
+        [TestCase("events", NodeClass.ObjectType, false)]
         public async Task ProjectionLocalOnlyAffordanceIsMaterializedAndOrganizedAsync(
             string affordanceMap,
-            NodeClass expectedNodeClass)
+            NodeClass expectedNodeClass,
+            bool authoredIdentity)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
             string sourceUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/local-unused-source";
@@ -142,6 +147,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "events" => "\"data\":{\"type\":\"object\",\"properties\":{}},",
                 _ => string.Empty
             };
+            string identity = authoredIdentity
+                ? "\"uav:id\":\"nsu=urn:wot:thingdescriptions/projection-local;s=ProjectionLocal/localOnly\","
+                : string.Empty;
             await harness.RegisterTdAsync("local-unused-source", """
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
@@ -168,7 +176,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                   }],
                   "{{{affordanceMap}}}":{
                     "localOnly":{
-                      "uav:id":"nsu=urn:wot:thingdescriptions/projection-local;s=ProjectionLocal/localOnly",
+                      {{{identity}}}
                       {{{schema}}}
                       "forms":[{"href":"https://example.test/local"}]
                     }
@@ -194,14 +202,93 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 Assert.That(local.BrowseName.Name, Is.EqualTo("localOnly"));
                 Assert.That(local.NodeClass, Is.EqualTo(expectedNodeClass));
-                Assert.That(harness.Target(local), Is.EqualTo(harness.Identity(
-                    "urn:wot:thingdescriptions/projection-local", "ProjectionLocal/localOnly")));
+                if (authoredIdentity)
+                {
+                    Assert.That(harness.Target(local), Is.EqualTo(harness.Identity(
+                        "urn:wot:thingdescriptions/projection-local", "ProjectionLocal/localOnly")));
+                }
                 Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), load.Message);
                 Assert.That(load.RootNodeId, Is.EqualTo(viewNode),
                     "Local affordance materialization must not replace the canonical View identity.");
             });
             Assert.That(await ReadNodeClassAsync(harness, harness.Target(local)).ConfigureAwait(false),
                 Is.EqualTo(expectedNodeClass));
+        }
+
+        /// <summary>
+        /// Same-title projections have distinct generated local identities and retain complete counts in every refresh.
+        /// </summary>
+        [Test]
+        public async Task ProjectionGeneratedLocalIdentitiesAndCountsRemainResourceScopedAsync()
+        {
+            await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
+            await harness.RegisterTdAsync("unused-count-source", """
+                {
+                  "@type":"Thing","id":"urn:unused-count-source","title":"Unused",
+                  "properties":{"unused":{"type":"number","forms":[{"href":"https://example.test/unused"}]}}
+                }
+                """).ConfigureAwait(false);
+            string[] resources = ["generated-first", "generated-second"];
+            foreach (string resource in resources)
+            {
+                await harness.RegisterTdAsync(resource, $$$"""
+                    {
+                      "@type":["Thing","uav:projection"],
+                      "id":"urn:{{{resource}}}","title":"Same title",
+                      "uav:scenario":"urn:scenario:generated-locals",
+                      "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},"security":"nosec_sc",
+                      "uav:projects":[{
+                        "uav:sourceName":"unused",
+                        "href":"urn:wot:thingdescriptions/unused-count-source",
+                        "type":"application/td+json","uav:selectAll":false
+                      }],
+                      "properties":{"local":{"type":"number","forms":[{"href":"https://example.test/local"}]}}
+                    }
+                    """).ConfigureAwait(false);
+            }
+
+            WotRefreshResult preview = await harness.RefreshAsync(dryRun: true).ConfigureAwait(false);
+            foreach (string resource in resources)
+            {
+                Assert.That(preview.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u), "The local root, local Variable and canonical View are all owned Nodes.");
+                Assert.That(harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!.MaterializedNodeCount, Is.Zero);
+            }
+
+            WotRefreshResult loaded = await harness.RefreshAsync().ConfigureAwait(false);
+            var identities = new HashSet<NodeId>();
+            foreach (string resource in resources)
+            {
+                WoTResourceLoadResultDataType row = loaded.Results.Single(value => value.ResourceId == resource);
+                Assert.That(row.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), row.Message);
+                Assert.That(row.MaterializedNodeCount, Is.EqualTo(3u));
+                WotResource persisted = harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!;
+                Assert.That(persisted.MaterializedNodeCount, Is.EqualTo(3));
+                Assert.That(row.RootNodeId, Is.EqualTo(persisted.RootNodeId));
+                Assert.That(await ReadNodeClassAsync(harness, row.RootNodeId).ConfigureAwait(false),
+                    Is.EqualTo(NodeClass.View));
+                ArrayOf<ReferenceDescription> members = await harness.BrowseAsync(
+                    row.RootNodeId, Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                Assert.That(members.Count, Is.EqualTo(1));
+                NodeId local = harness.Target(members[0]);
+                Assert.That(identities.Add(local), Is.True, "Generated local Nodes cannot be shared across resources.");
+                Assert.That(await ReadNodeClassAsync(harness, local).ConfigureAwait(false),
+                    Is.EqualTo(NodeClass.Variable));
+            }
+
+            WotRefreshResult unchanged = await harness.RefreshAsync().ConfigureAwait(false);
+            WotRefreshResult unchangedPreview = await harness.RefreshAsync(dryRun: true).ConfigureAwait(false);
+            foreach (string resource in resources)
+            {
+                Assert.That(unchanged.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u));
+                Assert.That(unchangedPreview.Results.Single(row => row.ResourceId == resource).MaterializedNodeCount,
+                    Is.EqualTo(3u));
+                Assert.That(harness.Registry.Current.FindResource(
+                    WotRegistryGroups.ThingDescriptions, resource)!.MaterializedNodeCount, Is.EqualTo(3));
+            }
         }
 
         /// <summary>
@@ -1716,13 +1803,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <summary>
             /// Refreshes the registered materialization closure.
             /// </summary>
-            public ValueTask<WotRefreshResult> RefreshAsync()
+            /// <param name="dryRun">Whether to prepare without publishing.</param>
+            public ValueTask<WotRefreshResult> RefreshAsync(bool dryRun = false)
             {
                 return m_coordinator!.RefreshAsync(new WotRefreshRequest
                 {
                     Options = new WoTRefreshOptionsDataType
                     {
-                        Atomicity = WoTAtomicityEnum.PerRegistry
+                        Atomicity = WoTAtomicityEnum.PerRegistry,
+                        DryRun = dryRun
                     }
                 });
             }
