@@ -75,6 +75,17 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
                 "CreateSubscriptionFactory not set on FakeSubscriptionManagerContext.");
 
         /// <summary>
+        /// Optional factory that receives the initializer of
+        /// <see cref="CreateSubscription"/> and must run it before the
+        /// subscription starts. When null, <see cref="CreateSubscriptionFactory"/>
+        /// is used and the initializer runs after it returns.
+        /// </summary>
+        public Func<ISubscriptionNotificationHandler,
+            IOptionsMonitor<SubscriptionOptions>, IMessageAckQueue,
+            Action<IManagedSubscription>?, IManagedSubscription>? CreateInitializedSubscriptionFactory
+        { get; set; }
+
+        /// <summary>
         /// Optional override for <see cref="PublishAsync"/>. If null,
         /// returns a default <see cref="PublishResponse"/>.
         /// </summary>
@@ -100,11 +111,18 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
             IMessageAckQueue queue,
-            SubscriptionLoadState? loadState = null)
+            SubscriptionLoadState? loadState = null,
+            Action<IManagedSubscription>? initialize = null)
         {
             Record(m_createSubscriptionCalls,
                 new CreateSubscriptionCall(handler, options, queue, loadState));
-            return CreateSubscriptionFactory(handler, options, queue);
+            if (CreateInitializedSubscriptionFactory != null)
+            {
+                return CreateInitializedSubscriptionFactory(handler, options, queue, initialize);
+            }
+            IManagedSubscription subscription = CreateSubscriptionFactory(handler, options, queue);
+            initialize?.Invoke(subscription);
+            return subscription;
         }
 
         public ValueTask<PublishResponse> PublishAsync(

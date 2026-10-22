@@ -548,7 +548,7 @@ namespace Opc.Ua.Di.Tests
                 // 1 system + 2 robots + 12 axes = 15 representations in the registry.
                 Assert.That(reps, Has.Count.GreaterThanOrEqualTo(15), "Expected >= 15 representations.");
                 Assert.That(cell, Is.Not.Null, "System (RobotCell) representation not discovered.");
-                Assert.That(cell!.RootLayerIdentifier, Is.EqualTo("asset-repo/Cell.usd"));
+                Assert.That(cell!.RootLayerIdentifier, Is.EqualTo("Cell.usda"));
                 Assert.That(r1, Is.Not.Null, "Robot R1 representation not discovered.");
                 Assert.That(axisReps, Is.EqualTo(12), "Expected 12 axis representations (6 per robot).");
                 // The system carries the RobotsAggregation (Many) component binding.

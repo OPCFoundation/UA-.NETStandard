@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Part 4 §5.13.9 rule that
         /// <c>SetSubscriptionDurable</c> must precede any
         /// monitored-item creation: the wrapper installs a hook that
-        /// awaits <see cref="SetAsDurableAsync"/> here so the call
+        /// awaits <see cref="SetAsDurableAsync(TimeSpan, CancellationToken)"/> here so the call
         /// is interleaved between the
         /// <c>CreateSubscription</c> response and the first
         /// <c>CreateMonitoredItems</c> request.
@@ -197,6 +197,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
         /// for elapsed-time and timer calculations. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        /// <param name="initialize">Optional callback invoked with the
+        /// new subscription before its state machine starts, so hooks
+        /// such as <see cref="OnAfterCreateAsync"/> are in place before
+        /// the first <c>CreateSubscription</c> can complete.</param>
         protected Subscription(
             ISubscriptionContext context,
             ISubscriptionNotificationHandler handler,
@@ -204,7 +208,8 @@ namespace Opc.Ua.Client.Subscriptions
             IOptionsMonitor<SubscriptionOptions> options,
             ITelemetryContext telemetry,
             SubscriptionLoadState? loadState = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<IManagedSubscription>? initialize = null)
             : base(context.SubscriptionServiceSet, completion, telemetry, timeProvider)
         {
             m_handler = handler;
@@ -242,6 +247,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
                 m_stateControl.Set();
             }
+            initialize?.Invoke(this);
             m_stateManagement = StateManagerAsync(m_cts.Token);
         }
 
@@ -474,6 +480,24 @@ namespace Opc.Ua.Client.Subscriptions
                     "Server.SetSubscriptionDurable returned no revised lifetime.");
             }
             return SaturatingTimeSpan.FromHours(revised);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<TimeSpan> SetAsDurableAsync(
+            Func<TimeSpan?> lifetime,
+            CancellationToken ct = default)
+        {
+            if (lifetime == null)
+            {
+                throw new ArgumentNullException(nameof(lifetime));
+            }
+            TimeSpan? current = lifetime();
+            LogicalSubscription.InstallDurableHook(this, lifetime);
+            if (current == null)
+            {
+                return TimeSpan.Zero;
+            }
+            return await SetAsDurableAsync(current.Value, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
