@@ -59,6 +59,9 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <inheritdoc/>
+        public long MessageGeneration => Volatile.Read(ref m_generation);
+
         /// <summary>
         /// Number of notification messages detected as missing during
         /// gap-walking of the SequenceNumber on this subscription.
@@ -693,7 +696,7 @@ namespace Opc.Ua.Client.Subscriptions
                         // can drop it from its retransmission queue.
                         // Messages whose republish failed earlier were
                         // never dispatched and are recovered below.
-                        await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                        await AckQueue.QueueAsync(this, MessageGeneration, new SubscriptionAcknowledgement
                         {
                             SequenceNumber = sequenceNumber,
                             SubscriptionId = Id
@@ -932,7 +935,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                    await AckQueue.QueueAsync(this, MessageGeneration, new SubscriptionAcknowledgement
                     {
                         SequenceNumber = message.SequenceNumber,
                         SubscriptionId = Id

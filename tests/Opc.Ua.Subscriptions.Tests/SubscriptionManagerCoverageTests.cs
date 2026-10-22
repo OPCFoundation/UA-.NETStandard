@@ -717,6 +717,8 @@ namespace Opc.Ua.Subscriptions.Tests
         {
             public uint Id { get; init; }
 
+            public long MessageGeneration => 0;
+
             public bool Created { get; init; }
 
             public bool IsCreationInProgress { get; init; }

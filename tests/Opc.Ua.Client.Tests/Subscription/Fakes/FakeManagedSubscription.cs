@@ -49,6 +49,9 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public uint Id { get; set; }
 
+        /// <inheritdoc/>
+        public long MessageGeneration { get; set; }
+
         public uint ServerId => Id;
 
         public bool Created { get; set; }

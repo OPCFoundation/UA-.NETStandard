@@ -3789,84 +3789,102 @@ namespace Opc.Ua.Client
 
                 if (!reused)
                 {
-                    // Clear server-assigned identity so OpenAsync below
-                    // performs a full CreateSession rather than a re-
-                    // activation of the (now invalid) prior session id.
-                    lock (m_lock)
+                    // Subscriptions that will be transferred keep their acknowledgement
+                    // state; any that fail to transfer are retired individually on recreate.
+                    bool retainAcknowledgements = recreateSubscriptions && WillTransferSubscriptionsOnRecreate();
+                    if (retainAcknowledgements)
                     {
-                        SessionCreated(default, default);
+                        BeginRetainingAcknowledgements();
                     }
-
-                    if (retirePreviousSession && !previousAuthenticationToken.IsNull)
+                    try
                     {
-                        ITransportChannel? previousChannel = manager == null
-                            ? retainedChannel
-                            : ReferenceEquals(oldManagedLease, newManagedLease) ? null : oldManagedLease;
-                        if (previousChannel != null)
+                        // Clear server-assigned identity so OpenAsync below
+                        // performs a full CreateSession rather than a re-
+                        // activation of the (now invalid) prior session id.
+                        lock (m_lock)
                         {
-                            retired = new RetiredServerSession(
-                                previousSessionId,
-                                previousAuthenticationToken,
-                                previousChannel);
-                            retainedChannel = null;
+                            SessionCreated(default, default);
                         }
-                    }
 
-                    UserIdentity? tempIdentity = m_identity == null
-                        ? new UserIdentity()
-                        : null;
-
-                    // Only tear the channel down on activation failure when this
-                    // method created it. A caller supplied channel or a channel
-                    // manager lease is owned elsewhere and the error handling
-                    // below restores the previous lease.
-                    bool ownsChannel = channel == null && manager == null;
-                    ArrayOf<EndpointDescription> refreshedEndpoints = default;
-                    if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
-                    {
-                        using var discovery = new RecoveryDiscoveryClient(
-                            (recoveryClient ?? this).TransportChannel, m_telemetry);
-                        try
+                        if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                         {
-                            GetEndpointsResponse response = await discovery.GetEndpointsAsync(
-                                null, m_endpoint.Description.EndpointUrl, default, default, ct).ConfigureAwait(false);
-                            if (response.Endpoints.IsEmpty)
+                            ITransportChannel? previousChannel = manager == null
+                                ? retainedChannel
+                                : ReferenceEquals(oldManagedLease, newManagedLease) ? null : oldManagedLease;
+                            if (previousChannel != null)
                             {
-                                throw new ServiceResultException(
-                                    StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
+                                retired = new RetiredServerSession(
+                                    previousSessionId,
+                                    previousAuthenticationToken,
+                                    previousChannel);
+                                retainedChannel = null;
                             }
-                            refreshedEndpoints = response.Endpoints;
                         }
-                        catch (ServiceResultException exception) when (
-                            exception.StatusCode == StatusCodes.BadServiceUnsupported ||
-                            exception.StatusCode == StatusCodes.BadNotSupported ||
-                            exception.StatusCode == StatusCodes.BadTimeout ||
-                            exception.StatusCode == StatusCodes.BadNotConnected ||
-                            exception.StatusCode == StatusCodes.BadConnectionClosed ||
-                            exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                            exception.StatusCode == StatusCodes.BadCommunicationError ||
-                            exception.StatusCode == StatusCodes.BadNoCommunication)
+
+                        UserIdentity? tempIdentity = m_identity == null
+                            ? new UserIdentity()
+                            : null;
+
+                        // Only tear the channel down on activation failure when this
+                        // method created it. A caller supplied channel or a channel
+                        // manager lease is owned elsewhere and the error handling
+                        // below restores the previous lease.
+                        bool ownsChannel = channel == null && manager == null;
+                        ArrayOf<EndpointDescription> refreshedEndpoints = default;
+                        if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
                         {
-                            ct.ThrowIfCancellationRequested();
-                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                            using var discovery = new RecoveryDiscoveryClient(
+                                (recoveryClient ?? this).TransportChannel, m_telemetry);
+                            try
+                            {
+                                GetEndpointsResponse response = await discovery.GetEndpointsAsync(
+                                    null, m_endpoint.Description.EndpointUrl, default, default, ct)
+                                    .ConfigureAwait(false);
+                                if (response.Endpoints.IsEmpty)
+                                {
+                                    throw new ServiceResultException(
+                                        StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
+                                }
+                                refreshedEndpoints = response.Endpoints;
+                            }
+                            catch (ServiceResultException exception) when (
+                                exception.StatusCode == StatusCodes.BadServiceUnsupported ||
+                                exception.StatusCode == StatusCodes.BadNotSupported ||
+                                exception.StatusCode == StatusCodes.BadTimeout ||
+                                exception.StatusCode == StatusCodes.BadNotConnected ||
+                                exception.StatusCode == StatusCodes.BadConnectionClosed ||
+                                exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                                exception.StatusCode == StatusCodes.BadCommunicationError ||
+                                exception.StatusCode == StatusCodes.BadNoCommunication)
+                            {
+                                ct.ThrowIfCancellationRequested();
+                                m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                            }
+                            catch (TimeoutException exception)
+                            {
+                                ct.ThrowIfCancellationRequested();
+                                m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                            }
                         }
-                        catch (TimeoutException exception)
+                        await OpenCoreAsync(
+                                recoveryClient ?? this,
+                                m_sessionName,
+                                (uint)m_sessionTimeout,
+                                m_identity ?? tempIdentity!,
+                                m_preferredLocales,
+                                m_checkDomain,
+                                ownsChannel,
+                                ct,
+                                refreshedEndpoints)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        if (retainAcknowledgements)
                         {
-                            ct.ThrowIfCancellationRequested();
-                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                            EndRetainingAcknowledgements();
                         }
                     }
-                    await OpenCoreAsync(
-                            recoveryClient ?? this,
-                            m_sessionName,
-                            (uint)m_sessionTimeout,
-                            m_identity ?? tempIdentity!,
-                            m_preferredLocales,
-                            m_checkDomain,
-                            ownsChannel,
-                            ct,
-                            refreshedEndpoints)
-                        .ConfigureAwait(false);
                 }
 
                 if (recreateSubscriptions && (!networkRecovery || !reused))
@@ -4921,7 +4939,7 @@ namespace Opc.Ua.Client
                 m_requestContextGeneration++;
                 RequestContextChanged?.Invoke();
             }
-            if (changed)
+            if (changed && Volatile.Read(ref m_retainAcknowledgementsAcrossSessionChange) == 0)
             {
                 OnAcknowledgementsDiscarded(0);
             }

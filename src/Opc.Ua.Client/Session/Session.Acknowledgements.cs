@@ -29,6 +29,7 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
@@ -199,6 +200,43 @@ namespace Opc.Ua.Client
                 }
             }
         }
+
+        /// <summary>
+        /// Starts a session identity replacement during which existing acknowledgement
+        /// state stays valid because the subscriptions will be transferred. Every call
+        /// must be paired with <see cref="EndRetainingAcknowledgements"/>.
+        /// </summary>
+        internal void BeginRetainingAcknowledgements()
+        {
+            Interlocked.Increment(ref m_retainAcknowledgementsAcrossSessionChange);
+        }
+
+        /// <summary>
+        /// Ends a replacement started with <see cref="BeginRetainingAcknowledgements"/>.
+        /// </summary>
+        internal void EndRetainingAcknowledgements()
+        {
+            Interlocked.Decrement(ref m_retainAcknowledgementsAcrossSessionChange);
+        }
+
+        /// <summary>
+        /// Whether a session recreate will try to transfer the existing subscriptions,
+        /// which keeps their acknowledgement state valid across the session change.
+        /// </summary>
+        internal bool WillTransferSubscriptionsOnRecreate()
+        {
+            return m_engine is DefaultSubscriptionEngine
+            {
+                SubscriptionManager: Subscriptions.SubscriptionManager manager
+            }
+                ? manager.TransferSubscriptionsOnRecreate
+                : TransferSubscriptionsOnReconnect;
+        }
+
+        /// <summary>
+        /// Non-zero while a recreate that transfers subscriptions replaces the session id.
+        /// </summary>
+        private int m_retainAcknowledgementsAcrossSessionChange;
     }
 
     /// <summary>

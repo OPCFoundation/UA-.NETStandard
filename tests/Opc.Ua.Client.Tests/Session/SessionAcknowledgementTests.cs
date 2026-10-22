@@ -130,6 +130,62 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// A recreate that transfers subscriptions keeps their acknowledgement state, so
+        /// the session id change is not reported as a retirement of all state. Retirement
+        /// is reported again once the transfer-preserving replacement has ended.
+        /// </summary>
+        [Test]
+        public void TransferPreservingIdentityReplacementDoesNotDiscardAcknowledgementState()
+        {
+            using ObservationSession session = CreateSession();
+            session.SessionCreated(new NodeId(1u), new NodeId(2u));
+            var discarded = new List<uint>();
+            session.SubscriptionAcknowledgementsDiscarded += (_, args) => discarded.Add(args.SubscriptionId);
+
+            session.BeginRetainingAcknowledgements();
+            try
+            {
+                session.SessionCreated(default, default);
+                session.SessionCreated(new NodeId(3u), new NodeId(4u));
+            }
+            finally
+            {
+                session.EndRetainingAcknowledgements();
+            }
+            Assert.That(discarded, Is.Empty);
+
+            session.SessionCreated(new NodeId(5u), new NodeId(6u));
+            Assert.That(discarded, Is.EqualTo(new uint[] { 0 }));
+        }
+
+        /// <summary>
+        /// The transfer decision follows the engine's own transfer setting: the classic
+        /// engine uses the session's reconnect flag, the V2 engine its manager's flag.
+        /// </summary>
+        [TestCase(false, false, false, false)]
+        [TestCase(false, true, false, true)]
+        [TestCase(false, false, true, false)]
+        [TestCase(true, false, false, false)]
+        [TestCase(true, false, true, true)]
+        [TestCase(true, true, false, false)]
+        public void TransferDecisionFollowsTheActiveEngine(
+            bool v2, bool transferOnReconnect, bool transferOnRecreate, bool expected)
+        {
+            using ObservationSession session = CreateSession(
+                v2 ? DefaultSubscriptionEngineFactory.Instance : null);
+            session.TransferSubscriptionsOnReconnect = transferOnReconnect;
+            if (session.SubscriptionEngine is DefaultSubscriptionEngine
+                {
+                    SubscriptionManager: Subscriptions.SubscriptionManager manager
+                })
+            {
+                manager.TransferSubscriptionsOnRecreate = transferOnRecreate;
+            }
+
+            Assert.That(session.WillTransferSubscriptionsOnRecreate(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
         /// Creation retires prior acknowledgement state even when the server reuses an identifier.
         /// </summary>
         [Test]
@@ -165,7 +221,7 @@ namespace Opc.Ua.Client.Tests
         /// <summary>
         /// Creates an unconnected session with a mocked transport.
         /// </summary>
-        private static ObservationSession CreateSession()
+        private static ObservationSession CreateSession(ISubscriptionEngineFactory? engineFactory = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var configuration = new ApplicationConfiguration(telemetry)
@@ -177,7 +233,7 @@ namespace Opc.Ua.Client.Tests
             channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://localhost:4840"),
                 EndpointConfiguration.Create(configuration));
-            return new ObservationSession(channel.Object, configuration, endpoint);
+            return new ObservationSession(channel.Object, configuration, endpoint, engineFactory);
         }
 
         /// <summary>
@@ -186,7 +242,9 @@ namespace Opc.Ua.Client.Tests
         private sealed class ObservationSession(
             ITransportChannel channel,
             ApplicationConfiguration configuration,
-            ConfiguredEndpoint endpoint) : Session(channel, configuration, endpoint)
+            ConfiguredEndpoint endpoint,
+            ISubscriptionEngineFactory? engineFactory) : Session(
+                channel, configuration, endpoint, engineFactory: engineFactory)
         {
             /// <summary>
             /// Simulates the response that establishes a new subscription identifier.

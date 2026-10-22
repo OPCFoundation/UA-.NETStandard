@@ -990,7 +990,8 @@ namespace Opc.Ua.Client.Subscriptions
 
                 // Assert
                 Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
-                Assert.That(m_completion.PublishingQuiescenceCalls, Is.GreaterThanOrEqualTo(1));
+                Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero,
+                    "Deleting one subscription must not pause publishing for the whole session.");
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
             }
         }

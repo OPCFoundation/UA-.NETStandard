@@ -45,6 +45,13 @@ namespace Opc.Ua.Client.Subscriptions
         uint Id { get; }
 
         /// <summary>
+        /// Current message generation. Recreating, deleting or resetting the
+        /// server-side subscription advances it, so acknowledgements stamped
+        /// with an older generation are known to be stale.
+        /// </summary>
+        long MessageGeneration { get; }
+
+        /// <summary>
         /// Allows the session to add the notification message
         /// to the subscription for dispatch. This is called by
         /// the subscription manager when a message is received.

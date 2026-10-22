@@ -32,6 +32,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -78,10 +79,11 @@ namespace Opc.Ua.Client.Subscriptions
             m_disposeToken = m_cts.Token;
             m_publishController = PublishControllerAsync(m_disposeToken);
             m_acks = Channel.CreateUnboundedPrioritized(
-                new UnboundedPrioritizedChannelOptions<SubscriptionAcknowledgement>
+                new UnboundedPrioritizedChannelOptions<PendingAcknowledgement>
                 {
-                    Comparer = Comparer<SubscriptionAcknowledgement>
-                        .Create((x, y) => x.SequenceNumber.CompareTo(y.SequenceNumber))
+                    Comparer = Comparer<PendingAcknowledgement>
+                        .Create((x, y) => x.Acknowledgement.SequenceNumber
+                            .CompareTo(y.Acknowledgement.SequenceNumber))
                 });
         }
 
@@ -322,7 +324,11 @@ namespace Opc.Ua.Client.Subscriptions
                 m_publishQuiescenceGate.Dispose();
                 m_cts.Dispose();
                 (m_acks as IDisposable)?.Dispose();
-                while (m_deferredAcknowledgements.TryDequeue(out _))
+                lock (m_acknowledgementPolicyLock)
+                {
+                    m_deferredAcknowledgements.Clear();
+                }
+                while (m_retirementsToReport.TryDequeue(out _))
                 {
                 }
                 if (m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
@@ -345,7 +351,18 @@ namespace Opc.Ua.Client.Subscriptions
         public ValueTask QueueAsync(
             SubscriptionAcknowledgement ack, CancellationToken ct)
         {
-            return m_acks.Writer.WriteAsync(ack, ct);
+            return m_acks.Writer.WriteAsync(new PendingAcknowledgement(ack, null, 0), ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            return m_acks.Writer.WriteAsync(new PendingAcknowledgement(ack, owner, generation), ct);
         }
 
         /// <inheritdoc/>
@@ -374,6 +391,7 @@ namespace Opc.Ua.Client.Subscriptions
                     throw new ObjectDisposedException(nameof(SubscriptionManager));
                 }
                 SetPublishingQuiesced(true);
+                Interlocked.Increment(ref m_quiescedOperations);
                 try
                 {
                     await DrainAsync(linkedToken).ConfigureAwait(false);
@@ -381,12 +399,14 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 finally
                 {
+                    Interlocked.Decrement(ref m_quiescedOperations);
                     SetPublishingQuiesced(false);
                 }
             }
             finally
             {
                 m_publishQuiescenceGate.Release();
+                ReportRetiredAcknowledgements();
             }
         }
 
@@ -472,57 +492,51 @@ namespace Opc.Ua.Client.Subscriptions
         {
             // Drain the prioritised channel into a local buffer,
             // keeping only the acks that do not target the dead
-            // subscription id, then re-publish the kept items.
-            // Recreate callers invoke this while publish ingress is
-            // quiesced, so no worker can remove or requeue an old
-            // acknowledgement while the generation changes.
-            var keep = new List<SubscriptionAcknowledgement>();
+            // subscription id, then re-publish the kept items. An
+            // acknowledgement a worker holds in flight is not seen here;
+            // if it is requeued, its owner and generation stamp is
+            // validated again before it is sent.
+            var keep = new List<PendingAcknowledgement>();
             int dropped = 0;
-            while (m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack))
+            while (m_acks.Reader.TryRead(out PendingAcknowledgement pending))
             {
-                if (ack.SubscriptionId == subscriptionId)
+                if (pending.Acknowledgement.SubscriptionId == subscriptionId)
                 {
                     dropped++;
                 }
                 else
                 {
-                    keep.Add(ack);
+                    keep.Add(pending);
                 }
             }
-            foreach (SubscriptionAcknowledgement ack in keep)
+            foreach (PendingAcknowledgement pending in keep)
             {
-                m_acks.Writer.TryWrite(ack);
+                m_acks.Writer.TryWrite(pending);
             }
-            keep.Clear();
-            while (m_deferredAcknowledgements.TryDequeue(out SubscriptionAcknowledgement? ack))
+            lock (m_acknowledgementPolicyLock)
             {
-                if (ack.SubscriptionId == subscriptionId)
+                dropped += m_deferredAcknowledgements.RemoveAll(
+                    pending => pending.Acknowledgement.SubscriptionId == subscriptionId);
+                UpdateDeferredWarning();
+            }
+            if (subscriptionId != 0)
+            {
+                m_retirementsToReport.Enqueue(subscriptionId);
+                if (Volatile.Read(ref m_quiescedOperations) == 0)
                 {
-                    dropped++;
+                    ReportRetiredAcknowledgements();
                 }
-                else
-                {
-                    keep.Add(ack);
-                }
-            }
-            foreach (SubscriptionAcknowledgement ack in keep)
-            {
-                m_deferredAcknowledgements.Enqueue(ack);
-            }
-            if (subscriptionId != 0 && m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
-            {
-                lifecycle.OnAcknowledgementsDiscarded(subscriptionId);
             }
             return dropped;
         }
 
         /// <inheritdoc/>
-        public async ValueTask CompleteAsync(IMessageProcessor completing,
+        public ValueTask CompleteAsync(IMessageProcessor completing,
             uint subscriptionId, CancellationToken ct)
         {
             if (completing is not IManagedSubscription partition)
             {
-                return;
+                return default;
             }
 
             LogicalSubscription? logical = null;
@@ -534,7 +548,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // subscription that is not created (yet) shares id 0.
                 if (!m_subscriptions.Remove(partition))
                 {
-                    return;
+                    return default;
                 }
                 m_establishedSubscriptions.Remove(partition);
 
@@ -578,29 +592,16 @@ namespace Opc.Ua.Client.Subscriptions
             }
             m_logger.SubscriptionRemoved(subscriptionId);
             m_publishControl.Set();
-            if (subscriptionId != 0 && Volatile.Read(ref m_disposed) == 0)
+
+            // No publishing quiescence: acknowledgements of the removed partition that a
+            // worker holds in flight fail send-time validation if they are requeued.
+            if (subscriptionId != 0 &&
+                Volatile.Read(ref m_disposed) == 0 &&
+                OwnsSubscriptionId(completing, subscriptionId))
             {
-                try
-                {
-                    // Removal is committed; caller cancellation must not strand the retired acknowledgements.
-                    await RunWithPublishingQuiescedAsync(_ =>
-                    {
-                        if (OwnsSubscriptionId(completing, subscriptionId))
-                        {
-                            DropPendingForSubscription(subscriptionId);
-                        }
-                        return default;
-                    }, CancellationToken.None).ConfigureAwait(false);
-                }
-                catch (ObjectDisposedException) when (Volatile.Read(ref m_disposed) != 0)
-                {
-                    // Manager disposal owns the final acknowledgement drain.
-                }
-                catch (OperationCanceledException) when (m_disposeToken.IsCancellationRequested)
-                {
-                    // Manager disposal owns the final acknowledgement drain.
-                }
+                DropPendingForSubscription(subscriptionId);
             }
+            return default;
         }
 
         /// <inheritdoc/>
@@ -1964,43 +1965,214 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Reconsiders deferred acknowledgements without holding a lock across application callbacks.
+        /// Removes stale entries and applies the session's deferral policy to the
+        /// acknowledgements selected for the next Publish request together with the
+        /// previously deferred ones. The policy callback is serialized, matching the
+        /// classic engine, so handlers never observe concurrent invocations.
         /// </summary>
-        private ArrayOf<SubscriptionAcknowledgement> PrepareAcknowledgementsToSend(
-            ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+        private List<PendingAcknowledgement> PrepareAcknowledgementsToSend(
+            List<PendingAcknowledgement> acknowledgements)
         {
-            if (acknowledgements.Count == 0 && m_deferredAcknowledgements.IsEmpty)
+            lock (m_acknowledgementPolicyLock)
             {
-                return acknowledgements;
-            }
+                if (acknowledgements.Count == 0 && m_deferredAcknowledgements.Count == 0)
+                {
+                    return acknowledgements;
+                }
 
-            var deferred = new List<SubscriptionAcknowledgement>();
-            int pendingCount = m_deferredAcknowledgements.Count;
-            for (int i = 0; i < pendingCount &&
-                m_deferredAcknowledgements.TryDequeue(out SubscriptionAcknowledgement? pending); i++)
-            {
-                deferred.Add(pending);
-            }
-            List<SubscriptionAcknowledgement> candidates = acknowledgements.ToList();
-            candidates.AddRange(deferred);
-            try
-            {
-                (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> retained) =
-                    m_session.PrepareAcknowledgementsToSend(candidates);
+                var candidates = new List<PendingAcknowledgement>(
+                    acknowledgements.Count + m_deferredAcknowledgements.Count);
+                candidates.AddRange(acknowledgements);
+                candidates.AddRange(m_deferredAcknowledgements);
+                var previouslyDeferred = new List<PendingAcknowledgement>(m_deferredAcknowledgements);
+                m_deferredAcknowledgements.Clear();
+                RemoveStaleAcknowledgements(candidates);
+                if (candidates.Count == 0)
+                {
+                    UpdateDeferredWarning();
+                    return candidates;
+                }
+
+                var byIdentity = new Dictionary<SubscriptionAcknowledgement, PendingAcknowledgement>(
+                    candidates.Count, AcknowledgementIdentityComparer.Instance);
+                var presented = new List<SubscriptionAcknowledgement>(candidates.Count);
+                foreach (PendingAcknowledgement candidate in candidates)
+                {
+                    byIdentity[candidate.Acknowledgement] = candidate;
+                    presented.Add(candidate.Acknowledgement);
+                }
+
+                List<SubscriptionAcknowledgement> toSend;
+                List<SubscriptionAcknowledgement> retained;
+                try
+                {
+                    (toSend, retained) = m_session.PrepareAcknowledgementsToSend(presented);
+                }
+                catch
+                {
+                    // The worker requeues its own batch; restore only the older deferred entries.
+                    m_deferredAcknowledgements.AddRange(previouslyDeferred);
+                    throw;
+                }
                 foreach (SubscriptionAcknowledgement acknowledgement in retained)
                 {
-                    m_deferredAcknowledgements.Enqueue(acknowledgement);
+                    m_deferredAcknowledgements.Add(Resolve(acknowledgement));
                 }
-                return toSend;
-            }
-            catch
-            {
-                // The worker rolls back its original batch; restore only the older deferred entries here.
-                foreach (SubscriptionAcknowledgement acknowledgement in deferred)
+                UpdateDeferredWarning();
+                var result = new List<PendingAcknowledgement>(toSend.Count);
+                foreach (SubscriptionAcknowledgement acknowledgement in toSend)
                 {
-                    m_deferredAcknowledgements.Enqueue(acknowledgement);
+                    result.Add(Resolve(acknowledgement));
                 }
-                throw;
+                return result;
+
+                // A handler may add acknowledgements it created itself; they carry no owner.
+                PendingAcknowledgement Resolve(SubscriptionAcknowledgement acknowledgement)
+                {
+                    return byIdentity.TryGetValue(acknowledgement, out PendingAcknowledgement pending)
+                        ? pending
+                        : new PendingAcknowledgement(acknowledgement, null, 0);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Puts acknowledgements of an abandoned or failed Publish attempt back into
+        /// the queue, except those whose owner retired them in the meantime.
+        /// </summary>
+        private void RequeueAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            if (acknowledgements.Count == 0)
+            {
+                return;
+            }
+            RemoveStaleAcknowledgements(acknowledgements);
+            foreach (PendingAcknowledgement pending in acknowledgements)
+            {
+                m_acks.Writer.TryWrite(pending);
+            }
+        }
+
+        /// <summary>
+        /// Removes acknowledgements that must not be sent anymore: the owning
+        /// subscription was removed, recreated, deleted, or its server id is now
+        /// also claimed by a sibling (the server reused the id). Sending such an
+        /// acknowledgement could confirm a message of another subscription that the
+        /// client never processed. Acknowledgements without an owner are kept.
+        /// </summary>
+        private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
+        {
+            bool owned = false;
+            foreach (PendingAcknowledgement pending in acknowledgements)
+            {
+                if (pending.Owner != null)
+                {
+                    owned = true;
+                    break;
+                }
+            }
+            if (!owned)
+            {
+                return;
+            }
+
+            // One registry snapshot per batch; an id claimed by two partitions maps to null.
+            var owners = new Dictionary<uint, IManagedSubscription?>();
+            lock (m_subscriptionLock)
+            {
+                foreach (IManagedSubscription subscription in m_subscriptions)
+                {
+                    uint id = subscription.Id;
+                    if (id == 0)
+                    {
+                        continue;
+                    }
+                    owners[id] = owners.ContainsKey(id) ? null : subscription;
+                }
+            }
+            int removed = acknowledgements.RemoveAll(pending =>
+                pending.Owner != null &&
+                (pending.Owner.Id != pending.Acknowledgement.SubscriptionId ||
+                    pending.Owner.MessageGeneration != pending.Generation ||
+                    !owners.TryGetValue(pending.Acknowledgement.SubscriptionId,
+                        out IManagedSubscription? current) ||
+                    !ReferenceEquals(current, pending.Owner)));
+            if (removed != 0)
+            {
+                m_logger.StaleAcknowledgementsDiscarded(removed);
+            }
+        }
+
+        /// <summary>
+        /// Warns once when deferred acknowledgements accumulate, and re-arms when the
+        /// backlog has drained. Must be called with the policy lock held.
+        /// </summary>
+        private void UpdateDeferredWarning()
+        {
+            int count = m_deferredAcknowledgements.Count;
+            if (!m_deferredWarningRaised && count >= kDeferredAcknowledgementWarningThreshold)
+            {
+                m_deferredWarningRaised = true;
+                m_logger.DeferredAcknowledgementsAccumulating(count);
+            }
+            else if (m_deferredWarningRaised && count < kDeferredAcknowledgementWarningThreshold / 2)
+            {
+                m_deferredWarningRaised = false;
+            }
+        }
+
+        /// <summary>
+        /// Raises queued subscription retirement notifications. Called outside the
+        /// publishing quiescence so observers do not run inside the gate.
+        /// </summary>
+        private void ReportRetiredAcknowledgements()
+        {
+            if (m_session is not ISubscriptionAcknowledgementLifecycle lifecycle)
+            {
+                while (m_retirementsToReport.TryDequeue(out _))
+                {
+                }
+                return;
+            }
+            while (m_retirementsToReport.TryDequeue(out uint subscriptionId))
+            {
+                lifecycle.OnAcknowledgementsDiscarded(subscriptionId);
+            }
+        }
+
+        /// <summary>
+        /// A queued acknowledgement stamped with the processor that produced it and
+        /// that processor's message generation at the time.
+        /// </summary>
+        /// <param name="Acknowledgement">The acknowledgement to send.</param>
+        /// <param name="Owner">The producing processor, or <c>null</c> when unknown.</param>
+        /// <param name="Generation">The owner's message generation when queued.</param>
+        private readonly record struct PendingAcknowledgement(
+            SubscriptionAcknowledgement Acknowledgement,
+            IMessageProcessor? Owner,
+            long Generation);
+
+        /// <summary>
+        /// Compares acknowledgements by object identity, which is how the deferral
+        /// callback moves them between its lists.
+        /// </summary>
+        private sealed class AcknowledgementIdentityComparer : IEqualityComparer<SubscriptionAcknowledgement>
+        {
+            /// <summary>
+            /// The shared instance.
+            /// </summary>
+            public static AcknowledgementIdentityComparer Instance { get; } = new();
+
+            /// <inheritdoc/>
+            public bool Equals(SubscriptionAcknowledgement? x, SubscriptionAcknowledgement? y)
+            {
+                return ReferenceEquals(x, y);
+            }
+
+            /// <inheritdoc/>
+            public int GetHashCode(SubscriptionAcknowledgement obj)
+            {
+                return RuntimeHelpers.GetHashCode(obj);
             }
         }
 
@@ -2124,6 +2296,7 @@ namespace Opc.Ua.Client.Subscriptions
                     {
                         continue;
                     }
+                    List<PendingAcknowledgement> batch = [];
                     ArrayOf<SubscriptionAcknowledgement> acks = [];
                     uint handle = 0;
                     bool publishActive = true;
@@ -2133,19 +2306,20 @@ namespace Opc.Ua.Client.Subscriptions
                     m_outer.RegisterPublishAttempt(attempt);
                     try
                     {
-                        acks = GetAcksReadyToSend();
+                        batch = GetAcksReadyToSend();
                         handle = ClientBase.NewSharedRequestHandle();
-                        if (acks.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
+                        if (batch.Count == 0 && !moreNotifications && ackWaitTimeout != 0)
                         {
                             // Throttle publishing as we wait for acks to arrive
-                            acks = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
+                            batch = await WaitForAcksAsync(ackWaitTimeout, attemptToken).ConfigureAwait(false);
                         }
                         if (!m_outer.m_running.IsSet)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                             continue;
                         }
-                        acks = m_outer.PrepareAcknowledgementsToSend(acks);
+                        batch = m_outer.PrepareAcknowledgementsToSend(batch);
+                        acks = batch.ConvertAll(pending => pending.Acknowledgement);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
                         publishLatencyRunning = true;
                         PublishResponse response = await m_outer.m_session.PublishAsync(
@@ -2309,7 +2483,7 @@ namespace Opc.Ua.Client.Subscriptions
                         // messages until its retransmission queue overflows.
                         if (publishActive)
                         {
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                         }
                         if (!ct.IsCancellationRequested)
                         {
@@ -2332,7 +2506,7 @@ namespace Opc.Ua.Client.Subscriptions
                         {
                             if (publishActive)
                             {
-                                acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                                m_outer.RequeueAcknowledgements(batch);
                             }
                             break;
                         }
@@ -2341,7 +2515,7 @@ namespace Opc.Ua.Client.Subscriptions
                         if (publishActive)
                         {
                             // Only a failed service request needs acknowledgement rollback.
-                            acks.ForEach(ack => m_outer.m_acks.Writer.TryWrite(ack));
+                            m_outer.RequeueAcknowledgements(batch);
                             m_outer.EndPublishRequest();
                             publishActive = false;
                         }
@@ -2487,7 +2661,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <param name="maxWaitTime"></param>
             /// <param name="ct"></param>
             /// <returns></returns>
-            private async Task<ArrayOf<SubscriptionAcknowledgement>> WaitForAcksAsync(
+            private async Task<List<PendingAcknowledgement>> WaitForAcksAsync(
                 int maxWaitTime,
                 CancellationToken ct)
             {
@@ -2523,12 +2697,12 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     using var pauseCts =
                         CancellationTokenSource.CreateLinkedTokenSource(waitToken);
-                    Task<SubscriptionAcknowledgement> readTask = m_outer.m_acks.Reader
+                    Task<PendingAcknowledgement> readTask = m_outer.m_acks.Reader
                         .ReadAsync(pauseCts.Token).AsTask();
                     Task pausedTask = m_outer.m_publishingPaused
                         .WaitAsync(pauseCts.Token);
                     bool readConsumed = false;
-                    SubscriptionAcknowledgement firstAck;
+                    PendingAcknowledgement firstAck;
                     try
                     {
                         Task completed = await Task.WhenAny(readTask, pausedTask)
@@ -2555,7 +2729,7 @@ namespace Opc.Ua.Client.Subscriptions
                             await pauseCts.CancelAsync().ConfigureAwait(false);
                             try
                             {
-                                SubscriptionAcknowledgement acknowledgement =
+                                PendingAcknowledgement acknowledgement =
                                     await readTask.ConfigureAwait(false);
                                 m_outer.m_acks.Writer.TryWrite(acknowledgement);
                             }
@@ -2572,10 +2746,8 @@ namespace Opc.Ua.Client.Subscriptions
                     catch (OperationCanceledException)
                     {
                     }
-                    ArrayOf<SubscriptionAcknowledgement> restAcks = GetAcksReadyToSend();
-                    var ackList = restAcks.ToList();
-                    ackList.Insert(0, firstAck);
-                    ArrayOf<SubscriptionAcknowledgement> acks = ackList;
+                    List<PendingAcknowledgement> acks = GetAcksReadyToSend();
+                    acks.Insert(0, firstAck);
                     if (m_logger.IsEnabled(LogLevel.Debug))
                     {
                         m_logger.PublishWorkerPublishAcksAfterPausing(
@@ -2606,9 +2778,9 @@ namespace Opc.Ua.Client.Subscriptions
             /// Get acks that are ready to send
             /// </summary>
             /// <returns></returns>
-            private ArrayOf<SubscriptionAcknowledgement> GetAcksReadyToSend()
+            private List<PendingAcknowledgement> GetAcksReadyToSend()
             {
-                var acks = new List<SubscriptionAcknowledgement>();
+                var acks = new List<PendingAcknowledgement>();
 
                 // TODO: Is this something that we can get from ops limit?
                 int available = m_outer.m_acks.Reader.Count;
@@ -2616,7 +2788,7 @@ namespace Opc.Ua.Client.Subscriptions
                     ? 0
                     : Math.Max(1, available / Math.Max(m_outer.PublishWorkerCount, 1));
                 for (int i = 0; i < maxAcks &&
-                    m_outer.m_acks.Reader.TryRead(out SubscriptionAcknowledgement? ack); i++)
+                    m_outer.m_acks.Reader.TryRead(out PendingAcknowledgement ack); i++)
                 {
                     acks.Add(ack);
                 }
@@ -2710,15 +2882,28 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_maxOperationTimeout = TimeSpan.FromMinutes(30);
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
+        private const int kDeferredAcknowledgementWarningThreshold = 1000;
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;
 #pragma warning restore IDE0032 // Use auto property
-        private readonly Channel<SubscriptionAcknowledgement> m_acks;
+        private readonly Channel<PendingAcknowledgement> m_acks;
+        /// <summary>
+        /// Serializes the session's acknowledgement-deferral callback and guards
+        /// <see cref="m_deferredAcknowledgements"/> and <see cref="m_deferredWarningRaised"/>.
+        /// </summary>
+        private readonly Lock m_acknowledgementPolicyLock = new();
         /// <summary>
         /// Application-deferred acknowledgements, reconsidered on subsequent Publish attempts.
         /// </summary>
-        private readonly ConcurrentQueue<SubscriptionAcknowledgement> m_deferredAcknowledgements = new();
+        private readonly List<PendingAcknowledgement> m_deferredAcknowledgements = [];
+        private bool m_deferredWarningRaised;
+        /// <summary>
+        /// Retired subscription ids whose discard notification is raised once publishing
+        /// is no longer quiesced, so observers never run inside the quiescence gate.
+        /// </summary>
+        private readonly ConcurrentQueue<uint> m_retirementsToReport = new();
+        private int m_quiescedOperations;
         private readonly AsyncManualResetEvent m_running = new();
         private readonly AsyncManualResetEvent m_publishingPaused = new(true);
         private readonly AsyncAutoResetEvent m_publishControl = new();
@@ -2976,5 +3161,18 @@ namespace Opc.Ua.Client.Subscriptions
             int handle,
             uint id,
             uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 37, Level = LogLevel.Debug,
+            Message = "Discarded {Count} acknowledgements of retired or reused subscription ids.")]
+        public static partial void StaleAcknowledgementsDiscarded(
+            this ILogger logger,
+            int count);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 38, Level = LogLevel.Warning,
+            Message = "{Count} acknowledgements are deferred by the acknowledgement policy. " +
+                "The server keeps the corresponding messages until they are acknowledged.")]
+        public static partial void DeferredAcknowledgementsAccumulating(
+            this ILogger logger,
+            int count);
     }
 }
