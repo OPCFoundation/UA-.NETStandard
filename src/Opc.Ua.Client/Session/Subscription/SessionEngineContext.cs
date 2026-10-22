@@ -42,7 +42,7 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext : ISubscriptionEngineContext
+        private sealed class SessionEngineContext : ISubscriptionEngineContext, ISubscriptionAcknowledgementLifecycle
         {
             public SessionEngineContext(Session session)
             {
@@ -53,6 +53,12 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public NodeId SessionId => m_session.SessionId;
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId)
+            {
+                m_session.OnAcknowledgementsDiscarded(subscriptionId);
+            }
 
             /// <inheritdoc/>
             public bool Reconnecting => m_session.Reconnecting;

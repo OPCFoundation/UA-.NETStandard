@@ -325,6 +325,10 @@ namespace Opc.Ua.Client.Subscriptions
                 while (m_deferredAcknowledgements.TryDequeue(out _))
                 {
                 }
+                if (m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
+                {
+                    lifecycle.OnAcknowledgementsDiscarded(0);
+                }
                 GC.SuppressFinalize(this);
             }
         }
@@ -504,6 +508,10 @@ namespace Opc.Ua.Client.Subscriptions
             foreach (SubscriptionAcknowledgement ack in keep)
             {
                 m_deferredAcknowledgements.Enqueue(ack);
+            }
+            if (subscriptionId != 0 && m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
+            {
+                lifecycle.OnAcknowledgementsDiscarded(subscriptionId);
             }
             return dropped;
         }

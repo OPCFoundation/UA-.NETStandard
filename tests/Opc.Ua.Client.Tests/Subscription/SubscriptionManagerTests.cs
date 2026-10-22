@@ -380,6 +380,8 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken testCt)
         {
             var context = new FakeSubscriptionManagerContext();
+            var discarded = new ConcurrentQueue<uint>();
+            context.OnDiscardAcknowledgements = discarded.Enqueue;
             int nextSubscription = 0;
             var partitions = new List<FakeManagedSubscription>();
             context.CreateSubscriptionFactory = (_, _, _) =>
@@ -489,6 +491,7 @@ namespace Opc.Ua.Client.Subscriptions
             Volatile.Write(ref release, 1);
 
             bool retired = action is "drop" or "complete" or "complete-cancelled";
+            Assert.That(discarded.ToArray(), Is.EqualTo(retired ? new uint[] { 1 } : []));
             int expectedCount = retired ? 1 : 2;
             await WaitUntilAsync(() => sentIds.Count >= expectedCount, testCt).ConfigureAwait(false);
             uint[] expected = retired ? [2u] : [1u, 2u];

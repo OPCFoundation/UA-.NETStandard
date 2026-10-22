@@ -229,6 +229,8 @@ namespace Opc.Ua.Client
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
+                PublishAcknowledgementsCompleted = template.PublishAcknowledgementsCompleted;
+                SubscriptionAcknowledgementsDiscarded = template.SubscriptionAcknowledgementsDiscarded;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -622,6 +624,9 @@ namespace Opc.Ua.Client
                 m_keepAliveTimer.Dispose();
 
                 // suppress spurious events
+                OnAcknowledgementsDiscarded(0);
+                PublishAcknowledgementsCompleted = null;
+                SubscriptionAcknowledgementsDiscarded = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -4904,8 +4909,10 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
+            bool changed;
             lock (m_requestContextIdentity)
             {
+                changed = SessionId != sessionId;
                 base.SessionCreated(sessionId, sessionCookie);
                 if (!sessionCookie.IsNull)
                 {
@@ -4913,6 +4920,10 @@ namespace Opc.Ua.Client
                 }
                 m_requestContextGeneration++;
                 RequestContextChanged?.Invoke();
+            }
+            if (changed)
+            {
+                OnAcknowledgementsDiscarded(0);
             }
         }
 
@@ -4973,6 +4984,7 @@ namespace Opc.Ua.Client
             }
 
             base.RequestCompleted(request, response!, serviceName);
+            OnAcknowledgementsCompleted(request, response);
         }
 
         /// <summary>
