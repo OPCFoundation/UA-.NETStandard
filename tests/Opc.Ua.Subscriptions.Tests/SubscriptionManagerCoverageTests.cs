@@ -599,7 +599,8 @@ namespace Opc.Ua.Subscriptions.Tests
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<SubscriptionOptions> options,
                 IMessageAckQueue queue,
-                SubscriptionLoadState? loadState = null)
+                SubscriptionLoadState? loadState = null,
+                Action<IManagedSubscription>? initialize = null)
             {
                 CreateSubscriptionCallCount++;
                 LastCreateQueue = queue;
@@ -608,7 +609,9 @@ namespace Opc.Ua.Subscriptions.Tests
                     throw new InvalidOperationException(
                         "CreateSubscriptionFactory was not configured for this test.");
                 }
-                return CreateSubscriptionFactory(handler, options, queue);
+                IManagedSubscription subscription = CreateSubscriptionFactory(handler, options, queue);
+                initialize?.Invoke(subscription);
+                return subscription;
             }
 
             public ValueTask<PublishResponse> PublishAsync(

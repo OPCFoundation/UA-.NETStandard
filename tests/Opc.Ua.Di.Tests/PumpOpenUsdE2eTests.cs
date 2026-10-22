@@ -342,6 +342,93 @@ namespace Opc.Ua.Di.Tests
             }
             Assert.That(hasRepresentations, Is.True,
                 "Representations registry is not reachable from Server/OpenUSD.");
+
+            ReferenceDescription stages = rootRefs.ToList().Single(reference => reference.BrowseName.Name == "Stages");
+            var browseStages = new BrowseDescription
+            {
+                NodeId = ExpandedNodeId.ToNodeId(stages.NodeId, m_session.NamespaceUris),
+                BrowseDirection = BrowseDirection.Forward,
+                ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes,
+                IncludeSubtypes = true,
+                NodeClassMask = (uint)NodeClass.Object,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+            BrowseResponse stageChildren = await m_session.BrowseAsync(
+                null!, null!, 0, new BrowseDescription[] { browseStages }, CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(stageChildren.Results[0].StatusCode), Is.True);
+            Assert.That(stageChildren.Results[0].References, Has.Count.EqualTo(1),
+                "PlantStage is not reachable through Server/OpenUSD/Stages/Organizes.");
+            var connector = new OpenUsdConnector(m_session, new MockUsdSink());
+            OpenUsdConnector.RepresentationInfo? representation = await PumpRepAsync(connector).ConfigureAwait(false);
+            Assert.That(representation, Is.Not.Null);
+            NodeId stageId = ExpandedNodeId.ToNodeId(
+                stageChildren.Results[0].References[0].NodeId, m_session.NamespaceUris);
+            Assert.That(stageId, Is.EqualTo(representation!.StageNodeId),
+                "The registered stage must match the representation's Stage value.");
+
+            ReferenceDescription artifacts = rootRefs.ToList().Single(
+                reference => reference.BrowseName.Name == "Artifacts");
+            Assert.That(
+                ExpandedNodeId.ToNodeId(artifacts.TypeDefinition, m_session.NamespaceUris),
+                Is.EqualTo(ExpandedNodeId.ToNodeId(
+                    Opc.Ua.OpenUsd.ObjectTypeIds.OpenUsdArtifactRegistryType, m_session.NamespaceUris)));
+            ArrayOf<ReferenceDescription> groups = await BrowseObjectsAsync(
+                ExpandedNodeId.ToNodeId(artifacts.NodeId, m_session.NamespaceUris),
+                Opc.Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            Assert.That(groups, Has.Count.EqualTo(1));
+            Assert.That(groups[0].BrowseName.Name, Is.EqualTo("pumps"));
+            NodeId groupId = ExpandedNodeId.ToNodeId(groups[0].NodeId, m_session.NamespaceUris);
+            ArrayOf<ReferenceDescription> resources = await BrowseObjectsAsync(
+                groupId, Opc.Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            Assert.That(resources, Has.Count.EqualTo(2));
+
+            ArrayOf<ReferenceDescription> stageObjects = await BrowseObjectsAsync(
+                stageId, Opc.Ua.ReferenceTypeIds.HasComponent).ConfigureAwait(false);
+            ReferenceDescription view = stageObjects.ToList().Single(
+                reference => reference.BrowseName.Name == "Assets");
+            ArrayOf<ReferenceDescription> viewResources = await BrowseObjectsAsync(
+                ExpandedNodeId.ToNodeId(view.NodeId, m_session.NamespaceUris),
+                Opc.Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+            Assert.That(viewResources.ToList().Select(reference => reference.NodeId),
+                Is.EquivalentTo(resources.ToList().Select(reference => reference.NodeId)),
+                "Stage Assets must reference the same logical resources as the artifact registry.");
+
+            foreach (ReferenceDescription resource in resources.ToList())
+            {
+                ArrayOf<ReferenceDescription> components = await BrowseObjectsAsync(
+                    ExpandedNodeId.ToNodeId(resource.NodeId, m_session.NamespaceUris),
+                    Opc.Ua.ReferenceTypeIds.HasComponent).ConfigureAwait(false);
+                ReferenceDescription versions = components.ToList().Single(
+                    reference => reference.BrowseName.Name == "Versions");
+                ArrayOf<ReferenceDescription> exact = await BrowseObjectsAsync(
+                    ExpandedNodeId.ToNodeId(versions.NodeId, m_session.NamespaceUris),
+                    Opc.Ua.ReferenceTypeIds.Organizes).ConfigureAwait(false);
+                Assert.That(exact, Has.Count.EqualTo(1));
+                Assert.That(exact[0].NodeId, Is.Not.EqualTo(resource.NodeId));
+                Assert.That(exact[0].BrowseName.Name, Is.EqualTo("1"));
+            }
+
+            async Task<ArrayOf<ReferenceDescription>> BrowseObjectsAsync(NodeId nodeId, NodeId referenceType)
+            {
+                BrowseResponse response = await m_session!.BrowseAsync(
+                    null!, null!, 0,
+                    new BrowseDescription[]
+                    {
+                        new()
+                        {
+                            NodeId = nodeId,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = referenceType,
+                            IncludeSubtypes = false,
+                            NodeClassMask = (uint)NodeClass.Object,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    },
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
+                return response.Results[0].References;
+            }
         }
 
         [Test]
@@ -353,7 +440,7 @@ namespace Opc.Ua.Di.Tests
             Assert.That(rep, Is.Not.Null, "OpenUsdRepresentation not discovered on Pump_1.");
             Assert.That(rep!.PrimPath, Is.EqualTo("/Plant/Pumps/Pump_1"));
             Assert.That(rep.StageNodeId.IsNull, Is.False);
-            Assert.That(rep.RootLayerIdentifier, Is.EqualTo("asset-repo/Plant.usd"));
+            Assert.That(rep.RootLayerIdentifier, Is.EqualTo("Plant.usda"));
             // Layout (1) + telemetry (10) + supervision alarms (3) + command (1).
             Assert.That(rep.Bindings, Has.Count.EqualTo(15));
         }

@@ -26,6 +26,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
@@ -40,6 +41,12 @@
     <None Remove="Model\Opc.Ua.OpenUsd.Scene.NodeSet2.csv" />
   </ItemGroup>
   <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.XRegistry\Opc.Ua.XRegistry.NodeSet2.xml">
+      <ModelSourceGeneratorPrefix>Opc.Ua.XRegistry</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorName>XRegistry</ModelSourceGeneratorName>
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/xRegistry/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorIgnore>true</ModelSourceGeneratorIgnore>
+    </AdditionalFiles>
     <AdditionalFiles Include="Model\Opc.Ua.OpenUsd.NodeSet2.xml">
       <ModelSourceGeneratorPrefix>Opc.Ua.OpenUsd</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
