@@ -601,6 +601,9 @@ namespace Opc.Ua.Client
         public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
 
         /// <inheritdoc/>
+        public ServerRedundancyInfo? RedundancyInfo => Volatile.Read(ref m_redundancyInfo);
+
+        /// <inheritdoc/>
         public string SessionName
             => m_session?.SessionName ?? m_sessionName;
 
