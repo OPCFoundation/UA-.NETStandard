@@ -164,6 +164,39 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A sampling group's diagnostics mask gets a shared context of its own, reused like the
+        /// default one and replaced by the same input changes, without replacing the default one.
+        /// </summary>
+        [Test]
+        public void DiagnosticsMaskGetsItsOwnSharedContext()
+        {
+            var subscriber = new Subscriber();
+            IMonitoredItem first = subscriber.CreateItem();
+            IMonitoredItem second = subscriber.CreateItem();
+            OperationContext standard = MonitoredReadAuthorization.GetSubscriberContext(first);
+
+            OperationContext masked = MonitoredReadAuthorization.GetSubscriberContext(first, DiagnosticsMasks.None);
+
+            Assert.That(masked, Is.Not.SameAs(standard));
+            Assert.That(masked.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.None));
+            Assert.That(standard.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.SymbolicId));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(second, DiagnosticsMasks.None), Is.SameAs(masked));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(second), Is.SameAs(standard));
+
+            // groups with different masks alternate without replacing each other's context.
+            OperationContext all = MonitoredReadAuthorization.GetSubscriberContext(first, DiagnosticsMasks.OperationAll);
+            Assert.That(all.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.OperationAll));
+            Assert.That(MonitoredReadAuthorization.GetSubscriberContext(second, DiagnosticsMasks.None), Is.SameAs(masked));
+            Assert.That(
+                MonitoredReadAuthorization.GetSubscriberContext(second, DiagnosticsMasks.OperationAll), Is.SameAs(all));
+
+            subscriber.Generation++;
+            OperationContext refreshed = MonitoredReadAuthorization.GetSubscriberContext(first, DiagnosticsMasks.None);
+            Assert.That(refreshed, Is.Not.SameAs(masked));
+            Assert.That(refreshed.DiagnosticsMask, Is.EqualTo(DiagnosticsMasks.None));
+        }
+
+        /// <summary>
         /// A modeled custom session whose identity, identity refresh generation and endpoint can change.
         /// </summary>
         private sealed class Subscriber

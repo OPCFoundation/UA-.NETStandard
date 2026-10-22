@@ -753,7 +753,10 @@ namespace Opc.Ua.Server
             CancellationTokenSource? loopCts,
             CancellationToken cancellationToken)
         {
-            using OperationContext context = MonitoredReadAuthorization.CreateContext(items[0], m_diagnosticsMask);
+            // CA2000: the subscriber context is shared by the session's items and owned by its entry.
+#pragma warning disable CA2000
+            OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(items[0], m_diagnosticsMask);
+#pragma warning restore CA2000
             var itemsToRead = new List<ReadValueId>(items.Count);
             var values = new List<DataValue>(items.Count);
             var errors = new List<ServiceResult>(items.Count);
@@ -772,11 +775,7 @@ namespace Opc.Ua.Server
             // read values.
             await m_nodeManager.ReadAsync(context, 0, itemsToRead, values, errors, cancellationToken).ConfigureAwait(false);
 
-            // one system context for the exact-source checks of this owner's items; an item
-            // without a session is checked with a context of its own.
-            ServerSystemContext? systemContext = context.Session != null
-                ? new ServerSystemContext(m_server, context)
-                : null;
+            ServerSystemContext systemContext = GetSystemContext(items[0]);
 
             // update monitored items, unless the group stopped while reading: its items
             // may already be deleted.
@@ -811,6 +810,21 @@ namespace Opc.Ua.Server
 
                 QueueSample(items[ii], context, values[ii], errors[ii], permissionResult);
             }
+        }
+
+        /// <summary>
+        /// Gets the system context of the item's shared subscriber context: its copy of the
+        /// owner's (or the server's) template, kept with the shared context, so a pass allocates
+        /// none.
+        /// </summary>
+        private ServerSystemContext GetSystemContext(ISampledDataChangeMonitoredItem item)
+        {
+            ServerSystemContext template = (m_nodeManager as AsyncCustomNodeManager)?.SystemContext ??
+                m_server.DefaultSystemContext ??
+                LazyInitializer.EnsureInitialized(
+                    ref m_systemContextTemplate,
+                    () => new ServerSystemContext(m_server))!;
+            return MonitoredReadAuthorization.GetSubscriberSystemContext(item, template, m_diagnosticsMask);
         }
 
         /// <summary>
@@ -875,8 +889,7 @@ namespace Opc.Ua.Server
         /// <param name="node">The item's exact source, or <c>null</c> for a provider-specific handle.</param>
         /// <param name="readContext">The context the values of the pass were read with.</param>
         /// <param name="systemContext">
-        /// The system context of the pass, shared by the checks of its items, or <c>null</c> to
-        /// create one for an item without a session.
+        /// The system context of <paramref name="readContext"/>, shared by the checks of the pass.
         /// </param>
         /// <param name="permission">The item's role permission verdict.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -886,7 +899,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem item,
             NodeState? node,
             OperationContext readContext,
-            ServerSystemContext? systemContext,
+            ServerSystemContext systemContext,
             ServiceResult permission,
             CancellationToken cancellationToken)
         {
@@ -906,16 +919,13 @@ namespace Opc.Ua.Server
                     }
                     var inputs = MonitoredReadInputs.Capture(item.Session, node);
                     long epoch = PermissionEpoch;
-                    // ValidateAsync rebinds a context whose endpoint is no longer the session's,
-                    // so the checks of one pass share its context.
-                    using OperationContext? current = systemContext == null
-                        ? MonitoredReadAuthorization.CreateContext(item, m_diagnosticsMask)
-                        : null;
+                    // the owner was checked above, and ValidateAsync rebinds a context whose
+                    // endpoint is no longer the session's, so the checks of a pass share its context.
                     (ServiceResult result, MonitoredReadVerdict? verdict) = await MonitoredReadVerdict.ValidateAsync(
                         m_server,
                         m_nodeManager,
                         node,
-                        systemContext ?? new ServerSystemContext(m_server, current!),
+                        systemContext,
                         item.AttributeId,
                         inputs,
                         cancellationToken).ConfigureAwait(false);
@@ -1111,8 +1121,11 @@ namespace Opc.Ua.Server
                 // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
                 m_group.m_session ??= first.Session;
 
-                using OperationContext context = MonitoredReadAuthorization.CreateContext(
+                // CA2000: the subscriber context is shared by the session's items and owned by its entry.
+#pragma warning disable CA2000
+                OperationContext context = MonitoredReadAuthorization.GetSubscriberContext(
                     first, m_group.m_diagnosticsMask);
+#pragma warning restore CA2000
 
                 await m_group.m_nodeManager.ReadAsync(
                     context, 0, m_readValueIds, m_values, m_errors, cancellationToken).ConfigureAwait(false);
@@ -1125,7 +1138,7 @@ namespace Opc.Ua.Server
                 ISession? session = context.Session;
                 long identityGeneration = session?.CaptureIdentityRefreshSnapshot().Generation ?? 0;
                 bool reuseReadVerdicts = session?.IsIdentityStale != true;
-                ServerSystemContext? systemContext = null;
+                ServerSystemContext systemContext = m_group.GetSystemContext(first);
 
                 // update monitored items, unless the group stopped while reading: its items
                 // may already be deleted.
@@ -1185,10 +1198,6 @@ namespace Opc.Ua.Server
                         !m_group.TryReuseSampleReadAccess(
                             items[ii], node, context, verdict, out ServiceResult? reused))
                     {
-                        if (node != null && context.Session != null)
-                        {
-                            systemContext ??= new ServerSystemContext(m_group.m_server, context);
-                        }
                         (permissionResult, MonitoredReadVerdict? read, long readEpoch) =
                             await m_group.ValidateSampleReadAccessAsync(
                                 items[ii], node, context, systemContext, permissionResult, cancellationToken)
@@ -1269,6 +1278,7 @@ namespace Opc.Ua.Server
         private const double kPermissionRevalidationPeriod = 1000;
 
         private readonly Lock m_lock = new();
+        private ServerSystemContext? m_systemContextTemplate;
         private readonly ILogger m_logger;
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly IServerInternal m_server;
