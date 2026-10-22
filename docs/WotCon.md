@@ -1153,17 +1153,27 @@ the other: they share no conformance unit. A server may implement either surface
 or both.
 
 These are specification profile definitions, not blanket implementation claims.
-Full JSON Schema/compatibility-policy validation, distributed publication, and
-other deferred requirements are not proved by prepared publication or conversion
-tests.
+Complete base TD/TM JSON Schema validation is missing mandatory behavior for
+servers claiming `2:WoT-Projection`. Syntax checks, projection admission,
+conversion and security checks do not establish complete base-document
+validation, and registering or enabling the registry/projection runtime does
+not add a full validator. No complete validator is available through the
+currently approved runtime references. No new runtime validator dependency is
+approved; adding one requires explicit dependency, license and NativeAOT
+compatibility review. Accordingly, the current projection-support path does not
+fully conform to `2:WoT-Projection` or profile closures that require it,
+including applicable WoT-Modeller/Converter claims. No full conformance claim
+is made.
 
 <a id="wot-con-102-compatibility"></a>
 
-`Wot-Con 1.02` is implementable on its own, so it covers serving the data points of
-an uploaded Thing Description — and with it, format-validating that document
-before any Node is materialized from it. Client-supplied input never reaches the
-AddressSpace unchecked; a document that fails validation materializes nothing and
-returns `Bad_DecodingError`.
+`Wot-Con 1.02` is implementable on its own and covers serving the data points of
+an uploaded Thing Description; the profile also requires format validation
+before any Node is materialized. The current path rejects documents it detects
+as invalid before materializing them and returns `Bad_DecodingError`, but those
+observed failures do not establish complete base TD/TM schema validation or
+`Wot-Con 1.02` profile conformance. Syntax, conversion and projection checks are
+not substitutes for complete schema validation.
 
 `WOTC-ProjectionMaterialization` is carried by `ThingDescriptionFileType`,
 `ThingModelFileType` and `HasWoTProjection`.
@@ -1500,8 +1510,9 @@ defaults to 256 documents. The aggregation sample states a larger budget (1024) 
 its corpus exceeds the default; hosts with a larger corpus must do the same. The
 canonical corpus inventory lists 540 JSON documents, and the verified registry
 manifest holds 535 documents (394 Thing Descriptions and 141 Thing Models). These
-statements describe the conversion contract only. Complete XML validation and full
-JSON Schema validation remain unclaimed and deferred.
+statements describe the conversion contract only. Complete XML validation remains
+unclaimed. Full base TD/TM JSON Schema validation is missing mandatory behavior
+for projection-result validation; the conversion contract does not provide it.
 
 ### 12.5 Portable identifiers
 

@@ -313,9 +313,52 @@ namespace Opc.Ua.Types.Tests.Wot
                         "DependencyObservationRequiresReadAccessToEveryCapturedTarget"
                 }));
                 Assert.That(requirement.Gap, Does.Contain("per-node role permissions"));
-                Assert.That(requirement.Gap, Does.Contain("namespace-default permission behavior"));
-                Assert.That(requirement.Gap, Does.Contain("federated/remote targets"));
-                Assert.That(requirement.Gap, Does.Contain("No conformance claim"));
+                Assert.That(requirement.Gap, Does.Contain("namespace-default role behavior"));
+                Assert.That(requirement.Gap, Does.Contain("local registry pins"));
+                Assert.That(requirement.Gap, Does.Contain("federated/remote target authorization"));
+                Assert.That(requirement.Gap, Does.Contain("outside the implemented capability"));
+            });
+        }
+
+        /// <summary>
+        /// Separates missing projection validation, covered projection edges, and conditional HA applicability.
+        /// </summary>
+        [Test]
+        public void ProjectionRequirementsDistinguishMissingBehaviorFromEvidenceAndApplicabilityGaps()
+        {
+            List<WotSpecRequirement> requirements = WotSpecRequirementLedger.Load(
+                typeof(WotSpecRequirementTests).Assembly);
+            WotSpecRequirement projectionValidation = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#004");
+            WotSpecRequirement resolvedValidation = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#008");
+            WotSpecRequirement dependencyCarriage = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#006");
+            WotSpecRequirement noPartialResult = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#009");
+            WotSpecRequirement resourceViewEdge = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#020");
+            WotSpecRequirement haState = requirements.Single(candidate =>
+                candidate.SpecId == "sec-projection-documents#023");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projectionValidation.Gap, Does.Contain("Mandatory runtime behavior is missing"));
+                Assert.That(projectionValidation.Gap, Does.Contain("complete base TD/TM schema"));
+                Assert.That(resolvedValidation.Gap, Does.Contain("Mandatory runtime behavior is not fully established"));
+                Assert.That(resolvedValidation.Gap, Does.Contain("Binding validation"));
+                Assert.That(dependencyCarriage.Tests, Does.Contain(
+                    "Opc.Ua.Types.Tests.Wot.WotProjectionDependencyTests." +
+                    "SameNamedDependenciesFromDifferentSourcesRetainTheirSourceIdentity"));
+                Assert.That(noPartialResult.Tests, Does.Contain(
+                    "Opc.Ua.Types.Tests.Wot.WotProjectionDependencyTests." +
+                    "InvalidUnitDependenciesFailWithoutAPartialResolvedResult"));
+                Assert.That(resourceViewEdge.Tests, Does.Contain(
+                    "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests." +
+                    "CanonicalCandidateRendersSharedChildAndTypedWrappersOverTransportAsync"));
+                Assert.That(haState.Gap, Does.Contain("Conditional HA deployment obligation"));
+                Assert.That(haState.Gap, Does.Contain("outside the current claim"));
+                Assert.That(haState.Gap, Does.Contain("does not establish cross-replica state sharing"));
             });
         }
 
@@ -645,7 +688,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Pins the exact set of stable stack requirements with no candidate test reference.
         /// </summary>
         private const string s_unmappedRequirementIdsSha256 =
-            "c5ff75365ae2b3a5b4a98744f8daafc1ded0dd80d8150c89a1e395231ad357a2";
+            "1c043ca81874ca9c1b58c0157c44e2e9a68f3929c4622b49d9077d880addc750";
 
         private static readonly string[] s_assemblies =
         [

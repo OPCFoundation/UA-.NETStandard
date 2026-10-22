@@ -28,7 +28,7 @@
   },
   "stackApplicableRequirementCount": 302,
   "trackedValidatorRequirementCount": 90,
-  "stackRequirementWithoutTestReferenceCount": 151,
+  "stackRequirementWithoutTestReferenceCount": 148,
   "cttCatalogue": {
     "sourcePath": "extras/WoT-Connectivity/tools/ctt-cases.md",
     "status": "proposal-only",
@@ -987,7 +987,7 @@
       "statementHash": "sha256:4663cd6965e788e82c8637b25a7a2fafee2cf76a64641154982f277200c86169",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [],
-      "gap": "Candidate fixtures now exist, but this requirement has no reviewed behavior-specific assertion mapping. Fixture presence is not evidence; no conformance is claimed. Candidate sources: Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests; Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests; Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests."
+      "gap": "Conditional HA deployment obligation. Independent replicas of one logical server are not a supported or advertised deployment capability here, so this condition is outside the current claim. Local restart persistence is separate evidence and does not establish cross-replica state sharing; no HA conformance is claimed."
     },
     {
       "specId": "sec-projection-documents#022",
@@ -1000,7 +1000,7 @@
       "statementHash": "sha256:84c3a782bf6b2ea2844de169a865dc0f966461c1c42858a3247f7a7a94d47e6a",
       "assembly": "Opc.Ua.WotCon.Tests",
       "tests": [],
-      "gap": "Candidate fixtures now exist, but this requirement has no reviewed behavior-specific assertion mapping. Fixture presence is not evidence; no conformance is claimed. Candidate sources: Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests; Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests; Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests."
+      "gap": "Candidate fixtures exist, but no behavior-specific assertion mapping has been reviewed for this separate requirement; no conformance is claimed. Candidate sources: Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalCoordinatorTests; Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests; Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests."
     },
     {
       "specId": "sec-projection-documents#021",
@@ -1377,8 +1377,9 @@
       ],
       "statementHash": "sha256:5969830ce0df7d784fafb24a8b080ad7252186b685f0cdc1f81c46182ae4200d",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [],
-      "gap": "Complete local restart recovery is tested. Publication-state replication between independent HA replicas is not exercised or claimed by these local runtime witnesses."
+      "tests": [
+        "Opc.Ua.WotCon.Tests.Materialization.WotProjectionViewCanonicalLiveTests.CanonicalCandidateRendersSharedChildAndTypedWrappersOverTransportAsync"
+      ]
     },
     {
       "specId": "sec-closeandupdate#001",
@@ -4636,8 +4637,11 @@
       ],
       "statementHash": "sha256:1b5ec7d52954446fdb9a04b98198d0d5469a84309a9d8679951818bab5e5f0b9",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [],
-      "gap": "Explicit projection compatibility/admission is tested, but the combined requirement also requires full legacy TD validation, which is deferred."
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionDependencyTests.InvalidUnitDependenciesFailWithoutAPartialResolvedResult",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests.ReferencedSecurityClosuresMustBeComplete"
+      ],
+      "gap": "The resolver returns no result when a dependency error is found, and the mapped tests cover invalid dependency and incomplete security-closure failures. They do not establish every prohibited side effect in the requirement, including native-content overlay, authentication failure, or implicit action fanout; those behaviors remain without reviewed assertion evidence."
     },
     {
       "specId": "sec-projection-documents#008",
@@ -4653,7 +4657,8 @@
         "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
         "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
         "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
-      ]
+      ],
+      "gap": "Mandatory runtime behavior is not fully established: the completed result must pass base TD/TM and Binding validation, but the current resolver result is parsed and mapped without complete TD/TM schema validation. Existing plan-format, schema-reference and security tests do not prove base-document validation. The affected projection-support claim includes the 2:WoT-Projection dependency of applicable WoT-Modeller/Converter profiles; no full conformance claim is made."
     },
     {
       "specId": "sec-projection-documents#007",
@@ -4681,8 +4686,11 @@
       ],
       "statementHash": "sha256:e5046f23dc3495ca70b8f876d1aed6dc6ce5d41e60562c81f0c7b7b66aa86e23",
       "assembly": "Opc.Ua.WotCon.Tests",
-      "tests": [],
-      "gap": "Full TD/TM JSON Schema validation is explicitly deferred; syntax, admission and projection checks are not full format-validation evidence."
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionDependencyTests.SameNamedDependenciesFromDifferentSourcesRetainTheirSourceIdentity",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionDependencyTests.UnitDependencyPointersRetainCanonicalEscaping",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.BulkProvenanceIsHrefPlusPointer"
+      ]
     },
     {
       "specId": "sec-projection-documents#005",
@@ -4714,7 +4722,8 @@
         "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests",
         "Opc.Ua.Types.Tests.Wot.WotProjectionSchemaReferenceTests",
         "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests"
-      ]
+      ],
+      "gap": "Mandatory runtime behavior is missing for projection-advertising servers: admission and JSON parsing are present, but the resolved ordinary TD/TM is not checked against the complete base TD/TM schema before activation. The listed plan/schema-reference/security tests do not prove that check. This affects the existing projection-support path and Binding claims whose profile closure includes 2:WoT-Projection; no full conformance claim is made."
     },
     {
       "specId": "sec-projection-documents#003",
@@ -5156,7 +5165,7 @@
       "tests": [
         "Opc.Ua.WotCon.Tests.WotSelectedDependenciesLiveTests.DependencyObservationRequiresReadAccessToEveryCapturedTarget"
       ],
-      "gap": "The live cases deny access to native registry source, group, origin, and exact local target nodes with per-node role permissions, plus target encryption restrictions; they cover committed and attempted observations. They do not establish namespace-default permission behavior or authorization for federated/remote targets. No conformance claim is made for those cases."
+      "gap": "The live cases establish denial for native registry source, group, origin, and exact local target nodes using per-node role permissions, plus target encryption restrictions, for committed and attempted observations. This evidence is limited to local registry pins; it does not establish namespace-default role behavior or federated/remote target authorization. The current dependency-snapshot path produces local pins only, so remote-target authorization is outside the implemented capability and is not claimed. Any future remote-pin support must enforce the target's own disclosure policy before it can claim this requirement."
     },
     {
       "specId": "sec-dependency-snapshots-and-target-pins#010",
