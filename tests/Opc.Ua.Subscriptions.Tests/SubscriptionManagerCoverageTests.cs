@@ -751,6 +751,12 @@ namespace Opc.Ua.Subscriptions.Tests
                 throw new NotSupportedException();
             }
 
+            public ValueTask<TimeSpan> SetAsDurableAsync(
+                Func<TimeSpan?> lifetime, CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
             public ValueTask<SetTriggeringResult> SetTriggeringAsync(
                 IMonitoredItem triggeringItem,
                 IReadOnlyCollection<IMonitoredItem>? linksToAdd = null,
