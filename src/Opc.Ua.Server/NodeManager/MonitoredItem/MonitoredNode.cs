@@ -220,8 +220,6 @@ namespace Opc.Ua.Server
                 if (DataChangeMonitoredItems.TryRemove(datachangeItem.Id, out _))
                 {
                     Interlocked.Increment(ref m_permissionGeneration);
-                    // Remove the cached context for the monitored item
-                    m_contextCache.TryRemove(datachangeItem.Id, out _);
                     m_permissionCache.TryRemove(datachangeItem.Id, out _);
                 }
 
@@ -568,7 +566,6 @@ namespace Opc.Ua.Server
                             custom.HasValueReadAuthorization(variable))))
                 {
                     ServerSystemContext serverContext = GetSubscriberContextTemplate();
-                    long generation = Volatile.Read(ref m_permissionGeneration);
                     foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
                     {
                         if (kvp.Value.AttributeId != Attributes.Value ||
@@ -576,8 +573,7 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        ServerSystemContext subscriberContext = GetOrCreateContext(
-                            serverContext, kvp.Value, generation);
+                        ServerSystemContext subscriberContext = GetSubscriberContext(serverContext, kvp.Value);
                         ServiceResult authorization = await MonitoredReadAuthorization.ValidateAsync(
                             NodeManager, node, subscriberContext, Attributes.Value, cancellationToken)
                             .ConfigureAwait(false);
@@ -1638,8 +1634,8 @@ namespace Opc.Ua.Server
                 AccessRestrictionType? restrictions = Node.AccessRestrictions;
                 // the subscriber's own context, also when the reporter's context is not a
                 // ServerSystemContext: every access check of the item uses its identity.
-                ServerSystemContext cachedContext = GetOrCreateContext(
-                    GetSubscriberContextTemplate(), monitoredItem, generation);
+                ServerSystemContext cachedContext = GetSubscriberContext(
+                    GetSubscriberContextTemplate(), monitoredItem);
                 OperationContext operationContext = cachedContext.OperationContext!;
                 ServiceResult result;
                 if (authorization.Session?.IsIdentityStale == true)
@@ -1858,58 +1854,21 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets or creates a cached context for the monitored item.
+        /// Gets the subscriber's system context for the monitored item: the context shared by all
+        /// items of its session, copied once per node manager. Nothing is allocated per item or
+        /// notification; a changed identity, epoch or endpoint replaces the shared context, which
+        /// also retires the item's cached permission verdicts (they are keyed by the context).
         /// </summary>
-        /// <param name="context">The system context.</param>
+        /// <param name="template">The node manager's system context.</param>
         /// <param name="monitoredItem">The monitored item.</param>
-        /// <param name="generation">The permission generation associated with this context.</param>
-        /// <returns>The cached or newly created context.</returns>
-        private ServerSystemContext GetOrCreateContext(
-            ServerSystemContext context,
-            IDataChangeMonitoredItem2 monitoredItem,
-            long generation)
+        private static ServerSystemContext GetSubscriberContext(
+            ServerSystemContext template,
+            IDataChangeMonitoredItem2 monitoredItem)
         {
-            uint monitoredItemId = monitoredItem.Id;
-            long currentTimestamp = m_timeProvider.GetTimestamp();
-            OperationContext operationContext;
-
-            // Check if the context already exists in the cache
-            if (m_contextCache.TryGetValue(
-                    monitoredItemId,
-                    out (long Generation, ServerSystemContext Context, long CreatedAtTimestamp) cachedEntry))
-            {
-                // Refresh context if the owning session changed (e.g. after subscription transfer)
-                // or if the cache entry has expired.
-                if (cachedEntry.Generation != generation ||
-                    cachedEntry.Context.OperationContext!.Session != monitoredItem.Session ||
-                    !ReferenceEquals(cachedEntry.Context.UserIdentity,
-                        monitoredItem.Session?.EffectiveIdentity ?? monitoredItem.EffectiveIdentity) ||
-                    !ReferenceEquals(cachedEntry.Context.OperationContext.ChannelContext?.EndpointDescription,
-                        MonitoredReadAuthorization.GetEndpoint(monitoredItem.Session)) ||
-                    m_timeProvider.GetElapsedTime(cachedEntry.CreatedAtTimestamp) > m_cacheLifetime)
-                {
-                    operationContext = MonitoredReadAuthorization.CreateContext(monitoredItem);
-
-                    ServerSystemContext updatedContext = context.Copy(
-                        operationContext);
-                    m_contextCache[monitoredItemId] = (generation, updatedContext, currentTimestamp);
-
-                    // Invalidate the permission cache since the session context has changed.
-                    m_permissionCache.TryRemove(monitoredItemId, out _);
-
-                    return updatedContext;
-                }
-
-                return cachedEntry.Context;
-            }
-
-            // Create a new context and add it to the cache
-            operationContext = MonitoredReadAuthorization.CreateContext(monitoredItem);
-            ServerSystemContext newContext = context.Copy(operationContext);
-            m_contextCache.TryAdd(monitoredItemId, (generation, newContext, currentTimestamp));
-            m_permissionCache.TryRemove(monitoredItemId, out _);
-
-            return newContext;
+            // CA2000: the shared context is owned by the session's entry and never disposed by callers.
+#pragma warning disable CA2000
+            return MonitoredReadAuthorization.GetSubscriberContext(monitoredItem).GetSystemContext(template);
+#pragma warning restore CA2000
         }
 
         /// <summary>
@@ -1934,7 +1893,6 @@ namespace Opc.Ua.Server
                     }
                     uint id = monitoredItem.Id;
                     m_permissionCache.TryRemove(id, out _);
-                    m_contextCache.TryRemove(id, out _);
                 }
             }
 
@@ -1987,8 +1945,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly ConcurrentDictionary<
-            uint, (long Generation, ServerSystemContext Context, long CreatedAtTimestamp)> m_contextCache = new();
 
         private readonly ConcurrentDictionary<
             uint, (long Generation, ISession? Session, ServerSystemContext? Context, ServiceResult Result,
@@ -2001,7 +1957,6 @@ namespace Opc.Ua.Server
 
         private long m_permissionGeneration;
 
-        private readonly TimeSpan m_cacheLifetime = TimeSpan.FromMinutes(5);
 
         /// <summary>
         /// Uses the owner or server template so reporter-specific authority cannot enter a subscriber's context.
@@ -2098,7 +2053,7 @@ namespace Opc.Ua.Server
                         Node.OnReportEventAsync = null;
                     }
                     InvalidatePermissionCaches();
-                    m_contextCache.Clear();
+
                     DataChangeMonitoredItems.Clear();
                     EventMonitoredItems.Clear();
                 }
