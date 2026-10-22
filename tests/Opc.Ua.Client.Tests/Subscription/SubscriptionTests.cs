@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Subscriptions
     [Category("SubscriptionManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class SubscriptionTests
+    public sealed partial class SubscriptionTests
     {
         [SetUp]
         public void SetUp()
@@ -3282,9 +3282,11 @@ namespace Opc.Ua.Client.Subscriptions
                 IMessageAckQueue completion, OptionsMonitor<SubscriptionOptions> options,
                 ITelemetryContext telemetry, uint? subscriptionIdForAlreadyCreatedState = null,
                 SubscriptionRecoveryPolicy recoveryPolicy = SubscriptionRecoveryPolicy.ReportOnly,
-                TimeProvider? timeProvider = null)
+                TimeProvider? timeProvider = null,
+                Action<IManagedSubscription>? initialize = null)
                 : base(session, handler, completion, !subscriptionIdForAlreadyCreatedState.HasValue ?
-                      options : options.Configure(o => o with { Disabled = true }), telemetry, timeProvider: timeProvider)
+                      options : options.Configure(o => o with { Disabled = true }), telemetry,
+                      timeProvider: timeProvider, initialize: initialize)
             {
                 // Let the subscription create itself
                 if (subscriptionIdForAlreadyCreatedState.HasValue)

@@ -611,13 +611,8 @@ namespace Opc.Ua.Client.Subscriptions
                 // minted secondary partitions can route their reactive-
                 // fallback callbacks back to the same logical.
                 LogicalSubscription? created = null;
-                partitionFactory = () =>
-                {
-                    IManagedSubscription part = MintPartition(effectiveHandler, options);
-                    AttachReactiveFallback(part, created);
-                    created?.TryApplyDurableToNewPartition(part);
-                    return part;
-                };
+                partitionFactory = () => MintPartition(effectiveHandler, options,
+                    part => InitializePartition(part, created));
                 wrapper = new LogicalSubscription(primary, policy, partitionFactory,
                     m_timeProvider,
                     NormalizeIdleTimeout(snapshot.SecondaryPartitionIdleTimeout),
@@ -671,6 +666,22 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 concrete.OnPartitionCapReached = _ => wrapper.OnPartitionCapReached(partition);
             }
+        }
+
+        /// <summary>
+        /// Wire a freshly constructed secondary partition to its owning
+        /// logical wrapper. Runs before the partition starts its first
+        /// create pass, so a durable logical subscription sends
+        /// <c>SetSubscriptionDurable</c> on the partition even when the
+        /// server answers <c>CreateSubscription</c> before the partition
+        /// factory returns.
+        /// </summary>
+        private static void InitializePartition(
+            IManagedSubscription partition,
+            LogicalSubscription? wrapper)
+        {
+            AttachReactiveFallback(partition, wrapper);
+            wrapper?.TryApplyDurableToNewPartition(partition);
         }
 
         /// <summary>
@@ -786,9 +797,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private IManagedSubscription MintPartition(
             ISubscriptionNotificationHandler handler,
-            IOptionsMonitor<SubscriptionOptions> options)
+            IOptionsMonitor<SubscriptionOptions> options,
+            Action<IManagedSubscription> initialize)
         {
-            return MintPartitionCore(handler, options, loadState: null);
+            return MintPartitionCore(handler, options, loadState: null, initialize);
         }
 
         /// <summary>
@@ -805,16 +817,17 @@ namespace Opc.Ua.Client.Subscriptions
             IOptionsMonitor<SubscriptionOptions> options,
             SubscriptionLoadState loadState)
         {
-            return MintPartitionCore(handler, options, loadState);
+            return MintPartitionCore(handler, options, loadState, initialize: null);
         }
 
         private IManagedSubscription MintPartitionCore(
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
-            SubscriptionLoadState? loadState)
+            SubscriptionLoadState? loadState,
+            Action<IManagedSubscription>? initialize)
         {
             IManagedSubscription partition = m_session.CreateSubscription(
-                handler, options, this, loadState);
+                handler, options, this, loadState, initialize);
             lock (m_subscriptionLock)
             {
                 if (!m_subscriptions.Add(partition))
@@ -972,13 +985,8 @@ namespace Opc.Ua.Client.Subscriptions
                     options.MaxMonitoredItemsPerPartition ?? 0,
                     options.MaxPartitionCount);
                 LogicalSubscription? created = null;
-                partitionFactory = () =>
-                {
-                    IManagedSubscription part = MintPartition(effectiveHandler, optionsMonitor);
-                    AttachReactiveFallback(part, created);
-                    created?.TryApplyDurableToNewPartition(part);
-                    return part;
-                };
+                partitionFactory = () => MintPartition(effectiveHandler, optionsMonitor,
+                    part => InitializePartition(part, created));
                 wrapper = new LogicalSubscription(subscription, policy, partitionFactory,
                     m_timeProvider,
                     NormalizeIdleTimeout(options.SecondaryPartitionIdleTimeout),

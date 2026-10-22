@@ -18,6 +18,14 @@ The `Opc.Ua.OpenUsd.Server` namespace helps a server expose a live external twin
 
 Pair these APIs with **Opc.Ua.OpenUsd.Client** on the connector side.
 
+`UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets, "pumps")`
+bootstraps shared logical Resources and their first exact Versions in
+`Server/OpenUSD/Artifacts`. Each stage's `Assets` folder only organizes references
+to those Resources. Reusing a container and asset identifier reuses its Resource;
+conflicting immutable definitions are rejected. The four-argument overload uses
+the stage's symbolic name as the container identifier. Call before final NodeId
+assignment and address-space registration.
+
 ## Scene materialization
 
 The `Opc.Ua.OpenUsd.Server.Scene` namespace materializes a composed USD stage inside

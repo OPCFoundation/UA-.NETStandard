@@ -59,6 +59,7 @@ namespace Robotics.IntentEnabledRobot
 
                 m_cellStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages, new QualifiedName("MinimalIntentRobotStage", ns));
+                m_cellStage.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 stages.AddChild(m_cellStage);
                 m_cellStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!).Value = RootLayerIdentifier;
 
@@ -81,7 +82,7 @@ namespace Robotics.IntentEnabledRobot
                 }
 
                 root.AddReference(ReferenceTypeIds.HasComponent, true, Opc.Ua.ObjectIds.Server);
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets);
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_cellStage, ns, servedAssets, "intent-robots");
                 SystemContext.AssignInstanceChildNodeIds(root);
                 await Manager.AddPredefinedNodeAsync(root, cancellationToken).ConfigureAwait(false);
 
@@ -280,7 +281,7 @@ namespace Robotics.IntentEnabledRobot
             SystemContext.AssignInstanceChildNodeIds(node, previousNodeId, referenceRoot);
         }
 
-        private const string RootLayerIdentifier = "asset-repo/Bench.usd";
+        private const string RootLayerIdentifier = "Bench.usda";
         private static readonly string[] s_payloadSlotPrimPaths =
         [
             "/World/Payloads/FixtureStack/Slot01",
