@@ -133,6 +133,9 @@ Notes:
 * The **W3C Binding Templates registry is a pilot and currently empty**; no binder ever reports `RegistryCurrent`. Drafts expose their Editor's Draft maturity; OPC UA exposes the OPC specification maturity.
 * BACnet, PROFINET, LoRaWAN and CoAP perform **schema / document-level planning only** and are reported as **non-executable** — the runtime materializes their nodes but marks the closure degraded so callers know they cannot be driven yet.
 * Each planner validates the href scheme and the currently-defined vocabulary terms of its pinned document, checks `op` compatibility, `contentType` and required fields, produces immutable endpoint/addressing/operation/payload metadata and returns precise errors/warnings with JSON Pointers.
+* OPC UA forms default to `application/octet-stream`. The planner advertises only media types
+  supported by its registered payload codecs; it does not advertise OPC UA Binary until a matching
+  codec is available.
 
 ### Runtime integration
 

@@ -59,13 +59,90 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             return new WotBindingPlanContext();
         }
 
+        /// <summary>
+        /// Verifies the OPC UA binding advertises only content types handled by its codec registry.
+        /// </summary>
         [Test]
-        public void OpcUaBindingAdvertisesDefaultOctetStreamContentType()
+        public void OpcUaBindingAdvertisesOnlyCodecSupportedContentTypes()
         {
             var contentTypes = new OpcUaBindingPlanner().Capability.ContentTypes;
 
             Assert.That(contentTypes, Does.Contain("application/octet-stream"));
             Assert.That(contentTypes, Does.Not.Contain("application/opcua+uabinary"));
+        }
+
+        /// <summary>
+        /// Verifies the OPC UA planner defaults to the binding's specified serialization.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerDefaultsToApplicationOctetStream()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/octet-stream"));
+            Assert.That(result.Entries[0].Payload.CodecId, Is.EqualTo("octet-stream"));
+        }
+
+        /// <summary>
+        /// Verifies that an explicitly declared legacy octet-stream form retains its codec.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerPreservesExplicitApplicationOctetStream()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty",
+                  "contentType": "application/octet-stream"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/octet-stream"));
+            Assert.That(result.Entries[0].Payload.CodecId, Is.EqualTo("octet-stream"));
+        }
+
+        /// <summary>
+        /// Verifies the OPC UA planner rejects a media type without a matching payload codec.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerRejectsApplicationOpcUaUaBinaryWithoutCodec()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty",
+                  "contentType": "application/opcua+uabinary"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(
+                diagnostic => diagnostic.Code == WotBindingDiagnosticCode.UnsupportedContentType), Is.True);
         }
 
         /// <summary>

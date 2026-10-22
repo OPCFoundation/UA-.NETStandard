@@ -88,7 +88,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 WoTBindingCapabilityEnum.SubscribeEvent,
                 WoTBindingCapabilityEnum.UnsubscribeEvent
             ],
-            ["application/json", "application/opcua+json", "application/octet-stream"],
+            [
+                "application/json",
+                "application/opcua+json",
+                "application/octet-stream"
+            ],
             isExecutable: true);
 
         /// <inheritdoc/>
@@ -220,8 +224,15 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            if (!ResolveCodec(form, context, diagnostics, "application/octet-stream", out WotPayloadDescriptor payload))
             {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (!context.Codecs.TrySelect(payload.ContentType, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.UnsupportedContentType,
+                    $"No payload codec is registered for '{payload.ContentType}'.", form.Pointer("contentType")));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
             if (!WotConditionInvocation.TryCreate(
