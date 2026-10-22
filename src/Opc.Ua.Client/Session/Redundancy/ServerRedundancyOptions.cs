@@ -90,6 +90,20 @@ namespace Opc.Ua.Client
         public TimeSpan? ServiceLevelMonitoringInterval { get; init; }
 
         /// <summary>
+        /// When set, the other members of a non-transparent redundant Server set are reached over the
+        /// reverse connections (OPC 10000-6 §7.1.3) they open to this source, by their ServerUri, instead of
+        /// dialing them. A member's endpoint is resolved with <c>GetEndpoints</c> over one of its connections
+        /// (see <see cref="ReverseConnectRedundantServerEndpointResolver"/>), the member probe of
+        /// <see cref="ProbeMemberServiceLevel"/> runs over one of its connections, and a failover to the
+        /// member waits for its next connection. A member that the source has not reported with an available
+        /// connection, or whose probe waited for a connection in vain and that has none available now, carries
+        /// <see cref="StatusCodes.BadNotConnected"/> in <see cref="RedundantServer.ResolutionError"/> and no
+        /// <see cref="RedundantServer.Endpoint"/>, so it is never selected as a failover target. Default
+        /// <see langword="null"/>: members are dialed.
+        /// </summary>
+        public IReverseConnectionAvailability? MemberConnections { get; init; }
+
+        /// <summary>
         /// Validates that both bounds and the monitoring interval are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">

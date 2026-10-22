@@ -819,7 +819,7 @@ namespace Opc.Ua.Client
             // non-transparent redundant servers are handled without any special connect API.
             IServerRedundancyHandler redundancy = m_redundancyHandler ??
                 new DefaultServerRedundancyHandler(
-                    new DefaultRedundantServerEndpointResolver(m_telemetry),
+                    DefaultServerRedundancyHandler.CreateEndpointResolver(opts.ServerRedundancy, m_telemetry),
                     opts.TimeProvider,
                     opts.ServerRedundancy);
 

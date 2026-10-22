@@ -75,7 +75,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultServerRedundancyHandler"/> class.
         /// </summary>
-        /// <param name="endpointResolver">Resolves a peer URI to an endpoint.</param>
+        /// <param name="endpointResolver">
+        /// Resolves a peer URI to an endpoint. Defaults to a
+        /// <see cref="ReverseConnectRedundantServerEndpointResolver"/> when
+        /// <see cref="ServerRedundancyOptions.MemberConnections"/> is set and to a
+        /// <see cref="DefaultRedundantServerEndpointResolver"/> otherwise.
+        /// </param>
         /// <param name="timeProvider">Clock used for the discovery bound.</param>
         /// <param name="options">
         /// Bounds applied to peer discovery. Defaults to
@@ -86,11 +91,24 @@ namespace Opc.Ua.Client
             TimeProvider? timeProvider = null,
             ServerRedundancyOptions? options = null)
         {
-            m_endpointResolver = endpointResolver ?? new DefaultRedundantServerEndpointResolver();
-            m_timeProvider = timeProvider ?? TimeProvider.System;
             ServerRedundancyOptions effective = options ?? new ServerRedundancyOptions();
             effective.Validate();
+            m_endpointResolver = endpointResolver ?? CreateEndpointResolver(effective, null);
+            m_timeProvider = timeProvider ?? TimeProvider.System;
             m_peerDiscoveryTimeout = effective.PeerDiscoveryTimeout;
+        }
+
+        /// <summary>
+        /// Creates the endpoint resolver that matches how the members of the
+        /// set are reached.
+        /// </summary>
+        internal static IRedundantServerEndpointResolver CreateEndpointResolver(
+            ServerRedundancyOptions? options,
+            ITelemetryContext? telemetry)
+        {
+            return options?.MemberConnections is IReverseConnectionAvailability connections
+                ? new ReverseConnectRedundantServerEndpointResolver(connections, telemetry)
+                : new DefaultRedundantServerEndpointResolver(telemetry);
         }
 
         /// <inheritdoc/>

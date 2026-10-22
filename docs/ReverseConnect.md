@@ -126,6 +126,31 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .ConfigureAwait(false);
 ```
 
+When every member of a non-transparent redundant Server set opens reverse
+connections to the Client, set a source that also implements
+`IReverseConnectionAvailability` as `ServerRedundancyOptions.MemberConnections`.
+The session then reaches the other members by their `ServerUri` over their
+connections instead of dialing them: endpoint resolution calls `GetEndpoints`
+over a member's connection (`ReverseConnectRedundantServerEndpointResolver`),
+the `ProbeMemberServiceLevel` probe runs over a member's connection, and a
+failover to a member waits for that member's next connection, for at least
+`PeerDiscoveryTimeout` even after the reconnect budget ran out. A member for
+which the source reports no available connection carries `BadNotConnected` in
+`RedundantServer.ResolutionError`, has no `Endpoint` and is never selected.
+`ReverseConnectManager` implements `IReverseConnectionAvailability` and reports
+the connections it holds while no registration matches them, so its
+`HoldTime` must be shorter than the time a Server waits for the handshake.
+
+``` csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .UseReverseConnect(manager, new Uri("urn:example:server-a"))
+    .WithServerRedundancy()
+    .WithServerRedundancyOptions(new ServerRedundancyOptions { MemberConnections = manager })
+    .ConnectAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
+
 ``` csharp
 await using var manager = new ReverseConnectManager(telemetry);
 manager.AddEndpoint(new Uri("opc.tcp://client-host:65300"));

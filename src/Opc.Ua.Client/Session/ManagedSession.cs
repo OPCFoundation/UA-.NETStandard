@@ -105,6 +105,7 @@ namespace Opc.Ua.Client
             m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
             m_peerProbeTimeout = redundancyOptions.PeerDiscoveryTimeout;
             m_probeMemberServiceLevel = redundancyOptions.ProbeMemberServiceLevel;
+            m_memberConnections = redundancyOptions.MemberConnections;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_identity = identity;
@@ -351,7 +352,7 @@ namespace Opc.Ua.Client
             if (redundancyHandler == null && options.EnableServerRedundancy)
             {
                 redundancyHandler = new DefaultServerRedundancyHandler(
-                    new DefaultRedundantServerEndpointResolver(telemetry),
+                    DefaultServerRedundancyHandler.CreateEndpointResolver(options.ServerRedundancy, telemetry),
                     options.TimeProvider,
                     options.ServerRedundancy);
             }
@@ -2442,11 +2443,15 @@ namespace Opc.Ua.Client
                 ServerRedundancyInfo? snapshot = m_redundancyInfo;
                 if (handler is not IServerRedundancyEndpointCache cache || snapshot == null)
                 {
-                    if (m_probeMemberServiceLevel && snapshot != null)
+                    if ((m_probeMemberServiceLevel || m_memberConnections != null) && snapshot != null)
                     {
-                        ServerRedundancyInfo probed = await ProbeMemberServiceLevelsAsync(
-                            snapshot, ConfiguredEndpoint, ct).ConfigureAwait(false);
-                        Interlocked.CompareExchange(ref m_redundancyInfo, probed, snapshot);
+                        ServerRedundancyInfo updated = ApplyMemberConnections(snapshot, ConfiguredEndpoint);
+                        if (m_probeMemberServiceLevel)
+                        {
+                            updated = await ProbeMemberServiceLevelsAsync(
+                                updated, ConfiguredEndpoint, ct).ConfigureAwait(false);
+                        }
+                        Interlocked.CompareExchange(ref m_redundancyInfo, updated, snapshot);
                     }
                     return;
                 }
@@ -2480,9 +2485,11 @@ namespace Opc.Ua.Client
             {
                 refresh = FetchRedundancySnapshotAsync(operation, ct);
                 m_redundancyRefreshTask = refresh;
-                m_redundancyInfo = await refresh.WaitAsync(m_redundancyRefreshTimeout, m_timeProvider, ct)
-                    .ConfigureAwait(false)
-                    ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot.");
+                m_redundancyInfo = ApplyMemberConnections(
+                    await refresh.WaitAsync(m_redundancyRefreshTimeout, m_timeProvider, ct)
+                        .ConfigureAwait(false)
+                        ?? throw ServiceResultException.Unexpected("The redundancy handler returned no snapshot."),
+                    ConfiguredEndpoint);
                 if (handler is IServerRedundancyEndpointCache cache &&
                     m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
                 {
@@ -2522,8 +2529,10 @@ namespace Opc.Ua.Client
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, shutdown);
                 try
                 {
-                    ServerRedundancyInfo resolved = await cache.ResolveCachedEndpointsAsync(
-                        snapshot, current, linked.Token).ConfigureAwait(false);
+                    ServerRedundancyInfo resolved = ApplyMemberConnections(
+                        await cache.ResolveCachedEndpointsAsync(snapshot, current, linked.Token)
+                            .ConfigureAwait(false),
+                        current);
                     if (m_probeMemberServiceLevel)
                     {
                         resolved = await ProbeMemberServiceLevelsAsync(resolved, current, linked.Token)
@@ -2678,7 +2687,8 @@ namespace Opc.Ua.Client
             try
             {
                 ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                    endpoint ?? session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
+                    endpoint ?? session.ConfiguredEndpoint, budget, switching: endpoint != null, ct)
+                    .ConfigureAwait(false);
                 await session.RecreateInPlaceAsync(endpoint, budget, connection, ct)
                     .ConfigureAwait(false);
             }
@@ -2704,7 +2714,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                            target, budget, ct).ConfigureAwait(false);
+                            target, budget, switching: false, ct).ConfigureAwait(false);
                         await session.ReactivateOnNetworkEndpointAsync(target, connection, budget, ct)
                             .ConfigureAwait(false);
                     }
@@ -2716,9 +2726,27 @@ namespace Opc.Ua.Client
                 ct).ConfigureAwait(false);
         }
 
+        private Task<ITransportWaitingConnection?> WaitForRecoveryConnectionAsync(
+            ConfiguredEndpoint endpoint,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
+            return WaitForRecoveryConnectionAsync(endpoint, budget, switching: false, ct);
+        }
+
+        /// <summary>
+        /// Waits for the reverse connection of a recovery or switch attempt,
+        /// or returns <c>null</c> when the session dials.
+        /// </summary>
+        /// <param name="endpoint">The endpoint of the attempt.</param>
+        /// <param name="budget">The reconnect budget that bounds the wait.</param>
+        /// <param name="switching"><c>true</c> when the session switches to
+        /// another member of a redundant Server set.</param>
+        /// <param name="ct">Cancellation token.</param>
         private async Task<ITransportWaitingConnection?> WaitForRecoveryConnectionAsync(
             ConfiguredEndpoint endpoint,
             IRetryBudget? budget,
+            bool switching,
             CancellationToken ct)
         {
             if (m_reverseConnectManager != null)
@@ -2728,9 +2756,25 @@ namespace Opc.Ua.Client
                     endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri,
                     ct).ConfigureAwait(false);
             }
-            if (m_reverseConnectionSource != null)
+            // A member of a redundant Server set reached over its reverse connections is reached that way again.
+            bool member = m_memberConnections != null && endpoint.ReverseConnect?.Enabled == true;
+            IReverseConnectionSource? source = m_reverseConnectionSource ?? (member ? m_memberConnections : null);
+            if (source != null)
             {
-                return await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false);
+                string? serverUri = endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri;
+                Uri? announced = member && !string.IsNullOrEmpty(serverUri)
+                    ? ReverseConnectRedundantServerEndpointResolver.SelectAvailableEndpointUrl(
+                        m_memberConnections!, serverUri!, endpoint)
+                    : null;
+                // A switch, also after the reconnect budget ran out, waits for the member's connection.
+                TimeSpan minimumWait = switching && member ? m_peerProbeTimeout : TimeSpan.Zero;
+                return await WaitForSourceConnectionAsync(
+                    source,
+                    endpoint,
+                    announced ?? endpoint.EndpointUrl!,
+                    budget,
+                    minimumWait,
+                    ct).ConfigureAwait(false);
             }
             if (m_reverseConnectRequired)
             {
@@ -2748,13 +2792,36 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <exception cref="ServiceResultException">The budget ran out or the
         /// source returned no connection.</exception>
-        private async Task<ITransportWaitingConnection> WaitForSourceConnectionAsync(
+        private Task<ITransportWaitingConnection> WaitForSourceConnectionAsync(
             ConfiguredEndpoint endpoint,
             IRetryBudget? budget,
             CancellationToken ct)
         {
-            IReverseConnectionSource source = m_reverseConnectionSource!;
+            return WaitForSourceConnectionAsync(
+                m_reverseConnectionSource!, endpoint, endpoint.EndpointUrl!, budget, TimeSpan.Zero, ct);
+        }
+
+        /// <inheritdoc cref="WaitForSourceConnectionAsync(ConfiguredEndpoint, IRetryBudget?, CancellationToken)"/>
+        /// <param name="source">The source to wait on.</param>
+        /// <param name="endpoint">The endpoint whose server is awaited.</param>
+        /// <param name="endpointUrl">The endpoint url passed to the source.</param>
+        /// <param name="budget">The reconnect budget that bounds the wait.</param>
+        /// <param name="minimumWait">The least time to wait, even when the
+        /// budget has less left, or <see cref="Timeout.InfiniteTimeSpan"/>.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async Task<ITransportWaitingConnection> WaitForSourceConnectionAsync(
+            IReverseConnectionSource source,
+            ConfiguredEndpoint endpoint,
+            Uri endpointUrl,
+            IRetryBudget? budget,
+            TimeSpan minimumWait,
+            CancellationToken ct)
+        {
             TimeSpan? remaining = GetRemainingReconnectTime(budget);
+            if (remaining is TimeSpan left && (minimumWait == Timeout.InfiniteTimeSpan || left < minimumWait))
+            {
+                remaining = minimumWait == Timeout.InfiniteTimeSpan ? null : minimumWait;
+            }
             using CancellationTokenSource? budgetCts = remaining == null
                 ? null
                 : m_timeProvider.CreateCancellationTokenSource(remaining.Value);
@@ -2767,7 +2834,7 @@ namespace Opc.Ua.Client
             try
             {
                 connection = await source.WaitForConnectionAsync(
-                    endpoint.EndpointUrl!,
+                    endpointUrl,
                     endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri,
                     waitCt).ConfigureAwait(false);
             }
@@ -3543,6 +3610,7 @@ namespace Opc.Ua.Client
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;
         private IReverseConnectionSource? m_reverseConnectionSource;
+        private readonly IReverseConnectionAvailability? m_memberConnections;
 
         /// <summary>
         /// A caller supplied reverse connection. A waiting connection can only
