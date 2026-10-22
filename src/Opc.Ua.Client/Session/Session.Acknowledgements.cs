@@ -133,8 +133,18 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reports a validated acknowledgement response without affecting Publish completion.
         /// </summary>
-        private void OnAcknowledgementsCompleted(IServiceRequest request, IServiceResponse? response)
+        private void OnAcknowledgementServiceCompleted(IServiceRequest request, IServiceResponse? response)
         {
+            if (request is CreateSubscriptionRequest &&
+                response is CreateSubscriptionResponse created &&
+                created.SubscriptionId != 0 &&
+                created.ResponseHeader != null &&
+                StatusCode.IsGood(created.ResponseHeader.ServiceResult))
+            {
+                // A server can reuse an expired subscription id before the old client object is retired.
+                OnAcknowledgementsDiscarded(created.SubscriptionId);
+                return;
+            }
             if (PublishAcknowledgementsCompleted == null ||
                 request is not PublishRequest publish ||
                 publish.SubscriptionAcknowledgements.Count == 0 ||

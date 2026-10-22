@@ -772,7 +772,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // before the identifier is known to be retired.
                 RetireSubscriptionId(partitionId);
             }
-            if (partitionId != 0)
+            if (partitionId != 0 && OwnsSubscriptionId(partition, partitionId))
             {
                 DropPendingForSubscription(partitionId);
             }

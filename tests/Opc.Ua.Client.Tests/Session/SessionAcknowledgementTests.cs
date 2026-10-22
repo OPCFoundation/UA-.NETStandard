@@ -130,6 +130,22 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Creation retires prior acknowledgement state even when the server reuses an identifier.
+        /// </summary>
+        [Test]
+        public void SubscriptionCreationRetiresPriorStateForReusedIds()
+        {
+            using ObservationSession session = CreateSession();
+            var discarded = new List<uint>();
+            session.SubscriptionAcknowledgementsDiscarded += (_, args) => discarded.Add(args.SubscriptionId);
+
+            session.CompleteCreation(7);
+            session.CompleteCreation(7);
+
+            Assert.That(discarded, Is.EqualTo(new uint[] { 7, 7 }));
+        }
+
+        /// <summary>
         /// Reconnection cloning preserves observer handlers only when requested.
         /// </summary>
         [TestCase(false)]
@@ -172,6 +188,19 @@ namespace Opc.Ua.Client.Tests
             ApplicationConfiguration configuration,
             ConfiguredEndpoint endpoint) : Session(channel, configuration, endpoint)
         {
+            /// <summary>
+            /// Simulates the response that establishes a new subscription identifier.
+            /// </summary>
+            public void CompleteCreation(uint subscriptionId)
+            {
+                RequestCompleted(new CreateSubscriptionRequest(),
+                    new CreateSubscriptionResponse
+                    {
+                        SubscriptionId = subscriptionId,
+                        ResponseHeader = new ResponseHeader()
+                    }, "CreateSubscription");
+            }
+
             /// <summary>
             /// Simulates the completion of a Publish service request.
             /// </summary>

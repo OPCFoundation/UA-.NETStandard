@@ -436,7 +436,9 @@ requests can still retry an already-approved ACK; an identity-keyed weak approva
 table avoids retaining those request objects indefinitely.
 
 Retirement notifications identify a discarded server subscription id; zero
-means all subscription acknowledgement state. Deletion, native partition
+means all subscription acknowledgement state. Successful subscription creation
+also retires any prior state for the returned id, since a server can reuse ids.
+Deletion, native partition
 completion, session identity replacement and disposal retire their owned state.
 Capture a subscription-lifetime token before sending work to an external
 pipeline, and invalidate that token on retirement: a late completion must not
