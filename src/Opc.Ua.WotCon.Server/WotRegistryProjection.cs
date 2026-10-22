@@ -467,14 +467,35 @@ namespace Opc.Ua.WotCon.Server
                         nodeId,
                         PermissionType.Read | PermissionType.Browse,
                         cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsGood(permission))
+                    {
+                        var handle = await m_manager.GetManagerHandleAsync(
+                            nodeId, cancellationToken).ConfigureAwait(false);
+                        if (handle is null)
+                        {
+                            return StatusCodes.BadUserAccessDenied;
+                        }
+                        (bool handled, ServiceResult? result) = await m_manager.TryValidatePermissionsAsync(
+                            operationContext,
+                            handle,
+                            PermissionType.Read | PermissionType.Browse,
+                            null,
+                            permissionsOnly: true,
+                            logger: null,
+                            validateAccessRestrictions: true,
+                            cancellationToken).ConfigureAwait(false);
+                        permission = handled && result is not null
+                            ? result
+                            : new ServiceResult(StatusCodes.BadUserAccessDenied);
+                    }
                 }
-                catch (ServiceResultException exception)
+                catch (ServiceResultException)
                 {
-                    return new ServiceResult(exception.StatusCode);
+                    return StatusCodes.BadUserAccessDenied;
                 }
                 return ServiceResult.IsGood(permission)
                     ? ServiceResult.Good
-                    : new ServiceResult(permission.StatusCode);
+                    : new ServiceResult(StatusCodes.BadUserAccessDenied);
             }
 
             WotRegistryOrigin? configuredOrigin = m_manager.Coordinator.RegistryOrigin;
