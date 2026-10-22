@@ -256,6 +256,69 @@ namespace Opc.Ua.Sessions.Tests
 
         [Test]
         [CancelAfter(120_000)]
+        public async Task RetriesAfterAFailedInitialConnectWaitWithinTheBudgetAsync(CancellationToken ct)
+        {
+            TimeSpan budget = TimeSpan.FromSeconds(3);
+            var source = new RecordingSource(
+                ClientFixture.ReverseConnectManager,
+                call => call == 1 ? SourceBehavior.Fail : SourceBehavior.Block);
+
+            Task<ManagedSessionType> connect = ConnectAsync(source,
+                nameof(RetriesAfterAFailedInitialConnectWaitWithinTheBudgetAsync),
+                ConstantPolicy(TimeSpan.FromMilliseconds(200)) with { MaxTotalReconnectTime = budget },
+                ct);
+            Task completed = await Task.WhenAny(connect, Task.Delay(TimeSpan.FromSeconds(30), ct))
+                .ConfigureAwait(false);
+            Assert.That(completed, Is.SameAs(connect),
+                "The connect must give up once the reconnect budget is exhausted.");
+
+            ServiceResultException exception = (await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await connect.ConfigureAwait(false)))!;
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+            Assert.That(source.CallCount, Is.EqualTo(2), "One wait consumed the rest of the budget.");
+            Assert.That(source.CancelledCalls, Does.Contain(2));
+            TimeSpan waited = source.CancelledAt(2) - source.Requests[0].At;
+            Assert.That(waited, Is.LessThanOrEqualTo(budget + TimeSpan.FromMilliseconds(500)));
+        }
+
+        [Test]
+        [CancelAfter(60_000)]
+        public async Task DiscoveryConsumesTheInitialConnectionAndTheSessionUsesTheSourceAsync(CancellationToken ct)
+        {
+            var source = new RecordingSource(ClientFixture.ReverseConnectManager, _ => SourceBehavior.Deliver);
+            ITransportWaitingConnection initial = await ClientFixture.ReverseConnectManager
+                .WaitForConnectionAsync(m_endpointUrl, ServerUri, ct).ConfigureAwait(false);
+
+            ManagedSessionType session = await ManagedSessionType.CreateAsync(
+                new ManagedSessionOptions
+                {
+                    Endpoint = CreateEndpoint(),
+                    SessionName = nameof(DiscoveryConsumesTheInitialConnectionAndTheSessionUsesTheSourceAsync),
+                    ReconnectPolicy = ConstantPolicy(TimeSpan.FromMilliseconds(200)),
+                    ReverseConnectionSource = source
+                },
+                ClientFixture.Config,
+                new DefaultSessionFactory(Telemetry),
+                connection: initial,
+                updateBeforeConnect: true,
+                ct: ct).ConfigureAwait(false);
+            try
+            {
+                Assert.That(source.CallCount, Is.EqualTo(1),
+                    "The session must use a connection from the source after discovery.");
+                Assert.That(source.LastConnection, Is.Not.SameAs(initial));
+                DataValue state = await session.ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                    .ConfigureAwait(false);
+                Assert.That(state.StatusCode, Is.EqualTo(StatusCodes.Good));
+            }
+            finally
+            {
+                await CloseAndDisposeAsync(session).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        [CancelAfter(120_000)]
         public async Task DisposingWhileRecoveryWaitsCancelsTheSourceAsync(CancellationToken ct)
         {
             var source = new RecordingSource(

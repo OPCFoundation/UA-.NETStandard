@@ -1332,7 +1332,7 @@ namespace Opc.Ua.Client
 
         private void WireStateMachineCallbacks()
         {
-            StateMachine.ConnectAsync = HandleConnectAsync;
+            StateMachine.ConnectAsync = ct => HandleConnectAsync(null, ct);
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
             StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
             StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
@@ -1362,6 +1362,7 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServiceResult> HandleConnectAsync(
+            IRetryBudget? budget,
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = m_configuredEndpoint;
@@ -1383,7 +1384,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
+                    result = await HandleConnectEndpointAsync(endpoint, budget, ct).ConfigureAwait(false);
                     if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
                     {
                         return result;
@@ -1401,6 +1402,7 @@ namespace Opc.Ua.Client
 
         private async Task<ServiceResult> HandleConnectEndpointAsync(
             ConfiguredEndpoint source,
+            IRetryBudget? budget,
             CancellationToken ct)
         {
             try
@@ -1439,6 +1441,8 @@ namespace Opc.Ua.Client
                 bool refreshBeforeConnect = updateBeforeConnect;
 
                 IDisposable? connectLease = null;
+                // A connection the session owns but no channel has adopted yet.
+                ITransportWaitingConnection? unadopted = null;
                 Session session;
                 try
                 {
@@ -1466,6 +1470,10 @@ namespace Opc.Ua.Client
                         throw new ServiceResultException(
                             StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
                     }
+                    if (m_reverseConnectionSource != null)
+                    {
+                        unadopted = waitingConnection;
+                    }
                     IUserIdentity? initialIdentity = m_identity;
                     if (m_identityProvider != null)
                     {
@@ -1478,7 +1486,11 @@ namespace Opc.Ua.Client
                                         endpoint.EndpointUrl!,
                                         endpoint.ReverseConnect?.ServerUri,
                                         ct).ConfigureAwait(false)
-                                    : await WaitForSourceConnectionAsync(endpoint, null, ct).ConfigureAwait(false));
+                                    : await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false));
+                            if (m_reverseConnectionSource != null)
+                            {
+                                unadopted = discoveryConnection;
+                            }
                             await endpoint.UpdateFromServerAsync(
                                 endpoint.EndpointUrl!,
                                 discoveryConnection,
@@ -1486,6 +1498,7 @@ namespace Opc.Ua.Client
                                 endpoint.Description.SecurityPolicyUri!,
                                 SessionFactory.Telemetry,
                                 ct).ConfigureAwait(false);
+                            unadopted = null;
                             waitingConnection = null;
                             updateBeforeConnect = false;
                         }
@@ -1536,13 +1549,16 @@ namespace Opc.Ua.Client
                         }
                     }
 
-                    if (waitingConnection == null && m_reverseConnectionSource != null)
+                    if (m_reverseConnectionSource != null && (waitingConnection == null || updateBeforeConnect))
                     {
                         if (updateBeforeConnect)
                         {
-                            // Discovery consumes the connection it runs on.
-                            ITransportWaitingConnection discoveryConnection =
-                                await WaitForSourceConnectionAsync(endpoint, null, ct).ConfigureAwait(false);
+                            // Discovery consumes the connection it runs on, also
+                            // an initial connection; the session uses the next one.
+                            ITransportWaitingConnection discoveryConnection = waitingConnection
+                                ?? await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false);
+                            waitingConnection = null;
+                            unadopted = discoveryConnection;
                             await endpoint.UpdateFromServerAsync(
                                 endpoint.EndpointUrl!,
                                 discoveryConnection,
@@ -1550,10 +1566,12 @@ namespace Opc.Ua.Client
                                 endpoint.Description.SecurityPolicyUri!,
                                 SessionFactory.Telemetry,
                                 ct).ConfigureAwait(false);
+                            unadopted = null;
                             updateBeforeConnect = false;
                         }
-                        waitingConnection = await WaitForSourceConnectionAsync(endpoint, null, ct)
+                        waitingConnection = await WaitForSourceConnectionAsync(endpoint, budget, ct)
                             .ConfigureAwait(false);
+                        unadopted = waitingConnection;
                     }
 
                     if (waitingConnection != null)
@@ -1570,6 +1588,7 @@ namespace Opc.Ua.Client
                             initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
+                        unadopted = null;
                     }
                     else if (m_reverseConnectManager != null)
                     {
@@ -1634,6 +1653,12 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    // The session factory does not close a connection it fails
+                    // to bind, e.g. when the server certificate is rejected.
+                    if (unadopted != null)
+                    {
+                        CloseUnusedConnection(unadopted);
+                    }
                     connectLease?.Dispose();
                 }
 
@@ -1786,7 +1811,7 @@ namespace Opc.Ua.Client
                 // from Connecting to Reconnecting. Run a full connect so the
                 // reconnect policy retries it. Reporting Good instead would
                 // move the state machine to Connected with no inner session.
-                return await HandleConnectAsync(ct).ConfigureAwait(false);
+                return await HandleConnectAsync(budget, ct).ConfigureAwait(false);
             }
 
             // Explicit requests made after this point are served by a later attempt.

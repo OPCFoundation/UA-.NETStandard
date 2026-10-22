@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -163,6 +164,40 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             transport.Verify(t => t.Close(), Times.Once);
         }
 
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task ConnectClosesASourceConnectionTheSessionFactoryDidNotBindAsync(CancellationToken ct)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var transport = new Mock<IUaSCByteTransport>();
+            var closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            transport.Setup(t => t.Close()).Callback(() => closed.TrySetResult(true));
+            var connection = new Mock<ITransportWaitingConnection>();
+            connection.SetupGet(c => c.Handle).Returns(transport.Object);
+            connection.SetupGet(c => c.EndpointUrl).Returns(new Uri("opc.tcp://localhost:4840"));
+            var source = new FirstCallSource(connection.Object);
+            var factory = new UnbindableChannelSessionFactory(telemetry);
+            using var cancellation = new CancellationTokenSource();
+
+            Task<Client.ManagedSession> creation = Client.ManagedSession.CreateAsync(
+                new ManagedSessionOptions
+                {
+                    Endpoint = CreateEndpoint(),
+                    ReverseConnectionSource = source
+                },
+                CreateClientConfiguration(telemetry),
+                factory,
+                ct: cancellation.Token);
+
+            Assert.That(await CompletesAsync(closed.Task, ct).ConfigureAwait(false), Is.True,
+                "A connection the session factory failed to bind must be closed.");
+            Assert.That(factory.Connections, Is.EqualTo(new[] { connection.Object }));
+            cancellation.Cancel();
+
+            await Assert.CatchAsync<OperationCanceledException>(async () => await creation.ConfigureAwait(false));
+            transport.Verify(t => t.Close(), Times.Once);
+        }
+
         private static async Task<bool> CompletesAsync(Task task, CancellationToken ct)
         {
             Task completed = await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(10), ct))
@@ -208,6 +243,75 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             private readonly TaskCompletionSource<bool> m_started =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private int m_callCount;
+        }
+
+        /// <summary>
+        /// Returns a connection for the first call and waits for cancellation
+        /// on every later call.
+        /// </summary>
+        private sealed class FirstCallSource : IReverseConnectionSource
+        {
+            public FirstCallSource(ITransportWaitingConnection connection)
+            {
+                m_connection = connection;
+            }
+
+            public async ValueTask<ITransportWaitingConnection> WaitForConnectionAsync(
+                Uri endpointUrl,
+                string? serverUri,
+                CancellationToken ct)
+            {
+                if (Interlocked.Increment(ref m_callCount) == 1)
+                {
+                    return m_connection;
+                }
+                await Task.Delay(Timeout.Infinite, ct).ConfigureAwait(false);
+                throw new InvalidOperationException("The wait completed without cancellation.");
+            }
+
+            private readonly ITransportWaitingConnection m_connection;
+            private int m_callCount;
+        }
+
+        /// <summary>
+        /// Fails before a channel binds the supplied connection, as a rejected
+        /// server certificate domain does.
+        /// </summary>
+        private sealed class UnbindableChannelSessionFactory : DefaultSessionFactory
+        {
+            public UnbindableChannelSessionFactory(ITelemetryContext telemetry)
+                : base(telemetry)
+            {
+            }
+
+            public ITransportWaitingConnection?[] Connections
+            {
+                get
+                {
+                    lock (m_connections)
+                    {
+                        return [.. m_connections];
+                    }
+                }
+            }
+
+            public override Task<ITransportChannel> CreateChannelAsync(
+                ApplicationConfiguration configuration,
+                ITransportWaitingConnection? connection,
+                ConfiguredEndpoint endpoint,
+                bool updateBeforeConnect,
+                bool checkDomain,
+                CancellationToken ct = default)
+            {
+                lock (m_connections)
+                {
+                    m_connections.Add(connection);
+                }
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateHostNameInvalid, "The server certificate domain was rejected.");
+            }
+
+            private readonly List<ITransportWaitingConnection?> m_connections = [];
         }
 
         private static ApplicationConfiguration CreateClientConfiguration(ITelemetryContext telemetry)
