@@ -115,6 +115,7 @@ namespace Opc.Ua.Client
         private readonly ITimer m_recoveryTimer;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
         private ConnectionStateBudgetOperation? m_requestedFailover;
+        private TaskCompletionSource<ServiceResult>? m_requestedFailoverOutcome;
         private readonly Queue<ConnectionStateChangedEventArgs> m_stateChanges = new();
         private bool m_dispatchingStateChanges;
 
@@ -388,8 +389,16 @@ namespace Opc.Ua.Client
         /// <see cref="ConnectionState.Reconnecting"/>, so the reconnect policy
         /// restores the session.
         /// </summary>
+        /// <param name="operation">The failover operation.</param>
+        /// <param name="outcome">
+        /// Completed with the result of the failover including the subscription
+        /// recovery that follows <paramref name="operation"/>, or cancelled when
+        /// the failover does not run to completion.
+        /// </param>
         /// <returns><see langword="false"/> when the session is not connected.</returns>
-        internal bool RequestFailover(ConnectionStateBudgetOperation operation)
+        internal bool RequestFailover(
+            ConnectionStateBudgetOperation operation,
+            TaskCompletionSource<ServiceResult>? outcome = null)
         {
             lock (m_lock)
             {
@@ -401,6 +410,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_requestedFailover = operation;
+                m_requestedFailoverOutcome = outcome;
                 m_lastError = null;
                 ClearReconnectBudget();
                 m_settled.Reset();
@@ -428,6 +438,8 @@ namespace Opc.Ua.Client
                     m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     m_requestedReconnect = null;
                     m_requestedFailover = null;
+                    m_requestedFailoverOutcome?.TrySetCanceled();
+                    m_requestedFailoverOutcome = null;
                     TransitionTo(
                         ConnectionState.Closing,
                         error: null,
@@ -948,10 +960,13 @@ namespace Opc.Ua.Client
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
             ConnectionStateBudgetOperation? requested;
+            TaskCompletionSource<ServiceResult>? outcome;
             lock (m_lock)
             {
                 requested = m_requestedFailover;
+                outcome = m_requestedFailoverOutcome;
                 m_requestedFailover = null;
+                m_requestedFailoverOutcome = null;
             }
 
             ServiceResult result;
@@ -966,9 +981,16 @@ namespace Opc.Ua.Client
                 {
                     // A close was requested while failing over: return so the
                     // worker loop handles the Closing state right away.
+                    outcome?.TrySetCanceled(CancellationToken.None);
                     return;
                 }
+                catch (OperationCanceledException)
+                {
+                    outcome?.TrySetCanceled(ct);
+                    throw;
+                }
             }
+            outcome?.TrySetResult(result);
 
             lock (m_lock)
             {
