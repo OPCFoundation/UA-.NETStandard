@@ -858,11 +858,24 @@ state machine awaits the hook exactly once between
 `CreateSubscription` and the first `CreateMonitoredItems`,
 satisfying the OPC UA Part 4 §5.13.9 ordering rule that
 `SetSubscriptionDurable` must precede any monitored-item creation.
-The hook is cleared after invocation; the wrapper re-installs it on
-each `SetAsDurableAsync` call so it survives reconnect / recreate
-cycles. Hook failures are logged as a warning and surfaced via
-`SubscriptionState.Modified` rather than tearing the partition
-down.
+The hook stays installed, so it runs again on every later physical
+create (recreate after `BadSubscriptionIdInvalid`, recreate after a
+failed transfer, a new partition). Hook failures are logged as a
+warning and surfaced via `SubscriptionState.Modified` rather than
+tearing the partition down.
+
+`SetAsDurableAsync(Func<TimeSpan?> lifetime)` takes a provider
+instead of a fixed lifetime. The provider is evaluated once for the
+call itself and again by the hook before each later physical create,
+so an application whose lifetime bound changes over time (for
+example, a bound that ends at a known instant) requests the value
+that is current when the server-side subscription is created. A
+`null` result requests no durability for that create (and makes the
+call itself return `TimeSpan.Zero` without contacting the server);
+an exception thrown by the provider during a later create is handled
+like a rejected `SetSubscriptionDurable` call. The `TimeSpan`
+overload is equivalent to a provider that always returns the same
+lifetime.
 
 ### Performance
 
@@ -932,7 +945,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |
 | `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item requests; replays automatically on recreate/reconnect. |
 | `s.TransferAsync(target, sendInitialValues, ct)` | Configure transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)`. The per-call `sendInitialValues` toggle lives on `SubscriptionOptions.SendInitialValuesOnTransfer` (default `false`). |
-| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours. |
+| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours; `SetAsDurableAsync(Func<TimeSpan?> lifetime, CancellationToken ct = default)` evaluates the lifetime again on every later physical create (see [Durable subscriptions](#durable-subscriptions)). |
 | `s.SaveMessageInCache(...)` | Not on V2 (classic internal). The V2 message pipeline is channel-based with no replay cache. |
 
 ### Monitored-item management
