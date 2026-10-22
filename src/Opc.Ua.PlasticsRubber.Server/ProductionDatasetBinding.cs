@@ -484,10 +484,14 @@ namespace Opc.Ua.PlasticsRubber.Server
                         return ExpireCoreAsync();
                     }, serialize: true, after: null, m_stopping.Token).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (!reclaiming && m_stopping.IsCancellationRequested)
+                catch (OperationCanceledException) when (!reclaiming)
                 {
                     // Only the delay and admission wait are cancelable; started cleanup must report its failures.
-                    return;
+                    if (m_stopping.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    // The operation deadline expired while another operation held the gate; retry next interval.
                 }
             }
         }
