@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Opc.Ua;
@@ -64,19 +65,23 @@ namespace Opc.Ua.OpenUsd.Server
     public static class UsdAssetDelivery
     {
         /// <summary>
-        /// Uses the stage's symbolic name as its asset container identifier.
+        /// Allocates a distinct asset container from the stage's name and reuses it for that stage.
         /// Call before the facility's NodeId assignment and registration.
         /// </summary>
         public static ArrayOf<OpenUsdAssetState> AttachStageAssets(
             ISystemContext context, OpenUsdStageState stage, ushort openUsdNs, ArrayOf<ServedAsset> assets)
         {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
             if (stage is null)
             {
                 throw new ArgumentNullException(nameof(stage));
             }
             return AttachStageAssets(
-                context, stage, openUsdNs, assets, XRegistryIdentifier.FromSourceIdentity(
-                    stage.BrowseName.Name ?? throw new ArgumentException("The stage must be named.", nameof(stage))));
+                context, stage, openUsdNs, assets,
+                s_defaultContainerIds.GetValue(stage, key => AllocateStageContainerId(context, key)));
         }
 
         /// <summary>
@@ -127,7 +132,8 @@ namespace Opc.Ua.OpenUsd.Server
                 registry.AddCapabilities(context);
                 WireReadOnlyFile(
                     registry.Capabilities!,
-                    Encoding.UTF8.GetBytes("{\"specversions\":[\"0.1.0\"],\"mutable\":[]}"),
+                    Encoding.UTF8.GetBytes(
+                        "{\"available\":{\"entities\":{\"mutable\":false}},\"specversions\":[\"0.1.0\"],\"mutable\":[]}"),
                     "application/json");
             }
 
@@ -219,6 +225,31 @@ namespace Opc.Ua.OpenUsd.Server
             return created;
         }
 
+        /// <summary>
+        /// Allocates a symbolic stage container without taking an existing registry group's identifier.
+        /// </summary>
+        private static string AllocateStageContainerId(ISystemContext context, OpenUsdStageState stage)
+        {
+            if (stage.Parent is not FolderState { Parent: OpenUsdRootState root })
+            {
+                throw new InvalidOperationException("The stage must belong to the OpenUSD facility's Stages folder.");
+            }
+
+            var children = new List<BaseInstanceState>();
+            root.Artifacts?.GetChildren(context, children);
+            var containerIds = new List<string>();
+            foreach (BaseInstanceState child in children)
+            {
+                if (child is OpenUsdAssetGroupState group)
+                {
+                    containerIds.Add(group.GroupId!.Value);
+                }
+            }
+            return XRegistryIdentifier.FromSourceIdentity(
+                stage.BrowseName.Name ?? throw new ArgumentException("The stage must be named.", nameof(stage)),
+                containerIds);
+        }
+
         private static OpenUsdAssetState CreateAsset(
             ISystemContext context,
             NodeState parent,
@@ -297,6 +328,11 @@ namespace Opc.Ua.OpenUsd.Server
             }
             // Read-only: any Write method stays unwired (server rejects the call).
         }
+
+        /// <summary>
+        /// Remembers default container allocations by stage instance without retaining discarded stages.
+        /// </summary>
+        private static readonly ConditionalWeakTable<OpenUsdStageState, string> s_defaultContainerIds = new();
 
         /// <summary>
         /// Read-only in-memory backing for a Part 5 <see cref="FileState"/>: hands out

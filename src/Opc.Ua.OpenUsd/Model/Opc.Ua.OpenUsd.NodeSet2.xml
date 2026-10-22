@@ -1093,7 +1093,7 @@
       <Reference ReferenceType="HasProperty">ns=2;i=6080</Reference>
     </References>
   </UAObject>
-  <UAVariable NodeId="ns=2;i=6077" BrowseName="2:NamespaceUri" ParentNodeId="ns=2;i=6076" DataType="String" ValueRank="-1">
+  <UAVariable NodeId="ns=2;i=6077" BrowseName="NamespaceUri" ParentNodeId="ns=2;i=6076" DataType="String" ValueRank="-1">
     <DisplayName>NamespaceUri</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1101,7 +1101,7 @@
     </References>
     <Value><uax:String>http://opcfoundation.org/UA/OpenUSD/</uax:String></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=2;i=6078" BrowseName="2:NamespaceVersion" ParentNodeId="ns=2;i=6076" DataType="String" ValueRank="-1">
+  <UAVariable NodeId="ns=2;i=6078" BrowseName="NamespaceVersion" ParentNodeId="ns=2;i=6076" DataType="String" ValueRank="-1">
     <DisplayName>NamespaceVersion</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1109,7 +1109,7 @@
     </References>
     <Value><uax:String>0.9.0</uax:String></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=2;i=6079" BrowseName="2:NamespacePublicationDate" ParentNodeId="ns=2;i=6076" DataType="i=13" ValueRank="-1">
+  <UAVariable NodeId="ns=2;i=6079" BrowseName="NamespacePublicationDate" ParentNodeId="ns=2;i=6076" DataType="i=13" ValueRank="-1">
     <DisplayName>NamespacePublicationDate</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1117,7 +1117,7 @@
     </References>
     <Value><uax:DateTime>2026-09-05T00:00:00Z</uax:DateTime></Value>
   </UAVariable>
-  <UAVariable NodeId="ns=2;i=6080" BrowseName="2:IsNamespaceSubset" ParentNodeId="ns=2;i=6076" DataType="Boolean" ValueRank="-1">
+  <UAVariable NodeId="ns=2;i=6080" BrowseName="IsNamespaceSubset" ParentNodeId="ns=2;i=6076" DataType="Boolean" ValueRank="-1">
     <DisplayName>IsNamespaceSubset</DisplayName>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -1134,7 +1134,7 @@
       <Reference ReferenceType="Organizes">ns=2;i=6081</Reference>
     </References>
   </UAObjectType>
-  <UAObject NodeId="ns=2;i=6081" BrowseName="2:&lt;Version&gt;" ParentNodeId="ns=2;i=1015">
+  <UAObject NodeId="ns=2;i=6081" BrowseName="1:&lt;Version&gt;" ParentNodeId="ns=2;i=1015">
     <DisplayName>&lt;Version&gt;</DisplayName>
     <Description>One exact OpenUSD artifact Version.</Description>
     <References>
@@ -1143,7 +1143,7 @@
       <Reference ReferenceType="Organizes" IsForward="false">ns=2;i=1015</Reference>
     </References>
   </UAObject>
-  <UAObject NodeId="ns=2;i=6082" BrowseName="2:Versions" ParentNodeId="ns=2;i=1006">
+  <UAObject NodeId="ns=2;i=6082" BrowseName="1:Versions" ParentNodeId="ns=2;i=1006">
     <DisplayName>Versions</DisplayName>
     <Description>Overrides the inherited Versions component so every exact Version is an OpenUsdAssetType.</Description>
     <References>

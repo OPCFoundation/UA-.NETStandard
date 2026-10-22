@@ -220,7 +220,8 @@ model namespace URIs in the node manager.
 `OpenUsdAssetType` Resources. Each Resource owns a typed `Versions` folder organizing its first exact Version,
 `1`. Both logical and exact files expose the same immutable bytes through read-only Part 5 streaming, with
 SHA-256 digests and xRegistry identity metadata. The registry also exposes `SpecVersion` and a read-only
-`Capabilities` document. Runtime registration, deletion, and default-Version switching are not implemented by
+`Capabilities` document declaring `available.entities.mutable` as `false` and an empty `mutable` list.
+Runtime registration, deletion, and default-Version switching are not implemented by
 this bootstrap helper.
 
 The stage's `Assets` folder contains only explicit `Organizes` references to the logical Resources, never
@@ -230,8 +231,10 @@ collision disambiguation, rather than the previous underscore substitution. Conf
 or content types for an existing Resource are rejected. Empty asset identifiers are rejected.
 
 `assets` is an `ArrayOf<ServedAsset>`; the return value is an `ArrayOf<OpenUsdAssetState>` containing the logical
-Resources in input order. The four-argument overload remains available and uses the stage's symbolic name as
-the container identifier. Call either overload before the facility's final NodeId assignment and registration.
+Resources in input order. The four-argument overload allocates a container identifier from the stage's name,
+disambiguates collisions with existing groups, and reuses the allocation for that stage instance. Use the
+explicit-container overload for intentional sharing. Call either overload before the facility's final
+NodeId assignment and registration.
 Supply the stage's complete layer closure, with exactly one `RootLayer` whose `AssetIdentifier` equals
 `RootLayerIdentifier`. The sample servers now publish their served `.usda` identifiers rather than unrelated
 `asset-repo/*.usd` paths.

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.OpenUsd;
@@ -168,6 +169,12 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             OpenUsdAssetState version = children.OfType<OpenUsdAssetState>().Single();
             var group = (OpenUsdAssetGroupState)asset.Parent!;
 
+            Assert.That(
+                asset.FindChild(context, new QualifiedName(
+                    Opc.Ua.XRegistry.BrowseNames.Versions,
+                    (ushort)context.NamespaceUris.GetIndex(Opc.Ua.XRegistry.Namespaces.xRegistry))),
+                Is.SameAs(asset.Versions),
+                "Generic xRegistry clients must discover the narrowed Versions component.");
             Assert.That(group.AssetContainerId!.Value, Is.EqualTo(group.GroupId!.Value));
             Assert.That(group.BrowseName.Name, Is.EqualTo(group.GroupId.Value));
             Assert.That(asset.ResourceId!.Value, Is.EqualTo("Cell.usda"));
@@ -213,6 +220,94 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             Assert.That(repeated, Is.SameAs(assets[1]));
         }
 
+        [TestCase("Cell A", "Cell-A")]
+        [TestCase("Cell", "cell")]
+        [TestCase("Cell", "Cell")]
+        public void DefaultContainersDisambiguateStagesAndReuseTheirAllocations(string firstName, string secondName)
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
+            OpenUsdStageState first = OpenUsdAuthoringHarness.NewStage(context, root, ns, firstName);
+            OpenUsdStageState second = OpenUsdAuthoringHarness.NewStage(context, root, ns, secondName);
+            var firstDefinition = new ServedAsset("Cell.usda", OpenUsdAssetKindEnum.RootLayer, Bytes("first layer"));
+            var secondDefinition = new ServedAsset("Cell.usda", OpenUsdAssetKindEnum.RootLayer, Bytes("second layer"));
+
+            OpenUsdAssetState firstAsset = UsdAssetDelivery.AttachStageAssets(
+                context, first, ns, new[] { firstDefinition })[0];
+            OpenUsdAssetState secondAsset = UsdAssetDelivery.AttachStageAssets(
+                context, second, ns, new[] { secondDefinition })[0];
+
+            Assert.That(secondAsset.Parent, Is.Not.SameAs(firstAsset.Parent));
+            Assert.That(
+                ((OpenUsdAssetGroupState)secondAsset.Parent!).GroupId!.Value,
+                Is.Not.EqualTo(((OpenUsdAssetGroupState)firstAsset.Parent!).GroupId!.Value).IgnoreCase);
+            Assert.That(
+                UsdAssetDelivery.AttachStageAssets(context, first, ns, new[] { firstDefinition })[0],
+                Is.SameAs(firstAsset));
+            Assert.That(
+                UsdAssetDelivery.AttachStageAssets(context, second, ns, new[] { secondDefinition })[0],
+                Is.SameAs(secondAsset));
+        }
+
+        [Test]
+        public void DefaultContainersDoNotImplicitlyShareExplicitContainers()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            OpenUsdRootState root = OpenUsdAuthoringHarness.NewFacility(context, ns);
+            OpenUsdStageState first = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Explicit");
+            OpenUsdStageState second = OpenUsdAuthoringHarness.NewStage(context, root, ns, "Cell");
+            OpenUsdAssetState explicitAsset = UsdAssetDelivery.AttachStageAssets(
+                context, first, ns, new ServedAsset[] { Asset("Cell.usda") }, "Cell")[0];
+            OpenUsdAssetState defaultAsset = UsdAssetDelivery.AttachStageAssets(
+                context, second, ns, new ServedAsset[] { Asset("Cell.usda") })[0];
+
+            Assert.That(defaultAsset.Parent, Is.Not.SameAs(explicitAsset.Parent));
+            string defaultContainer = ((OpenUsdAssetGroupState)defaultAsset.Parent!).GroupId!.Value;
+            Assert.That(
+                UsdAssetDelivery.AttachStageAssets(
+                    context, first, ns, new ServedAsset[] { Asset("Cell.usda") }, defaultContainer)[0],
+                Is.SameAs(defaultAsset),
+                "Explicit container identifiers must still allow intentional sharing.");
+        }
+
+        [Test]
+        public void NamespaceMetadataUsesStandardQualifiedBrowseNames()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            var nodes = new NodeStateCollection();
+            nodes.AddOpcUaOpenUsd(context);
+            NodeState metadata = nodes.Single(node => node.NodeId == new NodeId(6076u, ns));
+
+            foreach (string name in new[]
+            {
+                Opc.Ua.BrowseNames.NamespaceUri,
+                Opc.Ua.BrowseNames.NamespaceVersion,
+                Opc.Ua.BrowseNames.NamespacePublicationDate,
+                Opc.Ua.BrowseNames.IsNamespaceSubset
+            })
+            {
+                BaseInstanceState? property = metadata.FindChild(context, new QualifiedName(name, 0));
+                Assert.That(property, Is.Not.Null, $"The standard qualified browse path for {name} must resolve.");
+                Assert.That(property!.NodeId.NamespaceIndex, Is.EqualTo(ns));
+            }
+        }
+
+        [Test]
+        public void ExactVersionPlaceholderUsesXRegistryQualifiedBrowseName()
+        {
+            (SystemContext context, ushort ns) = OpenUsdAuthoringHarness.NewContext();
+            var nodes = new NodeStateCollection();
+            nodes.AddOpcUaOpenUsd(context);
+            NodeState versionsType = nodes.Single(node => node.NodeId == new NodeId(1015u, ns));
+            BaseInstanceState? placeholder = versionsType.FindChild(
+                context, new QualifiedName(
+                    "<Version>", (ushort)context.NamespaceUris.GetIndex(Opc.Ua.XRegistry.Namespaces.xRegistry)));
+
+            Assert.That(placeholder, Is.Not.Null);
+            Assert.That(placeholder!.NodeId.NamespaceIndex, Is.EqualTo(ns));
+            Assert.That(placeholder.TypeDefinitionId, Is.EqualTo(new NodeId(1006u, ns)));
+        }
+
         [Test]
         public void RegistryBootstrapCapabilitiesAreReadableAsAReadOnlyFile()
         {
@@ -231,8 +326,13 @@ namespace Opc.Ua.OpenUsd.Server.Tests
             Assert.That(capabilities.Read!.OnCall!(
                 context, capabilities.Read, capabilities.NodeId, metadataHandle, 1024, ref json),
                 Is.EqualTo(ServiceResult.Good));
-            Assert.That(Encoding.UTF8.GetString(json.Span),
-                Is.EqualTo("{\"specversions\":[\"0.1.0\"],\"mutable\":[]}"));
+            using JsonDocument document = JsonDocument.Parse(json.Memory);
+            JsonElement declaration = document.RootElement;
+            Assert.That(declaration.GetProperty("available").GetProperty("entities").GetProperty("mutable").GetBoolean(),
+                Is.False);
+            Assert.That(declaration.GetProperty("mutable").GetArrayLength(), Is.Zero);
+            Assert.That(declaration.GetProperty("specversions").EnumerateArray().Select(value => value.GetString()),
+                Is.EquivalentTo(new[] { root.Artifacts.SpecVersion.Value }));
             Assert.That(capabilities.Writable!.Value, Is.False);
             Assert.That(capabilities.UserWritable!.Value, Is.False);
         }
