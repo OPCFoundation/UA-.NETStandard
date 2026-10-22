@@ -829,6 +829,12 @@ Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
 
+The [UaLens capture window](UaLens.md#packet-capture-and-offline-replay) is a
+more constrained packet-only adapter over these modules. Its private registry
+filters out channel-token notifications, so packet-data consent does **not**
+enable key extraction. It has separate raw-PCAP export consent and never enables
+mock-client/network replay. The engine and MCP defaults below are unchanged.
+
 Replay import and raw export require a complete, structurally valid PCAP or
 PCAPNG container, independently of `StartCaptureRequest.RequireCompleteReplay`.
 Raw export revalidates the exact exported bytes, so replacing an admitted replay

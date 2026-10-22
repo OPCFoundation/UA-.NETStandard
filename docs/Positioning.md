@@ -18,6 +18,7 @@ depends on RSL.
   - [Server authoring](#server-authoring)
   - [Client](#client)
   - [Transform conventions](#transform-conventions)
+  - [UaLens Positioning tool](#ualens-positioning-tool)
   - [Robot and OpenUSD sample](#robot-and-openusd-sample)
 
 ## Packages
@@ -276,6 +277,25 @@ a proper rotation for rigid and similarity modes, and rejects affine
 reflections unless you enable them. The fitter reports residual, determinant,
 rank, dimension, and invertibility diagnostics.
 
+## UaLens Positioning tool
+
+[UaLens](UaLens.md#positioning) exposes these models through a dedicated
+read-only tool. It discovers spatial objects, global variables on those objects
+or their owners, and the GlobalLocations entry point. It does not require a
+renderer or external location service.
+
+Raw inspection preserves declared units and value evidence. World resolution
+requires matching declared length units and the selected degrees/radians
+interpretation across the Base chain; the tool does not convert mixed units.
+It bounds chains to 64 frames and checks exposed spatial-list NodeVersions.
+These checks do not provide atomic telemetry snapshots.
+
+Zone previews use a copied, bounded ground-control-point calibration and
+single-use preparation. A 2D fit requires local Z = 0; only a 3D fit produces
+elevation. Connection changes, changed calibration, cancellation or the fixed
+five-minute preparation deadline prevent publication. The preview never writes
+a device position.
+
 ## Robot and OpenUSD sample
 
 [`MinimalRobotServer`](../samples/Robotics/MinimalRobotServer) composes RSL and GPOS into
@@ -300,3 +320,7 @@ dotnet run --project samples\Robotics\MinimalRobotServer -c Release -f net10.0 -
 the runtime option, the server runs until stopped interactively. Standalone
 defaults bind all interfaces and automatically accept certificates; use
 explicit secure options for controlled runs.
+
+UaLens supplies loopback binding, private PKI, disabled automatic trust
+and a finite lifetime. Its Positioning workflow does not authorize robot
+operation commands.

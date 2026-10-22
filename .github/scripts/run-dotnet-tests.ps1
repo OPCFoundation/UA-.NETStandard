@@ -109,6 +109,42 @@ if ($projectList.Count -eq 0) {
 $null = New-Item -ItemType Directory -Path $ResultsDirectory -Force
 $resultsRoot = (Resolve-Path -LiteralPath $ResultsDirectory).Path
 
+function New-DotnetStartInfo(
+    [string[]] $arguments,
+    [bool] $linux,
+    [string] $nativeLibraryDirectory = '')
+{
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = 'dotnet'
+    if ($linux -and $arguments.Count -ge 2 -and $arguments[0] -eq 'test' -and
+        [System.IO.Path]::GetFileName($arguments[1]) -in @(
+            'Opc.Ua.Lens.Workflow.Tests.csproj', 'Opc.Ua.Lens.Desktop.Tests.csproj')) {
+        $xvfb = Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($null -eq $xvfb) {
+            throw 'UaLens desktop tests require xvfb-run on the Linux agent.'
+        }
+        $startInfo.FileName = $xvfb.Source
+        $startInfo.ArgumentList.Add('-a')
+        $startInfo.ArgumentList.Add('dotnet')
+    }
+    if ($linux -and $arguments[0] -eq 'test' -and
+        -not [string]::IsNullOrWhiteSpace($nativeLibraryDirectory)) {
+        $directories = @(
+            $nativeLibraryDirectory,
+            [System.IO.Path]::Combine($nativeLibraryDirectory, 'runtimes', 'linux-x64', 'native'))
+        if ($startInfo.Environment['LD_LIBRARY_PATH']) {
+            $directories += $startInfo.Environment['LD_LIBRARY_PATH']
+        }
+        $startInfo.Environment['LD_LIBRARY_PATH'] = $directories -join ':'
+    }
+    foreach ($argument in $arguments) {
+        $startInfo.ArgumentList.Add($argument)
+    }
+    $startInfo.UseShellExecute = $false
+    return $startInfo
+}
+
 <#
  .SYNOPSIS
     Runs 'dotnet' with the supplied arguments, streaming its output to the log
@@ -128,7 +164,8 @@ function Invoke-Dotnet(
     [string[]] $arguments,
     [System.Diagnostics.Stopwatch] $budget,
     [int] $budgetMinutes,
-    [string] $logPath)
+    [string] $logPath,
+    [string] $nativeLibraryDirectory = '')
 {
     Write-Host "dotnet $($arguments -join ' ')"
 
@@ -142,12 +179,7 @@ function Invoke-Dotnet(
         }
     }
 
-    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
-    $startInfo.FileName = 'dotnet'
-    foreach ($argument in $arguments) {
-        $startInfo.ArgumentList.Add($argument)
-    }
-    $startInfo.UseShellExecute = $false
+    $startInfo = New-DotnetStartInfo $arguments $IsLinux $nativeLibraryDirectory
 
     $writer = $null
     $subscriptions = @()
@@ -216,8 +248,9 @@ function Invoke-Dotnet(
 function Get-ProjectProperties([string] $project)
 {
     $output = & dotnet msbuild $project `
-        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework' `
+        '-getProperty:IsTestProject;TargetFrameworks;TargetFramework;TargetDir' `
         "-p:CustomTestTarget=$CustomTestTarget" `
+        "-p:TargetFramework=$Framework" `
         "-p:Configuration=$Configuration" `
         -nologo | Out-String
     if ($LASTEXITCODE -ne 0) {
@@ -348,9 +381,8 @@ foreach ($project in $projectList) {
         if (-not [string]::IsNullOrWhiteSpace($projectFilter)) {
             $testArguments += @('--filter', $projectFilter)
         }
-
         $testBudget = [System.Diagnostics.Stopwatch]::StartNew()
-        $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath
+        $test = Invoke-Dotnet $testArguments $testBudget $PerProjectTimeoutMinutes $logPath $properties.TargetDir
         $record.testSeconds = [int]$testBudget.Elapsed.TotalSeconds
 
         if ($test.TimedOut) {

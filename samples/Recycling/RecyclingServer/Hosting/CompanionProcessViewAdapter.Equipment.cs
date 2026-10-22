@@ -202,7 +202,15 @@ namespace Opc.Ua.Recycling
             pump.PumpActuation.SetDiscrete(Pumps.BrowseNames.Status, false);
             pump.Measurements.SetAnalog(Pumps.BrowseNames.FluidTemperature, m_defaults.AmbientTemperatureC,
                 ScaleUnits.Create("CEL", "degC", "degree Celsius"), new Range(-50, 100));
-            var running = (BaseVariableState)pump.PumpActuation.Child(Pumps.BrowseNames.Status)!;
+            var running = (TwoStateDiscreteState)pump.PumpActuation.Child(Pumps.BrowseNames.Status)!;
+            // Lazy child creation does not initialize the mandatory two-state properties.
+            running.Create(context.Context, running.NodeId, running.BrowseName, running.DisplayName,
+                assignNodeIds: true);
+            running.ReferenceTypeId = ReferenceTypeIds.HasComponent;
+            running.ValueRank = ValueRanks.Scalar;
+            running.FalseState!.Value = new LocalizedText("Stopped");
+            running.TrueState!.Value = new LocalizedText("Running");
+            await context.Manager.AddPredefinedNodeAsync(running, cancellationToken).ConfigureAwait(false);
             var temperature = (BaseVariableState)pump.Measurements.Child(Pumps.BrowseNames.FluidTemperature)!;
             running.Description = new LocalizedText("Synthetic actual pump status from committed electrical demand.");
             temperature.Description = new LocalizedText(

@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
   - [Add a log message (source-generated)](#add-a-log-message-source-generated)
@@ -91,6 +92,9 @@ Run the whole suite from the solution:
 ```bash
 dotnet test UA.slnx
 ```
+
+UaLens uses separate test assemblies for ordinary tests, native workflows and
+application-desktop tests. See [Testing UaLens](#testing-ualens) for their commands.
 
 Conventions and requirements:
 
@@ -204,6 +208,8 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
+### RSE testing
+
 The [recoverable Service prototype](AsyncServices.md) separates
 codec, scripted-lifecycle, in-process endpoint and native transport evidence.
 Its native Server selection is `FullyQualifiedName~AsyncServices` in
@@ -224,6 +230,119 @@ target only queries its existing output metadata and fails if the built host is
 missing. A `--no-build` test run uses the existing stage without rebuilding or
 recopying it. Generated credentials and PKI must remain in run-owned temporary
 storage, not in the staged build output.
+
+### Testing UaLens
+
+All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:
+
+| Project | Scope |
+| --- | --- |
+| `tests/Opc.Ua.Lens.Tests` | Protocol, model, offline and unit tests; no desktop application |
+| `tests/Opc.Ua.Lens.Workflow.Tests` | Native-window workflows with injected protocol clients and an owned dispatcher |
+| `tests/Opc.Ua.Lens.Desktop.Tests` | Application resources, shell/dialog regressions, NodeSet and namespace UI |
+| `tests/Opc.Ua.Lens.Artifacts.Tests` | Offline artifact-validator tests and explicitly selected published/installed executable checks |
+
+Run from the repository root with an interactive Windows desktop. Linux native
+tests require X11 or `xvfb-run`; the shared CI runner supplies Xvfb. Cocoa requires
+the process main thread, so these dispatcher-thread native assemblies are
+Windows/Linux-only. Their source still builds on macOS.
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Workflow.Tests\Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Artifacts.Tests\Opc.Ua.Lens.Artifacts.Tests.csproj -c Release -f net10.0
+```
+
+The assemblies isolate native dispatcher lifetimes without category-dependent
+multi-pass handling in the shared runner. Collect coverage with the normal
+`tests/coverlet.runsettings.xml`; results from all applicable assemblies contribute
+to the unchanged coverage gate.
+
+The `[Explicit]` repository-sample probes run owned, finite servers with private
+PKI. Select each probe by its unique name rather than combining its filter with
+ordinary tests, which can leave explicit cases unexecuted. The identity probe
+qualifies forward/reverse authentication and key replacement; the continuity
+probe checks real transfer/recreation and revised settings; the DI probe uses
+the existing nonphysical software-update sample plus controlled preparation.
+Check the executed count and the TRX, not merely a successful build. For example:
+
+```powershell
+$case = 'PrivateAuthenticatedIdentitiesSurviveEngineReplacementWithoutAnonymousFallbackAsync'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 `
+    -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~$case"
+```
+
+The DI sample project is referenced under an assembly alias because it generates
+its own Pumps model; do not expose those duplicate types through the global alias.
+These managed probes do not replace the published NativeAOT/RID checks.
+
+For actual graceful persistence, select
+`PrivateDurableContinuityRestoresAcrossGracefulOwnedProcessRestartAsync`. It starts
+the real reference server in two successive owned child processes, retaining only
+that run's private working directory and PKI between them. It checks transfer,
+revised settings, resumed values and automatic recovery of the borrowed primary
+session, then removes the private store after both processes exit.
+`OwnedServerStartupFaultDoesNotWaitForReadiness` separately checks failed startup
+after control-pipe admission; startup readiness must not hide a failed hosted task.
+
+`PrivateConfiguredColdFailoverReportsRecreationAndRetainedSourceWithoutDisposingPrimaryAsync`
+uses two distinct private-PKI servers and the existing redundancy metadata and
+target-selection providers. Its cold peer has no mirrored subscription state:
+recreation and uncertain source cleanup are explicit expected outcomes, not
+evidence of hot/mirrored queue recovery.
+
+The [desktop test assembly](../tools/Opc.Ua.Lens/DesktopTesting.md) runs its full
+NUnit-discovered suite, including pending-write shutdown, dialog cancellation,
+keyboard navigation, inspector publication, minimum-size, NodeSet and namespace
+checks. The external-file responsiveness probe remains `[Explicit]`.
+Native publishing and managed-tool
+installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md#publish-and-package).
+Managed packaging produces one selector and three RID-specific payloads;
+the artifact workflow installs the same package set on Windows, Linux and macOS.
+The signing workflow builds those managed RID outputs before signing so the
+subsequent `pack --no-build` does not recompile signed assemblies.
+Both artifact forms also run a separate opt-in native viewport check through the
+application's main-thread desktop lifetime, including Cocoa/Metal. It retains two
+validated PNGs around a live stage update and requires native allocations to drain;
+ordinary startup success alone is not native rendering acceptance. The runner's
+negative acceptance cases run as ordinary NUnit tests in
+`Opc.Ua.Lens.Artifacts.Tests`, without a desktop or renderer. Its `[Explicit]`
+`PublishedArtifactTests` fixture launches the selected executable in a separate
+process; the test project does not reference the application. Tests retain TRX,
+stdout/stderr, image digests and timeout/exit evidence. A failed native check
+remains a failure; no debugger replay supplies acceptance.
+
+The Linux live-viewport and native-rendering smoke cases are temporarily excluded
+pending the OpenUSD compositor compatibility fix. Linux startup and ordinary tests
+remain enabled; passing artifact jobs do not currently qualify Linux rendering.
+See the [exclusion scope and re-enablement criteria](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check).
+
+Artifact builds use the public nuget.org dependency versions pinned in
+`Directory.Packages.props` and the checked-in `NuGet.config`. Installation checks
+use only the UaLens packages built by that workflow, not an older published tool.
+Native smoke deadline failures report the compositor status and retained-frame
+counters. The viewport keeps its bounded presentation loop active after a
+successful frame so queued camera captures and live stage edits also render on
+backends that otherwise return a one-shot presentation result.
+Required backend probe exceptions are also reported to the viewport owner
+immediately; cancellation remains cancellation rather than a device failure.
+Linux native artifact checks explicitly pass `--x11-vulkan` to use the Vulkan
+compositor without falling back to a software framebuffer or relying on OpenGL
+FD-import support. Ordinary application defaults remain unchanged. The separate
+`--allow-software-gl` opt-in permits Mesa llvmpipe for OpenGL diagnosis but does
+not supply missing interop capabilities. Neither option bypasses pixel-change
+or allocation-drain checks; software-driver results are not physical-GPU
+qualification.
+
+Theme checks require 4.5:1 source-text contrast and 3:1 chart-series contrast on
+their defined surfaces. The native lane attaches bounded PNG captures and CSV
+color-vision diagnostics to its TRX. Captures use the rendered client visual;
+they do not qualify an OS compositor, physical display, screen reader or human
+color perception. DPI, physical keyboard and assistive-technology acceptance
+remain separate checks. Historical execution reports belong in
+[the review backlog](../plans/UaLensReview.md), not the user guide.
 
 ## Coding standards (dos and don'ts)
 
@@ -510,7 +629,18 @@ The verdict comes from the emitted TRX rather than from the `dotnet test` exit c
 
 ### Test tiers
 
-The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers those filters leave out run elsewhere:
+The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`.
+
+Linux UaLens tests require the agent's installed `xvfb-run` and run under a virtual X server. The shared
+GitHub batch executor retains the normal test selection, coverage, diagnostics,
+and result gates, and fails explicitly if Xvfb is unavailable. The GitHub executor includes the virtual display
+in the existing per-project timeout and process-tree cleanup.
+Each Linux test process also receives its MSBuild `TargetDir` and packaged
+`runtimes/linux-x64/native` directory on `LD_LIBRARY_PATH`, ahead of inherited
+entries. This lets the system loader resolve transitive ELF dependencies without
+changing the parent process's environment.
+
+The tiers those filters leave out run elsewhere:
 
 | Tier | Where it runs |
 | --- | --- |
@@ -621,7 +751,7 @@ Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresh
 
 #### Where the numbers appear
 
-The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
+The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork or Dependabot** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 

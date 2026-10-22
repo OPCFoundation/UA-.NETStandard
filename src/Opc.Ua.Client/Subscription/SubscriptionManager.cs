@@ -1831,15 +1831,19 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     else if (desiredWorkerCount > publishWorkers.Count)
                     {
-                        // Not enough workers increase
+                        // Not enough workers increase. Publish the new count
+                        // before the workers start: they run on the thread
+                        // pool and can issue their first publish before this
+                        // loop continues, and a caller that observes a publish
+                        // in flight must not still see the old count.
+                        int count = publishWorkers.Count;
+                        PublishWorkerCount = desiredWorkerCount;
                         publishWorkers.AddRange(Enumerable
-                            .Range(publishWorkers.Count,
-                                desiredWorkerCount - publishWorkers.Count)
+                            .Range(count, desiredWorkerCount - count)
                             .Select(index => new PublishWorker(this, index)));
                     }
 
-                    // The pool is settled for this cycle — only now is the
-                    // count observable by callers.
+                    // The pool is settled for this cycle.
                     PublishWorkerCount = publishWorkers.Count;
                 }
             }

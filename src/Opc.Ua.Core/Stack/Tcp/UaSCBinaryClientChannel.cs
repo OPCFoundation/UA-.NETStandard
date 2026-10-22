@@ -425,7 +425,13 @@ namespace Opc.Ua.Bindings
             {
                 OperationCompleted(operation);
             }
-            if (operation.MessageBody is not IServiceResponse response)
+            IEncodeable? body = operation.MessageBody;
+
+            // the operation is often promoted while it waits (a Publish waits for the
+            // publishing interval); a dead old operation that still referenced the
+            // response would keep it alive through every collection until a full one.
+            operation.MessageBody = null;
+            if (body is not IServiceResponse response)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadUnknownResponse,
