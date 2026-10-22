@@ -2354,7 +2354,8 @@ namespace Opc.Ua.Client
 
                 m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
-                ServiceResult switched = await SwitchToRedundantServerAsync(failoverEndpoint, budget, ct)
+                ServiceResult switched = await SwitchToRedundantServerAsync(
+                        failoverEndpoint, budget, retirePreviousSession: false, ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsBad(switched))
                 {
@@ -2413,7 +2414,8 @@ namespace Opc.Ua.Client
                     }
                 }
                 snapshot = Volatile.Read(ref m_redundancyInfo) ?? snapshot;
-                await StartRedundancyEndpointRefresh(cache, snapshot, ct).WaitAsync(ct).ConfigureAwait(false);
+                await StartRedundancyEndpointRefresh(cache, snapshot, m_probeMemberServiceLevel, ct)
+                    .WaitAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -2437,7 +2439,7 @@ namespace Opc.Ua.Client
                 if (handler is IServerRedundancyEndpointCache cache &&
                     m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
                 {
-                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, ct);
+                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, probeMembers: false, ct);
                 }
             }
             catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
@@ -2455,9 +2457,16 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Resolves the endpoints of the members in the background and, with
+        /// <paramref name="probeMembers"/>, reads their ServiceLevel. Probing
+        /// only runs for a selection or failover decision, never for a
+        /// routine refresh.
+        /// </summary>
         private Task<ServerRedundancyInfo> StartRedundancyEndpointRefresh(
             IServerRedundancyEndpointCache cache,
             ServerRedundancyInfo snapshot,
+            bool probeMembers,
             CancellationToken ct)
         {
             if (m_redundancyEndpointRefreshTask is { IsCompleted: false } previous)
@@ -2475,7 +2484,7 @@ namespace Opc.Ua.Client
                 {
                     ServerRedundancyInfo resolved = await cache.ResolveCachedEndpointsAsync(
                         snapshot, current, linked.Token).ConfigureAwait(false);
-                    if (m_probeMemberServiceLevel)
+                    if (probeMembers)
                     {
                         resolved = await ProbeMemberServiceLevelsAsync(resolved, current, linked.Token)
                             .ConfigureAwait(false);
@@ -2591,13 +2600,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates the session in place, against a copy of
         /// <paramref name="endpoint"/> when set, which must keep the security
-        /// mode and policy of the endpoint the session works on.
+        /// mode and policy of the endpoint the session works on. With
+        /// <paramref name="retirePreviousSession"/>, a newly created session
+        /// closes the session it replaces on the previous Server.
         /// </summary>
         private async Task RecreateInPlaceAndRebindAsync(
             Session session,
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool retirePreviousSession = false)
         {
             if (endpoint == null)
             {
@@ -2609,7 +2621,7 @@ namespace Opc.Ua.Client
             await SwitchEndpointAsync(
                 session,
                 endpoint,
-                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct),
+                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct, retirePreviousSession),
                 ct).ConfigureAwait(false);
         }
 
@@ -2623,14 +2635,15 @@ namespace Opc.Ua.Client
             Session session,
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool retirePreviousSession = false)
         {
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
                 ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
                     endpoint ?? session.ConfiguredEndpoint, ct).ConfigureAwait(false);
-                await session.RecreateInPlaceAsync(endpoint, budget, connection, ct)
+                await session.RecreateInPlaceAsync(endpoint, budget, connection, ct, retirePreviousSession)
                     .ConfigureAwait(false);
             }
             finally

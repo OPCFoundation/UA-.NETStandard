@@ -67,8 +67,11 @@ namespace Opc.Ua.Client
         /// <summary>
         /// When <see langword="true"/>, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> and
         /// <c>Server.ServerStatus.State</c> of every other member of a non-transparent redundant Server set
-        /// over a short session with the identity of the session in use, once the member's endpoint is
-        /// resolved. The values replace those reported by the Server in use, so the initial connect, the
+        /// over a short session with a copy of the identity of the session in use, when a selection or
+        /// failover decision needs them: after the initial connect, for a failover, and during ServiceLevel
+        /// monitoring once the Server in use is no longer Healthy. A member whose resolved endpoint does not
+        /// keep the security mode and policy of the session in use is not probed. The values replace those
+        /// reported by the Server in use, so the initial connect, the
         /// failover target selection and the failover decision compare the members' current
         /// <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.5). After the initial connect the session switches to
         /// the member with the highest <c>ServiceLevel</c> when it is higher than the <c>ServiceLevel</c> of
