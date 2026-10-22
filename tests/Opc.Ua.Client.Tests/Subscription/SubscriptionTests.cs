@@ -48,7 +48,7 @@ namespace Opc.Ua.Client.Subscriptions
     [Category("SubscriptionManager")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public sealed class SubscriptionTests
+    public sealed partial class SubscriptionTests
     {
         [SetUp]
         public void SetUp()
