@@ -257,8 +257,12 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
             });
             await fixture.StartAsync().ConfigureAwait(false);
             // Hold the serialization gate across at least two one-second reclamation ticks.
-            fixture.Provider.BeforeCommit = (_, _) => new ValueTask(
-                Task.Delay(TimeSpan.FromMilliseconds(2500), CancellationToken.None));
+            var commitEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Provider.BeforeCommit = (_, _) =>
+            {
+                commitEntered.TrySetResult(true);
+                return new ValueTask(Task.Delay(TimeSpan.FromMilliseconds(2500), CancellationToken.None));
+            };
             using (var content = new MemoryStream([1]))
             {
                 try
@@ -271,6 +275,8 @@ namespace Opc.Ua.PlasticsRubber.Datasets.Tests
                     // The outcome of the stalled commit itself is not under test.
                 }
             }
+            Assert.That(commitEntered.Task.IsCompleted, Is.True,
+                "The stalled commit must hold the gate before testing reclamation.");
             fixture.Provider.BeforeCommit = null;
             UaTemporaryWriteFile abandoned = await fixture.Client.OpenWriteAsync(
                 WriteOptions(StorageEnumeration.FILE_SYSTEM, "abandoned")).ConfigureAwait(false);
