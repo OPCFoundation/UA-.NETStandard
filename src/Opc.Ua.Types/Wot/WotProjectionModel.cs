@@ -151,8 +151,9 @@ namespace Opc.Ua.Wot
         /// </summary>
         /// <remarks>
         /// Used for provenance and to qualify copied security scheme names as
-        /// <c>q:s:&lt;base64url(sourceName)&gt;:&lt;base64url(schemeName)&gt;</c>,
-        /// using unpadded base64url of the exact UTF-8 names.
+        /// <c>q:s:&lt;E(sourceName)&gt;:&lt;E(schemeName)&gt;</c>,
+        /// using uppercase percent encoding of the exact UTF-8 names, with only
+        /// RFC 3986 unreserved bytes unchanged and no Unicode normalization.
         /// </remarks>
         public string SourceName { get; init; } = string.Empty;
 

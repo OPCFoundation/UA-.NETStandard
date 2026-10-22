@@ -140,14 +140,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
                     Is.False);
-                Assert.That(result.Value!.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                Assert.That(result.Value!.SecurityDefinitions["q:p:plant_sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("uav:channelsec"));
-                Assert.That(result.Value.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                Assert.That(result.Value.SecurityDefinitions["q:p:plant_sc"]
                     .GetProperty("uav:securityMode").GetString(), Is.EqualTo("SignAndEncrypt"));
-                Assert.That(result.Value.SecurityDefinitions["q:s:cGxhbnQ:c2M"]
+                Assert.That(result.Value.SecurityDefinitions["q:s:plant:sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
                 Assert.That(result.Value.Properties["p1"].GetProperty("forms")[0]
-                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:cGxhbnQ:c2M"));
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:plant:sc"));
             });
         }
 
@@ -181,12 +181,12 @@ namespace Opc.Ua.Types.Tests.Wot
                     result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.ProjectionSecurityConflict),
                     Is.False);
                 Assert.That(result.Value!.Properties["p1"].GetProperty("forms")[0]
-                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:bGluZQ:Ml9zYw"));
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:line:2_sc"));
                 Assert.That(result.Value.Properties["p2"].GetProperty("forms")[0]
-                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:bGluZV8y:c2M"));
-                Assert.That(result.Value.SecurityDefinitions["q:s:bGluZQ:Ml9zYw"]
+                    .GetProperty("security")[0].GetString(), Is.EqualTo("q:s:line_2:sc"));
+                Assert.That(result.Value.SecurityDefinitions["q:s:line:2_sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
-                Assert.That(result.Value.SecurityDefinitions["q:s:bGluZV8y:c2M"]
+                Assert.That(result.Value.SecurityDefinitions["q:s:line_2:sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("uav:channelsec"));
             });
         }
@@ -214,13 +214,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     result.Value!.Properties["p1"].GetProperty("forms")[0]
                         .GetProperty("security")[0].GetString(),
-                    Is.EqualTo("q:s:cGxhbnQ:c2M"));
+                    Is.EqualTo("q:s:plant:sc"));
                 Assert.That(result.Value.RootElement.GetProperty("security").GetString(),
-                    Is.EqualTo("q:p:cGxhbnRfc2M"));
+                    Is.EqualTo("q:p:plant_sc"));
                 Assert.That(result.Value.SecurityDefinitions, Has.Count.EqualTo(2));
-                Assert.That(result.Value.SecurityDefinitions["q:p:cGxhbnRfc2M"]
+                Assert.That(result.Value.SecurityDefinitions["q:p:plant_sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
-                Assert.That(result.Value.SecurityDefinitions["q:s:cGxhbnQ:c2M"]
+                Assert.That(result.Value.SecurityDefinitions["q:s:plant:sc"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
             });
         }

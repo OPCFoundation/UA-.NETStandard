@@ -65,8 +65,8 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
             AssertResolvedExample(PredictiveResolvedJson, PreparePredictiveProjection(), view,
-                ("q:s:cHVtcA:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
-                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+                ("q:s:pump:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value!;
             Assert.That(view, Is.Not.Null);
             AssertResolvedExample(AssetResolvedJson, AssetProjectionJson, view,
-                ("q:s:aWRlbnRpdHk:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
         }
 
         /// <summary>
@@ -531,19 +531,19 @@ namespace Opc.Ua.Types.Tests.Wot
                     "http://example.com/demo/pump;s=PumpSpeed"));
             Assert.That(
                 form.GetProperty("security")[0].GetString(),
-                Is.EqualTo("q:s:cHVtcA:b3BjdWFfc2M"));
+                Is.EqualTo("q:s:pump:opcua_sc"));
 
             JsonElement definitions =
                 result.Value!.RootElement.GetProperty("securityDefinitions");
-            JsonElement combo = definitions.GetProperty("q:s:cHVtcA:b3BjdWFfc2M");
+            JsonElement combo = definitions.GetProperty("q:s:pump:opcua_sc");
             Assert.That(
                 combo.GetProperty("allOf").EnumerateArray()
                     .Select(e => e.GetString()),
                 Is.EqualTo(s_pumpComboAllOf));
             Assert.That(
-                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", out _), Is.True);
+                definitions.TryGetProperty("q:s:pump:opcua_channel_sc", out _), Is.True);
             Assert.That(
-                definitions.TryGetProperty("q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M", out _),
+                definitions.TryGetProperty("q:s:pump:opcua_authentication_sc", out _),
                 Is.True);
         }
 
@@ -1250,10 +1250,10 @@ namespace Opc.Ua.Types.Tests.Wot
             ["serialNumber", "manufacturer", "manual"];
 
         private static readonly string[] s_sensorMembers = ["sensor"];
-        private static readonly string[] s_nosecOnly = ["q:p:bm9zZWNfc2M"];
+        private static readonly string[] s_nosecOnly = ["q:p:nosec_sc"];
 
         private static readonly string[] s_pumpComboAllOf =
-            ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"];
+            ["q:s:pump:opcua_channel_sc", "q:s:pump:opcua_authentication_sc"];
 
         private const string PredictiveProjectionJson = /*lang=json,strict*/ """
         {
@@ -1318,27 +1318,27 @@ namespace Opc.Ua.Types.Tests.Wot
           "description": "A predictive-maintenance projection view.",
           "uav:scenario": "http://example.com/scenario/PredictiveMaintenance",
           "securityDefinitions": {
-            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
-            "q:s:cHVtcA:b3BjdWFfc2M": {
+            "q:p:nosec_sc": { "scheme": "nosec" },
+            "q:s:pump:opcua_sc": {
               "scheme": "combo",
-              "allOf": ["q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw", "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M"]
+              "allOf": ["q:s:pump:opcua_channel_sc", "q:s:pump:opcua_authentication_sc"]
             },
-            "q:s:cHVtcA:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:s:pump:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             },
-            "q:s:cHVtcA:b3BjdWFfYXV0aGVudGljYXRpb25fc2M": {
+            "q:s:pump:opcua_authentication_sc": {
               "scheme": "uav:authentication",
               "uav:userIdentityToken": "UserName"
             },
-            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:s:identity:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
             }
           },
-          "security": "q:p:bm9zZWNfc2M",
+          "security": "q:p:nosec_sc",
           "properties": {
             "pumpSpeed": {
               "@type": "uav:variable",
@@ -1356,7 +1356,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=PumpSpeed",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/pumpSpeed"
@@ -1375,7 +1375,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=SpeedSetpoint",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "writeproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/speedSetpoint"
@@ -1394,7 +1394,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=DischargePressure",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/dischargePressure"
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=MotorTemperature",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty", "observeproperty"],
-                  "security": ["q:s:cHVtcA:b3BjdWFfc2M"]
+                  "security": ["q:s:pump:opcua_sc"]
                 }
               ],
               "uav:resolvedFrom": "./01-opcua-td-pump.jsonld#/properties/motorTemperature"
@@ -1431,7 +1431,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1449,7 +1449,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1467,7 +1467,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"
@@ -1748,7 +1748,7 @@ namespace Opc.Ua.Types.Tests.Wot
           "title": "Pump 01 asset",
           "description": "An asset instance projection.",
           "uav:scenario": "http://example.com/scenario/AssetManagement",
-          "security": "q:p:bm9zZWNfc2M",
+          "security": "q:p:nosec_sc",
           "links": [
             {
               "rel": "ua:Organizes",
@@ -1764,8 +1764,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
           ],
           "securityDefinitions": {
-            "q:p:bm9zZWNfc2M": { "scheme": "nosec" },
-            "q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw": {
+            "q:p:nosec_sc": { "scheme": "nosec" },
+            "q:s:identity:opcua_channel_sc": {
               "scheme": "uav:channelsec",
               "uav:securityMode": "SignAndEncrypt",
               "uav:securityPolicy": "Aes256_Sha256_RsaPss"
@@ -1785,7 +1785,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.SerialNumber",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/serialNumber"
@@ -1803,7 +1803,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.Manufacturer",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manufacturer"
@@ -1821,7 +1821,7 @@ namespace Opc.Ua.Types.Tests.Wot
                   "href": "opc.tcp://opcuademo.com:4840/?id=nsu=http://example.com/demo/pump;s=Pump07.DeviceManual",
                   "contentType": "application/octet-stream",
                   "op": ["readproperty"],
-                  "security": ["q:s:aWRlbnRpdHk:b3BjdWFfY2hhbm5lbF9zYw"]
+                  "security": ["q:s:identity:opcua_channel_sc"]
                 }
               ],
               "uav:resolvedFrom": "./06-anchored-paths-and-device-identity.jsonld#/properties/manual"

@@ -1548,13 +1548,15 @@ round-trip guarantees.
 
 ### How this is checked
 
-The pinned specification manifest contains twenty-seven worked examples, and two of them are a
-golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds the pinned examples and runs the pair
-through the resolver, asserting against the specification's own expected output
-rather than against our reading of the prose. That covers, in one document, all
-three selection forms, the bulk naming rule, the security closure naming and the
-provenance term. Example 22 is additionally converted to check that a document
+The historical specification manifest contains twenty-seven worked examples, including
+a projection document and its resolved view. `WotSpecExampleTests` embeds these snapshots
+and runs the projection through the resolver, checking selection, bulk naming and
+provenance against the resolved example. Security closure names are checked separately
+against explicit current percent-encoding expectations: the historical resolved example
+predates that contract and retains base64url names. The shared vector corpus is likewise
+preserved byte-for-byte; `ProjectionSecurityDomainsUseCurrentNamesForHistoricalVectorInputs`
+uses its security inputs with explicit current expected names rather than its superseded
+base64url outputs. Example 22 is additionally converted to check that a document
 binds the node it projects to an existing type (Section 5.2.1) and constrains
 its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
 added by revision 1.1 and pin the corrections it made: a document whose texts
@@ -1572,7 +1574,9 @@ convert: the claim makes conversion mandatory rather than optional.
 
 #### Keeping the vendored examples honest
 
-The examples are vendored byte-for-byte from the specification repository into
+The examples are historical snapshots from `OPCF-Members/spec-drafts` at
+`db08f850e8801863006208b40f4bd3614febea8b`, not a snapshot of the current normative
+baseline. They are vendored byte-for-byte into
 `tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
 `eol=lf` so the checked-out bytes are the upstream bytes on every platform.
 They used to be copied by hand with no record of the source, and they drifted:

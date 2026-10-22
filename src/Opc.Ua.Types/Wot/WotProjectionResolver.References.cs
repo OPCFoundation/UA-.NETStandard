@@ -351,8 +351,8 @@ namespace Opc.Ua.Wot
                 if (m_definitions.ContainsKey(name))
                 {
                     string stem = owner.SourceName is null
-                        ? "q:p:" + EncodeSecurityName(rootPointer)
-                        : "q:d:" + EncodeSecurityName(owner.SourceName) + ":" + EncodeSecurityName(rootPointer);
+                        ? "q:p:" + EncodeDependencyName(rootPointer)
+                        : "q:d:" + EncodeDependencyName(owner.SourceName) + ":" + EncodeDependencyName(rootPointer);
                     name = stem;
                     for (int suffix = 1; m_definitions.ContainsKey(name); suffix++)
                     {

@@ -206,6 +206,6 @@ namespace Opc.Ua.WotCon.Tests.Hosting
               }
             }
             """;
-        private static readonly string[] s_hostSecurity = ["q:p:aG9zdA"];
+        private static readonly string[] s_hostSecurity = ["q:p:host"];
     }
 }

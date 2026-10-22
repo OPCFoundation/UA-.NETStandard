@@ -303,7 +303,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(value.GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo("https://host.test/runtime/actual-value"));
             Assert.That(value.GetProperty("forms")[0].GetProperty("security")[0].GetString(),
-                Is.EqualTo("q:p:bm9uZQ"));
+                Is.EqualTo("q:p:none"));
             Assert.That(value.GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(SourceHref + "#/properties/Value"));
             Assert.That(view.SecurityDefinitions.Keys, Is.EqualTo(s_defaultHostSecurity));
@@ -729,8 +729,8 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
 
-        private static readonly string[] s_suppliedHostSecurity = ["q:p:aG9zdA"];
-        private static readonly string[] s_defaultHostSecurity = ["q:p:bm9uZQ"];
+        private static readonly string[] s_suppliedHostSecurity = ["q:p:host"];
+        private static readonly string[] s_defaultHostSecurity = ["q:p:none"];
         private static readonly string[] s_hostRequestOrder = ["Alpha", "Value", "Operate", "State"];
         private static readonly string[] s_hostPropertyOrder = ["Alpha", "Value"];
         private static readonly string[] s_hostActionOrder = ["Operate"];

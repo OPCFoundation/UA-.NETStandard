@@ -2352,7 +2352,36 @@ namespace Opc.Ua.Wot
                 : "q:s:" + EncodeSecurityName(sourceName) + ":" + EncodeSecurityName(schemeName);
         }
 
+        /// <summary>
+        /// Percent-encodes exact UTF-8 names, preserving only RFC 3986 unreserved bytes.
+        /// </summary>
+        /// <param name="name">The security-name component.</param>
         private static string EncodeSecurityName(string name)
+        {
+            var encoded = new StringBuilder();
+            foreach (byte value in Encoding.UTF8.GetBytes(name))
+            {
+                if (value is >= (byte)'A' and <= (byte)'Z' or
+                    >= (byte)'a' and <= (byte)'z' or
+                    >= (byte)'0' and <= (byte)'9' or
+                    (byte)'-' or (byte)'.' or (byte)'_' or (byte)'~')
+                {
+                    encoded.Append((char)value);
+                }
+                else
+                {
+                    encoded.Append('%');
+                    encoded.Append(value.ToString("X2", CultureInfo.InvariantCulture));
+                }
+            }
+            return encoded.ToString();
+        }
+
+        /// <summary>
+        /// Encodes dependency support names with unpadded base64url.
+        /// </summary>
+        /// <param name="name">The dependency-name component.</param>
+        private static string EncodeDependencyName(string name)
         {
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(name))
                 .TrimEnd('=')
@@ -2825,7 +2854,8 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                string stem = "q:d:" + EncodeSecurityName(source.Source.SourceName) + ":" + EncodeSecurityName(pointer);
+                string stem = "q:d:" +
+                    EncodeDependencyName(source.Source.SourceName) + ":" + EncodeDependencyName(pointer);
                 string candidate = stem;
                 for (int suffix = 1; !Claim(kind, candidate); suffix++)
                 {

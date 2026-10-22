@@ -360,9 +360,6 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument projection = WotDocument.Parse(
                 ReadCurrentProjectionExample());
-            using WotDocument expected = WotDocument.Parse(
-                ReadExample(ResolvedExample));
-
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
                 .ResolveAsync(projection)
@@ -371,16 +368,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value, Is.Not.Null, DescribeErrors(result.Diagnostics));
             using WotDocument actual = result.Value;
 
-            // Under source routing every scheme in the transitive closure of a
-            // carried form's effective security travels with it, named
-            // <sourceName>_<scheme name>.
-            foreach (string scheme in expected.SecurityDefinitions.Keys)
-            {
-                Assert.That(
-                    actual.SecurityDefinitions.ContainsKey(scheme),
-                    Is.True,
-                    $"The resolved view should define the security scheme '{scheme}'.");
-            }
+            Assert.That(actual.SecurityDefinitions.Keys, Is.EquivalentTo(s_projectionSecurityNames));
         }
 
         internal static byte[] ReadExample(string name)
@@ -894,6 +882,19 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
         private const string DataTypeExample = "23-datatype-definitions.jsonld";
+
+        /// <summary>
+        /// Current qualified security closure for the historical projection inputs.
+        /// </summary>
+        private static readonly string[] s_projectionSecurityNames =
+        [
+            "q:p:nosec_sc",
+            "q:s:pump:opcua_sc",
+            "q:s:pump:opcua_channel_sc",
+            "q:s:pump:opcua_authentication_sc",
+            "q:s:identity:opcua_channel_sc"
+        ];
+
         private static readonly string[] s_legacyProjectionExamples =
         [
             "07-projection-predictive-maintenance.jsonld",

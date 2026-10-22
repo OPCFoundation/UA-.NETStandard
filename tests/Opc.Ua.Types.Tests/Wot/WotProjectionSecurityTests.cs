@@ -50,6 +50,51 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotProjectionSecurityTests
     {
         /// <summary>
+        /// Security qualification preserves exact UTF-8 bytes with RFC 3986 component escaping.
+        /// </summary>
+        /// <param name="sourceName">The source's manifest alias.</param>
+        /// <param name="schemeName">The authored scheme name in both owner domains.</param>
+        /// <param name="encodedSource">The expected escaped source component.</param>
+        /// <param name="encodedScheme">The expected escaped scheme component.</param>
+        [TestCase("pump", "opcua_sc", "pump", "opcua_sc")]
+        [TestCase(UnreservedName, UnreservedName, UnreservedName, UnreservedName)]
+        [TestCase("a:b", "c%d", "a%3Ab", "c%25d")]
+        [TestCase("a%3Ab", "q:s:a:b", "a%253Ab", "q%3As%3Aa%3Ab")]
+        [TestCase("a/b", "c d+e", "a%2Fb", "c%20d%2Be")]
+        [TestCase("\u00e9", "\u00e9", "%C3%A9", "%C3%A9")]
+        [TestCase("e\u0301", "e\u0301", "e%CC%81", "e%CC%81")]
+        [TestCase("\ud83d\ude80", "\ud83d\ude80", "%F0%9F%9A%80", "%F0%9F%9A%80")]
+        public async Task SecurityNamesUseExactUtf8PercentEncodingAsync(
+            string sourceName, string schemeName, string encodedSource, string encodedScheme)
+        {
+            JsonObject projection = Projection();
+            projection["uav:projects"] = new JsonArray(Manifest(sourceName, "urn:source"));
+            projection["securityDefinitions"] = new JsonObject
+            {
+                [schemeName] = new JsonObject { ["scheme"] = "basic" }
+            };
+            projection["security"] = schemeName;
+
+            WotConversionResult<WotDocument> result = await ResolveAsync(
+                projection, new Dictionary<string, JsonObject>
+                {
+                    ["urn:source"] = Source("value", schemeName, "nosec")
+                }).ConfigureAwait(false);
+            using WotDocument view = result.Value.Required();
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            string sourceSecurity = "q:s:" + encodedSource + ":" + encodedScheme;
+            string ownerSecurity = "q:p:" + encodedScheme;
+            Assert.That(Security(view, "value"), Is.EqualTo(sourceSecurity));
+            Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo(ownerSecurity));
+            Assert.That(view.SecurityDefinitions.Keys, Is.EquivalentTo(new[] { sourceSecurity, ownerSecurity }));
+            Assert.That(view.SecurityDefinitions[sourceSecurity].GetProperty("scheme").GetString(),
+                Is.EqualTo("nosec"));
+            Assert.That(view.SecurityDefinitions[ownerSecurity].GetProperty("scheme").GetString(),
+                Is.EqualTo("basic"));
+        }
+
+        /// <summary>
         /// Local security requirements and URI-template closure retain the projection's scheme ownership.
         /// </summary>
         /// <param name="map">The local affordance map.</param>
@@ -111,20 +156,20 @@ namespace Opc.Ua.Types.Tests.Wot
             JsonElement selectedForm = selected.GetProperty("forms")[0];
             if (requirement == "affordance")
             {
-                Assert.That(selected.GetProperty("security").GetString(), Is.EqualTo("q:p:YXV0aA"));
+                Assert.That(selected.GetProperty("security").GetString(), Is.EqualTo("q:p:auth"));
             }
             if (selectedForm.TryGetProperty("security", out JsonElement security))
             {
                 Assert.That(security.ValueKind == JsonValueKind.Array
-                    ? security[0].GetString() : security.GetString(), Is.EqualTo("q:p:YXV0aA"));
+                    ? security[0].GetString() : security.GetString(), Is.EqualTo("q:p:auth"));
             }
             else
             {
                 Assert.That(requirement, Is.Not.EqualTo("form"),
                     "An explicit form requirement must not disappear during resolution.");
-                Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo("q:p:YXV0aA"));
+                Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo("q:p:auth"));
             }
-            Assert.That(view.SecurityDefinitions["q:p:YXV0aA"].GetProperty("scheme").GetString(),
+            Assert.That(view.SecurityDefinitions["q:p:auth"].GetProperty("scheme").GetString(),
                 Is.EqualTo("basic"));
             Assert.That(selected.TryGetProperty("uav:resolvedFrom", out _), Is.False);
         }
@@ -170,11 +215,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             JsonElement selected = view.RootElement.GetProperty(map).GetProperty(enumerated ? "selected" : "value");
             JsonElement security = selected.GetProperty("security");
-            Assert.That((array ? security[0] : security).GetString(), Is.EqualTo("q:s:c291cmNl:YXV0aA"));
-            Assert.That(view.SecurityDefinitions["q:s:c291cmNl:YXV0aA"].GetProperty("scheme").GetString(),
+            Assert.That((array ? security[0] : security).GetString(), Is.EqualTo("q:s:source:auth"));
+            Assert.That(view.SecurityDefinitions["q:s:source:auth"].GetProperty("scheme").GetString(),
                 Is.EqualTo("basic"));
             Assert.That(selected.GetProperty("forms")[0].GetProperty("security")[0].GetString(),
-                Is.EqualTo("q:s:c291cmNl:YXV0aA"));
+                Is.EqualTo("q:s:source:auth"));
         }
 
         /// <summary>
@@ -185,7 +230,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase(true)]
         public async Task ReviewedAffordanceRequirementCannotSelectAnotherSourcesAnonymousScheme(bool reversed)
         {
-            const string raw = "q:s:YV9i:Yw";
+            const string raw = "q:s:a_b:c";
             JsonObject projection = Projection();
             JsonObject victim = Manifest("source", "urn:victim");
             JsonObject other = Manifest("a_b", "urn:other");
@@ -203,7 +248,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string required = view.Properties["victim"].GetProperty("security").GetString().Required();
-            Assert.That(required, Is.EqualTo("q:s:c291cmNl:cTpzOllWOWk6WXc"));
+            Assert.That(required, Is.EqualTo("q:s:source:q%3As%3Aa_b%3Ac"));
             Assert.That(view.SecurityDefinitions[required].GetProperty("scheme").GetString(), Is.EqualTo("basic"));
             Assert.That(view.SecurityDefinitions[raw].GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
         }
@@ -231,8 +276,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             Assert.That(view.Properties["value"].GetProperty("security").GetString(),
-                Is.EqualTo("q:s:c291cmNl:YXV0aA"));
-            Assert.That(view.SecurityDefinitions["q:s:c291cmNl:YXV0aA"].GetProperty("scheme").GetString(),
+                Is.EqualTo("q:s:source:auth"));
+            Assert.That(view.SecurityDefinitions["q:s:source:auth"].GetProperty("scheme").GetString(),
                 Is.EqualTo("basic"));
             Assert.That(view.Properties["value"].TryGetProperty("forms", out _), Is.False);
         }
@@ -281,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(equivalent), string.Join("; ", result.Diagnostics));
             if (equivalent)
             {
-                Assert.That(view.Required().SecurityDefinitions[host ? "q:p:YXV0aA" : "q:s:c291cmNl:YXV0aA"]
+                Assert.That(view.Required().SecurityDefinitions[host ? "q:p:auth" : "q:s:source:auth"]
                     .GetProperty("scheme").GetString(), Is.EqualTo("basic"));
             }
             else
@@ -320,8 +365,8 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(view.SecurityDefinitions, Has.Count.EqualTo(2));
             string leftSecurity = Security(view, "left");
             string rightSecurity = Security(view, "right");
-            Assert.That(leftSecurity, Is.EqualTo("q:s:YV9i:Yw"));
-            Assert.That(rightSecurity, Is.EqualTo("q:s:YQ:Yl9j"));
+            Assert.That(leftSecurity, Is.EqualTo("q:s:a_b:c"));
+            Assert.That(rightSecurity, Is.EqualTo("q:s:a:b_c"));
             Assert.That(view.SecurityDefinitions[leftSecurity].GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
             Assert.That(view.SecurityDefinitions[rightSecurity].GetProperty("scheme").GetString(), Is.EqualTo("basic"));
             Assert.That(sources["urn:source:right"]["security"]!.GetValue<string>(), Is.EqualTo("b_c"));
@@ -333,7 +378,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task ProjectionOwnedNamesCannotImpersonateQualifiedSourceSecurity()
         {
-            const string authored = "q:s:YV9i:Yw";
+            const string authored = "q:s:a_b:c";
             JsonObject projection = Projection();
             JsonObject host = Manifest("host", "urn:source:host");
             host.Remove("uav:selectAll");
@@ -368,15 +413,15 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(Security(view, "left"), Is.EqualTo("q:s:YV9i:Yw"));
-            Assert.That(Security(view, "host"), Is.EqualTo("q:p:cTpzOllWOWk6WXc"));
-            Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo("q:p:cTpzOllWOWk6WXc"));
+            Assert.That(Security(view, "left"), Is.EqualTo("q:s:a_b:c"));
+            Assert.That(Security(view, "host"), Is.EqualTo("q:p:q%3As%3Aa_b%3Ac"));
+            Assert.That(view.RootElement.GetProperty("security").GetString(), Is.EqualTo("q:p:q%3As%3Aa_b%3Ac"));
             Assert.That(view.Properties["host"].GetProperty("security").GetString(),
-                Is.EqualTo("q:p:cTpzOllWOWk6WXc"));
+                Is.EqualTo("q:p:q%3As%3Aa_b%3Ac"));
             Assert.That(view.SecurityDefinitions, Has.Count.EqualTo(2));
-            Assert.That(view.SecurityDefinitions["q:s:YV9i:Yw"].GetProperty("scheme").GetString(),
+            Assert.That(view.SecurityDefinitions["q:s:a_b:c"].GetProperty("scheme").GetString(),
                 Is.EqualTo("nosec"));
-            Assert.That(view.SecurityDefinitions["q:p:cTpzOllWOWk6WXc"].GetProperty("scheme").GetString(),
+            Assert.That(view.SecurityDefinitions["q:p:q%3As%3Aa_b%3Ac"].GetProperty("scheme").GetString(),
                 Is.EqualTo("basic"));
             Assert.That(projection["security"]!.GetValue<string>(), Is.EqualTo(authored));
         }
@@ -423,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.EqualTo(consistent), string.Join("; ", result.Diagnostics));
             if (consistent)
             {
-                Assert.That(view.Required().SecurityDefinitions["q:s:YQ:Yw"].GetProperty("scheme").GetString(),
+                Assert.That(view.Required().SecurityDefinitions["q:s:a:c"].GetProperty("scheme").GetString(),
                     Is.EqualTo("nosec"));
             }
             else
@@ -505,12 +550,12 @@ namespace Opc.Ua.Types.Tests.Wot
             string selected = projectionOwned
                 ? view.RootElement.GetProperty("security").GetString().Required()
                 : Security(view, "value");
-            Assert.That(selected, Is.EqualTo(projectionOwned ? "q:p:Yw" : "q:s:YQ:Yw"));
+            Assert.That(selected, Is.EqualTo(projectionOwned ? "q:p:c" : "q:s:a:c"));
             JsonElement combo = view.SecurityDefinitions[selected];
             Assert.That(combo.GetProperty("allOf")[0].GetString(),
-                Is.EqualTo(projectionOwned ? "q:p:YXV0aA" : "q:s:YQ:YXV0aA"));
+                Is.EqualTo(projectionOwned ? "q:p:auth" : "q:s:a:auth"));
             Assert.That(combo.GetProperty("allOf")[1].GetString(),
-                Is.EqualTo(projectionOwned ? "q:p:bm9uZQ" : "q:s:YQ:bm9uZQ"));
+                Is.EqualTo(projectionOwned ? "q:p:none" : "q:s:a:none"));
             Assert.That(combo.GetProperty("vendor:data").GetProperty("allOf")[0].GetString(), Is.EqualTo("auth"));
             Assert.That(combo.GetProperty("vendor:data").GetProperty("allOf")[1].GetString(), Is.EqualTo("none"));
         }
@@ -552,7 +597,7 @@ namespace Opc.Ua.Types.Tests.Wot
             if (accepted)
             {
                 Assert.That(view.Required().SecurityDefinitions, Has.Count.EqualTo(3));
-                Assert.That(Security(view, "value"), Is.EqualTo("q:s:YQ:YQ"));
+                Assert.That(Security(view, "value"), Is.EqualTo("q:s:a:a"));
             }
             else
             {
@@ -578,7 +623,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.SecurityDefinitions["q:s:YQ:Yw"].GetProperty("allOf")[0].GetString(),
+            Assert.That(view.SecurityDefinitions["q:s:a:c"].GetProperty("allOf")[0].GetString(),
                 Is.EqualTo("literal-metadata"));
         }
 
@@ -681,5 +726,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(source.Object, options);
             return await resolver.ResolveAsync(document).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// Every ASCII byte that security qualification must preserve.
+        /// </summary>
+        private const string UnreservedName = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
     }
 }

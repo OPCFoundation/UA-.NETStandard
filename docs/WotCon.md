@@ -1740,8 +1740,13 @@ newer state.
 Projection inputs retain source context/location/provenance; host routing owns
 forms/security/URI variables, not source DataTypes. Supporting definitions share
 bounded document/node/byte/depth budgets. Security names are qualified by source
-(`q:s:<B64u(sourceName)>:<B64u(schemeName)>`) or host (`q:p:<B64u(schemeName)>`);
-combos must be complete/acyclic and cannot confer host credentials on source origins.
+(`q:s:<E(sourceName)>:<E(schemeName)>`) or host (`q:p:<E(schemeName)>`).
+`E` percent-encodes the exact UTF-8 bytes using uppercase hexadecimal, preserves only
+RFC 3986 unreserved bytes (`A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`), and performs no
+Unicode normalization. Dependency-support names continue to use unpadded base64url.
+Generated security keys therefore differ from the historical base64url spelling;
+consumers must use the names in the resolved TD rather than deriving or caching the old spelling.
+Combos must be complete/acyclic and cannot confer host credentials on source origins.
 Literal instance values/opaque metadata are not searched for references.
 
 ### Dry-run validation

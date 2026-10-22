@@ -54,9 +54,9 @@ namespace Opc.Ua.Types.Tests.Wot
     /// Every algorithm the vectors cover is implemented at least twice: once by
     /// the specification's own Python validators and once here. The two only
     /// agree if they are measured against the same values, which is what the
-    /// vector file is for - and why this suite reads the published bytes rather
-    /// than restating the cases. A disagreement then becomes a failing test on
-    /// both sides at once instead of a discovery at interop.
+    /// vector file is for. The historical projection-security inputs also run
+    /// against explicit current expectations because their published base64url
+    /// names predate the percent-encoding contract.
     /// </para>
     /// <para>
     /// The file is vendored and its SHA-256 pinned. An upstream edit therefore
@@ -450,10 +450,10 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that projection security domains match the vectors.
+        /// Verifies current security qualification using the historical vector inputs.
         /// </summary>
         [Test]
-        public async Task ProjectionSecurityDomainsMatchTheVectors()
+        public async Task ProjectionSecurityDomainsUseCurrentNamesForHistoricalVectorInputs()
         {
             foreach (JsonElement test in Cases("projectionSecurityNames"))
             {
@@ -510,7 +510,14 @@ namespace Opc.Ua.Types.Tests.Wot
                 using WotDocument? resolved = result.Value;
                 Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
                 Assert.That(resolved, Is.Not.Null);
-                string expected = test.GetProperty("name").GetString()!;
+                string expected = test.GetProperty("id").GetString() switch
+                {
+                    "source-underscore-left" => "q:s:a_b:c",
+                    "source-underscore-right" => "q:s:a:b_c",
+                    "projection-owner-domain" => "q:p:a_b_c",
+                    "utf8-scheme-name" => "q:s:pump:%E6%B3%B5",
+                    _ => throw new InvalidOperationException("Review the new security vector's current expected name.")
+                };
                 Assert.That(resolved!.SecurityDefinitions.ContainsKey(expected),
                     Is.True, test.GetProperty("id").GetString());
                 Assert.That(resolved.SecurityDefinitions[expected].GetProperty("scheme").GetString(),
