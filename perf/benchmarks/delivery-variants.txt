@@ -1,0 +1,2 @@
+# Recommended baseline: Server GC with DATAS
+server-datas|SERVER_DOTNET_gcServer=1|

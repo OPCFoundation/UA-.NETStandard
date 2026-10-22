@@ -25,7 +25,9 @@ Intent command methods role-restricted and grant Operator only to authenticated 
 
 For a finite, noninteractive run, supply `--run-seconds` (1 through 3600).
 `--pki-root` selects an absolute private certificate-store directory and
-`--autoaccept false` rejects untrusted certificates. For example:
+`--autoaccept false` rejects untrusted certificates. These options are used by
+UaLens's explicitly selected, managed .NET 10 sample launcher, which applies its
+own shorter lifetime bound. For example:
 
 ```powershell
 dotnet run --project samples\Robotics\IntentEnabledRobot\IntentEnabledRobot.csproj -- `

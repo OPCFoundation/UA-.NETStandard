@@ -1064,14 +1064,15 @@ _ = global::OpenUsd.UsdPluginRegistry.Register(core);
 _ = global::OpenUsd.UsdPluginRegistry.Register(imaging);
 ```
 
-The `OpenUsdNativeCaptureTests` integration fixture uses the
+UaLens initializes these registries when its native viewport is explicitly
+activated. The `OpenUsdNativeCaptureTests` integration fixture uses the
 same initialization contract to exercise default and named cameras,
 repeated captures, scene replacement, and recovery after a missing camera.
 Registry initialization does not repair missing native libraries or
 nonportable native-library search paths.
 Linux capture hosts also need the system graphics libraries, including
 `libOpenGL.so.0` and the Vulkan loader. The shared CI action provisions
-these prerequisites for the Vision test shards.
+these prerequisites for both the Vision and desktop test shards.
 
 RID-less Linux hosts must also expose the application output directory and its
 `runtimes/linux-x64/native` directory through `LD_LIBRARY_PATH` **before** starting
@@ -1168,6 +1169,10 @@ data type also fail. In particular, absent or wrongly typed `Detections` and
 array is a valid empty result, and absent optional members remain absent.
 Media status-classification reads use their separate inline-delivery status
 semantics described in [media gating](#64-media-gating).
+
+[UaLens Companion specification tasks](UaLens.md#companion-specification-tasks) provides a managed desktop
+consumer of these clients: published inspection, explicitly authorized simulated
+media/inference/feedback and a geometry-only SVG overlay export.
 
 ### Discovery
 
