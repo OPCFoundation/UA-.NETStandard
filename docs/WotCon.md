@@ -856,8 +856,14 @@ generations, View tokens, or events.
 `LastDependencyAttempt` records a completed actual attempt. Initially absent
 observations report `BadWaitingForInitialData`. Logical reads follow the default;
 exact-Version reads do not. Decode `WoTDependencySnapshotDataType` through the
-Session's registered factory/message context. Authorization protects target
-disclosure. Validate reports unperformed format/compatibility policies as
+Session's registered factory/message context. Remote observation reads require the
+management policy and native Read/Browse authorization on the source group and
+exact Version, and on every captured target's local registry origin, group and
+exact Version. A denied or unavailable target fails the entire read without a
+partial value or target identifiers in diagnostics. Pruning a target therefore
+makes remote disclosure fail closed; it does not erase the retained committed
+observation. These checks cover local registry pins, not an authorization policy
+for arbitrary federated or non-registry providers. Validate reports unperformed format/compatibility policies as
 `Skipped`, not passed. See [capture contracts](#dependency-capture-and-observations).
 
 ### 11.4 Binder integration seam

@@ -351,7 +351,7 @@ namespace Opc.Ua.WotCon.Server
             return digests.ToImmutable();
         }
 
-        private ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(
+        private async ValueTask<AttributeSimpleReadResult> ReadDependencyObservationAsync(
             ISystemContext context,
             string groupId,
             string resourceId,
@@ -375,7 +375,7 @@ namespace Opc.Ua.WotCon.Server
                     WotResourceVersion? version = string.IsNullOrEmpty(versionId)
                         ? resource?.DefaultVersion
                         : resource?.FindVersion(versionId);
-                    if (version is null)
+                    if (resource is null || version is null)
                     {
                         status = StatusCodes.BadNodeIdUnknown;
                     }
@@ -389,12 +389,210 @@ namespace Opc.Ua.WotCon.Server
                         }
                         else
                         {
-                            value = Variant.FromStructure(observation.ToDataType());
+                            if (context is SessionSystemContext
+                                {
+                                    OperationContext: OperationContext operationContext
+                                })
+                            {
+                                status = await ValidateDependencyObservationAccessAsync(
+                                    operationContext,
+                                    groupId,
+                                    resourceId,
+                                    versionId,
+                                    resource,
+                                    version,
+                                    observation,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                            if (ServiceResult.IsGood(status))
+                            {
+                                value = Variant.FromStructure(observation.ToDataType());
+                            }
                         }
                     }
                 }
             }
-            return new ValueTask<AttributeSimpleReadResult>(new AttributeSimpleReadResult(status, value));
+            return new AttributeSimpleReadResult(status, value);
+        }
+
+        /// <summary>
+        /// Authorizes complete local origin and exact-Version pins before disclosing an observation.
+        /// </summary>
+        /// <param name="operationContext">The remote caller's operation context.</param>
+        /// <param name="groupId">The source group identity.</param>
+        /// <param name="resourceId">The source resource identity.</param>
+        /// <param name="versionId">The requested exact Version, or empty for the default Version.</param>
+        /// <param name="sourceResource">The source resource captured for this read.</param>
+        /// <param name="sourceVersion">The source Version captured for this read.</param>
+        /// <param name="observation">The complete observation to authorize.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        private async ValueTask<ServiceResult> ValidateDependencyObservationAccessAsync(
+            OperationContext operationContext,
+            string groupId,
+            string resourceId,
+            string versionId,
+            WotResource sourceResource,
+            WotResourceVersion sourceVersion,
+            WotDependencySnapshot observation,
+            CancellationToken cancellationToken)
+        {
+            var checkedNodeIds = new HashSet<NodeId>();
+            WotRegistrySnapshot registrySnapshot = m_registry.Current;
+            WotResource? currentSourceResource = registrySnapshot.FindResource(groupId, resourceId);
+            WotResourceVersion? currentSourceVersion = string.IsNullOrEmpty(versionId)
+                ? currentSourceResource?.DefaultVersion
+                : currentSourceResource?.FindVersion(versionId);
+            if (!ReferenceEquals(currentSourceResource, sourceResource) ||
+                !ReferenceEquals(currentSourceVersion, sourceVersion))
+            {
+                return StatusCodes.BadUserAccessDenied;
+            }
+
+            async ValueTask<ServiceResult> ValidateNodeAsync(NodeId nodeId)
+            {
+                if (!checkedNodeIds.Add(nodeId))
+                {
+                    return ServiceResult.Good;
+                }
+                if (m_manager.FindPredefinedNode<NodeState>(nodeId) is null)
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                ServiceResult permission;
+                try
+                {
+                    permission = await m_manager.ValidateRolePermissionsAsync(
+                        operationContext,
+                        nodeId,
+                        PermissionType.Read | PermissionType.Browse,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (ServiceResultException exception)
+                {
+                    return new ServiceResult(exception.StatusCode);
+                }
+                return ServiceResult.IsGood(permission)
+                    ? ServiceResult.Good
+                    : new ServiceResult(permission.StatusCode);
+            }
+
+            WotRegistryOrigin? configuredOrigin = m_manager.Coordinator.RegistryOrigin;
+            ServiceResult sourceGroupPermission = await ValidateNodeAsync(
+                GroupNodeId(groupId)).ConfigureAwait(false);
+            if (ServiceResult.IsBad(sourceGroupPermission))
+            {
+                return sourceGroupPermission;
+            }
+            ServiceResult sourceVersionPermission = await ValidateNodeAsync(
+                ResourceNodeId(groupId, resourceId, sourceVersion.VersionId)).ConfigureAwait(false);
+            if (ServiceResult.IsBad(sourceVersionPermission))
+            {
+                return sourceVersionPermission;
+            }
+            var checkedIdentities = new HashSet<(
+                string OriginUri,
+                string ServerUri,
+                ExpandedNodeId RegistryNodeId,
+                string VersionXid,
+                ExpandedNodeId VersionNodeId)>();
+
+            foreach (WotDependencyTargetPin target in observation.Targets.ToList())
+            {
+                WotRegistryOrigin? origin = target.OriginRegistry;
+                if (origin is null ||
+                    configuredOrigin is null ||
+                    !string.Equals(origin.OriginUri, configuredOrigin.OriginUri, StringComparison.Ordinal) ||
+                    !string.Equals(origin.ServerUri, configuredOrigin.ServerUri, StringComparison.Ordinal) ||
+                    !origin.RegistryNodeId.Equals(configuredOrigin.RegistryNodeId) ||
+                    target.VersionNodeId.IsNull ||
+                    target.VersionNodeId.ServerIndex != 0)
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                var identity = (
+                    origin.OriginUri,
+                    origin.ServerUri,
+                    origin.RegistryNodeId,
+                    target.VersionXid,
+                    target.VersionNodeId);
+                if (!checkedIdentities.Add(identity))
+                {
+                    continue;
+                }
+
+                NodeId originNodeId = ExpandedNodeId.ToNodeId(
+                    origin.RegistryNodeId, m_manager.Server.NamespaceUris);
+                NodeId targetVersionNodeId = ExpandedNodeId.ToNodeId(
+                    target.VersionNodeId, m_manager.Server.NamespaceUris);
+                if (originNodeId.IsNull ||
+                    targetVersionNodeId.IsNull ||
+                    !origin.RegistryNodeId.Equals(NodeId.ToExpandedNodeId(
+                        originNodeId, m_manager.Server.NamespaceUris)))
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                WotResource? targetResource = null;
+                WotResourceVersion? targetVersion = null;
+                foreach (WotResource candidate in registrySnapshot.AllResources())
+                {
+                    foreach (WotResourceVersion candidateVersion in candidate.Versions)
+                    {
+                        if (!string.Equals(
+                            WotDependencyGraph.VersionXid(candidate, candidateVersion),
+                            target.VersionXid,
+                            StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+                        if (targetVersion is not null)
+                        {
+                            return StatusCodes.BadUserAccessDenied;
+                        }
+                        targetResource = candidate;
+                        targetVersion = candidateVersion;
+                    }
+                }
+
+                if (targetResource is null || targetVersion is null)
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                NodeId expectedVersionNodeId = ResourceNodeId(
+                    targetResource.GroupId, targetResource.ResourceId, targetVersion.VersionId);
+                if (!expectedVersionNodeId.Equals(targetVersionNodeId) ||
+                    !target.VersionNodeId.Equals(NodeId.ToExpandedNodeId(
+                        expectedVersionNodeId, m_manager.Server.NamespaceUris)))
+                {
+                    return StatusCodes.BadUserAccessDenied;
+                }
+
+                ServiceResult originPermission = await ValidateNodeAsync(originNodeId).ConfigureAwait(false);
+                if (ServiceResult.IsBad(originPermission))
+                {
+                    return originPermission;
+                }
+                ServiceResult groupPermission = await ValidateNodeAsync(
+                    GroupNodeId(targetResource.GroupId)).ConfigureAwait(false);
+                if (ServiceResult.IsBad(groupPermission))
+                {
+                    return groupPermission;
+                }
+                ServiceResult versionPermission = await ValidateNodeAsync(
+                    targetVersionNodeId).ConfigureAwait(false);
+                if (ServiceResult.IsBad(versionPermission))
+                {
+                    return versionPermission;
+                }
+            }
+
+            return ReferenceEquals(m_registry.Current, registrySnapshot) &&
+                ReferenceEquals(m_manager.Coordinator.RegistryOrigin, configuredOrigin)
+                ? ServiceResult.Good
+                : new ServiceResult(StatusCodes.BadUserAccessDenied);
         }
 
         private void ApplyWotResourceProperties(
