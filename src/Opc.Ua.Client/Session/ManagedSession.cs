@@ -2776,6 +2776,10 @@ namespace Opc.Ua.Client
         {
             IReverseConnectionSource source = m_reverseConnectionSource!;
             TimeSpan? remaining = GetRemainingReconnectTime(budget);
+            if (remaining == TimeSpan.Zero)
+            {
+                throw ReverseConnectionBudgetExhausted();
+            }
             using CancellationTokenSource? budgetCts = remaining == null
                 ? null
                 : m_timeProvider.CreateCancellationTokenSource(remaining.Value);
@@ -2795,6 +2799,7 @@ namespace Opc.Ua.Client
             catch (OperationCanceledException) when (!ct.IsCancellationRequested && budgetCts != null &&
                 budgetCts.IsCancellationRequested)
             {
+                await WaitUntilBudgetExhaustedAsync(budget!, ct).ConfigureAwait(false);
                 throw ReverseConnectionBudgetExhausted();
             }
 
@@ -2807,9 +2812,26 @@ namespace Opc.Ua.Client
             {
                 CloseUnusedConnection(connection);
                 ct.ThrowIfCancellationRequested();
+                await WaitUntilBudgetExhaustedAsync(budget!, ct).ConfigureAwait(false);
                 throw ReverseConnectionBudgetExhausted();
             }
             return connection;
+        }
+
+        /// <summary>
+        /// Waits until the reconnect budget reports itself exhausted. The budget
+        /// timer can fire before the budget's own clock reaches the limit; the
+        /// state machine would then start one more attempt with the time left.
+        /// </summary>
+        private async Task WaitUntilBudgetExhaustedAsync(IRetryBudget budget, CancellationToken ct)
+        {
+            while (!budget.IsExhausted && budget.ElapsedSinceFirstAttempt > TimeSpan.Zero &&
+                GetRemainingReconnectTime(budget) is TimeSpan remaining)
+            {
+                await m_timeProvider.Delay(
+                    remaining > TimeSpan.Zero ? remaining : TimeSpan.FromMilliseconds(1),
+                    ct).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
