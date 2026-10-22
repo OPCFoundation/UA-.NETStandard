@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
@@ -63,12 +64,17 @@ namespace Opc.Ua.Client.Subscriptions
         /// server-side identifiers and pre-populated with the saved
         /// monitored items; the caller is responsible for issuing the
         /// take-over via <c>TransferSubscriptions</c>.</param>
+        /// <param name="initialize">Optional callback that must be
+        /// invoked with the new subscription before it starts its first
+        /// create pass, so hooks it installs are in place before
+        /// <c>CreateSubscription</c> can complete on the server.</param>
         /// <returns></returns>
         IManagedSubscription CreateSubscription(
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
             IMessageAckQueue queue,
-            SubscriptionLoadState? loadState = null);
+            SubscriptionLoadState? loadState = null,
+            Action<IManagedSubscription>? initialize = null);
 
         /// <summary>
         /// Publish service
