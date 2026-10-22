@@ -474,8 +474,22 @@ namespace Opc.Ua.Client
         {
             try
             {
-                ConfiguredEndpoint? endpoint = await m_endpointResolver
-                    .ResolveAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                ConfiguredEndpoint? endpoint;
+                if (m_endpointResolver is DefaultRedundantServerEndpointResolver resolver)
+                {
+                    (endpoint, ServiceResult? discoveryError) = await resolver
+                        .ResolveWithDiscoveryErrorAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                    if (endpoint == null && discoveryError != null)
+                    {
+                        // A failed discovery is reported as such, not as a missing endpoint.
+                        throw new ServiceResultException(discoveryError);
+                    }
+                }
+                else
+                {
+                    endpoint = await m_endpointResolver
+                        .ResolveAsync(key.ServerUri, currentEndpoint, ct).ConfigureAwait(false);
+                }
                 ct.ThrowIfCancellationRequested();
                 if (endpoint != null)
                 {

@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests.ManagedSession
 {
@@ -988,6 +989,31 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// Verifies that a discovery failure of the default resolver is reported instead of BadNotFound.
+        /// </summary>
+        [Test]
+        public async Task FetchRedundancyInfoReportsDiscoveryFailureOfDefaultResolverAsync()
+        {
+            var resolver = new DefaultRedundantServerEndpointResolver(
+                NUnitTelemetryContext.Create(),
+                new FailingDiscovery(StatusCodes.BadCertificateUntrusted));
+            var handler = new DefaultServerRedundancyHandler(resolver, new FixedTimeProvider(s_now));
+            Mock<ISession> mockSession = CreateMockSession(
+                redundancySupport: (int)RedundancySupport.Warm,
+                serviceLevel: ServiceLevels.Maximum,
+                serverUris: ["urn:refusing"]);
+
+            ServerRedundancyInfo info = await handler.FetchRedundancyInfoAsync(
+                mockSession.Object).ConfigureAwait(false);
+
+            Assert.That(info.RedundantServers, Has.Count.EqualTo(1));
+            Assert.That(info.RedundantServers[0].Endpoint, Is.Null);
+            Assert.That(
+                info.RedundantServers[0].ResolutionError?.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
         /// Verifies that the status of every redundancy node read is reported, including refused nodes.
         /// </summary>
         [Test]
@@ -1356,6 +1382,35 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             }
 
             private readonly DateTimeOffset m_utcNow;
+        }
+
+        private sealed class FailingDiscovery : IRedundantServerDiscovery
+        {
+            public FailingDiscovery(StatusCode statusCode)
+            {
+                m_statusCode = statusCode;
+            }
+
+            public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                string serverUri,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                throw new ServiceResultException(m_statusCode);
+            }
+
+            public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+                Uri discoveryUri,
+                EndpointConfiguration configuration,
+                ITelemetryContext telemetry,
+                CancellationToken ct)
+            {
+                throw new ServiceResultException(m_statusCode);
+            }
+
+            private readonly StatusCode m_statusCode;
         }
     }
 }
