@@ -138,6 +138,13 @@ namespace Opc.Ua.Client
 
             WireStateMachineCallbacks();
             SubscribeCertificateChanges();
+            if (redundancyHandler != null &&
+                redundancyOptions.ServiceLevelMonitoringInterval is TimeSpan monitoringInterval)
+            {
+                m_backgroundWork.Run(
+                    "MonitorServiceLevel",
+                    shutdown => MonitorServiceLevelAsync(monitoringInterval, shutdown));
+            }
         }
 
         /// <summary>
@@ -3763,5 +3770,18 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             [NetworkAddress] Uri? endpoint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Information,
+            Message = "ManagedSession: The Server in use reports ServiceLevel {ServiceLevel}; failing over: {Reason}")]
+        public static partial void ManagedSessionServiceLevelFailover(
+            this ILogger logger,
+            byte serviceLevel,
+            string reason);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Warning,
+            Message = "ManagedSession: ServiceLevel monitoring could not complete a failover.")]
+        public static partial void ManagedSessionServiceLevelMonitoringFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 }

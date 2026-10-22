@@ -79,15 +79,34 @@ namespace Opc.Ua.Client
         public bool ProbeMemberServiceLevel { get; init; }
 
         /// <summary>
-        /// Validates that both bounds are usable.
+        /// When set, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> of the Server in use at
+        /// this interval while it is connected to a non-transparent redundant Server set. When the
+        /// <c>ServiceLevel</c> leaves the Healthy subrange (OPC 10000-4 §6.6.2.4.2) the redundancy snapshot is
+        /// refreshed, including the member probe when <see cref="ProbeMemberServiceLevel"/> is set, and a
+        /// failover decision that warrants it starts <see cref="ManagedSession.FailoverAsync"/> to the target
+        /// the redundancy handler selects. Default <see langword="null"/>: the session fails over only when
+        /// the reconnect policy gives up or the application calls <see cref="ManagedSession.FailoverAsync"/>.
+        /// </summary>
+        public TimeSpan? ServiceLevelMonitoringInterval { get; init; }
+
+        /// <summary>
+        /// Validates that both bounds and the monitoring interval are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>.
+        /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>, or when
+        /// <see cref="ServiceLevelMonitoringInterval"/> is set and not positive.
         /// </exception>
         public void Validate()
         {
             ValidateTimeout(RefreshTimeout, nameof(RefreshTimeout));
             ValidateTimeout(PeerDiscoveryTimeout, nameof(PeerDiscoveryTimeout));
+            if (ServiceLevelMonitoringInterval is TimeSpan interval && interval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ServiceLevelMonitoringInterval),
+                    interval,
+                    "The ServiceLevel monitoring interval must be positive.");
+            }
         }
 
         private static void ValidateTimeout(TimeSpan value, string name)
