@@ -389,7 +389,7 @@ connects on first use and caches the resulting session.
 
 ### Reconnect semantics on `ManagedSession`
 
-When the underlying session's keep-alive fires a bad status, the
+With the default admission settings, when the underlying session's keep-alive fires a bad status, the
 connection state machine transitions `Connected → Reconnecting` and:
 
 1. Pauses the service gate so all in-flight and incoming service calls
@@ -419,6 +419,46 @@ A failed initial connection has a different lifetime: `CreateAsync` disposes the
 half-built session and throws when its policy is exhausted. See
 [initial-connect failure](#failure-of-the-initial-connect) and
 [established-session recovery](#recovery-after-an-established-connection-is-exhausted).
+
+Communication-failure admission can be configured separately from retry backoff:
+
+| `ManagedSessionOptions` setting | Default | Behavior |
+|---|---|---|
+| `ReconnectOnCommunicationFailure` | `true` | Admits automatic recovery on communication failure. When false, bad keep-alives are still reported, but do not start recovery, and an exhausted cycle is not automatically rearmed. |
+| `KeepAliveFailureThreshold` | `1` | Requires this many consecutive failed keep-alives before automatic recovery. A healthy keep-alive or successful recovery resets the count. Zero is invalid. |
+| `UseSharedChannelManager` | `true` | Uses a supplied/DI-resolved manager when available. False requires a session-owned transport and leaves the borrowed manager untouched. |
+
+Initial connection retries and explicit `ReconnectAsync` calls remain available,
+including with communication-failure recovery disabled. Explicit operations
+still follow the configured retry policy within their cycle. Certificate and
+identity refresh triggers retain their separate controls; disabling communication
+admission does not disable those triggers.
+
+Non-default admission controls require a session-owned transport: a shared
+manager could otherwise reconnect before the session's keep-alive threshold or
+on behalf of another participant. Unsupported combinations are rejected instead
+of silently bypassing policy. Select `UseSharedChannelManager = false` when using
+these settings through DI, or use the fluent equivalent:
+
+```csharp
+await using ManagedSession session = await new ManagedSessionBuilder(config, telemetry)
+    .UseEndpoint(endpoint)
+    .WithoutChannelManager()
+    .WithCommunicationRecovery(enabled: true, keepAliveFailureThreshold: 3)
+    .ConnectAsync(ct);
+```
+
+`WithChannelManager(...)` explicitly re-enables sharing; the last transport
+selection wins. A custom factory must also supply a session-owned transport.
+Known managed-channel factories are rejected before connecting; opaque factories
+are checked before exposing a connected facade and rejected sessions are disposed
+without disposing the borrowed manager. Explicit replacement channels cannot
+reintroduce a managed channel into a session-owned configuration.
+
+Builder-managed HTTPS resilience and automatically constructed Web API transports
+require a channel manager. They cannot be silently dropped by
+`WithoutChannelManager()`: use default shared recovery, or supply an appropriate
+session-owned transport factory without builder-managed HTTPS resilience.
 
 When a `ManagedSession` is backed by `IClientChannelManager`, participant reactivation uses the
 manager's `IChannelReconnectPolicy`. The default `ExponentialBackoffChannelReconnectPolicy`
@@ -1176,8 +1216,10 @@ For the removal of the old `EventSource` providers (including this one) and migr
 `builder.AddClient(...)` registers `IClientChannelManager` as a
 singleton resolved from `OpcUaClientOptions.Configuration`. The
 `ManagedSessionBuilder` produced by `AddClient` automatically wires
-the DI-resolved channel manager into every new `ManagedSession`. To
-override, call `WithChannelManager(...)` on the builder explicitly.
+the DI-resolved channel manager into each new `ManagedSession` by default.
+Set `Session.UseSharedChannelManager = false` to opt out, or call
+`WithoutChannelManager()` on the builder. To supply a different shared manager,
+call `WithChannelManager(...)` explicitly.
 
 ```csharp
 services.AddOpcUa()

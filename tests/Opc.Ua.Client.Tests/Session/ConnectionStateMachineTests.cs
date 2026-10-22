@@ -1392,8 +1392,9 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 Is.EqualTo(ConnectionState.Closed));
         }
 
-        [Test]
-        public async Task EstablishedSessionStartsAnotherCycleAfterExhaustionBackoffAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task EstablishedSessionRetriesAfterExhaustionRespectAutomaticRecoveryAsync(bool automaticRecovery)
         {
             var time = new FakeTimeProvider();
             var policy = new ReconnectPolicy
@@ -1403,7 +1404,10 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 MaxRetries = 1,
                 JitterFactor = 0
             };
-            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time);
+            await using var machine = new ConnectionStateMachine(policy, m_logger, timeProvider: time)
+            {
+                AutomaticRecoveryEnabled = automaticRecovery
+            };
             machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
             int attempts = 0;
             machine.ReconnectAsync = _ => Task.FromResult(++attempts == 1
@@ -1428,6 +1432,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 async () => await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false));
 
             time.Advance(TimeSpan.FromMinutes(1));
+            if (!automaticRecovery)
+            {
+                Assert.That(machine.State, Is.EqualTo(ConnectionState.Disconnected));
+                Assert.That(attempts, Is.EqualTo(1));
+                machine.TriggerReconnect();
+            }
             await machine.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
 
             Assert.That(machine.State, Is.EqualTo(ConnectionState.Connected));

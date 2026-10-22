@@ -1317,6 +1317,7 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.WithSessionName(sessionOptions.SessionName)
                    .WithSessionTimeout(sessionOptions.SessionTimeout)
                    .WithCheckDomain(sessionOptions.CheckDomain)
+                   .WithCommunicationRecovery(sessionOptions.ReconnectOnCommunicationFailure, sessionOptions.KeepAliveFailureThreshold)
                    .WithChannelReconnectTimeout(sessionOptions.ChannelReconnectTimeout)
                    .WithReconnectPolicy(_ => sessionOptions.ReconnectPolicy);
 
@@ -1386,10 +1387,17 @@ namespace Microsoft.Extensions.DependencyInjection
                 builder.UseReverseConnectionSource(sessionOptions.ReverseConnectionSource);
             }
 
-            IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
-            if (mgr != null)
+            if (sessionOptions.UseSharedChannelManager)
             {
-                builder.WithChannelManager(mgr);
+                IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
+                if (mgr != null)
+                {
+                    builder.WithChannelManager(mgr);
+                }
+            }
+            else
+            {
+                builder.WithoutChannelManager();
             }
 
             // The application's policy set, so a policy contributed through
@@ -1793,6 +1801,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 bool hasConfigurationProvider = false)
             {
                 var failures = new List<string>();
+                if (options.Session.KeepAliveFailureThreshold == 0)
+                {
+                    failures.Add("Session.KeepAliveFailureThreshold must be at least one.");
+                }
                 if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(options.Session.ChannelReconnectTimeout))
                 {
                     failures.Add(

@@ -106,6 +106,65 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task DependencyInjectionPreservesCommunicationRecoveryOptionsAsync()
+        {
+            var options = new ManagedSessionOptions
+            {
+                Endpoint = CreateEndpoint(),
+                ReconnectOnCommunicationFailure = false,
+                KeepAliveFailureThreshold = 3,
+                UseSharedChannelManager = false
+            };
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(client =>
+            {
+                client.Configuration = CreateConfig();
+                client.Session = options;
+            });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var connector = provider.GetRequiredService<IManagedSessionConnector>();
+            ManagedSessionOptions? observed = null;
+            var stop = new InvalidOperationException("Options observed before connecting.");
+
+            InvalidOperationException? error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await connector.ConnectAsync(provider, options, builder =>
+                {
+                    observed = builder.Build();
+                    throw stop;
+                }, CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(error, Is.SameAs(stop));
+            Assert.That(observed, Is.Not.Null);
+            Assert.That(observed!.ReconnectOnCommunicationFailure, Is.False);
+            Assert.That(observed.KeepAliveFailureThreshold, Is.EqualTo(3u));
+            Assert.That(observed.UseSharedChannelManager, Is.False);
+        }
+
+        [Test]
+        public async Task DependencyInjectionRejectsZeroKeepAliveFailureThresholdAsync()
+        {
+            var options = new ManagedSessionOptions
+            {
+                Endpoint = CreateEndpoint(),
+                KeepAliveFailureThreshold = 0
+            };
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddClient(client =>
+            {
+                client.Configuration = CreateConfig();
+                client.Session = options;
+            });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            var connector = provider.GetRequiredService<IManagedSessionConnector>();
+
+            OptionsValidationException? error = await Assert.ThrowsAsync<OptionsValidationException>(async () =>
+                await connector.ConnectAsync(provider, options,
+                    _ => Assert.Fail("Invalid options must be rejected before configuring a connection."),
+                    CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(error!.Failures, Has.Some.Contains("KeepAliveFailureThreshold"));
+        }
+
+        [Test]
         public async Task CachedSessionConnectSurvivesCancelledWaitersAndRetriesAfterFailureAsync()
         {
             var pending = new TaskCompletionSource<ApplicationConfiguration>(
