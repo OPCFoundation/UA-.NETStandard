@@ -935,10 +935,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 dictionary[map[ii].Href] = map[ii].Json;
             }
-            return new WotProjectionResolver(new MapResolver(dictionary), new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            return new WotProjectionResolver(new MapResolver(dictionary));
         }
 
         private static JsonElement Property(WotDocument view, string name)
@@ -2198,5 +2195,58 @@ namespace Opc.Ua.Types.Tests.Wot
           ]
         }
         """;
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task RejectsRetiredDraftMarkersBeforeResolvingSourcesAsync(
+            bool includesProjectionKind)
+        {
+            JsonObject root = (JsonObject)JsonNode.Parse(SelfProjectionJson)!;
+            root["@type"] = new JsonArray("uav:projection");
+            if (includesProjectionKind)
+            {
+                root["uav:projectionKind"] = "ThingDescription";
+            }
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+            var source = new Moq.Mock<IWotThingResolver>(Moq.MockBehavior.Strict);
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
+            });
+            source.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task ResolvesCurrentWorkedExampleWithStrictDefaultsAsync()
+        {
+            var source = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["./01-opcua-td-pump.jsonld"] = PumpSourceJson,
+                ["./06-anchored-paths-and-device-identity.jsonld"] = IdentitySourceJson
+            });
+            var resolver = new WotProjectionResolver(source);
+            string projection = PreparePredictiveProjection();
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            Assert.That(WotProjection.IsProjection(view), Is.False);
+            AssertResolvedExample(PredictiveResolvedJson, projection, view,
+                ("q:s:pump:", "./01-opcua-td-pump.jsonld", PumpSourceJson),
+                ("q:s:identity:", "./06-anchored-paths-and-device-identity.jsonld", IdentitySourceJson));
+        }
     }
 }

@@ -974,7 +974,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return capture.MaxJsonDepth == m_converterOptions.MaxJsonDepth &&
                 capture.DocumentSetMode == m_converterOptions.DocumentSetMode &&
-                capture.ProjectionCompatibilityMode == m_converterOptions.ProjectionCompatibilityMode &&
                 capture.BinderRevision == BinderVersion &&
                 capture.StrictBindings == StrictBindings &&
                 capture.RetirementPolicy == RetirementPolicy &&

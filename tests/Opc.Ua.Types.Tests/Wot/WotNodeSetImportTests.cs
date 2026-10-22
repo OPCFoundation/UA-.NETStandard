@@ -57,7 +57,7 @@ namespace Opc.Ua.Types.Tests.Wot
     public class WotNodeSetImportTests
     {
         [Test]
-        public void EveryPublishedExampleThatConvertsCanBeImported()
+        public void EveryRegressionFixtureThatConvertsCanBeImported()
         {
             IReadOnlyList<string> names = ExampleNames();
             Assert.That(names, Is.Not.Empty, "The example fixtures should be embedded.");
@@ -84,7 +84,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 imported,
                 Is.Not.Empty,
-                "At least one published example should convert to a NodeSet.");
+                "At least one local regression fixture should convert to a NodeSet.");
         }
 
         [Test]

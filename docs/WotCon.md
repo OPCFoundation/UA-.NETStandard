@@ -1199,8 +1199,8 @@ projection document is that construct in WoT.
 A current plan is stored as an ordinary Thing Description or Thing Model, with
 the corresponding TD/TM format and media type. Its `@type` contains
 `uav:projection` and exactly one ordinary root role: `Thing` or
-`tm:ThingModel`. The `uav:projectionKind` term and projection-specific registry
-format and media type are legacy-only and require explicit compatibility. It
+`tm:ThingModel`. The retired `uav:projectionKind` term and projection-specific
+registry format and media type are rejected; there is no compatibility mode. It
 declares:
 
 | Term | Meaning |
@@ -1212,13 +1212,9 @@ declares:
 | `uav:sourceDigest` | `sha-256:<hex>` pinning a source revision |
 | `uav:namePrefix` | prefix applied to bulk-selected names |
 
-Earlier drafts mixing projection and TD/TM markers require explicit
-`ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11`
-on converter/registry options; that mode does not repair invalid current controls.
 Direct upserts supply Format, ContentType, and result Kind.
 `DetectProjectionFormat` classifies role; the registry FileType adapter uses
-classification, not draft compatibility. Asset upload/ordinary conversion reject
-unresolved plans.
+classification. Asset upload/ordinary conversion reject unresolved plans.
 
 Bulk/supporting projection-routed forms need the host's real
 `IWotProjectionFormProvider` (DI or converter options). DI wins over registry

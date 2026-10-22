@@ -65,17 +65,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool initialized = false;
             try
             {
-                m_registry = await m_runtime.CreateRegistryAsync(
-                    compatibilityMode: WotProjectionCompatibilityMode.DraftProjection11).ConfigureAwait(false);
+                m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
                 m_host = new FakeWotProjectionHost();
                 m_converter = new ViewSourceConverter();
                 m_viewHost = new LifecycleWotViewProjectionHost(m_runtime.Lifecycle);
                 m_coordinator = new WotMaterializationCoordinator(
                     m_registry, m_runtime.Observe(m_host.RecordCommitted),
-                    converterOptions: new WotNodeSetConverterOptions
-                    {
-                        ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                    },
                     documentConverter: m_converter,
                     viewProjectionHost: m_viewHost)
                 {

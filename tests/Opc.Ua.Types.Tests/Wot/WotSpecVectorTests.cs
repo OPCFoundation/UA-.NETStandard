@@ -46,22 +46,18 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Runs the shared cross-language golden vectors the WoT Binding
-    /// specification publishes.
+    /// Runs the local cross-language regression vectors for the WoT Binding
+    /// implementation.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Every algorithm the vectors cover is implemented at least twice: once by
-    /// the specification's own Python validators and once here. The two only
-    /// agree if they are measured against the same values, which is what the
-    /// vector file is for. The historical projection-security inputs also run
-    /// against explicit current expectations because their published base64url
-    /// names predate the percent-encoding contract.
+    /// The vector corpus is retained as local test data. It is not an
+    /// authoritative copy of the current specification or conformance
+    /// evidence. Projection-security regression inputs are checked against
+    /// explicit expected values in stack tests.
     /// </para>
     /// <para>
-    /// The file is vendored and its SHA-256 pinned. An upstream edit therefore
-    /// arrives as a failure naming the old digest, not as a silent change of
-    /// what this suite is proving.
+    /// Its SHA-256 is pinned to catch accidental local edits.
     /// </para>
     /// <para>
     /// Not every group has a stack API to measure yet. Those are named in
@@ -78,22 +74,20 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotSpecVectorTests
     {
         /// <summary>
-        /// The SHA-256 of the vendored vector file at the pinned specification
-        /// commit.
+        /// The SHA-256 recorded for the local regression vector file.
         /// </summary>
         private const string VectorDigest =
             "6406b6ab5307ad0719c73bc22ee305a8415e9661504c9ea7777ec8155ac82c7d";
 
         [Test]
-        public void TheVendoredVectorsAreThePublishedBytes()
+        public void TheLocalRegressionVectorsMatchTheirRecordedDigest()
         {
             byte[] bytes = ReadVectors();
 
             Assert.That(
                 Sha256Hex(bytes),
                 Is.EqualTo(VectorDigest),
-                "The vectors are vendored byte-for-byte from the pinned specification " +
-                "commit. Re-vendor and re-pin the digest together.");
+                "The local regression vector file changed; review the update and digest.");
         }
 
         private static string Sha256Hex(byte[] bytes)
@@ -450,7 +444,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies current security qualification using the historical vector inputs.
+        /// Verifies current security qualification using local regression vector inputs.
         /// </summary>
         [Test]
         public async Task ProjectionSecurityDomainsUseCurrentNamesForHistoricalVectorInputs()

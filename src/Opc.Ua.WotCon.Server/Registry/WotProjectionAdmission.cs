@@ -35,7 +35,7 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// Checks projection-specific metadata and plan shape without resolving sources
+    /// Checks official projection metadata and plan shape without resolving sources
     /// or claiming ordinary TD/TM or native compatibility validation.
     /// </summary>
     internal static class WotProjectionAdmission
@@ -47,67 +47,50 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="kind">The wo t document kind enum.</param>
         /// <param name="format">The stored format.</param>
         /// <param name="contentType">The content type.</param>
-        /// <param name="compatibilityMode">The compatibility mode.</param>
         public static string? GetError(
             WotDocument document,
             WoTDocumentKindEnum kind,
             string format,
-            string contentType,
-            WotProjectionCompatibilityMode compatibilityMode)
+            string contentType)
         {
             bool projection = WotProjection.IsProjection(document);
             bool hasProjectionManifest = document.TryGetUav("projects", out _);
-            if (!projection && !hasProjectionManifest && !UsesProjectionFormat(format, contentType))
+            if (!projection && !hasProjectionManifest && !UsesRetiredProjectionFormat(format, contentType))
             {
                 return null;
             }
 
             if (!projection)
             {
-                return "A projection manifest or legacy projection format requires the uav:projection role in @type.";
+                return "A projection manifest or retired projection format requires the uav:projection role in @type.";
             }
 
-            bool legacySyntax = document.TryGetUav("projectionKind", out _);
-            bool legacyMetadata = UsesProjectionFormat(format, contentType);
-            if (legacySyntax || legacyMetadata)
+            if (document.TryGetUav("projectionKind", out _) ||
+                UsesRetiredProjectionFormat(format, contentType))
             {
-                if (compatibilityMode != WotProjectionCompatibilityMode.DraftProjection11)
-                {
-                    return "The projection-specific format, media type, and uav:projectionKind are legacy-only; " +
-                        "explicit compatibility must be selected to admit them.";
-                }
-                if (!legacySyntax ||
-                    !string.Equals(format, WotProjection.LegacyFormat, StringComparison.Ordinal) ||
-                    !string.Equals(contentType, WotProjection.LegacyContentType, StringComparison.Ordinal))
-                {
-                    return $"Legacy projection admission requires Format '{WotProjection.LegacyFormat}', " +
-                        $"ContentType '{WotProjection.LegacyContentType}', and uav:projectionKind.";
-                }
+                return "Only the official projection syntax and ordinary TD/TM format and media type are supported.";
             }
-            else
+            string expectedFormat = kind switch
             {
-                string expectedFormat = kind switch
-                {
-                    WoTDocumentKindEnum.ThingDescription => "WoT-TD/1.1",
-                    WoTDocumentKindEnum.ThingModel => "WoT-TM/1.1",
-                    _ => string.Empty
-                };
-                string expectedContentType = kind switch
-                {
-                    WoTDocumentKindEnum.ThingDescription => "application/td+json",
-                    WoTDocumentKindEnum.ThingModel => "application/tm+json",
-                    _ => string.Empty
-                };
-                if (!string.Equals(format, expectedFormat, StringComparison.Ordinal) ||
-                    !string.Equals(contentType, expectedContentType, StringComparison.Ordinal))
-                {
-                    return $"A projection plan is stored as its ordinary TD/TM format and media type: " +
-                        $"'{expectedFormat}' and '{expectedContentType}'.";
-                }
+                WoTDocumentKindEnum.ThingDescription => "WoT-TD/1.1",
+                WoTDocumentKindEnum.ThingModel => "WoT-TM/1.1",
+                _ => string.Empty
+            };
+            string expectedContentType = kind switch
+            {
+                WoTDocumentKindEnum.ThingDescription => "application/td+json",
+                WoTDocumentKindEnum.ThingModel => "application/tm+json",
+                _ => string.Empty
+            };
+            if (!string.Equals(format, expectedFormat, StringComparison.Ordinal) ||
+                !string.Equals(contentType, expectedContentType, StringComparison.Ordinal))
+            {
+                return $"A projection plan is stored as its ordinary TD/TM format and media type: " +
+                    $"'{expectedFormat}' and '{expectedContentType}'.";
             }
 
             var diagnostics = new List<WotDiagnostic>();
-            var parsed = WotProjection.Parse(document, diagnostics, compatibilityMode);
+            var parsed = WotProjection.Parse(document, diagnostics);
             if (diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error))
             {
                 return string.Join("; ", diagnostics);
@@ -130,10 +113,13 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// </summary>
         /// <param name="format">The stored format.</param>
         /// <param name="contentType">The content type.</param>
-        public static bool UsesProjectionFormat(string format, string contentType)
+        public static bool UsesRetiredProjectionFormat(string format, string contentType)
         {
             return format.StartsWith("WoT-Projection/", StringComparison.Ordinal) ||
-                string.Equals(contentType, WotProjection.LegacyContentType, StringComparison.Ordinal);
+                string.Equals(
+                    contentType,
+                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
+                    StringComparison.Ordinal);
         }
     }
 }

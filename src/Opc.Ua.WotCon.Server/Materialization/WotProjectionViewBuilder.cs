@@ -162,8 +162,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return new WotViewProjectionResult(null, diagnostics);
             }
 
-            var projection = WotProjection.Parse(
-                projectionDocument, diagnostics, m_options.ProjectionCompatibilityMode);
+            var projection = WotProjection.Parse(projectionDocument, diagnostics);
             if (projection is null || HasErrors(diagnostics))
             {
                 return new WotViewProjectionResult(null, diagnostics);
@@ -244,8 +243,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
 
             var groups = new List<WotOrganizationalGroup>();
-            WotProjection? projection = WotProjection.Parse(
-                document, diagnostics, m_options.ProjectionCompatibilityMode);
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
             if (projection is not null && !projection.OrganizingLinks.IsNull)
             {
                 for (int i = 0; i < projection.OrganizingLinks.Count; i++)

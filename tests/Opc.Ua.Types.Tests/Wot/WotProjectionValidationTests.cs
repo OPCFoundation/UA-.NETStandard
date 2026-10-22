@@ -353,8 +353,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             using WotDocument document = Parse(json);
             diagnostics = [];
-            var projection = WotProjection.Parse(
-                document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
+            var projection = WotProjection.Parse(document, diagnostics);
             Assert.That(projection, Is.Not.Null, "The document carries uav:projection.");
             return projection;
         }
@@ -420,6 +419,62 @@ namespace Opc.Ua.Types.Tests.Wot
               "uav:projects": {{sources ?? Source()}}
             }
             """;
+        }
+
+        [Test]
+        public void CurrentProjectionParsesWithStrictDefaults()
+        {
+            using WotDocument document = Parse(Projection());
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(projection!.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription));
+                Assert.That(projection.Scenario, Is.EqualTo("http://example.com/scenario/Simple"));
+                Assert.That(projection.Sources.Count, Is.EqualTo(1));
+                Assert.That(projection.Sources[0].Href, Is.EqualTo("urn:sourceA"));
+                Assert.That(diagnostics, Is.Empty);
+            });
+        }
+
+        [TestCase(true, "uav:projectionKind")]
+        [TestCase(false, "@type")]
+        public void RetiredDraftMarkersAreRejectedWithStrictDiagnostics(
+            bool includesProjectionKind,
+            string expectedReference)
+        {
+            string json = Projection();
+            if (includesProjectionKind)
+            {
+                json = json.Replace(
+                    "\"uav:projects\":",
+                    "\"uav:projectionKind\":\"ThingDescription\",\"uav:projects\":",
+                    StringComparison.Ordinal);
+            }
+            else
+            {
+                json = json.Replace(
+                    "\"@type\": [\"Thing\", \"uav:projection\"]",
+                    "\"@type\": [\"uav:projection\"]",
+                    StringComparison.Ordinal);
+            }
+
+            using WotDocument document = Parse(json);
+            var diagnostics = new List<WotDiagnostic>();
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+            WotDiagnostic? error = diagnostics.Find(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(error, Is.Not.Null, string.Join("; ", diagnostics));
+                Assert.That(error!.Location?.Reference, Is.EqualTo(expectedReference));
+            });
         }
     }
 }

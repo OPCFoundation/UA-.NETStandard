@@ -16,16 +16,9 @@
     "run - which is what WotBindingTraceabilityTests enforces, and what keeps a",
     "renamed or deleted test from silently emptying a clause.",
     "",
-    "'pinnedTo' records the specification commit the clause numbering was read",
-    "from. Re-pin it, and re-read the clause titles, when the specification lands",
-    "its published revision; the fixture manifest beside this file pins the same",
-    "commit and the two are checked against each other."
+    "This is a stack-side test locator, not an authoritative copy of the current",
+    "specification text or a report of conformance to the official baseline."
   ],
-  "pinnedTo": {
-    "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "db08f850e8801863006208b40f4bd3614febea8b",
-    "bindingRevision": "1.1"
-  },
   "clauses": [
     {
       "clause": "10",

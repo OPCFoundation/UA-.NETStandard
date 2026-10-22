@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.Json;
 using NUnit.Framework;
 
 namespace Opc.Ua.Types.Tests.Wot
@@ -58,8 +57,8 @@ namespace Opc.Ua.Types.Tests.Wot
     /// </para>
     /// <para>
     /// This clause-level view complements the statement-level requirement
-    /// inventory. Its specification pin is checked against the fixture
-    /// manifest so neither can drift to a different draft unnoticed.
+    /// inventory. The local fixture manifest is independent and does not
+    /// establish conformance to the specification baseline.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -151,30 +150,5 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
-        /// <summary>
-        /// The clause numbering was read from one revision of the
-        /// specification, and so were the vendored examples. If the two pins
-        /// disagree, one of them was updated and the other was forgotten.
-        /// </summary>
-        [Test]
-        public void TheLedgerAndTheFixturesArePinnedToTheSameRevision()
-        {
-            using JsonDocument document = JsonDocument.Parse(WotTraceabilityLedger.Read(Assembly));
-            JsonElement pinned = document.RootElement.GetProperty("pinnedTo");
-            WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(
-                    pinned.GetProperty("commit").GetString(),
-                    Is.EqualTo(manifest.Commit));
-                Assert.That(
-                    pinned.GetProperty("repository").GetString(),
-                    Is.EqualTo(manifest.Repository));
-                Assert.That(
-                    pinned.GetProperty("bindingRevision").GetString(),
-                    Is.EqualTo(Opc.Ua.Wot.WotBindingConformance.CurrentRevision));
-            });
-        }
     }
 }

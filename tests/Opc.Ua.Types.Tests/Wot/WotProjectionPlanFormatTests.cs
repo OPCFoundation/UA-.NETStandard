@@ -163,33 +163,28 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that legacy projection syntax requires explicit compatibility.
+        /// Verifies that a retired draft projection is rejected before source resolution.
         /// </summary>
         [Test]
-        public async Task ResolverRequiresTheExplicitCompatibilityOptionForLegacyPlans()
+        public async Task ResolverRejectsRetiredDraftPlansBeforeResolvingSources()
         {
             JsonObject root = LegacyPlan("ThingDescription");
-            var source = new Mock<IWotThingResolver>();
-            source.Setup(resolver => resolver.ResolveThingAsync(
-                    "urn:plan:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(SourceJson)));
+            var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
-            var current = new WotProjectionResolver(source.Object);
-            var compatible = new WotProjectionResolver(source.Object, new WotNodeSetConverterOptions
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
             {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
             });
-
-            WotConversionResult<WotDocument> rejected = await current.ResolveAsync(document).ConfigureAwait(false);
-            WotConversionResult<WotDocument> accepted = await compatible.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument? resolved = accepted.Value;
-
-            Assert.That(rejected.Success, Is.False);
-            Assert.That(rejected.Value, Is.Null);
-            Assert.That(accepted.Success, Is.True, string.Join("; ", accepted.Diagnostics));
-            Assert.That(WotProjection.IsProjection(resolved.Required()), Is.False);
-            source.Verify(resolver => resolver.ResolveThingAsync(
-                "urn:plan:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+            source.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -221,6 +216,33 @@ namespace Opc.Ua.Types.Tests.Wot
                 Is.EqualTo("https://source.test/value"));
             source.Verify(resolver => resolver.ResolveThingAsync(
                 "urn:plan:leaf", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a projection source cannot declare the retired draft media type.
+        /// </summary>
+        [Test]
+        public async Task ResolverRejectsRetiredProjectionSourceMediaTypeBeforeResolvingAsync()
+        {
+            JsonObject root = Plan("ThingDescription");
+            root["uav:projects"]![0]!["type"] =
+                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
+            var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
+            });
+            source.VerifyNoOtherCalls();
         }
 
         /// <summary>
@@ -257,43 +279,6 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that undefined compatibility modes are rejected at both public boundaries.
-        /// </summary>
-        [TestCase(-1)]
-        [TestCase(2)]
-        [TestCase(int.MaxValue)]
-        public void UndefinedCompatibilityModesAreRejectedAtBothPublicBoundaries(int value)
-        {
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(Plan("ThingModel").ToJsonString()));
-            var diagnostics = new List<WotDiagnostic>();
-            var mode = (WotProjectionCompatibilityMode)value;
-            var source = new Mock<IWotThingResolver>();
-
-            Assert.Throws<ArgumentOutOfRangeException>(() => WotProjection.Parse(document, diagnostics, mode));
-            Assert.Throws<ArgumentOutOfRangeException>(() => new WotProjectionResolver(
-                source.Object, new WotNodeSetConverterOptions { ProjectionCompatibilityMode = mode }));
-            Assert.That(diagnostics, Is.Empty);
-            source.VerifyNoOtherCalls();
-        }
-
-        /// <summary>
-        /// Verifies that legacy syntax cannot also declare the ordinary root role.
-        /// </summary>
-        [Test]
-        public void LegacySyntaxCannotAlsoDeclareTheOrdinaryRootRole()
-        {
-            JsonObject root = LegacyPlan("ThingDescription");
-            ((JsonArray)root["@type"]!).Add("Thing");
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
-            var diagnostics = new List<WotDiagnostic>();
-
-            WotProjection.Parse(document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
-
-            Assert.That(diagnostics.Any(diagnostic => diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
-                diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
-        }
-
-        /// <summary>
         /// Verifies that malformed root roles cannot be hidden by a projection marker.
         /// </summary>
         [TestCase("[\"uav:projection\",null]")]
@@ -314,59 +299,6 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(diagnostics.Any(diagnostic => diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
-        }
-
-        /// <summary>
-        /// Verifies that legacy identifiers remain clearly marked and retired vocabulary is unknown.
-        /// </summary>
-        [Test]
-        public void CurrentPlanMetadataAndResultKindTermAreDiscoverable()
-        {
-            Assert.That(WotProjection.LegacyFormat, Is.EqualTo("WoT-Projection/1.1"));
-            Assert.That(WotProjection.LegacyContentType, Is.EqualTo(
-                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""));
-            Assert.That(WotProjection.ConformanceUnitName, Is.EqualTo("WoT-Projection"));
-            Assert.That(WotBindingConformance.IsKnownTerm("uav:projectionKind"), Is.False);
-        }
-
-        /// <summary>
-        /// Verifies that ordinary node set conversion rejects a projection marker even with an object role.
-        /// </summary>
-        /// <param name="legacy">The legacy flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task OrdinaryNodeSetConversionRejectsAProjectionMarkerEvenWithAnObjectRole(bool legacy)
-        {
-            JsonObject root = Plan("ThingDescription");
-            root["uav:id"] = "nsu=urn:projection:namespace;i=11";
-            root["uav:namespaceUri"] = "urn:projection:namespace";
-            root["uav:name"] = "Projection";
-            ((JsonArray)root["@type"]!).Add("uav:object");
-            if (legacy)
-            {
-                root = LegacyPlan("ThingDescription");
-                root["uav:id"] = "nsu=urn:projection:namespace;i=11";
-                root["uav:namespaceUri"] = "urn:projection:namespace";
-                root["uav:name"] = "Projection";
-                ((JsonArray)root["@type"]!).Add("uav:object");
-            }
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
-            var options = new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = legacy
-                    ? WotProjectionCompatibilityMode.DraftProjection11
-                    : WotProjectionCompatibilityMode.None
-            };
-            var source = new Mock<IWotThingResolver>();
-
-            WotConversionResult<UANodeSet> result = await WotNodeSetConverter.ToNodeSetResultAsync(
-                document, options, source.Object).ConfigureAwait(false);
-
-            Assert.That(result.Success, Is.False, string.Join("; ", result.Diagnostics));
-            Assert.That(result.Value, Is.Null);
-            Assert.That(result.Diagnostics.Any(diagnostic => diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid),
-                Is.True, string.Join("; ", result.Diagnostics));
-            source.VerifyNoOtherCalls();
         }
 
         private static JsonObject Plan(string? kind)
@@ -415,5 +347,78 @@ namespace Opc.Ua.Types.Tests.Wot
               }
             }
             """;
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task StrictResolverRejectsRetiredDraftMarkersBeforeResolvingSourcesAsync(
+            bool includesProjectionKind)
+        {
+            JsonObject root = Plan("ThingDescription");
+            root["@type"] = new JsonArray("uav:projection");
+            if (includesProjectionKind)
+            {
+                root["uav:projectionKind"] = "ThingDescription";
+            }
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+            var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
+            });
+            source.VerifyNoOtherCalls();
+        }
+
+        [TestCase("projection-kind")]
+        [TestCase("node-class-role")]
+        [TestCase("marker-only-root-role")]
+        public async Task OrdinaryNodeSetConversionRejectsRetiredProjectionMarkersInStrictModeAsync(
+            string markerCase)
+        {
+            JsonObject root = Plan("ThingDescription");
+            root["uav:id"] = "nsu=urn:projection:namespace;i=11";
+            root["uav:namespaceUri"] = "urn:projection:namespace";
+            root["uav:name"] = "Projection";
+            if (markerCase == "projection-kind")
+            {
+                root["uav:projectionKind"] = "ThingDescription";
+            }
+            else if (markerCase == "marker-only-root-role")
+            {
+                root["@type"] = new JsonArray("uav:projection");
+            }
+            else
+            {
+                ((JsonArray)root["@type"]!).Add("uav:object");
+            }
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
+            var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
+
+            WotConversionResult<UANodeSet> result =
+                await WotNodeSetConverter.ToNodeSetResultAsync(
+                    document,
+                    new WotNodeSetConverterOptions(),
+                    source.Object).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Success, Is.False);
+                Assert.That(result.Value, Is.Null);
+                Assert.That(result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True,
+                    string.Join("; ", result.Diagnostics));
+            });
+            source.VerifyNoOtherCalls();
+        }
     }
 }

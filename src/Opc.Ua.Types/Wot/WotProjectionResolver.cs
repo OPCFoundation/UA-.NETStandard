@@ -125,7 +125,7 @@ namespace Opc.Ua.Wot
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 
-            var projection = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+            var projection = WotProjection.Parse(document, diagnostics);
             if (projection is null || HasErrors(diagnostics))
             {
                 return new WotConversionResult<WotDocument>(null, diagnostics);
@@ -309,24 +309,17 @@ namespace Opc.Ua.Wot
                 }
 
                 CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
-                bool legacyPlan = m_options.ProjectionCompatibilityMode ==
-                    WotProjectionCompatibilityMode.DraftProjection11 &&
-                    projectionDocument.TryGetUav("projectionKind", out _);
-                if (!legacyPlan)
+                foreach (ResolvedAffordance member in selection.Members)
                 {
-                    foreach (ResolvedAffordance member in selection.Members)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (member.Enumerated &&
+                        member.Source.Source.Routing == WotProjectionRouting.Projection &&
+                        (member.Value["forms"] is not JsonArray authoredForms || authoredForms.Count == 0))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (member.Enumerated &&
-                            member.Source.Source.Routing == WotProjectionRouting.Projection &&
-                            (member.Value["forms"] is not JsonArray authoredForms || authoredForms.Count == 0))
-                        {
-                            AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
-                                "An enumerated projection-routed affordance must declare its own serving forms.",
-                                "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
-                        }
+                        AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                            "An enumerated projection-routed affordance must declare its own serving forms.",
+                            "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
                     }
-
                 }
                 if (CountErrors(diagnostics) > errorsAtEntry ||
                     !await SupplyHostFormsAsync(
@@ -345,10 +338,10 @@ namespace Opc.Ua.Wot
                     if ((hostRouting || executableSource) &&
                         (member.Value["forms"] is not JsonArray forms || forms.Count == 0))
                     {
-                        if (legacyPlan || (!hostRouting && !hasDocumentContext))
+                        if (!hostRouting && !hasDocumentContext)
                         {
                             AddWarning(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
-                                "Draft or context-free structural projection processing did not establish " +
+                                "Context-free structural projection processing did not establish " +
                                 "executable forms; the result is not executable-TD admission proof.",
                                 "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
                             continue;
@@ -597,7 +590,7 @@ namespace Opc.Ua.Wot
                 try
                 {
                     int errorsBeforeParse = CountErrors(diagnostics);
-                    var nested = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+                    var nested = WotProjection.Parse(document, diagnostics);
                     if (nested is null || CountErrors(diagnostics) != errorsBeforeParse)
                     {
                         return null;
@@ -664,10 +657,7 @@ namespace Opc.Ua.Wot
             {
                 return true;
             }
-            return WotProjection.IsProjection(document) &&
-                m_options.ProjectionCompatibilityMode == WotProjectionCompatibilityMode.DraftProjection11 &&
-                document.TryGetUav("projectionKind", out _) &&
-                string.Equals(source.MediaType, WotProjection.LegacyContentType, StringComparison.Ordinal);
+            return false;
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(

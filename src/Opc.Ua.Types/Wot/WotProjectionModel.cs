@@ -32,24 +32,6 @@ using System.Text.Json;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Selects explicitly supported legacy projection-plan processing.
-    /// </summary>
-    public enum WotProjectionCompatibilityMode
-    {
-        /// <summary>
-        /// Admit OPC 10101-2 plans whose result kind is carried by the ordinary
-        /// Thing or Thing Model root role.
-        /// </summary>
-        None,
-
-        /// <summary>
-        /// Explicitly admit legacy plans that use <c>uav:projectionKind</c> and
-        /// the projection-specific registry format.
-        /// </summary>
-        DraftProjection11
-    }
-
-    /// <summary>
     /// The endpoint a consumer of a projected affordance talks to.
     /// </summary>
     /// <remarks>

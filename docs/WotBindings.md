@@ -1551,57 +1551,18 @@ round-trip guarantees.
 
 ### How this is checked
 
-The historical specification manifest contains twenty-seven worked examples, including
-a projection document and its resolved view. `WotSpecExampleTests` embeds these snapshots
-and runs the projection through the resolver, checking selection, bulk naming and
-provenance against the resolved example. Security closure names are checked separately
-against explicit current percent-encoding expectations: the historical resolved example
-predates that contract and retains base64url names. The shared vector corpus is likewise
-preserved byte-for-byte; `ProjectionSecurityDomainsUseCurrentNamesForHistoricalVectorInputs`
-uses its security inputs with explicit current expected names rather than its superseded
-base64url outputs. Example 22 is additionally converted to check that a document
-binds the node it projects to an existing type (Section 5.2.1) and constrains
-its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
-added by revision 1.1 and pin the corrections it made: a document whose texts
-are authored in German and French while the default locale is `en`
-(example 24, the code-point-first display fallback of Section 9.1.1), a Thing
-Model that projects a ReferenceType Node with `uav:inverseName` and
-`uav:symmetric` (example 25, Section 6.2.1), and one that projects a DataType
-Node (example 26, Sections 5.2 and 6.11).
+The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
+local regression fixtures. They exercise parsing, conversion, import, and
+projection behavior, including rejection of retired projection annotations.
+They are not authoritative copies of the current specification examples and
+must not be treated as evidence of current WoT conformance.
 
-`WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
-runs the examples through the whole reading pipeline — parse,
-**strict** conformance validation, conversion, then serialize, re-read and
-`Import`. A document that claims a profile covering `WoT-Modeller` has to
-convert: the claim makes conversion mandatory rather than optional.
-
-#### Keeping the vendored examples honest
-
-The examples are historical snapshots from `OPCF-Members/spec-drafts` at
-`db08f850e8801863006208b40f4bd3614febea8b`, not a snapshot of the current normative
-baseline. They are vendored byte-for-byte into
-`tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
-`eol=lf` so the checked-out bytes are the upstream bytes on every platform.
-They used to be copied by hand with no record of the source, and they drifted:
-one example gained a security floor upstream while the copy here kept the
-superseded text, and a later example never arrived at all.
-
-`spec-examples.manifest.json` beside them now records the source repository,
-branch and commit, the vocabulary revision, and the size and SHA-256 of every
-file. `WotSpecFixtureManifestTests` enforces it in three layers:
-
-| Check | Needs | What it catches |
-| --- | --- | --- |
-| manifest set, count, numbering and per-file SHA-256 | nothing — offline, from embedded resources | an edited, replaced, added or dropped example, and a gap in the `NN-` numbering that would hide a missing tail |
-| manifest provenance | nothing | a manifest that names no full source commit, or that records a revision this library does not implement |
-| byte identity against the specification checkout | a sibling `spec-drafts` checkout, or `OPCUA_WOT_SPEC_DRAFTS` | a regeneration made from the wrong source, which would record wrong hashes just as consistently |
-
-The third check is skipped, not failed, where no checkout is present, so CI needs
-neither the network nor a second repository. Re-vendoring is the explicit
-developer step `WotSpecFixtureManifestTests.RegenerateFromSpecCheckout`, which
-copies the published examples over the vendored ones and rewrites the manifest
-from `git` in the source checkout — so the diff a reviewer sees is the
-specification's diff.
+The normative baseline is the official
+[OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
+repository, merged at commit `40125acd1b65cdf291a92a67a5c6565656358e6e`.
+The local fixture manifest records those baseline coordinates separately from
+the fixture hashes; it does not assert that the fixture files were copied from
+that repository. Tests verify the checked-in fixture set and hashes offline.
 
 ### Resolving a type binding: the local context
 

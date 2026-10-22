@@ -75,7 +75,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
-            WotProjection.Parse(document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
+            WotProjection.Parse(document, diagnostics);
 
             Assert.That(
                 diagnostics.Any(d =>
@@ -103,7 +103,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
-            WotProjection.Parse(document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
+            WotProjection.Parse(document, diagnostics);
 
             Assert.That(
                 diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -305,10 +305,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static WotProjectionResolver CreateResolver(IWotThingResolver source)
         {
-            return new WotProjectionResolver(source, new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            return new WotProjectionResolver(source);
         }
 
         private static string Projection(string annotation, string routing = "projection")
@@ -406,6 +403,63 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             private readonly Dictionary<string, string> m_map;
+        }
+
+        [TestCase("\"title\":\"Speed\"", false)]
+        [TestCase("\"unit\":\"rpm\"", true)]
+        public void CurrentAnnotationFixturesParseWithStrictDefaults(
+            string annotation,
+            bool expectedAnnotationError)
+        {
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(annotation)));
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(
+                    diagnostics.Any(diagnostic =>
+                        diagnostic.Code == WotDiagnosticCode.ProjectionAnnotationNotPermitted &&
+                        diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.EqualTo(expectedAnnotationError),
+                    string.Join("; ", diagnostics));
+            });
+        }
+
+        [Test]
+        public async Task CurrentProjectionAnnotationResolvesWithStrictDefaultsAsync()
+        {
+            var source = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["./source.jsonld"] = SourceJson
+            });
+            var resolver = new WotProjectionResolver(source);
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(
+                    "\"title\":\"Condition signal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement speed = view.RootElement
+                .GetProperty("properties")
+                .GetProperty("pumpSpeed");
+            Assert.Multiple(() =>
+            {
+                Assert.That(speed.GetProperty("title").GetString(), Is.EqualTo("Condition signal"));
+                Assert.That(speed.GetProperty("type").GetString(), Is.EqualTo("number"));
+                Assert.That(
+                    speed.GetProperty("forms")[0].GetProperty("href").GetString(),
+                    Is.EqualTo("https://example.com/signal"));
+                Assert.That(WotProjection.IsProjection(view), Is.False);
+            });
         }
     }
 }

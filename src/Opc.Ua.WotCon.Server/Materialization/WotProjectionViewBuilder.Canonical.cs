@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return resolved;
             }
             var diagnostics = resolved.Diagnostics.ToList();
-            var projection = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+            var projection = WotProjection.Parse(document, diagnostics);
             if (projection is null)
             {
                 return new WotViewProjectionResult(null, diagnostics);

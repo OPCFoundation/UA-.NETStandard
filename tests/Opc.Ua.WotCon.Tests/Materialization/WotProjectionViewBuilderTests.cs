@@ -580,12 +580,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 ["urn:sourceU"] = SourceWithUnit
             };
-            var resolver = new WotProjectionResolver(
-                new MapThingResolver(map),
-                new WotNodeSetConverterOptions
-                {
-                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                });
+            var resolver = new WotProjectionResolver(new MapThingResolver(map));
             using WotDocument projection = WotDocument.Parse(Encoding.UTF8.GetBytes(SelectValueOnlyProjection));
 
             WotConversionResult<WotDocument> resolved = await resolver.ResolveAsync(projection);
@@ -653,10 +648,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 map[documents[i].Href] = documents[i].Json;
             }
             return new WotProjectionViewBuilder(
-                new MapThingResolver(map), index, new WotNodeSetConverterOptions
-                {
-                    ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                }, TestNamespaces());
+                new MapThingResolver(map), index, null, TestNamespaces());
         }
 
         private static async Task<WotViewProjectionResult> Build(
