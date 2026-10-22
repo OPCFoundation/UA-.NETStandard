@@ -186,6 +186,63 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
+        /// Every successful creation assigns a new, higher generation and retires only the
+        /// older ones; retiring an id reports its current generation and forgets it.
+        /// </summary>
+        [Test]
+        public void CreationAssignsIncreasingGenerationsAndRetirementReportsThem()
+        {
+            using ObservationSession session = CreateSession();
+            var discarded = new List<(uint, long)>();
+            session.SubscriptionAcknowledgementsDiscarded +=
+                (_, args) => discarded.Add((args.SubscriptionId, args.Generation));
+
+            session.CompleteCreation(7);
+            session.CompleteCreation(8);
+            session.CompleteCreation(7);
+            Assert.That(session.GetSubscriptionGeneration(7), Is.EqualTo(3));
+            Assert.That(session.GetSubscriptionGeneration(8), Is.EqualTo(2));
+            Assert.That(session.GetSubscriptionGeneration(0), Is.EqualTo(3));
+
+            session.OnAcknowledgementsDiscarded(7);
+            Assert.That(session.GetSubscriptionGeneration(7), Is.Zero);
+            session.OnAcknowledgementsDiscarded(8, 1);
+            Assert.That(session.GetSubscriptionGeneration(8), Is.EqualTo(2),
+                "Retiring an older generation must not forget a newer one.");
+            session.SessionCreated(new NodeId(1u), new NodeId(2u));
+
+            Assert.That(discarded, Is.EqualTo(new (uint, long)[]
+            {
+                (7, 0), (8, 1), (7, 2), (7, 3), (8, 1), (0, 3)
+            }));
+            Assert.That(session.GetSubscriptionGeneration(8), Is.Zero);
+        }
+
+        /// <summary>
+        /// The single-argument constructor retires every generation.
+        /// </summary>
+        [Test]
+        public void DiscardedWithoutGenerationRetiresEveryGeneration()
+        {
+            var args = new SubscriptionAcknowledgementsDiscardedEventArgs(7);
+
+            Assert.That(args.Generation, Is.EqualTo(long.MaxValue));
+        }
+
+        /// <summary>
+        /// Arguments created by applications report generation zero.
+        /// </summary>
+        [Test]
+        public void DeferralArgumentsWithoutResolverReportGenerationZero()
+        {
+            var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = 7, SequenceNumber = 1 };
+            var args = new PublishSequenceNumbersToAcknowledgeEventArgs([acknowledgement], []);
+
+            Assert.That(args.GetSubscriptionGeneration(acknowledgement), Is.Zero);
+            Assert.That(() => args.GetSubscriptionGeneration(null!), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
         /// Creation retires prior acknowledgement state even when the server reuses an identifier.
         /// </summary>
         [Test]

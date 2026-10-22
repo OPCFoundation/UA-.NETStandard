@@ -186,6 +186,27 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The handler sees the generation supplied by the engine, or the session's current
+        /// generation for the id when the engine supplies none.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void PrepareAcknowledgementsExposesSubscriptionGenerations(bool engineResolver)
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
+            long observed = -1;
+            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+                observed = e.GetSubscriptionGeneration(acknowledgement);
+
+            scope.Context.PrepareAcknowledgementsToSend(
+                [acknowledgement],
+                engineResolver ? _ => 42 : null);
+
+            Assert.That(observed, Is.EqualTo(engineResolver ? 42 : 0));
+        }
+
         [Test]
         public void PrepareAcknowledgementsCallbackFailureFallsBackToSendingAllAcknowledgements()
         {

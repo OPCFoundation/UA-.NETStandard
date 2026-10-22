@@ -388,12 +388,25 @@ notification or a reduction in the worker count to release its pending acknowled
 
 Each queued acknowledgement remembers the subscription that produced it and that
 subscription's message generation. Just before a Publish request is sent (and when a
-failed request returns its acknowledgements to the queue), entries are discarded if
-their subscription was removed, deleted or recreated, now uses another server id, or
-shares its server id with another subscription because the server reused the id. This
-prevents a late acknowledgement from confirming a message of a different subscription
-that the client never processed. Because stale entries are filtered when sent, deleting
+failed request returns its acknowledgements to the queue), an entry is discarded if:
+
+- its subscription was removed, deleted or recreated, or now uses another server id;
+- the server reused its server id for a subscription created later. The most recently
+  created subscription owns a reused id, and Publish responses for that id are
+  dispatched to it;
+- a later Publish response for the subscription no longer lists the message in
+  `availableSequenceNumbers`, so the server has already removed it (Part 4, 5.14.5.2);
+- a data response for the subscription listed no available sequence numbers, which
+  means the server has no retransmission queue. Part 4 says the client should then
+  not acknowledge.
+
+This prevents a late acknowledgement from confirming a message of a different subscription
+that the client never processed, and keeps deferred acknowledgements from accumulating for
+messages the server already discarded. Because stale entries are filtered when sent, deleting
 or completing one subscription does not pause or cancel Publish requests of the session.
+Validation is constant time per acknowledgement. Acknowledgements the server rejects are
+logged (`Bad_SubscriptionIdInvalid` at information level, `Bad_SequenceNumberUnknown`,
+which is expected after a retried request, at debug level).
 
 V2 publishing also honors the existing
 `ISession.PublishSequenceNumbersToAcknowledge` event. A handler can move entries
@@ -432,14 +445,61 @@ if (session is ISubscriptionAcknowledgementEvents lifecycle)
         }
     };
     lifecycle.SubscriptionAcknowledgementsDiscarded += (_, retired) =>
-        Console.WriteLine($"Retired acknowledgement scope: {retired.SubscriptionId}");
+        Console.WriteLine(
+            $"Retired acknowledgement scope: {retired.SubscriptionId} up to generation {retired.Generation}");
 }
 ```
+
+The server can reuse a subscription id, and sequence numbers restart for every new
+subscription, so an id and a sequence number alone do not identify a message. Every
+id the server assigns in a session gets a new, higher generation. The deferral callback
+exposes it per acknowledgement, and a retirement covers all state of its id (or of every
+id, when it is zero) up to and including its `Generation`:
+
+```csharp
+// Pending approvals keyed by (subscription id, generation, sequence number).
+var pending = new ConcurrentDictionary<(uint, long, uint), SubscriptionAcknowledgement>();
+
+session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+{
+    foreach (SubscriptionAcknowledgement ack in e.AcknowledgementsToSend.ToList())
+    {
+        var key = (ack.SubscriptionId, e.GetSubscriptionGeneration(ack), ack.SequenceNumber);
+        if (!IsDeliveredDownstream(key))
+        {
+            pending[key] = ack;
+            e.AcknowledgementsToSend.Remove(ack);
+            e.DeferredAcknowledgementsToSend.Add(ack);
+        }
+    }
+};
+lifecycle.SubscriptionAcknowledgementsDiscarded += (_, retired) =>
+{
+    foreach (var key in pending.Keys)
+    {
+        if ((retired.SubscriptionId == 0 || key.Item1 == retired.SubscriptionId) &&
+            key.Item2 <= retired.Generation)
+        {
+            pending.TryRemove(key, out _);
+        }
+    }
+};
+```
+
+Because a retirement names the generations it covers, it stays correct even when it is
+observed after a replacement subscription with the same id has started. The generation is
+zero for a subscription that was not created in this session (for example, one that was
+transferred to it).
 
 Completion reports matching acknowledgement/result arrays from a successful
 Publish service response, including per-acknowledgement error codes. A failed
 service request or a response with a mismatched result count does not report
-completion. The acknowledgement objects are the same instances presented by
+completion. The V2 engine also reports completion, with `Bad_SequenceNumberUnknown`
+for every entry, for acknowledgements it discards without sending because the server
+no longer holds their message or has no retransmission queue: exactly what the server
+would have answered had they been sent. So every acknowledgement of a live subscription
+eventually gets a completion, and retirement covers the rest. The acknowledgement objects
+are the same instances presented by
 the preparation callback, allowing a consumer to correlate the exact approval
 with its result, rather than removing newer state under reused numeric ids.
 Do not mutate these objects.
@@ -450,23 +510,22 @@ response was lost) can retire the corresponding processed marker. Concurrent
 requests can still retry an already-approved ACK; an identity-keyed weak approval
 table avoids retaining those request objects indefinitely.
 
-Retirement notifications identify a discarded server subscription id; zero
-means all subscription acknowledgement state. Successful subscription creation
-also retires any prior state for the returned id, since a server can reuse ids.
-Deletion, native partition
+Retirement notifications identify a discarded server subscription id and the highest
+retired generation; id zero means all subscription acknowledgement state. Successful
+subscription creation retires every older generation of the returned id, since a server
+can reuse ids. Deletion, native partition
 completion, session identity replacement and disposal retire their owned state.
 A session recreate that transfers subscriptions (`TransferSubscriptionsOnReconnect`
 for the classic engine, `TransferSubscriptionsOnRecreate` for V2) does not report
 zero, because transferred subscriptions keep their acknowledgement state; a
 subscription that fails to transfer is recreated and reported by its old id.
 The same retirement can be reported more than once (for example, on deletion and
-again on disposal), so handle the notification idempotently. A retirement is never
-reported for an id that another live subscription of the session now uses. V2 raises
-retirement notifications after Publish ingress resumes, not while it is paused.
-Capture a subscription-lifetime token before sending work to an external
-pipeline, and invalidate that token on retirement: a late completion must not
-approve a replacement subscription with reused numeric ids. A Publish request
-that was already in flight can still report completion for the retired id. Handlers
+again on disposal), so handle the notification idempotently. A retirement never
+covers the generation of a subscription created later with the same id.
+Retirement notifications are never raised while the session lock, a subscription's
+state lock or the V2 Publish pause is held; they are raised right after.
+A Publish request that was already in flight can still report completion for a
+retired generation. Handlers
 must be thread-safe, short and nonblocking, and must not wait for session/subscription
 operations. Subscriber exceptions are logged without failing protocol work.
 

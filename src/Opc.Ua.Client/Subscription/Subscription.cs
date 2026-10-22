@@ -546,13 +546,15 @@ namespace Opc.Ua.Client.Subscriptions
                             {
                                 await DeleteForRecreateAsync(oldId, token)
                                     .ConfigureAwait(false);
-                                AckQueue.DropPendingForSubscription(oldId);
+                                AckQueue.DropPendingForSubscription(this, oldId);
                             }
                             else
                             {
                                 // The pending acknowledgements under that id
-                                // now belong to the sibling; leave them.
+                                // now belong to the sibling; only this owner's
+                                // generation is retired.
                                 Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
+                                AckQueue.DropPendingForSubscription(this, oldId);
                                 StopKeepAliveTimer();
                                 OnSubscriptionDeleteCompleted();
                             }
@@ -664,6 +666,7 @@ namespace Opc.Ua.Client.Subscriptions
             await m_stateLock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                uint retiredId = Id;
                 await ResetMessageGenerationAsync(
                     _ =>
                     {
@@ -688,10 +691,16 @@ namespace Opc.Ua.Client.Subscriptions
                     },
                     _ => default,
                     ct).ConfigureAwait(false);
+                if (retiredId != 0)
+                {
+                    // The server-side subscription is gone; retire this owner's claim on it.
+                    AckQueue.DropPendingForSubscription(this, retiredId, deferNotification: true);
+                }
             }
             finally
             {
                 m_stateLock.Release();
+                AckQueue.ReportRetiredAcknowledgements();
             }
             // Wake the state manager so the next pass observes
             // !Created and runs CreateAsync.
@@ -1173,6 +1182,7 @@ namespace Opc.Ua.Client.Subscriptions
             finally
             {
                 m_stateLock.Release();
+                AckQueue.ReportRetiredAcknowledgements();
             }
 
             if (recreateRequired && !ct.IsCancellationRequested)
@@ -1313,9 +1323,11 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Publishing is not quiesced: the generation advanced, so a stale
             // acknowledgement a worker holds in flight is discarded if requeued.
-            if (retiredId != 0 && AckQueue.OwnsSubscriptionId(this, retiredId))
+            // The retirement is generation scoped, so it is reported even when a
+            // sibling still uses the id, and only after the state lock is released.
+            if (retiredId != 0)
             {
-                AckQueue.DropPendingForSubscription(retiredId);
+                AckQueue.DropPendingForSubscription(this, retiredId, deferNotification: true);
             }
         }
 

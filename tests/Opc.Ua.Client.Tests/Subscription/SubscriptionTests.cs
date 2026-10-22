@@ -990,9 +990,27 @@ namespace Opc.Ua.Client.Subscriptions
 
                 // Assert
                 Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
+                Assert.That(m_completion.DeferredRetirements, Is.EqualTo(1),
+                    "Delete runs under the state lock, so it must defer the retirement notification.");
                 Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero,
                     "Deleting one subscription must not pause publishing for the whole session.");
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
+            }
+        }
+
+        [Test]
+        public async Task ResetToRecreateRetiresTheServerIdAfterTheStateLockAsync()
+        {
+            var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
+                m_completion, m_options, m_telemetry, 22);
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.ResetToRecreateAsync(default).ConfigureAwait(false);
+
+                Assert.That(sut.Id, Is.Zero);
+                Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
+                Assert.That(m_completion.DeferredRetirements, Is.EqualTo(1));
+                Assert.That(m_completion.RetirementReports, Is.GreaterThanOrEqualTo(1));
             }
         }
 
@@ -1137,9 +1155,11 @@ namespace Opc.Ua.Client.Subscriptions
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
                     List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
-                    int retainedAcknowledgements = delete ? 0 : 1;
+                    const int retainedAcknowledgements = 1;
                     Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
-                        "Deletion prunes the retired server id; a generation-only reset does not delete it.");
+                        "The queue is not scanned; send-time validation discards the retired generation.");
+                    Assert.That(m_completion.QueuedAckGenerations[0], Is.Not.EqualTo(sut.MessageGeneration),
+                        "Deletion and reset both retire the generation that produced the queued acknowledgement.");
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
@@ -1160,6 +1180,9 @@ namespace Opc.Ua.Client.Subscriptions
                             acknowledgement.SequenceNumber == 1));
                     Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
+                    List<long> generations = m_completion.QueuedAckGenerations;
+                    Assert.That(generations[generations.Count - 1], Is.EqualTo(sut.MessageGeneration),
+                        "The replacement's acknowledgement carries the current generation.");
                 }
                 finally
                 {
