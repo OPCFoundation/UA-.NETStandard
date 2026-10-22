@@ -1,7 +1,11 @@
 {
   "$comment": [
-    "Clause-level stack-side traceability for the OPC UA WoT Binding: it maps the",
-    "Binding clauses this repository implements onto the tests that hold them, by",
+    "Legacy clause-level stack-side traceability for the WoT Binding draft pinned below.",
+    "It remains separate from the stable statement-level requirement inventory:",
+    "the clause map and its examples use spec-drafts provenance and are not a",
+    "stable-revision conformance claim.",
+    "",
+    "It maps the Binding clauses this repository implements onto the tests that hold them, by",
     "test name, so a reviewer can ask 'what proves this clause?' and get an answer",
     "that a test run can check.",
     "",

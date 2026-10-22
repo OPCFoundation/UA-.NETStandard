@@ -419,12 +419,14 @@ namespace Opc.Ua.WotCon.Server
             if (registry is WoTRegistryState autoRefreshRegistry)
             {
                 autoRefreshRegistry.AddAutoRefresh(context);
+                autoRefreshRegistry.AddRefreshMode(context);
             }
             SetChildValue(registry, "AutoRefresh", new Variant(m_options.AutoRefresh));
             SetChildValue(
                 registry,
                 "RefreshMode",
-                new Variant((int)WoTRefreshModeEnum.EventDriven));
+                new Variant((int)WoTRefreshModeEnum.EventDriven),
+                readOnly: true);
             SetChildValue(
                 registry,
                 "VocabularyVersion",
@@ -944,13 +946,22 @@ namespace Opc.Ua.WotCon.Server
             return list;
         }
 
-        private void SetChildValue(BaseObjectState parent, string browseName, Variant value)
+        private void SetChildValue(
+            BaseObjectState parent,
+            string browseName,
+            Variant value,
+            bool readOnly = false)
         {
             ushort ns = (ushort)Server.NamespaceUris.GetIndex(Namespaces.WotCon);
             if (parent.FindChild(SystemContext, new QualifiedName(browseName, ns))
                 is BaseVariableState variable)
             {
                 variable.Value = value;
+                if (readOnly)
+                {
+                    variable.AccessLevel = AccessLevels.CurrentRead;
+                    variable.UserAccessLevel = AccessLevels.CurrentRead;
+                }
             }
         }
 

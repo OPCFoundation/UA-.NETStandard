@@ -32,29 +32,31 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using NUnit.Framework;
 using Opc.Ua.SpecTraceability;
 
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Holds the stack-side evidence for the WoT specification requirements
-    /// whose proof is an OPC UA implementation.
+    /// Holds candidate stack test references and explicit gaps for selected WoT
+    /// specification requirements.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The specification's own ledgers mark requirements
-    /// <c>pendingStackTests</c> - it cannot name a test in a repository it does
-    /// not build. The checked-in ledger names them, and this fixture is what
-    /// makes the naming worth anything: every mapping that names this assembly
-    /// is resolved by reflection and has to be something NUnit will run.
+    /// The stable specification ledger tags implementation requirements with
+    /// <c>stack</c> - it cannot name a test in a repository it does not build.
+    /// This fixture resolves references in this assembly by reflection and
+    /// checks they are runnable. It does not infer assertion coverage from a
+    /// fixture name; requirements without a reviewed mapping remain gaps.
     /// </para>
     /// <para>
     /// The whole-ledger invariants are checked here because this is the
     /// assembly the ledger lives in: the entry count, the uniqueness of the
-    /// requirement identifiers, and the pinned specification commit, which is
-    /// checked against the fixture manifest so a revision bump cannot update
-    /// one and forget the other.
+    /// requirement identifiers, and the stable specification commit. The
+    /// example manifest and clause-level traceability file remain independently
+    /// pinned to their own source revision.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -64,6 +66,17 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotSpecRequirementTests
     {
         private const string ThisAssembly = "Opc.Ua.Types.Tests";
+        private static readonly string[] s_projectionProfiles =
+        [
+            "WoT-ArchivalConverter",
+            "WoT-Converter",
+            "WoT-Modeller"
+        ];
+        private static readonly string[] s_semanticChangeRequirementIds =
+        [
+            "sec-semantic-change-events-optional#001",
+            "sec-semantic-change-events-optional#002"
+        ];
 
         [Test]
         public void EveryMappingNamingThisAssemblyResolvesAndWillRun()
@@ -89,12 +102,11 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// A requirement either names evidence or states why it has none.
-        /// Silence would be the one outcome that hides the gap the whole ledger
-        /// exists to expose.
+        /// A requirement without a candidate test reference states its gap.
+        /// Partial gaps may coexist with references that cover only part of a requirement.
         /// </summary>
         [Test]
-        public void EveryRequirementEitherHasEvidenceOrStatesItsGap()
+        public void EveryRequirementWithoutTestReferencesStatesItsGap()
         {
             List<WotSpecRequirement> requirements = WotSpecRequirementLedger.Load(
                 typeof(WotSpecRequirementTests).Assembly);
@@ -105,11 +117,6 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     if (requirement.Tests.Count > 0)
                     {
-                        Assert.That(
-                            requirement.Gap,
-                            Is.Null,
-                            $"{requirement.SpecId} names evidence and a gap; it is one " +
-                            "or the other.");
                         continue;
                     }
                     Assert.That(
@@ -121,8 +128,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that target specific evidence names only declared runnable frameworks.
-        /// Runtime evidence owned by the runtime change is declared under the planned block until it lands.
+        /// Verifies that any target-specific test references name declared runnable frameworks.
         /// </summary>
         [Test]
         public void TargetSpecificEvidenceNamesOnlyDeclaredRunnableFrameworks()
@@ -140,25 +146,48 @@ namespace Opc.Ua.Types.Tests.Wot
             }
         }
         /// <summary>
-        /// The ledger covers exactly the requirements the specification marked
-        /// pending, so an entry cannot be quietly dropped and the count cannot
-        /// drift from what the specification publishes.
+        /// The ledger tracks every stable stack-applicable requirement and all
+        /// Projections validator requirements without treating the latter as
+        /// stack runtime obligations.
         /// </summary>
         [Test]
-        public void TheLedgerCoversEveryPendingRequirementExactlyOnce()
+        public void TheLedgerCoversEveryStackRequirementAndTracksValidatorRequirements()
         {
             Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
             List<WotSpecRequirement> requirements =
                 WotSpecRequirementLedger.Load(assembly);
-            (_, _, _, int pending) = WotSpecRequirementLedger.ReadHeader(assembly);
+            (_, _, _, int stackApplicable, int trackedValidator, _) =
+                WotSpecRequirementLedger.ReadHeader(assembly);
+            int actualStackApplicable = requirements.Count(
+                requirement => requirement.SourceEvidence.Contains("stack"));
+            int actualTrackedValidator = requirements.Count(
+                requirement => requirement.Specification == "WoT Projections" &&
+                    requirement.Applicability == "validator");
+            int validatorRowsWithoutRuntimeClaims = requirements.Count(
+                requirement => requirement.Specification == "WoT Projections" &&
+                    requirement.Applicability == "validator" &&
+                    !requirement.SourceEvidence.Contains("stack") &&
+                    requirement.Tests.Count == 0 &&
+                    requirement.Gap?.StartsWith(
+                        "Validator-applicability requirement",
+                        StringComparison.Ordinal) == true);
 
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    requirements,
-                    Has.Count.EqualTo(pending),
-                    "The ledger records how many requirements the specification left to " +
-                    "this stack, so dropping one is a failure rather than a shorter file.");
+                    actualStackApplicable,
+                    Is.EqualTo(stackApplicable),
+                    "Every requirement tagged for stack evidence by the stable source is tracked.");
+                Assert.That(
+                    actualTrackedValidator,
+                    Is.EqualTo(trackedValidator),
+                    "Projections validator requirements are tracked separately from runtime claims.");
+                Assert.That(
+                    validatorRowsWithoutRuntimeClaims,
+                    Is.EqualTo(trackedValidator),
+                    "Validator requirements are neither counted as stack gaps nor assigned " +
+                    "stack runtime tests.");
+                Assert.That(requirements, Has.Count.EqualTo(stackApplicable + trackedValidator));
                 Assert.That(
                     requirements.Select(r => r.SpecId),
                     Is.Unique,
@@ -172,8 +201,121 @@ namespace Opc.Ua.Types.Tests.Wot
                 Assert.That(
                     requirements.Select(r => r.Assembly).Distinct(),
                     Is.EquivalentTo(s_assemblies),
-                    "Every mapping names an assembly that checks it; a name nothing " +
-                    "checks is a mapping nothing proves.");
+                    "Every assigned assembly is one of the test assemblies that embeds " +
+                    "and checks this ledger.");
+            });
+        }
+
+        /// <summary>
+        /// Keeps profile-closure, unclaimed full-profile, and draft CTT
+        /// metadata distinct from executable stack test evidence.
+        /// </summary>
+        [Test]
+        public void TheConformanceUnitAndCttCatalogueClaimsAreDistinctFromStackEvidence()
+        {
+            Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
+            WotSpecAuditMetadata metadata =
+                WotSpecRequirementLedger.ReadAuditMetadata(assembly);
+            List<WotSpecRequirement> requirements =
+                WotSpecRequirementLedger.Load(assembly);
+            bool referencesCttId = requirements
+                .SelectMany(requirement => requirement.Tests)
+                .Any(test => test.Contains("ctt-", StringComparison.OrdinalIgnoreCase));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(metadata.CttCatalogueStatus, Is.EqualTo("proposal-only"));
+                Assert.That(metadata.CttGeneratedRequirementCaseCount, Is.EqualTo(333));
+                Assert.That(metadata.CttSupplementalDefaultingCaseCount, Is.EqualTo(7));
+                Assert.That(metadata.CttCaseHeadingCount, Is.EqualTo(340));
+                Assert.That(metadata.CttHeadingAnchorCount, Is.EqualTo(342));
+                Assert.That(metadata.StackTestsReferenceCttIds, Is.False);
+                Assert.That(referencesCttId, Is.EqualTo(metadata.StackTestsReferenceCttIds));
+                Assert.That(metadata.ProjectionUnit, Is.EqualTo("WoT-Projection"));
+                Assert.That(metadata.PartQualifiedProjectionUnit, Is.EqualTo("2:WoT-Projection"));
+                Assert.That(
+                    metadata.ProjectionProfiles,
+                    Is.EquivalentTo(s_projectionProfiles));
+                Assert.That(
+                    WotSpecRequirementLedger.DescribeResolution(
+                        assembly,
+                        metadata.ProjectionClosureTest),
+                    Is.EqualTo("runs"));
+                Assert.That(metadata.ProjectionEvidenceStatus, Is.EqualTo("profile-closure-only"));
+                Assert.That(metadata.ConnectivityUnit, Is.EqualTo("WOTC-SemanticChange"));
+                Assert.That(
+                    metadata.ConnectivityUnitStatus,
+                    Is.EqualTo("full-profile-only-unclaimed"));
+                Assert.That(
+                    metadata.ConnectivityUnitEvidenceStatus,
+                    Is.EqualTo("no-conformance-claim"));
+                Assert.That(
+                    metadata.ConnectivityUnitRequirementIds,
+                    Is.EquivalentTo(s_semanticChangeRequirementIds));
+            });
+
+            foreach (string requirementId in metadata.ConnectivityUnitRequirementIds)
+            {
+                WotSpecRequirement requirement =
+                    requirements.Single(candidate => candidate.SpecId == requirementId);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(requirement.Tests, Is.Empty);
+                    Assert.That(requirement.Gap, Does.Contain(metadata.ConnectivityUnit));
+                });
+            }
+        }
+
+        /// <summary>
+        /// Keeps EventDriven refresh evidence separate from unimplemented mode claims.
+        /// </summary>
+        [Test]
+        public void RefreshRequirementRecordsEventDrivenEvidenceAndRemainingModeGap()
+        {
+            WotSpecRequirement requirement = WotSpecRequirementLedger.Load(
+                typeof(WotSpecRequirementTests).Assembly)
+                .Single(candidate =>
+                    candidate.SpecId == "sec-automatic-and-explicit-refresh-idempotence#002");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    requirement.Tests,
+                    Is.EquivalentTo(new[]
+                    {
+                        "Opc.Ua.WotCon.Tests.WotBindingDescriptorTests." +
+                            "RefreshModeIsEventDrivenAndRejectsUnsupportedWrites",
+                        "Opc.Ua.WotCon.Tests.Materialization.WotAtomicPublicationNativeTests." +
+                            "AutomaticRefreshPublishesTheSameRegistryCompletionState"
+                    }));
+                Assert.That(requirement.Gap, Does.Contain("Periodic"));
+                Assert.That(requirement.Gap, Does.Contain("Scheduled"));
+                Assert.That(requirement.Gap, Does.Contain("Full refresh-clause coverage is not claimed."));
+            });
+        }
+
+        /// <summary>
+        /// Keeps dependency authorization evidence scoped to the local node permissions exercised.
+        /// </summary>
+        [Test]
+        public void DependencyAuthorizationRequirementRecordsUncoveredPermissionScopes()
+        {
+            WotSpecRequirement requirement = WotSpecRequirementLedger.Load(
+                typeof(WotSpecRequirementTests).Assembly)
+                .Single(candidate =>
+                    candidate.SpecId == "sec-dependency-snapshots-and-target-pins#011");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(requirement.Tests, Is.EquivalentTo(new[]
+                {
+                    "Opc.Ua.WotCon.Tests.WotSelectedDependenciesLiveTests." +
+                        "DependencyObservationRequiresReadAccessToEveryCapturedTarget"
+                }));
+                Assert.That(requirement.Gap, Does.Contain("per-node role permissions"));
+                Assert.That(requirement.Gap, Does.Contain("namespace-default permission behavior"));
+                Assert.That(requirement.Gap, Does.Contain("federated/remote targets"));
+                Assert.That(requirement.Gap, Does.Contain("No conformance claim"));
             });
         }
 
@@ -263,6 +405,10 @@ namespace Opc.Ua.Types.Tests.Wot
                         Is.EqualTo(requirement.Applicability),
                         $"{requirement.SpecId} is applicable to something the specification " +
                         "does not say it is.");
+                    Assert.That(
+                        found[0].Evidence,
+                        Is.EquivalentTo(requirement.SourceEvidence),
+                        $"{requirement.SpecId} has source evidence tags that disagree.");
                 }
                 Assert.That(
                     statements.Select(s => s.SpecId),
@@ -290,10 +436,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     Assert.That(
                         statement.Evidence,
-                        Does.Contain("stack"),
-                        $"{statement.SpecId} is not a requirement the specification leaves " +
-                        "to an implementation, so this repository has no business answering " +
-                        "for it.");
+                        Is.Not.Empty,
+                        $"{statement.SpecId} has no source evidence tags.");
                     Assert.That(
                         statement.Keywords,
                         Is.Not.Empty,
@@ -372,18 +516,16 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The inventory, the ledger and the vendored examples were read from
-        /// one revision of the specification. If any two disagree, one was
-        /// updated and another was forgotten. The inventory also names the
-        /// sources it was read out of, by both the identity git stores them
-        /// under and the digest of their bytes, so a re-vendor from another
-        /// revision cannot look like this one.
+        /// The inventory and requirement ledger were read from one stable
+        /// source revision. Example fixtures have a separate provenance pin.
+        /// The inventory names each source by its path, blob id and byte
+        /// digest, so a re-vendor from another revision cannot look identical.
         /// </summary>
         [Test]
         public void TheInventoryAndTheLedgerPinTheSameRevision()
         {
             Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
-            (string commit, string repository, _, int pending) =
+            (string commit, string repository, _, int stackApplicable, int trackedValidator, _) =
                 WotSpecRequirementLedger.ReadHeader(assembly);
             WotSpecInventoryHeader inventory =
                 WotSpecRequirementLedger.ReadInventoryHeader(assembly);
@@ -392,15 +534,15 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(inventory.Commit, Is.EqualTo(commit));
                 Assert.That(inventory.Repository, Is.EqualTo(repository));
-                Assert.That(inventory.SchemaVersion, Is.EqualTo(2));
+                Assert.That(inventory.SchemaVersion, Is.EqualTo(3));
                 Assert.That(
                     inventory.Tree,
                     Does.Match("^[0-9a-f]{40}$"),
                     "The commit's tree is pinned, not just the commit.");
                 Assert.That(
                     inventory.StatementCount,
-                    Is.EqualTo(pending),
-                    "The inventory states how many statements it holds, so dropping one " +
+                    Is.EqualTo(stackApplicable + trackedValidator),
+                    "The inventory states how many tracked requirements it holds, so dropping one " +
                     "is a failure rather than a shorter file.");
                 Assert.That(
                     WotSpecRequirementLedger.LoadStatements(assembly),
@@ -416,9 +558,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     Assert.That(source.Sha256, Does.Match("^[0-9a-f]{64}$"));
                     Assert.That(
                         source.RequirementCount,
-                        Is.GreaterThanOrEqualTo(inventory.StatementCount / 2),
-                        "A ledger that suddenly states almost nothing was not the one this " +
-                        "inventory was built from.");
+                        Is.EqualTo(s_sourceRequirementCounts[
+                            Array.IndexOf(s_upstreamLedgers, source.Path)]),
+                        $"{source.Path} is pinned to the expected stable ledger size.");
                 }
             });
         }
@@ -440,31 +582,33 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The two upstream requirement ledgers the digests are published in.
+        /// The three stable upstream requirement ledgers tracked by the stack.
         /// </summary>
         private static readonly string[] s_upstreamLedgers =
         [
-            "source/wot-specs/WoT-Binding/tools/requirements.json",
-            "source/wot-specs/WoT-Connectivity/tools/requirements.json"
+            "extras/WoT-Binding/tools/requirements.json",
+            "extras/WoT-Connectivity/tools/requirements.json",
+            "extras/WoT-Projections/tools/requirements.json"
         ];
+        private static readonly int[] s_sourceRequirementCounts = [438, 333, 90];
 
         /// <summary>
-        /// The ledger and the vendored examples were read from one revision of
-        /// the specification. If the two pins disagree, one was updated and the
-        /// other was forgotten.
+        /// The requirement ledger follows the stable specification provenance.
+        /// The example manifest has its own independent source pin.
         /// </summary>
         [Test]
-        public void TheLedgerAndTheFixturesArePinnedToTheSameRevision()
+        public void TheLedgerIsPinnedToTheStableSpecificationRevision()
         {
-            (string commit, string repository, string revision, _) =
+            (string commit, string repository, string revision, _, _, _) =
                 WotSpecRequirementLedger.ReadHeader(
                     typeof(WotSpecRequirementTests).Assembly);
-            WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
 
             Assert.Multiple(() =>
             {
-                Assert.That(commit, Is.EqualTo(manifest.Commit));
-                Assert.That(repository, Is.EqualTo(manifest.Repository));
+                Assert.That(commit, Is.EqualTo("40125acd1b65cdf291a92a67a5c6565656358e6e"));
+                Assert.That(
+                    repository,
+                    Is.EqualTo("https://github.com/OPCF-Members/OPC10100-WoT.git"));
                 Assert.That(
                     revision,
                     Is.EqualTo(Opc.Ua.Wot.WotBindingConformance.CurrentRevision));
@@ -472,23 +616,36 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// What is not proved is countable. The number is asserted so that
-        /// closing a gap - or opening one - is a deliberate edit rather than a
-        /// silent drift.
+        /// Stack requirements without a candidate test reference remain countable.
         /// </summary>
         [Test]
-        public void TheUnprovedRequirementsAreExactlyTheOnesRecorded()
+        public void TheStackRequirementsWithoutTestReferencesMatchTheLedger()
         {
-            List<WotSpecRequirement> requirements = WotSpecRequirementLedger.Load(
-                typeof(WotSpecRequirementTests).Assembly);
-
-            IReadOnlyList<string> unproved = [.. requirements
-                .Where(r => r.Tests.Count == 0)
-                .Select(r => r.SpecId)
+            Assembly assembly = typeof(WotSpecRequirementTests).Assembly;
+            List<WotSpecRequirement> requirements =
+                WotSpecRequirementLedger.Load(assembly);
+            (_, _, _, _, _, int withoutTestReferenceCount) =
+                WotSpecRequirementLedger.ReadHeader(assembly);
+            string[] unmappedIds = [.. requirements
+                .Where(requirement =>
+                    requirement.SourceEvidence.Contains("stack") && requirement.Tests.Count == 0)
+                .Select(requirement => requirement.SpecId)
                 .OrderBy(id => id, StringComparer.Ordinal)];
+            string unmappedDigest = Convert.ToHexString(SHA256.HashData(
+                Encoding.UTF8.GetBytes(string.Join("\n", unmappedIds)))).ToLowerInvariant();
 
-            Assert.That(unproved, Is.EqualTo(s_unprovedRequirements).AsCollection);
+            Assert.Multiple(() =>
+            {
+                Assert.That(unmappedIds, Has.Length.EqualTo(withoutTestReferenceCount));
+                Assert.That(unmappedDigest, Is.EqualTo(s_unmappedRequirementIdsSha256));
+            });
         }
+
+        /// <summary>
+        /// Pins the exact set of stable stack requirements with no candidate test reference.
+        /// </summary>
+        private const string s_unmappedRequirementIdsSha256 =
+            "c5ff75365ae2b3a5b4a98744f8daafc1ded0dd80d8150c89a1e395231ad357a2";
 
         private static readonly string[] s_assemblies =
         [
@@ -499,121 +656,5 @@ namespace Opc.Ua.Types.Tests.Wot
         ];
         private static readonly string[] s_targetSpecificTests = [];
         private static readonly string[] s_modernFrameworks = ["net8.0", "net9.0", "net10.0"];
-
-        /// <summary>
-        /// The requirements this stack does not yet prove, in ascending order.
-        /// Each carries its reason in the ledger.
-        /// </summary>
-        /// <remarks>
-        /// Deferred validation, excluded policy evidence and unproved optional
-        /// or deployment behavior stay explicit rather than becoming evidence
-        /// merely because a test class exists.
-        /// </remarks>
-        private static readonly string[] s_unprovedRequirements =
-        [
-            "sec-applied-atomicity-observation#001",
-            "sec-applied-atomicity-observation#002",
-            "sec-applied-atomicity-observation#003",
-            "sec-automatic-and-explicit-refresh-idempotence#002",
-            "sec-automatic-and-explicit-refresh-idempotence#007",
-            "sec-concurrency-and-generation-behaviour#002",
-            "sec-concurrency-and-generation-behaviour#003",
-            "sec-concurrency-and-generation-behaviour#004",
-            "sec-concurrency-and-generation-behaviour#005",
-            "sec-dependency-snapshots-and-target-pins#001",
-            "sec-dependency-snapshots-and-target-pins#002",
-            "sec-dependency-snapshots-and-target-pins#003",
-            "sec-dependency-snapshots-and-target-pins#004",
-            "sec-dependency-snapshots-and-target-pins#005",
-            "sec-dependency-snapshots-and-target-pins#006",
-            "sec-dependency-snapshots-and-target-pins#007",
-            "sec-dependency-snapshots-and-target-pins#008",
-            "sec-dependency-snapshots-and-target-pins#009",
-            "sec-dependency-snapshots-and-target-pins#010",
-            "sec-dependency-snapshots-and-target-pins#011",
-            "sec-document-identifiers-and-names#004",
-            "sec-document-identifiers-and-names#005",
-            "sec-document-identifiers-and-names#006",
-            "sec-document-identifiers-and-names#007",
-            "sec-document-identifiers-and-names#008",
-            "sec-document-identifiers-and-names#009",
-            "sec-document-identifiers-and-names#010",
-            "sec-document-identifiers-and-names#011",
-            "sec-document-identifiers-and-names#012",
-            "sec-document-identifiers-and-names#013",
-            "sec-documents-wotdocumenttype-thingdescriptionfiletype-thingmodelfiletype#001",
-            "sec-events-and-change-notifications-normative#005",
-            "sec-events-and-change-notifications-normative#006",
-            "sec-events-and-change-notifications-normative#007",
-            "sec-events-and-change-notifications-normative#008",
-            "sec-events-and-change-notifications-normative#009",
-            "sec-events-and-the-notifier-chain#001",
-            "sec-federated-origin-identity#001",
-            "sec-federated-origin-identity#002",
-            "sec-federated-origin-identity#003",
-            "sec-federated-origin-identity#004",
-            "sec-federated-origin-identity#005",
-            "sec-federated-origin-identity#006",
-            "sec-federated-origin-identity#007",
-            "sec-federated-origin-identity#008",
-            "sec-federated-origin-identity#009",
-            "sec-model-change-events-and-nodeversion-correlation#001",
-            "sec-model-change-events-and-nodeversion-correlation#002",
-            "sec-model-change-events-and-nodeversion-correlation#003",
-            "sec-model-change-events-and-nodeversion-correlation#004",
-            "sec-model-change-events-and-nodeversion-correlation#005",
-            "sec-model-change-events-and-nodeversion-correlation#006",
-            "sec-model-change-events-and-nodeversion-correlation#007",
-            "sec-projection-documents#006",
-            "sec-projection-documents#009",
-            "sec-projection-documents#010",
-            "sec-projection-documents#011",
-            "sec-projection-documents#012",
-            "sec-projection-documents#013",
-            "sec-projection-documents#014",
-            "sec-projection-documents#015",
-            "sec-projection-documents#016",
-            "sec-projection-documents#017",
-            "sec-projection-documents#018",
-            "sec-projection-documents#019",
-            "sec-projection-documents#020",
-            "sec-projection-documents#021",
-            "sec-projection-documents#022",
-            "sec-projection-documents#023",
-            "sec-projection-documents#024",
-            "sec-projection-documents#025",
-            "sec-security-normative#002",
-            "sec-security-normative#003",
-            "sec-security-normative#004",
-            "sec-security-normative#005",
-            "sec-security-normative#006",
-            "sec-security-normative#007",
-            "sec-semantic-change-events-optional#001",
-            "sec-semantic-change-events-optional#002",
-            "sec-shadow-prepare-switch-and-retirement#004",
-            "sec-shadow-prepare-switch-and-retirement#005",
-            "sec-shadow-prepare-switch-and-retirement#014",
-            "sec-shadow-prepare-switch-and-retirement#015",
-            "sec-typed-provisioning-behavior#001",
-            "sec-typed-provisioning-behavior#002",
-            "sec-typed-provisioning-behavior#003",
-            "sec-typed-provisioning-behavior#004",
-            "sec-typed-provisioning-behavior#005",
-            "sec-typed-provisioning-behavior#006",
-            "sec-typed-provisioning-behavior#007",
-            "sec-typed-provisioning-behavior#008",
-            "sec-typed-provisioning-behavior#009",
-            "sec-typed-provisioning-behavior#010",
-            "sec-typed-provisioning-behavior#011",
-            "sec-typed-provisioning-behavior#012",
-            "sec-typed-provisioning-behavior#013",
-            "sec-typed-provisioning-behavior#014",
-            "sec-typed-provisioning-behavior#015",
-            "sec-typed-provisioning-behavior#016",
-            "sec-typed-provisioning-behavior#017",
-            "sec-typed-provisioning-behavior#018",
-            "sec-typed-provisioning-behavior#019",
-            "sec-validation-planning-and-apply-algorithm#001"
-        ];
     }
 }

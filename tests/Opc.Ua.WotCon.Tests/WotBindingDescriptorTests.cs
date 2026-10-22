@@ -761,6 +761,79 @@ namespace Opc.Ua.WotCon.Tests
             }, executable: true).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies the fixed refresh mode is visible and rejects unsupported mode writes.
+        /// </summary>
+        [Test]
+        public async Task RefreshModeIsEventDrivenAndRejectsUnsupportedWrites()
+        {
+            await WithRegistryTransportAsync(async (_, _, endpoint, directory) =>
+            {
+                ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+                await using var fixture = new ClientFixture(false, false, telemetry);
+                await fixture.LoadClientConfigurationAsync(directory).ConfigureAwait(false);
+                using ClientSession session = await fixture.ConnectAsync(endpoint, SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+                try
+                {
+                    WotRegistryClient client = await WotRegistryClient.ForServerAsync(session, telemetry)
+                        .ConfigureAwait(false);
+                    ReferenceDescription[] registryChildren = (await BrowseAsync(session, client.RegistryNodeId)
+                        .ConfigureAwait(false)).ToArray()
+                        ?? throw new InvalidOperationException("The registry returned no child reference array.");
+                    ReferenceDescription refreshMode = registryChildren.Single(
+                        reference => reference.BrowseName.Name == "RefreshMode");
+                    NodeId nodeId = ExpandedNodeId.ToNodeId(refreshMode.NodeId, session.NamespaceUris);
+                    ReadResponse read = await session.ReadAsync(
+                        null,
+                        0,
+                        TimestampsToReturn.Neither,
+                        new[]
+                        {
+                            new ReadValueId { NodeId = nodeId, AttributeId = Attributes.AccessLevel },
+                            new ReadValueId { NodeId = nodeId, AttributeId = Attributes.UserAccessLevel },
+                            new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }
+                        }.ToArrayOf(),
+                        CancellationToken.None).ConfigureAwait(false);
+
+                    Assert.That(read.Results, Has.Count.EqualTo(3));
+                    Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(read.Results[1].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(read.Results[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(read.Results[0].WrappedValue.TryGetValue(out byte access), Is.True);
+                    Assert.That(access, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(read.Results[1].WrappedValue.TryGetValue(out byte userAccess), Is.True);
+                    Assert.That(userAccess, Is.EqualTo(AccessLevels.CurrentRead));
+                    Assert.That(read.Results[2].WrappedValue.TryGetValue(out int mode), Is.True);
+                    Assert.That(mode, Is.EqualTo((int)WoTRefreshModeEnum.EventDriven));
+
+                    WriteResponse write = await session.WriteAsync(
+                        null,
+                        new[]
+                        {
+                            new WriteValue
+                            {
+                                NodeId = nodeId,
+                                AttributeId = Attributes.Value,
+                                Value = new DataValue(new Variant((int)WoTRefreshModeEnum.Periodic))
+                            }
+                        }.ToArrayOf(),
+                        CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(write.Results, Has.Count.EqualTo(1));
+                    Assert.That(write.Results[0], Is.EqualTo(StatusCodes.BadNotWritable));
+
+                    DataValue afterWrite = await session.ReadValueAsync(nodeId).ConfigureAwait(false);
+                    Assert.That(afterWrite.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(afterWrite.WrappedValue.TryGetValue(out int unchangedMode), Is.True);
+                    Assert.That(unchangedMode, Is.EqualTo((int)WoTRefreshModeEnum.EventDriven));
+                }
+                finally
+                {
+                    await session.CloseAsync().ConfigureAwait(false);
+                }
+            }, executable: true).ConfigureAwait(false);
+        }
+
         private static async Task<ArrayOf<ReferenceDescription>> BrowseAsync(ClientSession session, NodeId nodeId)
         {
             BrowseResponse response = await session.BrowseAsync(null, new ViewDescription(), 0,

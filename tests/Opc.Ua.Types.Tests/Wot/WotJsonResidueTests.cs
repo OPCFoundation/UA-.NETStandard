@@ -487,6 +487,37 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// A conflicting residue entry cannot overwrite an identity emitted
+        /// from the source NodeSet.
+        /// </summary>
+        [Test]
+        public void GeneratedNodeIdentityConflictIsReportedWithoutOverwritingTheIdentity()
+        {
+            UANodeSet nodeSet = WotTestData.CreateReconstructableNodeSet();
+            using WotDocument baseline = WotNodeSetConverter.FromNodeSet(nodeSet);
+            string generatedId = baseline.RootElement.GetProperty("uav:id").GetString()!;
+
+            nodeSet.Extensions =
+            [
+                .. nodeSet.Extensions ?? [],
+                CreateResidueExtension(
+                    "1.0",
+                    CreateResidueMember("/uav:id", "\"nsu=urn:test:model;s=conflicting\""))
+            ];
+
+            WotConversionResult<WotDocument> result =
+                WotNodeSetConverter.FromNodeSetResult(nodeSet);
+
+            Assert.That(result.Value, Is.Not.Null);
+            Assert.That(
+                result.Diagnostics.Any(diagnostic =>
+                    diagnostic.Code == WotDiagnosticCode.ResidueConflict &&
+                    diagnostic.Severity == WotDiagnosticSeverity.Error),
+                Is.True);
+            Assert.That(result.Value!.RootElement.GetProperty("uav:id").GetString(), Is.EqualTo(generatedId));
+        }
+
+        /// <summary>
         /// WoT Binding Section 9.4 asks whether a residue entry holds the same
         /// <em>value</em> as the member already there, and RFC 8785 is what
         /// answers it. A reordered object, an equivalent escape and a different

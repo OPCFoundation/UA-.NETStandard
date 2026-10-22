@@ -71,8 +71,8 @@ namespace Opc.Ua.Tools.Tests
     {
         /// <summary>
         /// A specification whose ledgers the stack ledger agrees with produces
-        /// an inventory of exactly the requirements marked as left to an
-        /// implementation, and reproduces byte for byte.
+        /// an inventory of stack-tagged requirements and Projections validator
+        /// records, and reproduces byte for byte.
         /// </summary>
         [Test]
         public async Task TheGeneratorCopiesAndVerifiesThePinnedLedgersAsync()
@@ -88,8 +88,8 @@ namespace Opc.Ua.Tools.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(root.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(2));
-                Assert.That(root.GetProperty("statementCount").GetInt32(), Is.EqualTo(2));
+                Assert.That(root.GetProperty("schemaVersion").GetInt32(), Is.EqualTo(3));
+                Assert.That(root.GetProperty("statementCount").GetInt32(), Is.EqualTo(3));
                 Assert.That(
                     pinned.GetProperty("commit").GetString(), Is.EqualTo(fixture.Commit));
                 Assert.That(
@@ -100,11 +100,12 @@ namespace Opc.Ua.Tools.Tests
                     root.GetProperty("statements").EnumerateArray()
                         .Select(s => s.GetProperty("specId").GetString()),
                     Is.EqualTo(s_expectedSpecIds).AsCollection,
-                    "Only the requirements marked pendingStackTests are selected, in order.");
+                    "Only stack-tagged and Projections validator requirements are selected, in order.");
                 Assert.That(
                     root.GetProperty("statements").EnumerateArray()
                         .Select(s => s.GetProperty("statementHash").GetString()),
-                    Is.EqualTo(new[] { fixture.AlphaHash, fixture.BetaHash }).AsCollection,
+                    Is.EqualTo(new[] { fixture.AlphaHash, fixture.BetaHash, fixture.ProjectionHash })
+                        .AsCollection,
                     "The digests are the specification's, copied rather than recomputed " +
                     "from a second reading of the prose.");
                 Assert.That(
@@ -180,7 +181,7 @@ namespace Opc.Ua.Tools.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(result.ExitCode, Is.Zero, result.Output);
-                Assert.That(result.Output, Does.Contain("Verified 2 statement digest(s)"));
+                Assert.That(result.Output, Does.Contain("Verified 3 statement digests"));
             });
         }
 
@@ -325,25 +326,33 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(result.ExitCode, Is.Not.Zero, result.Output);
                 Assert.That(
                     result.Output,
-                    Does.Contain("the ledger does not record"));
+                    Does.Contain("the stack ledger does not record"));
                 Assert.That(result.Output, Does.Contain("sec-beta#002"));
             });
         }
 
         /// <summary>
-        /// A requirement the specification stopped leaving to an implementation
-        /// is evidence for a rule nobody is held to.
+        /// A requirement no longer tagged as stack evidence is outside the
+        /// ledger's selected scope.
         /// </summary>
         [Test]
-        public async Task ARequirementNoLongerLeftToTheStackIsRefusedAsync()
+        public async Task ARequirementNoLongerTaggedForStackEvidenceIsRefusedAsync()
         {
             using SpecFixture fixture = await SpecFixture.CreateAsync().ConfigureAwait(false);
             await fixture.MutateUpstreamAndRepinAsync(
                 SpecFixture.ConnectivityLedgerPath,
                 json => json.Replace(
-                    "\"pendingStackTests\": true", "\"pendingStackTests\": false",
+                    "\"evidence\": [ \"stack\", \"boundary\" ]",
+                    "\"evidence\": [ \"boundary\" ]",
                     StringComparison.Ordinal))
                 .ConfigureAwait(false);
+            fixture.MutateStackLedger(json => json.Replace(
+                "\"stackApplicableRequirementCount\": 2",
+                "\"stackApplicableRequirementCount\": 1",
+                StringComparison.Ordinal).Replace(
+                    "\"sourceEvidence\": [ \"stack\", \"boundary\" ]",
+                    "\"sourceEvidence\": [ \"boundary\" ]",
+                    StringComparison.Ordinal));
 
             ScriptResult result = await fixture.RunAsync().ConfigureAwait(false);
 
@@ -352,7 +361,7 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(result.ExitCode, Is.Not.Zero, result.Output);
                 Assert.That(
                     result.Output,
-                    Does.Contain("no longer leaves to this"));
+                    Does.Contain("outside its selected evidence scope"));
             });
         }
 
@@ -589,7 +598,8 @@ namespace Opc.Ua.Tools.Tests
             var builder = new StringBuilder();
             builder.Append("{\"schemaVersion\":1,\"pinnedTo\":")
                 .Append(document.RootElement.GetProperty("pinnedTo").GetRawText())
-                .Append(",\"pendingStackTestCount\":").Append(kept.Count)
+                .Append(",\"stackApplicableRequirementCount\":2")
+                .Append(",\"trackedValidatorRequirementCount\":1")
                 .Append(",\"requirements\":[");
             for (int ii = 0; ii < kept.Count; ii++)
             {
@@ -699,28 +709,30 @@ namespace Opc.Ua.Tools.Tests
         private sealed record ScriptResult(int ExitCode, string Output);
 
         /// <summary>
-        /// The two requirements the fixture specification leaves to an
-        /// implementation, in the order the inventory sorts them.
+        /// The stack-tagged and validator requirements selected from the fixture.
         /// </summary>
-        private static readonly string[] s_expectedSpecIds = ["sec-alpha#001", "sec-beta#002"];
+        private static readonly string[] s_expectedSpecIds =
+            ["sec-alpha#001", "sec-beta#002", "sec-projection#001"];
 
         /// <summary>
-        /// The applicability the fixture specification states for each of them.
+        /// The applicability the fixture specification states for each selected record.
         /// </summary>
-        private static readonly string[] s_expectedApplicability = ["converter", "runtime"];
+        private static readonly string[] s_expectedApplicability = ["converter", "runtime", "validator"];
 
         /// <summary>
-        /// A synthetic specification repository laid out like spec-drafts: two
-        /// requirement ledgers under source/wot-specs, committed, plus a stack
-        /// evidence ledger pinned to that commit.
+        /// A synthetic specification repository with Binding, Connectivity,
+        /// and Projections ledgers plus a stack evidence ledger pinned to it.
         /// </summary>
         private sealed class SpecFixture : IDisposable
         {
             public const string BindingLedgerPath =
-                "source/wot-specs/WoT-Binding/tools/requirements.json";
+                "extras/WoT-Binding/tools/requirements.json";
 
             public const string ConnectivityLedgerPath =
-                "source/wot-specs/WoT-Connectivity/tools/requirements.json";
+                "extras/WoT-Connectivity/tools/requirements.json";
+
+            public const string ProjectionsLedgerPath =
+                "extras/WoT-Projections/tools/requirements.json";
 
             private SpecFixture(string rootPath, string repositoryRoot)
             {
@@ -745,6 +757,8 @@ namespace Opc.Ua.Tools.Tests
 
             public string BetaPrimeHash { get; } = Digest("Beta statement prime");
 
+            public string ProjectionHash { get; } = Digest("Projection statement");
+
             public static async Task<SpecFixture> CreateAsync()
             {
                 string rootPath = Path.Combine(
@@ -762,6 +776,7 @@ namespace Opc.Ua.Tools.Tests
 
                 fixture.Write(BindingLedgerPath, BindingLedger(fixture.AlphaHash));
                 fixture.Write(ConnectivityLedgerPath, ConnectivityLedger(fixture.BetaHash));
+                fixture.Write(ProjectionsLedgerPath, ProjectionsLedger(fixture.ProjectionHash));
                 await fixture.RunGitAsync("add", ".").ConfigureAwait(false);
                 await fixture.RunGitAsync("commit", "-m", "ledgers").ConfigureAwait(false);
                 fixture.Commit = (await fixture
@@ -861,7 +876,7 @@ namespace Opc.Ua.Tools.Tests
                 {
                   "schemaVersion": 1,
                   "specification": "WoT Binding",
-                  "source": "source/wot-specs/WoT-Binding/spec.md",
+                  "source": "source/WoT-Binding/spec.md",
                   "positiveGate": "extras/wot-specs/validate_all.py",
                   "requirements": [
                     {
@@ -874,8 +889,7 @@ namespace Opc.Ua.Tools.Tests
                       "evidence": [ "stack" ],
                       "pythonTests": [],
                       "dotnetTests": [ "Opc.Ua.Types.Tests::AlphaTests" ],
-                      "vectors": [],
-                      "pendingStackTests": true
+                      "vectors": []
                     },
                     {
                       "id": "sec-alpha#002",
@@ -900,7 +914,7 @@ namespace Opc.Ua.Tools.Tests
                 {
                   "schemaVersion": 1,
                   "specification": "WoT Connectivity",
-                  "source": "source/wot-specs/WoT-Connectivity/spec.md",
+                  "source": "source/WoT-Connectivity/spec.md",
                   "positiveGate": "extras/wot-specs/validate_all.py",
                   "requirements": [
                     {
@@ -913,8 +927,7 @@ namespace Opc.Ua.Tools.Tests
                       "evidence": [ "stack", "boundary" ],
                       "pythonTests": [],
                       "dotnetTests": [ "Opc.Ua.WotCon.Tests::BetaTests" ],
-                      "vectors": [],
-                      "pendingStackTests": true
+                      "vectors": []
                     },
                     {
                       "id": "sec-gamma#001",
@@ -925,6 +938,32 @@ namespace Opc.Ua.Tools.Tests
                       "applicability": "validator",
                       "evidence": [ "positive" ],
                       "pythonTests": [ "tools/test_gamma.py::test_gamma" ],
+                      "dotnetTests": [],
+                      "vectors": []
+                    }
+                  ]
+                }
+                """;
+            }
+
+            private static string ProjectionsLedger(string projectionHash)
+            {
+                return $$"""
+                {
+                  "schemaVersion": 1,
+                  "specification": "WoT Projections",
+                  "source": "source/WoT-Projections/spec.md",
+                  "positiveGate": "extras/wot-specs/validate_all.py",
+                  "requirements": [
+                    {
+                      "id": "sec-projection#001",
+                      "clause": "sec-projection",
+                      "keywords": [ "shall" ],
+                      "statement": "Projection statement",
+                      "statementHash": "{{projectionHash}}",
+                      "applicability": "validator",
+                      "evidence": [ "positive" ],
+                      "pythonTests": [],
                       "dotnetTests": [],
                       "vectors": []
                     }
@@ -944,21 +983,24 @@ namespace Opc.Ua.Tools.Tests
                     "commit": "{{fixture.Commit}}",
                     "bindingRevision": "1.1",
                     "ledgers": [
-                      "source/wot-specs/WoT-Binding/tools/requirements.json",
-                      "source/wot-specs/WoT-Connectivity/tools/requirements.json"
+                      "extras/WoT-Binding/tools/requirements.json",
+                      "extras/WoT-Connectivity/tools/requirements.json",
+                      "extras/WoT-Projections/tools/requirements.json"
                     ],
                     "statementInventory": {
                       "path": "wot-spec-statements.json",
                       "sha256": "{{new string('0', 64)}}"
                     }
                   },
-                  "pendingStackTestCount": 2,
+                  "stackApplicableRequirementCount": 2,
+                  "trackedValidatorRequirementCount": 1,
                   "requirements": [
                     {
                       "specId": "sec-alpha#001",
                       "specification": "WoT Binding",
                       "clause": "sec-alpha",
                       "applicability": "converter",
+                      "sourceEvidence": [ "stack" ],
                       "statementHash": "{{fixture.AlphaHash}}",
                       "assembly": "Opc.Ua.Types.Tests",
                       "tests": [ "Opc.Ua.Types.Tests.AlphaTests" ]
@@ -968,9 +1010,20 @@ namespace Opc.Ua.Tools.Tests
                       "specification": "WoT Connectivity",
                       "clause": "sec-beta",
                       "applicability": "runtime",
+                      "sourceEvidence": [ "stack", "boundary" ],
                       "statementHash": "{{fixture.BetaHash}}",
                       "assembly": "Opc.Ua.WotCon.Tests",
                       "tests": [ "Opc.Ua.WotCon.Tests.BetaTests" ]
+                    },
+                    {
+                      "specId": "sec-projection#001",
+                      "specification": "WoT Projections",
+                      "clause": "sec-projection",
+                      "applicability": "validator",
+                      "sourceEvidence": [ "positive" ],
+                      "statementHash": "{{fixture.ProjectionHash}}",
+                      "assembly": "Opc.Ua.Types.Tests",
+                      "tests": [ "Opc.Ua.Types.Tests.ProjectionValidatorTests" ]
                     }
                   ]
                 }

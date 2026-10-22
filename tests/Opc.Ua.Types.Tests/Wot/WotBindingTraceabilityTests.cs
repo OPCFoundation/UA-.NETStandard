@@ -39,8 +39,8 @@ using NUnit.Framework;
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Holds the temporary WoT Binding traceability ledger to something a test
-    /// run can check.
+    /// Holds the legacy WoT Binding clause map to something a test run can
+    /// check independently of the stable requirement ledger.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -57,9 +57,9 @@ namespace Opc.Ua.Types.Tests.Wot
     /// is a clause held by nothing.
     /// </para>
     /// <para>
-    /// This clause-level view complements the statement-level requirement
-    /// inventory. Its specification pin is checked against the fixture
-    /// manifest so neither can drift to a different draft unnoticed.
+    /// This clause-level view remains pinned to the spec-drafts revision used
+    /// by the example manifest. It is not the stable statement-level
+    /// requirement inventory.
     /// </para>
     /// </remarks>
     [TestFixture]
