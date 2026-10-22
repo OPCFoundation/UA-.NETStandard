@@ -42,6 +42,138 @@ namespace Opc.Ua.Client
     public partial class ManagedSession
     {
         /// <summary>
+        /// Fails over now to another member of the non-transparent redundant
+        /// Server set, with the same in-place recreate as a failover after a
+        /// lost connection: subscriptions are transferred or recreated on the
+        /// target and, with token reuse enabled, a HotAndMirrored target
+        /// reactivates the existing session. <see cref="ConnectionStateChanged"/>
+        /// reports <see cref="ConnectionState.Failover"/> and then
+        /// <see cref="ConnectionState.Connected"/>.
+        /// </summary>
+        /// <remarks>
+        /// When the failover fails the session transitions to
+        /// <see cref="ConnectionState.Reconnecting"/> and the reconnect policy
+        /// restores it. Cancelling <paramref name="ct"/> stops waiting; a
+        /// failover in progress completes.
+        /// </remarks>
+        /// <param name="target">
+        /// The endpoint to fail over to, or <see langword="null"/> to fail over
+        /// to the target the redundancy handler selects from a refreshed
+        /// redundancy snapshot.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadNotSupported"/> when no redundancy handler
+        /// is configured, <see cref="StatusCodes.BadInvalidState"/> when the
+        /// session is not connected, <see cref="StatusCodes.BadNothingToDo"/>
+        /// when the handler selects no target, or the error of the failed
+        /// failover.
+        /// </exception>
+        public async Task FailoverAsync(ConfiguredEndpoint? target = null, CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            IServerRedundancyHandler handler = m_redundancyHandler ?? throw new ServiceResultException(
+                StatusCodes.BadNotSupported, "A failover requires a server redundancy handler.");
+            if (!StateMachine.IsConnected)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The managed session can only fail over while it is connected.");
+            }
+
+            target ??= await SelectFailoverTargetAsync(handler, ct).ConfigureAwait(false) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNothingToDo, "The redundancy handler selected no failover target.");
+            await RunRequestedFailoverAsync(target, ct).ConfigureAwait(false);
+        }
+
+        private async Task<ConfiguredEndpoint?> SelectFailoverTargetAsync(
+            IServerRedundancyHandler handler,
+            CancellationToken ct)
+        {
+            await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+            await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
+            ServerRedundancyInfo? info = m_redundancyInfo;
+            return info == null ? null : handler.SelectFailoverTarget(info, ConfiguredEndpoint);
+        }
+
+        /// <summary>
+        /// Runs a failover to <paramref name="target"/> in the Failover state of
+        /// the state machine and waits until the session is connected again.
+        /// </summary>
+        private async Task RunRequestedFailoverAsync(ConfiguredEndpoint target, CancellationToken ct)
+        {
+            var outcome = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!StateMachine.RequestFailover((budget, token) =>
+                FailoverToRequestedTargetAsync(target, outcome, budget, token)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "The managed session can only fail over while it is connected.");
+            }
+
+            using (var waiting = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                Task closed = StateMachine.WaitForClosedAsync(waiting.Token).AsTask();
+                try
+                {
+                    if (await Task.WhenAny(outcome.Task, closed).ConfigureAwait(false) != outcome.Task ||
+                        outcome.Task.IsCanceled)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        throw new ServiceResultException(
+                            StatusCodes.BadSessionClosed, "The managed session was closed during the failover.");
+                    }
+                }
+                finally
+                {
+                    // Releases the close wait, which otherwise lasts until the session closes.
+                    await waiting.CancelAsync().ConfigureAwait(false);
+                }
+            }
+
+            ServiceResult result = await outcome.Task.ConfigureAwait(false);
+            if (ServiceResult.IsBad(result))
+            {
+                throw new ServiceResultException(result);
+            }
+            await StateMachine.WaitForConnectedAsync(ct).ConfigureAwait(false);
+        }
+
+        private async Task<ServiceResult> FailoverToRequestedTargetAsync(
+            ConfiguredEndpoint target,
+            TaskCompletionSource<ServiceResult> outcome,
+            IRetryBudget budget,
+            CancellationToken ct)
+        {
+            ServiceResult result;
+            try
+            {
+                m_logger.ManagedSessionFailingOverEndpoint(target.EndpointUrl);
+                result = await SwitchToRedundantServerAsync(target, budget, ct).ConfigureAwait(false);
+                if (ServiceResult.IsGood(result))
+                {
+                    await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                    m_logger.ManagedSessionFailoverComplete();
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                outcome.TrySetCanceled(ct);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                if (m_redundancyHandler is IServerRedundancyEndpointCache cache)
+                {
+                    cache.InvalidateEndpoint(target);
+                }
+                m_logger.ManagedSessionFailoverFailed(exception);
+                result = ToAttemptFailure(exception);
+            }
+            outcome.TrySetResult(result);
+            return result;
+        }
+
+        /// <summary>
         /// Switches the session to <paramref name="target"/> by recreating it in
         /// place, so subscriptions are transferred or recreated on the target.
         /// </summary>

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -165,9 +166,85 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// FailoverAsync switches a connected session to an explicit target
+        /// without a connection loss.
+        /// </summary>
+        [Test]
+        public async Task FailoverAsyncSwitchesToExplicitTargetAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(230);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
+            var states = new ConcurrentQueue<ConnectionState>();
+            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+
+            await session.FailoverAsync(set.Backup.Endpoint, timeout.Token).ConfigureAwait(false);
+            await WaitUntilAsync(() => states.Contains(ConnectionState.Connected), timeout.Token).ConfigureAwait(false);
+
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+            Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+            DataValue level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(level.GetValue<byte>(0), Is.EqualTo(230));
+            Assert.That(session.RedundancyInfo?.ServiceLevel, Is.EqualTo(230));
+        }
+
+        /// <summary>
+        /// FailoverAsync without a target fails over to the member the
+        /// redundancy handler selects.
+        /// </summary>
+        [Test]
+        public async Task FailoverAsyncSwitchesToHandlerSelectedTargetAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(230);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(), timeout.Token).ConfigureAwait(false);
+
+            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
+            Assert.That(session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+        }
+
+        /// <summary>
+        /// FailoverAsync requires a redundancy handler.
+        /// </summary>
+        [Test]
+        public async Task FailoverAsyncWithoutRedundancyHandlerThrowsAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            await using UaManagedSession session = await set.ConnectAsync(
+                new ServerRedundancyOptions(), timeout.Token, withRedundancyHandler: false).ConfigureAwait(false);
+
+            await Assert.ThatAsync(
+                () => session.FailoverAsync(set.Backup.Endpoint, timeout.Token),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo((StatusCode)StatusCodes.BadNotSupported)).ConfigureAwait(false);
+
+            Assert.That(session.RedundancyInfo, Is.Null);
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+        }
+
         private static string? ServerUriOf(UaManagedSession session)
         {
             return session.ConfiguredEndpoint.Description.Server?.ApplicationUri;
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, CancellationToken ct)
+        {
+            while (!condition())
+            {
+                await Task.Delay(20, ct).ConfigureAwait(false);
+            }
         }
 
         private static RedundantServer Member(ServerRedundancyInfo info, RedundantMember member)
@@ -238,7 +315,10 @@ namespace Opc.Ua.Client.Tests
                 }
             }
 
-            public Task<UaManagedSession> ConnectAsync(ServerRedundancyOptions options, CancellationToken ct)
+            public Task<UaManagedSession> ConnectAsync(
+                ServerRedundancyOptions options,
+                CancellationToken ct,
+                bool withRedundancyHandler = true)
             {
                 var resolver = new MemberEndpointResolver(new Dictionary<string, ConfiguredEndpoint>
                 {
@@ -249,7 +329,9 @@ namespace Opc.Ua.Client.Tests
                     Client.Config,
                     Primary.Endpoint,
                     Client.SessionFactory,
-                    redundancyHandler: new DefaultServerRedundancyHandler(resolver, options: options),
+                    redundancyHandler: withRedundancyHandler
+                        ? new DefaultServerRedundancyHandler(resolver, options: options)
+                        : null,
                     telemetry: Telemetry,
                     serverRedundancy: options,
                     ct: ct);
