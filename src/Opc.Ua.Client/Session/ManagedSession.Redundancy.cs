@@ -174,6 +174,70 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reads the <c>ServiceLevel</c> of the Server in use at
+        /// <paramref name="interval"/> and fails over when the redundancy
+        /// handler decides that a failover is warranted.
+        /// </summary>
+        private async ValueTask MonitorServiceLevelAsync(TimeSpan interval, CancellationToken shutdown)
+        {
+            while (StateMachine.State != ConnectionState.Closed)
+            {
+                await m_timeProvider.Delay(interval, shutdown).ConfigureAwait(false);
+                if (StateMachine.State != ConnectionState.Connected)
+                {
+                    continue;
+                }
+                try
+                {
+                    await FailOverOnServiceLevelAsync(shutdown).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (shutdown.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    m_logger.ManagedSessionServiceLevelMonitoringFailed(exception);
+                }
+            }
+        }
+
+        private async Task FailOverOnServiceLevelAsync(CancellationToken ct)
+        {
+            IServerRedundancyHandler? handler = m_redundancyHandler;
+            if (handler == null)
+            {
+                return;
+            }
+
+            await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+            ServerRedundancyInfo? info = m_redundancyInfo;
+            // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3), so peers are
+            // only resolved and probed once the Server in use is no longer Healthy.
+            if (info == null ||
+                info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
+                (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
+            {
+                return;
+            }
+
+            await RefreshRedundancyInfoBestEffortAsync(ct, resolveCachedEndpoints: true).ConfigureAwait(false);
+            info = m_redundancyInfo!;
+            ConfiguredEndpoint current = ConfiguredEndpoint;
+            ServerFailoverDecision decision = handler.ShouldFailover(info, current);
+            ConfiguredEndpoint? target = decision.IsFailoverWarranted
+                ? handler.SelectFailoverTarget(info, current)
+                : null;
+            if (target == null || StateMachine.State != ConnectionState.Connected)
+            {
+                return;
+            }
+
+            m_logger.ManagedSessionServiceLevelFailover(info.ServiceLevel, decision.Reason);
+            await RunRequestedFailoverAsync(target, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Switches the session to <paramref name="target"/> by recreating it in
         /// place, so subscriptions are transferred or recreated on the target.
         /// </summary>

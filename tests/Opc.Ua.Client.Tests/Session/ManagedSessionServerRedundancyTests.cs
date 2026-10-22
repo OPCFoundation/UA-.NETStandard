@@ -35,11 +35,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Server;
 using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Quickstarts.ReferenceServer;
+using ISubscription = Opc.Ua.Client.Subscriptions.ISubscription;
+using ISubscriptionManager = Opc.Ua.Client.Subscriptions.ISubscriptionManager;
 using UaManagedSession = Opc.Ua.Client.ManagedSession;
 
 namespace Opc.Ua.Client.Tests
@@ -163,6 +166,70 @@ namespace Opc.Ua.Client.Tests
                     Is.EqualTo((StatusCode)StatusCodes.Good));
                 Assert.That(info.RedundantServers.ToList().Select(s => s.ServerUri),
                     Is.EqualTo(new[] { set.Backup.ApplicationUri }));
+            });
+        }
+
+        /// <summary>
+        /// A degraded ServiceLevel of the Server in use fails over to the
+        /// healthy member while connected, without a connection loss, and the
+        /// subscription continues on the new Server.
+        /// </summary>
+        [Test]
+        public async Task DegradedServiceLevelFailsOverAndSubscriptionContinuesAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            await using RedundantSet set = await RedundantSet.StartAsync(timeout.Token).ConfigureAwait(false);
+            set.Primary.SetServiceLevel(ServiceLevels.Maximum);
+            set.Backup.SetServiceLevel(230);
+            var options = new ServerRedundancyOptions
+            {
+                ProbeMemberServiceLevel = true,
+                ServiceLevelMonitoringInterval = TimeSpan.FromMilliseconds(250)
+            };
+            await using UaManagedSession session = await set.ConnectAsync(options, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+            var states = new ConcurrentQueue<ConnectionState>();
+            session.ConnectionStateChanged += (_, e) => states.Enqueue(e.NewState);
+
+            var recorder = new DataChangeRecorder();
+            ISubscriptionManager manager = session.RequireSubscriptionManager();
+            ISubscription subscription = manager.Add(
+                recorder,
+                OptionsFactory.Create(new Subscriptions.SubscriptionOptions
+                {
+                    PublishingEnabled = true,
+                    PublishingInterval = TimeSpan.FromMilliseconds(100),
+                    KeepAliveCount = 10,
+                    LifetimeCount = 100
+                }));
+            Assert.That(subscription.MonitoredItems.TryAdd(
+                "CurrentTime",
+                OptionsFactory.Create(new Subscriptions.MonitoredItems.MonitoredItemOptions
+                {
+                    StartNodeId = VariableIds.Server_ServerStatus_CurrentTime,
+                    SamplingInterval = TimeSpan.FromMilliseconds(100),
+                    QueueSize = 1
+                }),
+                out _), Is.True);
+            await WaitUntilAsync(() => recorder.Count >= 3, timeout.Token).ConfigureAwait(false);
+            Assert.That(states, Is.Empty);
+
+            set.Primary.SetServiceLevel(150);
+            await WaitUntilAsync(
+                () => ServerUriOf(session) == set.Backup.ApplicationUri &&
+                    session.StateMachine.State == ConnectionState.Connected,
+                timeout.Token).ConfigureAwait(false);
+            DateTime failedOverAt = DateTime.UtcNow;
+            await WaitUntilAsync(() => recorder.LatestSourceTimestamp > failedOverAt, timeout.Token)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(states.ToArray(), Is.EqualTo(new[] { ConnectionState.Failover, ConnectionState.Connected }));
+                Assert.That(manager.Items.Single(), Is.SameAs(subscription));
+                Assert.That(session.RedundancyInfo?.ServiceLevel, Is.EqualTo(230));
+                Assert.That(recorder.Errors, Is.Empty);
             });
         }
 
@@ -456,6 +523,81 @@ namespace Opc.Ua.Client.Tests
             private readonly ServerFixture<ReferenceServer> m_fixture;
             private readonly ReferenceServer m_server;
             private readonly Action<byte> m_setServiceLevel;
+        }
+
+        /// <summary>
+        /// Records the source timestamps of the data changes of a subscription.
+        /// </summary>
+        private sealed class DataChangeRecorder : ISubscriptionNotificationHandler
+        {
+            public int Count => Volatile.Read(ref m_count);
+
+            public DateTime LatestSourceTimestamp => new(Interlocked.Read(ref m_latestTicks), DateTimeKind.Utc);
+
+            public ConcurrentQueue<StatusCode> Errors { get; } = new();
+
+            public ValueTask OnDataChangeNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<DataValueChange> notification,
+                PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                foreach (DataValueChange change in notification.Span)
+                {
+                    if (StatusCode.IsBad(change.Value.StatusCode))
+                    {
+                        Errors.Enqueue(change.Value.StatusCode);
+                        continue;
+                    }
+                    long ticks = change.Value.GetValue(DateTime.MinValue).ToUniversalTime().Ticks;
+                    long latest = Interlocked.Read(ref m_latestTicks);
+                    while (ticks > latest)
+                    {
+                        long previous = Interlocked.CompareExchange(ref m_latestTicks, ticks, latest);
+                        if (previous == latest)
+                        {
+                            break;
+                        }
+                        latest = previous;
+                    }
+                    Interlocked.Increment(ref m_count);
+                }
+                return default;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<EventNotification> notification,
+                PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return default;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                PublishState publishStateMask)
+            {
+                return default;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                ISubscription subscription,
+                Subscriptions.SubscriptionState state,
+                PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                return default;
+            }
+
+            private long m_latestTicks = DateTime.MinValue.Ticks;
+            private int m_count;
         }
 
         /// <summary>

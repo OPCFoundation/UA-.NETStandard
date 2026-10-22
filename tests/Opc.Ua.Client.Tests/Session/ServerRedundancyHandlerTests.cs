@@ -941,6 +941,26 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// Verifies that a ServiceLevel monitoring interval must be positive and is off by default.
+        /// </summary>
+        [Test]
+        public void ServiceLevelMonitoringIntervalMustBePositive()
+        {
+            var defaults = new ServerRedundancyOptions();
+            Assert.That(defaults.ServiceLevelMonitoringInterval, Is.Null);
+            Assert.That(defaults.ProbeMemberServiceLevel, Is.False);
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.Zero }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = Timeout.InfiniteTimeSpan }.Validate(),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(
+                () => new ServerRedundancyOptions { ServiceLevelMonitoringInterval = TimeSpan.FromSeconds(1) }.Validate(),
+                Throws.Nothing);
+        }
+
+        /// <summary>
         /// Verifies that a failed endpoint resolution keeps the exact status of the failure.
         /// </summary>
         [Test]
