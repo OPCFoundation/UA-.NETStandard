@@ -128,19 +128,30 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="affordanceMap">The local affordance map.</param>
         /// <param name="expectedNodeClass">The ordinary Binding materialization's NodeClass.</param>
         /// <param name="authoredIdentity">Whether the local affordance declares its identity.</param>
-        [TestCase("properties", NodeClass.Variable, true)]
-        [TestCase("actions", NodeClass.Method, true)]
-        [TestCase("events", NodeClass.ObjectType, true)]
-        [TestCase("properties", NodeClass.Variable, false)]
-        [TestCase("actions", NodeClass.Method, false)]
-        [TestCase("events", NodeClass.ObjectType, false)]
+        /// <param name="thingModel">Whether the projection and source are Thing Models.</param>
+        [TestCase("properties", NodeClass.Variable, true, false)]
+        [TestCase("actions", NodeClass.Method, true, false)]
+        [TestCase("events", NodeClass.ObjectType, true, false)]
+        [TestCase("properties", NodeClass.Variable, false, false)]
+        [TestCase("actions", NodeClass.Method, false, false)]
+        [TestCase("events", NodeClass.ObjectType, false, false)]
+        [TestCase("properties", NodeClass.Variable, true, true)]
+        [TestCase("actions", NodeClass.Method, true, true)]
+        [TestCase("events", NodeClass.ObjectType, true, true)]
+        [TestCase("properties", NodeClass.Variable, false, true)]
+        [TestCase("actions", NodeClass.Method, false, true)]
+        [TestCase("events", NodeClass.ObjectType, false, true)]
         public async Task ProjectionLocalOnlyAffordanceIsMaterializedAndOrganizedAsync(
             string affordanceMap,
             NodeClass expectedNodeClass,
-            bool authoredIdentity)
+            bool authoredIdentity,
+            bool thingModel)
         {
             await using NativeHarness harness = await NativeHarness.CreateAsync().ConfigureAwait(false);
-            string sourceUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/local-unused-source";
+            string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
+            string contentType = thingModel ? "application/tm+json" : "application/td+json";
+            string sourceUri = $"urn:wot:{group}/local-unused-source";
             string schema = affordanceMap switch
             {
                 "properties" => "\"type\":\"number\",",
@@ -148,22 +159,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 _ => string.Empty
             };
             string identity = authoredIdentity
-                ? "\"uav:id\":\"nsu=urn:wot:thingdescriptions/projection-local;s=ProjectionLocal/localOnly\","
+                ? $"\"uav:id\":\"nsu=urn:wot:{group}/projection-local;s=ProjectionLocal/localOnly\","
                 : string.Empty;
-            await harness.RegisterTdAsync("local-unused-source", """
+            await harness.RegisterTdAsync("local-unused-source", $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
-                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":"Thing",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":"{{{rootType}}}",
                   "id":"urn:local-unused-source","title":"Local unused source",
                   "properties":{"unused":{"type":"number","forms":[{"href":"https://example.test/unused"}]}}
                 }
-                """).ConfigureAwait(false);
+                """, thingModel).ConfigureAwait(false);
             await harness.RegisterTdAsync("projection-local", $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
-                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":["Thing","uav:projection"],
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/",
+                     "tm":"https://www.w3.org/2019/wot/tm#"}],
+                  "@type":["{{{rootType}}}","uav:projection"],
                   "id":"urn:projection:local-only","title":"Local only",
                   "uav:scenario":"urn:scenario:local-only",
                   "securityDefinitions":{"nosec_sc":{"scheme":"nosec"}},
@@ -171,7 +184,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                   "uav:projects":[{
                     "uav:sourceName":"unused",
                     "href":"{{{sourceUri}}}",
-                    "type":"application/td+json",
+                    "type":"{{{contentType}}}",
                     "uav:selectAll":false
                   }],
                   "{{{affordanceMap}}}":{
@@ -182,11 +195,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     }
                   }
                 }
-                """).ConfigureAwait(false);
+                """, thingModel).ConfigureAwait(false);
 
             WotRefreshResult result = await harness.RefreshAsync().ConfigureAwait(false);
 
-            NodeId resourceNode = harness.ResourceNodeId("projection-local");
+            NodeId resourceNode = harness.ResourceNodeId("projection-local", thingModel);
             NodeId viewNode = new(resourceNode.IdentifierAsString + "/View", resourceNode.NamespaceIndex);
             WoTResourceLoadResultDataType load = result.Results.Single(
                 row => row.ResourceId == "projection-local");
@@ -205,7 +218,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 if (authoredIdentity)
                 {
                     Assert.That(harness.Target(local), Is.EqualTo(harness.Identity(
-                        "urn:wot:thingdescriptions/projection-local", "ProjectionLocal/localOnly")));
+                        $"urn:wot:{group}/projection-local", "ProjectionLocal/localOnly")));
                 }
                 Assert.That(load.LoadState, Is.EqualTo(WoTLoadStateEnum.Active), load.Message);
                 Assert.That(load.RootNodeId, Is.EqualTo(viewNode),
@@ -213,6 +226,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             });
             Assert.That(await ReadNodeClassAsync(harness, harness.Target(local)).ConfigureAwait(false),
                 Is.EqualTo(expectedNodeClass));
+            Assert.That(await ReadNodeClassAsync(harness, viewNode).ConfigureAwait(false),
+                Is.EqualTo(NodeClass.View));
         }
 
         /// <summary>
@@ -1744,9 +1759,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 return m_registry!.Current.FindResource(WotRegistryGroups.ThingDescriptions, resource)!.Xid;
             }
 
-            public NodeId ResourceNodeId(string resource)
+            public NodeId ResourceNodeId(string resource, bool thingModel = false)
             {
-                return new NodeId("WoTRegistry/groups/thingdescriptions/resources/" + resource, NamespaceIndex);
+                string group = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions;
+                return new NodeId("WoTRegistry/groups/" + group + "/resources/" + resource, NamespaceIndex);
             }
 
             public WotCanonicalViewGraphContext GraphContext(ArrayOf<WotCanonicalViewSource> sources)
@@ -1779,20 +1795,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             /// <summary>
-            /// Adds a Thing Description to the registry and publishes its registry node.
+            /// Adds a Thing Description or Thing Model to the registry and publishes its registry node.
             /// </summary>
             /// <param name="resourceId">The registry resource identifier.</param>
             /// <param name="json">The document JSON.</param>
-            public async Task RegisterTdAsync(string resourceId, string json)
+            /// <param name="thingModel">Whether to register a Thing Model rather than a Thing Description.</param>
+            public async Task RegisterTdAsync(string resourceId, string json, bool thingModel = false)
             {
                 WotRegistryMutationResult result = await Registry.UpsertResourceAsync(
                     new WotUpsertResourceRequest
                     {
-                        GroupId = WotRegistryGroups.ThingDescriptions,
+                        GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
                         ResourceId = resourceId,
-                        Kind = WoTDocumentKindEnum.ThingDescription,
-                        Format = "WoT-TD/1.1",
-                        ContentType = "application/td+json",
+                        Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
+                        Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
+                        ContentType = thingModel ? "application/tm+json" : "application/td+json",
                         Content = ByteString.From(Encoding.UTF8.GetBytes(json))
                     }).ConfigureAwait(false);
                 Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
