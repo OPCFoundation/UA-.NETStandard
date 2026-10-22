@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         /// <summary>
         /// Owns synthetic PKI, free-port listeners and native managed Client connections for one test.
         /// </summary>
-        private sealed class WireContext : IAsyncDisposable
+        internal sealed class WireContext : IAsyncDisposable
         {
             private WireContext(bool useJson, AsyncExecutionScenario scenario, bool enabled)
             {
@@ -1116,13 +1116,25 @@ namespace Opc.Ua.Server.Tests.AsyncServices
             public string RootPath { get; }
             public CountingKeyGenerator KeyGenerator { get; } = new();
 
+#if NET10_0_OR_GREATER
+            /// <summary>
+            /// Gets the optional loopback network fault injector owned by this fixture.
+            /// </summary>
+            public Opc.Ua.Stress.Tests.Channels.Fakes.TcpChaosProxy? Proxy { get; private set; }
+#endif
+
             public static async Task<WireContext> CreateAsync(
                 bool useJson, AsyncExecutionScenario scenario, bool securityAdmin = false, string role = "Probe",
-                RecoverableSessionOptions? recoverable = null, bool enabled = true)
+                RecoverableSessionOptions? recoverable = null, bool enabled = true,
+                TimeSpan? lifetime = null, bool networkChaos = false)
             {
                 var context = new WireContext(useJson, scenario, enabled);
                 try
                 {
+                    if (lifetime.HasValue)
+                    {
+                        context.m_timeout.CancelAfter(lifetime.Value);
+                    }
                     await context.m_secretStore.SetAsync(
                         context.m_passwordId, context.m_password.Memory, context.Timeout).ConfigureAwait(false);
                     await context.m_server.LoadConfigurationAsync(context.RootPath).ConfigureAwait(false);
@@ -1185,6 +1197,25 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                     {
                         UpdateBeforeConnect = false
                     };
+#if NET10_0_OR_GREATER
+                    if (networkChaos)
+                    {
+                        context.Proxy = await Opc.Ua.Stress.Tests.Channels.Fakes.TcpChaosProxy.StartAsync(
+                            new Uri(description.EndpointUrl!), telemetry: context.Telemetry).ConfigureAwait(false);
+                        endpoint.EndpointUrl = new UriBuilder(description.EndpointUrl!)
+                        {
+                            Host = context.Proxy.LocalUrl.Host,
+                            Port = context.Proxy.LocalUrl.Port
+                        }.Uri;
+                        endpoint.Description.Server.DiscoveryUrls = [endpoint.EndpointUrl.ToString()];
+                        context.Faults.InterruptAsync = context.Proxy.DropAllConnectionsAsync;
+                    }
+#else
+                    if (networkChaos)
+                    {
+                        throw new NotSupportedException("The network chaos proxy requires the net10 test target.");
+                    }
+#endif
                     context.m_manager = new ClientChannelManager(
                         context.m_client.Config, context.Telemetry, context.m_bindings);
                     context.m_owner = await ManagedSession.CreateAsync(
@@ -1211,12 +1242,13 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 }
             }
 
-            public async Task RecoverAsync()
+            public async Task RecoverAsync(CancellationToken ct = default)
             {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(Timeout, ct);
                 NodeId sessionId = Owner.SessionId;
                 string[] namespaces = Owner.NamespaceUris.ToArray();
                 string[] servers = Owner.ServerUris.ToArray();
-                await Owner.ReconnectAsync(null, null, Timeout).ConfigureAwait(false);
+                await Owner.ReconnectAsync(null, null, linked.Token).ConfigureAwait(false);
                 Assert.That(Owner.SessionId, Is.EqualTo(sessionId), "Recovery must reactivate, not recreate.");
                 Assert.That(Owner.NamespaceUris.ToArray(), Is.EqualTo(namespaces));
                 Assert.That(Owner.ServerUris.ToArray(), Is.EqualTo(servers));
@@ -1253,6 +1285,12 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                         }
                         finally
                         {
+#if NET10_0_OR_GREATER
+                            if (Proxy != null)
+                            {
+                                await Proxy.DisposeAsync().ConfigureAwait(false);
+                            }
+#endif
                             await m_client.DisposeAsync().ConfigureAwait(false);
                             await m_services.DisposeAsync().ConfigureAwait(false);
                             _ = await m_secretStore.RemoveAsync(m_passwordId).ConfigureAwait(false);
@@ -1285,7 +1323,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         /// <summary>
         /// Counts real entropy-mixed key generation through the public Push Management provider seam.
         /// </summary>
-        private sealed class CountingKeyGenerator : IPushCertificateKeyGenerator
+        internal sealed class CountingKeyGenerator : IPushCertificateKeyGenerator
         {
             public int Calls => Volatile.Read(ref m_calls);
 
@@ -1303,7 +1341,7 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         /// <summary>
         /// Retains the actual native transport solely to simulate a physical interruption at a response boundary.
         /// </summary>
-        private sealed class NativeChannelBindings : ITransportChannelBindings
+        internal sealed class NativeChannelBindings : ITransportChannelBindings
         {
             public ITransportChannel? Create(string uriScheme, ITelemetryContext telemetry)
             {
@@ -1326,8 +1364,12 @@ namespace Opc.Ua.Server.Tests.AsyncServices
         /// <summary>
         /// Drops a real reply before native wire serialization, never fabricating an original Service result.
         /// </summary>
-        private sealed class ResponseFaults(NativeChannelBindings channels) : IServiceResponseMutator
+        internal sealed class ResponseFaults(NativeChannelBindings channels) : IServiceResponseMutator
         {
+            /// <summary>
+            /// Gets or sets the physical interruption used instead of closing the captured native channel.
+            /// </summary>
+            public Func<Task>? InterruptAsync { get; set; }
             public IServiceMessageContext MessageContext { get; set; } = null!;
             public ConcurrentQueue<byte[]> OriginalResponses { get; } = new();
             public ConcurrentQueue<uint> CollectionHandles { get; } = new();
@@ -1411,7 +1453,14 @@ namespace Opc.Ua.Server.Tests.AsyncServices
                 }
                 if (match && Interlocked.CompareExchange(ref m_armed, 0, 1) == 1)
                 {
-                    await channels.CloseCurrentAsync().ConfigureAwait(false);
+                    if (InterruptAsync != null)
+                    {
+                        await InterruptAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await channels.CloseCurrentAsync().ConfigureAwait(false);
+                    }
                     Interlocked.Increment(ref m_drops);
                     m_dropped.TrySetResult(true);
                 }

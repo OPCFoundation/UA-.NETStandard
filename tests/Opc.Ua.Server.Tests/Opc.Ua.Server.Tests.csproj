@@ -45,9 +45,12 @@
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
     <ProjectReference Include="..\..\samples\AsyncServices\RecoverableServiceDemo\RecoverableServiceDemo.csproj" />
+    <Compile Include="..\Opc.Ua.Stress.Tests\Channels\Fakes\TcpChaosProxy.cs"
+             Link="AsyncServices\TcpChaosProxy.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' != 'net10.0'">
     <Compile Remove="AsyncServices\RecoverableServiceDemoTests.cs" />
+    <Compile Remove="AsyncServices\AsyncServiceNetworkChaosTests.cs" />
   </ItemGroup>
   <!--
     The sample child has its own deps/runtimeconfig and must not depend on the

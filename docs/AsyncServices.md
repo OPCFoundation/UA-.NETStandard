@@ -505,6 +505,7 @@ Keep evidence categories separate:
 | `RecoverableDurableExecutionTests` | Integrated admission, restoration, current authorization, fencing, capacity and cleanup |
 | File shared-store fixtures | Actual local publication/reopen, bounded capacity and uncertainty handling |
 | `AsyncServiceTransportTests` | Native wire loss, mapping/protection observation and certificate cycles |
+| `AsyncServiceNetworkChaosTests` | Opt-in sustained Session recovery through a real TCP chaos proxy on both native mappings |
 | `RecoverableServiceDemoTests` | Ordinary/outage examples and the Windows child-process restart script |
 | `AsyncServicesAotTests` | Generated codecs, typed Session Read/ACK, interpretation witness and protected local storage in a published native executable |
 
@@ -517,6 +518,45 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
 ```
 
 Use net10.0 and net48 for the applicable focused Server selections.
+
+### Opt-in network chaos soak
+
+`RecoverableExecutionSurvivesSeededNetworkChaos` is an explicit net10.0 test,
+also marked `LongRunning` for the standard CI exclusion filter. It reuses the
+channel stress suite's TCP chaos proxy without terminating encryption.
+Two long-lived peers alternate UA Binary
+over SignAndEncrypt UA-TCP and HTTPS UA JSON. The default campaign lasts one
+hour and stops on the first failed assertion or unexpected exception.
+
+```powershell
+$env:OPCUA_CHAOS_SEED = '4813'
+$env:OPCUA_RSE_SOAK_SECONDS = '3600'
+dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
+    -c Debug -f net10.0 -p:CustomTestTarget=net10.0 `
+    --filter 'FullyQualifiedName=Opc.Ua.Server.Tests.AsyncServices.AsyncServiceNetworkChaosTests.RecoverableExecutionSurvivesSeededNetworkChaos' `
+    --logger 'trx;LogFileName=rse-network-chaos.trx'
+```
+
+Use `OPCUA_RSE_SOAK_SECONDS=60` for a smoke run. The maximum is 3600 seconds;
+the current iteration and cleanup can finish after the campaign deadline.
+The seed controls mutation amounts and the blocked-accept/stall schedule.
+Fault phases cycle through lost Submit, GetResult and Acknowledge replies,
+then interruption while owned work is still pending. A 45-second per-operation
+watchdog rejects non-recovery; transport failures are expected only at the
+explicitly injected boundaries, never counted as successful operations.
+
+Every completed cycle checks unchanged Session identity, one Submit and one
+original Method invocation, the exact mutation result, byte-identical retained
+original responses, non-renewing retention and explicit acknowledgement.
+Lost ACK replies must return AlreadyApplied on retry. Pending-work recovery
+must not request work cancellation. The test logs its seed, elapsed time,
+per-mapping completion counts and fault-phase counts even on failure.
+Certificates and credentials are synthetic and stay in run-owned temporary
+stores. This is sustained Session/network recovery evidence, not a Server
+restart, Owner/Durable recovery, physical network or power-loss qualification.
+
+### Evidence limits
+
 Codec tests are not wire tests; in-process reopening is not an OS process crash;
 a managed build is not NativeAOT evidence; a process restart is not proof of a
 physical host reboot or power-loss guarantee. Historical CI and coverage belong

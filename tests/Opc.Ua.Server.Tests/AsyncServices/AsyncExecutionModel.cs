@@ -190,6 +190,15 @@ namespace Opc.Ua.TestModels.AsyncExecution
         }
 
         /// <summary>
+        /// Rearms the gates after the preceding invocation has completed and been acknowledged.
+        /// </summary>
+        public void ResetGate()
+        {
+            m_entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        /// <summary>
         /// Returns the actual configured variable value while counting ordinary Service execution.
         /// </summary>
         public async ValueTask<ByteString> ReadBlobAsync(CancellationToken ct)
@@ -218,10 +227,10 @@ namespace Opc.Ua.TestModels.AsyncExecution
             return Interlocked.Add(ref m_counter, amount);
         }
 
-        private readonly TaskCompletionSource<bool> m_entered =
+        private TaskCompletionSource<bool> m_entered =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly TaskCompletionSource<bool> m_release =
+        private TaskCompletionSource<bool> m_release =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private int m_counter = 7;
