@@ -925,6 +925,39 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
+        public async Task RequestedFailoverOutcomeReportsFailedSubscriptionRecoveryAsync()
+        {
+            var policy = new ReconnectPolicy
+            {
+                Strategy = BackoffStrategy.Constant,
+                InitialDelay = TimeSpan.FromMilliseconds(5),
+                JitterFactor = 0.0
+            };
+            await using ConnectionStateMachine sm = CreateMachine(policy);
+            sm.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            sm.ReconnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            int failRecovery = 0;
+            sm.CompleteRecoveryAsync = _ => Task.FromResult(Interlocked.Exchange(ref failRecovery, 0) != 0
+                ? new ServiceResult(StatusCodes.BadSubscriptionIdInvalid)
+                : ServiceResult.Good);
+            sm.Start();
+            sm.RequestConnect();
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await sm.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+
+            Volatile.Write(ref failRecovery, 1);
+            var outcome = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Assert.That(sm.RequestFailover((_, _) => Task.FromResult(ServiceResult.Good), outcome), Is.True);
+            Assert.That(
+                await Task.WhenAny(outcome.Task, Task.Delay(10000, timeout.Token)).ConfigureAwait(false),
+                Is.SameAs(outcome.Task));
+            ServiceResult result = await outcome.Task.ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadSubscriptionIdInvalid));
+            await sm.WaitForConnectedAsync(timeout.Token).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task WaitForConnectedAsyncThrowsOriginalErrorWhenConnectGivesUp()
         {
             var policy = new ReconnectPolicy
