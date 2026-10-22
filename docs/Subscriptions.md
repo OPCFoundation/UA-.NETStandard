@@ -401,6 +401,49 @@ multiple Publish workers can invoke it, and an acknowledgement selected for a
 failed Publish request can be presented again on retry. Do not block the callback
 waiting for external delivery.
 
+Raw and managed SDK sessions also implement the optional
+`ISubscriptionAcknowledgementEvents` capability. `ISession` itself has not
+changed, so existing third-party implementations do not need new members:
+
+```csharp
+if (session is ISubscriptionAcknowledgementEvents lifecycle)
+{
+    lifecycle.PublishAcknowledgementsCompleted += (_, result) =>
+    {
+        for (int i = 0; i < result.Acknowledgements.Count; i++)
+        {
+            SubscriptionAcknowledgement ack = result.Acknowledgements[i];
+            Console.WriteLine($"{ack.SubscriptionId}:{ack.SequenceNumber}: {result.Results[i]}");
+        }
+    };
+    lifecycle.SubscriptionAcknowledgementsDiscarded += (_, retired) =>
+        Console.WriteLine($"Retired acknowledgement scope: {retired.SubscriptionId}");
+}
+```
+
+Completion reports matching acknowledgement/result arrays from a successful
+Publish service response, including per-acknowledgement error codes. A failed
+service request or a response with a mismatched result count does not report
+completion. The acknowledgement objects are the same instances presented by
+the preparation callback, allowing a consumer to correlate the exact approval
+with its result, rather than removing newer state under reused numeric ids.
+Do not mutate these objects.
+
+Keep downstream-delivery approval across a failed Publish. A successful ACK or
+`BadSequenceNumberUnknown` (for example, after the server accepted an ACK but its
+response was lost) can retire the corresponding processed marker. Concurrent
+requests can still retry an already-approved ACK; an identity-keyed weak approval
+table avoids retaining those request objects indefinitely.
+
+Retirement notifications identify a discarded server subscription id; zero
+means all subscription acknowledgement state. Deletion, native partition
+completion, session identity replacement and disposal retire their owned state.
+Capture a subscription-lifetime token before sending work to an external
+pipeline, and invalidate that token on retirement: a late completion must not
+approve a replacement subscription with reused numeric ids. Handlers must be
+thread-safe, short and nonblocking, and must not wait for session/subscription
+operations. Subscriber exceptions are logged without failing protocol work.
+
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
 attempt parked at the shared channel's ready gate, without terminating its

@@ -41,8 +41,19 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// via callback fields. Replaces
     /// <c>Mock&lt;ISubscriptionManagerContext&gt;</c>.
     /// </summary>
-    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
+    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
     {
+        /// <summary>
+        /// Optional acknowledgement retirement observer.
+        /// </summary>
+        public Action<uint>? OnDiscardAcknowledgements { get; set; }
+
+        /// <inheritdoc/>
+        public void OnAcknowledgementsDiscarded(uint subscriptionId)
+        {
+            OnDiscardAcknowledgements?.Invoke(subscriptionId);
+        }
+
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);

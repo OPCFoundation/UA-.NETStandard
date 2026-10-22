@@ -217,7 +217,7 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -268,6 +268,15 @@ namespace Opc.Ua.Client
                 PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
             {
                 return m_context.PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId)
+            {
+                if (m_context is ISubscriptionAcknowledgementLifecycle lifecycle)
+                {
+                    lifecycle.OnAcknowledgementsDiscarded(subscriptionId);
+                }
             }
 
             /// <inheritdoc/>
