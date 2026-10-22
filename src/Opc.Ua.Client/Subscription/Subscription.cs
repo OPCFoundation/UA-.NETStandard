@@ -1308,17 +1308,15 @@ namespace Opc.Ua.Client.Subscriptions
                 AckQueue.Update();
                 return;
             }
-            await AckQueue.RunWithPublishingQuiescedAsync(
-                token => ResetMessageGenerationAsync(async retireToken =>
-                {
-                    uint retiredId = Id;
-                    await DeleteCoreAsync(retireToken).ConfigureAwait(false);
-                    if (AckQueue.OwnsSubscriptionId(this, retiredId))
-                    {
-                        AckQueue.DropPendingForSubscription(retiredId);
-                    }
-                }, _ => default, token),
-                ct).ConfigureAwait(false);
+            uint retiredId = Id;
+            await ResetMessageGenerationAsync(DeleteCoreAsync, _ => default, ct).ConfigureAwait(false);
+
+            // Publishing is not quiesced: the generation advanced, so a stale
+            // acknowledgement a worker holds in flight is discarded if requeued.
+            if (retiredId != 0 && AckQueue.OwnsSubscriptionId(this, retiredId))
+            {
+                AckQueue.DropPendingForSubscription(retiredId);
+            }
         }
 
         private async ValueTask DeleteCoreAsync(CancellationToken ct)

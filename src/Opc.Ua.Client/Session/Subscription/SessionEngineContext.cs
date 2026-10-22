@@ -276,6 +276,10 @@ namespace Opc.Ua.Client
 
                 if (callback != null)
                 {
+                    // A handler can move entries and then throw; restore the original set
+                    // so falling back to sending all acknowledgements loses none of them.
+                    var snapshot = new List<SubscriptionAcknowledgement>(
+                        currentAcknowledgements);
                     try
                     {
                         var deferred =
@@ -292,6 +296,8 @@ namespace Opc.Ua.Client
                     catch (Exception e)
                     {
                         m_session.m_logger.PublishSequenceNumbersToAcknowledgeHandlerError(e);
+                        currentAcknowledgements.Clear();
+                        currentAcknowledgements.AddRange(snapshot);
                     }
                 }
 

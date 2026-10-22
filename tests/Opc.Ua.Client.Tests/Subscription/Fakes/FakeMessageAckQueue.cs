@@ -88,6 +88,13 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
         }
 
+        /// <inheritdoc/>
+        public ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct = default)
+        {
+            return QueueAsync(ack, ct);
+        }
+
         /// <summary>
         /// Waits until at least <paramref name="count"/> acknowledgements have
         /// been queued. The processor under test dispatches a notification

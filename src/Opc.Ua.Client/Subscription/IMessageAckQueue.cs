@@ -41,12 +41,30 @@ namespace Opc.Ua.Client.Subscriptions
         /// <summary>
         /// Subscriptions queue acknoledgements for completed
         /// notifications as soon as they are dispatched / handled.
+        /// The acknowledgement has no owner, so it is only removed by
+        /// <see cref="DropPendingForSubscription"/>.
         /// </summary>
         /// <param name="ack"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
         ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Queues an acknowledgement stamped with the processor that
+        /// produced it and that processor's message generation. Before
+        /// the acknowledgement is sent, it is discarded if the owner was
+        /// removed, its server id changed or is also claimed by another
+        /// subscription, or its generation advanced.
+        /// </summary>
+        /// <param name="owner">The processor that produced the
+        /// acknowledgement.</param>
+        /// <param name="generation">The owner's message generation when
+        /// the acknowledged message was processed.</param>
+        /// <param name="ack">The acknowledgement.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct = default);
 
         /// <summary>
         /// Complete subscription
@@ -84,12 +102,14 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
-        /// Drops every queued acknowledgement targeting the given
-        /// <paramref name="subscriptionId"/>. Used by the
-        /// recreate path after the old server-side subscription has
-        /// been retired and while publish ingress remains quiesced.
-        /// This prevents stale acknowledgements from crossing into a
-        /// replacement generation when a server reuses identifiers.
+        /// Drops every queued or deferred acknowledgement targeting the
+        /// given <paramref name="subscriptionId"/> and reports the id as
+        /// retired. Used when a subscription is recreated, deleted or
+        /// completed. Publishing does not have to be quiesced: an
+        /// acknowledgement a worker holds in flight is validated against
+        /// its owner again before it is requeued or sent. When called while
+        /// publishing is quiesced, the retirement is reported after the
+        /// quiescence ends.
         /// </summary>
         /// <param name="subscriptionId">The subscription id whose
         /// queued acknowledgements should be dropped.</param>

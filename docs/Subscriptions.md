@@ -41,6 +41,7 @@ pools, when to pick which) see
   - [Lifecycle, cancellation, disposal](#lifecycle-cancellation-disposal)
   - [Pairing with `AlarmClient`](#pairing-with-alarmclient)
 - [Server retransmission queues](#server-retransmission-queues)
+- [Publish acknowledgements](#publish-acknowledgements)
 - [Publishing during session recovery](#publishing-during-session-recovery)
 - [Triggering (SetTriggering)](#triggering-settriggering)
   - [Declarative triggering](#declarative-triggering)
@@ -376,7 +377,7 @@ regardless of other sessions' subscriptions. A closing session retains
 counters remain equal, with one increment per authorized request; the
 successful-message counter advances only when a message is returned.
 
-## Publishing during session recovery
+## Publish acknowledgements
 
 V2 Publish workers select at least one queued acknowledgement when the queue is
 non-empty, even when there are more workers than pending acknowledgements.
@@ -384,6 +385,15 @@ Progress does not depend on the worker entering its wait-for-ack path: that wait
 can be skipped when Publish latency exceeds the publishing interval or the server
 reports `MoreNotifications`. A quiet subscription therefore does not need another
 notification or a reduction in the worker count to release its pending acknowledgement.
+
+Each queued acknowledgement remembers the subscription that produced it and that
+subscription's message generation. Just before a Publish request is sent (and when a
+failed request returns its acknowledgements to the queue), entries are discarded if
+their subscription was removed, deleted or recreated, now uses another server id, or
+shares its server id with another subscription because the server reused the id. This
+prevents a late acknowledgement from confirming a message of a different subscription
+that the client never processed. Because stale entries are filtered when sent, deleting
+or completing one subscription does not pause or cancel Publish requests of the session.
 
 V2 publishing also honors the existing
 `ISession.PublishSequenceNumbersToAcknowledge` event. A handler can move entries
@@ -396,10 +406,15 @@ the default acknowledgement behavior is unchanged.
 
 Completing or throwing from a notification handler is not itself a downstream
 delivery guarantee. Use the acknowledgement-preparation event when that
-distinction matters. The event handler must be thread-safe and idempotent:
-multiple Publish workers can invoke it, and an acknowledgement selected for a
-failed Publish request can be presented again on retry. Do not block the callback
-waiting for external delivery.
+distinction matters. As in the classic engine, the V2 engine never invokes the
+handler concurrently, but it runs on a Publish worker, so keep it short and do
+not block it waiting for external delivery or for session/subscription work. The
+handler must be idempotent: an acknowledgement selected for a failed Publish request
+is presented again on retry. If the handler throws, the error is logged and every
+acknowledgement presented to it is sent, including entries it had already moved to
+`DeferredAcknowledgementsToSend`. When more than 1000 acknowledgements are deferred,
+a warning is logged once (until the backlog drains), because the server keeps every
+unacknowledged message in its retransmission queue.
 
 Raw and managed SDK sessions also implement the optional
 `ISubscriptionAcknowledgementEvents` capability. `ISession` itself has not
@@ -440,11 +455,22 @@ means all subscription acknowledgement state. Successful subscription creation
 also retires any prior state for the returned id, since a server can reuse ids.
 Deletion, native partition
 completion, session identity replacement and disposal retire their owned state.
+A session recreate that transfers subscriptions (`TransferSubscriptionsOnReconnect`
+for the classic engine, `TransferSubscriptionsOnRecreate` for V2) does not report
+zero, because transferred subscriptions keep their acknowledgement state; a
+subscription that fails to transfer is recreated and reported by its old id.
+The same retirement can be reported more than once (for example, on deletion and
+again on disposal), so handle the notification idempotently. A retirement is never
+reported for an id that another live subscription of the session now uses. V2 raises
+retirement notifications after Publish ingress resumes, not while it is paused.
 Capture a subscription-lifetime token before sending work to an external
 pipeline, and invalidate that token on retirement: a late completion must not
-approve a replacement subscription with reused numeric ids. Handlers must be
-thread-safe, short and nonblocking, and must not wait for session/subscription
+approve a replacement subscription with reused numeric ids. A Publish request
+that was already in flight can still report completion for the retired id. Handlers
+must be thread-safe, short and nonblocking, and must not wait for session/subscription
 operations. Subscriber exceptions are logged without failing protocol work.
+
+## Publishing during session recovery
 
 V2 session recreation pauses publishing and drains active Publish attempts
 before replacing the session. The drain cancels each attempt, including an
