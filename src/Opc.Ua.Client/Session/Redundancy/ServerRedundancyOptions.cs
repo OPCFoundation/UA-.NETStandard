@@ -65,6 +65,20 @@ namespace Opc.Ua.Client
         public TimeSpan PeerDiscoveryTimeout { get; init; } = DefaultTimeout;
 
         /// <summary>
+        /// When <see langword="true"/>, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> and
+        /// <c>Server.ServerStatus.State</c> of every other member of a non-transparent redundant Server set
+        /// over a short session with the identity of the session in use, once the member's endpoint is
+        /// resolved. The values replace those reported by the Server in use, so the initial connect, the
+        /// failover target selection and the failover decision compare the members' current
+        /// <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.5). After the initial connect the session switches to
+        /// the member with the highest <c>ServiceLevel</c> when it is higher than the <c>ServiceLevel</c> of
+        /// the Server it connected to. A member that cannot be probed keeps the values reported for it and
+        /// carries the failure in <see cref="RedundantServer.ResolutionError"/>. Each probe is bounded by
+        /// <see cref="PeerDiscoveryTimeout"/>. Default <see langword="false"/>.
+        /// </summary>
+        public bool ProbeMemberServiceLevel { get; init; }
+
+        /// <summary>
         /// Validates that both bounds are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">

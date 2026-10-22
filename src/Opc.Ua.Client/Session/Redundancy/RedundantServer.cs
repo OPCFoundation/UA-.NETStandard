@@ -55,7 +55,8 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <remarks>
         /// A Server known only from <c>ServerUriArray</c> reports <see cref="ServiceLevels.NoData"/> and
-        /// <see langword="false"/> until its <c>ServiceLevel</c> is read.
+        /// <see langword="false"/> until its <c>ServiceLevel</c> is read, see
+        /// <see cref="ServerRedundancyOptions.ProbeMemberServiceLevel"/>.
         /// </remarks>
         public bool ServiceLevelKnown { get; init; } = true;
 
