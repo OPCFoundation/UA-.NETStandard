@@ -398,7 +398,14 @@ namespace Opc.Ua.Server
         /// context is shared: callers must not dispose or retain it.
         /// </remarks>
         /// <param name="item">The monitored item.</param>
-        public static OperationContext GetSubscriberContext(IMonitoredItem item)
+        /// <param name="diagnostics">
+        /// The diagnostics mask of the context. A session keeps one context for the default mask
+        /// and one per operation-level mask (a sampling group reads with the operation-level mask
+        /// of the request that created its items); any other mask shares a single entry.
+        /// </param>
+        public static OperationContext GetSubscriberContext(
+            IMonitoredItem item,
+            DiagnosticsMasks diagnostics = DiagnosticsMasks.SymbolicId)
         {
             ISession? session = item.Session;
             if (session == null)
@@ -426,8 +433,10 @@ namespace Opc.Ua.Server
             IUserIdentity effectiveIdentity = session.EffectiveIdentity;
             EndpointDescription? endpoint = GetEndpoint(session);
             SubscriberContextSlot slot = s_sessionContexts.GetValue(session, static _ => new SubscriberContextSlot());
-            SubscriberContext? current = Volatile.Read(ref slot.Current);
+            ref SubscriberContext? entry = ref slot.GetEntry(diagnostics);
+            SubscriberContext? current = Volatile.Read(ref entry);
             if (current != null &&
+                current.Diagnostics == diagnostics &&
                 ReferenceEquals(current.Identity, effectiveIdentity) &&
                 current.Generation == generation &&
                 ReferenceEquals(current.Endpoint, endpoint) &&
@@ -435,11 +444,14 @@ namespace Opc.Ua.Server
             {
                 return current.Context;
             }
-            OperationContext context = CreateContext(session);
+            OperationContext context = CreateContext(session, diagnostics);
             // the constructor captured identity and epoch together; key the entry on what it captured.
             current = new SubscriberContext(
-                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, context);
-            Volatile.Write(ref slot.Current, current);
+                context.UserIdentity, context.NotificationAuthorization, generation, endpoint, context)
+            {
+                Diagnostics = diagnostics
+            };
+            Volatile.Write(ref entry, current);
             return context;
         }
 
@@ -458,6 +470,7 @@ namespace Opc.Ua.Server
             public long Generation { get; } = generation;
             public EndpointDescription? Endpoint { get; } = endpoint;
             public OperationContext Context { get; } = context;
+            public DiagnosticsMasks Diagnostics { get; init; } = DiagnosticsMasks.SymbolicId;
         }
 
         /// <summary>
@@ -466,6 +479,33 @@ namespace Opc.Ua.Server
         private sealed class SubscriberContextSlot
         {
             public SubscriberContext? Current;
+
+            /// <summary>
+            /// Gets the entry of a diagnostics mask: the default mask's, one per operation-level
+            /// mask (what a sampling group reads with), or a single entry for any other mask.
+            /// </summary>
+            public ref SubscriberContext? GetEntry(DiagnosticsMasks diagnostics)
+            {
+                if (diagnostics == DiagnosticsMasks.SymbolicId)
+                {
+                    return ref Current;
+                }
+                if ((diagnostics & ~DiagnosticsMasks.OperationAll) != 0)
+                {
+                    return ref m_other;
+                }
+                SubscriberContext?[] masked = Volatile.Read(ref m_masked) ??
+                    Interlocked.CompareExchange(ref m_masked, new SubscriberContext?[kOperationMasks], null) ??
+                    m_masked;
+                return ref masked[(int)diagnostics >> kOperationMaskShift];
+            }
+
+            /// <summary>The operation-level mask bits are bits 5 to 9.</summary>
+            private const int kOperationMaskShift = 5;
+            private const int kOperationMasks = ((int)DiagnosticsMasks.OperationAll >> kOperationMaskShift) + 1;
+
+            private SubscriberContext?[]? m_masked;
+            private SubscriberContext? m_other;
         }
 
         private static readonly ConditionalWeakTable<ISession, SubscriberContextSlot> s_sessionContexts = new();
