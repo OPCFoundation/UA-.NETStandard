@@ -4984,7 +4984,7 @@ namespace Opc.Ua.Client
             }
 
             base.RequestCompleted(request, response!, serviceName);
-            OnAcknowledgementsCompleted(request, response);
+            OnAcknowledgementServiceCompleted(request, response);
         }
 
         /// <summary>

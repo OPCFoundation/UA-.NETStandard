@@ -3003,7 +3003,8 @@ namespace Opc.Ua.Client
             ResetMonitoredItemServerIds();
 
             m_changeMask |= SubscriptionChangeMask.Deleted;
-            if (retiredId != 0 && Session is Session session)
+            if (retiredId != 0 && Session is Session session &&
+                !session.Subscriptions.Any(subscription => subscription.Id == retiredId))
             {
                 session.OnAcknowledgementsDiscarded(retiredId);
             }
