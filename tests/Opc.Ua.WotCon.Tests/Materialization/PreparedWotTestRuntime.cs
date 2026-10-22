@@ -96,7 +96,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
         public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
         {
-            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string root = Path.Combine(Path.GetTempPath(),
                 "pwr", Guid.NewGuid().ToString("N").Substring(0, 12));
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
             {
