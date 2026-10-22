@@ -104,8 +104,9 @@ namespace Opc.Ua.Client
         private async Task RunRequestedFailoverAsync(ConfiguredEndpoint target, CancellationToken ct)
         {
             var outcome = new TaskCompletionSource<ServiceResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (!StateMachine.RequestFailover((budget, token) =>
-                FailoverToRequestedTargetAsync(target, outcome, budget, token)))
+            if (!StateMachine.RequestFailover(
+                (budget, token) => FailoverToRequestedTargetAsync(target, budget, token),
+                outcome))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState, "The managed session can only fail over while it is connected.");
@@ -141,37 +142,31 @@ namespace Opc.Ua.Client
 
         private async Task<ServiceResult> FailoverToRequestedTargetAsync(
             ConfiguredEndpoint target,
-            TaskCompletionSource<ServiceResult> outcome,
             IRetryBudget budget,
             CancellationToken ct)
         {
-            ServiceResult result;
             try
             {
                 m_logger.ManagedSessionFailingOverEndpoint(target.EndpointUrl);
-                result = await SwitchToRedundantServerAsync(target, budget, ct).ConfigureAwait(false);
+                ServiceResult result = await SwitchToRedundantServerAsync(
+                    target, budget, retirePreviousSession: true, ct).ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
                     await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
                     m_logger.ManagedSessionFailoverComplete();
                 }
+                return result;
             }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                outcome.TrySetCanceled(ct);
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (
+                !(exception is OperationCanceledException && ct.IsCancellationRequested))
             {
                 if (m_redundancyHandler is IServerRedundancyEndpointCache cache)
                 {
                     cache.InvalidateEndpoint(target);
                 }
                 m_logger.ManagedSessionFailoverFailed(exception);
-                result = ToAttemptFailure(exception);
+                return ToAttemptFailure(exception);
             }
-            outcome.TrySetResult(result);
-            return result;
         }
 
         /// <summary>
@@ -210,11 +205,28 @@ namespace Opc.Ua.Client
             {
                 return;
             }
+            ServerRedundancyInfo? info = m_redundancyInfo;
+            if (info == null)
+            {
+                await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                info = m_redundancyInfo;
+            }
+            if (info == null ||
+                info.Mode is RedundancySupport.None or RedundancySupport.Transparent)
+            {
+                return;
+            }
+
+            // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3), so only its
+            // ServiceLevel is read; the redundant set is refreshed, resolved and
+            // probed once the Server in use is no longer Healthy.
+            if (await IsServiceLevelHealthyAsync(ct).ConfigureAwait(false))
+            {
+                return;
+            }
 
             await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
-            ServerRedundancyInfo? info = m_redundancyInfo;
-            // A Healthy Server is never left (OPC 10000-4 §6.6.2.4.3), so peers are
-            // only resolved and probed once the Server in use is no longer Healthy.
+            info = m_redundancyInfo;
             if (info == null ||
                 info.Mode is RedundancySupport.None or RedundancySupport.Transparent ||
                 (info.ServiceLevelAccessible && ServiceLevels.IsHealthy(info.ServiceLevel)))
@@ -239,12 +251,38 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Reads the <c>ServiceLevel</c> of the Server in use.
+        /// </summary>
+        /// <returns>
+        /// <see langword="true"/> when the read succeeds and the value is in the
+        /// Healthy subrange.
+        /// </returns>
+        private async Task<bool> IsServiceLevelHealthyAsync(CancellationToken ct)
+        {
+            try
+            {
+                DataValue value = await this.ReadValueAsync(VariableIds.Server_ServiceLevel, ct)
+                    .ConfigureAwait(false);
+                return StatusCode.IsGood(value.StatusCode) &&
+                    value.WrappedValue.TryGetValue(out byte level) &&
+                    ServiceLevels.IsHealthy(level);
+            }
+            catch (ServiceResultException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Switches the session to <paramref name="target"/> by recreating it in
         /// place, so subscriptions are transferred or recreated on the target.
+        /// With <paramref name="retirePreviousSession"/>, a session newly created
+        /// on the target closes the previous session on the Server in use.
         /// </summary>
         private async Task<ServiceResult> SwitchToRedundantServerAsync(
             ConfiguredEndpoint target,
             IRetryBudget budget,
+            bool retirePreviousSession,
             CancellationToken ct)
         {
             using (await RecoveryWriterLockAsync(ct)
@@ -271,7 +309,8 @@ namespace Opc.Ua.Client
                         session,
                         target,
                         budget,
-                        ct)
+                        ct,
+                        retirePreviousSession)
                     .ConfigureAwait(false);
             }
 
@@ -316,7 +355,8 @@ namespace Opc.Ua.Client
                 best.Endpoint.EndpointUrl,
                 best.ServiceLevel,
                 info!.ServiceLevel);
-            ServiceResult result = await SwitchToRedundantServerAsync(best.Endpoint, CreateRecoveryBudget(), ct)
+            ServiceResult result = await SwitchToRedundantServerAsync(
+                    best.Endpoint, CreateRecoveryBudget(), retirePreviousSession: true, ct)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(result))
             {
@@ -372,7 +412,7 @@ namespace Opc.Ua.Client
             var probes = new Task<RedundantServer>[snapshot.RedundantServers.Count];
             for (int ii = 0; ii < probes.Length; ii++)
             {
-                probes[ii] = ProbeMemberAsync(snapshot.RedundantServers[ii], currentUri, ct);
+                probes[ii] = ProbeMemberAsync(snapshot.RedundantServers[ii], current, currentUri, ct);
             }
             RedundantServer[] servers = await Task.WhenAll(probes).ConfigureAwait(false);
             return new ServerRedundancyInfo
@@ -390,6 +430,7 @@ namespace Opc.Ua.Client
 
         private async Task<RedundantServer> ProbeMemberAsync(
             RedundantServer server,
+            ConfiguredEndpoint current,
             string? currentUri,
             CancellationToken ct)
         {
@@ -401,29 +442,45 @@ namespace Opc.Ua.Client
                 return server;
             }
 
+            // The probe authenticates with the identity in use, so it must not
+            // weaken the security the session is bound to.
+            ServiceResultException? mismatch = GetSecurityConfigurationMismatch(
+                current.Description, endpoint.Description);
+            if (mismatch != null)
+            {
+                m_logger.ManagedSessionMemberServiceLevelProbeFailed(mismatch, endpoint.EndpointUrl);
+                return WithProbeError(server, mismatch.Result);
+            }
+
+            IUserIdentity? identity = m_session?.Identity ?? m_identity;
             using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(m_peerProbeTimeout);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             ISession? probe = null;
             try
             {
-                probe = await CreateProbeSessionAsync(server.ServerUri, endpoint, linked.Token).ConfigureAwait(false);
+                probe = await CreateProbeSessionAsync(
+                    server.ServerUri,
+                    DetachEndpoint(endpoint),
+                    identity == null ? null : new UserIdentity(identity.TokenHandler),
+                    linked.Token).ConfigureAwait(false);
                 (ArrayOf<DataValue> values, ArrayOf<ServiceResult> errors) = await probe.ReadValuesAsync(
                     [VariableIds.Server_ServiceLevel, VariableIds.Server_ServerStatus_State],
                     linked.Token).ConfigureAwait(false);
-                if (StatusCode.IsBad(errors[0].StatusCode) || StatusCode.IsBad(values[0].StatusCode))
+                for (int ii = 0; ii < values.Count; ii++)
                 {
-                    return WithProbeError(server, StatusCode.IsBad(errors[0].StatusCode)
-                        ? errors[0]
-                        : new ServiceResult(values[0].StatusCode));
+                    if (StatusCode.IsBad(errors[ii].StatusCode) || StatusCode.IsBad(values[ii].StatusCode))
+                    {
+                        return WithProbeError(server, StatusCode.IsBad(errors[ii].StatusCode)
+                            ? errors[ii]
+                            : new ServiceResult(values[ii].StatusCode));
+                    }
                 }
                 return new RedundantServer
                 {
                     ServerUri = server.ServerUri,
                     ServiceLevel = values[0].GetValue<byte>(0),
                     ServiceLevelKnown = true,
-                    ServerState = StatusCode.IsGood(errors[1].StatusCode) && StatusCode.IsGood(values[1].StatusCode)
-                        ? (ServerState)values[1].GetValue((int)server.ServerState)
-                        : server.ServerState,
+                    ServerState = (ServerState)values[1].GetValue((int)server.ServerState),
                     Endpoint = endpoint
                 };
             }
@@ -496,6 +553,7 @@ namespace Opc.Ua.Client
         private async Task<ISession> CreateProbeSessionAsync(
             string serverUri,
             ConfiguredEndpoint endpoint,
+            IUserIdentity? identity,
             CancellationToken ct)
         {
             IReverseConnectionAvailability? connections = m_memberConnections;
@@ -508,7 +566,7 @@ namespace Opc.Ua.Client
                     m_checkDomain,
                     m_sessionName,
                     m_sessionTimeout,
-                    m_session?.Identity ?? m_identity,
+                    identity,
                     m_preferredLocales,
                     ct).ConfigureAwait(false);
             }
@@ -532,7 +590,7 @@ namespace Opc.Ua.Client
                     m_checkDomain,
                     m_sessionName,
                     m_sessionTimeout,
-                    m_session?.Identity ?? m_identity,
+                    identity,
                     m_preferredLocales,
                     ct).ConfigureAwait(false);
             }
