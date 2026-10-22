@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
@@ -196,6 +197,38 @@ namespace Opc.Ua.Client.Tests.ManagedSession
 
             await Assert.CatchAsync<OperationCanceledException>(async () => await creation.ConfigureAwait(false));
             transport.Verify(t => t.Close(), Times.Once);
+        }
+
+        [Test]
+        public async Task ClientServicesForwardTheSourceOfTheSessionOptionsAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            IReverseConnectionSource source = new Mock<IReverseConnectionSource>(MockBehavior.Strict).Object;
+            ConfiguredEndpoint endpoint = CreateEndpoint();
+            endpoint.ReverseConnect = new ReverseConnectEndpoint { Enabled = true, ServerUri = "urn:test:server" };
+            var services = new ServiceCollection();
+            services.AddSingleton(Mock.Of<IClientChannelManager>());
+            services.AddOpcUa().AddClient(options =>
+            {
+                options.Configuration = CreateClientConfiguration(telemetry);
+                options.Session = new ManagedSessionOptions { ReverseConnectionSource = source };
+            });
+            using ServiceProvider provider = services.BuildServiceProvider();
+            ManagedSessionOptions? captured = null;
+
+            await Assert.CatchAsync<OperationCanceledException>(async () =>
+                await provider.GetRequiredService<IManagedSessionFactory>().ConnectAsync(
+                    endpoint,
+                    builder =>
+                    {
+                        captured = builder.Build();
+                        throw new OperationCanceledException();
+                    },
+                    CancellationToken.None).ConfigureAwait(false));
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.ReverseConnectionSource, Is.SameAs(source));
+            Assert.That(captured.Endpoint!.ReverseConnect!.ServerUri, Is.EqualTo("urn:test:server"));
         }
 
         private static async Task<bool> CompletesAsync(Task task, CancellationToken ct)

@@ -336,6 +336,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Sets <see cref="ManagedSessionOptions.ReverseConnectionSource"/>
+        /// without changing the reverse connect settings of the endpoint.
+        /// Replaces a previous reverse connect manager.
+        /// </summary>
+        internal ManagedSessionBuilder UseReverseConnectionSource(IReverseConnectionSource source)
+        {
+            m_reverseConnectManager = null;
+            m_options = m_options with { ReverseConnectionSource = source };
+            return this;
+        }
+
+        /// <summary>
         /// Set the user identity used when activating the session.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="identity"/> is <c>null</c>.</exception>
