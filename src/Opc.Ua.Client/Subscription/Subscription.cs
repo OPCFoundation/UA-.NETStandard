@@ -197,6 +197,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/>
         /// for elapsed-time and timer calculations. Defaults to
         /// <see cref="TimeProvider.System"/> when <c>null</c>.</param>
+        /// <param name="initialize">Optional callback invoked with the
+        /// new subscription before its state machine starts, so hooks
+        /// such as <see cref="OnAfterCreateAsync"/> are in place before
+        /// the first <c>CreateSubscription</c> can complete.</param>
         protected Subscription(
             ISubscriptionContext context,
             ISubscriptionNotificationHandler handler,
@@ -204,7 +208,8 @@ namespace Opc.Ua.Client.Subscriptions
             IOptionsMonitor<SubscriptionOptions> options,
             ITelemetryContext telemetry,
             SubscriptionLoadState? loadState = null,
-            TimeProvider? timeProvider = null)
+            TimeProvider? timeProvider = null,
+            Action<IManagedSubscription>? initialize = null)
             : base(context.SubscriptionServiceSet, completion, telemetry, timeProvider)
         {
             m_handler = handler;
@@ -242,6 +247,7 @@ namespace Opc.Ua.Client.Subscriptions
                 m_changeTracking = options.OnChange((o, _) => OnOptionsChanged(o));
                 m_stateControl.Set();
             }
+            initialize?.Invoke(this);
             m_stateManagement = StateManagerAsync(m_cts.Token);
         }
 
