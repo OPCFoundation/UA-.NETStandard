@@ -12,28 +12,28 @@ inventory by ingesting the specification's own requirement ledgers at an exact
 commit.
 
 .DESCRIPTION
-The stack-side evidence ledger
-(tests/Opc.Ua.Types.Tests/Wot/Assets/wot-spec-requirements.json) maps each WoT
-specification requirement onto the tests that prove it, and carries that
-requirement's statementHash so a restatement upstream invalidates the mapping
-rather than silently keeping evidence for something the specification no longer
-says.
+The stack-side requirement ledger
+(tests/Opc.Ua.Types.Tests/Wot/Assets/wot-spec-requirements.json) records
+candidate test references and any remaining gaps for selected requirements. A
+runnable reference is not proof that the test assertions satisfy the full
+requirement. The ledger carries each requirement's statementHash so a
+restatement upstream invalidates the mapping rather than silently keeping
+evidence for something the specification no longer says.
 
 A hash nothing checks is a hash nobody can trust. This script is what checks
 them, and it does so by reading the specification's published ledgers rather
 than by re-deriving them:
 
-    source/wot-specs/WoT-Binding/tools/requirements.json
-    source/wot-specs/WoT-Connectivity/tools/requirements.json
+    extras/WoT-Binding/tools/requirements.json
+    extras/WoT-Connectivity/tools/requirements.json
+    extras/WoT-Projections/tools/requirements.json
 
-Those files are generated upstream by `tools/check_requirements.py --update`,
-which enumerates normative statements with `tools/normative.py`. A statement is
-not a line: a paragraph is split into sentences, a normative table row into
-cells, a fenced block contributes nothing, and code spans and link targets are
-masked before splitting so a '.' inside one never ends a sentence. Re-deriving
-that from Markdown is how a second, disagreeing implementation gets written, so
-this script does not: it copies what the specification published and verifies
-it.
+The stack ledger selects Binding and Connectivity records tagged `stack` and
+tracks all Projections records separately as validator-applicability metadata.
+The inventory contains identifiers, applicability, keywords, evidence tags,
+lengths and digests only; it never writes the specification's statement text.
+The generator verifies each supplied digest against the statement held in the
+pinned source commit without publishing that text.
 
 The reads go through `git show <commit>:<path>`, so a dirty working tree, a
 checked-out branch or a stale file cannot change the answer. The commit, its
@@ -48,17 +48,19 @@ What it refuses:
   * a requirement identifier that appears twice, upstream or in the stack
     ledger;
   * a stack-ledger identifier the specification does not state;
-  * a selected set that is not exactly the upstream set marked
-    `pendingStackTests`, so an identifier added or dropped upstream fails;
+  * a selected set that is not exactly the upstream stack-applicable set plus
+    the tracked Projections validator set, so an identifier added or dropped
+    upstream fails;
   * a record whose `statement` and `statementHash` disagree - a restatement
     that was not re-hashed;
-  * a statementHash, clause, specification or applicability the stack ledger
-    records differently - a half-update;
+  * a statementHash, clause, specification, applicability or evidence tags the
+    stack ledger records differently - a half-update;
   * in -Verify, an output file whose bytes differ from what the pinned sources
     produce.
 
 .PARAMETER SpecRoot
-The root of a spec-drafts checkout - the directory holding 'source/wot-specs'.
+The root of an OPC10100-WoT checkout - the directory holding 'extras' and
+'source'.
 The commit only has to be present in the object database; it does not have to be
 checked out.
 
@@ -76,16 +78,11 @@ Where to write, or - with -Verify - what to compare against.
 Produce the inventory and compare it with OutputPath instead of writing it. A
 byte difference is a failure and names what moved.
 
-.PARAMETER IncludeStatements
-Also write each requirement's statement text. Off by default: the statements are
-the normative prose of a members-only draft, and the digest is what this
-repository needs. Useful locally when reading a diff.
+.EXAMPLE
+./Get-WotStatementDigests.ps1 -SpecRoot D:/git/OPC10100-WoT
 
 .EXAMPLE
-./Get-WotStatementDigests.ps1 -SpecRoot D:/git/spec-drafts
-
-.EXAMPLE
-./Get-WotStatementDigests.ps1 -SpecRoot D:/git/spec-drafts -Verify
+./Get-WotStatementDigests.ps1 -SpecRoot D:/git/OPC10100-WoT -Verify
 Reproduces the vendored inventory from the pinned sources and fails if a single
 byte differs. That is the provenance check.
 #>
@@ -100,9 +97,7 @@ param(
 
     [string] $OutputPath = '',
 
-    [switch] $Verify,
-
-    [switch] $IncludeStatements
+    [switch] $Verify
 )
 
 Set-StrictMode -Version Latest
@@ -117,11 +112,12 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 }
 
 $ledgerPaths = @(
-    'source/wot-specs/WoT-Binding/tools/requirements.json'
-    'source/wot-specs/WoT-Connectivity/tools/requirements.json'
+    'extras/WoT-Binding/tools/requirements.json'
+    'extras/WoT-Connectivity/tools/requirements.json'
+    'extras/WoT-Projections/tools/requirements.json'
 )
 $upstreamSchemaVersion = 1
-$inventorySchemaVersion = 2
+$inventorySchemaVersion = 3
 
 function Invoke-GitBytes {
     <#
@@ -272,7 +268,8 @@ if ($resolved -ne $pinnedCommit) {
 $tree = Invoke-GitText -Root $SpecRoot -Arguments @('rev-parse', '--verify', "$resolved^{tree}")
 
 $upstream = [ordered]@{}
-$pending = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$stackApplicable = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$trackedValidator = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
 $sourceRecords = @()
 foreach ($path in $ledgerPaths) {
     $blob = Invoke-GitText -Root $SpecRoot -Arguments @('rev-parse', '--verify', "${resolved}:$path")
@@ -299,10 +296,23 @@ foreach ($path in $ledgerPaths) {
             Specification = [string] $ledger.specification
             Record        = $record
         }
-        if ($record.PSObject.Properties.Name -contains 'pendingStackTests' -and $record.pendingStackTests) {
-            $null = $pending.Add([string] $record.id)
+        if (@($record.evidence) -contains 'stack') {
+            $null = $stackApplicable.Add([string] $record.id)
+        }
+        elseif ($ledger.specification -eq 'WoT Projections' -and
+            $record.applicability -eq 'validator') {
+            $null = $trackedValidator.Add([string] $record.id)
         }
     }
+}
+
+if ($stackApplicable.Count -ne $stackLedger.stackApplicableRequirementCount) {
+    throw ("The upstream ledgers contain {0} stack-applicable requirements; the stack ledger records {1}." -f `
+            $stackApplicable.Count, $stackLedger.stackApplicableRequirementCount)
+}
+if ($trackedValidator.Count -ne $stackLedger.trackedValidatorRequirementCount) {
+    throw ("The upstream ledgers contain {0} tracked validator requirements; the stack ledger records {1}." -f `
+            $trackedValidator.Count, $stackLedger.trackedValidatorRequirementCount)
 }
 
 $selected = @()
@@ -315,6 +325,9 @@ foreach ($requirement in @($stackLedger.requirements)) {
     if (-not $upstream.Contains($specId)) {
         throw ("The stack ledger records '{0}', which the specification does not state at {1}." -f `
                 $specId, $resolved)
+    }
+    if (-not $stackApplicable.Contains($specId) -and -not $trackedValidator.Contains($specId)) {
+        throw ("The stack ledger records '{0}', which is outside its selected evidence scope." -f $specId)
     }
     $entry = $upstream[$specId]
     $record = $entry.Record
@@ -341,9 +354,10 @@ foreach ($requirement in @($stackLedger.requirements)) {
                 "states '{2}'.") -f $requirement.applicability, $specId, $record.applicability)
     }
     $evidence = @($record.evidence)
-    if ($evidence -notcontains 'stack') {
-        throw (("The specification does not leave '{0}' to an implementation, so this " +
-                'repository has no business answering for it.') -f $specId)
+    $expectedEvidence = @($evidence | ForEach-Object { [string] $_ } | Sort-Object)
+    $actualEvidence = @($requirement.sourceEvidence | ForEach-Object { [string] $_ } | Sort-Object)
+    if (($actualEvidence -join "`n") -ne ($expectedEvidence -join "`n")) {
+        throw ("The stack ledger records different evidence tags for '{0}'." -f $specId)
     }
 
     $separator = $specId.LastIndexOf('#')
@@ -359,34 +373,31 @@ foreach ($requirement in @($stackLedger.requirements)) {
         statementLength = [System.Text.Encoding]::UTF8.GetByteCount($statement)
         statementHash   = [string] $record.statementHash
     }
-    if ($IncludeStatements.IsPresent) {
-        $entryOut['statement'] = $statement
-    }
     $selected += $entryOut
 }
 
 # The selection is not "whatever the stack ledger happens to list": it is exactly
-# the set the specification marked as left to an implementation, so an identifier
-# added or dropped upstream fails here rather than passing unnoticed.
-$extra = @($pending | Where-Object { -not $seen.Contains($_) } | Sort-Object)
+# the stack-applicable requirements plus the tracked Projections validator records.
+$expected = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+foreach ($specId in $stackApplicable) { $null = $expected.Add($specId) }
+foreach ($specId in $trackedValidator) { $null = $expected.Add($specId) }
+$extra = @($expected | Where-Object { -not $seen.Contains($_) } | Sort-Object)
 if ($extra.Count -gt 0) {
-    throw (("The specification leaves {0} requirement(s) to this stack that the ledger does " +
+    throw (("The specification selects {0} requirement(s) that the stack ledger does " +
             'not record: {1}.') -f $extra.Count, ($extra -join ', '))
 }
-$dropped = @($seen | Where-Object { -not $pending.Contains($_) } | Sort-Object)
+$dropped = @($seen | Where-Object { -not $expected.Contains($_) } | Sort-Object)
 if ($dropped.Count -gt 0) {
-    throw (("The ledger records {0} requirement(s) the specification no longer leaves to this " +
-            'stack: {1}.') -f $dropped.Count, ($dropped -join ', '))
+    throw (("The stack ledger records {0} requirement(s) outside the selected specification " +
+            'scope: {1}.') -f $dropped.Count, ($dropped -join ', '))
 }
 
 $selected = @($selected | Sort-Object -Property specId -CaseSensitive)
 $document = [ordered]@{
     '$comment'     = @(
-        'Pinned statement-digest inventory for the WoT specification requirements this stack'
-        'answers for. Every record is copied from the specification''s own requirement'
-        'ledgers at the pinned commit - not re-derived from the prose - and verified against'
-        'them: the statement is re-hashed and the digest, clause, specification and'
-        'applicability are checked against wot-spec-requirements.json.'
+        'Pinned statement-digest inventory for the WoT requirement identifiers tracked by this stack.'
+        'Each digest is verified against the statement held at the pinned source commit; the'
+        'statement text is not written to this inventory.'
         ''
         'This file exists so those statementHash values are checked rather than merely'
         'carried. The stack ledger pins this file by digest, so a statementHash edited in one'
@@ -394,17 +405,18 @@ $document = [ordered]@{
         'and SHA-256 of each upstream ledger, so a re-vendor from another revision is a'
         'visible edit.'
         ''
-        'The statements themselves are the normative prose of a members-only draft and are'
-        'not republished here; their digests and lengths are. Regenerate or check with'
-        'tools/wot-spec/Get-WotStatementDigests.ps1 against a spec-drafts checkout holding'
-        'the pinned commit; -Verify reproduces this file and fails on any byte that moved.'
+        'The inventory contains identifiers and metadata only, not normative statement prose.'
+        'Regenerate or check with tools/wot-spec/Get-WotStatementDigests.ps1 against an'
+        'OPC10100-WoT checkout holding the pinned commit; -Verify reproduces this file and'
+        'fails on any byte that moved.'
     )
     schemaVersion  = $inventorySchemaVersion
     pinnedTo       = [ordered]@{
         repository    = [string] $stackLedger.pinnedTo.repository
         commit        = $resolved
         tree          = $tree
-        selection     = 'every upstream requirement marked pendingStackTests'
+        selection     = 'all Binding and Connectivity requirements tagged stack, ' +
+        'plus all Projections validator requirements'
         normalization = 'sha256 of the statement as the specification''s tools/normative.py ' +
         'normalizes it; the generator recomputes it from the upstream statement and refuses ' +
         'a record whose text and digest disagree'
@@ -429,10 +441,10 @@ if ($Verify.IsPresent) {
                 'produced sha256 {3}). Regenerate it.') -f `
                 $OutputPath, $resolved, (Get-Sha256Hex $existing), (Get-Sha256Hex $produced))
     }
-    Write-Host ("Verified {0} statement digest(s) against {1}." -f $selected.Count, $resolved)
+    Write-Host ("Verified {0} statement digests against {1}." -f $selected.Count, $resolved)
     return
 }
 
 [System.IO.File]::WriteAllBytes($OutputPath, $produced)
-Write-Host ("Wrote {0} statement digest(s) from {1} to {2}." -f $selected.Count, $resolved, $OutputPath)
+Write-Host ("Wrote {0} statement digests from {1} to {2}." -f $selected.Count, $resolved, $OutputPath)
 Write-Host ("Pin this inventory in the stack ledger as sha256 {0}." -f (Get-Sha256Hex $produced))

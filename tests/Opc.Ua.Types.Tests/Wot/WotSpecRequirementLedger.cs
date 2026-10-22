@@ -38,14 +38,15 @@ using System.Text.Json;
 namespace Opc.Ua.SpecTraceability
 {
     /// <summary>
-    /// One WoT specification requirement whose proof is an OPC UA
-    /// implementation, and the stack tests that provide it.
+    /// One WoT requirement whose source applicability, stack-side evidence
+    /// references, and remaining gap are tracked by this repository.
     /// </summary>
     internal sealed record WotSpecRequirement(
         string SpecId,
         string Specification,
         string Clause,
         string Applicability,
+        IReadOnlyList<string> SourceEvidence,
         string StatementHash,
         string Assembly,
         IReadOnlyList<string> Tests,
@@ -90,19 +91,55 @@ namespace Opc.Ua.SpecTraceability
         IReadOnlyList<WotSpecInventorySource> Ledgers);
 
     /// <summary>
+    /// The catalogue and conformance-unit metadata recorded alongside the
+    /// requirement evidence ledger.
+    /// </summary>
+    /// <param name="CttCatalogueStatus">Whether the upstream CTT catalogue is executable.</param>
+    /// <param name="CttGeneratedRequirementCaseCount">The generated CTT cases covering requirements.</param>
+    /// <param name="CttSupplementalDefaultingCaseCount">The additional defaulting examples.</param>
+    /// <param name="CttCaseHeadingCount">The total number of case headings.</param>
+    /// <param name="CttHeadingAnchorCount">The number of anchors in the proposal catalogue.</param>
+    /// <param name="StackTestsReferenceCttIds">Whether stack tests reference proposed CTT IDs.</param>
+    /// <param name="ProjectionUnit">The Projections conformance-unit name.</param>
+    /// <param name="PartQualifiedProjectionUnit">The part-qualified name used by Binding profiles.</param>
+    /// <param name="ProjectionProfiles">Binding profiles requiring the Projections unit.</param>
+    /// <param name="ProjectionClosureTest">The test that asserts the profile dependency.</param>
+    /// <param name="ProjectionEvidenceStatus">The scope of the recorded Projections evidence.</param>
+    /// <param name="ConnectivityUnit">The optional Connectivity unit not claimed by this stack.</param>
+    /// <param name="ConnectivityUnitRequirementIds">The requirements that name that optional unit.</param>
+    /// <param name="ConnectivityUnitStatus">The recorded implementation claim status for the unit.</param>
+    /// <param name="ConnectivityUnitEvidenceStatus">The scope of the recorded unit evidence.</param>
+    internal sealed record WotSpecAuditMetadata(
+        string CttCatalogueStatus,
+        int CttGeneratedRequirementCaseCount,
+        int CttSupplementalDefaultingCaseCount,
+        int CttCaseHeadingCount,
+        int CttHeadingAnchorCount,
+        bool StackTestsReferenceCttIds,
+        string ProjectionUnit,
+        string PartQualifiedProjectionUnit,
+        IReadOnlyList<string> ProjectionProfiles,
+        string ProjectionClosureTest,
+        string ProjectionEvidenceStatus,
+        string ConnectivityUnit,
+        IReadOnlyList<string> ConnectivityUnitRequirementIds,
+        string ConnectivityUnitStatus,
+        string ConnectivityUnitEvidenceStatus);
+
+    /// <summary>
     /// Reads the checked-in stack-side evidence ledger and resolves its
     /// mappings against the assembly that is asking.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The specification's own ledgers mark these requirements
-    /// <c>pendingStackTests</c>, because a specification cannot name a test in
-    /// a repository it does not build. This file is the other half: it names
-    /// them, and resolving each by reflection is what stops the naming from
-    /// rotting the first time a test is renamed.
+    /// The specification's own ledgers tag implementation requirements with
+    /// <c>stack</c>. This file points to candidate stack tests and records any
+    /// remaining gap. Reflection checks only that a referenced test still
+    /// resolves and runs; it does not establish that its assertions cover the
+    /// whole requirement.
     /// </para>
     /// <para>
-    /// The ledger spans three test assemblies, and no assembly can see the
+    /// The ledger spans four test assemblies, and no assembly can see the
     /// others. So each embeds the same file and checks only the mappings that
     /// name it, while the full-set invariants - the count, the uniqueness, the
     /// pinned source commit - are checked once.
@@ -135,6 +172,9 @@ namespace Opc.Ua.SpecTraceability
                     entry.GetProperty("specification").GetString()!,
                     entry.GetProperty("clause").GetString()!,
                     entry.GetProperty("applicability").GetString()!,
+                    [.. entry.GetProperty("sourceEvidence")
+                        .EnumerateArray()
+                        .Select(e => e.GetString()!)],
                     entry.GetProperty("statementHash").GetString()!,
                     entry.GetProperty("assembly").GetString()!,
                     [.. entry.GetProperty("tests")
@@ -164,7 +204,13 @@ namespace Opc.Ua.SpecTraceability
         /// <summary>
         /// Reads the header the whole-ledger invariants are checked against.
         /// </summary>
-        public static (string Commit, string Repository, string Revision, int PendingCount)
+        public static (
+            string Commit,
+            string Repository,
+            string Revision,
+            int StackApplicableCount,
+            int TrackedValidatorCount,
+            int StackRequirementWithoutTestReferenceCount)
             ReadHeader(Assembly assembly)
         {
             using JsonDocument document = JsonDocument.Parse(Read(assembly));
@@ -174,7 +220,45 @@ namespace Opc.Ua.SpecTraceability
                 pinned.GetProperty("commit").GetString()!,
                 pinned.GetProperty("repository").GetString()!,
                 pinned.GetProperty("bindingRevision").GetString()!,
-                root.GetProperty("pendingStackTestCount").GetInt32());
+                root.GetProperty("stackApplicableRequirementCount").GetInt32(),
+                root.GetProperty("trackedValidatorRequirementCount").GetInt32(),
+                root.GetProperty("stackRequirementWithoutTestReferenceCount").GetInt32());
+        }
+
+        /// <summary>
+        /// Reads the proposal-catalogue and Projections-unit scope metadata.
+        /// </summary>
+        public static WotSpecAuditMetadata ReadAuditMetadata(Assembly assembly)
+        {
+            using JsonDocument document = JsonDocument.Parse(Read(assembly));
+            JsonElement root = document.RootElement;
+            JsonElement ctt = root.GetProperty("cttCatalogue");
+            JsonElement projection = root.GetProperty("conformanceUnits")
+                .EnumerateArray()
+                .Single(unit => unit.GetProperty("name").GetString() == "WoT-Projection");
+            JsonElement connectivity = root.GetProperty("conformanceUnits")
+                .EnumerateArray()
+                .Single(unit => unit.GetProperty("name").GetString() == "WOTC-SemanticChange");
+            return new WotSpecAuditMetadata(
+                ctt.GetProperty("status").GetString()!,
+                ctt.GetProperty("generatedRequirementCaseCount").GetInt32(),
+                ctt.GetProperty("supplementalDefaultingCaseCount").GetInt32(),
+                ctt.GetProperty("caseHeadingCount").GetInt32(),
+                ctt.GetProperty("headingAnchorCount").GetInt32(),
+                ctt.GetProperty("stackTestsReferenceProposalIds").GetBoolean(),
+                projection.GetProperty("name").GetString()!,
+                projection.GetProperty("partQualifiedName").GetString()!,
+                [.. projection.GetProperty("bindingProfiles")
+                    .EnumerateArray()
+                    .Select(profile => profile.GetString()!)],
+                projection.GetProperty("closureTest").GetString()!,
+                projection.GetProperty("stackEvidenceStatus").GetString()!,
+                connectivity.GetProperty("name").GetString()!,
+                [.. connectivity.GetProperty("requirementIds")
+                    .EnumerateArray()
+                    .Select(requirement => requirement.GetString()!)],
+                connectivity.GetProperty("status").GetString()!,
+                connectivity.GetProperty("stackEvidenceStatus").GetString()!);
         }
 
         /// <summary>
