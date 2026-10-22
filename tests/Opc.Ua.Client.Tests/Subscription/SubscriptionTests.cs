@@ -1136,7 +1136,9 @@ namespace Opc.Ua.Client.Subscriptions
 
                     Assert.That(received, Is.EqualTo(new uint[] { 4999 }));
                     List<SubscriptionAcknowledgement> beforeFreshAcknowledgement = m_completion.QueuedAcks;
-                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1));
+                    int retainedAcknowledgements = delete ? 0 : 1;
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
+                        "Deletion prunes the retired server id; a generation-only reset does not delete it.");
                     await sut.OnPublishReceivedAsync(BuildDataMessage(1), null, []).ConfigureAwait(false);
                     await freshData.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(freshAcknowledged.Task.IsCompleted, Is.False,
@@ -1144,12 +1146,12 @@ namespace Opc.Ua.Client.Subscriptions
                     releaseFresh.TrySetResult(true);
                     await freshAcknowledged.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
-                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(1),
+                    Assert.That(beforeFreshAcknowledgement, Has.Count.EqualTo(retainedAcknowledgements),
                         "A captured acknowledgement snapshot must not change when the worker enqueues another ack.");
                     Assert.That(received, Is.EqualTo(new uint[] { 4999, 1 }));
                     List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
-                    Assert.That(acknowledgements, Has.Count.EqualTo(2));
-                    Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
+                    Assert.That(acknowledgements, Has.Count.EqualTo(retainedAcknowledgements + 1));
+                    Assert.That(acknowledgements, Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 10 &&
                             acknowledgement.SequenceNumber == 4999));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
