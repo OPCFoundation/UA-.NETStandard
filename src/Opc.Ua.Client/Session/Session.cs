@@ -1227,6 +1227,7 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
+            RaisePendingAcknowledgementDiscards();
         }
 
         /// <inheritdoc/>
@@ -1583,6 +1584,7 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
+            RaisePendingAcknowledgementDiscards();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1791,6 +1793,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
+                    RaisePendingAcknowledgementDiscards();
                 }
                 if (closeChannel)
                 {
@@ -3499,6 +3502,7 @@ namespace Opc.Ua.Client
             {
                 SessionCreated(default, default);
             }
+            RaisePendingAcknowledgementDiscards();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3805,6 +3809,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
+                        RaisePendingAcknowledgementDiscards();
 
                         if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                         {
@@ -4201,6 +4206,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
+                        RaisePendingAcknowledgementDiscards();
                     }
                 }
 
@@ -7283,6 +7289,18 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Creates a new instance that can report subscription generations.
+        /// </summary>
+        internal PublishSequenceNumbersToAcknowledgeEventArgs(
+            List<SubscriptionAcknowledgement> acknowledgementsToSend,
+            List<SubscriptionAcknowledgement> deferredAcknowledgementsToSend,
+            Func<SubscriptionAcknowledgement, long>? generations)
+            : this(acknowledgementsToSend, deferredAcknowledgementsToSend)
+        {
+            m_generations = generations;
+        }
+
+        /// <summary>
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
         /// <remarks>
@@ -7299,6 +7317,31 @@ namespace Opc.Ua.Client
         /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
         public List<SubscriptionAcknowledgement> DeferredAcknowledgementsToSend { get; }
+
+        /// <summary>
+        /// Gets the generation of the subscription that produced an acknowledgement.
+        /// </summary>
+        /// <remarks>
+        /// The server can reuse a subscription identifier, and sequence numbers restart
+        /// for every new subscription, so an identifier and sequence number alone do not
+        /// identify a message. Track pending approvals by (subscription id, generation,
+        /// sequence number) and drop them when
+        /// <see cref="ISubscriptionAcknowledgementEvents.SubscriptionAcknowledgementsDiscarded"/>
+        /// reports a generation greater than or equal to theirs. Returns zero when the
+        /// subscription was not created in this session (for example, after a transfer) or
+        /// the generation is unknown.
+        /// </remarks>
+        /// <param name="acknowledgement">An acknowledgement presented in this callback.</param>
+        public long GetSubscriptionGeneration(SubscriptionAcknowledgement acknowledgement)
+        {
+            if (acknowledgement == null)
+            {
+                throw new ArgumentNullException(nameof(acknowledgement));
+            }
+            return m_generations?.Invoke(acknowledgement) ?? 0;
+        }
+
+        private readonly Func<SubscriptionAcknowledgement, long>? m_generations;
     }
 
     /// <summary>

@@ -321,6 +321,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         protected void NotifyManagerOfCreation()
         {
+            AckQueue.OnSubscriptionCreated(this, Id);
             AckQueue.Update();
         }
 

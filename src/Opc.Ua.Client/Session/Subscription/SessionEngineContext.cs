@@ -55,9 +55,21 @@ namespace Opc.Ua.Client
             public NodeId SessionId => m_session.SessionId;
 
             /// <inheritdoc/>
-            public void OnAcknowledgementsDiscarded(uint subscriptionId)
+            public long GetSubscriptionGeneration(uint subscriptionId)
             {
-                m_session.OnAcknowledgementsDiscarded(subscriptionId);
+                return m_session.GetSubscriptionGeneration(subscriptionId);
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
+            {
+                m_session.OnAcknowledgementsDiscarded(subscriptionId, generation);
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+            {
+                m_session.OnAcknowledgementsAbandoned(acknowledgements);
             }
 
             /// <inheritdoc/>
@@ -264,7 +276,8 @@ namespace Opc.Ua.Client
                 List<SubscriptionAcknowledgement> updatedPending)
                 PrepareAcknowledgementsToSend(
                     List<SubscriptionAcknowledgement>
-                        currentAcknowledgements)
+                        currentAcknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? generations = null)
             {
                 PublishSequenceNumbersToAcknowledgeEventHandler?
                     callback =
@@ -288,7 +301,9 @@ namespace Opc.Ua.Client
                             m_session,
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
                                 currentAcknowledgements,
-                                deferred));
+                                deferred,
+                                generations ?? (acknowledgement =>
+                                    m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId))));
                         acknowledgementsToSend =
                             currentAcknowledgements;
                         return (acknowledgementsToSend, deferred);

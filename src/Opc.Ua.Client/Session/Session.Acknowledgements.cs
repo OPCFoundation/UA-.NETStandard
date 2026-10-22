@@ -29,6 +29,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 
@@ -62,7 +64,9 @@ namespace Opc.Ua.Client
     /// Entries preserve the acknowledgement object identities presented by the deferral
     /// callback. Consumers can correlate an approval with its result even if the same
     /// numeric subscription and sequence identifiers have since been reused.
-    /// A failed service request does not raise this notification.
+    /// A failed service request does not raise this notification. Acknowledgements the
+    /// client discards without sending, because the server no longer holds their message,
+    /// are reported with <c>Bad_SequenceNumberUnknown</c>.
     /// </remarks>
     public sealed class PublishAcknowledgementsCompletedEventArgs : EventArgs
     {
@@ -95,21 +99,47 @@ namespace Opc.Ua.Client
     /// <summary>
     /// Identifies acknowledgement state no longer owned by the session.
     /// </summary>
+    /// <remarks>
+    /// Every subscription identifier the server assigns gets a new, higher
+    /// <see cref="Generation"/>; see
+    /// <see cref="PublishSequenceNumbersToAcknowledgeEventArgs.GetSubscriptionGeneration"/>.
+    /// A notification retires all acknowledgement state for
+    /// <see cref="SubscriptionId"/> (or for every subscription when it is zero) whose
+    /// generation is less than or equal to <see cref="Generation"/>. State of a later
+    /// generation is unaffected, so the notification stays correct even when it is
+    /// observed after the server has reused the identifier.
+    /// </remarks>
     public sealed class SubscriptionAcknowledgementsDiscardedEventArgs : EventArgs
     {
         /// <summary>
-        /// Creates a retirement notification.
+        /// Creates a retirement notification for every generation.
         /// </summary>
         /// <param name="subscriptionId">The retired server id, or zero for all subscription state.</param>
         public SubscriptionAcknowledgementsDiscardedEventArgs(uint subscriptionId)
+            : this(subscriptionId, long.MaxValue)
+        {
+        }
+
+        /// <summary>
+        /// Creates a retirement notification up to and including a generation.
+        /// </summary>
+        /// <param name="subscriptionId">The retired server id, or zero for all subscription state.</param>
+        /// <param name="generation">The highest retired generation.</param>
+        public SubscriptionAcknowledgementsDiscardedEventArgs(uint subscriptionId, long generation)
         {
             SubscriptionId = subscriptionId;
+            Generation = generation;
         }
 
         /// <summary>
         /// Gets the retired server id, or zero when all subscription state is retired.
         /// </summary>
         public uint SubscriptionId { get; }
+
+        /// <summary>
+        /// Gets the highest retired generation. State of a higher generation is still valid.
+        /// </summary>
+        public long Generation { get; }
     }
 
     /// <summary>
@@ -118,9 +148,21 @@ namespace Opc.Ua.Client
     internal interface ISubscriptionAcknowledgementLifecycle
     {
         /// <summary>
-        /// Reports retired acknowledgement state.
+        /// Gets the generation the session assigned to a subscription identifier, or
+        /// zero if the identifier was not assigned by a creation in this session.
         /// </summary>
-        void OnAcknowledgementsDiscarded(uint subscriptionId);
+        long GetSubscriptionGeneration(uint subscriptionId);
+
+        /// <summary>
+        /// Reports retired acknowledgement state up to and including a generation.
+        /// </summary>
+        void OnAcknowledgementsDiscarded(uint subscriptionId, long generation);
+
+        /// <summary>
+        /// Reports acknowledgements the client discarded because the server no longer holds
+        /// their message, as if the server had answered them with <c>Bad_SequenceNumberUnknown</c>.
+        /// </summary>
+        void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements);
     }
 
     public partial class Session : ISubscriptionAcknowledgementEvents
@@ -142,8 +184,10 @@ namespace Opc.Ua.Client
                 created.ResponseHeader != null &&
                 StatusCode.IsGood(created.ResponseHeader.ServiceResult))
             {
-                // A server can reuse an expired subscription id before the old client object is retired.
-                OnAcknowledgementsDiscarded(created.SubscriptionId);
+                // A server can reuse an expired subscription id before the old client object
+                // is retired, so every assignment starts a new generation and retires the older ones.
+                long generation = AssignSubscriptionGeneration(created.SubscriptionId);
+                OnAcknowledgementsDiscarded(created.SubscriptionId, generation - 1);
                 return;
             }
             if (PublishAcknowledgementsCompleted == null ||
@@ -167,13 +211,105 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Reports retirement after the owning lifecycle has stopped using the old identifier.
+        /// Reports acknowledgements the client discarded because the server no longer holds
+        /// their message, with the result the server would have returned for them.
+        /// </summary>
+        internal void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+        {
+            if (PublishAcknowledgementsCompleted == null || acknowledgements.Count == 0)
+            {
+                return;
+            }
+            var results = new StatusCode[acknowledgements.Count];
+            for (int i = 0; i < results.Length; i++)
+            {
+                results[i] = StatusCodes.BadSequenceNumberUnknown;
+            }
+            RaiseAcknowledgementEvent(PublishAcknowledgementsCompleted,
+                new PublishAcknowledgementsCompletedEventArgs(acknowledgements, results),
+                this, m_logger);
+        }
+
+        /// <summary>
+        /// Gets the generation assigned to a subscription identifier by the latest successful
+        /// creation in this session, or zero if there was none or it has been retired. For
+        /// identifier zero, gets the latest generation assigned to any identifier.
+        /// </summary>
+        internal long GetSubscriptionGeneration(uint subscriptionId)
+        {
+            lock (m_subscriptionGenerationLock)
+            {
+                if (subscriptionId == 0)
+                {
+                    return m_subscriptionGenerationEpoch;
+                }
+                return m_subscriptionGenerations.TryGetValue(subscriptionId, out long generation)
+                    ? generation
+                    : 0;
+            }
+        }
+
+        /// <summary>
+        /// Reports retirement of the current generation of an identifier (or of all state
+        /// when <paramref name="subscriptionId"/> is zero) after the owner stopped using it.
         /// </summary>
         internal void OnAcknowledgementsDiscarded(uint subscriptionId)
         {
-            RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded,
-                new SubscriptionAcknowledgementsDiscardedEventArgs(subscriptionId),
-                this, m_logger);
+            OnAcknowledgementsDiscarded(subscriptionId, GetSubscriptionGeneration(subscriptionId));
+        }
+
+        /// <summary>
+        /// Reports retirement up to and including <paramref name="generation"/>. When the
+        /// session lock is held by the caller, the notification is raised once the lock is
+        /// released, so observers never run inside it.
+        /// </summary>
+        internal void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
+        {
+            lock (m_subscriptionGenerationLock)
+            {
+                if (subscriptionId == 0)
+                {
+                    m_subscriptionGenerations.Clear();
+                }
+                else if (m_subscriptionGenerations.TryGetValue(subscriptionId, out long current) &&
+                    current <= generation)
+                {
+                    m_subscriptionGenerations.Remove(subscriptionId);
+                }
+            }
+            m_pendingAcknowledgementDiscards.Enqueue(
+                new SubscriptionAcknowledgementsDiscardedEventArgs(subscriptionId, generation));
+            RaisePendingAcknowledgementDiscards();
+        }
+
+        /// <summary>
+        /// Raises retirement notifications queued while the session lock was held, in order.
+        /// Does nothing while the current thread holds the session lock.
+        /// </summary>
+        private void RaisePendingAcknowledgementDiscards()
+        {
+            if (m_lock.IsHeldByCurrentThread)
+            {
+                return;
+            }
+            while (m_pendingAcknowledgementDiscards.TryDequeue(
+                out SubscriptionAcknowledgementsDiscardedEventArgs? args))
+            {
+                RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded, args, this, m_logger);
+            }
+        }
+
+        /// <summary>
+        /// Assigns a new generation to an identifier returned by CreateSubscription.
+        /// </summary>
+        private long AssignSubscriptionGeneration(uint subscriptionId)
+        {
+            lock (m_subscriptionGenerationLock)
+            {
+                long generation = ++m_subscriptionGenerationEpoch;
+                m_subscriptionGenerations[subscriptionId] = generation;
+                return generation;
+            }
         }
 
         /// <summary>
@@ -237,6 +373,11 @@ namespace Opc.Ua.Client
         /// Non-zero while a recreate that transfers subscriptions replaces the session id.
         /// </summary>
         private int m_retainAcknowledgementsAcrossSessionChange;
+        private readonly Lock m_subscriptionGenerationLock = new();
+        private readonly Dictionary<uint, long> m_subscriptionGenerations = [];
+        private long m_subscriptionGenerationEpoch;
+        private readonly ConcurrentQueue<SubscriptionAcknowledgementsDiscardedEventArgs>
+            m_pendingAcknowledgementDiscards = new();
     }
 
     /// <summary>

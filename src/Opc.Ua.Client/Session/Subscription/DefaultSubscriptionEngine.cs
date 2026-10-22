@@ -265,17 +265,36 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? generations)
             {
-                return m_context.PrepareAcknowledgementsToSend(acknowledgements);
+                return m_context.PrepareAcknowledgementsToSend(acknowledgements, generations);
             }
 
             /// <inheritdoc/>
-            public void OnAcknowledgementsDiscarded(uint subscriptionId)
+            public long GetSubscriptionGeneration(uint subscriptionId)
+            {
+                return m_context is ISubscriptionAcknowledgementLifecycle lifecycle
+                    ? lifecycle.GetSubscriptionGeneration(subscriptionId)
+                    : 0;
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
             {
                 if (m_context is ISubscriptionAcknowledgementLifecycle lifecycle)
                 {
-                    lifecycle.OnAcknowledgementsDiscarded(subscriptionId);
+                    lifecycle.OnAcknowledgementsDiscarded(subscriptionId, generation);
+                }
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+            {
+                if (m_context is ISubscriptionAcknowledgementLifecycle lifecycle)
+                {
+                    lifecycle.OnAcknowledgementsAbandoned(acknowledgements);
                 }
             }
 

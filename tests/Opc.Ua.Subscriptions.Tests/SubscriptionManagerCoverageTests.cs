@@ -218,31 +218,29 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public async Task QueueAsyncThenDropPendingRemovesOnlyMatchingAcksAsync()
+        public async Task QueueAsyncThenDropPendingIsIdempotentAsync()
         {
             var context = new StubSubscriptionManagerContext();
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
-                await manager.QueueAsync(new SubscriptionAcknowledgement
+                var first = new StubManagedSubscription { Id = 1u };
+                var second = new StubManagedSubscription { Id = 2u };
+                await manager.QueueAsync(first, first.MessageGeneration, new SubscriptionAcknowledgement
                 {
                     SubscriptionId = 1u,
                     SequenceNumber = 10u
                 }, CancellationToken.None).ConfigureAwait(false);
-                await manager.QueueAsync(new SubscriptionAcknowledgement
+                await manager.QueueAsync(second, second.MessageGeneration, new SubscriptionAcknowledgement
                 {
                     SubscriptionId = 2u,
                     SequenceNumber = 11u
                 }, CancellationToken.None).ConfigureAwait(false);
-                await manager.QueueAsync(new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = 1u,
-                    SequenceNumber = 12u
-                }, CancellationToken.None).ConfigureAwait(false);
 
-                Assert.That(manager.DropPendingForSubscription(1u), Is.EqualTo(2));
-                Assert.That(manager.DropPendingForSubscription(1u), Is.Zero);
-                Assert.That(manager.DropPendingForSubscription(2u), Is.EqualTo(1));
+                // Queued entries are validated when sent; only deferred ones are removed here.
+                Assert.That(manager.DropPendingForSubscription(first, 1u), Is.Zero);
+                Assert.That(manager.DropPendingForSubscription(first, 1u), Is.Zero);
+                Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(2));
             }
         }
 
@@ -253,7 +251,8 @@ namespace Opc.Ua.Subscriptions.Tests
             SubscriptionManager manager = CreateManager(context);
             await using (manager.ConfigureAwait(false))
             {
-                Assert.That(manager.DropPendingForSubscription(7u), Is.Zero);
+                Assert.That(manager.DropPendingForSubscription(new StubManagedSubscription { Id = 7u }, 7u),
+                    Is.Zero);
             }
         }
 
@@ -616,7 +615,9 @@ namespace Opc.Ua.Subscriptions.Tests
 
             /// <inheritdoc/>
             public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? generations)
             {
                 return (acknowledgements, []);
             }

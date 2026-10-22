@@ -90,8 +90,11 @@ namespace Opc.Ua.Client.Tests
                 .Setup(c => c.GoodPublishRequestCount)
                 .Returns(0);
             m_mockContext
-                .Setup(c => c.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()))
-                .Returns((List<SubscriptionAcknowledgement> acknowledgements) => (acknowledgements, []));
+                .Setup(c => c.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>(),
+                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
+                .Returns((List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? _) => (acknowledgements, []));
             m_mockContext
                 .Setup(c => c.Subscriptions)
                 .Returns(new List<Subscription>());
@@ -153,8 +156,11 @@ namespace Opc.Ua.Client.Tests
             var sent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int release = 0;
             m_mockContext
-                .Setup(value => value.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()))
-                .Returns((List<SubscriptionAcknowledgement> acknowledgements) =>
+                .Setup(value => value.PrepareAcknowledgementsToSend(
+                    It.IsAny<List<SubscriptionAcknowledgement>>(),
+                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
+                .Returns((List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? _) =>
                 {
                     if (Volatile.Read(ref release) == 0)
                     {
@@ -206,7 +212,8 @@ namespace Opc.Ua.Client.Tests
                     await Task.Delay(10, testCt).ConfigureAwait(false);
                 }
                 var queue = (IMessageAckQueue)engine.SubscriptionManager;
-                await queue.QueueAsync(
+                IManagedSubscription partition = ((LogicalSubscription)subscription).Partitions[0];
+                await queue.QueueAsync(partition, partition.MessageGeneration,
                     new SubscriptionAcknowledgement { SubscriptionId = 7, SequenceNumber = 42 },
                     testCt).ConfigureAwait(false);
                 await deferred.Task.WaitAsync(testCt).ConfigureAwait(false);
@@ -216,7 +223,9 @@ namespace Opc.Ua.Client.Tests
 
                 await sent.Task.WaitAsync(testCt).ConfigureAwait(false);
                 m_mockContext.Verify(
-                    value => value.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()),
+                    value => value.PrepareAcknowledgementsToSend(
+                        It.IsAny<List<SubscriptionAcknowledgement>>(),
+                        It.IsAny<Func<SubscriptionAcknowledgement, long>?>()),
                     Times.AtLeast(2));
             }
             finally
