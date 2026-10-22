@@ -107,7 +107,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Part 4 §5.13.9 rule that
         /// <c>SetSubscriptionDurable</c> must precede any
         /// monitored-item creation: the wrapper installs a hook that
-        /// awaits <see cref="SetAsDurableAsync"/> here so the call
+        /// awaits <see cref="SetAsDurableAsync(TimeSpan, CancellationToken)"/> here so the call
         /// is interleaved between the
         /// <c>CreateSubscription</c> response and the first
         /// <c>CreateMonitoredItems</c> request.
@@ -480,6 +480,24 @@ namespace Opc.Ua.Client.Subscriptions
                     "Server.SetSubscriptionDurable returned no revised lifetime.");
             }
             return SaturatingTimeSpan.FromHours(revised);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<TimeSpan> SetAsDurableAsync(
+            Func<TimeSpan?> lifetime,
+            CancellationToken ct = default)
+        {
+            if (lifetime == null)
+            {
+                throw new ArgumentNullException(nameof(lifetime));
+            }
+            TimeSpan? current = lifetime();
+            LogicalSubscription.InstallDurableHook(this, lifetime);
+            if (current == null)
+            {
+                return TimeSpan.Zero;
+            }
+            return await SetAsDurableAsync(current.Value, ct).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

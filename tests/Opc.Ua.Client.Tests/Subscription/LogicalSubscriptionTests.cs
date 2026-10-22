@@ -213,6 +213,74 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
+        public async Task SetAsDurableWithProviderEvaluatesItOnceForAllCreatedPartitionsAsync()
+        {
+            FakeManagedSubscription primary = CreateFake(id: 11, created: true);
+            FakeManagedSubscription secondary = CreateFake(id: 12, created: true);
+            secondary.OnSetAsDurableAsync = (_, _) => new ValueTask<TimeSpan>(TimeSpan.FromHours(2));
+            int evaluations = 0;
+            LogicalSubscription sut = new(primary);
+            sut.AppendPreloadedPartition(secondary);
+            try
+            {
+                TimeSpan revised = await sut.SetAsDurableAsync(() =>
+                {
+                    evaluations++;
+                    return TimeSpan.FromHours(3);
+                }).ConfigureAwait(false);
+
+                Assert.That(evaluations, Is.EqualTo(1));
+                Assert.That(primary.SetAsDurableCalls, Has.Count.EqualTo(1));
+                Assert.That(primary.SetAsDurableCalls[0].Lifetime, Is.EqualTo(TimeSpan.FromHours(3)));
+                Assert.That(secondary.SetAsDurableCalls, Has.Count.EqualTo(1));
+                Assert.That(secondary.SetAsDurableCalls[0].Lifetime, Is.EqualTo(TimeSpan.FromHours(3)));
+                Assert.That(revised, Is.EqualTo(TimeSpan.FromHours(2)));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task SetAsDurableWithProviderReturningNullSendsNothingAsync()
+        {
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
+            {
+                TimeSpan revised = await sut.SetAsDurableAsync(() => null).ConfigureAwait(false);
+
+                Assert.That(fake.SetAsDurableCalls, Is.Empty);
+                Assert.That(revised, Is.EqualTo(TimeSpan.Zero));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task SetAsDurableWithNullProviderThrowsAsync()
+        {
+            FakeManagedSubscription fake = CreateFake(id: 11, created: true);
+            LogicalSubscription sut = new(fake);
+            try
+            {
+                Assert.That(
+                    async () => await sut.SetAsDurableAsync((Func<TimeSpan?>)null!).ConfigureAwait(false),
+                    Throws.TypeOf<ArgumentNullException>()
+                        .With.Property(nameof(ArgumentNullException.ParamName))
+                        .EqualTo("lifetime"));
+                Assert.That(fake.SetAsDurableCalls, Is.Empty);
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task ConditionRefreshForwardsToPrimaryAsync()
         {
             FakeManagedSubscription fake = CreateFake(id: 11, created: true);

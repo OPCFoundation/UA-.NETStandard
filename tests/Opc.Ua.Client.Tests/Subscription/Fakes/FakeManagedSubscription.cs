@@ -165,6 +165,16 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
                 ?? new ValueTask<TimeSpan>(lifetime);
         }
 
+        public ValueTask<TimeSpan> SetAsDurableAsync(
+            Func<TimeSpan?> lifetime,
+            CancellationToken ct = default)
+        {
+            TimeSpan? current = lifetime();
+            return current == null
+                ? new ValueTask<TimeSpan>(TimeSpan.Zero)
+                : SetAsDurableAsync(current.Value, ct);
+        }
+
         public List<SetTriggeringCall> SetTriggeringCalls { get; } = [];
 
         public Func<IMonitoredItem, IReadOnlyCollection<IMonitoredItem>?,
