@@ -101,6 +101,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(json.GetProperty("grantedRoles").EnumerateArray()
                 .Select(value => value.GetString()), Is.EqualTo(s_grantedRoleIds));
             string reference = json.GetProperty("credential").GetProperty("reference").GetString()!;
+            Assert.That(json.GetProperty("credential").GetProperty("resource").GetString(), Is.EqualTo("urn:resource"));
+            Assert.That(json.GetProperty("credential").GetProperty("issuer").GetString(),
+                Is.EqualTo(McpSecretReferences.GetResourceBinding(
+                    fixture.Manager.GetSessionInfoOrThrow("selected"), fixture.Remote.Id("key-service"))));
             using ISecret resolved = await fixture.Secrets.ResolveAsync(
                 reference, "urn:resource", McpCapability.CredentialIssuance).ConfigureAwait(false);
             Assert.That(Encoding.UTF8.GetString(resolved.Bytes), Is.EqualTo("key-secret-do-not-output"));

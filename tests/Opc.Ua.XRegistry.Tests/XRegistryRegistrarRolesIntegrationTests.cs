@@ -419,11 +419,11 @@ namespace Opc.Ua.XRegistry.Tests
                         ResourceTypeClient peerLogical = peerClient.GetResource(roles.LogicalId);
                         await AssertServiceFailureAsync(
                             async () => await peerLogical.ReadAsync(oldHandle, 1, ct).ConfigureAwait(false),
-                            StatusCodes.BadInvalidState).ConfigureAwait(false);
+                            StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
                         Assert.That(await logical.GetPositionAsync(oldHandle, ct).ConfigureAwait(false), Is.Zero);
                         await AssertServiceFailureAsync(
                             async () => await peerLogical.CloseAsync(oldHandle, ct).ConfigureAwait(false),
-                            StatusCodes.BadInvalidState).ConfigureAwait(false);
+                            StatusCodes.BadUserAccessDenied).ConfigureAwait(false);
                         Assert.That(await logical.GetPositionAsync(oldHandle, ct).ConfigureAwait(false), Is.Zero);
 
                         uint newHandle = await peerLogical.OpenAsync(1, ct).ConfigureAwait(false);

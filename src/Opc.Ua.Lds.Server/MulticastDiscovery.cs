@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Makaretu.Dns;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Lds.Server
 {
@@ -441,6 +442,9 @@ namespace Opc.Ua.Lds.Server
 
         [LoggerMessage(EventId = LdsServerEventIds.MulticastDiscovery + 4, Level = LogLevel.Debug,
             Message = "Failed to build mDNS profile for {Url}.")]
-        public static partial void FailedToBuildMdnsProfile(this ILogger logger, Exception ex, string url);
+        public static partial void FailedToBuildMdnsProfile(
+            this ILogger logger,
+            Exception ex,
+            [NetworkAddress] string url);
     }
 }

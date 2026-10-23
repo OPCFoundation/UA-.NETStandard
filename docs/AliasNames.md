@@ -30,17 +30,17 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 
 ## Contents
 
-- [Server side](#server-side--opcuaserveraliasnames)
+- [Server side — `Opc.Ua.Server.AliasNames`](#server-side--opcuaserveraliasnames)
   - [Quick start — serving standard categories](#quick-start--serving-standard-categories)
   - [Quick start — application-defined categories](#quick-start--application-defined-categories)
   - [Browsable alias nodes](#browsable-alias-nodes)
   - [Custom backend](#custom-backend)
-- [Client side](#client-side--opcuaclientaliasnames)
-  - [`AliasNameResolver`](#aliasnameresolver--cached-aliasnodeid)
+- [Client side — `Opc.Ua.Client.AliasNames`](#client-side--opcuaclientaliasnames)
+  - [`AliasNameResolver` — cached alias→NodeId](#aliasnameresolver--cached-aliasnodeid)
 - [Spec deviations / wrinkles](#spec-deviations--wrinkles)
 - [Annex D — PubSub LastChange notifications](#annex-d--pubsub-lastchange-notifications)
-  - [Server-side PubSub](#server-side--opcuaserveraliasnamespubsub)
-  - [Client-side PubSub](#client-side--opcuaclientaliasnamespubsub)
+  - [Server side — `Opc.Ua.Server.AliasNames.PubSub`](#server-side--opcuaserveraliasnamespubsub)
+  - [Client side — `Opc.Ua.Client.AliasNames.PubSub`](#client-side--opcuaclientaliasnamespubsub)
 - [See also](#see-also)
 
 ## Server side — `Opc.Ua.Server.AliasNames`

@@ -99,6 +99,7 @@ namespace MachineToolSample.Server
             string endpoint = FormattableString.Invariant($"opc.tcp://127.0.0.1:{port}/MachineToolServer");
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("MachineToolSample", LogLevel.Information);

@@ -21,7 +21,7 @@
 > fixes for the 1.x line.
 
 The official OPC Foundation reference implementation of OPC UA for
-.NET — a certified, cross-platform stack with client, server, PubSub,
+.NET — a cross-platform stack with client, server, PubSub,
 GDS, complex types, and source-generated tooling. Used in production
 across industrial control, manufacturing, energy, and IoT systems.
 
@@ -33,10 +33,11 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
   .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
-- **Certified for compliance** — the reference server has been
-  certified through an OPC Foundation Certification Test Lab and is
-  continuously verified against the latest
-  [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/).
+- **Conformance regression testing** — the reference server is tested with the
+  [Compliance Test Tool (CTT)](https://opcfoundation.org/developer-tools/certification-test-tools/opc-ua-compliance-test-tool-uactt/)
+  through the [CTT regression workflow](.github/workflows/ctt.yml).
+  These results identify regressions; they do not constitute product
+  certification.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions),
   [Part 10 (Programs)](docs/Programs.md), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
@@ -79,8 +80,9 @@ The [recycling operator console](samples/Recycling/README.md#operator-console-wa
 live browser monitoring, native companion-specification inspection, material genealogy,
 and authorized controls over the [synthetic recycling line](samples/Recycling/README.md).
 
-You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-to build the repo. From the repository root:
+You need a stable [.NET SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+version **10.0.400 or later** to build the repo. `global.json` selects the
+highest installed stable SDK, including newer major versions. From the repository root:
 
 ```bash
 dotnet restore UA.slnx
@@ -92,7 +94,10 @@ the [Developer Guide](docs/DeveloperGuide.md#packages-platform-support-and-versi
 are published to nuget.org under the `OPCFoundation.NetStandard`
 prefix — the meta package
 [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-pulls in everything, or reference individual packages directly, e.g.
+bundles a default set of stack packages; see its
+[package inventory](nuget/MetaPackageREADME.md#what-you-get).
+Reference PubSub and other optional feature packages separately, or select
+individual packages directly, e.g.
 `OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
 `OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
 every successful `master` build are available from the
@@ -125,6 +130,9 @@ the companion
 
 ### Developer tools
 
+- [UaLens](docs/UaLens.md) — NativeAOT-capable desktop engineering workspace for secure connections,
+  monitoring, alarms, structured values, history, administration, PubSub, continuity diagnostics, and guided
+  companion-model tasks. See [build and artifact qualification](tools/Opc.Ua.Lens/README.md#publish-and-package).
 - [OPC UA MCP Server](docs/McpServer.md) — installable .NET tool and container
   exposing OPC UA client operations to LLMs and Copilot. Embeddable libraries
   provide Part 4 services, PubSub, diagnostics, Robotics and Vision, plus

@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests
             core.Setup(value => value.SyncNodeManager).Returns(Mock.Of<INodeManager>());
             var factory = new Mock<IMainNodeManagerFactory>();
             factory.Setup(value => value.CreateConfigurationNodeManager())
-                .Returns(Mock.Of<IConfigurationNodeManager>());
+                .Returns(CreateUnrestrictedConfigurationNodeManager().Object);
             factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
                 .Returns(core.Object);
             m_mockServer.Setup(server => server.MainNodeManagerFactory).Returns(factory.Object);

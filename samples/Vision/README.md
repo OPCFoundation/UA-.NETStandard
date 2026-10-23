@@ -68,7 +68,7 @@ routes the ISA-95 order according to the deterministic verdict.
 Use `--mode live-ai --ai-endpoint <uri>` only when a real model endpoint is
 configured. `live-ai` fails before creating any job when no endpoint is named;
 it never silently falls back to the deterministic analyser, because a sample
-that quietly degrades appears to work while demonstrating nothing.
+that uses the fallback would not test the model endpoint.
 
 ## See also
 

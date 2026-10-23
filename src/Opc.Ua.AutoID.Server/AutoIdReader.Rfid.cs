@@ -60,7 +60,9 @@ namespace Opc.Ua.AutoID.Server
             AutoIdTagReadOutcome outcome = await RunOperationAsync(
                 token => provider.ReadTagAsync(identifier, codeType, region, offset, length, password, token),
                 cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "ReadTag", identifier, codeType, outcome.Status, outcome.Data);
+            RaiseTagAccess(context, "ReadTag", identifier, codeType, outcome.Status,
+                outcome.Status == AutoIdOperationStatusEnumeration.SUCCESS
+                    ? AccessEventData(provider, codeType, region, offset, outcome.Data) : ByteString.Empty);
             return new ReadTagMethodStateResult
             {
                 ServiceResult = ServiceResult.Good,
@@ -88,7 +90,9 @@ namespace Opc.Ua.AutoID.Server
             AutoIdOperationStatusEnumeration status = await RunOperationAsync(
                 token => provider.WriteTagAsync(identifier, codeType, region, offset, data, password, token),
                 cancellationToken).ConfigureAwait(false);
-            RaiseTagAccess(context, "WriteTag", identifier, codeType, status, data);
+            RaiseTagAccess(context, "WriteTag", identifier, codeType, status,
+                status == AutoIdOperationStatusEnumeration.SUCCESS
+                    ? AccessEventData(provider, codeType, region, offset, data) : ByteString.Empty);
             return new WriteTagMethodStateResult { ServiceResult = ServiceResult.Good, Status = status };
         }
 
@@ -267,6 +271,31 @@ namespace Opc.Ua.AutoID.Server
             return hasData
                 ? ServiceResult.Good
                 : BadResult(StatusCodes.BadInvalidArgument, "The identifier carries no data.");
+        }
+
+        /// <summary>
+        /// Projects only provider-classified non-secret memory into a broadcast access event.
+        /// </summary>
+        private static ByteString AccessEventData(
+            IAutoIdRfidProvider provider, string codeType, ushort region, uint offset, ByteString data)
+        {
+            // EPC Gen2 reserved bank bytes 0 through 7 contain kill and access passwords.
+            if (data.Length == 0 ||
+                (codeType == "EPC" && region == 0 && offset < 8) ||
+                (ulong)offset + (uint)data.Length > uint.MaxValue ||
+                provider is not IAutoIdRfidAccessEventPolicy policy)
+            {
+                return ByteString.Empty;
+            }
+            try
+            {
+                return policy.CanPublishData(codeType, region, offset, (uint)data.Length) ? data : ByteString.Empty;
+            }
+            catch (Exception)
+            {
+                // Projection failure must not change the outcome of an already executed command.
+                return ByteString.Empty;
+            }
         }
 
         /// <summary>

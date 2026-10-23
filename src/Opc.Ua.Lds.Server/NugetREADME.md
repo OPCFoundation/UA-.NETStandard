@@ -10,8 +10,7 @@ network.
 ## Overview
 
 Reference this package from an LDS / LDS-ME executable. The package
-is intended as a turn-key replacement for the C++ LDS for
-.NET-friendly deployments.
+is intended to replace the C++ LDS in .NET deployments.
 
 ## Target frameworks
 

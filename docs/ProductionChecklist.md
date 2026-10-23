@@ -9,21 +9,24 @@ review of your deployment.
 
 ## Contents
 
-- [Application identity and certificates](#application-identity-and-certificates)
-- [Endpoints and message security](#endpoints-and-message-security)
-- [Users and permissions](#users-and-permissions)
-- [Secrets and private keys](#secrets-and-private-keys)
-- [Resource limits](#resource-limits)
-- [Diagnostics and auditing](#diagnostics-and-auditing)
-- [Clients](#clients)
-- [Deployment and operation](#deployment-and-operation)
+- [Production readiness checklist](#production-readiness-checklist)
+  - [Application identity and certificates](#application-identity-and-certificates)
+  - [Endpoints and message security](#endpoints-and-message-security)
+  - [Users and permissions](#users-and-permissions)
+  - [Secrets and private keys](#secrets-and-private-keys)
+  - [Resource limits](#resource-limits)
+  - [Diagnostics and auditing](#diagnostics-and-auditing)
+  - [Clients](#clients)
+  - [Deployment and operation](#deployment-and-operation)
 
 ## Application identity and certificates
 
 - [ ] Give each installation a unique `ApplicationUri` that matches its
   application certificate. See [Concepts: applications](Concepts.md#applications).
-- [ ] Set `PkiRoot` to a persistent, access-controlled directory. The hosted
-  client and server default to a folder in the system temporary directory. See
+- [ ] Ensure `PkiRoot` points to persistent, access-controlled storage. When no
+  root is configured, hosted clients and servers use the running account's
+  `LocalApplicationData/OPC Foundation/{ApplicationName}/pki`; samples may
+  override this location. See
   [Application identity and certificate defaults](DependencyInjection.md#application-identity-and-certificate-defaults).
 - [ ] Keep `AutoAcceptUntrustedCertificates` disabled, and provision the
   trusted and issuer certificates, or CA-issued certificates, before peers
@@ -83,6 +86,9 @@ review of your deployment.
   [Server resource isolation](ResourceIsolation.md).
 - [ ] Size the server for the expected sessions, subscriptions, and monitored
   items. See [Server scalability](ServerScalability.md).
+- [ ] Enable Server GC for servers under load, and size the request queue for
+  the pipelining of your clients. See
+  [Runtime and host settings](ServerScalability.md#runtime-and-host-settings).
 
 ## Diagnostics and auditing
 

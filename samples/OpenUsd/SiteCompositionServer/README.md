@@ -4,7 +4,7 @@ A supervisory OPC UA server that owns **no devices** and composes the machines o
 several subordinate servers into a single live 3D scene.
 
 This is the SCADA-level counterpart to a device server. Where
-[`PumpDeviceIntegrationServer`](../../DI/PumpDeviceIntegrationServer) and
+[`PumpDeviceIntegrationServer`](../../Di/PumpDeviceIntegrationServer) and
 [`GeneratorServer`](../GeneratorServer) each
 publish their own machines and their own twin, this server publishes a *site* and
 says which server owns what.
@@ -49,12 +49,10 @@ Use `-Renderer D3D12`, `-PumpCount`, `-GeneratorCount`, or `-Keep` to override
 the defaults. `-ViewerBundlePath` can point at an already published connector
 and viewport directory.
 
-To start each process manually, run:
-
-Start the two device servers, then the site server:
+To start each process manually, start the two device servers, then the site server:
 
 ```
-dotnet run --project samples/DI/PumpDeviceIntegrationServer -- --host localhost --port 62542 --pumps 3
+dotnet run --project samples/Di/PumpDeviceIntegrationServer -- --host localhost --port 62542 --pumps 3
 dotnet run --project samples/OpenUsd/GeneratorServer -- --host localhost --port 62543 --generators 2
 dotnet run --project samples/OpenUsd/SiteCompositionServer -- --host localhost --port 62544
 ```
@@ -111,4 +109,4 @@ A verified run against three servers produces one override layer containing:
 
 - [OpenUSD bindings](../../../docs/OpenUsd.md)
 - [`GeneratorServer`](../GeneratorServer)
-- [`PumpDeviceIntegrationServer`](../../DI/PumpDeviceIntegrationServer)
+- [`PumpDeviceIntegrationServer`](../../Di/PumpDeviceIntegrationServer)

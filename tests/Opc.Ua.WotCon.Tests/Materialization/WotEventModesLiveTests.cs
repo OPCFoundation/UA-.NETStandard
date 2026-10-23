@@ -235,7 +235,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ObserveInterval = TimeSpan.FromMilliseconds(20)
                 });
                 return executor.ActivateAsync(form,
-                    new WotExecutorContext(telemetry: NUnitTelemetryContext.Create()), cancellationToken);
+                    new WotExecutorContext(
+                        endpointPolicy: new WotEndpointPolicy { AllowLoopback = true },
+                        telemetry: NUnitTelemetryContext.Create()), cancellationToken);
             }
         }
 

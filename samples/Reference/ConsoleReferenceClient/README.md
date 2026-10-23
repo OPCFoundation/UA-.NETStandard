@@ -64,7 +64,7 @@ exits early.
 
 ## Reverse Connect
 
-The OPC UA reverse connect feature allows an OPC UA server to initiate the connection to a client, rather than the traditional model where clients connect to servers. This is particularly useful in scenarios where the server is behind a firewall or NAT, making it difficult for clients to directly connect to it.
+OPC UA reverse connect lets a server initiate the connection to a client instead of waiting for the client to connect. Use it when a firewall or NAT makes direct client connections to the server difficult.
 
 ### How to use Reverse Connect
 

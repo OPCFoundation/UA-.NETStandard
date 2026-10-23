@@ -100,8 +100,11 @@ namespace Opc.Ua.Mcp.Tools
             [Description("Thumbprint (SHA-1 hex) of the certificate to trust")] string thumbprint,
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(sessionManager);
             try
             {
+                _ = sessionManager.OperationPolicy.Require(McpCapability.CertificateAdministration);
+                ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
                 ApplicationConfiguration config = await sessionManager.EnsureConfigurationAsync(ct)
                     .ConfigureAwait(false);
 
@@ -142,7 +145,8 @@ namespace Opc.Ua.Mcp.Tools
                     return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                     {
                         ["success"] = true,
-                        ["message"] = $"Certificate '{cert.Subject}' (thumbprint: {thumbprint}) moved from Rejected to Trusted.",
+                        ["message"] = $"Certificate '{cert.Subject}' (thumbprint: {thumbprint}) " +
+                            "moved from Rejected to Trusted.",
                         ["certificate"] = CertToDict(cert)
                     });
                 }
@@ -156,6 +160,8 @@ namespace Opc.Ua.Mcp.Tools
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
+                    ["statusCode"] = ex is ServiceResultException service
+                        ? service.StatusCode.ToString() : "BadInvalidState",
                     ["message"] = ex.Message
                 });
             }
@@ -171,11 +177,16 @@ namespace Opc.Ua.Mcp.Tools
         public static async Task<string> RemoveCertificateAsync(
             OpcUaSessionManager sessionManager,
             [Description("Thumbprint (SHA-1 hex) of the certificate to remove")] string thumbprint,
-            [Description("Certificate store to remove from: 'Trusted' (default), 'Issuer', or 'Rejected'")] string store = "Trusted",
+            [Description("Certificate store to remove from: 'Trusted' (default), 'Issuer', or 'Rejected'")]
+            string store = "Trusted",
             CancellationToken ct = default)
         {
+            ArgumentNullException.ThrowIfNull(sessionManager);
             try
             {
+                _ = sessionManager.OperationPolicy.Require(McpCapability.CertificateAdministration);
+                ArgumentException.ThrowIfNullOrWhiteSpace(thumbprint);
+                ArgumentException.ThrowIfNullOrWhiteSpace(store);
                 ApplicationConfiguration config = await sessionManager.EnsureConfigurationAsync(ct)
                     .ConfigureAwait(false);
 
@@ -197,6 +208,8 @@ namespace Opc.Ua.Mcp.Tools
                 return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
                 {
                     ["error"] = true,
+                    ["statusCode"] = ex is ServiceResultException service
+                        ? service.StatusCode.ToString() : "BadInvalidState",
                     ["message"] = ex.Message
                 });
             }

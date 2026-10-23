@@ -121,15 +121,13 @@ namespace Opc.Ua.Scales.Server.Runtime
                         AttachRecipeFile(recipe);
                     }
                 }
-                if (management.AddRecipe != null)
-                {
-                    management.AddRecipe.OnCall = (
-                        ISystemContext context,
-                        MethodState method,
-                        NodeId objectId,
-                        string recipeId,
-                        LocalizedText recipeName,
-                        ref NodeId recipeNodeId) =>
+                management.AddRecipe?.OnCall = (
+                        context,
+                        method,
+                        objectId,
+                        recipeId,
+                        recipeName,
+                        ref recipeNodeId) =>
                     {
                         RecipeState? recipe = AddRecipeCore(recipeId, recipeName, out ServiceResult result);
                         if (recipe != null)
@@ -138,15 +136,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                         }
                         return result;
                     };
-                }
-                if (management.RemoveRecipe != null)
-                {
-                    management.RemoveRecipe.OnCallAsync = async (context, method, objectId, recipeId, ct) =>
+                management.RemoveRecipe?.OnCallAsync = async (context, method, objectId, recipeId, ct) =>
                         new RemoveRecipeMethodStateResult
                         {
                             ServiceResult = await RemoveRecipeAsync(recipeId, ct).ConfigureAwait(false)
                         };
-                }
             }
 
             BindRun(scale.StartRecipe, ScaleCommand.StartRecipe, StartCore);
@@ -330,7 +324,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 }
                 ISystemContext context = m_owner.Services.Context;
                 recipe = context.CreateInstanceOfRecipeType(Scale.Recipes, m_owner.Services.InstanceName(recipeId));
-                recipe.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                recipe.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
                 recipe.DisplayName = new LocalizedText(recipeId);
                 ScaleValues.Set(context, recipe.RecipeId, recipeId);
                 ScaleValues.Set(context, recipe.RecipeName, recipeName);
@@ -373,16 +367,14 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindRecipe(RecipeState recipe)
         {
-            if (recipe.AddRecipeElement != null)
-            {
-                recipe.AddRecipeElement.OnCall = (
-                    ISystemContext context,
-                    MethodState method,
-                    NodeId objectId,
-                    NodeId elementType,
-                    string elementName,
-                    ArrayOf<NodeId> previousElements,
-                    ref NodeId elementNodeId) =>
+            recipe.AddRecipeElement?.OnCall = (
+                    context,
+                    method,
+                    objectId,
+                    elementType,
+                    elementName,
+                    previousElements,
+                    ref elementNodeId) =>
                 {
                     RecipeElementState? element = AddElementCore(
                         recipe,
@@ -396,15 +388,11 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return result;
                 };
-            }
-            if (recipe.RemoveRecipeElement != null)
-            {
-                recipe.RemoveRecipeElement.OnCallAsync = async (context, method, objectId, elementNodeId, ct) =>
+            recipe.RemoveRecipeElement?.OnCallAsync = async (context, method, objectId, elementNodeId, ct) =>
                     new RemoveRecipeElementMethodStateResult
                     {
                         ServiceResult = await RemoveElementAsync(recipe, elementNodeId, ct).ConfigureAwait(false)
                     };
-            }
         }
 
         private RecipeElementState? AddElementCore(
@@ -483,7 +471,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                         elementType);
                     return null;
                 }
-                element.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.Organizes;
+                element.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
                 element.DisplayName = new LocalizedText(elementName);
                 recipe.RecipeElements.AddChild(element);
 
@@ -614,13 +602,52 @@ namespace Opc.Ua.Scales.Server.Runtime
             method.OnCallMethod2 = (context, called, objectId, inputs, outputs) =>
             {
                 NodeId recipeNodeId = inputs.Count > 0 && inputs[0].TryGetValue(out NodeId id) ? id : NodeId.Null;
-                ServiceResult result = m_owner.Execute(command, () => action(recipeNodeId));
+                ServiceResult result = RunRemote(context, command, recipeNodeId, action);
 
                 // Handlers run after the scale's and the controller's lock are
                 // released, so they may call back into the controller.
                 RaisePending();
                 return result;
             };
+        }
+
+        /// <summary>
+        /// Authorizes a remote recipe command and retains the same report target throughout its execution.
+        /// </summary>
+        private ServiceResult RunRemote(
+            ISystemContext context,
+            ScaleCommand command,
+            NodeId recipeNodeId,
+            Func<NodeId, ServiceResult> action)
+        {
+            return m_owner.Execute(command, () =>
+            {
+                lock (m_lock)
+                {
+                    var product = m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
+                    if (product != null)
+                    {
+                        ServiceResult access = ScaleValues.CheckLock(m_owner.Services, context, product.NodeId);
+                        if (ServiceResult.IsBad(access))
+                        {
+                            return access;
+                        }
+                    }
+                    RecipeProductState? previousProduct = m_reportProduct;
+                    bool previouslyCaptured = m_reportProductCaptured;
+                    m_reportProduct = product;
+                    m_reportProductCaptured = true;
+                    try
+                    {
+                        return action(recipeNodeId);
+                    }
+                    finally
+                    {
+                        m_reportProduct = previousProduct;
+                        m_reportProductCaptured = previouslyCaptured;
+                    }
+                }
+            });
         }
 
         /// <summary>
@@ -878,7 +905,10 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         private void Report(string message)
         {
-            if (m_owner.ProductionPreset?.ActiveProduct is RecipeProductState product && product.Report != null)
+            RecipeProductState? product = m_reportProductCaptured
+                ? m_reportProduct
+                : m_owner.ProductionPreset?.ActiveProduct as RecipeProductState;
+            if (product?.Report != null)
             {
                 var entries = new List<RecipeReportElementType>();
                 foreach (RecipeReportElementType entry in product.Report.Value)
@@ -932,5 +962,11 @@ namespace Opc.Ua.Scales.Server.Runtime
         private List<Action> m_pending = [];
         private readonly HashSet<RecipeElementState> m_done = [];
         private readonly Lock m_lock = new();
+
+        /// <summary>The product authorized for the current remote command's report writes.</summary>
+        private RecipeProductState? m_reportProduct;
+
+        /// <summary>Whether the current command captured a report target, including an absent target.</summary>
+        private bool m_reportProductCaptured;
     }
 }

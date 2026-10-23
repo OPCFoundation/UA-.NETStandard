@@ -42,6 +42,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -1092,14 +1093,14 @@ namespace Opc.Ua.Bindings
         public static partial void FailedToCloseChannelForCertificateRotation(
             this ILogger logger,
             Exception exception,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 1, Level = LogLevel.Information,
             Message = "KestrelTcp closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).")]
         public static partial void ClosedSecureChannelsForCertificateRotation(
             this ILogger logger,
             int count,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = BindingsHttpsEventIds.KestrelTcpTransportListener + 2, Level = LogLevel.Error,
             Message = "KestrelTcp request processing failed.")]

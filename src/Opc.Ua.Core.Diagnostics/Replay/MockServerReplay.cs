@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Capture;
 using Opc.Ua.Pcap.Capture.Sources;
 using Opc.Ua.Pcap.Frame;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Replay
 {
@@ -297,7 +298,7 @@ namespace Opc.Ua.Pcap.Replay
     {
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.MockServerReplay + 0, Level = LogLevel.Information,
             Message = "Mock-server replay listening on {ListenUri}.")]
-        public static partial void MockServerReplayListening(this ILogger logger, Uri listenUri);
+        public static partial void MockServerReplayListening(this ILogger logger, [NetworkAddress] Uri listenUri);
     }
 
 }

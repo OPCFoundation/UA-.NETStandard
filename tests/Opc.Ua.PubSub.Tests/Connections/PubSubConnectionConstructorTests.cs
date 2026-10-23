@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
@@ -71,6 +72,40 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System));
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityF15DirectConnectionRefusesMissingLeafSecurityContextAsync()
+        {
+            PubSubConnectionDataType configuration = NewConfig();
+            configuration.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    SecurityMode = MessageSecurityMode.None,
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType
+                        {
+                            SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                            SecurityGroupId = "protected-leaf"
+                        }
+                    ]
+                }
+            ];
+            PubSubConfigurationException? rejection = null;
+            try
+            {
+                await using PubSubConnection connection = NewConnectionWithConfig(configuration);
+            }
+            catch (PubSubConfigurationException exception)
+            {
+                rejection = exception;
+            }
+
+            Assert.That(rejection, Is.Not.Null);
+            Assert.That(rejection!.Issues[0].Code, Is.EqualTo("PSC1401"));
         }
 
         [Test]
@@ -353,10 +388,10 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
-        public async Task TryRouteInboundMetaData_JsonMetaData_UpdatesRegistryAndReturnsTrue()
+        public async Task TryRouteInboundMetaDataJsonMetaDataUpdatesConnectionRegistryAndReturnsTrue()
         {
             await using PubSubConnection conn = NewConnectionWithOwnRegistry(
-                out DataSetMetaDataRegistry registry);
+                out IDataSetMetaDataRegistry registry);
 
             var meta = new DataSetMetaDataType
             {
@@ -387,7 +422,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task InboundMetaDataIsRegisteredOnlyForConfiguredReaderIdentities()
         {
             await using PubSubConnection conn = NewConnectionWithOwnRegistry(
-                out DataSetMetaDataRegistry registry,
+                out IDataSetMetaDataRegistry registry,
                 new DataSetReaderDataType
                 {
                     Name = "expected",
@@ -409,7 +444,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
         public async Task InboundMetaDataIdentitiesAreBoundedPerConnection()
         {
             await using PubSubConnection conn = NewConnectionWithOwnRegistry(
-                out DataSetMetaDataRegistry registry);
+                out IDataSetMetaDataRegistry registry);
 
             for (int i = 0; i <= PubSubConnection.MaxInboundMetaDataIdentities; i++)
             {
@@ -490,27 +525,29 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         private static PubSubConnection NewConnectionWithOwnRegistry(
-            out DataSetMetaDataRegistry registry,
+            out IDataSetMetaDataRegistry registry,
             DataSetReaderDataType? readerConfiguration = null)
         {
-            registry = new DataSetMetaDataRegistry();
+            var hostRegistry = new DataSetMetaDataRegistry();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var reader = new DataSetReader(
                 readerConfiguration ?? new DataSetReaderDataType { Name = "any-publisher" },
                 new Moq.Mock<ISubscribedDataSetSink>().Object,
                 telemetry,
                 TimeProvider.System);
-            return new PubSubConnection(
+            var connection = new PubSubConnection(
                 NewConfig(),
                 new StubTransportFactory(),
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>(),
                 Array.Empty<WriterGroup>(),
                 new[] { new ReaderGroup(new ReaderGroupDataType { Name = "rg" }, new[] { reader }, telemetry) },
-                registry,
+                hostRegistry,
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
                 NUnitTelemetryContext.Create(),
                 TimeProvider.System);
+            registry = connection.InboundMetaDataRegistry;
+            return connection;
         }
 
 #pragma warning disable IDE0051, RCS1213 // Test scaffold kept for constructor tests with explicit encoder/decoder maps.

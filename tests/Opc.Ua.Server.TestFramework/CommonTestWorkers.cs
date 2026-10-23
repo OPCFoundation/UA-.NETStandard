@@ -790,7 +790,8 @@ namespace Opc.Ua.Server.TestFramework
             RequestHeader requestHeader,
             ArrayOf<uint> subscriptionIds,
             bool sendInitialData,
-            bool expectAccessDenied)
+            bool expectAccessDenied,
+            bool expectAuthorizationInvalidation = false)
         {
             Assert.That(subscriptionIds.Count, Is.EqualTo(1));
 
@@ -820,7 +821,9 @@ namespace Opc.Ua.Server.TestFramework
                 else
                 {
                     Assert.That(StatusCode.IsGood(transferResult.StatusCode), Is.True);
-                    Assert.That(transferResult.AvailableSequenceNumbers.Count, Is.EqualTo(1));
+                    Assert.That(
+                        transferResult.AvailableSequenceNumbers.Count,
+                        Is.EqualTo(expectAuthorizationInvalidation ? 0 : 1));
                 }
             }
 
@@ -842,8 +845,11 @@ namespace Opc.Ua.Server.TestFramework
                 publishResponse.ResponseHeader.StringTable,
                 services.Logger);
             Assert.That(publishResponse.SubscriptionId, Is.EqualTo(subscriptionIds[0]));
-            Assert.That(publishResponse.NotificationMessage.NotificationData.Count, Is.EqualTo(sendInitialData ? 1 : 0));
-            if (sendInitialData)
+            bool expectInitialData = sendInitialData && !expectAuthorizationInvalidation;
+            Assert.That(
+                publishResponse.NotificationMessage.NotificationData.Count,
+                Is.EqualTo(expectInitialData ? 1 : 0));
+            if (expectInitialData)
             {
                 ExtensionObject items = publishResponse.NotificationMessage.NotificationData[0];
                 Assert.That(items.TryGetValue(out DataChangeNotification? dataChangeNotification), Is.True);

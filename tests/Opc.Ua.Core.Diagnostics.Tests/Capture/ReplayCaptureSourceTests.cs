@@ -52,12 +52,12 @@ namespace Opc.Ua.Pcap.Tests.Capture
             var source = new ReplayCaptureSource();
             await using (source.ConfigureAwait(false))
             {
-                await source.StartAsync(new StartCaptureRequest
+                await Assert.ThatAsync(async () => await source.StartAsync(new StartCaptureRequest
                 {
-                    Source = CaptureSourceKind.Replay, PcapFilePath = path, RequireCompleteReplay = true
-                }, CancellationToken.None).ConfigureAwait(false);
-                await Assert.ThatAsync(() => PcapTestHelpers.ToListAsync(
-                    source.ReadCapturedFramesAsync(null, CancellationToken.None)),
+                    Source = CaptureSourceKind.Replay,
+                    PcapFilePath = path,
+                    RequireCompleteReplay = true
+                }, CancellationToken.None).ConfigureAwait(false),
                     Throws.TypeOf<PcapDiagnosticsException>()).ConfigureAwait(false);
             }
         }
@@ -359,8 +359,6 @@ namespace Opc.Ua.Pcap.Tests.Capture
                 async () => await source.StopAsync(cts.Token).ConfigureAwait(false),
                 Throws.InstanceOf<OperationCanceledException>());
         }
-
-        // ----- helpers -----
 
         private Task<string> WriteOneFramePcapAsync()
         {

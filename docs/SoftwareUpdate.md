@@ -31,25 +31,30 @@ address-space surface it creates, and how clients drive it.
 `WithSoftwareUpdate(...)` materialises one
 `SoftwareUpdateType` instance per device with the following children:
 
-```
-{device}                              (ComponentState / DeviceState)
-└─ SoftwareUpdate                     SoftwareUpdateType    (OPC-DI i=1)
-   ├─ Loading                         {Package|Direct|Cached}LoadingType
-   │                                   (default: PackageLoadingType i=137)
-   ├─ PrepareForUpdate                PrepareForUpdateStateMachineType (i=213)
-   │   ├─ CurrentState
-   │   ├─ Prepare                     (Method)
-   │   ├─ Abort                       (Method)
-   │   └─ Resume                      (Method)
-   ├─ Installation                    InstallationStateMachineType (i=249)
-   │   ├─ CurrentState
-   │   ├─ InstallSoftwarePackage      (InstallSoftwarePackageMethodType i=389)
-   │   ├─ InstallFiles                (InstallFilesMethodType)
-   │   ├─ Uninstall                   (Method)
-   │   └─ Resume                      (Method)
-   ├─ PowerCycle                      PowerCycleStateMachineType (i=285)
-   └─ Confirmation                    ConfirmationStateMachineType (i=307)
-       └─ Confirm                     (Method)
+```mermaid
+flowchart TD
+    device["Device<br/>ComponentState / DeviceState"]
+    update["SoftwareUpdate<br/>SoftwareUpdateType (OPC-DI i=1)"]
+    loading["Loading<br/>Package / Direct / Cached LoadingType<br/>Default: PackageLoadingType i=137"]
+    prepare["PrepareForUpdate<br/>PrepareForUpdateStateMachineType (i=213)"]
+    install["Installation<br/>InstallationStateMachineType (i=249)"]
+    cycle["PowerCycle<br/>PowerCycleStateMachineType (i=285)"]
+    confirmation["Confirmation<br/>ConfirmationStateMachineType (i=307)"]
+    device --> update
+    update --> loading
+    update --> prepare
+    prepare --> ps["CurrentState"]
+    prepare --> pm["Prepare (Method)"]
+    prepare --> pa["Abort (Method)"]
+    prepare --> pr["Resume (Method)"]
+    update --> install
+    install --> is["CurrentState"]
+    install --> package["InstallSoftwarePackage<br/>(InstallSoftwarePackageMethodType i=389)"]
+    install --> files["InstallFiles<br/>(InstallFilesMethodType)"]
+    install --> uninstall["Uninstall (Method)"]
+    install --> resume["Resume (Method)"]
+    update --> cycle
+    update --> confirmation --> confirm["Confirm (Method)"]
 ```
 
 Choose the loading subtype with one of these methods:
@@ -237,6 +242,13 @@ can still serve list, metadata, and payload-read operations. The same provider c
 also be mounted through `FileSystemNodeManager`; use the store API rather than
 editing package files directly.
 
+`FileSystemSoftwareFolder` also confines every revision, marker-derived path and
+provider-supplied entry to its canonical per-device root. Revision identifiers
+must be single nonempty path components; traversal, dot-only and normalized
+dot-segment aliases are rejected before file operations. Ordinary dotted
+revisions such as `1.2.3` remain supported. Malformed markers cannot select or
+delete a parent folder's payload or metadata.
+
 ### Seeding a package
 
 Resolve `ISoftwarePackageStore` from the host, then copy the payload into it.
@@ -294,7 +306,17 @@ Operational caps (defaults, configurable via constants on
 | Read on a transient upload file | rejected with `BadNotSupported` |
 
 Handles are owned by the session that allocated them; cross-session
-access is rejected with `BadUserAccessDenied`.
+access is rejected with `BadUserAccessDenied`. Remote allocation, Open and every
+handle-consuming method require a real, non-null session identifier; authenticated
+sessionless requests receive `BadSessionIdInvalid` before allocation, staging,
+cursor changes or storage access. Handle numbers and `NodeId.Null` are not
+ownership capabilities. A transient file's methods also reject a handle belonging
+to another transient file, even when the same session owns both.
+
+Use an ordinary session for remote software uploads. Explicit trusted in-process
+calls using a system context without an operation context remain supported;
+their handles cannot be borrowed by remote callers. This does not disable
+sessionless invocation for unrelated stateless services.
 
 Committed package metadata contains the SHA-256 digest of the uploaded bytes.
 The `InstallSoftwarePackage` Hash argument is forwarded as hexadecimal
@@ -426,7 +448,7 @@ This explicitly adds a separate `SoftwareUpdateDemo` device; it does not update
 the simulated pumps or execute package contents. Its install callback requires a
 matching staged SHA-256, rehashes the stored bytes and copies the package into an
 in-memory software-version folder. See the
-[pump sample guide](../samples/DI/PumpDeviceIntegrationServer/README.md#software-update-simulator).
+[pump sample guide](../samples/Di/PumpDeviceIntegrationServer/README.md#software-update-simulator).
 
 Attach the software-update facet to a `ComponentType`-derived device
 created through the Device Integration builder:

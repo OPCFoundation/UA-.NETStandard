@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,10 +40,14 @@ namespace Opc.Ua.AutoID.Client
         /// Reads the state of a reader device in one browse and one read.
         /// </summary>
         /// <remarks>
-        /// The browse also yields the NodeIds of the variables to monitor and the methods the device
-        /// publishes. The optional variables a device does not publish are left at their defaults in the
-        /// snapshot; a bad status for a variable the device does publish is thrown as a
-        /// <see cref="ServiceResultException"/>. <see cref="AutoIdReadOptions"/> narrows the read.
+        /// Every call costs one Browse of the children of the device (and BrowseNext only when the
+        /// server pages the result) and one Read, whatever the options; <see cref="AutoIdReadOptions"/>
+        /// only narrows the variables of the Read. The browse
+        /// yields the NodeIds of the variables to monitor and the methods the device publishes. The
+        /// optional variables a device does not publish are left at their defaults in the snapshot; a
+        /// bad status for a variable the device does publish is thrown as a
+        /// <see cref="ServiceResultException"/>. To poll without browsing, pass the snapshot to
+        /// <see cref="RefreshDeviceAsync"/>.
         /// </remarks>
         /// <param name="reader">The reader.</param>
         /// <param name="options">What to read; <see cref="AutoIdReadOptions.Default"/> when <see langword="null"/>.</param>
@@ -201,6 +206,128 @@ namespace Opc.Ua.AutoID.Client
                 Model = Value(Di.BrowseNames.Model, false).WrappedValue
                     .TryGetValue(out LocalizedText model) ? model : default,
                 SerialNumber = TextOf(Value(Di.BrowseNames.SerialNumber, false))
+            };
+        }
+
+        /// <summary>
+        /// Reads the variables of a snapshot that change at runtime again, through the NodeIds the
+        /// snapshot carries: <c>DeviceStatus</c> and, when the device publishes them,
+        /// <c>LastScanData</c>, <c>LastScanTimestamp</c> and <c>DeviceLocation</c>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The call costs exactly one Read of one to four variables and no Browse. The client keeps no
+        /// state: a caller that polls a device reads it once with <see cref="ReadDeviceAsync"/> and
+        /// then passes the returned snapshot here on every cycle. All other members of the snapshot,
+        /// including <see cref="AutoIdDeviceSnapshot.Methods"/> and the NodeIds, are copied unchanged.
+        /// </para>
+        /// <para>
+        /// The snapshot is not validated against the server. When it no longer matches the device
+        /// (the device or one of its variables was deleted, or the server assigned other NodeIds after
+        /// a restart), the status of the Read surfaces: a bad status for <c>DeviceStatus</c>, for
+        /// example <see cref="StatusCodes.BadNodeIdUnknown"/>, is thrown as a
+        /// <see cref="ServiceResultException"/>, and a bad status for <c>LastScanData</c> is returned
+        /// in <see cref="AutoIdDeviceSnapshot.LastScanStatus"/> with a null value. A bad
+        /// <c>LastScanTimestamp</c> or <c>DeviceLocation</c> leaves that member at its default. In
+        /// each of these cases the caller reads the device again with <see cref="ReadDeviceAsync"/>,
+        /// which also picks up optional variables and methods the device published after the
+        /// snapshot was taken.
+        /// </para>
+        /// </remarks>
+        /// <param name="device">A snapshot returned by <see cref="ReadDeviceAsync"/>.</param>
+        /// <param name="cancellationToken">Cancels the operation.</param>
+        /// <returns>A copy of <paramref name="device"/> with the current values.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="device"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentException">The snapshot carries no <c>DeviceStatus</c> NodeId.</exception>
+        /// <exception cref="ServiceResultException">
+        /// The server rejected the Read, or reading <c>DeviceStatus</c> returned a bad status.
+        /// </exception>
+        public async ValueTask<AutoIdDeviceSnapshot> RefreshDeviceAsync(
+            AutoIdDeviceSnapshot device,
+            CancellationToken cancellationToken = default)
+        {
+            if (device is null)
+            {
+                throw new ArgumentNullException(nameof(device));
+            }
+            if (device.DeviceStatusId.IsNull)
+            {
+                throw new ArgumentException(
+                    "The snapshot carries no DeviceStatus NodeId; read the device with ReadDeviceAsync.",
+                    nameof(device));
+            }
+            NodeId[] ids =
+            [
+                device.DeviceStatusId,
+                device.LastScanDataId,
+                device.LastScanTimestampId,
+                device.DeviceLocationId
+            ];
+            var reads = new List<ReadValueId>(ids.Length);
+            int[] slots = new int[ids.Length];
+            for (int index = 0; index < ids.Length; index++)
+            {
+                slots[index] = -1;
+                if (!ids[index].IsNull)
+                {
+                    slots[index] = reads.Count;
+                    reads.Add(new ReadValueId { NodeId = ids[index], AttributeId = Attributes.Value });
+                }
+            }
+            ReadResponse response = await Session.ReadAsync(
+                requestHeader: null,
+                maxAge: 0,
+                timestampsToReturn: TimestampsToReturn.Neither,
+                nodesToRead: reads.ToArray().ToArrayOf(),
+                ct: cancellationToken).ConfigureAwait(false);
+            if (response.Results.Count != reads.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadUnexpectedError,
+                    "The server returned {0} read results for {1} requested variables.",
+                    response.Results.Count,
+                    reads.Count);
+            }
+            DataValue Value(int index)
+            {
+                return slots[index] < 0
+                    ? new DataValue(Variant.Null, StatusCodes.BadNotFound)
+                    : response.Results[slots[index]];
+            }
+
+            DataValue status = Value(0);
+            if (StatusCode.IsBad(status.StatusCode))
+            {
+                throw ServiceResultException.Create(
+                    status.StatusCode,
+                    "Reading {0} of {1} failed.",
+                    BrowseNames.DeviceStatus,
+                    device.NodeId);
+            }
+            DataValue lastData = Value(1);
+            DataValue lastTimestamp = Value(2);
+            DataValue deviceLocation = Value(3);
+            Location? locationValue = null;
+#pragma warning disable CS8600 // The generic structure accessor declares its out value as possibly null.
+            if (StatusCode.IsNotBad(deviceLocation.StatusCode) &&
+                deviceLocation.WrappedValue.TryGetValue(out Location decodedLocation, Session.MessageContext) &&
+                decodedLocation is not null)
+#pragma warning restore CS8600
+            {
+                locationValue = decodedLocation;
+            }
+            return device with
+            {
+                DeviceStatus = status.WrappedValue.TryGetValue(out DeviceStatusEnumeration deviceStatus)
+                    ? deviceStatus
+                    : default,
+                LastScanData = StatusCode.IsBad(lastData.StatusCode) ? Variant.Null : lastData.WrappedValue,
+                LastScanStatus = lastData.StatusCode,
+                LastScanTimestamp = StatusCode.IsNotBad(lastTimestamp.StatusCode) &&
+                    lastTimestamp.WrappedValue.TryGetValue(out DateTimeUtc timestamp)
+                    ? timestamp
+                    : default,
+                DeviceLocation = locationValue
             };
         }
 

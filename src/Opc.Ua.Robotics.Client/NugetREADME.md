@@ -3,7 +3,7 @@
 Client-side helpers for the **OPC 40010 Robotics** companion model.
 
 Built on **Opc.Ua.Robotics** and **Opc.Ua.Di.Client** — Robotics types derive
-from OPC 40001-1 IA, which derives from OPC 10000-100 DI, so `RoboticsClient`
+from OPC 10000-200 Industrial Automation (IA), which derives from OPC 10000-100 DI, so `RoboticsClient`
 composes `DiTopologyClient` instead of reimplementing device navigation. It lets
 a generic OPC UA client (for example the OpenUSD connector or a viewer) work
 with robot cells:

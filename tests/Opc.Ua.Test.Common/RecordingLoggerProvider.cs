@@ -109,7 +109,7 @@ namespace Opc.Ua.Tests
                 {
                     foreach (KeyValuePair<string, object?> value in values)
                     {
-                        properties[value.Key] = value.Value;
+                        properties[value.Key] = Snapshot(value.Value);
                     }
                 }
 
@@ -121,6 +121,21 @@ namespace Opc.Ua.Tests
                         formatter(state, exception),
                         properties,
                         exception));
+            }
+
+            /// <summary>
+            /// The redaction-aware logger passes classified values as pooled redactor
+            /// objects that are only valid during the Log call; keep their text.
+            /// </summary>
+            private static object? Snapshot(object? value)
+            {
+                if (value != null &&
+                    value.GetType().Assembly.GetName().Name?.StartsWith(
+                        "Microsoft.Extensions.", StringComparison.Ordinal) == true)
+                {
+                    return value.ToString();
+                }
+                return value;
             }
 
             private readonly RecordingLoggerProvider m_provider;

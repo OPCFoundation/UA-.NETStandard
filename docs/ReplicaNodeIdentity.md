@@ -12,10 +12,11 @@ second hashing algorithm or a persistent logical-key-to-NodeId database.
 
 ## Contents
 
-- [Configure the whole replica set](#configure-the-whole-replica-set)
-- [Creating, importing and hydrating nodes](#creating-importing-and-hydrating-nodes)
-- [Stored contracts and peer admission](#stored-contracts-and-peer-admission)
-- [Sample client proof](#sample-client-proof)
+- [Replica-consistent NodeIds](#replica-consistent-nodeids)
+  - [Configure the whole replica set](#configure-the-whole-replica-set)
+  - [Creating, importing and hydrating nodes](#creating-importing-and-hydrating-nodes)
+  - [Stored contracts and peer admission](#stored-contracts-and-peer-admission)
+  - [Sample client proof](#sample-client-proof)
 
 ## Configure the whole replica set
 

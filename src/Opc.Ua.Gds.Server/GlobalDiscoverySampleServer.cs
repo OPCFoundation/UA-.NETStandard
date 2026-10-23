@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Hosting;
@@ -538,6 +539,9 @@ namespace Opc.Ua.Gds.Server
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.GlobalDiscoverySampleServer + 1, Level = LogLevel.Information,
             Message = "X509 Token Accepted: {Identity} as {Role}")]
-        public static partial void X509TokenAccepted(this ILogger logger, string identity, Role role);
+        public static partial void X509TokenAccepted(
+            this ILogger logger,
+            [UserIdentity] string identity,
+            Role role);
     }
 }

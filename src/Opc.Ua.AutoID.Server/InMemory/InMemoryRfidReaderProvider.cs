@@ -50,7 +50,8 @@ namespace Opc.Ua.AutoID.Server
     /// All members are thread safe.
     /// </para>
     /// </remarks>
-    public sealed class InMemoryRfidReaderProvider : IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IDisposable
+    public sealed class InMemoryRfidReaderProvider :
+        IAutoIdScanProvider, IAutoIdAsyncScanProvider, IAutoIdRfidProvider, IAutoIdRfidAccessEventPolicy, IDisposable
     {
         /// <summary>
         /// Creates a reader without tags.
@@ -88,6 +89,14 @@ namespace Opc.Ua.AutoID.Server
                     return m_tags.Count;
                 }
             }
+        }
+
+        /// <inheritdoc/>
+        public bool CanPublishData(string codeType, ushort region, uint offset, uint length)
+        {
+            return region is >= 1 and <= 3 &&
+                (codeType is "EPC" or "UID" or "RAW:BYTES" or "RAW:STRING") &&
+                (ulong)offset + length <= uint.MaxValue;
         }
 
         /// <summary>

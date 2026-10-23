@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.Capture.Sources
 {
@@ -85,7 +86,7 @@ namespace Opc.Ua.Pcap.Capture.Sources
         public long ByteCount => Interlocked.Read(ref m_byteCount);
 
         /// <inheritdoc/>
-        public ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
+        public async ValueTask StartAsync(StartCaptureRequest request, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(request);
             ct.ThrowIfCancellationRequested();
@@ -100,6 +101,14 @@ namespace Opc.Ua.Pcap.Capture.Sources
                 throw new PcapDiagnosticsException($"Replay pcap file '{request.PcapFilePath}' does not exist.");
             }
 
+            if (Volatile.Read(ref m_state) != StateNew)
+            {
+                throw new PcapDiagnosticsException("ReplayCaptureSource cannot be started twice.");
+            }
+
+            CaptureFileValidator.RejectKeyLogPath(request.PcapFilePath, request.KeyLogFilePath);
+            await CaptureFileValidator.ValidateFileAsync(request.PcapFilePath, ct).ConfigureAwait(false);
+
             if (Interlocked.CompareExchange(ref m_state, StateRunning, StateNew) != StateNew)
             {
                 throw new PcapDiagnosticsException("ReplayCaptureSource cannot be started twice.");
@@ -111,8 +120,6 @@ namespace Opc.Ua.Pcap.Capture.Sources
             {
                 m_keyLogFilePath = request.KeyLogFilePath;
             }
-
-            return ValueTask.CompletedTask;
         }
 
         /// <inheritdoc/>
@@ -295,13 +302,13 @@ namespace Opc.Ua.Pcap.Capture.Sources
     {
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 0, Level = LogLevel.Trace,
             Message = "Read keylog {KeyLogFilePath} as JSON.")]
-        public static partial void ReadKeyLogAsJson(this ILogger logger, string keyLogFilePath);
+        public static partial void ReadKeyLogAsJson(this ILogger logger, [FilePath] string keyLogFilePath);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.ReplayCaptureSource + 1, Level = LogLevel.Trace,
             Message = "Unable to read keylog {KeyLogFilePath} as JSON; trying text.")]
         public static partial void ReadKeyLogAsJsonFailed(
             this ILogger logger,
             Exception exception,
-            string keyLogFilePath);
+            [FilePath] string keyLogFilePath);
     }
 }

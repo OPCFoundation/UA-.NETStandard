@@ -30,9 +30,12 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
 
@@ -135,6 +138,9 @@ namespace Opc.Ua.Interop.Tests
         private ServerFixture<ReferenceServer> m_serverFixture;
         private string m_pkiRoot;
         private string m_serverUrl;
+        private string m_x509UserCertificatePath;
+        private string m_x509UserCertificateDerPath;
+        private string m_x509UserKeyPemPath;
 
         public static IEnumerable<TestCaseData> BasicCases()
         {
@@ -176,11 +182,30 @@ namespace Opc.Ua.Interop.Tests
             // log on as a user of the reference server's user database.
             m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
-            // The X509UserToken check logs on with a self-signed user certificate,
-            // which the auto-accepting fixture trusts.
+            // The X509UserToken check logs on with a self-signed user
+            // certificate, which must be explicitly trusted as a user token:
+            // the reference server never auto-accepts user certificates.
+            // Every peer gets the same certificate, as a PFX (the 1.5 peer)
+            // or as DER plus an unencrypted PKCS#8 PEM key (foreign peers).
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
             await m_serverFixture.StartAsync().ConfigureAwait(false);
+            using Certificate userCertificate = CertificateBuilder
+                .Create("CN=InteropUser, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+            m_x509UserCertificatePath = Path.Combine(m_pkiRoot, "x509-user.pfx");
+            File.WriteAllBytes(m_x509UserCertificatePath, userCertificate.Export(X509ContentType.Pfx));
+            m_x509UserCertificateDerPath = Path.Combine(m_pkiRoot, "x509-user.der");
+            File.WriteAllBytes(m_x509UserCertificateDerPath, userCertificate.RawData);
+            m_x509UserKeyPemPath = Path.Combine(m_pkiRoot, "x509-user.key.pem");
+            File.WriteAllBytes(m_x509UserKeyPemPath, PEMWriter.ExportPrivateKeyAsPEM(userCertificate));
+            await using (ITrustListTransaction transaction = await m_serverFixture.Config.CertificateManager
+                .BeginUpdateAsync(TrustListIdentifier.Users).ConfigureAwait(false))
+            {
+                await transaction.AddTrustedCertificateAsync(userCertificate).ConfigureAwait(false);
+                await transaction.CommitAsync().ConfigureAwait(false);
+            }
             m_serverUrl = string.Format(
                 CultureInfo.InvariantCulture,
                 "opc.tcp://localhost:{0}/{1}",
@@ -270,7 +295,10 @@ namespace Opc.Ua.Interop.Tests
                 [
                     "--policy", SecurityPolicies.Basic256Sha256,
                     "--mode", nameof(MessageSecurityMode.SignAndEncrypt),
-                    "--checks", string.Join(",", s_featureChecks)
+                    "--checks", string.Join(",", s_featureChecks),
+                    "--x509-user-cert", m_x509UserCertificatePath,
+                    "--x509-user-cert-der", m_x509UserCertificateDerPath,
+                    "--x509-user-key-pem", m_x509UserKeyPemPath
                 ]).ConfigureAwait(false);
             run.AssertPassed(check);
         }

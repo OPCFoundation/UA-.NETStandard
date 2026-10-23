@@ -77,24 +77,138 @@ namespace Opc.Ua.Server.Programs
             }
         }
 
+        /// <summary>
+        /// Registers the diagnostic read policy for every protected diagnostic variable with the owning
+        /// node manager so that monitored-item admission and each notification are authorized in the
+        /// subscriber's context. The registrations are released when the runtime is disposed.
+        /// </summary>
+        internal void RegisterDiagnosticReadAuthorization(AsyncCustomNodeManager manager)
+        {
+            if (manager is null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            if (!Definition.DiagnosticsEnabled || Node.ProgramDiagnostic is not { } diagnostic)
+            {
+                return;
+            }
+            var variables = new List<BaseVariableState>();
+            CollectDiagnosticVariables(diagnostic, variables);
+            var leases = new List<IDisposable>(variables.Count);
+            try
+            {
+                foreach (BaseVariableState variable in variables)
+                {
+                    leases.Add(manager.RegisterValueReadAuthorization(variable, AuthorizeDiagnosticReadAsync));
+                }
+                lock (m_disposalLock)
+                {
+                    if (m_stopping)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadShutdown);
+                    }
+                    m_diagnosticReadLeases.AddRange(leases);
+                    leases.Clear();
+                }
+            }
+            finally
+            {
+                foreach (IDisposable lease in leases)
+                {
+                    lease.Dispose();
+                }
+            }
+        }
+
+        private void CollectDiagnosticVariables(NodeState node, List<BaseVariableState> variables)
+        {
+            if (node is BaseVariableState variable)
+            {
+                variables.Add(variable);
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(m_context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                CollectDiagnosticVariables(child, variables);
+            }
+        }
+
+        private void ReleaseDiagnosticReadAuthorization()
+        {
+            IDisposable[] leases;
+            lock (m_disposalLock)
+            {
+                leases = [.. m_diagnosticReadLeases];
+                m_diagnosticReadLeases.Clear();
+            }
+            foreach (IDisposable lease in leases)
+            {
+                lease.Dispose();
+            }
+        }
+
+        private ValueTask<ServiceResult> AuthorizeDiagnosticReadAsync(
+            ISystemContext context,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ValueTask<ServiceResult>(AuthorizeDiagnosticRead(context));
+        }
+
         private ServiceResult ReadDiagnosticValue(ISystemContext context, NodeState node, ref Variant value)
         {
-            if (context is not ISessionSystemContext session || session.SessionId is not { } sessionId ||
-                sessionId.IsNull)
+            ServiceResult result = AuthorizeDiagnosticRead(context);
+            if (ServiceResult.IsBad(result))
+            {
+                value = Variant.Null;
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Part 10 ProgramDiagnostic2Type: diagnostics are readable by the creating session or a SecurityAdmin, over a
+        /// confidential channel. Only an in-process read without a request (no operation context) is
+        /// trusted; a remote sessionless request carries an operation context and is authorized like
+        /// any other caller, so it needs the SecurityAdmin role.
+        /// </summary>
+        private ServiceResult AuthorizeDiagnosticRead(ISystemContext context)
+        {
+            NodeId sessionId;
+            IUserIdentity? identity;
+            bool confidential;
+            if (context is ServerSystemContext serverContext)
+            {
+                if (serverContext.OperationContext is not { } operationContext)
+                {
+                    return ServiceResult.Good;
+                }
+                sessionId = operationContext.SessionId;
+                identity = operationContext.UserIdentity;
+                ISession? session = operationContext.Session;
+                confidential = MonitoredReadAuthorization.IsConfidential(
+                    operationContext.ChannelContext?.EndpointDescription ??
+                    MonitoredReadAuthorization.GetEndpoint(session));
+            }
+            else if (context is ISessionSystemContext sessionContext &&
+                ((sessionContext.SessionId is { } contextSessionId && !contextSessionId.IsNull) ||
+                    sessionContext.UserIdentity is not null))
+            {
+                sessionId = sessionContext.SessionId ?? NodeId.Null;
+                identity = sessionContext.UserIdentity;
+                confidential = false;
+            }
+            else
             {
                 return ServiceResult.Good;
             }
-            bool encrypted = context is ServerSystemContext serverContext &&
-                serverContext.OperationContext?.ChannelContext?.EndpointDescription?.SecurityMode ==
-                    MessageSecurityMode.SignAndEncrypt;
-            bool authorized = sessionId == m_diagnostics.CreateSessionId ||
-                session.UserIdentity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
-            if (!encrypted || !authorized)
-            {
-                value = Variant.Null;
-                return StatusCodes.BadUserAccessDenied;
-            }
-            return ServiceResult.Good;
+            bool creator = !sessionId.IsNull && !m_diagnostics.CreateSessionId.IsNull &&
+                sessionId == m_diagnostics.CreateSessionId;
+            bool securityAdmin =
+                identity?.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin) == true;
+            return confidential && (creator || securityAdmin)
+                ? ServiceResult.Good
+                : new ServiceResult(StatusCodes.BadUserAccessDenied);
         }
 
         private void PublishDiagnostics()
@@ -328,5 +442,6 @@ namespace Opc.Ua.Server.Programs
         }
 
         private readonly ProgramDiagnostic2DataType m_diagnostics = new() { LastMethodCall = string.Empty };
+        private readonly List<IDisposable> m_diagnosticReadLeases = [];
     }
 }

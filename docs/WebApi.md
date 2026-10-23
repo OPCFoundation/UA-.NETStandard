@@ -66,9 +66,9 @@ curl -X POST https://server:4843/read \
      }'
 ```
 
-returns the matching `ReadResponse` body. Add
-`?encoding=verbose` to the `Content-Type` (or `Accept`) to opt into the
-Verbose JSON flavour.
+returns the matching `ReadResponse` body. To send a Verbose JSON request body,
+use `Content-Type: application/json; encoding=verbose`. To request a Verbose
+JSON response, use `Accept: application/json; encoding=verbose`.
 
 ## Routes (full coverage)
 
@@ -130,7 +130,7 @@ and response types, so it describes what the binding actually accepts and
 sends. Without `OpenApiIncludeSchemas` each body is a JSON object and the
 document is about 12 KB; with it the document has one component schema per
 request, response and contained structure and enumeration (about 46 KB for
-all services) and is what an OpenAPI client generator needs to emit typed
+all services). An OpenAPI client generator needs these schemas to emit typed
 models. A conformance test compares the generated document with the ones
 the OPC Foundation publishes in
 [`UA-Nodeset/OpenApi`](https://github.com/OPCFoundation/UA-Nodeset/tree/latest/OpenApi);

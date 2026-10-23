@@ -29,13 +29,13 @@
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Xml;
+using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
-using Opc.Ua.SourceGeneration;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Schema.Model.Tests
@@ -1130,6 +1130,185 @@ namespace Opc.Ua.Schema.Model.Tests
             var type = (ObjectTypeDesign)model.Items.Single(node => node.SymbolicName.Name == "ResultType");
             Assert.That(type.ClassName, Is.EqualTo("ResultObject"));
             Assert.That(type.Children.Items.Single().SymbolicName.Name, Is.EqualTo("ResultState"));
+        }
+
+        /// <summary>
+        /// Explicit nonzero user masks must survive the design model's copy and XML boundaries.
+        /// </summary>
+        [TestCase("", false, 0u)]
+        [TestCase(" UserWriteMask=\"0\"", false, 0u)]
+        [TestCase(" UserWriteMask=\"64\"", true, 64u)]
+        [TestCase(" UserWriteMask=\"65600\"", true, 65600u)]
+        [Category("SecurityRegression")]
+        public void SecurityF33UserWriteMaskSurvivesImportCopyAndSerialization(
+            string userMask,
+            bool specified,
+            uint expected)
+        {
+            Import(
+                $$"""
+                <UAVariable NodeId="ns=1;i=5001" BrowseName="1:Restricted"
+                    DataType="i=11" AccessLevel="3" UserAccessLevel="1" WriteMask="65600"{{userMask}}>
+                    <References>
+                        <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+                    </References>
+                    <Value><uax:Double>7</uax:Double></Value>
+                </UAVariable>
+                """,
+                out NodeSetReaderSettings settings);
+            var imported = (VariableDesign)settings.NodesById[new NodeId(5001, 1)];
+            var copied = (VariableDesign)imported.Copy();
+            VariableDesign serialized = SecurityRoundTrip(copied);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.RawUserAccessLevel, Is.EqualTo(1u));
+                Assert.That(imported.WriteAccess, Is.EqualTo(65600u));
+                Assert.That(copied.UserWriteAccess, Is.EqualTo(expected));
+                Assert.That(copied.UserWriteAccessSpecified, Is.EqualTo(specified));
+                Assert.That(serialized.UserWriteAccess, Is.EqualTo(expected));
+                Assert.That(serialized.UserWriteAccessSpecified, Is.EqualTo(specified));
+                Assert.That(serialized.WriteAccess, Is.EqualTo(65600u));
+            });
+        }
+
+        /// <summary>
+        /// UserExecutable is independent of Executable at the import, copy and XML boundaries.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [Category("SecurityRegression")]
+        public void SecurityF34UserExecutableSurvivesImportCopyAndSerialization(
+            bool executable,
+            bool userExecutable)
+        {
+            Import(
+                $$"""
+                <UAMethod NodeId="ns=1;i=5001" BrowseName="1:Restricted"
+                    Executable="{{executable.ToString().ToLowerInvariant()}}"
+                    UserExecutable="{{userExecutable.ToString().ToLowerInvariant()}}" />
+                """,
+                out NodeSetReaderSettings settings);
+            var imported = (MethodDesign)settings.NodesById[new NodeId(5001, 1)];
+            var copied = (MethodDesign)imported.Copy();
+            MethodDesign serialized = SecurityRoundTrip(copied);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.NonExecutable, Is.EqualTo(!executable));
+                Assert.That(copied.UserExecutable, Is.EqualTo(userExecutable));
+                Assert.That(copied.UserExecutableSpecified, Is.True);
+                Assert.That(serialized.UserExecutable, Is.EqualTo(userExecutable));
+                Assert.That(serialized.UserExecutableSpecified, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// An absent user flag stays unspecified so inherited restrictions and legacy defaults remain effective.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityF34AbsentUserExecutableRemainsUnspecifiedThroughSerialization()
+        {
+            Import(
+                """
+                <UAMethod NodeId="ns=1;i=5001" BrowseName="1:Legacy" Executable="false" />
+                """,
+                out NodeSetReaderSettings settings);
+            var imported = (MethodDesign)settings.NodesById[new NodeId(5001, 1)];
+            MethodDesign serialized = SecurityRoundTrip((MethodDesign)imported.Copy());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.UserExecutableSpecified, Is.False);
+                Assert.That(serialized.UserExecutableSpecified, Is.False);
+                Assert.That(serialized.NonExecutable, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Roles supplied at runtime do not need a generation-time node declaration.
+        /// </summary>
+        [TestCase("ns=1;i=7001")]
+        [TestCase("ns=1;s=Runtime.Readers")]
+        [TestCase("ns=1;g=09087e75-8e5e-499b-954f-f2a9603db28a")]
+        [TestCase("ns=1;b=AQID")]
+        [TestCase("ns=1;i=0")]
+        [TestCase("ns=1;s=")]
+        [TestCase("ns=1;g=00000000-0000-0000-0000-000000000000")]
+        [TestCase("ns=1;b=")]
+        [Category("SecurityRegression")]
+        public void SecurityF35RuntimeRoleIdentitySurvivesImportCopyAndSerialization(string roleId)
+        {
+            Import(
+                $$"""
+                <UAObject NodeId="ns=1;i=5001" BrowseName="1:Protected">
+                    <References>
+                        <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                    </References>
+                    <RolePermissions>
+                        <RolePermission Permissions="32">{{roleId}}</RolePermission>
+                    </RolePermissions>
+                </UAObject>
+                """,
+                out NodeSetReaderSettings settings);
+            var imported = (ObjectDesign)settings.NodesById[new NodeId(5001, 1)];
+            var copied = (ObjectDesign)imported.Copy();
+            ObjectDesign serialized = SecurityRoundTrip(copied);
+            string expectedRoleId = roleId.Replace("ns=1;", $"nsu={TestNamespaceUri};", StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(imported.RolePermissions.RolePermission, Has.Length.EqualTo(1));
+                Assert.That(copied.RolePermissions.RolePermission.Single().RoleId, Is.EqualTo(expectedRoleId));
+                Assert.That(serialized.RolePermissions.RolePermission.Single().RoleId, Is.EqualTo(expectedRoleId));
+                Assert.That(serialized.RolePermissions.RolePermission.Single().Permission,
+                    Is.EqualTo([Permissions.Read]));
+            });
+        }
+
+        /// <summary>
+        /// An invalid role identity cannot become an absent ACL.
+        /// </summary>
+        [TestCase("i=0")]
+        [TestCase("ns=9;i=7001")]
+        [Category("SecurityRegression")]
+        public void SecurityF35InvalidRoleIdentityRejectsImport(string roleId)
+        {
+            Assert.That(
+                () => Import(
+                    $$"""
+                    <UAObject NodeId="ns=1;i=5001" BrowseName="1:Protected">
+                        <References>
+                            <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+                        </References>
+                        <RolePermissions>
+                            <RolePermission Permissions="32">{{roleId}}</RolePermission>
+                        </RolePermissions>
+                    </UAObject>
+                    """,
+                    out _),
+                Throws.TypeOf<InvalidDataException>().With.Message.Contains("RoleId"));
+        }
+
+        /// <summary>
+        /// Exercises the XML format used by ModelDesign consumers.
+        /// </summary>
+        /// <typeparam name="T">The model-design value type serialized by the round trip.</typeparam>
+        private static T SecurityRoundTrip<T>(T value)
+        {
+            using var stream = new MemoryStream();
+            var serializer = new XmlSerializer(typeof(T));
+            serializer.Serialize(stream, value);
+            stream.Position = 0;
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Prohibit,
+                XmlResolver = null
+            });
+            return (T)serializer.Deserialize(reader)!;
         }
 
         private ModelDesign Import(

@@ -19,13 +19,54 @@ a model's specification status are separate: the Perception model is provisional
 
 - [Models and provenance](#models-and-provenance)
 - [Opt-in hosting](#opt-in-hosting)
+  - [Multiple vision systems](#multiple-vision-systems)
 - [Control and acquisition providers](#control-and-acquisition-providers)
+  - [Step models, events, and conditions](#step-models-events-and-conditions)
+- [Recipes, configurations, results, and files](#recipes-configurations-results-and-files)
+  - [Storage](#storage)
+- [Part 2 assets and live monitoring](#part-2-assets-and-live-monitoring)
+- [Shared identity, not duplicate execution](#shared-identity-not-duplicate-execution)
+- [Typed clients](#typed-clients)
+- [Implementation and conformance map](#implementation-and-conformance-map)
+- [References](#references)
 - [Perception model](#perception-model)
 - [Packages](#packages)
-- [Perception hosting](#minimal-hosted-server)
-- [Perception client interfaces](#using-the-client-libraries)
-- [Bin-picking sample](#sample-bin-picking)
-- [Visual inspection](#visual-inspection-a-cross-companion-cell)
+- [Two perception paths behind one contract](#two-perception-paths-behind-one-contract)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [`VisionServerOptions`](#visionserveroptions)
+- [Build context](#build-context)
+  - [Without DI](#without-di)
+- [Topology builders](#topology-builders)
+  - [Frames](#frames)
+  - [Sensors](#sensors)
+  - [Pipelines](#pipelines)
+  - [Providers](#providers)
+- [§5.12 conventions](#512-conventions)
+- [§6.4 media gating](#64-media-gating)
+- [Rendering without pixels](#rendering-without-pixels)
+- [Facets supported](#facets-supported)
+- [Using the client libraries](#using-the-client-libraries)
+  - [Registration](#registration)
+  - [Discovery](#discovery)
+  - [Reading a detection](#reading-a-detection)
+  - [Composing a pose](#composing-a-pose)
+  - [Submitting feedback](#submitting-feedback)
+  - [Streaming detections](#streaming-detections)
+- [Sample: bin-picking](#sample-bin-picking)
+  - [Scene lighting](#scene-lighting)
+  - [Feedback validation](#feedback-validation)
+- [Limitations](#limitations)
+- [Visual inspection: a cross-companion cell](#visual-inspection-a-cross-companion-cell)
+  - [The model never decides](#the-model-never-decides)
+  - [Address-space composition](#address-space-composition)
+  - [Recipe and verdict rule](#recipe-and-verdict-rule)
+  - [Fixture uncertainty assumption](#fixture-uncertainty-assumption)
+  - [Inspection loop](#inspection-loop)
+  - [Escalation and ground truth](#escalation-and-ground-truth)
+  - [Modes](#modes)
+  - [What is deliberately not implemented](#what-is-deliberately-not-implemented)
+- [See also](#see-also)
 
 ## Models and provenance
 
@@ -337,7 +378,8 @@ supplies, climate controllers, licenses, software components, network devices, a
 Every item has IVisionInfo identification. Unused category folders are omitted; a
 materialized category must satisfy its MandatoryPlaceholder. Manufacturer and serial
 number are required; system assets also require an absolute ProductInstanceUri.
-`WithComponents` exposes the same items through Machinery's Components add-in.
+`WithComponents` exposes the same items through Machinery's Components add-in using
+`HasComponent` references. Their category-folder `Organizes` references remain unchanged.
 Assets are discoverable through Machinery's Machines folder.
 
 `WithMaintenance`, `WithHealth`, `Child`, `Set`, and `Value` reach declared, typed optional
@@ -520,7 +562,7 @@ graph TD
 `Opc.Ua.Vision.OpenUsd` deliberately sits outside that dependency chain: it
 depends on `Opc.Ua.Types` alone and knows nothing about the Vision server. It
 offers a camera, and a host writes the `IVisionMediaProvider` that hands the
-resulting frames to a pipeline — which is what
+resulting frames to a pipeline, as
 [`BinPickingCell`](../samples/Robotics/BinPickingCell) does. A host with a real
 camera writes the same interface over its own SDK and never references OpenUSD
 at all.
@@ -564,9 +606,9 @@ client reads a `DetectionResultType` identically regardless of which is in
 force:
 
 - **`InferenceLocation = OnServer`** — the Server holds an
-  `IVisionInferenceProvider` and computes results locally. This is the
-  deterministic path: it needs no model, no network and no GPU, and it is
-  the default for CI and offline validation. `RunInference`,
+  `IVisionInferenceProvider` and computes results locally. Determinism and
+  model, network or GPU requirements depend on the provider; `OnServer`
+  does not prescribe them. `RunInference`,
   `StartContinuous` and `Stop` all delegate to the provider; the Server
   publishes the resulting `DetectionResultType` / `InspectionResultType` /
   `SegmentationResultType` under the pipeline's `Results` folder and
@@ -580,12 +622,12 @@ force:
   results into the address space unchanged, and advertises
   `VIS-Inference-OffServer`.
 
-Choose `OnServer` when a deterministic algorithm answers the question
-(vision-guided screwdriver alignment against a known fiducial; presence-or-
-absence in a clean scene) or when reproducibility on CI matters. Choose
-`EdgeOffServer` when a language model or a heavier out-of-process model is
-what actually sees the world — the Server publishes what it did not
-compute, and safety validation still applies (§9 refusals, class-label /
+Choose `OnServer` when the inference implementation runs within the server,
+including deterministic algorithms or local model execution. The bin-picking
+sample uses a deterministic on-server detector by default. Choose
+`EdgeOffServer` when an external process computes and submits results.
+The Server publishes what it did not compute, and safety validation still
+applies (§9 refusals, class-label /
 box / pose / confidence checks; see [Feedback validation](#feedback-validation)).
 
 The two paths are exclusive per pipeline by design: mixing a running
@@ -845,13 +887,15 @@ modality (`WithModality`), and the nested builders — `WithOptics(...)`,
 `AddClipEndpoint(...)`, `UseMediaProvider(...)`.
 
 The model declares no value for the mandatory properties of sensors,
-frames, calibrations, media endpoints and pipelines. The builders publish one
-for the following when the configuration leaves them unset: the builder's
-reality kind (`Physical`), modality (`Area2D`) and frame role (`Other`);
-`Inactive` for endpoint and pipeline `State`, `None` for `Authentication`,
-`false` for `SecureTransport`; for calibrations an unknown `PerformedAt` (the
-null `DateTime`) and `Valid` `true`; and the null `NodeId` for the
-`SourceFrame`, `TargetFrame`, `Sensor` and `Deployment` references.
+frames, calibrations, media endpoints and pipelines. When the configuration
+leaves them unset, the builders publish these defaults:
+
+- The builder's reality kind (`Physical`), modality (`Area2D`) and frame role (`Other`).
+- `Inactive` for endpoint and pipeline `State`.
+- `None` for `Authentication`.
+- `false` for `SecureTransport`.
+- For calibrations, an unknown `PerformedAt` (the null `DateTime`) and `Valid` `true`.
+- The null `NodeId` for the `SourceFrame`, `TargetFrame`, `Sensor` and `Deployment` references.
 
 `WithFrameId(frameId)` also adds a `MountedOn` reference to the
 `CoordinateFrameType` instance with the matching `FrameId` when one has
@@ -994,14 +1038,14 @@ possible it reports the unavailable backend and leaves the address space
 walkable instead of throwing from browse/read paths. It supports the
 following behaviour explicitly:
 
-- On a machine with the native OpenUSD renderer payload present and a
-  usable graphics device, it renders normally and returns encoded PNG
-  bytes. Other requested formats return `InvalidRequest`.
-- When every graphics backend probe fails, `Backend.IsAvailable` is
-  false, `Backend.UnavailableReason` explains the failure, and capture
-  returns `SceneCameraCaptureStatus.NoRenderingBackend`. The sensor
-  exists in the address space and supports browsing; only the
-  pixel bytes are absent.
+- With the native OpenUSD renderer dependencies present and a usable
+  hardware or software graphics backend, the provider can render PNG captures.
+  Other requested formats return `InvalidRequest`.
+  A physical GPU is not required when a supported software backend is available.
+- When no usable backend is available, `Backend.IsAvailable` is `false`
+  and `Backend.UnavailableReason` explains why. A valid capture request
+  returns `SceneCameraCaptureStatus.NoRenderingBackend`. The sensor remains in the address space
+  and can still be browsed; no pixel bytes are returned.
 
 Initialize the bundled OpenUSD resolver and imaging registries before
 opening stages. In particular, RID-less test hosts can load native
@@ -1020,14 +1064,15 @@ _ = global::OpenUsd.UsdPluginRegistry.Register(core);
 _ = global::OpenUsd.UsdPluginRegistry.Register(imaging);
 ```
 
-The `OpenUsdNativeCaptureTests` integration fixture uses the
+UaLens initializes these registries when its native viewport is explicitly
+activated. The `OpenUsdNativeCaptureTests` integration fixture uses the
 same initialization contract to exercise default and named cameras,
 repeated captures, scene replacement, and recovery after a missing camera.
 Registry initialization does not repair missing native libraries or
 nonportable native-library search paths.
 Linux capture hosts also need the system graphics libraries, including
 `libOpenGL.so.0` and the Vulkan loader. The shared CI action provisions
-these prerequisites for the Vision test shards.
+these prerequisites for both the Vision and desktop test shards.
 
 RID-less Linux hosts must also expose the application output directory and its
 `runtimes/linux-x64/native` directory through `LD_LIBRARY_PATH` **before** starting
@@ -1071,7 +1116,7 @@ server does not currently claim that facet.
 | `VIS-Inference-OnServer` | Supported | A pipeline was registered with `onServer: true`. |
 | `VIS-Inference-OffServer` | Supported | A pipeline was registered with `onServer: false`. |
 | `VIS-Simulation` | Supported | A sensor has `RealityKind = Simulated` or `Hybrid`. |
-| `VIS-Learning` | Partial | Learning jobs are modelled by reference; the host owns the job and any `SamplesCollected` accounting. |
+| `VIS-Learning` | Partial | A `LearningJob` NodeId binding does not advertise this facet. A host that implements the required job behavior and `SamplesCollected` accounting can attest it through `VisionServerOptions.AdditionalFacets`. |
 | `VIS-Interop-Scene` | Supported | A sensor carries a `HasScenePrim` reference. |
 | `VIS-Interop-40100` | Opt-in, application-specific | The released models are implemented separately; a host explicitly binds shared behavior and attests its draft interop facet through `AdditionalFacets`. See [Machine Vision](Vision.md). |
 | `VIS-Interop-RobotIntent` | Partial | The host must attest cross-model behaviour through `AdditionalFacets`. |
@@ -1124,6 +1169,10 @@ data type also fail. In particular, absent or wrongly typed `Detections` and
 array is a valid empty result, and absent optional members remain absent.
 Media status-classification reads use their separate inline-delivery status
 semantics described in [media gating](#64-media-gating).
+
+[UaLens Companion specification tasks](UaLens.md#companion-specification-tasks) provides a managed desktop
+consumer of these clients: published inspection, explicitly authorized simulated
+media/inference/feedback and a geometry-only SVG overlay export.
 
 ### Discovery
 
@@ -1343,17 +1392,12 @@ sees the same scene the agent sees.
 
 ### Scene lighting
 
-The scene is lit by a single `DomeLight` with `intensity = 1000`.
-Do **not** reintroduce a `DistantLight` or any other bright directional or
-point light for a Vision demo: at any intensity that shows geometry, a
-`DistantLight` blows every surface to pure white regardless of
-`displayColor`, and any agent looking at the frame sees a uniform
-white blur. Under a `DomeLight` the five sample parts measure
-`red (220, 37, 37)`, `green (37, 208, 49)`, `blue (37, 73, 233)` — distinct
-enough for a vision-language model to reason about ("pick the red
-cube"). The `Cell.usda` header records this contract explicitly.
-Anyone authoring their own scene from scratch needs to know this or
-their agent will see nothing they can act on.
+Keep the single `DomeLight` at intensity 1000. In the sample's original lighting
+tests, a `DistantLight` bright enough to show geometry washed every part to white,
+preventing selection of "the red part". Historical DomeLight captures measured
+`red (220, 37, 37)`, `green (37, 208, 49)` and `blue (37, 73, 233)`.
+Re-check captured colors after lighting, material or renderer changes.
+The `Cell.usda` header records this requirement.
 
 ### Feedback validation
 
@@ -1396,11 +1440,14 @@ responsibility for learning counters.
   use `ConfigureVisionOnMachinery<TNodeManager>` and Machinery's existing model/lifetime
   integration instead of registering a second DI-owning node manager.
 - **Learning jobs are modelled but not driven, and `SamplesCollected` is
-  not counted here.** `InferencePipelineType` carries a `LearningJob`
-  optional child and the facet calculator publishes `VIS-Learning` when
-  one is bound, but the standalone `VisionNodeManager` does not itself
-  run training — a host provides a learning-job provider through the
-  extension pattern. This has one named conformance consequence: §9.4
+  not counted here.** `InferencePipelineType` carries an optional
+  `LearningJob` property containing a `NodeId`. Binding it does not
+  automatically advertise `VIS-Learning`. A host that implements the
+  required learning-job behavior, including `SamplesCollected` accounting,
+  can declare the facet through `VisionServerOptions.AdditionalFacets`.
+  The standalone `VisionNodeManager` does not itself run training; a host
+  provides a learning-job provider through the extension pattern.
+  This has one named conformance consequence: §9.4
   requires a Server to count a negative example (`SceneIsEmpty` or
   `RetractAll` carrying a `GroundTruthLabel`) in `SamplesCollected`
   exactly as it counts one carrying geometry, and `VisionNodeManager`
@@ -1414,10 +1461,13 @@ responsibility for learning counters.
   `VisionSubmitDetectionsRequest` / `VisionSubmitCorrectionRequest`, so
   a host that binds a learning job has everything it needs to satisfy
   §9.4 on the counter it owns.
-- **AOT compatibility of the OpenUSD capture provider depends on the
-  native renderer payload.** The managed layer is AOT-friendly; the
-  native payload ships per-RID and its presence at runtime is what
-  distinguishes a rendering capture from a `NoRenderingBackend` one.
+- **Native AOT scope.** `Opc.Ua.Vision.OpenUsd` is not marked
+  `IsAotCompatible`: its legacy device-probing entry points are outside an
+  assembly-wide AOT contract. `RetainedSceneCameraCaptureProvider` is a typed
+  adapter over an existing frame source and performs no device probing.
+  Native renderer assets ship per RID; validate the selected renderer when
+  publishing with Native AOT. See [Rendering without pixels](#rendering-without-pixels)
+  for backend detection.
 
 ## Visual inspection: a cross-companion cell
 
@@ -1506,13 +1556,14 @@ flowchart TD
     NotDecidable --> Worst
 ```
 
-### Why uncertainty is physical
+### Fixture uncertainty assumption
 
-The fixture images are 800 x 600 pixels at 10 px/mm. A feature edge can only land
-on a pixel boundary, so a dimensional measurement carries one-pixel quantisation
-uncertainty: 0.10 mm. That is the camera's pixel pitch. It is what makes
-`VisionCharacteristicDataType.Uncertainty` meaningful, and it is why
-`NotDecidable` arises naturally instead of being contrived.
+The synthetic fixtures are 800 x 600 pixels at a fixed scale of 10 px/mm.
+The sample analyzer measures integer pixel runs and assigns each dimension an
+uncertainty of ±0.10 mm, corresponding to one image pixel at that scale.
+This is the sample's uncertainty assumption, not a general camera-metrology
+bound. Production measurements need an uncertainty estimate that accounts for
+calibration, optics and the measurement algorithm.
 
 The three fixtures exercise all branches:
 
@@ -1522,10 +1573,10 @@ The three fixtures exercise all branches:
 | `bracket-not-ok.png` | `BoreDiameter = 12.60` | `[12.50, 12.70]` is wholly outside the bore tolerance | `NotOk` |
 | `bracket-ambiguous.png` | `SlotWidth = 8.10` | `[8.00, 8.20]` straddles the 8.15 upper limit | `NotDecidable` |
 
-The ambiguous fixture is intentionally mundane: the intended 8.15 mm slot is
-81.5 pixels at 10 px/mm and cannot be drawn exactly. The raster image therefore
-measures as 8.10 mm, and one pixel of uncertainty crosses the tolerance limit.
-That is precisely the case the Vision `NotDecidable` value exists for.
+For the ambiguous fixture, the intended 8.15 mm slot corresponds to 81.5 pixels
+at the fixture scale. The integer-run analyzer reports 8.10 mm; its assigned
+±0.10 mm uncertainty crosses the 8.15 mm upper tolerance limit, producing
+`NotDecidable`.
 
 ### Inspection loop
 
@@ -1548,7 +1599,7 @@ flowchart TD
     Verdict -->|"NotDecidable"| Hold["Hold for operator"]
 ```
 
-The important separation is that quality outcome and job execution state are
+Quality outcome and job execution state are
 separate facts. A defective part does not mean the inspection job failed.
 
 | Verdict | Inspection job | Next job |

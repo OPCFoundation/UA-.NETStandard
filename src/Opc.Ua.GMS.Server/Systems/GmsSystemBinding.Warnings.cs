@@ -84,6 +84,8 @@ namespace Opc.Ua.GMS.Server
                 alarm.BranchId!.Value = NodeId.Null;
                 alarm.ClientUserId!.Value = string.Empty;
                 alarm.Comment!.Value = LocalizedText.Null;
+                alarm.ErrorCode!.AccessLevel = AccessLevels.CurrentRead;
+                alarm.ErrorCode.UserAccessLevel = AccessLevels.CurrentRead;
                 SelectLimit(alarm, Opc.Ua.BrowseNames.LowLimit, value.LowLimit);
                 SelectLimit(alarm, Opc.Ua.BrowseNames.HighLimit, value.HighLimit);
                 var binding = new WarningBinding(alarm);

@@ -1068,10 +1068,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static void ConfigureHostedOptions(OpcUaServerOptions options, string applicationName)
         {
             string testRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(ServerFluentApiHostingTests),
-                applicationName,
-                Guid.NewGuid().ToString("N"));
+                AppContext.BaseDirectory,
+                "host-" + Guid.NewGuid().ToString("N"));
             options.ApplicationName = applicationName;
             options.ApplicationUri = "urn:localhost:" + applicationName;
             options.ProductUri = "urn:localhost:" + applicationName + ":product";

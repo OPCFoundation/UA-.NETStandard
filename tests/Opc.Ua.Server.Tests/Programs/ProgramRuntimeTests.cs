@@ -29,14 +29,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Moq;
+using Microsoft.Extensions.Logging.Abstractions;
+using Opc.Ua.Identity;
 using Opc.Ua.Programs;
 using Opc.Ua.Server.Programs;
 using Opc.Ua.Tests;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests.Programs
 {
@@ -48,6 +53,194 @@ namespace Opc.Ua.Server.Tests.Programs
     [Parallelizable(ParallelScope.All)]
     public sealed class ProgramRuntimeTests
     {
+        /// <summary>
+        /// A remote request without a Session remains a caller, not a trusted in-process diagnostic read.
+        /// </summary>
+        [TestCase(false, MessageSecurityMode.SignAndEncrypt, false)]
+        [TestCase(true, MessageSecurityMode.SignAndEncrypt, true)]
+        [TestCase(true, MessageSecurityMode.Sign, false)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR34RemoteSessionlessReadIsNotTrustedInternalDiagnosticsAsync(
+            bool securityAdmin, MessageSecurityMode mode, bool allowed)
+        {
+            await using Fixture fixture = await Fixture.CreateAsync(diagnostics: true).ConfigureAwait(false);
+            await fixture.CallAsync(ProgramControlMethod.Start, ProgramState.Running).ConfigureAwait(false);
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var sessions = new SessionManager(server.Object, new ApplicationConfiguration
+            {
+                ServerConfiguration = new ServerConfiguration()
+            }))
+            {
+                var identity = new RoleBasedIdentity(new UserIdentity("diagnostic-reader", [1]),
+                    securityAdmin ? [Role.SecurityAdmin] : [Role.AuthenticatedUser], server.Object.NamespaceUris);
+                sessions.ValidateSessionLessRequest += (_, args) => args.Identity = identity;
+                var channel = new SecureChannelContext("diagnostic-sessionless", new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://localhost/diagnostic-sessionless",
+                    TransportProfileUri = Profiles.UaTcpTransport,
+                    SecurityMode = mode
+                }, RequestEncoding.Binary);
+                using OperationContext operation = await sessions.ValidateRequestAsync(
+                    new RequestHeader { AuthenticationToken = new NodeId("accepted-token", 1) },
+                    channel, RequestType.Read, RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(operation.Session, Is.Null);
+                Assert.That(operation.UserIdentity.DisplayName, Is.EqualTo("diagnostic-reader"));
+                ServerSystemContext caller = server.Object.DefaultSystemContext.Copy(operation);
+                var ordinary = new BaseDataVariableState(null)
+                {
+                    Value = 42,
+                    DataType = DataTypeIds.Int32,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead
+                };
+                (ServiceResult ordinaryResult, DataValue ordinaryValue) = await ordinary.ReadAttributeAsync(
+                    caller, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(ordinaryResult), Is.True);
+                Assert.That(ordinaryValue.WrappedValue, Is.EqualTo(new Variant(42)));
+
+                var variables = new List<BaseVariableState>();
+                CollectDiagnosticVariables(fixture.Context, fixture.Runtime.Node.ProgramDiagnostic!, variables);
+                Assert.That(variables, Has.Count.GreaterThan(10));
+                foreach (BaseVariableState variable in variables)
+                {
+                    (ServiceResult result, DataValue value) = await variable.ReadAttributeAsync(
+                        caller, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    Assert.That(result.StatusCode, Is.EqualTo(
+                        allowed ? StatusCodes.Good : StatusCodes.BadUserAccessDenied), variable.BrowseName.ToString());
+                    if (!allowed)
+                    {
+                        Assert.That(value.WrappedValue.IsNull, Is.True, variable.BrowseName.ToString());
+                    }
+                }
+                (ServiceResult internalResult, DataValue internalValue) =
+                    await fixture.Runtime.Node.ProgramDiagnostic!.LastMethodCall!.ReadAttributeAsync(
+                        fixture.Context, Attributes.Value, default, QualifiedName.Null, new DataValue())
+                        .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(internalResult), Is.True);
+                Assert.That(internalValue.WrappedValue, Is.EqualTo(new Variant("Start")));
+                if (allowed)
+                {
+                    (ServiceResult result, DataValue value) =
+                        await fixture.Runtime.Node.ProgramDiagnostic.LastMethodCall.ReadAttributeAsync(
+                            caller, Attributes.Value, default, QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                    Assert.That(ServiceResult.IsGood(result), Is.True);
+                    Assert.That(value.WrappedValue, Is.EqualTo(new Variant("Start")));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Provider-driven diagnostics use the subscriber's policy even after a denied initial read.
+        /// </summary>
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR33NonCreatorCannotReceiveDiagnosticUpdatesAsync()
+        {
+            await using Fixture fixture = await Fixture.CreateAsync(diagnostics: true).ConfigureAwait(false);
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                await using var owner = new TestableAsyncCustomNodeManager(
+                    server.Object, new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                BaseVariableState variable = fixture.Runtime.Node.ProgramDiagnostic!.LastMethodCall!;
+                variable.NodeId = new NodeId("ProtectedProgramLastMethod", owner.NamespaceIndex);
+                await owner.AddNodeAsync(owner.SystemContext, NodeId.Null, variable).ConfigureAwait(false);
+                fixture.Runtime.RegisterDiagnosticReadAuthorization(owner);
+                Mock.Get(server.Object.NodeManager)
+                    .Setup(value => value.GetManagerHandleAsync(variable.NodeId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<(object? Handle, IAsyncNodeManager? Manager)>(
+                        (new NodeHandle(variable.NodeId, variable), owner)));
+                var deniedValues = new ConcurrentQueue<DataValue>();
+                var adminValues = new ConcurrentQueue<DataValue>();
+                await using var monitored = new MonitoredNode2(owner, server.Object, variable);
+                Mock<IDataChangeMonitoredItem2> denied = CreateDiagnosticReceiver(
+                    server.Object, 1, false, deniedValues);
+                monitored.Add(denied.Object);
+                monitored.Add(CreateDiagnosticReceiver(server.Object, 2, true, adminValues).Object);
+
+                using var initialRead = new OperationContext(denied.Object.Session, DiagnosticsMasks.None);
+                (ServiceResult initialResult, DataValue initialValue) = await variable.ReadAttributeAsync(
+                    server.Object.DefaultSystemContext.Copy(initialRead), Attributes.Value, default,
+                    QualifiedName.Null, new DataValue()).ConfigureAwait(false);
+                Assert.That(initialResult.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(initialValue.WrappedValue.IsNull, Is.True);
+
+                await fixture.CallAsync(ProgramControlMethod.Start, ProgramState.Running).ConfigureAwait(false);
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await monitored.WaitForPendingNotificationsAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(fixture.Execution.CallCount, Is.EqualTo(1));
+                Assert.That(deniedValues, Has.Count.EqualTo(1));
+                Assert.That(deniedValues.ToArray()[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(deniedValues.ToArray()[0].WrappedValue.IsNull, Is.True);
+                Assert.That(adminValues, Has.Count.EqualTo(1));
+                Assert.That(adminValues.ToArray()[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(adminValues.ToArray()[0].WrappedValue, Is.EqualTo(new Variant("Start")));
+            }
+        }
+
+        /// <summary>
+        /// Enumerates the same diagnostic descendant graph protected by the runtime.
+        /// </summary>
+        private static void CollectDiagnosticVariables(
+            ISystemContext context, NodeState node, List<BaseVariableState> variables)
+        {
+            if (node is BaseVariableState variable)
+            {
+                variables.Add(variable);
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                CollectDiagnosticVariables(context, child, variables);
+            }
+        }
+
+        /// <summary>
+        /// Models separate real-session identities with encrypted subscriber endpoints.
+        /// </summary>
+        private static Mock<IDataChangeMonitoredItem2> CreateDiagnosticReceiver(
+            IServerInternal server, uint id, bool securityAdmin, ConcurrentQueue<DataValue> values)
+        {
+            var identity = new RoleBasedIdentity(new UserIdentity("reader", [1]),
+                securityAdmin ? [Role.SecurityAdmin] : [Role.AuthenticatedUser], server.NamespaceUris);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Id).Returns(new NodeId(id, 1));
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            session.SetupGet(value => value.EndpointDescription).Returns(new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                TransportProfileUri = Profiles.UaTcpTransport
+            });
+            var item = new Mock<IDataChangeMonitoredItem2>();
+            item.SetupGet(value => value.Id).Returns(id);
+            item.SetupGet(value => value.Session).Returns(session.Object);
+            item.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            item.SetupGet(value => value.AttributeId).Returns(Attributes.Value);
+            item.SetupGet(value => value.IndexRange).Returns(NumericRange.Null);
+            item.SetupGet(value => value.DataEncoding).Returns(QualifiedName.Null);
+            item.Setup(value => value.QueueValue(It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>()))
+                .Callback(new DiagnosticQueueValueCallback((in value, _) => values.Enqueue(value)));
+            item.Setup(value => value.QueueValue(
+                    It.Ref<DataValue>.IsAny, It.IsAny<ServiceResult>(), It.IsAny<bool>()))
+                .Callback(new DiagnosticFilteredQueueValueCallback((in value, _, _) => values.Enqueue(value)));
+            return item;
+        }
+
+        /// <summary>
+        /// Captures the ref-readonly queued diagnostic value.
+        /// </summary>
+        private delegate void DiagnosticQueueValueCallback(in DataValue value, ServiceResult? error);
+
+        /// <summary>
+        /// Captures the production enqueue overload that explicitly selects monitored-item filter handling.
+        /// </summary>
+        private delegate void DiagnosticFilteredQueueValueCallback(
+            in DataValue value, ServiceResult? error, bool ignoreFilters);
+
         [Test]
         public async Task ControlsFollowStrictProgramSemanticsAsync()
         {

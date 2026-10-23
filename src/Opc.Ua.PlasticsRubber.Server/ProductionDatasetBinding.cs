@@ -484,22 +484,38 @@ namespace Opc.Ua.PlasticsRubber.Server
                         return ExpireCoreAsync();
                     }, serialize: true, after: null, m_stopping.Token).ConfigureAwait(false);
                 }
-                catch (OperationCanceledException) when (!reclaiming && m_stopping.IsCancellationRequested)
+                catch (OperationCanceledException) when (!reclaiming)
                 {
                     // Only the delay and admission wait are cancelable; started cleanup must report its failures.
-                    return;
+                    if (m_stopping.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    // The operation deadline expired while another operation held the gate; retry next interval.
                 }
             }
         }
 
         /// <summary>
-        /// Cancels providers first, drains every queued operation, then removes only owned resources.
+        /// Closes subscriber admission, cancels and drains active operations, then removes only owned resources.
         /// </summary>
         private async Task DisposeCoreAsync()
         {
             var errors = new List<Exception>();
             try
             {
+                foreach (IDisposable authorization in m_statusReadAuthorizations)
+                {
+                    try
+                    {
+                        authorization.Dispose();
+                    }
+                    catch (Exception exception)
+                    {
+                        errors.Add(exception);
+                    }
+                }
+                m_statusReadAuthorizations.Clear();
                 try
                 {
                     await m_stopping.CancelAsync().ConfigureAwait(false);
@@ -657,6 +673,11 @@ namespace Opc.Ua.PlasticsRubber.Server
         /// The generated methods whose handlers this binding owns.
         /// </summary>
         private readonly List<MethodState> m_methods = [];
+
+        /// <summary>
+        /// The subscriber-aware status read authorizations owned by this binding.
+        /// </summary>
+        private readonly List<IDisposable> m_statusReadAuthorizations = [];
 
         /// <summary>
         /// The variables whose value callbacks this binding owns.

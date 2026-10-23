@@ -224,7 +224,7 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <inheritdoc/>
-        protected override Opc.Ua.Server.UserManagement.IUserManagement CreateUserManagement(
+        protected override IUserManagement CreateUserManagement(
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
@@ -397,8 +397,23 @@ namespace Quickstarts.ReferenceServer
         /// </summary>
         private static Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider CreateDefaultFileSystemProvider()
         {
-            string root = System.IO.Path.Combine(
-                System.IO.Path.GetTempPath(),
+            string temporaryDirectory = Path.GetTempPath();
+#if NET8_0_OR_GREATER
+            // Select the physical system temp directory before defining the mount boundary (macOS aliases /var).
+            string physicalDirectory = Path.GetPathRoot(temporaryDirectory)!;
+            foreach (string component in temporaryDirectory[physicalDirectory.Length..].Split(
+                [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar],
+                StringSplitOptions.RemoveEmptyEntries))
+            {
+                var directory = new DirectoryInfo(Path.Combine(physicalDirectory, component));
+                physicalDirectory = directory.Exists
+                    ? directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName ?? directory.FullName
+                    : directory.FullName;
+            }
+            temporaryDirectory = physicalDirectory;
+#endif
+            string root = Path.Combine(
+                temporaryDirectory,
                 "OpcUaReferenceServerFs");
             return new Opc.Ua.Server.FileSystem.PhysicalFileSystemProvider(
                 root,
@@ -411,7 +426,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
+                return new DurableMonitoredItemQueueFactory(server.Telemetry, server.MessageContext);
             }
             return new MonitoredItemQueueFactory(server.Telemetry);
         }
@@ -428,7 +443,7 @@ namespace Quickstarts.ReferenceServer
         {
             if (configuration?.ServerConfiguration?.DurableSubscriptionsEnabled == true)
             {
-                return new Servers.SubscriptionStore(server);
+                return new SubscriptionStore(server);
             }
             return null;
         }
@@ -515,13 +530,10 @@ namespace Quickstarts.ReferenceServer
             RegisterIdentityAuthenticators(server);
 
             // Key the ApplicationName of the endpoints, so the resource manager translates it.
-            if (ServerDescription != null)
-            {
-                ServerDescription.ApplicationName = new LocalizedText(
+            ServerDescription?.ApplicationName = new LocalizedText(
                     ApplicationNameKey,
                     "en-US",
                     ServerDescription.ApplicationName.Text ?? string.Empty);
-            }
 
             try
             {
@@ -668,7 +680,8 @@ namespace Quickstarts.ReferenceServer
                     "Security token is not a valid username token. An empty password is not accepted.");
             }
 
-            if (!m_userDatabase.CheckCredentials(userName, password))
+            bool credentialsValid = m_userDatabase.CheckCredentials(userName, password);
+            if (!m_userManagement.IsUserActive(userName) || !credentialsValid)
             {
                 // construct translation object with default text.
                 var info = new TranslationInfo(
@@ -711,13 +724,22 @@ namespace Quickstarts.ReferenceServer
             using Certificate? userCertificate = wireToken.CertificateData.IsEmpty
                 ? null
                 : Certificate.FromRawData(wireToken.CertificateData);
+            using var userChain = new CertificateCollection();
+            if (userCertificate != null)
+            {
+                userChain.Add(userCertificate);
+            }
             try
             {
                 Opc.Ua.CertificateValidationResult userCertResult =
                     await (m_userCertificateValidator ?? CertificateManager!)
                         .ValidateAsync(
-                            userCertificate!,
+                            userChain,
                             TrustListIdentifier.Users,
+                            new Opc.Ua.Security.Certificates.CertificateValidationOptions
+                            {
+                                AcceptError = static (_, _) => false
+                            },
                             ct)
                         .ConfigureAwait(false);
                 if (!userCertResult.IsValid)

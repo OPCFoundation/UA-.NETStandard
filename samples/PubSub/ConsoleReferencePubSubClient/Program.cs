@@ -380,6 +380,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
 
             string transportEndpoint = endpoint
@@ -452,6 +453,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         {
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
 
             string transportEndpoint = endpoint
@@ -529,6 +531,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
                     new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory })
                 : Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
 
             string? configFile = null;

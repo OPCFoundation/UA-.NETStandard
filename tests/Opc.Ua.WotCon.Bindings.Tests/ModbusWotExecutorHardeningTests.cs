@@ -318,7 +318,8 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             var executor = new ModbusWotBindingExecutor();
             IWotBindingChannel channel = await executor
-                .ActivateAsync(form, new WotExecutorContext())
+                .ActivateAsync(form, new WotExecutorContext(
+                    endpointPolicy: new WotEndpointPolicy { AllowLoopback = true }))
                 .ConfigureAwait(false);
             await using (channel.ConfigureAwait(false))
             {
@@ -345,7 +346,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         private static WotCompiledForm RegisterWriteForm(int quantity, string? type, int port)
         {
             ImmutableDictionary<string, string> payloadMetadata =
+#if NET10_0_OR_GREATER
+                [];
+#else
                 ImmutableDictionary<string, string>.Empty;
+#endif
             if (type is not null)
             {
                 payloadMetadata = payloadMetadata.Add("type", type);

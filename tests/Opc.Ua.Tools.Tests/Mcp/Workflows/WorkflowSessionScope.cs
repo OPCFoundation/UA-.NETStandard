@@ -82,14 +82,7 @@ namespace Opc.Ua.Tools.Tests.McpCompanion.Workflows
             m_session.SetupGet(session => session.SessionId).Returns(SessionId);
             m_session.SetupGet(session => session.SessionName).Returns(registration.Session.SessionName);
             m_session.SetupGet(session => session.ConfiguredEndpoint).Returns(registration.Session.ConfiguredEndpoint);
-            Access = new OpcUaSessionManager.SessionInfo
-            {
-                Name = registration.Name,
-                Session = m_session.Object,
-                Endpoint = registration.Endpoint,
-                AuthType = registration.AuthType,
-                ConnectedAt = registration.ConnectedAt
-            };
+            Access = registration.WithSession(m_session.Object);
             SetupCalls();
         }
 

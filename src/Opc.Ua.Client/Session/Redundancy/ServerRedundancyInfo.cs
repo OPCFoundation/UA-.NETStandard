@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace Opc.Ua.Client
 {
@@ -74,5 +76,15 @@ namespace Opc.Ua.Client
         /// The current Server identifier for Transparent redundancy.
         /// </summary>
         public string CurrentServerId { get; init; } = string.Empty;
+
+        /// <summary>
+        /// The status of each Node read from the Server in use to build this snapshot, keyed by its NodeId
+        /// (for example <c>Server.ServerRedundancy.ServerUriArray</c>). A bad status explains why the
+        /// corresponding value is empty or defaulted.
+        /// </summary>
+        public IReadOnlyDictionary<NodeId, StatusCode> ReadStatuses { get; init; } = s_noReadStatuses;
+
+        private static readonly IReadOnlyDictionary<NodeId, StatusCode> s_noReadStatuses =
+            new ReadOnlyDictionary<NodeId, StatusCode>(new Dictionary<NodeId, StatusCode>());
     }
 }

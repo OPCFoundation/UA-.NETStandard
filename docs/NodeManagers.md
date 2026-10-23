@@ -17,6 +17,7 @@ a server yet, start with [Getting started](GettingStarted.md).
   - [Diagnostics and configuration node manager](#diagnostics-and-configuration-node-manager)
   - [Managers supplied by server features](#managers-supplied-by-server-features)
   - [Runtime lifecycle provider](#runtime-lifecycle-provider)
+    - [Why the lifecycle provider exists](#why-the-lifecycle-provider-exists)
 - [Core vs custom node managers](#core-vs-custom-node-managers)
   - [Storage and data structures](#storage-and-data-structures)
   - [Extensibility](#extensibility)
@@ -35,6 +36,8 @@ a server yet, start with [Getting started](GettingStarted.md).
 - [Registering node managers](#registering-node-managers)
   - [Startup registration](#startup-registration)
   - [Awaited readiness](#awaited-readiness)
+    - [Concurrent operations, cancellation and failure](#concurrent-operations-cancellation-and-failure)
+    - [Initializing managers in a custom host](#initializing-managers-in-a-custom-host)
   - [Registration generations](#registration-generations)
   - [Runtime registration](#runtime-registration)
   - [Node manager lifecycle impact on clients](#node-manager-lifecycle-impact-on-clients)
@@ -43,6 +46,9 @@ a server yet, start with [Getting started](GettingStarted.md).
     - [Continuation points](#continuation-points)
     - [Namespaces](#namespaces)
     - [DataTypes](#datatypes)
+    - [Invocation publication units](#invocation-publication-units)
+    - [Prepared Session and all-events bindings](#prepared-session-and-all-events-bindings)
+    - [Prepared external references](#prepared-external-references)
     - [Change notifications](#change-notifications)
   - [How to make a node manager reloadable](#how-to-make-a-node-manager-reloadable)
   - [Related documentation](#related-documentation)
@@ -186,7 +192,7 @@ Every `StandardServer` creates a `MasterNodeManager` and asks the server's `IMai
 
 ### Master node manager
 
-`MasterNodeManager` is not an address-space model in the same sense as an application manager. It is the coordinator that the server stores as `IServerInternal.NodeManager` and exposes through `IMasterNodeManager`. Service implementations route through it for reads, writes, browsing, TranslateBrowsePaths, method calls, node management, monitored-item setup, history, and event-related operations.
+`MasterNodeManager` is not an address-space model in the same sense as an application manager. The server stores this coordinator as `IServerInternal.NodeManager` and exposes it through `IMasterNodeManager`. Service implementations route through it for reads, writes, browsing, TranslateBrowsePaths, method calls, node management, monitored-item setup, history, and event-related operations.
 
 Internally, service-call dispatch and lifecycle coordination are separated. The session-service implementations live in the internal `NodeManagerServiceDispatcher`, which depends only on the lock-free routing-table snapshot and never acquires lifecycle semaphores; `MasterNodeManager` keeps the public service surface (every virtual entry point and protected helper delegates to the dispatcher, so derived classes are unaffected) together with NodeManager lifecycle coordination. The node-management services (AddNodes, DeleteNodes, AddReferences, DeleteReferences) sit between the two: they dispatch per item like other services but serialize address-space mutation with runtime NodeManager lifecycle operations.
 
@@ -435,6 +441,28 @@ is also revalidated at least once per second, which bounds the delay for
 permissions a node manager computes without such a change, for example through
 `OnReadRolePermissions`.
 
+For an asynchronous, caller-specific Value read policy, register
+`AsyncCustomNodeManager.RegisterValueReadAuthorization(node, authorize)` and keep
+its disposable registration for the binding's lifetime. The policy runs at
+monitored-item admission and each subscriber delivery, independently of cached
+role verdicts. It receives the subscriber's current identity and session context,
+not the context that reported a change. Endpoint access restrictions are also
+rechecked around awaited reads and authorization. An `OnReadValue` check alone
+does not authorize a shared notification snapshot.
+
+The default session retains its original endpoint contract separately from the
+last successfully accepted channel's transport evidence. Reactivation cannot
+reduce effective confidentiality merely by retaining the same UA security mode
+and policy: an HTTPS-to-plaintext-TCP downgrade is rejected before rebinding,
+protecting values already queued for Publish as well as future notifications.
+Confidential HTTPS-to-HTTPS or HTTPS-to-WSS transitions retain their supported
+behavior; this is not a blanket transport-profile equality rule.
+
+Retiring the registration denies further reads with `BadShutdown`, including
+work already awaiting the policy; a replacement registration can authorize new
+work. Binding shutdown must cancel and drain its admitted asynchronous work
+before releasing callback resources.
+
 #### Sampling interval revision
 
 When a client creates or modifies a monitored item the node manager revises the
@@ -651,6 +679,19 @@ to independent monitored items, then complete that event before advancing
 the shared queue. A slow permission check cannot let a later event overtake
 an earlier one; the bounded queue still applies backpressure.
 
+Background event and value delivery use the subscriber's current effective
+identity and accepted channel, not the identity that reported a change.
+Role invalidation is reconciled before authorization; an asynchronous check
+cannot enqueue a result after its captured authorization context changes.
+
+Changes to semantic properties such as `EURange` resample the exact monitored
+source under each subscriber's read permissions and channel restrictions.
+The semantic-property writer's permission does not authorize reading the
+parent value. Both monitored-node and sampling-group consumers own this work
+for their lifetime and recheck authorization before queuing the result.
+Namespace defaults and registered value-read authorizers apply to these reads
+as they do to ordinary monitored delivery.
+
 Monitored-item deletion and mode changes isolate failures by owner.
 Already completed results are retained, remaining items for a failed
 owner receive an explicit error, and other owners still run. Event
@@ -691,8 +732,8 @@ table.
 | Startup | `IOpcUaServerBuilder.AddNodeManager(...)`, `IOpcUaServerBuilder.AddRuntimeNodeSet(...)` | During `CreateAddressSpaceAsync`, before the server accepts connections |
 | Runtime | `INodeManagerLifecycle.AddAsync` / `ReloadAsync` / `RemoveAsync` | While the server is running and serving Clients |
 
-Compile-time and startup registration are the normal path; use runtime registration only when the
-set of models must change without a restart.
+Compile-time and startup registration are the normal path. Use runtime registration only when the
+set of models has to change without restarting the server.
 
 ### Startup registration
 
@@ -1318,9 +1359,13 @@ the `OnNodeAdded` handler of its own node.
 
 ### Opting in
 
-Add the generator analyzer to your project (this is what
-`OPCFoundation.Opc.Ua.SourceGeneration.props` is for) and choose **one**
-of the two opt-in modes:
+Reference the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` NuGet package.
+NuGet imports the package's build props automatically; no explicit import is needed.
+Only the in-repository `ProjectReference` setup requires an explicit import of
+`OPCFoundation.Opc.Ua.SourceGeneration.props`; see
+[Project Reference (internal development)](SourceGeneratedDataTypes.md#project-reference-internal-development).
+
+Then choose **one** of the two opt-in modes:
 
 #### Per-class opt-in via `[NodeManager]` (recommended)
 
@@ -1895,8 +1940,8 @@ Three properties make this usable straight from `Configure`:
 - **Creation is staged, not immediate.** Created nodes are held until
   the manager calls `RegisterAuthoredNodesAsync`, which the generated
   `CreateAddressSpaceAsync` emits after the `Configure` partials and
-  before `CompleteConfigureAsync`. That ordering is what lets a node
-  name a sibling created moments earlier, and what gets references to
+  before `CompleteConfigureAsync`. That ordering lets a node
+  name a sibling created moments earlier and gets references to
   externally owned nodes (the `Objects` folder above) mirrored into
   `externalReferences` by the same reverse-reference pass described in
   [Creating nodes under other managers' nodes](#creating-nodes-under-other-managers-nodes-objects-folder).
@@ -2414,8 +2459,8 @@ Use `Microsoft.Extensions.Logging.Console` for AOT-friendly logging
 dotnet publish -c Release -r win-x64
 ```
 
-`samples/MinimalApi/MinimalBoilerServer` publishes cleanly with **zero AOT/trim
-warnings** (~29 MB self-contained EXE).
+`samples/MinimalApi/MinimalBoilerServer` publishes as a Native AOT
+self-contained executable. Check diagnostics and executable size for your target runtime.
 
 ### Runtime NodeSet alternative
 
@@ -2541,8 +2586,8 @@ automatically when `Configure` completes; see
 `INodeBuilder.AddObject(browseName, typeDefinitionId)` synthesises a
 new `BaseObjectState` child under the current node and returns a typed
 builder for the new object. NodeIds follow the
-`{parentIdentifier}_{childName}` pattern used by the source generator's
-default factory. The helper registers the created node with the owning
+owning NodeManager's assignment policy. See [NodeId assignment](NodeIdAssignment.md) for the available
+modes and custom-factory behavior. The helper registers the created node with the owning
 `AsyncCustomNodeManager`, so the object is immediately browseable and
 addressable by NodeId.
 
@@ -3033,7 +3078,7 @@ object and variable types. Ordinary references are preserved in both contexts.
 
 Notes:
 
-* An explicit `browseName` is what marks a *dynamically materialised
+* An explicit `browseName` marks a *dynamically materialised
   instance*. `CreateInstanceOf<Type>()` without one (as used by the
   generated `NodeStateActivator`s and when replacing a well-known
   singleton) keeps the declaration NodeIds.
@@ -3130,7 +3175,7 @@ the state NodeId; migrating an override written against 1.5.378 is covered by th
   [methods-with-arguments OnCall overloads](#methods-with-arguments--typed-oncall-overloads)
   end-to-end (sync `int+int → int`, async `double+double → double`,
   sync `string+string → string`).
-- `samples/DI/PumpDeviceIntegrationServer/` — the full OPC 40223
+- `samples/Di/PumpDeviceIntegrationServer/` — the full OPC 40223
   Pumps companion server. Exercises every fluent extension above
   (engineering units, identification properties, FunctionalGroup
   wiring, instance creation, limit alarm with NAMUR-style boolean

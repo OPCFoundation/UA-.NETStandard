@@ -155,6 +155,10 @@ namespace Opc.Ua.Schema.Model
             // A NodeSet without nodes deserializes with a null Items array;
             // treat it as empty so every pass below imports nothing.
             m_nodeset.Items ??= [];
+            if (m_nodeset.Items.Any(node => node is UAMethod))
+            {
+                ReadUserExecutableConfiguration(filePath);
+            }
 
             foreach (UANode node in m_nodeset.Items)
             {
@@ -634,6 +638,8 @@ namespace Opc.Ua.Schema.Model
                 Description = ImportLocalizedText(input.Description),
                 DisplayName = ImportLocalizedText(input.DisplayName),
                 WriteAccess = input.WriteMask,
+                UserWriteAccess = input.UserWriteMask,
+                UserWriteAccessSpecified = input.UserWriteMask != 0,
                 IsAbstract = input.IsAbstract,
                 InverseName = ImportLocalizedText(input.InverseName),
                 Symmetric = input.Symmetric,
@@ -1143,7 +1149,7 @@ namespace Opc.Ua.Schema.Model
             // AccessLevel by code generation, matching the runtime importer.
             output.RawUserAccessLevel = input.UserAccessLevelSpecified
                 ? input.UserAccessLevel
-                : (uint?)null;
+                : null;
 
             if (input.Value != null)
             {
@@ -1357,6 +1363,9 @@ namespace Opc.Ua.Schema.Model
 
             output.NonExecutable = !input.Executable;
             output.NonExecutableSpecified = !input.Executable;
+            output.UserExecutable = input.UserExecutable;
+            output.UserExecutableSpecified =
+                !input.UserExecutable || m_userExecutableSpecified.Contains(input.NodeId!);
 
             if (input.MethodDeclarationId != null)
             {
@@ -1365,6 +1374,32 @@ namespace Opc.Ua.Schema.Model
             }
 
             UpdateMethodArguments(input, output);
+        }
+
+        /// <summary>
+        /// The NodeSet serializer defaults UserExecutable to true without retaining attribute presence.
+        /// Keep that presence so an unset override cannot erase an inherited explicit denial.
+        /// </summary>
+        private void ReadUserExecutableConfiguration(string filePath)
+        {
+            using Stream stream = m_fileSystem.OpenRead(filePath);
+            using var reader = XmlReader.Create(stream, new XmlReaderSettings
+            {
+                DtdProcessing = DtdProcessing.Ignore,
+                XmlResolver = null
+            });
+            while (reader.Read())
+            {
+                if (reader.NodeType == XmlNodeType.Element &&
+                    reader.Depth == 1 &&
+                    reader.LocalName == "UAMethod" &&
+                    reader.NamespaceURI == "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd" &&
+                    reader.GetAttribute("UserExecutable") != null &&
+                    reader.GetAttribute("NodeId") is string nodeId)
+                {
+                    m_userExecutableSpecified.Add(nodeId);
+                }
+            }
         }
 
         /// <summary>
@@ -1516,7 +1551,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-            NodeDesign? referenceType = null;
+
             bool nonHierarchical = false;
 
             UANode parentNode = FindNode(parentId) ??
@@ -1534,7 +1569,7 @@ namespace Opc.Ua.Schema.Model
             // non-hierarchical one. Taking the parent's non-hierarchical
             // reference first would shadow a perfectly good inverse HasComponent
             // on the child and drop the node out of the parent's Children.
-            referenceType =
+            NodeDesign? referenceType =
                 FindHierarchicalReference(parentNode.References!, input.NodeId!, forward: true) ??
                 FindHierarchicalReference(input.References!, input.ParentNodeId!, forward: false);
 
@@ -1687,6 +1722,8 @@ namespace Opc.Ua.Schema.Model
             output.Description = ImportLocalizedText(input.Description);
             output.DisplayName = ImportLocalizedText(input.DisplayName);
             output.WriteAccess = input.WriteMask;
+            output.UserWriteAccess = input.UserWriteMask;
+            output.UserWriteAccessSpecified = input.UserWriteMask != 0;
             output.ReleaseStatus = ImportReleaseStatus(input.ReleaseStatus);
             output.Category = ImportCategories(input.Category);
 
@@ -1876,7 +1913,7 @@ namespace Opc.Ua.Schema.Model
                             continue;
                         }
 
-                        NodeId targetId = ExpandedNodeId.ToNodeId(
+                        var targetId = ExpandedNodeId.ToNodeId(
                             reference.TargetId,
                             m_settings.NamespaceUris);
                         if (!targetId.IsNull)
@@ -2149,25 +2186,20 @@ namespace Opc.Ua.Schema.Model
             foreach (Export.RolePermission ii in input)
             {
                 NodeId roleId = ImportNodeId(ii.Value);
-                NodeDesign? role = FindNode<NodeDesign>(roleId);
-
-                if (role == null)
-
+                string? namespaceUri = m_settings.NamespaceUris.GetString(roleId.NamespaceIndex);
+                if (roleId.IsNull || string.IsNullOrEmpty(namespaceUri))
                 {
-                    continue;
+                    throw new InvalidDataException($"RolePermissions contains an invalid RoleId '{ii.Value}'.");
                 }
+                NodeDesign? role = FindNode<NodeDesign>(roleId);
                 permissions.Add(new RolePermission
                 {
-                    Role = role.SymbolicId,
+                    Role = role?.SymbolicId!,
+                    RoleId = ((ExpandedNodeId)roleId).WithNamespaceUri(namespaceUri).FormatRoleId(),
                     Permission = ToPermissions((PermissionType)ii.Permissions)
                 });
             }
 
-            if (permissions.Count == 0)
-
-            {
-                return null;
-            }
             return new RolePermissionSet
             {
                 RolePermission = [.. permissions]
@@ -2176,10 +2208,8 @@ namespace Opc.Ua.Schema.Model
 
         /// <summary>
         /// Maps a NodeSet AccessRestrictions bit mask onto the design schema's
-        /// enumeration. Returns <c>null</c> when the mask carries no restriction
-        /// the schema can express - notably the empty mask (which means "no
-        /// restrictions", not "encryption required") and a mask that only sets
-        /// ApplyRestrictionsToBrowse.
+        /// enumeration, retaining explicit unrestricted overrides independently
+        /// from an omitted attribute.
         /// </summary>
         private static AccessRestrictions? ToAccessRestrictions(AccessRestrictionType input)
         {
@@ -2190,6 +2220,10 @@ namespace Opc.Ua.Schema.Model
 
             switch (input)
             {
+                case AccessRestrictionType.None:
+                    return AccessRestrictions.None;
+                case AccessRestrictionType.ApplyRestrictionsToBrowse:
+                    return AccessRestrictions.ApplyToBrowse;
                 case AccessRestrictionType.SigningRequired:
                     return AccessRestrictions.SigningRequired;
                 case AccessRestrictionType.EncryptionRequired:
@@ -2225,17 +2259,9 @@ namespace Opc.Ua.Schema.Model
             // alongside a bit the schema does know. Stay fail-closed: a bit this
             // mapping cannot name is still a restriction the NodeSet asked for,
             // and dropping it would publish the node with no protection at all.
-            // Only a mask that demands nothing - empty, or nothing beyond
-            // ApplyRestrictionsToBrowse, which restricts nothing on its own -
-            // maps to "unspecified".
-            if ((input & ~AccessRestrictionType.ApplyRestrictionsToBrowse) != 0)
-            {
-                return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
-                    ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
-                    : AccessRestrictions.SessionWithEncryptionRequired;
-            }
-
-            return null;
+            return (input & AccessRestrictionType.ApplyRestrictionsToBrowse) != 0
+                ? AccessRestrictions.SessionWithEncryptionAndApplyToBrowseRequired
+                : AccessRestrictions.SessionWithEncryptionRequired;
         }
 
         private void ImportPermissions(UANode input)
@@ -2247,11 +2273,15 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
 
-            existing.RolePermissions = ToPermissionSet(input.RolePermissions);
+            ModelTableEntry? model = m_nodeset.Models?.FirstOrDefault(entry =>
+                entry.ModelUri == m_settings.NamespaceUris.GetString(nodeId.NamespaceIndex));
+            existing.RolePermissions = ToPermissionSet(input.RolePermissions ?? model?.RolePermissions);
 
             AccessRestrictions? restrictions = input.AccessRestrictionsSpecified
                 ? ToAccessRestrictions((AccessRestrictionType)input.AccessRestrictions)
-                : null;
+                : model?.AccessRestrictions is > 0
+                    ? ToAccessRestrictions((AccessRestrictionType)model.AccessRestrictions)
+                    : null;
             existing.AccessRestrictions = restrictions ?? default;
             existing.AccessRestrictionsSpecified = restrictions.HasValue;
         }
@@ -2980,9 +3010,11 @@ namespace Opc.Ua.Schema.Model
             }
             sourceNamespaceUris = namespaceUris;
 
-            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory);
-            messageContext.NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris;
-            messageContext.ServerUris = m_serverUris;
+            var messageContext = new ServiceMessageContext(m_telemetry, s_valueDecodingFactory)
+            {
+                NamespaceUris = mapNamespaces ? m_settings.NamespaceUris : namespaceUris,
+                ServerUris = m_serverUris
+            };
 
             var decoder = new XmlDecoder((XmlElement)source, messageContext)
             {
@@ -3421,7 +3453,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private int ImportMinimumSamplingInterval(double input, string browseName)
         {
-            if (input == 0 || input == -1)
+            if (input is 0 or -1)
             {
                 return (int)input;
             }
@@ -3583,6 +3615,7 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
+        private readonly HashSet<string> m_userExecutableSpecified = new(StringComparer.Ordinal);
         private Dictionary<NodeId, List<UAVariable>>? m_variablesByParent;
         private Dictionary<NodeId, UANode>? m_dataTypesByEncoding;
     }

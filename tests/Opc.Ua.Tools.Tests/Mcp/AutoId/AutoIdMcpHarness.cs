@@ -56,7 +56,22 @@ namespace Opc.Ua.Tools.Tests.Mcp.AutoId
         private AutoIdMcpHarness()
         {
             var services = new ServiceCollection();
-            services.AddOpcUaMcpCore();
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions
+            {
+                Execution = new McpExecutionOptions
+                {
+                    LocalCallerId = "autoid-tests",
+                    CallerGrants =
+                    [
+                        new McpCallerGrant
+                        {
+                            Caller = new McpCallerIdentity(
+                                "autoid-tests", McpCallerContext.LocalIssuer, IsLocal: true),
+                            SessionNames = ["dock"]
+                        }
+                    ]
+                }
+            });
             services.AddOpcUaMcpAutoId();
             services.AddMcpServer()
                 .WithStreamServerTransport(m_toServer.Reader.AsStream(), m_toClient.Writer.AsStream())

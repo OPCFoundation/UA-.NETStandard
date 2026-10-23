@@ -329,6 +329,7 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(logging);
 
             logging.ClearProviders();
+            logging.EnableOpcUaRedaction();
             logging.SetMinimumLevel(LogLevel.Information);
             logging.AddSimpleConsole(options =>
             {

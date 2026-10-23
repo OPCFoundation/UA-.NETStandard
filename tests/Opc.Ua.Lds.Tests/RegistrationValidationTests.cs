@@ -28,8 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Lds.Server;
 using Opc.Ua.Security.Certificates;
@@ -177,6 +180,150 @@ namespace Opc.Ua.Lds.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadServerUriInvalid));
         }
 
+        [Test]
+        public async Task RegistrationEntryPointsRejectUnsafeSemaphorePaths(
+            [ValueSource(typeof(SemaphorePathTests), nameof(SemaphorePathTests.UnsafePaths))] string path,
+            [Values] bool registerServer2,
+            [Values] bool isOnline)
+        {
+            using Certificate certificate = CreateCertificate([ServerUri]);
+            RegisteredServer registration = CreateRegisteredServer(ServerUri);
+            registration.SemaphoreFilePath = path;
+            registration.IsOnline = isOnline;
+
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (registerServer2)
+                {
+                    await Lds.RegisterServer2Async(
+                        CreateChannel(certificate.RawData, IPAddress.Loopback),
+                        new RequestHeader(),
+                        registration,
+                        [new ExtensionObject(new MdnsDiscoveryConfiguration
+                        {
+                            MdnsServerName = "unsafe",
+                            ServerCapabilities = ["DA"]
+                        })],
+                        RequestLifetime.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Lds.RegisterServerAsync(
+                        CreateChannel(certificate.RawData, IPAddress.Loopback),
+                        new RequestHeader(),
+                        registration,
+                        RequestLifetime.None).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(Lds.Store.Snapshot(), Is.Empty);
+            Assert.That(Lds.Store.SnapshotNetworkRecords(), Is.Empty);
+        }
+
+        [Test]
+        public async Task RegistrationEntryPointsRequireObservedLoopbackForSemaphores(
+            [Values(null, "192.0.2.1", "2001:db8::1", "::ffff:192.0.2.1")] string? peer,
+            [Values] bool registerServer2)
+        {
+            using Certificate certificate = CreateCertificate([ServerUri]);
+            RegisteredServer registration = CreateRegisteredServer(ServerUri);
+            registration.SemaphoreFilePath = Path.GetFullPath("local.sem");
+            SecureChannelContext channel = CreateChannel(
+                certificate.RawData, peer == null ? null : IPAddress.Parse(peer));
+
+            ServiceResultException exception = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                if (registerServer2)
+                {
+                    await Lds.RegisterServer2Async(channel, new RequestHeader(), registration,
+                        default, RequestLifetime.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Lds.RegisterServerAsync(channel, new RequestHeader(), registration,
+                        RequestLifetime.None).ConfigureAwait(false);
+                }
+            });
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(Lds.Store.Snapshot(), Is.Empty);
+        }
+
+        [Test]
+        public async Task RegistrationEntryPointsAllowRemotePeersWithoutSemaphores(
+            [Values(null, "192.0.2.1")] string? peer,
+            [Values] bool registerServer2)
+        {
+            using Certificate certificate = CreateCertificate([ServerUri]);
+            SecureChannelContext channel = CreateChannel(
+                certificate.RawData, peer == null ? null : IPAddress.Parse(peer));
+            RegisteredServer registration = CreateRegisteredServer(ServerUri);
+            if (registerServer2)
+            {
+                RegisterServer2Response response = await Lds.RegisterServer2Async(
+                    channel, new RequestHeader(), registration, default, RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            }
+            else
+            {
+                RegisterServerResponse response = await Lds.RegisterServerAsync(
+                    channel, new RequestHeader(), registration, RequestLifetime.None).ConfigureAwait(false);
+                Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            }
+
+            Assert.That(Lds.Store.Snapshot(), Has.Count.EqualTo(1));
+        }
+
+        [TestCase("127.0.0.1")]
+        [TestCase("::1")]
+        [TestCase("::ffff:127.0.0.1")]
+        public void RegistrationAcceptsNativeSemaphorePathFromLoopback(string peer)
+        {
+            using Certificate certificate = CreateCertificate([ServerUri]);
+            using var server = new TestLdsServer();
+            RegisteredServer registration = CreateRegisteredServer(ServerUri);
+            registration.SemaphoreFilePath = Path.GetFullPath("local.sem");
+
+            ServiceResult result = server.Validate(
+                CreateChannel(certificate.RawData, IPAddress.Parse(peer)), registration);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public async Task RegistrationEntryPointsPreserveLocalSemaphoreLivenessAsync([Values] bool registerServer2)
+        {
+            using Certificate certificate = CreateCertificate([ServerUri]);
+            string path = Path.GetFullPath("local.sem");
+            var fileSystem = new Mock<IFileSystem>(MockBehavior.Strict);
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(true);
+            using var store = new RegisteredServerStore(null, null, fileSystem.Object);
+            using var lds = new LdsServer(Telemetry, store);
+            RegisteredServer registration = CreateRegisteredServer(ServerUri);
+            registration.SemaphoreFilePath = path;
+            SecureChannelContext channel = CreateChannel(certificate.RawData, IPAddress.Loopback);
+
+            if (registerServer2)
+            {
+                await lds.RegisterServer2Async(channel, new RequestHeader(), registration,
+                    default, RequestLifetime.None).ConfigureAwait(false);
+            }
+            else
+            {
+                await lds.RegisterServerAsync(channel, new RequestHeader(), registration,
+                    RequestLifetime.None).ConfigureAwait(false);
+            }
+
+            Assert.That(store.Snapshot(), Has.Count.EqualTo(1));
+            Assert.That(store.Snapshot()[0].SemaphoreFilePath, Is.EqualTo(path));
+            fileSystem.Setup(f => f.Exists(path, false)).Returns(false);
+            store.Prune(store.Snapshot()[0].LastSeenUtc);
+            Assert.That(store.Snapshot(), Is.Empty);
+            fileSystem.Verify(f => f.Exists(path, false), Times.Exactly(2));
+            fileSystem.VerifyNoOtherCalls();
+        }
+
         private static Certificate CreateCertificate(
             string[] applicationUris,
             bool includeSubjectAltName = false)
@@ -211,7 +358,7 @@ namespace Opc.Ua.Lds.Tests
                 .SetNotAfter(DateTime.UtcNow.AddDays(30));
         }
 
-        private static SecureChannelContext CreateChannel(byte[]? clientCertificate)
+        private static SecureChannelContext CreateChannel(byte[]? clientCertificate, IPAddress? peerAddress = null)
         {
             return new SecureChannelContext(
                 "registration-validation",
@@ -220,7 +367,8 @@ namespace Opc.Ua.Lds.Tests
                     SecurityMode = MessageSecurityMode.SignAndEncrypt
                 },
                 RequestEncoding.Binary,
-                clientCertificate);
+                clientCertificate,
+                peerAddress: peerAddress);
         }
 
         private static RegisteredServer CreateRegisteredServer(string serverUri)

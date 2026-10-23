@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+    xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>urn:test:security-nodes</Uri>
+    <Uri>urn:test:runtime-roles</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="urn:test:security-nodes" Version="1.0.0" PublicationDate="2026-01-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" />
+    </Model>
+  </Models>
+  <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:SecurityDeviceType">
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=1001" BrowseName="1:Restricted" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="3" UserAccessLevel="1" WriteMask="65600" UserWriteMask="64">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1002" BrowseName="1:Permitted" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="3" UserAccessLevel="1" WriteMask="65600" UserWriteMask="65600">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=1003" BrowseName="1:UserDenied" ParentNodeId="ns=1;i=1000"
+      Executable="true" UserExecutable="false">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1004" BrowseName="1:Allowed" ParentNodeId="ns=1;i=1000"
+      Executable="true" UserExecutable="true">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1005" BrowseName="1:ServerDenied" ParentNodeId="ns=1;i=1000"
+      Executable="false" UserExecutable="true">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1006" BrowseName="1:FullyDenied" ParentNodeId="ns=1;i=1000"
+      Executable="false" UserExecutable="false">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1007" BrowseName="1:OptionalDenied" ParentNodeId="ns=1;i=1000"
+      Executable="true" UserExecutable="false">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1008" BrowseName="1:&lt;Denied&gt;" SymbolicName="Denied"
+      ParentNodeId="ns=1;i=1000" Executable="true" UserExecutable="false">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=11508</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=1;i=1009" BrowseName="1:RoleProtected" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="1" UserAccessLevel="1">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <RolePermissions>
+      <RolePermission Permissions="1">i=15668</RolePermission>
+      <RolePermission Permissions="32">ns=2;i=7001</RolePermission>
+      <RolePermission Permissions="32">ns=2;s=Runtime.Readers</RolePermission>
+      <RolePermission Permissions="32">ns=2;g=09087e75-8e5e-499b-954f-f2a9603db28a</RolePermission>
+      <RolePermission Permissions="32">ns=2;b=AQID</RolePermission>
+      <RolePermission Permissions="32">ns=2;i=0</RolePermission>
+      <RolePermission Permissions="32">ns=2;s=</RolePermission>
+      <RolePermission Permissions="32">ns=2;g=00000000-0000-0000-0000-000000000000</RolePermission>
+      <RolePermission Permissions="32">ns=2;b=</RolePermission>
+    </RolePermissions>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1010" BrowseName="1:LegacyMask" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="3" UserAccessLevel="1" WriteMask="65600">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAObjectType NodeId="ns=1;i=1100" BrowseName="1:OverrideDeviceType">
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">ns=1;i=1000</Reference>
+    </References>
+  </UAObjectType>
+  <UAVariable NodeId="ns=1;i=1013" BrowseName="1:ZeroMask" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="3" UserAccessLevel="1" WriteMask="65600" UserWriteMask="0">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1011" BrowseName="1:RuntimeOnly" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="1" UserAccessLevel="1">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <RolePermissions>
+      <RolePermission Permissions="32">ns=2;i=7001</RolePermission>
+    </RolePermissions>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1012" BrowseName="1:EmptyAcl" ParentNodeId="ns=1;i=1000"
+      DataType="i=6" AccessLevel="1" UserAccessLevel="1">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <RolePermissions />
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=1102" BrowseName="1:Permitted" ParentNodeId="ns=1;i=1100"
+      DataType="i=6" AccessLevel="3" UserAccessLevel="1" WriteMask="65600" UserWriteMask="64">
+    <References>
+      <Reference ReferenceType="i=40">i=63</Reference>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1100</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value><uax:Int32>7</uax:Int32></Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=1;i=1104" BrowseName="1:Allowed" ParentNodeId="ns=1;i=1100"
+      MethodDeclarationId="ns=1;i=1004" Executable="true" UserExecutable="false">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1100</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=1103" BrowseName="1:UserDenied" ParentNodeId="ns=1;i=1100"
+      MethodDeclarationId="ns=1;i=1003" Executable="true">
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=1;i=1100</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+  </UAMethod>
+  <UAMethod NodeId="ns=1;i=2000" BrowseName="1:StandaloneDeniedMethodType"
+      Executable="true" UserExecutable="false" />
+</UANodeSet>

@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
   - [Add a log message (source-generated)](#add-a-log-message-source-generated)
@@ -32,12 +33,14 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 
 ## Prerequisites
 
-- **.NET SDK 10.0** — the whole repository builds and restores with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Older SDKs are not supported for building `main`. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)), but you build them with the .NET 10 SDK.
+- **.NET SDK 10.0.400 or later** — `global.json` sets this minimum and selects the highest installed stable SDK through `rollForward: latestMajor`; prerelease SDKs are excluded. CI selects its SDK version explicitly. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)); those target frameworks do not determine the SDK used to build the repository.
 - **An IDE (optional but recommended)** — Visual Studio 2026, Visual Studio Code with the C# Dev Kit, or JetBrains Rider. Everything can also be done from the command line with `dotnet`.
 - **git** — to clone and to create feature branches.
 - **Docker Desktop (optional)** — only needed to run the containerized reference server; see [ContainerReferenceServer.md](ContainerReferenceServer.md).
 
-The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build, so no extra tooling install is required to get the same diagnostics locally that CI produces.
+The C# language version is pinned (`LangVersion` 14) and analyzer/style rules are enforced by the build.
+A newer SDK can introduce diagnostics that CI's pinned SDK does not report.
+To reproduce CI diagnostics, use the SDK version selected by the relevant CI workflow.
 
 ## Repository layout
 
@@ -89,6 +92,9 @@ Run the whole suite from the solution:
 ```bash
 dotnet test UA.slnx
 ```
+
+UaLens uses separate test assemblies for ordinary tests, native workflows and
+application-desktop tests. See [Testing UaLens](#testing-ualens) for their commands.
 
 Conventions and requirements:
 
@@ -202,6 +208,119 @@ disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
 
+### Testing UaLens
+
+All four assemblies are registered in `UA.slnx` and use the normal NUnit runner:
+
+| Project | Scope |
+| --- | --- |
+| `tests/Opc.Ua.Lens.Tests` | Protocol, model, offline and unit tests; no desktop application |
+| `tests/Opc.Ua.Lens.Workflow.Tests` | Native-window workflows with injected protocol clients and an owned dispatcher |
+| `tests/Opc.Ua.Lens.Desktop.Tests` | Application resources, shell/dialog regressions, NodeSet and namespace UI |
+| `tests/Opc.Ua.Lens.Artifacts.Tests` | Offline artifact-validator tests and explicitly selected published/installed executable checks |
+
+Run from the repository root with an interactive Windows desktop. Linux native
+tests require X11 or `xvfb-run`; the shared CI runner supplies Xvfb. Cocoa requires
+the process main thread, so these dispatcher-thread native assemblies are
+Windows/Linux-only. Their source still builds on macOS.
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Workflow.Tests\Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Artifacts.Tests\Opc.Ua.Lens.Artifacts.Tests.csproj -c Release -f net10.0
+```
+
+The assemblies isolate native dispatcher lifetimes without category-dependent
+multi-pass handling in the shared runner. Collect coverage with the normal
+`tests/coverlet.runsettings.xml`; results from all applicable assemblies contribute
+to the unchanged coverage gate.
+
+The `[Explicit]` repository-sample probes run owned, finite servers with private
+PKI. Select each probe by its unique name rather than combining its filter with
+ordinary tests, which can leave explicit cases unexecuted. The identity probe
+qualifies forward/reverse authentication and key replacement; the continuity
+probe checks real transfer/recreation and revised settings; the DI probe uses
+the existing nonphysical software-update sample plus controlled preparation.
+Check the executed count and the TRX, not merely a successful build. For example:
+
+```powershell
+$case = 'PrivateAuthenticatedIdentitiesSurviveEngineReplacementWithoutAnonymousFallbackAsync'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0 `
+    -p:CustomTestTarget=net10.0 --filter "FullyQualifiedName~$case"
+```
+
+The DI sample project is referenced under an assembly alias because it generates
+its own Pumps model; do not expose those duplicate types through the global alias.
+These managed probes do not replace the published NativeAOT/RID checks.
+
+For actual graceful persistence, select
+`PrivateDurableContinuityRestoresAcrossGracefulOwnedProcessRestartAsync`. It starts
+the real reference server in two successive owned child processes, retaining only
+that run's private working directory and PKI between them. It checks transfer,
+revised settings, resumed values and automatic recovery of the borrowed primary
+session, then removes the private store after both processes exit.
+`OwnedServerStartupFaultDoesNotWaitForReadiness` separately checks failed startup
+after control-pipe admission; startup readiness must not hide a failed hosted task.
+
+`PrivateConfiguredColdFailoverReportsRecreationAndRetainedSourceWithoutDisposingPrimaryAsync`
+uses two distinct private-PKI servers and the existing redundancy metadata and
+target-selection providers. Its cold peer has no mirrored subscription state:
+recreation and uncertain source cleanup are explicit expected outcomes, not
+evidence of hot/mirrored queue recovery.
+
+The [desktop test assembly](../tools/Opc.Ua.Lens/DesktopTesting.md) runs its full
+NUnit-discovered suite, including pending-write shutdown, dialog cancellation,
+keyboard navigation, inspector publication, minimum-size, NodeSet and namespace
+checks. The external-file responsiveness probe remains `[Explicit]`.
+Native publishing and managed-tool
+installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md#publish-and-package).
+Managed packaging produces one selector and three RID-specific payloads;
+the artifact workflow installs the same package set on Windows, Linux and macOS.
+The signing workflow builds those managed RID outputs before signing so the
+subsequent `pack --no-build` does not recompile signed assemblies.
+Both artifact forms also run a separate opt-in native viewport check through the
+application's main-thread desktop lifetime, including Cocoa/Metal. It retains two
+validated PNGs around a live stage update and requires native allocations to drain;
+ordinary startup success alone is not native rendering acceptance. The runner's
+negative acceptance cases run as ordinary NUnit tests in
+`Opc.Ua.Lens.Artifacts.Tests`, without a desktop or renderer. Its `[Explicit]`
+`PublishedArtifactTests` fixture launches the selected executable in a separate
+process; the test project does not reference the application. Tests retain TRX,
+stdout/stderr, image digests and timeout/exit evidence. A failed native check
+remains a failure; no debugger replay supplies acceptance.
+
+The Linux live-viewport and native-rendering smoke cases are temporarily excluded
+pending the OpenUSD compositor compatibility fix. Linux startup and ordinary tests
+remain enabled; passing artifact jobs do not currently qualify Linux rendering.
+See the [exclusion scope and re-enablement criteria](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check).
+
+Artifact builds use the public nuget.org dependency versions pinned in
+`Directory.Packages.props` and the checked-in `NuGet.config`. Installation checks
+use only the UaLens packages built by that workflow, not an older published tool.
+Native smoke deadline failures report the compositor status and retained-frame
+counters. The viewport keeps its bounded presentation loop active after a
+successful frame so queued camera captures and live stage edits also render on
+backends that otherwise return a one-shot presentation result.
+Required backend probe exceptions are also reported to the viewport owner
+immediately; cancellation remains cancellation rather than a device failure.
+Linux native artifact checks explicitly pass `--x11-vulkan` to use the Vulkan
+compositor without falling back to a software framebuffer or relying on OpenGL
+FD-import support. Ordinary application defaults remain unchanged. The separate
+`--allow-software-gl` opt-in permits Mesa llvmpipe for OpenGL diagnosis but does
+not supply missing interop capabilities. Neither option bypasses pixel-change
+or allocation-drain checks; software-driver results are not physical-GPU
+qualification.
+
+Theme checks require 4.5:1 source-text contrast and 3:1 chart-series contrast on
+their defined surfaces. The native lane attaches bounded PNG captures and CSV
+color-vision diagnostics to its TRX. Captures use the rendered client visual;
+they do not qualify an OS compositor, physical display, screen reader or human
+color perception. DPI, physical keyboard and assistive-technology acceptance
+remain separate checks. Historical execution reports belong in
+[the review backlog](../plans/UaLensReview.md), not the user guide.
+
 ## Coding standards (dos and don'ts)
 
 All rules apply to new code and to existing code you touch. The `.editorconfig` is authoritative and enforced at build time; the highlights below are the ones most often missed.
@@ -281,6 +400,7 @@ The four legacy `System.Diagnostics.Tracing.EventSource` providers (`OPC-UA-Core
 
 - **Message text** is exact and static; use named placeholders (`{ChannelId}`) that match a parameter of the same name. Never interpolate (`$"…"`). An `Exception` argument is detected by its type and does not need a placeholder.
 - **Parameter types** must match the real argument type. Do **not** use `object`/`object?`, and do **not** call `.ToString()` on an argument (type the parameter instead, e.g. an enum or `int`); an unnecessary `.ToString()` trips `RCS1097`/`CA1305`. Declare a parameter nullable (`string?`, `Uri?`, `Exception?`) only when the argument can actually be null, otherwise the compiler reports `CS8604`.
+- **Classify sensitive parameters.** A parameter that holds a network address (URL, host, IP address, `EndPoint`, port), an application identity (certificate, subject, thumbprint, application URI), a user identity, a file or store path, or free text that can contain them (an exception message) carries the matching `Opc.Ua.Redaction` attribute, e.g. `[NetworkAddress] Uri? endpointUrl`. Ids used for correlation (`ChannelId`, `SessionId`) stay unclassified. A `System.Net.EndPoint` parameter needs `#pragma warning disable LOGGEN036` around its declaration. See [Diagnostics.md](Diagnostics.md#sensitive-data-in-logs-data-classification).
 - **Guard only expensive arguments.** If a call passes an expensive computed argument (`string.Join(...)`, a LINQ projection, `.ToString()` on a complex object) wrap it in `if (logger.IsEnabled(<level>))`; source generation does not suppress eager evaluation of the *arguments*, and `CA1873` flags it. Do **not** guard cheap arguments (locals, fields, ids) — over-guarding trips `RCS1006`/`RCS1061`. A guard must never gate an expression that has an observable side effect.
 - **Dynamic levels stay hand-written.** `[LoggerMessage]` needs a compile-time `Level`. A call whose level is only known at runtime keeps the structured `logger.Log(logLevel, "{Template}", args)` form wrapped in `if (logger.IsEnabled(logLevel))`. These are the only remaining direct `ILogger.Log` calls.
 - **Shared/linked source files** that are `<Compile Include>`-d into more than one project (for example a sample file linked into a test project) cannot reference another assembly's `<AssemblyToken>EventIds` class — give their log class literal `EventId` integers in a high, dedicated range instead.
@@ -317,6 +437,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 - [ ] Message text and level are unchanged from the original call (behavior-preserving).
 - [ ] Placeholders are named and match parameter names; no interpolation.
 - [ ] Parameter types match the arguments; nullable only where needed; no `object`.
+- [ ] Sensitive parameters carry an `Opc.Ua.Redaction` classification attribute.
 - [ ] Expensive arguments are guarded with `IsEnabled`; cheap ones are not.
 - [ ] `EventId` uses the project's `<AssemblyToken>EventIds` offset (or a literal range for a shared/linked file, or a literal legacy id with an explicit `EventName` for a retained EventSource-compatibility message — see [the narrow exception](#narrow-exception-retained-eventsource-compatibility-ids)).
 - [ ] When testing with a mocked `ILogger`, stub `IsEnabled(...) => true` and match on `EventId.Name`, not the (empty) source-generated state `ToString()`.
@@ -341,7 +462,7 @@ logger.ReadArrayZeroDimension(index, dimensions);
 
 The following NuGet packages are released on a monthly cadence (with hot fixes for security issues). The `OPCFoundation` prefix is reserved, and the assemblies and packages are signed by the OPC Foundation.
 
-- [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that pulls in everything except PubSub. Prefer referencing the individual packages below to reduce your dependency surface.
+- [OPCFoundation.NetStandard.Opc.Ua](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/) — a convenience meta-package that bundles a default set of stack packages; see its [package inventory](../nuget/MetaPackageREADME.md#what-you-get). Reference PubSub and other optional feature packages separately. Prefer referencing individual packages to reduce your dependency surface.
 - [OPCFoundation.NetStandard.Opc.Ua.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Types/)
 - [OPCFoundation.NetStandard.Opc.Ua.Core.Types](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core.Types/) — the generated OPC UA NodeSet models and state classes.
 - [OPCFoundation.NetStandard.Opc.Ua.Core](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Core/) and [OPCFoundation.NetStandard.Opc.Ua.Security.Certificates](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua.Security.Certificates/) — required by both client and server projects.
@@ -443,35 +564,43 @@ gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
 ./.github/scripts/update-test-durations.ps1 -ResultsPath ./ci-results -Source 'Run <run-id>'
 ```
 
-GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
+GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) checks that both scopes fit, every `*.Tests.csproj` is scheduled or explicitly excluded, project/profile/shard workloads are unique, and narrowed matrices remain nonempty.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when a test fixture's setup or teardown fails, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
-The WoT aggregation sample tests keep their complete companion-model corpus in a
-dedicated CI batch. That batch has a finite 240-minute combined build/test budget
-and a 65-minute inactivity limit; ordinary projects retain their 45-minute combined
-budget. The sample's full generation-replacement case includes two complete
-publications and must not be truncated to fit the ordinary project budget.
-The Server, WoT and Types integration projects also run separately, with a 90-minute
-combined budget. Server and WoT keep the 10-minute inactivity guard; Types uses
-30 minutes for complete instrumented companion-model conversions. Hosted cold builds
-have consumed 20-28 minutes before their healthy integration suites start;
-the larger finite budget prevents truncation without hiding an inactive test.
-The .NET Framework WoT profile reserves 150 combined minutes because its complete
-regeneration and server-integration run exceeded an hour after a 27-minute cold
-build. Its per-test inactivity guard remains unchanged.
+Each project or filtered shard has a **45-minute test-execution budget**.
+Long-running WoT/sample suites use exhaustive, non-overlapping filters instead
+of larger project-specific timeouts. For example, the modern WoT sample suite
+separates ordinary cases, full generation replacement, and native comparisons.
+The matrix records each shard and its filter; no test is dropped to fit a budget.
 
-That per-project ceiling is a **single combined budget** covering the project's build *and* its test run, measured by one stopwatch. The matrix derives each job's `timeout-minutes` from it as `20 + projectCount × perProjectTimeout`, so spending it twice per project would let a batch outlive its job: GitHub would cancel the run, and a cancelled job produces neither the executor's per-project annotation nor its results. A batch whose budgets add up past the job ceiling is an error in `get-ci-matrix.ps1` rather than a clamped `timeout-minutes`, for the same reason. `CiMatrixScriptTests` pins both halves of that arithmetic.
+The executor measures build and test time separately. Builds do not consume the
+test-execution budget, but remain bounded by the overall job timeout. The matrix
+sets that timeout to `20 + projectCount × perProjectTimeout` minutes, including
+20 minutes for setup/build overhead. Per-test hang guards are independent and
+can vary by shard. A batch exceeding the job ceiling fails matrix generation
+rather than having its timeout silently clamped.
 
 The verdict comes from the emitted TRX rather than from the `dotnet test` exit code, and lives in [`.github/scripts/get-test-verdict.ps1`](../.github/scripts/get-test-verdict.ps1) so it can be tested on its own — see [`CiTestVerdictTests`](../tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs). A failed fixture setup or teardown, such as the assembly-level certificate leak check in a `[OneTimeTearDown]`, is not a test result, so no counter records it: the NUnit adapter writes it to the TRX as a run message (`TearDown failed for test fixture …`), and the verdict rejects it whatever the exit code says. A non-zero exit is tolerated when, and only when, the results record at least one **passing** test, no failure, error, timeout, abort or `passedButRunAborted`, and no failed fixture setup or teardown. That combination means the host died during process **exit**, after the last test and every teardown had already run; failing it would report a false red. It is not a macOS quirk — Windows hosts do it too (run 35714133848, `test-windows-net48 (5/30)`: `Opc.Ua.Client.Tests` reported 256 passed, 0 failed, host exit 1). A host that dies mid-run leaves a non-zero counter and is still rejected, and a run in which every test was skipped is rejected whatever the exit code says. Every tolerated run raises a warning annotation and is labelled in the job summary, so a host that keeps dying stays visible.
 
 #### Why a project can be skipped
 
-`RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary, so a project that quietly stops being applicable everywhere is visible rather than invisible.
+`RestrictForLegacyTfm` in [`targets.props`](../targets.props) turns a project that does not support the requested `CustomTestTarget` into an empty shell with `IsTestProject=false`. Running `dotnet test` against one of those produces no TRX, which the executor treats as a failure — so it first probes `dotnet msbuild -getProperty:IsTestProject` and records the project as **not applicable** instead. Those rows appear in the job summary so maintainers can identify projects that are no longer applicable to any profile.
 
 ### Test tiers
 
-The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`. The tiers those filters leave out run elsewhere:
+The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategory=Stress`.
+
+Linux UaLens tests require the agent's installed `xvfb-run` and run under a virtual X server. The shared
+GitHub batch executor retains the normal test selection, coverage, diagnostics,
+and result gates, and fails explicitly if Xvfb is unavailable. The GitHub executor includes the virtual display
+in the existing per-project timeout and process-tree cleanup.
+Each Linux test process also receives its MSBuild `TargetDir` and packaged
+`runtimes/linux-x64/native` directory on `LD_LIBRARY_PATH`, ahead of inherited
+entries. This lets the system loader resolve transitive ELF dependencies without
+changing the parent process's environment.
+
+The tiers those filters leave out run elsewhere:
 
 | Tier | Where it runs |
 | --- | --- |
@@ -582,7 +711,7 @@ Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresh
 
 #### Where the numbers appear
 
-The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
+The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork or Dependabot** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
 
 > A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
