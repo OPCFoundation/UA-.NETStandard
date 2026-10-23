@@ -388,11 +388,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             DiagnosticsMasks diagnosticsMask,
             CancellationToken cancellationToken)
         {
-            bool explicitReceiver = Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef);
-            string receiverTerm = explicitReceiver ? "uav:callObjectId" : "uav:componentOf";
-            if ((!explicitReceiver && !Form.Addressing.Metadata.TryGetValue("componentOf", out objectRef)) ||
+            const string receiverTerm = "uav:callObjectId";
+            if (!Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef) ||
                 string.IsNullOrEmpty(objectRef) ||
-                (explicitReceiver && !WotPortableIdentity.IsPortableNodeId(objectRef)))
+                !WotPortableIdentity.IsPortableNodeId(objectRef))
             {
                 return new WotInvokeResult(
                     StatusCodes.BadNodeIdInvalid, null,

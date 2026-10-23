@@ -256,7 +256,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                       "forms": [{
                         "href": "opc.tcp://source:4840", "op": "invokeaction",
                         "contentType": "application/octet-stream",
-                        "uav:id": "{{methodId}}", "uav:componentOf": "nsu=urn:source;s=Alarm"
+                        "uav:id": "{{methodId}}", "uav:callObjectId": "nsu=urn:source;s=Alarm"
                       }]
                     }
                   }

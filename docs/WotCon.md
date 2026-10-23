@@ -746,7 +746,7 @@ Reads prefer `blobs/` and fall back to `staging/`, so content written but not ye
 
 Promotion also checks content integrity. Each referenced document is streamed and hashed as the snapshot is validated, so a blob whose bytes were altered without changing its length, or that cannot be read at all, fails the commit closed. The hash is computed incrementally over chunks, so verifying a document never requires holding it in memory. Structural validation runs first, so a malformed snapshot is reported for what is wrong with it rather than for content it was never entitled to reference.
 
-A commit no longer rewrites the whole corpus. A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
+A blob is written once per digest, so editing one document leaves every other document's file untouched — asserted by `MutatingOneResourceDoesNotRewriteAnotherResourceBytes`.
 
 A decorator around `IWotRegistryStore` **must** forward `IWotRegistryResourceStoreProvider`. A decorator that drops it leaves the registry service writing bytes into a private in-memory store while the wrapped store validates against its own, and every commit then reports the documents missing.
 
@@ -1196,12 +1196,10 @@ purpose is to select rather than define. A View owns no Node — it organizes No
 that already exist so a client can browse a subset shaped for one task — and a
 projection document is that construct in WoT.
 
-A current plan is stored as an ordinary Thing Description or Thing Model, with
+A plan is stored as an ordinary Thing Description or Thing Model, with
 the corresponding TD/TM format and media type. Its `@type` contains
 `uav:projection` and exactly one ordinary root role: `Thing` or
-`tm:ThingModel`. The retired `uav:projectionKind` term and projection-specific
-registry format and media type are rejected; there is no compatibility mode. It
-declares:
+`tm:ThingModel`. It declares:
 
 | Term | Meaning |
 |---|---|
@@ -1747,8 +1745,7 @@ bounded document/node/byte/depth budgets. Security names are qualified by source
 `E` percent-encodes the exact UTF-8 bytes using uppercase hexadecimal, preserves only
 RFC 3986 unreserved bytes (`A-Z`, `a-z`, `0-9`, `-`, `.`, `_`, `~`), and performs no
 Unicode normalization. Dependency-support names continue to use unpadded base64url.
-Generated security keys therefore differ from the historical base64url spelling;
-consumers must use the names in the resolved TD rather than deriving or caching the old spelling.
+Consumers use the security names in the resolved TD.
 Combos must be complete/acyclic and cannot confer host credentials on source origins.
 Literal instance values/opaque metadata are not searched for references.
 

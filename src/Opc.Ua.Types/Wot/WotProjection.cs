@@ -209,17 +209,6 @@ namespace Opc.Ua.Wot
             }
             bool isThingDescription = tokens.Contains("Thing");
             bool isThingModel = tokens.Contains("tm:ThingModel");
-            if (document.TryGetUav("projectionKind", out _))
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.ProjectionManifestInvalid,
-                    "uav:projectionKind is not part of the official projection format; " +
-                    "the @type shall carry the Thing or tm:ThingModel root role.",
-                    new WotLocation(reference: "uav:projectionKind")));
-                return WotDocumentKind.Unknown;
-            }
-
             if (isThingDescription == isThingModel)
             {
                 diagnostics.Add(new WotDiagnostic(

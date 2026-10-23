@@ -2196,17 +2196,11 @@ namespace Opc.Ua.Types.Tests.Wot
         }
         """;
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task RejectsRetiredDraftMarkersBeforeResolvingSourcesAsync(
-            bool includesProjectionKind)
+        [Test]
+        public async Task RejectsMissingRootRoleBeforeResolvingSourcesAsync()
         {
             JsonObject root = (JsonObject)JsonNode.Parse(SelfProjectionJson)!;
             root["@type"] = new JsonArray("uav:projection");
-            if (includesProjectionKind)
-            {
-                root["uav:projectionKind"] = "ThingDescription";
-            }
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var source = new Moq.Mock<IWotThingResolver>(Moq.MockBehavior.Strict);
             var resolver = new WotProjectionResolver(source.Object);

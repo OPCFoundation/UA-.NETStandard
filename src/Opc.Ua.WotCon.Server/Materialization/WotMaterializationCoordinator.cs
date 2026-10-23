@@ -1553,9 +1553,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             using WotDocument? document = TryParseDocument(content);
             if (document is null)
             {
-                return (false, WotProjectionAdmission.UsesRetiredProjectionFormat(version.Format, version.ContentType)
-                    ? "The stored projection plan is not a well-formed JSON document within the configured bounds."
-                    : null, false);
+                return (false, null, false);
             }
             return (WotProjection.IsProjection(document), WotProjectionAdmission.GetError(
                 document, resource.Kind, version.Format, version.ContentType),

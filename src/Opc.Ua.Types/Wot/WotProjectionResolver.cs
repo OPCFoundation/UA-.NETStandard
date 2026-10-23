@@ -1493,7 +1493,6 @@ namespace Opc.Ua.Wot
                         root[member.Name] = CloneNode(member.Value);
                         break;
                     case "uav:projects":
-                    case "uav:projectionKind":
                     case "properties":
                     case "actions":
                     case "events":

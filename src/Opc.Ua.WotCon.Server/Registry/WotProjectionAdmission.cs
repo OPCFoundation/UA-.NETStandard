@@ -55,21 +55,16 @@ namespace Opc.Ua.WotCon.Server.Registry
         {
             bool projection = WotProjection.IsProjection(document);
             bool hasProjectionManifest = document.TryGetUav("projects", out _);
-            if (!projection && !hasProjectionManifest && !UsesRetiredProjectionFormat(format, contentType))
+            if (!projection && !hasProjectionManifest)
             {
                 return null;
             }
 
             if (!projection)
             {
-                return "A projection manifest or retired projection format requires the uav:projection role in @type.";
+                return "A projection manifest requires the uav:projection role in @type.";
             }
 
-            if (document.TryGetUav("projectionKind", out _) ||
-                UsesRetiredProjectionFormat(format, contentType))
-            {
-                return "Only the official projection syntax and ordinary TD/TM format and media type are supported.";
-            }
             string expectedFormat = kind switch
             {
                 WoTDocumentKindEnum.ThingDescription => "WoT-TD/1.1",
@@ -106,20 +101,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return "The projection result kind must match the resource's stored TD/TM kind.";
             }
             return null;
-        }
-
-        /// <summary>
-        /// Determines whether the format or content type identifies an unresolved projection.
-        /// </summary>
-        /// <param name="format">The stored format.</param>
-        /// <param name="contentType">The content type.</param>
-        public static bool UsesRetiredProjectionFormat(string format, string contentType)
-        {
-            return format.StartsWith("WoT-Projection/", StringComparison.Ordinal) ||
-                string.Equals(
-                    contentType,
-                    "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"",
-                    StringComparison.Ordinal);
         }
     }
 }

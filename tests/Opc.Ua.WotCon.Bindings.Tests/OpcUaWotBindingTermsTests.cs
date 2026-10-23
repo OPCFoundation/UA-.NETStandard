@@ -47,7 +47,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     /// <summary>
     /// Covers the WoT Binding 1.1 runtime terms the OPC UA binding compiles:
     /// the event field selection of Section 6.1, its implicit
-    /// <c>BaseEventType</c> default and the superseded <c>uav:eventFields</c>
+    /// <c>BaseEventType</c> default and unknown terms
     /// spelling, and the <c>auto</c> endpoint security floor of Section 5.7.1
     /// together with its deterministic tie-break and fail-closed enforcement.
     /// </summary>
@@ -904,10 +904,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that the standard term wins over the superseded spelling and the conflict is reported.
+        /// Verifies that an unknown event term does not affect the current selection or report a conflict.
         /// </summary>
         [Test]
-        public void TheStandardTermWinsOverTheSupersededSpellingAndTheConflictIsReported()
+        public void UnknownEventFieldsDoNotAffectTheCurrentSelectionOrReportAConflict()
         {
             WotAffordanceForm form = MakeEventForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"," +
@@ -928,20 +928,20 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             {
                 Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Standard));
                 Assert.That(selection.Clauses.Count, Is.EqualTo(1),
-                    "The resolved selection is honoured; the superseded spelling is not merged.");
+                    "The resolved selection is honoured without merging unknown metadata.");
                 Assert.That(
                     result.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.ConflictingFields),
-                    Is.True,
+                    Is.False,
                     Describe(result));
             });
         }
 
         /// <summary>
-        /// Verifies that the superseded spelling alone is read and reported.
+        /// Verifies that unknown event metadata is ignored without replacing the default selection.
         /// </summary>
         [Test]
-        public void TheSupersededSpellingAloneIsReadAndReported()
+        public void UnknownEventFieldsDoNotReplaceTheDefaultSelection()
         {
             WotBindingCompilation result = CompileEventWithForm(
                 "{\"href\":\"opc.tcp://server.example.com:4840\",\"uav:id\":\"i=2253\"," +
@@ -951,13 +951,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
             Assert.Multiple(() =>
             {
+                WotEventSelection selection = result.Entries[0].EventSelection!;
+                Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Default));
                 Assert.That(
-                    result.Entries[0].EventSelection!.Origin,
-                    Is.EqualTo(WotEventSelectionOrigin.Legacy));
+                    selection.Clauses.ToList().Select(c => c.BrowsePath),
+                    Is.EqualTo(WotEventSelectClauses.DefaultFieldNames.ToList()));
                 Assert.That(
                     result.Diagnostics.Any(d =>
                         d.Code == WotBindingDiagnosticCode.UnknownVocabularyTerm),
-                    Is.True,
+                    Is.False,
                     Describe(result));
             });
         }

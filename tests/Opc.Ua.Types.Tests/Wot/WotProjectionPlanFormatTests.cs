@@ -85,6 +85,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl(string kind, string expectedType)
         {
             JsonObject root = Plan(kind);
+            root["vendor:metadata"] = "retained";
             var source = new Mock<IWotThingResolver>();
             source.Setup(resolver => resolver.ResolveThingAsync(
                     "urn:plan:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
@@ -100,7 +101,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 .Select(value => value.GetString()), Does.Contain(expectedType));
             Assert.That(resolved.Kind, Is.EqualTo(kind == "ThingModel"
                 ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription));
-            Assert.That(resolved.RootElement.TryGetProperty("uav:projectionKind", out _), Is.False);
+            Assert.That(resolved.RootElement.TryGetProperty("uav:projects", out _), Is.False);
+            Assert.That(resolved.RootElement.GetProperty("vendor:metadata").GetString(), Is.EqualTo("retained"));
             Assert.That(WotProjection.IsProjection(resolved), Is.False);
             Assert.That(resolved.Properties["value"].GetProperty("forms").GetArrayLength(), Is.EqualTo(1));
             Assert.That(document.RootElement.GetProperty("@type").GetArrayLength(), Is.EqualTo(2));
@@ -128,19 +130,20 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that the old result-kind term is rejected unless compatibility is explicit.
+        /// Verifies that unknown metadata does not select the result kind.
         /// </summary>
         [Test]
-        public void ACurrentPlanRejectsTheLegacyProjectionKindTerm()
+        public void UnknownMetadataDoesNotSelectTheResultKind()
         {
             JsonObject root = Plan("ThingDescription");
-            root["uav:projectionKind"] = "ThingDescription";
+            root["uav:unknown"] = "ThingModel";
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var diagnostics = new List<WotDiagnostic>();
 
-            WotProjection.Parse(document, diagnostics);
+            WotProjection? parsed = WotProjection.Parse(document, diagnostics);
 
-            Assert.That(diagnostics.Any(value => value.Severity == WotDiagnosticSeverity.Error), Is.True);
+            Assert.That(parsed.Required().ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription));
+            Assert.That(diagnostics, Is.Empty);
         }
 
         /// <summary>
@@ -159,16 +162,16 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(parsed.Required().ResultKind, Is.EqualTo(expected));
             Assert.That(diagnostics.Any(value => value.Severity == WotDiagnosticSeverity.Error), Is.False);
-            Assert.That(document.RootElement.TryGetProperty("uav:projectionKind", out _), Is.False);
         }
 
         /// <summary>
-        /// Verifies that a retired draft projection is rejected before source resolution.
+        /// Verifies that a plan without an ordinary root role fails before source resolution.
         /// </summary>
         [Test]
-        public async Task ResolverRejectsRetiredDraftPlansBeforeResolvingSources()
+        public async Task ResolverRejectsMissingRootRoleBeforeResolvingSources()
         {
-            JsonObject root = LegacyPlan("ThingDescription");
+            JsonObject root = Plan("ThingDescription");
+            root["@type"] = new JsonArray("uav:projection");
             var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var resolver = new WotProjectionResolver(source.Object);
@@ -191,7 +194,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// Verifies that nested plan sources use their ordinary TD media type.
         /// </summary>
         [Test]
-        public async Task NestedPlanSourcesUseTheProjectionMediaType()
+        public async Task NestedPlanSourcesUseTheirOrdinaryMediaType()
         {
             JsonObject root = Plan("ThingDescription");
             JsonObject nested = Plan("ThingDescription");
@@ -219,14 +222,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Verifies that a projection source cannot declare the retired draft media type.
+        /// Verifies that a projection source requires a supported media type.
         /// </summary>
         [Test]
-        public async Task ResolverRejectsRetiredProjectionSourceMediaTypeBeforeResolvingAsync()
+        public async Task ResolverRejectsUnsupportedSourceMediaTypeBeforeResolvingAsync()
         {
             JsonObject root = Plan("ThingDescription");
             root["uav:projects"]![0]!["type"] =
-                "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
+                "application/x-unsupported";
             var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var resolver = new WotProjectionResolver(source.Object);
@@ -326,14 +329,6 @@ namespace Opc.Ua.Types.Tests.Wot
             };
         }
 
-        private static JsonObject LegacyPlan(string kind)
-        {
-            JsonObject root = Plan(kind);
-            root["@type"] = new JsonArray("uav:projection");
-            root["uav:projectionKind"] = kind;
-            return root;
-        }
-
         private const string SourceJson = """
             {
               "@context":"https://www.w3.org/2022/wot/td/v1.1",
@@ -348,17 +343,12 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             """;
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task StrictResolverRejectsRetiredDraftMarkersBeforeResolvingSourcesAsync(
-            bool includesProjectionKind)
+        [TestCase("[\"uav:projection\",\"Thing\",\"tm:ThingModel\"]")]
+        [TestCase("[\"uav:projection\",\"Thing\",\"uav:object\"]")]
+        public async Task ResolverRejectsConflictingRootRolesBeforeResolvingSourcesAsync(string roles)
         {
             JsonObject root = Plan("ThingDescription");
-            root["@type"] = new JsonArray("uav:projection");
-            if (includesProjectionKind)
-            {
-                root["uav:projectionKind"] = "ThingDescription";
-            }
+            root["@type"] = JsonNode.Parse(roles);
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(root.ToJsonString()));
             var source = new Mock<IWotThingResolver>(MockBehavior.Strict);
             var resolver = new WotProjectionResolver(source.Object);
@@ -378,21 +368,16 @@ namespace Opc.Ua.Types.Tests.Wot
             source.VerifyNoOtherCalls();
         }
 
-        [TestCase("projection-kind")]
         [TestCase("node-class-role")]
         [TestCase("marker-only-root-role")]
-        public async Task OrdinaryNodeSetConversionRejectsRetiredProjectionMarkersInStrictModeAsync(
+        public async Task OrdinaryNodeSetConversionRejectsInvalidProjectionRolesAsync(
             string markerCase)
         {
             JsonObject root = Plan("ThingDescription");
             root["uav:id"] = "nsu=urn:projection:namespace;i=11";
             root["uav:namespaceUri"] = "urn:projection:namespace";
             root["uav:name"] = "Projection";
-            if (markerCase == "projection-kind")
-            {
-                root["uav:projectionKind"] = "ThingDescription";
-            }
-            else if (markerCase == "marker-only-root-role")
+            if (markerCase == "marker-only-root-role")
             {
                 root["@type"] = new JsonArray("uav:projection");
             }

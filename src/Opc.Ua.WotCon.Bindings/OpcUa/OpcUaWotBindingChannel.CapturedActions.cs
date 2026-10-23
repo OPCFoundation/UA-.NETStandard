@@ -30,6 +30,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.OpcUa
 {
@@ -59,9 +60,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 throw new ServiceResultException(
                     StatusCodes.BadSecurityChecksFailed, "A Condition action requires an authenticated action source.");
             }
-            bool explicitReceiver = Form.Addressing.Metadata.TryGetValue("callObjectId", out string? receiverText);
-            if ((!explicitReceiver && !Form.Addressing.Metadata.TryGetValue("componentOf", out receiverText)) ||
+            if (!Form.Addressing.Metadata.TryGetValue("callObjectId", out string? receiverText) ||
                 string.IsNullOrEmpty(receiverText) ||
+                !WotPortableIdentity.IsPortableNodeId(receiverText) ||
                 !TryResolveNodeId(receiverText, out NodeId receiver, source.Context.NamespaceUris))
             {
                 throw new ServiceResultException(StatusCodes.BadNodeIdInvalid);

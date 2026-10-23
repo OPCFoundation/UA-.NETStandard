@@ -96,7 +96,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             WriteNonOrganizingLinks(writer, property.Value);
                             break;
                         case "uav:id":
-                        case "uav:projectionKind":
                         case "uav:projects":
                         case "uav:scenario":
                             break;

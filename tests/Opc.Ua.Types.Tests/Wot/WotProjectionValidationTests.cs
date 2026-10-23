@@ -440,27 +440,14 @@ namespace Opc.Ua.Types.Tests.Wot
             });
         }
 
-        [TestCase(true, "uav:projectionKind")]
-        [TestCase(false, "@type")]
-        public void RetiredDraftMarkersAreRejectedWithStrictDiagnostics(
-            bool includesProjectionKind,
-            string expectedReference)
+        [Test]
+        public void MissingOrdinaryRootRoleHasATypeDiagnostic()
         {
             string json = Projection();
-            if (includesProjectionKind)
-            {
-                json = json.Replace(
-                    "\"uav:projects\":",
-                    "\"uav:projectionKind\":\"ThingDescription\",\"uav:projects\":",
-                    StringComparison.Ordinal);
-            }
-            else
-            {
-                json = json.Replace(
-                    "\"@type\": [\"Thing\", \"uav:projection\"]",
-                    "\"@type\": [\"uav:projection\"]",
-                    StringComparison.Ordinal);
-            }
+            json = json.Replace(
+                "\"@type\": [\"Thing\", \"uav:projection\"]",
+                "\"@type\": [\"uav:projection\"]",
+                StringComparison.Ordinal);
 
             using WotDocument document = Parse(json);
             var diagnostics = new List<WotDiagnostic>();
@@ -473,7 +460,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 Assert.That(projection, Is.Not.Null);
                 Assert.That(error, Is.Not.Null, string.Join("; ", diagnostics));
-                Assert.That(error!.Location?.Reference, Is.EqualTo(expectedReference));
+                Assert.That(error!.Location?.Reference, Is.EqualTo("@type"));
             });
         }
     }

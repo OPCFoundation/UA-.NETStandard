@@ -458,12 +458,12 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`, and the receiver by form-scoped `uav:callObjectId`. A legacy form-scoped `uav:componentOf` receiver remains readable with a warning; local containment is not receiver authority. |
+| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`, and the receiver by form-scoped `uav:callObjectId`. Local containment is not receiver authority. |
 | `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
-A compiled form's NodeId (`uav:id`, and `uav:callObjectId` or legacy form-scoped `uav:componentOf` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+A compiled form's NodeId (`uav:id`, and `uav:callObjectId` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
 
 <a id="event-field-selection"></a>
 
@@ -637,13 +637,8 @@ reaches `WotEventDataBuilder` — a plan assembled around the planner, or a Serv
 field list the selection does not describe — the first stated clause keeps the
 member and the collision is logged as an error rather than silently dropped.
 
-The superseded `uav:eventFields` spelling this implementation minted before the term was
-standardized is still **read** — it is authored on a form, carries bare browse names and
-*adds* to the default selection — and is never **written**. Where a form carries both,
-the standardized term wins and the contradiction is reported (`ConflictingFields`)
-rather than silently merged. New documents should author the standardized terms
-instead: link the EventType definition with `tm:ref` and state only the clauses that
-refine it, as described above.
+An event affordance links its EventType definition with `tm:ref` and states the
+clauses that refine it with `uav:eventSelectClauses`, as described above.
 
 ### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
 
@@ -1553,7 +1548,7 @@ round-trip guarantees.
 
 The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
 local regression fixtures. They exercise parsing, conversion, import, and
-projection behavior, including rejection of retired projection annotations.
+projection behavior, including validation of projection root roles.
 They are not authoritative copies of the current specification examples and
 must not be treated as evidence of current WoT conformance.
 

@@ -112,7 +112,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Indexes available native projection partitions from enabled registry resources within configured bounds.
         /// </summary>
         /// <param name="contents">The captured content indexed by digest.</param>
-        /// <param name="options">The conversion limits and projection compatibility settings.</param>
+        /// <param name="options">The conversion settings and limits.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         public void AddAvailableNativePartitions(
             IReadOnlyDictionary<string, ByteString> contents,

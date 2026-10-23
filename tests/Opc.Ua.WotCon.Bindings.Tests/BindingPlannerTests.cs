@@ -45,15 +45,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     public sealed class BindingPlannerTests
     {
         /// <summary>
-        /// The implicit BaseEventType default clauses followed by the two clauses that the
-        /// superseded <c>uav:eventFields</c> spelling adds to them.
-        /// </summary>
-        private static readonly string[] s_legacyEventFieldsOnDefault =
-        [
-            "EventId", "EventType", "SourceNode", "SourceName",
-            "Time", "ReceiveTime", "Message", "Severity", "LocalTime"
-        ];
-
         private static WotBindingPlanContext DefaultContext()
         {
             return new WotBindingPlanContext();
@@ -1170,10 +1161,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that the OPC UA planner carries the component-of target into compiled metadata.
+        /// Verifies that the OPC UA planner does not retain component-of in compiled metadata.
         /// </summary>
         [Test]
-        public void OpcUaPlannerAddsComponentOfToMetadata()
+        public void OpcUaPlannerDoesNotRetainComponentOfInCompiledMetadata()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
@@ -1185,7 +1176,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
 
             Assert.That(result.IsSupported, Is.True);
-            Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("componentOf"), Is.True);
+            Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("componentOf"), Is.False);
         }
 
         /// <summary>
@@ -1217,7 +1208,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that OPC UA planner rejects an invalid explicit receiver instead of using a legacy fallback.
+        /// Verifies that OPC UA planner rejects an invalid explicit receiver even when component-of is present.
         /// </summary>
         [TestCase("null")]
         [TestCase("[]")]
@@ -1226,7 +1217,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("\"ns=1;s=Device\"")]
         [TestCase("\"svr=1;i=1\"")]
         [TestCase("\"i=0\"")]
-        public void OpcUaPlannerRejectsAnInvalidExplicitReceiverInsteadOfUsingALegacyFallback(string receiver)
+        public void OpcUaPlannerRejectsAnInvalidExplicitReceiverEvenWhenComponentOfIsPresent(string receiver)
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeActionForm(
@@ -1245,10 +1236,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that OPC UA planner rejects local placement arrays as call receiver authority.
+        /// Verifies that component-of alone is not accepted as a Call receiver.
         /// </summary>
         [Test]
-        public void OpcUaPlannerRejectsLocalPlacementArraysAsCallReceiverAuthority()
+        public void OpcUaPlannerRejectsComponentOfAloneAsCallReceiver()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeActionForm(
@@ -1257,7 +1248,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 {
                   "href": "opc.tcp://source:4840",
                   "uav:id": "nsu=urn:source;s=Run",
-                  "uav:componentOf": ["nsu=urn:local;s=Projection"],
+                  "uav:componentOf": "nsu=urn:source;s=Device",
                   "op": "invokeaction"
                 }
                 """);
@@ -1268,13 +1259,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries, Is.Empty);
             Assert.That(result.Diagnostics.Any(d =>
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Message.Contains("uav:callObjectId", System.StringComparison.Ordinal)), Is.True);
         }
 
         /// <summary>
-        /// Verifies that legacy event fields are compiled onto the documented default event selection.
+        /// Verifies that unknown event fields do not alter the documented default event selection.
         /// </summary>
         [Test]
-        public void OpcUaPlannerCompilesLegacyEventFieldsOntoTheDocumentedDefault()
+        public void OpcUaPlannerIgnoresUnknownEventFieldsAndUsesTheDocumentedDefault()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeEventForm(
@@ -1287,11 +1280,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
             WotEventSelection? selection = result.Entries[0].EventSelection;
             Assert.That(selection, Is.Not.Null);
-            Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
+            Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Default));
             Assert.That(
                 selection.Clauses.ToList().Select(c => c.BrowsePath),
-                Is.EqualTo(s_legacyEventFieldsOnDefault),
-                "The superseded spelling adds to the implicit BaseEventType default and never repeats it.");
+                Is.EqualTo(WotEventSelectClauses.DefaultFieldNames.ToList()),
+                "The unknown term does not add LocalTime to the implicit BaseEventType default.");
         }
 
         /// <summary>

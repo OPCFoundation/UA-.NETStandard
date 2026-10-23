@@ -52,22 +52,21 @@ namespace Opc.Ua.WotCon.Tests.Registry
     [Category("WoT")]
     public sealed class WotRegistryProjectionFormatTests
     {
-        private const string RetiredProjectionContentType =
-            "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
+        private const string UnsupportedContentType = "application/x-unsupported";
 
         /// <summary>
-        /// Verifies that projection plans reject mismatched or legacy-only metadata.
+        /// Verifies that projection plans require matching TD/TM format and media type.
         /// </summary>
         /// <param name="format">The projection format text.</param>
         /// <param name="contentType">The content type used by this test case.</param>
         [TestCase("WoT-TM/1.1", "application/tm+json")]
-        [TestCase("WoT-Projection/1.1", "application/td+json")]
-        [TestCase("WoT-TD/1.1", RetiredProjectionContentType)]
-        [TestCase("WoT-Projection/1.1", RetiredProjectionContentType)]
-        [TestCase("WoT-Projection/9.9", RetiredProjectionContentType)]
+        [TestCase("Unsupported/1.1", "application/td+json")]
+        [TestCase("WoT-TD/1.1", UnsupportedContentType)]
+        [TestCase("Unsupported/1.1", UnsupportedContentType)]
+        [TestCase("WoT-TD/9.9", "application/td+json")]
         [TestCase("", "application/td+json")]
         [TestCase("WoT-TD/1.1", "")]
-        public async Task ProjectionPlansRejectMismatchedOrLegacyMetadata(string format, string contentType)
+        public async Task ProjectionPlansRequireMatchingFormatAndMediaType(string format, string contentType)
         {
             using var service = new WotRegistryService();
             WotUpsertResourceRequest request = Request(WoTDocumentKindEnum.ThingDescription);
@@ -242,8 +241,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         /// <param name="contentType">The content type used by this test case.</param>
         /// <param name="storedKind">The stored kind used by this test case.</param>
         [TestCase("WoT-TD/1.1", "application/json", WoTDocumentKindEnum.ThingDescription)]
-        [TestCase("WoT-Projection/1.1", "application/td+json", WoTDocumentKindEnum.ThingDescription)]
-        [TestCase("WoT-Projection/1.1", RetiredProjectionContentType, WoTDocumentKindEnum.ThingModel)]
+        [TestCase("Unsupported/1.1", "application/td+json", WoTDocumentKindEnum.ThingDescription)]
+        [TestCase("Unsupported/1.1", UnsupportedContentType, WoTDocumentKindEnum.ThingModel)]
         public async Task RestoredPlanAdmissionRunsBeforeAnyRuntimePublication(
             string format, string contentType, WoTDocumentKindEnum storedKind)
         {
@@ -438,14 +437,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         /// <summary>
-        /// Verifies that registry uploads reject the legacy projection-kind syntax without publishing a resource.
+        /// Verifies that a projection without an ordinary root role cannot publish a resource.
         /// </summary>
         /// <param name="kind">The declared resource kind.</param>
         [TestCase(WoTDocumentKindEnum.ThingDescription)]
         [TestCase(WoTDocumentKindEnum.ThingModel)]
-        public async Task UpsertRejectsLegacyProjectionKindSyntaxWithoutPublishing(WoTDocumentKindEnum kind)
+        public async Task UpsertRejectsMissingRootRoleWithoutPublishing(WoTDocumentKindEnum kind)
         {
-            JsonObject document = LegacyPlan(kind);
+            JsonObject document = PlanWithoutRootRole(kind);
             WotUpsertResourceRequest request = Request(kind);
             request.Content = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
             using var service = new WotRegistryService();
@@ -463,17 +462,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         /// <summary>
-        /// Verifies that the exact legacy projection format and profile are rejected without publishing a resource.
+        /// Verifies that unsupported metadata cannot publish a resource.
         /// </summary>
         /// <param name="kind">The declared resource kind.</param>
         [TestCase(WoTDocumentKindEnum.ThingDescription)]
         [TestCase(WoTDocumentKindEnum.ThingModel)]
-        public async Task UpsertRejectsLegacyProjectionFormatAndProfileWithoutPublishing(WoTDocumentKindEnum kind)
+        public async Task UpsertRejectsUnsupportedFormatAndMediaTypeWithoutPublishing(WoTDocumentKindEnum kind)
         {
-            JsonObject document = LegacyPlan(kind);
+            JsonObject document = Plan(kind);
             WotUpsertResourceRequest request = Request(kind);
-            request.Format = "WoT-Projection/1.1";
-            request.ContentType = RetiredProjectionContentType;
+            request.Format = "Unsupported/1.1";
+            request.ContentType = UnsupportedContentType;
             request.Content = ByteString.From(Encoding.UTF8.GetBytes(document.ToJsonString()));
             using var service = new WotRegistryService();
             int publications = 0;
@@ -490,14 +489,14 @@ namespace Opc.Ua.WotCon.Tests.Registry
         }
 
         /// <summary>
-        /// Verifies that restoring the exact legacy projection format and profile fails before runtime publication.
+        /// Verifies that restoring unsupported metadata fails before runtime publication.
         /// </summary>
         [Test]
-        public async Task RestoredLegacyProjectionFormatAndProfileAreRejectedBeforeRuntimePublication()
+        public async Task RestoredUnsupportedMetadataFailsBeforeRuntimePublication()
         {
             string root = Path.Combine(
                 TestContext.CurrentContext.WorkDirectory,
-                "legacy-format-restore",
+                "unsupported-format-restore",
                 Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             try
@@ -527,8 +526,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 JsonObject resource = group["Resources"]!.AsArray().OfType<JsonObject>()
                     .Single(value => value["ResourceId"]!.GetValue<string>() == "view");
                 JsonObject version = resource["Versions"]![0]!.AsObject();
-                version["Format"] = "WoT-Projection/1.1";
-                version["ContentType"] = RetiredProjectionContentType;
+                version["Format"] = "Unsupported/1.1";
+                version["ContentType"] = UnsupportedContentType;
                 File.WriteAllText(manifestPath, manifest.ToJsonString());
 
                 await using PreparedWotTestRuntime runtime =
@@ -608,12 +607,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
         }
 
-        private static JsonObject LegacyPlan(WoTDocumentKindEnum kind)
+        private static JsonObject PlanWithoutRootRole(WoTDocumentKindEnum kind)
         {
             JsonObject document = Plan(kind);
             document["@type"] = new JsonArray("uav:projection");
-            document["uav:projectionKind"] = kind == WoTDocumentKindEnum.ThingModel
-                ? "ThingModel" : "ThingDescription";
             return document;
         }
 

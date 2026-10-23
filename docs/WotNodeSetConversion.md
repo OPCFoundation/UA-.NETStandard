@@ -90,8 +90,7 @@ This implementation tracks **WoT Binding revision 1.1**, exposed by
 
 The `uav` prefix binds to `http://opcfoundation.org/UA/WoT-Binding/`. The
 reader matches compact `uav:` names without resolving the prefix's IRI, in
-both permissive and strict mode. Documents using the earlier
-`http://opcfoundation.org/UA/WoT/v1#` draft prefix binding remain readable.
+both permissive and strict mode.
 
 Specification fixtures under `tests/Opc.Ua.Types.Tests/Wot/Assets` record
 their source revisions and hashes in `spec-examples.manifest.json`.

@@ -175,14 +175,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             StatusCodes.BadInvalidState,
                             "An active publication has no exact committed input record; recovery cannot infer its bytes.");
                     }
-                    if (WotProjectionAdmission.UsesRetiredProjectionFormat(
-                        resource.CommittedVersion.Format, resource.CommittedVersion.ContentType) &&
-                        view is not { Active: true })
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadInvalidState,
-                            "A committed projection Resource is missing from the active canonical publication.");
-                    }
                     if (view is { Requested: false })
                     {
                         continue;

@@ -1587,7 +1587,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     JsonElement form = AssertSingleForm(action.Value, name);
                     Assert.That(form.GetProperty("href").GetString(), Is.EqualTo(SourceEndpoint(source)), name);
                     Assert.That(
-                        form.GetProperty("uav:componentOf").GetString(),
+                        form.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(SourceNodeId(source, pumpName, string.Empty)),
                         name);
                     Assert.That(form.GetProperty("uav:id").GetString(),
@@ -1633,7 +1633,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     JsonElement form = AssertSingleForm(action.Value, name);
                     Assert.That(form.GetProperty("href").GetString(), Is.EqualTo(SourceEndpoint(source)), name);
                     Assert.That(form.GetProperty("uav:id").GetString(), Is.EqualTo(methodId), name);
-                    Assert.That(form.GetProperty("uav:componentOf").GetString(),
+                    Assert.That(form.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(SourceNodeId(source, pumpName, path)), name);
                     Assert.That(StringValues(form.GetProperty("op")), Is.EqualTo(s_invokeOperations), name);
                 }
@@ -2019,9 +2019,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(sourceForm.GetProperty("href").GetString()), member.Name);
                 Assert.That(StringValues(actualForm.GetProperty("op")),
                     Is.EqualTo(StringValues(sourceForm.GetProperty("op"))), member.Name);
-                if (sourceForm.TryGetProperty("uav:componentOf", out JsonElement sourceOwner))
+                if (sourceForm.TryGetProperty("uav:callObjectId", out JsonElement sourceOwner))
                 {
-                    Assert.That(actualForm.GetProperty("uav:componentOf").GetString(),
+                    Assert.That(actualForm.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(sourceOwner.GetString()), member.Name);
                 }
                 if (mapName == "properties")

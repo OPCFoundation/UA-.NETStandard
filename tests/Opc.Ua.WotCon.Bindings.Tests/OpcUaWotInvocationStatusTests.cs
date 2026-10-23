@@ -85,7 +85,32 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that invalid explicit call receiver cannot fall back to legacy placement.
+        /// Verifies that component-of metadata alone cannot provide a Call receiver.
+        /// </summary>
+        [Test]
+        public async Task ComponentOfAloneCannotProvideCallReceiver()
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:source");
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            WotCompiledForm form = CreateForm(
+                ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:source;s=Owner"));
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
+            Assert.That(result.Error, Does.Contain("uav:callObjectId"));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that an invalid Call receiver cannot fall back to component-of.
         /// </summary>
         [TestCase("")]
         [TestCase("not-a-node-id")]
@@ -93,7 +118,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("ns=1;s=Owner")]
         [TestCase("svr=1;i=1")]
         [TestCase("i=0")]
-        public async Task InvalidExplicitCallReceiverCannotFallBackToLegacyPlacement(string receiver)
+        public async Task InvalidCallObjectIdCannotFallBackToComponentOf(string receiver)
         {
             var namespaces = new NamespaceTable();
             namespaces.Append("urn:source");
@@ -507,7 +532,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 new WotEndpointDescriptor("opc.tcp", "source", 4840, "opc.tcp://source:4840"),
                 new WotAddressingDescriptor("nsu=urn:source;s=Run",
                     addressing ??
-                    ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:source;s=Owner")),
+                    ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:source;s=Owner")),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.InvokeAction, "invokeaction", "Call"),
                 new WotPayloadDescriptor("application/octet-stream", "binary"), [], true);
         }

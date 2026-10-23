@@ -94,7 +94,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <summary>
         /// Gets or sets whether an authored projection role selects the ordinary TD or TM Format and
         /// ContentType before validation. Defaults to <c>false</c>, preserving explicit format admission.
-        /// This does not enable legacy projection syntax or change the requested document kind.
+        /// The requested document kind must match the authored root role.
         /// </summary>
         public bool DetectProjectionFormat { get; set; }
 
