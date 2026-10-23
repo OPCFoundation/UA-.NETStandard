@@ -236,11 +236,17 @@ Caller-supplied TD targets are permitted when these host rules match.
 | Modbus | Existing planner method, for example `readHoldingRegisters` | `unit=1;function=readHoldingRegisters;address=100;quantity=2` |
 | OPC UA read/write/observe | `Read`, `Write`, `Subscribe` or `EventSubscribe` | Namespace-qualified node identifier |
 | OPC UA call | `Call` | `object=<namespace-qualified NodeId>;method=<namespace-qualified NodeId>` |
+| OPC UA path call | `Call` | Browse-path selector (format below) |
 
 Every call rechecks `WotRuntime`; writes additionally need `WotWrite`, and actions
 need `WotInvoke`. OPC UA additionally requires the exact named-session grant.
 Generic UA protection is reused for OPC UA writes/actions so a WoT form cannot
 bypass typed, secret-safe GDS or identity-administration tools.
+When the Method has no direct NodeId, the preflight resource is
+`object=<NodeId>;browsePath=<anchor>|<path>`; the anchor and path are percent-encoded
+separately. This admits metadata resolution before any UA service request. The
+resolved Method/receiver pair still needs its own exact grant before runtime
+activation.
 
 HTTP has no redirects, cookies, ambient credentials or proxy. The socket callback
 uses the approved IP from a single DNS resolution while TLS retains the original

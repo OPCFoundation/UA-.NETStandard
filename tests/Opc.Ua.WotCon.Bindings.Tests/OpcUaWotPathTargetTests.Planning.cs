@@ -131,6 +131,44 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies matching explicit and href-path NodeIds are normalized together:
+        /// the endpoint loses its NodeId suffix while the planned target retains it.
+        /// </summary>
+        [TestCase(WotBindingProcessingMode.Current)]
+        [TestCase(WotBindingProcessingMode.PublishedOneZero)]
+        public void ExplicitNumericIdMatchingHrefPathIsRemovedFromEndpoint(WotBindingProcessingMode mode)
+        {
+            const string document = """
+                {
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "forms": [{
+                        "href": "opc.tcp://server:4840/i=2258",
+                        "uav:id": "i=2258",
+                        "op": "readproperty"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = Registry(new Mock<ISession>()).Prepare(
+                WotBindingPlanRequest.FromDocument(
+                    "matching-id-href-path",
+                    WoTDocumentKindEnum.ThingDescription,
+                    Encoding.UTF8.GetBytes(document),
+                    selection: new WotBindingSelectionContext([], [], mode)));
+
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1), string.Join("; ", plan.Diagnostics));
+            WotCompiledForm form = plan.CompiledForms[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(form.Endpoint.BaseUri, Is.EqualTo("opc.tcp://server:4840"));
+                Assert.That(form.Addressing.Target, Is.EqualTo("i=2258"));
+            });
+        }
+
+        /// <summary>
         /// Verifies that direct form construction uses the same scoped capture as document extraction.
         /// </summary>
         [Test]

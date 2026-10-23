@@ -138,6 +138,29 @@ namespace Opc.Ua.WotCon.Bindings
             NamespaceTable namespaceUris,
             ITypeTable? typeTable = null)
         {
+            return WithNativeArgumentOrder(
+                inputArguments, outputArguments, namespaceUris, typeTable, allowSingleValueNameMismatch: false);
+        }
+
+        /// <summary>
+        /// Resolves native argument order and optionally ignores synthetic names for one-value layouts.
+        /// </summary>
+        /// <param name="inputArguments">The ordered native input arguments.</param>
+        /// <param name="outputArguments">The ordered native output arguments.</param>
+        /// <param name="namespaceUris">The endpoint namespace table.</param>
+        /// <param name="typeTable">The endpoint type table.</param>
+        /// <param name="allowSingleValueNameMismatch">Whether single-value layouts may use native descriptive names.</param>
+        internal WotPayloadDescriptor WithNativeArgumentOrder(
+            ArrayOf<Argument> inputArguments,
+            ArrayOf<Argument> outputArguments,
+            NamespaceTable namespaceUris,
+            ITypeTable? typeTable,
+            bool allowSingleValueNameMismatch)
+        {
+            if (namespaceUris is null)
+            {
+                throw new ArgumentNullException(nameof(namespaceUris));
+            }
             WotMethodArgumentLayout input = ResolveNativeOrder(InputLayout, inputArguments);
             WotMethodArgumentLayout output = ResolveNativeOrder(OutputLayout, outputArguments);
             var resolved = new WotPayloadDescriptor(ContentType, CodecId, Metadata)
@@ -146,7 +169,11 @@ namespace Opc.Ua.WotCon.Bindings
                 OutputLayout = output,
                 Schema = Schema
             };
-            resolved.ValidateMethodSignature(inputArguments, outputArguments, namespaceUris, typeTable);
+            resolved.ValidateArgumentLayouts();
+            resolved.ValidateSignature(
+                inputArguments, input, "input", namespaceUris, typeTable, allowSingleValueNameMismatch);
+            resolved.ValidateSignature(
+                outputArguments, output, "output", namespaceUris, typeTable, allowSingleValueNameMismatch);
             resolved.m_nativeInputs = CaptureNativeTypes(inputArguments, namespaceUris, typeTable);
             resolved.m_nativeOutputs = CaptureNativeTypes(outputArguments, namespaceUris, typeTable);
             return resolved;
@@ -211,7 +238,8 @@ namespace Opc.Ua.WotCon.Bindings
             WotMethodArgumentLayout? layout,
             string member,
             NamespaceTable namespaceUris,
-            ITypeTable? typeTable)
+            ITypeTable? typeTable,
+            bool allowSingleValueNameMismatch = false)
         {
             if (layout is null)
             {
@@ -228,10 +256,13 @@ namespace Opc.Ua.WotCon.Bindings
                 WotPayloadTypeBinding binding = GetArgumentBinding(schema, layout, member, index);
                 var expected = ExpandedNodeId.ToNodeId(binding.DataTypeId, namespaceUris);
                 Argument argument = arguments[index];
+                bool validateName = !allowSingleValueNameMismatch ||
+                    layout.Kind != WotMethodArgumentLayoutKind.Single;
                 if (argument is null ||
                     !MatchesDataType(argument.DataType, expected, typeTable) ||
                     argument.ValueRank != binding.TypeInfo.ValueRank ||
-                    !string.Equals(argument.Name, layout.GetArgumentName(index), StringComparison.Ordinal))
+                    (validateName &&
+                        !string.Equals(argument.Name, layout.GetArgumentName(index), StringComparison.Ordinal)))
                 {
                     throw new ServiceResultException(StatusCodes.BadConfigurationError,
                         $"The local Method's {member} argument at position {index} " +

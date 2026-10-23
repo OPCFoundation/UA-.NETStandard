@@ -398,6 +398,8 @@ namespace Opc.Ua.WotCon.Bindings
                     SourceCallError = SourceCallError,
                     SourceComponentOf = SourceComponentOf,
                     HasPublishedTargetCapture = HasPublishedTargetCapture,
+                    PublishedCallObjectId = PublishedCallObjectId,
+                    PublishedCallObjectIdError = PublishedCallObjectIdError,
                     PublishedNodeId = PublishedNodeId,
                     PublishedHrefNodeId = PublishedHrefNodeId,
                     PublishedHrefNodeIdInPath = PublishedHrefNodeIdInPath,

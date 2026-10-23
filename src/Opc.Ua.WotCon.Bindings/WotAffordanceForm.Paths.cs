@@ -73,6 +73,16 @@ namespace Opc.Ua.WotCon.Bindings
         internal bool HasPublishedTargetCapture { get; private init; }
 
         /// <summary>
+        /// Gets the canonical form-level Call receiver captured for published processing.
+        /// </summary>
+        internal string? PublishedCallObjectId { get; private init; }
+
+        /// <summary>
+        /// Gets the published Call receiver capture error, if any.
+        /// </summary>
+        internal string? PublishedCallObjectIdError { get; private init; }
+
+        /// <summary>
         /// Gets the canonical form-level target NodeId captured for published processing.
         /// </summary>
         internal string? PublishedNodeId { get; private init; }
@@ -138,16 +148,21 @@ namespace Opc.Ua.WotCon.Bindings
             string? publishedHrefNodeId = null;
             bool publishedHrefNodeIdInPath = false;
             string? publishedTargetError = null;
+            string? publishedCallObjectId = null;
+            string? publishedCallObjectIdError = null;
             if (allowNumericNamespacePrefixes)
             {
                 _ = TryCapturePublishedTargets(
                     document,
                     JsonPointer,
                     Href,
+                    Kind == WotAffordanceKind.Action,
                     out publishedNodeId,
                     out publishedHrefNodeId,
                     out publishedHrefNodeIdInPath,
-                    out publishedTargetError);
+                    out publishedTargetError,
+                    out publishedCallObjectId,
+                    out publishedCallObjectIdError);
             }
             return new WotAffordanceForm(
                 Kind, AffordanceName, Operations, Href, ContentType, Subprotocol, SecuritySchemes,
@@ -162,6 +177,8 @@ namespace Opc.Ua.WotCon.Bindings
                 SourceCallError = hasReceiver ? null : receiverError,
                 SourceComponentOf = componentOf,
                 HasPublishedTargetCapture = allowNumericNamespacePrefixes,
+                PublishedCallObjectId = publishedCallObjectId,
+                PublishedCallObjectIdError = publishedCallObjectIdError,
                 PublishedNodeId = publishedNodeId,
                 PublishedHrefNodeId = publishedHrefNodeId,
                 PublishedHrefNodeIdInPath = publishedHrefNodeIdInPath,
@@ -173,20 +190,35 @@ namespace Opc.Ua.WotCon.Bindings
             WotDocument document,
             string jsonPointer,
             string? href,
+            bool isAction,
             out string? nodeId,
             out string? hrefNodeId,
             out bool hrefNodeIdInPath,
-            out string? error)
+            out string? error,
+            out string? callObjectId,
+            out string? callObjectIdError)
         {
             nodeId = null;
             hrefNodeId = null;
             hrefNodeIdInPath = false;
             error = null;
+            callObjectId = null;
+            callObjectIdError = null;
             if (!document.TryEvaluatePointer(jsonPointer, out JsonElement sourceForm) ||
                 sourceForm.ValueKind != JsonValueKind.Object)
             {
                 error = "The original form context is unavailable for published NodeId resolution.";
                 return false;
+            }
+            if (isAction && sourceForm.TryGetProperty("uav:callObjectId", out JsonElement receiver))
+            {
+                if (receiver.ValueKind != JsonValueKind.String ||
+                    receiver.GetString() is not { } value ||
+                    !TryCanonicalPublishedNodeId(
+                        document, sourceForm, value, out callObjectId, out callObjectIdError))
+                {
+                    callObjectIdError ??= "The form uav:callObjectId must be a resolvable published NodeId.";
+                }
             }
             if (!IsOpcUaAddress(document, href))
             {

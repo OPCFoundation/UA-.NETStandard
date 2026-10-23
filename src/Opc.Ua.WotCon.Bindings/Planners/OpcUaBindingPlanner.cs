@@ -127,7 +127,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                         return WotBindingCompilation.Unsupported([.. diagnostics]);
                     }
                     nodeId = form.PublishedNodeId ?? form.PublishedHrefNodeId;
-                    nodeIdInPath = form.PublishedNodeId is null && form.PublishedHrefNodeIdInPath;
+                    nodeIdInPath = form.PublishedHrefNodeIdInPath;
                 }
                 else
                 {
@@ -219,7 +219,12 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 metadata = metadata.Add("nodeId", nodeId!);
             }
-            if (pathTarget is not null && ResolveHrefNodeId(form.Href, out _) is { } hrefTarget)
+            string? capturedHrefTarget =
+                context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                form.HasPublishedTargetCapture
+                    ? form.PublishedHrefNodeId
+                    : ResolveHrefNodeId(form.Href, out _);
+            if (pathTarget is not null && capturedHrefTarget is { } hrefTarget)
             {
                 if (string.IsNullOrWhiteSpace(hrefTarget))
                 {
@@ -1020,8 +1025,23 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             if (form.FormElement.ValueKind == JsonValueKind.Object &&
                 form.FormElement.TryGetProperty(receiverTerm, out _))
             {
-                if (!form.TryGetString(receiverTerm, out string receiver) ||
-                    !TryCanonicalOwnerId(receiver, context.NamespacePrefixes, out string canonicalReceiver) ||
+                if (form.PublishedCallObjectIdError is { } receiverError)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        receiverError, form.Pointer(receiverTerm), receiverTerm));
+                    return false;
+                }
+                string? capturedReceiver = form.PublishedCallObjectId;
+                bool validReceiver = capturedReceiver is not null;
+                string canonicalReceiver = capturedReceiver ?? string.Empty;
+                if (!validReceiver &&
+                    form.TryGetString(receiverTerm, out string receiver) &&
+                    !WotPortableIdentity.IsSessionLocalNodeId(receiver))
+                {
+                    validReceiver = TryCanonicalOwnerId(receiver, context.NamespacePrefixes, out canonicalReceiver);
+                }
+                if (!validReceiver ||
                     !candidates.Contains(canonicalReceiver))
                 {
                     diagnostics.Add(WotBindingDiagnostic.Error(

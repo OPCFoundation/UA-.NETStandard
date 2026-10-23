@@ -81,7 +81,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 target.NodeId, "OutputArguments", state, cancellationToken).ConfigureAwait(false);
             ValidatePathSessionState(state);
             return Form.Payload.WithNativeArgumentOrder(
-                inputs, outputs, state.NamespaceUris, m_session.TypeTree);
+                inputs, outputs, state.NamespaceUris, m_session.TypeTree, allowSingleValueNameMismatch: true);
         }
 
         private async ValueTask<ArrayOf<Argument>> ReadMethodArgumentsAsync(

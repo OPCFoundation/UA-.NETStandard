@@ -298,6 +298,140 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies the root identity's numeric namespace is captured independently from a nearer
+        /// context that resolves the relative path step.
+        /// </summary>
+        [Test]
+        public void PublishedRelativePathPreservesNumericRootAnchorAcrossNearerNamespaceOverride()
+        {
+            const string document = """
+                {
+                  "@context": {
+                    "1": "urn:device",
+                    "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+                  },
+                  "@type": ["Thing", "uav:object"],
+                  "uav:id": "ns=1;s=Device",
+                  "properties": {
+                    "temperature": {
+                      "type": "integer",
+                      "forms": [{
+                        "@context": { "1": "urn:path:nearer" },
+                        "href": "opc.tcp://localhost:4840/UA/Factory",
+                        "uav:browsePath": "1:Temperature",
+                        "op": "readproperty"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "/things/numeric-root-anchor",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: new WotBindingSelectionContext([], [], WotBindingProcessingMode.PublishedOneZero));
+            WotBindingPlan plan = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()]).Prepare(request);
+
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1), string.Join("; ", plan.Diagnostics));
+            WotBrowsePathTarget path = plan.CompiledForms[0].Addressing.BrowsePathTarget!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(path.AnchorId, Is.EqualTo("nsu=urn:device;s=Device"));
+                Assert.That(path.Elements, Has.Count.EqualTo(1));
+                Assert.That(path.Elements[0].TargetName,
+                    Is.EqualTo(new WotBrowsePathElement("urn:path:nearer", "Temperature")));
+                Assert.That(plan.CompiledForms[0].Addressing.Target, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Verifies a numeric query NodeId and its matching published browse path use document
+        /// namespace authority even when the live Session places that URI at a different index.
+        /// </summary>
+        [Test]
+        public async Task PublishedNumericHrefIdAndBrowsePathResolveWithReorderedSessionNamespaces()
+        {
+            ServiceMessageContext context = Context();
+            Mock<ISession> session = Session(context);
+            NodeId target = new("ResolvedValue", 2);
+            int translations = 0;
+            int valueReads = 0;
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<BrowsePath>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, ArrayOf<BrowsePath> requests, CancellationToken _) =>
+                {
+                    translations++;
+                    Assert.That(requests, Has.Count.EqualTo(1));
+                    Assert.That(requests[0].StartingNode, Is.EqualTo(Ua.ObjectIds.RootFolder));
+                    ArrayOf<RelativePathElement> elements = requests[0].RelativePath.Elements;
+                    Assert.That(elements, Has.Count.EqualTo(3));
+                    Assert.That(elements[0].TargetName, Is.EqualTo(new QualifiedName("Objects", 0)));
+                    Assert.That(elements[1].TargetName, Is.EqualTo(new QualifiedName("Device", 2)));
+                    Assert.That(elements[2].TargetName, Is.EqualTo(new QualifiedName("Value", 2)));
+                    return new ValueTask<TranslateBrowsePathsToNodeIdsResponse>(Translation(target));
+                });
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns((RequestHeader _, double _, TimestampsToReturn _, ArrayOf<ReadValueId> requests,
+                    CancellationToken _) =>
+                {
+                    Assert.That(requests, Has.Count.EqualTo(1));
+                    Assert.That(requests[0].NodeId, Is.EqualTo(target));
+                    if (requests[0].AttributeId == Attributes.NodeClass)
+                    {
+                        return new ValueTask<ReadResponse>(Read(new Variant((int)NodeClass.Variable)));
+                    }
+                    Assert.That(requests[0].AttributeId, Is.EqualTo(Attributes.Value));
+                    valueReads++;
+                    return new ValueTask<ReadResponse>(Read(new Variant(947)));
+                });
+            var registry = Registry(session);
+            const string document = """
+                {
+                  "@context": {
+                    "1": "urn:path:source",
+                    "uav": "http://opcfoundation.org/UA/WoT-Binding/"
+                  },
+                  "@type": ["Thing", "uav:object"],
+                  "uav:id": "nsu=urn:path:source;s=Source",
+                  "security": "none",
+                  "securityDefinitions": { "none": { "scheme": "nosec" } },
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "forms": [{
+                        "href": "opc.tcp://localhost:4840/UA/Factory?id=ns=1;s=ResolvedValue",
+                        "uav:browsePath": "/Objects/1:Device/1:Value",
+                        "op": "readproperty"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "/things/published-numeric-href-path",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: new WotBindingSelectionContext([], [], WotBindingProcessingMode.PublishedOneZero)));
+
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1), string.Join("; ", plan.Diagnostics));
+            WotCompiledForm form = plan.CompiledForms[0];
+            Assert.That(form.Addressing.Target, Is.EqualTo("nsu=urn:path:source;s=ResolvedValue"));
+            Assert.That(form.Addressing.BrowsePathTarget, Is.Not.Null);
+            await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
+
+            WotReadResult result = await channel.ReadAsync().ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+            Assert.That(result.Value.WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(947));
+            Assert.That(translations, Is.EqualTo(1));
+            Assert.That(valueReads, Is.EqualTo(1));
+            Assert.That(context.NamespaceUris.GetString(2), Is.EqualTo("urn:path:source"));
+        }
+
+        /// <summary>
         /// Verifies that a numeric browse prefix is not enabled by URI or vocabulary heuristics.
         /// </summary>
         [Test]

@@ -247,13 +247,37 @@ namespace Opc.Ua.Mcp.Tools
                             ISession session = sessionContext?.Session ??
                                 throw new ServiceResultException(
                                     StatusCodes.BadSessionIdInvalid, "The selected OPC UA Session is unavailable.");
+                            OpcUaWotBindingExecutor.EnforceSessionSecurity(session, form);
                             NamespaceTable namespaceUris = new(session.NamespaceUris);
+                            ArrayOf<NodeId> candidates = ResolveCallReceiverCandidates(form, namespaceUris);
+                            if (candidates.Count == 0)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadConfigurationError, "The Call receiver candidates are missing.");
+                            }
+                            if (!Uri.TryCreate(form.Endpoint.BaseUri, UriKind.Absolute, out Uri? callEndpoint))
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadConfigurationError, "The compiled OPC UA endpoint is invalid.");
+                            }
+                            for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
+                            {
+                                McpNetworkGrant admission = m_network.Authorize(
+                                    callEndpoint,
+                                    form.OperationInfo.Method,
+                                    CallPreflightResource(form, candidates[candidateIndex], namespaceUris),
+                                    WotRuntimeTarget.Capability(form.OpToken));
+                                if (admission.Owner != owner)
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                                        "The caller changed while the runtime was being prepared.");
+                                }
+                            }
                             NodeId method = await OpcUaWotCallReceiverResolver.ResolveMethodAsync(
                                 session, form, namespaceUris, token).ConfigureAwait(false);
                             OpcUaSessionManager.SessionInfo boundSession = sessionInfo!.WithSession(session);
                             await m_sessions.UaOperationGuard.AuthorizeTargetAsync(
                                 boundSession, method, genericCall: true, token).ConfigureAwait(false);
-                            ArrayOf<NodeId> candidates = ResolveCallReceiverCandidates(form, namespaceUris);
                             for (int candidateIndex = 0; candidateIndex < candidates.Count; candidateIndex++)
                             {
                                 await m_sessions.UaOperationGuard.AuthorizeTargetAsync(
@@ -727,6 +751,47 @@ namespace Opc.Ua.Mcp.Tools
                 }
                 return node;
             }
+        }
+
+        /// <summary>
+        /// Builds an exact receiver-bound selector for admission before Method metadata resolution.
+        /// </summary>
+        private static string CallPreflightResource(
+            WotCompiledForm form, NodeId receiver, NamespaceTable namespaceUris)
+        {
+            string receiverId = NodeId.ToExpandedNodeId(receiver, namespaceUris).ToString();
+            string methodAddress = form.Addressing.Target;
+            if (string.IsNullOrEmpty(methodAddress) &&
+                form.Addressing.Metadata.TryGetValue("pathHrefNodeId", out string? pathHrefNodeId))
+            {
+                methodAddress = pathHrefNodeId;
+            }
+            if (!string.IsNullOrEmpty(methodAddress))
+            {
+                ExpandedNodeId expanded = ExpandedNodeId.Parse(methodAddress);
+                NodeId method = ExpandedNodeId.ToNodeId(expanded, namespaceUris);
+                if (expanded.ServerIndex != 0 ||
+                    method.IsNull ||
+                    namespaceUris.GetString(method.NamespaceIndex) is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "The Call Method identity is not present in this Session.");
+                }
+                string methodId = NodeId.ToExpandedNodeId(method, namespaceUris).ToString();
+                string resource = "object=" + receiverId + ";method=" + methodId;
+                WotRuntimeJson.Text(resource, 2048);
+                return resource;
+            }
+            if (form.Addressing.BrowsePathTarget is { } path)
+            {
+                string resource = "object=" + receiverId +
+                    ";browsePath=" + Uri.EscapeDataString(path.AnchorId) +
+                    "|" + Uri.EscapeDataString(path.Path);
+                WotRuntimeJson.Text(resource, 2048);
+                return resource;
+            }
+            throw new ServiceResultException(
+                StatusCodes.BadNodeIdInvalid, "The Call form has no resolvable Method identity.");
         }
 
         /// <summary>
