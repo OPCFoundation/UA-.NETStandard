@@ -264,15 +264,7 @@ namespace Opc.Ua.WotCon.Bindings
         /// <c>uav:eventSelectClauses</c> overlay, or both — and the selection
         /// was resolved before planning.
         /// </summary>
-        Standard,
-
-        /// <summary>
-        /// The form stated extra fields through the superseded
-        /// <c>uav:eventFields</c> spelling this implementation minted before
-        /// the terms were standardized. The extras are appended to the default
-        /// set, which is what that spelling always meant.
-        /// </summary>
-        Legacy
+        Standard
     }
 
     /// <summary>

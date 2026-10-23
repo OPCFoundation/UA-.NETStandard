@@ -310,7 +310,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 WoTBindingCapabilityEnum.InvokeAction, "invokeaction",
                 new WotEndpointDescriptor("opc.tcp", null, -1, endpoint),
                 new WotAddressingDescriptor(methodId, ImmutableDictionary<string, string>.Empty.Add(
-                    "componentOf", "nsu=" + SourceNamespace + ";s=ConditionA")),
+                    "callObjectId", "nsu=" + SourceNamespace + ";s=ConditionA")),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.InvokeAction, "invokeaction", "Call"),
                 new WotPayloadDescriptor("application/opcua+uabinary", "opcua"), [], true);
             using var sourceStream = new MemoryStream(document.Sources[0].NodeSetXml, writable: false);

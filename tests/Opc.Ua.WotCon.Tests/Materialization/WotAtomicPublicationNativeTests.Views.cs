@@ -637,7 +637,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         private async Task<WotResource> AddStockViewAsync(
-            string id, bool parent, bool collideWithSource = false, bool thingModel = false)
+            string id, bool parent, bool collideWithSource = false, bool thingModel = false,
+            bool localAffordance = false)
         {
             string link = parent
                 ? ",\"links\":[{\"rel\":\"ua:Organizes\",\"uav:refName\":\"Group\",\"href\":\"urn:stock:child\"}]"
@@ -645,18 +646,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string identity = collideWithSource
                 ? "nsu=urn:c2:prepared-source;s=Source"
                 : $"nsu={kStockViewNamespace};s={id}";
-            string kind = thingModel ? "ThingModel" : "ThingDescription";
+            string rootType = thingModel ? "tm:ThingModel" : "Thing";
             string contentType = thingModel ? "application/tm+json" : "application/td+json";
+            string locals = localAffordance
+                ? $$$"""
+                  ,"properties":{"localOnly":{"uav:id":"nsu={{{kStockViewNamespace}}};s={{{id}}}/localOnly",
+                    "type":"number","forms":[{"href":"https://example.test/local"}]}}
+                  """
+                : string.Empty;
             string content = $$$"""
                 {
                   "@context":["https://www.w3.org/2022/wot/td/v1.1",
                     {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                  "@type":["uav:projection"],"uav:projectionKind":"{{{kind}}}",
+                  "@type":["{{{rootType}}}","uav:projection"],
                   "id":"urn:stock:{{{id}}}","title":"{{{id}}}","uav:scenario":"urn:stock:scenario",
                   "uav:id":"{{{identity}}}",
                   "securityDefinitions":{"none":{"scheme":"nosec"}},"security":"none",
                   "uav:projects":[{"uav:sourceName":"source","href":"urn:stock:source","type":"{{{contentType}}}",
-                    "uav:routing":"source","uav:selectAll":{{{(parent ? "false" : "true")}}}}]{{{link}}}
+                    "uav:routing":"source","uav:selectAll":{{{(parent ? "false" : "true")}}}}]{{{link}}}{{{locals}}}
                 }
                 """;
             WotRegistryMutationResult result = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -664,8 +671,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
                 Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
                 ResourceId = id, VersionId = "v1",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
+                ContentType = contentType,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);
@@ -790,6 +797,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 IReadOnlyDictionary<string, ByteString> contents, CancellationToken cancellationToken)
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (resource.ResourceId != "stock-source")
+                {
+                    return await new WotNodeSetDocumentConverter().ConvertAsync(
+                        resource, content, snapshot, contents, cancellationToken).ConfigureAwait(false);
+                }
                 using JsonDocument document = JsonDocument.Parse(content.Memory);
                 bool numeric = document.RootElement.GetProperty("uav:id").GetString() ==
                     "nsu=urn:c2:prepared-source;i=100";

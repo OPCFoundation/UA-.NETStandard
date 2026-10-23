@@ -246,6 +246,40 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A role change between the freshness check and context capture must not drop an unaffected subscriber's event.
+        /// </summary>
+        /// <param name="serverNotifier">Whether the event is reported through the Server notifier.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF44RoleChangeDuringAuthorizationCaptureRetainsUnaffectedSubscriberAsync(
+            bool serverNotifier)
+        {
+            await using var harness = new EventHarness(serverNotifier);
+            await harness.InitializeAsync().ConfigureAwait(false);
+            int sessionReads = 0;
+            harness.BobReceiver.SetupGet(value => value.Session).Returns(() =>
+            {
+                if (Interlocked.Increment(ref sessionReads) == 2)
+                {
+                    harness.SetAliceRole(false);
+                }
+                return harness.Bob.Session;
+            });
+
+            await harness.ReportAsync("role-change-during-capture").ConfigureAwait(false);
+
+            Assert.That(sessionReads, Is.GreaterThanOrEqualTo(2));
+            Assert.That(harness.BobEvents.ToArray(), Is.EqualTo<string[]>(["role-change-during-capture"]));
+
+            await harness.ReportAsync("after-revocation").ConfigureAwait(false);
+
+            Assert.That(harness.AliceEvents, Does.Not.Contain("after-revocation"));
+            Assert.That(harness.BobEvents.ToArray(), Is.EqualTo<string[]>(
+                ["role-change-during-capture", "after-revocation"]));
+        }
+
+        /// <summary>
         /// Reactivation changes the effective principal without allowing its predecessor's event verdict to persist.
         /// </summary>
         [Test]
@@ -471,6 +505,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public Mock<IEventMonitoredItem> AliceReceiver { get; private set; } = null!;
 
             /// <summary>
+            /// Gets the independently authorized receiver for permission-capture race injection.
+            /// </summary>
+            public Mock<IEventMonitoredItem> BobReceiver { get; private set; } = null!;
+
+            /// <summary>
             /// Gets the exact fields delivered to the first receiver.
             /// </summary>
             public ConcurrentQueue<string> AliceEvents { get; } = new();
@@ -517,8 +556,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Alice = await CreateSessionAsync("alice").ConfigureAwait(false);
                 Bob = await CreateSessionAsync("bob").ConfigureAwait(false);
                 AliceReceiver = CreateReceiver(1, Alice.Session, AliceEvents);
+                BobReceiver = CreateReceiver(2, Bob.Session, BobEvents);
                 m_monitored.Add(AliceReceiver.Object);
-                m_monitored.Add(CreateReceiver(2, Bob.Session, BobEvents).Object);
+                m_monitored.Add(BobReceiver.Object);
                 await PublishAsync().ConfigureAwait(false);
             }
 

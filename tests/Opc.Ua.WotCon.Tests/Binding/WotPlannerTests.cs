@@ -27,8 +27,10 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Linq;
 using NUnit.Framework;
+using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Bindings.Planners;
 
@@ -660,7 +662,7 @@ namespace Opc.Ua.WotCon.Tests.Binding
         }
 
         [Test]
-        public void OpcUaActionCarriesComponentOf()
+        public void OpcUaActionDoesNotUseComponentOfAsCallReceiver()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -672,15 +674,38 @@ namespace Opc.Ua.WotCon.Tests.Binding
 
             WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
 
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Entries, Is.Empty);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Code == WotBindingDiagnosticCode.MissingRequiredField &&
+                d.Message.Contains("uav:callObjectId", StringComparison.Ordinal)), Is.True);
+        }
+
+        [Test]
+        public void OpcUaActionCarriesExplicitCallObjectIdWithoutRetainingComponentOf()
+        {
+            var planner = new OpcUaBindingPlanner();
+            WotAffordanceForm form = WotBindingTestSupport.Form(
+                WotBindingTestSupport.Action(
+                    "run",
+                    /*lang=json,strict*/
+                    "{\"href\":\"opc.tcp://server:4840\",\"uav:id\":\"ns=2;i=9\"," +
+                    "\"uav:callObjectId\":\"nsu=urn:source;s=Owner\"," +
+                    "\"uav:componentOf\":\"ns=2;i=2\"}"),
+                "run");
+
+            WotBindingCompilation result = planner.Compile(form, WotBindingTestSupport.Context());
+
             Assert.That(result.IsSupported, Is.True);
             WotCompiledForm invoke = result.Entries[0];
             Assert.That(invoke.Operation, Is.EqualTo(WoTBindingCapabilityEnum.InvokeAction));
-            Assert.That(invoke.Addressing.Metadata["componentOf"], Is.EqualTo("ns=2;i=1"));
+            Assert.That(invoke.Addressing.Metadata["callObjectId"], Is.EqualTo("nsu=urn:source;s=Owner"));
+            Assert.That(invoke.Addressing.Metadata.ContainsKey("componentOf"), Is.False);
             Assert.That(invoke.OperationInfo.Method, Is.EqualTo("Call"));
         }
 
         [Test]
-        public void OpcUaEventCarriesAuthoredEventFields()
+        public void OpcUaEventIgnoresUnknownEventFieldsAndUsesTheDocumentedDefault()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = WotBindingTestSupport.Form(
@@ -697,15 +722,10 @@ namespace Opc.Ua.WotCon.Tests.Binding
             WotEventSelection selection = subscribe.EventSelection!;
             Assert.Multiple(() =>
             {
-                Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
+                Assert.That(selection.Origin, Is.EqualTo(WotEventSelectionOrigin.Default));
                 Assert.That(
                     selection.Clauses.ToList().Select(c => c.BrowsePath),
-                    Does.Contain("ActiveState/Id"),
-                    "The superseded spelling adds to the implicit BaseEventType default.");
-                Assert.That(
-                    selection.Clauses.ToList().Count(c => c.BrowsePath == "Severity"),
-                    Is.EqualTo(1),
-                    "A field the default already selects is not selected twice.");
+                    Is.EqualTo(WotEventSelectClauses.DefaultFieldNames.ToList()));
             });
         }
 
