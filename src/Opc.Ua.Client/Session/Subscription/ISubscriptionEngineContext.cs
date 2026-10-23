@@ -249,18 +249,13 @@ namespace Opc.Ua.Client
         /// </summary>
         /// <param name="currentAcknowledgements">The current list of
         /// pending acknowledgements.</param>
-        /// <param name="generations">Resolves the subscription
-        /// generation of a presented acknowledgement, or <c>null</c>
-        /// to use the generation the session currently assigns to
-        /// its subscription id.</param>
         /// <returns>A tuple where toSend is the list to include in the
         /// publish request and updatedPending replaces the pending
         /// list.</returns>
         (List<SubscriptionAcknowledgement> toSend,
             List<SubscriptionAcknowledgement> updatedPending)
             PrepareAcknowledgementsToSend(
-                List<SubscriptionAcknowledgement> currentAcknowledgements,
-                Func<SubscriptionAcknowledgement, long>? generations = null);
+                List<SubscriptionAcknowledgement> currentAcknowledgements);
 
         /// <summary>
         /// Delete an orphaned subscription that was received in a

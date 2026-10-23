@@ -187,8 +187,8 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// The handler sees the generation supplied by the engine, or the session's current
-        /// generation for the id when the engine supplies none.
+        /// The handler sees the generation supplied by the engine through the internal policy
+        /// capability, or the session's current generation for the id through the public contract.
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
@@ -200,9 +200,15 @@ namespace Opc.Ua.Client.Tests
             scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
                 observed = e.GetSubscriptionGeneration(acknowledgement);
 
-            scope.Context.PrepareAcknowledgementsToSend(
-                [acknowledgement],
-                engineResolver ? _ => 42 : null);
+            if (engineResolver)
+            {
+                ((ISubscriptionAcknowledgementPolicy)scope.Context).PrepareAcknowledgementsToSend(
+                    [acknowledgement], _ => 42);
+            }
+            else
+            {
+                scope.Context.PrepareAcknowledgementsToSend([acknowledgement]);
+            }
 
             Assert.That(observed, Is.EqualTo(engineResolver ? 42 : 0));
         }

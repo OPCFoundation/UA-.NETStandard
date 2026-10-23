@@ -525,9 +525,10 @@ namespace Opc.Ua.Client.Subscriptions
             }
             long generation;
             bool sharedId;
+            bool report;
             lock (m_subscriptionLock)
             {
-                generation = ForgetOwnerLocked(owner, subscriptionId);
+                report = ForgetOwnerLocked(owner, subscriptionId, out generation);
                 sharedId = HasOtherLiveOwnerLocked(owner, subscriptionId);
             }
             int dropped;
@@ -541,7 +542,7 @@ namespace Opc.Ua.Client.Subscriptions
                         pending.Acknowledgement.SubscriptionId == subscriptionId));
                 UpdateDeferredWarning();
             }
-            if (subscriptionId != 0)
+            if (subscriptionId != 0 && report)
             {
                 m_retirementsToReport.Enqueue((subscriptionId, generation));
                 if (!deferNotification)
@@ -650,8 +651,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Retires the acknowledgement state a removed subscription owned. Retirement is
-        /// generation scoped, so it is safe even when a sibling still uses the id.
+        /// Retires the acknowledgement state a removed subscription owned. The retirement is
+        /// not reported while another live subscription owns the id.
         /// </summary>
         private void RetireOwner(IMessageProcessor owner, uint subscriptionId)
         {
@@ -662,7 +663,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             lock (m_subscriptionLock)
             {
-                ForgetOwnerLocked(owner, subscriptionId);
+                ForgetOwnerLocked(owner, subscriptionId, out _);
             }
         }
 
@@ -2289,7 +2290,7 @@ namespace Opc.Ua.Client.Subscriptions
                     return AcknowledgementState.NotHeld;
                 }
                 uint sequenceNumber = acknowledgement.SequenceNumber;
-                if (IsOlder(sequenceNumber, window.Horizon) && !window.Available.Contains(sequenceNumber))
+                if (IsOlder(sequenceNumber, window.Horizon) && !window.Contains(sequenceNumber))
                 {
                     return AcknowledgementState.NotHeld;
                 }
@@ -2322,9 +2323,6 @@ namespace Opc.Ua.Client.Subscriptions
             }
             bool data = message.NotificationData.Count != 0;
             long generation = owner.MessageGeneration;
-            HashSet<uint> available = availableSequenceNumbers.Count == 0
-                ? s_noSequenceNumbers
-                : [.. availableSequenceNumbers];
             lock (m_subscriptionLock)
             {
                 if (!IsRegisteredLocked(owner) ||
@@ -2347,29 +2345,51 @@ namespace Opc.Ua.Client.Subscriptions
                         unsupported = current.RetransmissionQueueUnsupported;
                     }
                 }
-                m_windows[owner] = new AvailabilityWindow(generation, horizon, available, unsupported);
+                if (current == null)
+                {
+                    current = new AvailabilityWindow();
+                    m_windows[owner] = current;
+                }
+                current.Update(generation, horizon, availableSequenceNumbers, unsupported);
             }
         }
 
         /// <summary>
-        /// Forgets the claim and retransmission view of a retiring owner and returns the
-        /// highest generation of <paramref name="subscriptionId"/> that it retires.
+        /// Forgets the claim and retransmission view of a retiring owner. Returns whether the
+        /// retirement may be reported, and the highest generation of
+        /// <paramref name="subscriptionId"/> it retires. It must not be reported while another
+        /// live subscription owns the id: the session already retired every older generation
+        /// when that owner was created, and observers that track state by id alone would
+        /// otherwise invalidate the live owner's state.
         /// </summary>
-        private long ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId)
+        private bool ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId, out long generation)
         {
+            generation = 0;
             m_windows.Remove(owner);
-            if (subscriptionId == 0 || !m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim))
+            if (subscriptionId == 0)
             {
-                // Acknowledgements of an owner without a claim are presented as generation zero.
-                return 0;
+                return false;
             }
-            if (ReferenceEquals(claim.Owner, owner))
+            if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim))
             {
+                if (ReferenceEquals(claim.Owner, owner))
+                {
+                    // The most recently created owner retires its own generation; any older
+                    // sibling still registered under the id is stale.
+                    m_claims.Remove(subscriptionId);
+                    generation = claim.Generation;
+                    return true;
+                }
+                if (IsLiveOwnerLocked(claim.Owner, subscriptionId))
+                {
+                    return false;
+                }
+                // The claim's owner is gone; its generation is retired along with this owner.
                 m_claims.Remove(subscriptionId);
-                return claim.Generation;
+                generation = claim.Generation;
             }
-            // A more recently created owner holds the id; only older generations are retired.
-            return claim.Generation - 1;
+            // Without a claim the creation order is unknown: report only if nobody else uses the id.
+            return !HasOtherLiveOwnerLocked(owner, subscriptionId);
         }
 
         /// <summary>
@@ -2515,17 +2535,71 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly record struct SubscriptionClaim(IMessageProcessor Owner, long Generation, long Sequence);
 
         /// <summary>
-        /// The retransmission queue the server last reported for an owner.
+        /// The retransmission queue the server last reported for an owner. Reused across
+        /// responses and guarded by the manager's registry lock, so recording a response does
+        /// not allocate.
         /// </summary>
-        /// <param name="MessageGeneration">The owner's message generation when recorded.</param>
-        /// <param name="Horizon">Messages older than this are only held if listed.</param>
-        /// <param name="Available">The listed sequence numbers.</param>
-        /// <param name="RetransmissionQueueUnsupported">Whether a data response listed nothing.</param>
-        private sealed record AvailabilityWindow(
-            long MessageGeneration,
-            uint Horizon,
-            HashSet<uint> Available,
-            bool RetransmissionQueueUnsupported);
+        private sealed class AvailabilityWindow
+        {
+            /// <summary>
+            /// The owner's message generation when recorded.
+            /// </summary>
+            public long MessageGeneration { get; private set; }
+
+            /// <summary>
+            /// Messages older than this are only held if listed.
+            /// </summary>
+            public uint Horizon { get; private set; }
+
+            /// <summary>
+            /// Whether a data response listed nothing, i.e. the server has no retransmission queue.
+            /// </summary>
+            public bool RetransmissionQueueUnsupported { get; private set; }
+
+            /// <summary>
+            /// Replaces the recorded view.
+            /// </summary>
+            public void Update(long messageGeneration, uint horizon, ArrayOf<uint> available, bool unsupported)
+            {
+                MessageGeneration = messageGeneration;
+                Horizon = horizon;
+                RetransmissionQueueUnsupported = unsupported;
+                m_available = available;
+                if (available.Count > kLinearSearchLimit)
+                {
+                    m_lookup ??= [];
+                    m_lookup.Clear();
+                    foreach (uint sequenceNumber in available)
+                    {
+                        m_lookup.Add(sequenceNumber);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Whether the server listed the sequence number as available.
+            /// </summary>
+            public bool Contains(uint sequenceNumber)
+            {
+                if (m_available.Count > kLinearSearchLimit)
+                {
+                    return m_lookup!.Contains(sequenceNumber);
+                }
+                ReadOnlySpan<uint> available = m_available.Span;
+                for (int i = 0; i < available.Length; i++)
+                {
+                    if (available[i] == sequenceNumber)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            private const int kLinearSearchLimit = 16;
+            private ArrayOf<uint> m_available;
+            private HashSet<uint>? m_lookup;
+        }
 
         /// <summary>
         /// Compares instances by object identity.
@@ -3265,9 +3339,6 @@ namespace Opc.Ua.Client.Subscriptions
         private static readonly TimeSpan s_minOperationTimeout = TimeSpan.FromSeconds(1);
         private const int kMaxSubscriptionHistory = 256;
         private const int kDeferredAcknowledgementWarningThreshold = 1000;
-
-        /// <summary>Shared, never mutated view for responses that list no sequence numbers.</summary>
-        private static readonly HashSet<uint> s_noSequenceNumbers = [];
 #pragma warning disable IDE0032 // Use auto property
         private int m_badPublishRequestCount;
         private int m_goodPublishRequestCount;

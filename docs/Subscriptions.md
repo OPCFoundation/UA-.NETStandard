@@ -521,7 +521,11 @@ zero, because transferred subscriptions keep their acknowledgement state; a
 subscription that fails to transfer is recreated and reported by its old id.
 The same retirement can be reported more than once (for example, on deletion and
 again on disposal), so handle the notification idempotently. A retirement never
-covers the generation of a subscription created later with the same id.
+covers the generation of a subscription created later with the same id, and it is
+not reported at all while another live subscription of the session owns the id (the
+session already retired the older generations when that subscription was created).
+Observers that track state by subscription id alone therefore never lose the state of
+a live subscription.
 Retirement notifications are never raised while the session lock, a subscription's
 state lock or the V2 Publish pause is held; they are raised right after.
 A Publish request that was already in flight can still report completion for a

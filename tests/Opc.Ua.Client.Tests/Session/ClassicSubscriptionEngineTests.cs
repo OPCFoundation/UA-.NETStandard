@@ -590,10 +590,8 @@ namespace Opc.Ua.Client.Tests
             await subscription.CreateAsync().ConfigureAwait(false);
             m_mockContext.Setup(c => c.Subscriptions).Returns([subscription]);
             m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
-                    It.IsAny<List<SubscriptionAcknowledgement>>(),
-                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
-                .Returns<List<SubscriptionAcknowledgement>, Func<SubscriptionAcknowledgement, long>?>(
-                    (acknowledgements, _) =>
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns<List<SubscriptionAcknowledgement>>(acknowledgements =>
                     (new List<SubscriptionAcknowledgement>(acknowledgements), []));
             var followUpResponse = new TaskCompletionSource<PublishResponse>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
@@ -652,8 +650,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(followUpAcknowledgements[0].SubscriptionId, Is.EqualTo(subscription.Id));
             Assert.That(followUpAcknowledgements[0].SequenceNumber, Is.EqualTo(1u));
             m_mockContext.Verify(c => c.PrepareAcknowledgementsToSend(
-                It.IsAny<List<SubscriptionAcknowledgement>>(),
-                It.IsAny<Func<SubscriptionAcknowledgement, long>?>()), Times.Once);
+                It.IsAny<List<SubscriptionAcknowledgement>>()), Times.Once);
             m_mockContext.Verify(c => c.PublishAsync(
                 It.IsAny<RequestHeader>(),
                 It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
@@ -720,8 +717,7 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Setup(c => c.Connected).Returns(true);
             m_mockContext.Setup(c => c.Subscriptions).Returns(subscriptions);
             m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
-                    It.IsAny<List<SubscriptionAcknowledgement>>(),
-                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
                 .Returns(([], []));
 
             // Mirrors the session: a publish request only becomes visible to
@@ -813,8 +809,7 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Setup(c => c.Connected).Returns(true);
             m_mockContext.Setup(c => c.Subscriptions).Returns(subscriptions);
             m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
-                    It.IsAny<List<SubscriptionAcknowledgement>>(),
-                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
                 .Returns(([], []));
 
             // Mirrors Session.GoodPublishRequestCount: a request is recorded by
@@ -894,8 +889,7 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Setup(c => c.Connected).Returns(true);
             m_mockContext.Setup(c => c.Subscriptions).Returns(subscriptions);
             m_mockContext.Setup(c => c.PrepareAcknowledgementsToSend(
-                    It.IsAny<List<SubscriptionAcknowledgement>>(),
-                    It.IsAny<Func<SubscriptionAcknowledgement, long>?>()))
+                    It.IsAny<List<SubscriptionAcknowledgement>>()))
                 .Returns(([], []));
 
             int outstanding = 0;

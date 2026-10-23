@@ -42,7 +42,8 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext : ISubscriptionEngineContext, ISubscriptionAcknowledgementLifecycle
+        private sealed class SessionEngineContext : ISubscriptionEngineContext, ISubscriptionAcknowledgementLifecycle,
+            ISubscriptionAcknowledgementPolicy
         {
             public SessionEngineContext(Session session)
             {
@@ -276,8 +277,20 @@ namespace Opc.Ua.Client
                 List<SubscriptionAcknowledgement> updatedPending)
                 PrepareAcknowledgementsToSend(
                     List<SubscriptionAcknowledgement>
+                        currentAcknowledgements)
+            {
+                return PrepareAcknowledgementsToSend(
+                    currentAcknowledgements,
+                    acknowledgement => m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId));
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> toSend,
+                List<SubscriptionAcknowledgement> updatedPending)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement>
                         currentAcknowledgements,
-                    Func<SubscriptionAcknowledgement, long>? generations = null)
+                    Func<SubscriptionAcknowledgement, long> generations)
             {
                 PublishSequenceNumbersToAcknowledgeEventHandler?
                     callback =
@@ -302,8 +315,7 @@ namespace Opc.Ua.Client
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
                                 currentAcknowledgements,
                                 deferred,
-                                generations ?? (acknowledgement =>
-                                    m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId))));
+                                generations));
                         acknowledgementsToSend =
                             currentAcknowledgements;
                         return (acknowledgementsToSend, deferred);

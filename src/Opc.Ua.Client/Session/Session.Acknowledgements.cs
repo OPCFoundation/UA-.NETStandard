@@ -165,6 +165,26 @@ namespace Opc.Ua.Client
         void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements);
     }
 
+    /// <summary>
+    /// Optional engine-context capability that applies the session's acknowledgement
+    /// deferral policy with subscription generations. Kept internal so the public
+    /// <see cref="ISubscriptionEngineContext"/> contract does not change.
+    /// </summary>
+    internal interface ISubscriptionAcknowledgementPolicy
+    {
+        /// <summary>
+        /// Applies the deferral policy, exposing <paramref name="generations"/> to the handler.
+        /// </summary>
+        /// <param name="currentAcknowledgements">The acknowledgements eligible for the next request.</param>
+        /// <param name="generations">Resolves the subscription generation of a presented
+        /// acknowledgement.</param>
+        /// <returns>The acknowledgements to send and those to retain.</returns>
+        (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending)
+            PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> currentAcknowledgements,
+                Func<SubscriptionAcknowledgement, long> generations);
+    }
+
     public partial class Session : ISubscriptionAcknowledgementEvents
     {
         /// <inheritdoc/>

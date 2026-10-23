@@ -235,11 +235,9 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
 
             /// <inheritdoc/>
             public (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending)
-                PrepareAcknowledgementsToSend(
-                    List<SubscriptionAcknowledgement> currentAcknowledgements,
-                    Func<SubscriptionAcknowledgement, long>? generations = null)
+                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> currentAcknowledgements)
             {
-                return context.PrepareAcknowledgementsToSend(currentAcknowledgements, generations);
+                return context.PrepareAcknowledgementsToSend(currentAcknowledgements);
             }
 
             /// <inheritdoc/>

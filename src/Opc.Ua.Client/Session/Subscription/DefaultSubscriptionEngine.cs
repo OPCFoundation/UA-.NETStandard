@@ -269,7 +269,10 @@ namespace Opc.Ua.Client
                     List<SubscriptionAcknowledgement> acknowledgements,
                     Func<SubscriptionAcknowledgement, long>? generations)
             {
-                return m_context.PrepareAcknowledgementsToSend(acknowledgements, generations);
+                // Third-party engine contexts only implement the public contract and report no generations.
+                return generations != null && m_context is ISubscriptionAcknowledgementPolicy policy
+                    ? policy.PrepareAcknowledgementsToSend(acknowledgements, generations)
+                    : m_context.PrepareAcknowledgementsToSend(acknowledgements);
             }
 
             /// <inheritdoc/>

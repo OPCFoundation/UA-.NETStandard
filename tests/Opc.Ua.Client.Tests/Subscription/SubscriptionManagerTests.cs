@@ -1880,12 +1880,13 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Retiring an id reports the generation the retiring owner held, so a
-        /// late notification can never retire a subscription created later with
-        /// the same id. Dropping is idempotent and an empty queue is a no-op.
+        /// Retiring an id reports the generation the retiring owner held. It is not reported
+        /// while another live subscription owns the id, because the session already retired the
+        /// older generations when that owner was created, and observers that track state by id
+        /// alone would otherwise invalidate the live owner's state. Dropping is idempotent.
         /// </summary>
         [Test]
-        public async Task DropPendingForSubscriptionReportsTheRetiringOwnersGenerationAsync()
+        public async Task DropPendingForSubscriptionNeverRetiresALiveOwnersIdAsync()
         {
             var session = new FakeSubscriptionManagerContext
             {
@@ -1893,33 +1894,38 @@ namespace Opc.Ua.Client.Subscriptions
             };
             var reported = new List<(uint, long)>();
             session.OnDiscardAcknowledgementGenerations = (id, generation) => reported.Add((id, generation));
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(session);
             var sut = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
             await using (sut.ConfigureAwait(false))
             {
+                for (int i = 0; i < 2; i++)
+                {
+                    sut.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                        new SubscriptionOptions { DisableUnboundedItemMode = true }));
+                }
 #pragma warning disable CA1859 // Typed as the interface to test the contract.
                 IMessageAckQueue queue = sut;
 #pragma warning restore CA1859
-                var older = new FakeManagedSubscription { Id = 1 };
-                var newer = new FakeManagedSubscription { Id = 1 };
-                queue.OnSubscriptionCreated(older, 1);
-                Assert.That(queue.DropPendingForSubscription(older, 1), Is.Zero);
-                Assert.That(queue.DropPendingForSubscription(older, 1), Is.Zero);
-
+                FakeManagedSubscription older = partitions[0];
+                FakeManagedSubscription newer = partitions[1];
+                newer.Id = 1;
                 queue.OnSubscriptionCreated(older, 1);
                 session.OnGetSubscriptionGeneration = id => id == 1 ? 6 : 0;
                 queue.OnSubscriptionCreated(newer, 1);
-                queue.DropPendingForSubscription(older, 1);
-                queue.DropPendingForSubscription(newer, 1);
-                queue.DropPendingForSubscription(older, 7);
 
-                Assert.That(reported, Is.EqualTo(new (uint, long)[]
-                {
-                    (1, 5), // the owner's claim
-                    (1, 0), // no claim left: only unclaimed (generation zero) state
-                    (1, 5), // a newer owner holds the id: only older generations
-                    (1, 6), // the newer owner's own claim
-                    (7, 0)
-                }));
+                Assert.That(queue.DropPendingForSubscription(older, 1), Is.Zero);
+                Assert.That(reported, Is.Empty, "The newer live owner's id must not be retired.");
+
+                queue.DropPendingForSubscription(newer, 1);
+                Assert.That(reported, Is.EqualTo(new (uint, long)[] { (1, 6) }),
+                    "The newest owner retires its own generation even while a stale sibling is registered.");
+
+                queue.DropPendingForSubscription(older, 1);
+                Assert.That(reported, Has.Count.EqualTo(1),
+                    "Without a claim, the creation order is unknown while another live owner uses the id.");
+
+                queue.DropPendingForSubscription(older, 7);
+                Assert.That(reported, Is.EqualTo(new (uint, long)[] { (1, 6), (7, 0) }));
             }
         }
 
