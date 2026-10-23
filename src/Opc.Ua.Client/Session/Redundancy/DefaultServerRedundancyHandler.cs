@@ -310,10 +310,11 @@ namespace Opc.Ua.Client
         async ValueTask<ServerRedundancyInfo> IServerRedundancyEndpointCache.ResolveCachedEndpointsAsync(
             ServerRedundancyInfo snapshot,
             ConfiguredEndpoint currentEndpoint,
-            CancellationToken ct)
+            CancellationToken ct,
+            ConfiguredEndpoint? initialEndpoint)
         {
             ArrayOf<RedundantServer> servers = await ResolveEndpointsAsync(
-                snapshot.RedundantServers, currentEndpoint, ct).ConfigureAwait(false);
+                snapshot.RedundantServers, currentEndpoint, initialEndpoint, ct).ConfigureAwait(false);
             return new ServerRedundancyInfo
             {
                 Mode = snapshot.Mode,
@@ -344,12 +345,20 @@ namespace Opc.Ua.Client
         private async ValueTask<ArrayOf<RedundantServer>> ResolveEndpointsAsync(
             ArrayOf<RedundantServer> redundantServers,
             ConfiguredEndpoint currentEndpoint,
+            ConfiguredEndpoint? initialEndpoint,
             CancellationToken ct)
         {
             var tasks = new Task<RedundantServer>[redundantServers.Count];
+            string? initialUri = initialEndpoint?.ReverseConnect?.ServerUri ??
+                initialEndpoint?.Description?.Server?.ApplicationUri;
             for (int ii = 0; ii < redundantServers.Count; ii++)
             {
-                tasks[ii] = ResolveServerAsync(redundantServers[ii], currentEndpoint, ct);
+                ct.ThrowIfCancellationRequested();
+                RedundantServer server = redundantServers[ii];
+                tasks[ii] = !string.IsNullOrEmpty(initialUri) &&
+                    string.Equals(server.ServerUri, initialUri, StringComparison.Ordinal)
+                    ? Task.FromResult(WithEndpoint(server, initialEndpoint))
+                    : ResolveServerAsync(server, currentEndpoint, ct);
             }
 
             return await Task.WhenAll(tasks).ConfigureAwait(false);

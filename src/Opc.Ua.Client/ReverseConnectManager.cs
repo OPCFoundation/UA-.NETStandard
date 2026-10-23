@@ -2072,7 +2072,8 @@ namespace Opc.Ua.Client
             {
                 foreach (ConnectionWaitingEventArgs held in m_heldConnections)
                 {
-                    if (string.Equals(held.ServerUri, normalized, StringComparison.Ordinal) &&
+                    if (!held.Accepted &&
+                        string.Equals(held.ServerUri, normalized, StringComparison.Ordinal) &&
                         !endpointUrls.Contains(held.EndpointUrl))
                     {
                         endpointUrls.Add(held.EndpointUrl);

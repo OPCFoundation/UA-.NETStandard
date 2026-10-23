@@ -324,9 +324,14 @@ namespace Opc.Ua.Client.Tests
         /// manager and the members over another source, a failover and the
         /// recovery on the member take the member's connections.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ReverseConnectFailoverUsesMemberSourceAsync(bool initialManager)
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(true, false, true)]
+        [TestCase(false, true, true)]
+        public async Task ReverseConnectFailoverUsesMemberSourceAsync(
+            bool initialManager, bool initialDialed, bool unmarkedTarget)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(120));
             await using ReverseConnectSet set = await ReverseConnectSet.StartAsync(
@@ -337,13 +342,25 @@ namespace Opc.Ua.Client.Tests
             var primarySource = new SingleServerSource(set.Source, set.Primary.ApplicationUri);
             var policy = new ReconnectPolicyOptions { MaxTotalReconnectTime = TimeSpan.FromSeconds(10) };
             await using UaManagedSession session = await set.ConnectAsync(
-                new ServerRedundancyOptions(), policy, timeout.Token, memberSource, primarySource, initialManager)
+                new ServerRedundancyOptions { ProbeMemberServiceLevel = true },
+                policy, timeout.Token, memberSource, primarySource, initialManager, initialDialed)
                 .ConfigureAwait(false);
-            await WaitForMemberAsync(session, set.Backup, server => server.Endpoint != null, timeout.Token)
+            ServerRedundancyInfo info = await WaitForMemberAsync(
+                session, set.Backup, server => server.Endpoint != null, timeout.Token)
                 .ConfigureAwait(false);
             int requests = memberSource.RequestCount(set.Backup.ApplicationUri);
 
-            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+            ConfiguredEndpoint? target = null;
+            if (unmarkedTarget)
+            {
+                ConfiguredEndpoint resolved = info.RedundantServers.ToList()
+                    .Single(server => server.ServerUri == set.Backup.ApplicationUri).Endpoint!;
+                target = new ConfiguredEndpoint(null, resolved.Description, resolved.Configuration)
+                {
+                    UpdateBeforeConnect = false
+                };
+            }
+            await session.FailoverAsync(target, timeout.Token).ConfigureAwait(false);
 
             Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
             Assert.That(memberSource.RequestCount(set.Backup.ApplicationUri), Is.GreaterThan(requests));
@@ -365,6 +382,19 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(ServerUriOf(session), Is.EqualTo(set.Backup.ApplicationUri));
                 Assert.That(memberSource.RequestCount(set.Backup.ApplicationUri), Is.GreaterThan(requests));
+                Assert.That(primarySource.RefusedWaits, Is.Zero);
+            });
+
+            await WaitForMemberAsync(session, set.Primary, server => server.Endpoint != null, timeout.Token)
+                .ConfigureAwait(false);
+            await session.FailoverAsync(ct: timeout.Token).ConfigureAwait(false);
+            level = await session.ReadValueAsync(VariableIds.Server_ServiceLevel, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerUriOf(session), Is.EqualTo(set.Primary.ApplicationUri));
+                Assert.That(level.GetValue<byte>(0), Is.EqualTo(250));
+                Assert.That(memberSource.RequestCount(set.Primary.ApplicationUri), Is.Zero);
                 Assert.That(primarySource.RefusedWaits, Is.Zero);
             });
         }
@@ -491,18 +521,20 @@ namespace Opc.Ua.Client.Tests
             /// by default.</param>
             /// <param name="initialManager">Whether the primary is reached through the
             /// client's reverse connect manager instead of a source.</param>
+            /// <param name="initialDialed">Whether the primary is reached by an outbound connection.</param>
             public Task<UaManagedSession> ConnectAsync(
                 ServerRedundancyOptions options,
                 ReconnectPolicyOptions? policy,
                 CancellationToken ct,
                 IReverseConnectionAvailability? members = null,
                 IReverseConnectionSource? source = null,
-                bool initialManager = false)
+                bool initialManager = false,
+                bool initialDialed = false)
             {
                 ConfiguredEndpoint endpoint = new(null, m_primaryEndpoint, EndpointConfiguration.Create(Client.Config))
                 {
                     UpdateBeforeConnect = false,
-                    ReverseConnect = new ReverseConnectEndpoint
+                    ReverseConnect = initialDialed ? null : new ReverseConnectEndpoint
                     {
                         Enabled = true,
                         ServerUri = Primary.ApplicationUri
@@ -513,7 +545,7 @@ namespace Opc.Ua.Client.Tests
                     {
                         Endpoint = endpoint,
                         SessionName = "ReverseConnectRedundancy",
-                        ReverseConnectionSource = initialManager ? null : source ?? Source,
+                        ReverseConnectionSource = initialManager || initialDialed ? null : source ?? Source,
                         EnableServerRedundancy = true,
                         ServerRedundancy = options with { MemberConnections = members ?? Source },
                         ReconnectPolicy = policy ?? new ReconnectPolicyOptions()

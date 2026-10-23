@@ -557,8 +557,10 @@ namespace Opc.Ua.Client
             IUserIdentity? identity,
             CancellationToken ct)
         {
-            IReverseConnectionAvailability? connections = m_memberConnections;
-            if (connections == null)
+            ITransportWaitingConnection? connection = m_memberConnections == null
+                ? null
+                : await WaitForRecoveryConnectionAsync(endpoint, null, switching: true, ct).ConfigureAwait(false);
+            if (connection == null)
             {
                 return await SessionFactory.CreateAsync(
                     m_configuration,
@@ -572,11 +574,6 @@ namespace Opc.Ua.Client
                     ct).ConfigureAwait(false);
             }
 
-            Uri endpointUrl = SelectMemberEndpointUrl(connections, serverUri, endpoint)
-                ?? throw ReverseConnectRedundantServerEndpointResolver.NotConnected();
-            ITransportWaitingConnection connection = await WaitForSourceConnectionAsync(
-                connections, endpoint, endpointUrl, null, TimeSpan.Zero, ct)
-                .ConfigureAwait(false);
             try
             {
                 return await SessionFactory.CreateAsync(
@@ -626,6 +623,7 @@ namespace Opc.Ua.Client
                 RedundantServer server = snapshot.RedundantServers[ii];
                 servers[ii] = server;
                 if (string.IsNullOrEmpty(server.ServerUri) ||
+                    IsInitialServer(server.ServerUri) ||
                     string.Equals(server.ServerUri, currentUri, StringComparison.Ordinal))
                 {
                     continue;

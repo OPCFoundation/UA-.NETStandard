@@ -1655,6 +1655,7 @@ namespace Opc.Ua.Client
                     {
                         m_initialServerUri = session.ConfiguredEndpoint.Description?.Server?.ApplicationUri;
                     }
+                    m_initialServerEndpoint ??= DetachEndpoint(session.ConfiguredEndpoint);
                 }
                 finally
                 {
@@ -2569,7 +2570,9 @@ namespace Opc.Ua.Client
                 try
                 {
                     ServerRedundancyInfo resolved = ApplyMemberConnections(
-                        await cache.ResolveCachedEndpointsAsync(snapshot, current, linked.Token)
+                        await cache.ResolveCachedEndpointsAsync(
+                            snapshot, current, linked.Token,
+                            m_memberConnections == null ? null : m_initialServerEndpoint)
                             .ConfigureAwait(false),
                         current);
                     if (probeMembers)
@@ -2795,7 +2798,6 @@ namespace Opc.Ua.Client
             string? serverUri = endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri;
             // A member of a redundant Server set reached over its reverse connections is reached that way again.
             bool member = m_memberConnections != null &&
-                endpoint.ReverseConnect?.Enabled == true &&
                 !string.IsNullOrEmpty(serverUri);
             // The initial Server keeps the source or manager it was connected over; every other member
             // is reached over the member connections.
@@ -2809,7 +2811,7 @@ namespace Opc.Ua.Client
             }
             IReverseConnectionSource? source = otherMember
                 ? m_memberConnections
-                : m_reverseConnectionSource ?? (member ? m_memberConnections : null);
+                : m_reverseConnectionSource;
             if (source != null)
             {
                 Uri? announced = member && ReferenceEquals(source, m_memberConnections)
@@ -3665,6 +3667,7 @@ namespace Opc.Ua.Client
         /// which keeps the reverse connection source or manager of that connect.
         /// </summary>
         private string? m_initialServerUri;
+        private ConfiguredEndpoint? m_initialServerEndpoint;
         private readonly IReverseConnectionAvailability? m_memberConnections;
 
         /// <summary>
@@ -3872,13 +3875,7 @@ namespace Opc.Ua.Client
             Exception? exception,
             [NetworkAddress] Uri? endpointUrl);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 32, Level = LogLevel.Debug,
-            Message = "ManagedSession: Closing an unused reverse connection from {EndpointUrl}.")]
-        public static partial void ManagedSessionUnusedReverseConnectionClosed(
-            this ILogger logger,
-            [NetworkAddress] Uri? endpointUrl);
-
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 33, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 32, Level = LogLevel.Information,
             Message = "ManagedSession: Switching to redundant Server {Endpoint} with ServiceLevel {ServiceLevel}; " +
                       "the Server in use reports ServiceLevel {CurrentServiceLevel}.")]
         public static partial void ManagedSessionSelectingRedundantServer(
@@ -3887,24 +3884,30 @@ namespace Opc.Ua.Client
             byte serviceLevel,
             byte currentServiceLevel);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 34, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 33, Level = LogLevel.Warning,
             Message = "ManagedSession: Reading the ServiceLevel of redundant Server {Endpoint} failed.")]
         public static partial void ManagedSessionMemberServiceLevelProbeFailed(
             this ILogger logger,
             Exception? exception,
             [NetworkAddress] Uri? endpoint);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 34, Level = LogLevel.Information,
             Message = "ManagedSession: The Server in use reports ServiceLevel {ServiceLevel}; failing over: {Reason}")]
         public static partial void ManagedSessionServiceLevelFailover(
             this ILogger logger,
             byte serviceLevel,
             string reason);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Warning,
             Message = "ManagedSession: ServiceLevel monitoring could not complete a failover.")]
         public static partial void ManagedSessionServiceLevelMonitoringFailed(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Debug,
+            Message = "ManagedSession: Closing an unused reverse connection from {EndpointUrl}.")]
+        public static partial void ManagedSessionUnusedReverseConnectionClosed(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

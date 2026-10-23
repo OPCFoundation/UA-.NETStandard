@@ -933,19 +933,18 @@ accessibility. These remain separate release gates.
 On Linux hosts intentionally using Mesa llvmpipe, `ualens --allow-software-gl`
 permits that software OpenGL driver instead of Avalonia's default blacklist.
 This opt-in does not enable other blacklisted drivers, change normal startup
-defaults, or promise hardware acceleration. Native Vulkan composition still
-requires compatible external-image and semaphore support; an unavailable
-compositor is not treated as a rendered viewport.
+defaults, or promise hardware acceleration. Vulkan rendering requires a working
+Vulkan device. OpenUSD 0.16.6-alpha prefers shared GPU surfaces; when Avalonia cannot
+import external images or semaphores, it reads completed Vulkan frames into host
+memory and presents them through an Avalonia bitmap. This adds a frame copy,
+not a replacement renderer or a placeholder surface.
 `ualens --x11-vulkan` instead explicitly selects Avalonia's Vulkan compositor
-on X11, avoiding a Vulkan-to-OpenGL image import. This selection has no fallback
-to a different compositor; both Vulkan rendering and external-resource support
-must be available on the selected device.
+on X11, avoiding a Vulkan-to-OpenGL image import. The compositor selection remains
+explicit; host-memory presentation handles missing external-resource interop.
 
-Linux viewport rendering is not currently CI-qualified: its native-rendering
-checks are temporarily disabled while hosted Ubuntu/Xvfb compositor compatibility
-is repaired. Linux startup checks remain active. See
+Both presentation paths must pass the same rendering and cleanup checks. See
 [artifact qualification](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check)
-for the affected checks and re-enablement criteria.
+for their scope and evidence requirements.
 
 Matching servers are listed in [Sample Applications](samples.md).
 
