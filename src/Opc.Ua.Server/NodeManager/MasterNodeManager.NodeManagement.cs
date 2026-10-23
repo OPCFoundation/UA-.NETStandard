@@ -162,10 +162,7 @@ namespace Opc.Ua.Server
                 ArrayOf<AddNodesItem> nodesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -227,10 +224,7 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteNodesItem> nodesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -287,10 +281,7 @@ namespace Opc.Ua.Server
                 ArrayOf<AddReferencesItem> referencesToAdd,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             var results = new StatusCode[referencesToAdd.Count];
             var diagnosticInfos = new DiagnosticInfo[referencesToAdd.Count];
@@ -339,10 +330,7 @@ namespace Opc.Ua.Server
                 ArrayOf<DeleteReferencesItem> referencesToDelete,
                 CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = m_serviceDispatch.CaptureRouting(context);
 
             var results = new StatusCode[referencesToDelete.Count];
             var diagnosticInfos = new DiagnosticInfo[referencesToDelete.Count];
@@ -398,10 +386,11 @@ namespace Opc.Ua.Server
         /// ReferenceType shall exist (Part 3 5.3.1), so AddNodes and AddReferences reject it.
         /// </summary>
         private async ValueTask<bool> IsAbstractReferenceTypeAsync(
+            OperationContext context,
             NodeId referenceTypeId,
             CancellationToken cancellationToken)
         {
-            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(referenceTypeId, cancellationToken)
+            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(context, referenceTypeId, cancellationToken)
                 .ConfigureAwait(false) is ReferenceTypeState { IsAbstract: true };
         }
 
@@ -432,7 +421,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
             }
 
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
@@ -485,7 +474,8 @@ namespace Opc.Ua.Server
             }
 
             (object? parentHandle, IAsyncNodeManager? parentOwner) =
-                await GetManagerHandleAsync(parentNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, parentNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (parentHandle == null || parentOwner == null)
             {
                 return (new ServiceResult(StatusCodes.BadParentNodeIdInvalid), NodeId.Null);
@@ -584,7 +574,8 @@ namespace Opc.Ua.Server
             }
 
             (object? handle, IAsyncNodeManager? owner) =
-                await GetManagerHandleAsync(item.NodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.NodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (handle == null || owner == null)
             {
                 return new ServiceResult(StatusCodes.BadNodeIdUnknown);
@@ -646,14 +637,15 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
             (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
-                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.SourceNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (sourceHandle == null || sourceOwner == null)
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
@@ -688,7 +680,8 @@ namespace Opc.Ua.Server
                 out NodeId targetNodeId))
             {
                 object? targetHandle;
-                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                (targetHandle, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
+                    context,
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
                 if (targetHandle == null || targetOwner == null)
@@ -834,14 +827,15 @@ namespace Opc.Ua.Server
             }
 
             // Part 3 5.3.1: no Reference of an abstract ReferenceType exists to delete.
-            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+            if (await IsAbstractReferenceTypeAsync(context, item.ReferenceTypeId, cancellationToken)
                 .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
 
             (object? sourceHandle, IAsyncNodeManager? sourceOwner) =
-                await GetManagerHandleAsync(item.SourceNodeId, cancellationToken).ConfigureAwait(false);
+                await m_serviceDispatch.GetManagerHandleAsync(context, item.SourceNodeId, cancellationToken)
+                    .ConfigureAwait(false);
             if (sourceHandle == null || sourceOwner == null)
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
@@ -879,7 +873,8 @@ namespace Opc.Ua.Server
             if (explicitlyLocalTarget)
             {
                 object? targetHandle;
-                (targetHandle, targetOwner) = await GetManagerHandleAsync(
+                (targetHandle, targetOwner) = await m_serviceDispatch.GetManagerHandleAsync(
+                    context,
                     targetNodeId,
                     cancellationToken).ConfigureAwait(false);
                 if (targetHandle == null || targetOwner == null)

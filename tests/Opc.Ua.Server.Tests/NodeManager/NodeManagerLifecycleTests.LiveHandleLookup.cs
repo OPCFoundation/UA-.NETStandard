@@ -31,6 +31,7 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.RuntimeNodeSet;
 
@@ -131,6 +132,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Legacy proxy owners stay authoritative, but a newly published managed owner cannot replace a pinned view.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public async Task ExplicitLookupPreservesExternalOverridesWithoutCrossingManagedViewsAsync(
+            bool registerBeforePin,
+            bool registerAfterPin)
+        {
+            await using var master = new OverridingMasterNodeManager(m_server.CurrentInstance, m_fixture.Config);
+            var proxy = new Mock<IAsyncNodeManager>();
+            master.LookupManager = proxy.Object;
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            var routing = (IRequestRouting)master;
+            if (registerBeforePin)
+            {
+                GetRoutingTable(master).Add(proxy.Object, [9]);
+            }
+            routing.PinRequest(context);
+            if (registerAfterPin)
+            {
+                GetRoutingTable(master).Add(proxy.Object, [9]);
+            }
+            (object? handle, IAsyncNodeManager? manager) = await routing.GetManagerHandleAsync(
+                context, new NodeId("LegacyLookup", 9), CancellationToken.None).ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(
+                    context.RoutingSnapshot!.VisibleNodeManagers,
+                    registerBeforePin ? Does.Contain(proxy.Object) : Does.Not.Contain(proxy.Object));
+                Assert.That(master.LookupCount, Is.EqualTo(1));
+                Assert.That(handle, registerAfterPin ? Is.Null : Is.SameAs(master.LookupHandle));
+                Assert.That(manager, registerAfterPin ? Is.Null : Is.SameAs(proxy.Object));
+            }
+        }
+
         private static NodeManagerRoutingTable GetRoutingTable(MasterNodeManager master)
         {
             FieldInfo field = typeof(MasterNodeManager).GetField(
@@ -147,12 +185,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public int LookupCount { get; private set; }
 
+            /// <summary>
+            /// Gets the opaque handle returned by the legacy override.
+            /// </summary>
+            public NodeHandle LookupHandle { get; } = new();
+
+            /// <summary>
+            /// Gets or sets the manager selected by the legacy override.
+            /// </summary>
+            public IAsyncNodeManager? LookupManager { get; set; }
+
             public override ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
                 LookupCount++;
-                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((new object(), null));
+                return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((LookupHandle, LookupManager));
             }
         }
     }

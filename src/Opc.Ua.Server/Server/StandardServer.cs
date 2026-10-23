@@ -3481,6 +3481,10 @@ namespace Opc.Ua.Server
 
             try
             {
+                if (serverInternal.NodeManager is IRequestRouting routing)
+                {
+                    routing.PinRequest(context);
+                }
                 await OnRequestValidatedAsync(context).ConfigureAwait(false);
             }
             catch (ServiceResultException e)

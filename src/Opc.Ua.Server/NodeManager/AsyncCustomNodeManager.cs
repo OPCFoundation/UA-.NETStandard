@@ -2165,6 +2165,7 @@ namespace Opc.Ua.Server
 
             var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
             ServiceResult typeDefinitionResult = await ValidateAddNodesTypeDefinitionAsync(
+                context,
                 item.NodeClass, typeDefinitionId, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(typeDefinitionResult))
             {
@@ -2893,7 +2894,7 @@ namespace Opc.Ua.Server
         /// </para>
         /// </remarks>
         private async ValueTask AddMandatoryInstanceDeclarationsAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             NodeState instance,
             NodeId typeDefinitionId,
             int depth,
@@ -2918,7 +2919,8 @@ namespace Opc.Ua.Server
             while (!typeId.IsNull && visitedTypes.Add(typeId))
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                NodeState? typeNode = await FindTypeNodeAsync(typeId, cancellationToken)
+                NodeState? typeNode = await FindTypeNodeAsync(
+                    context.OperationContext, typeId, cancellationToken)
                     .ConfigureAwait(false);
                 if (typeNode != null)
                 {
@@ -2961,7 +2963,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask AddMandatoryInstanceDeclarationsToSubtreeAsync(
-            ISystemContext context,
+            ServerSystemContext context,
             BaseInstanceState node,
             int depth,
             CancellationToken cancellationToken)
@@ -3087,6 +3089,7 @@ namespace Opc.Ua.Server
         /// concrete subtype.
         /// </remarks>
         private async ValueTask<ServiceResult> ValidateAddNodesTypeDefinitionAsync(
+            OperationContext context,
             NodeClass nodeClass,
             NodeId typeDefinitionId,
             CancellationToken cancellationToken)
@@ -3143,7 +3146,7 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
-            NodeState? typeNode = await FindTypeNodeAsync(typeDefinitionId, cancellationToken)
+            NodeState? typeNode = await FindTypeNodeAsync(context, typeDefinitionId, cancellationToken)
                 .ConfigureAwait(false);
             if (typeNode is BaseTypeState { IsAbstract: true })
             {
@@ -3158,6 +3161,7 @@ namespace Opc.Ua.Server
         /// then in the rest of the address space.
         /// </summary>
         private async ValueTask<NodeState?> FindTypeNodeAsync(
+            OperationContext? context,
             NodeId typeId,
             CancellationToken cancellationToken)
         {
@@ -3174,7 +3178,7 @@ namespace Opc.Ua.Server
             {
                 return null;
             }
-            return await master.FindNodeInAddressSpaceAsync(typeId, cancellationToken)
+            return await master.ResolveNodeInAddressSpaceAsync(context, typeId, cancellationToken)
                 .ConfigureAwait(false);
         }
 
@@ -3202,8 +3206,8 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager.GetManagerHandleAsync(
-                        variable.TypeDefinitionId, cancellationToken).ConfigureAwait(false);
+                    (object? handle, IAsyncNodeManager? owner) = await Server.NodeManager.ResolveManagerHandleAsync(
+                        context, variable.TypeDefinitionId, cancellationToken).ConfigureAwait(false);
                     NodeMetadata? metadata = handle == null || owner == null
                         ? null
                         : await owner.GetNodeMetadataAsync(
@@ -9479,7 +9483,7 @@ namespace Opc.Ua.Server
             }
 
             (object? nodeHandle, IAsyncNodeManager? nodeManager) = await Server.NodeManager
-                .GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
+                .ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken).ConfigureAwait(false);
 
             if (nodeHandle == null || nodeManager == null)
             {

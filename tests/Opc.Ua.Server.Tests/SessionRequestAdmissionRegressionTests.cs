@@ -282,6 +282,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// The routing view is pinned before application admission and released when the request completes.
+        /// </summary>
+        [Test]
+        public async Task RequestRoutingIsPinnedBeforeApplicationAdmissionAndReleasedAfterCompletionAsync()
+        {
+            var fixture = new ServerFixture<AdmissionServer>(t => new AdmissionServer(t));
+            try
+            {
+                AdmissionServer server = await fixture.StartAsync().ConfigureAwait(false);
+                (RequestHeader requestHeader, SecureChannelContext channel) =
+                    await server.CreateAndActivateSessionAsync("PinnedRouting").ConfigureAwait(false);
+                await server.ReadAsync(
+                    channel,
+                    new RequestHeader { AuthenticationToken = requestHeader.AuthenticationToken },
+                    0,
+                    TimestampsToReturn.Neither,
+                    [
+                        new ReadValueId
+                        {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }
+                    ],
+                    RequestLifetime.None).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(server.AdmittedReadView, Is.Not.Null,
+                        "Application admission must see the request's explicit routing view.");
+                    Assert.That(server.AdmittedReadView!.VisibleNodeManagers, Has.Length.GreaterThanOrEqualTo(2));
+                    Assert.That(server.AdmittedReadContext, Is.Not.Null);
+                    Assert.That(server.AdmittedReadContext!.RoutingSnapshot, Is.Null,
+                        "Completion must release the request's view.");
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// A server whose session manager can start a close inside the admission window.
         /// </summary>
         public sealed class AdmissionServer : StandardServer
@@ -293,6 +335,16 @@ namespace Opc.Ua.Server.Tests
 
             public bool RejectCreateSession { get; set; }
 
+            /// <summary>
+            /// Gets the Read operation observed at application admission.
+            /// </summary>
+            internal OperationContext? AdmittedReadContext { get; private set; }
+
+            /// <summary>
+            /// Gets the routing view observed before application admission runs.
+            /// </summary>
+            internal NodeManagerRoutingTable.RoutingSnapshot? AdmittedReadView { get; private set; }
+
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
                 ApplicationConfiguration configuration)
@@ -302,6 +354,11 @@ namespace Opc.Ua.Server.Tests
 
             protected override ValueTask OnRequestValidatedAsync(OperationContext context)
             {
+                if (context.RequestType == RequestType.Read)
+                {
+                    AdmittedReadContext = context;
+                    AdmittedReadView = context.RoutingSnapshot;
+                }
                 if (RejectCreateSession && context.RequestType == RequestType.CreateSession)
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied);

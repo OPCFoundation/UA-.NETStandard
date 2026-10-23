@@ -76,10 +76,12 @@ namespace Opc.Ua.Server
         /// snapshot, so a service call cannot see the routes of one lifecycle generation and
         /// the dispatch order of another.
         /// </summary>
+        /// <param name="snapshot">An explicit operation view, or null for live routes.</param>
         public (IAsyncNodeManager[] NodeManagers,
-            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers) GetDispatchView()
+            IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers) GetDispatchView(
+                RoutingSnapshot? snapshot = null)
         {
-            RoutingSnapshot snapshot = ReadSnapshot;
+            snapshot ??= ReadSnapshot;
             return (snapshot.VisibleNodeManagers, snapshot.VisibleNamespaceManagers);
         }
 
@@ -1295,24 +1297,30 @@ namespace Opc.Ua.Server
         internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
 
         /// <summary>
-        /// Gets the routing revision captured by the current read scope, or the live revision.
+        /// Gets the metadata image revision captured by the current flow, or the live revision.
+        /// This does not select dispatch routes.
         /// </summary>
-        internal RoutingSnapshot CapturedRevision => ReadSnapshot;
+        internal RoutingSnapshot CapturedRevision => ImageSnapshot;
 
         /// <summary>
         /// Gets the type tree of the prepared image in use, or the one captured with the routing revision.
         /// </summary>
-        internal TypeTable? TypeTree => m_preparedTypes.Value ?? ReadSnapshot.TypeTree;
+        internal TypeTable? TypeTree => m_preparedTypes.Value ?? ImageSnapshot.TypeTree;
 
         /// <summary>
         /// Gets the encodeable factory of the prepared image in use, or the one captured with the routing revision.
         /// </summary>
-        internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ReadSnapshot.Factory;
+        internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ImageSnapshot.Factory;
 
         /// <summary>
-        /// Gets the snapshot captured by the current read scope, or the live snapshot.
+        /// Gets live routes. Metadata image scopes never select dispatch routes.
         /// </summary>
-        private RoutingSnapshot ReadSnapshot => m_readSnapshot.Value ?? Volatile.Read(ref m_snapshot);
+        private RoutingSnapshot ReadSnapshot => Volatile.Read(ref m_snapshot);
+
+        /// <summary>
+        /// Gets the transitional contextless metadata image, never a dispatch route.
+        /// </summary>
+        private RoutingSnapshot ImageSnapshot => m_imageSnapshot.Value ?? ReadSnapshot;
 
         /// <summary>
         /// Gets the read image published for a node manager in the active snapshot.
@@ -1321,23 +1329,23 @@ namespace Opc.Ua.Server
         /// <returns>The read image, or null if the owner has none.</returns>
         internal INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
         {
-            return ReadSnapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
+            return ImageSnapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
         }
 
         /// <summary>
-        /// Captures a routing snapshot for the current asynchronous flow until the scope is disposed.
+        /// Captures metadata images, but not dispatch routes, until the scope is disposed.
         /// </summary>
         /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
         /// <returns>The scope that restores the previous snapshot when disposed.</returns>
         internal ReadScope Capture(RoutingSnapshot? snapshot = null)
         {
-            RoutingSnapshot? previous = m_readSnapshot.Value;
-            m_readSnapshot.Value = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
+            RoutingSnapshot? previous = m_imageSnapshot.Value;
+            m_imageSnapshot.Value = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
             return new ReadScope(this, previous);
         }
 
         /// <summary>
-        /// Captures a routing snapshot for the rest of the calling async method, like
+        /// Captures metadata images for the rest of the calling async method, like
         /// <see cref="Capture"/> without the scope.
         /// </summary>
         /// <remarks>
@@ -1350,22 +1358,22 @@ namespace Opc.Ua.Server
         /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
         internal void CaptureUntilReturn(RoutingSnapshot? snapshot = null)
         {
-            RoutingSnapshot? previous = m_readSnapshot.Value;
+            RoutingSnapshot? previous = m_imageSnapshot.Value;
             RoutingSnapshot captured = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
             if (!ReferenceEquals(captured, previous))
             {
-                m_readSnapshot.Value = captured;
+                m_imageSnapshot.Value = captured;
             }
         }
 
         /// <summary>
-        /// Reads the live routing in the current asynchronous flow until the scope is disposed.
+        /// Clears the transitional metadata image scope for lifecycle work until disposed.
         /// </summary>
         /// <returns>The scope that restores the previous snapshot when disposed.</returns>
         internal ReadScope UseLiveRouting()
         {
-            RoutingSnapshot? previous = m_readSnapshot.Value;
-            m_readSnapshot.Value = null;
+            RoutingSnapshot? previous = m_imageSnapshot.Value;
+            m_imageSnapshot.Value = null;
             return new ReadScope(this, previous);
         }
 
@@ -1591,7 +1599,7 @@ namespace Opc.Ua.Server
         /// <returns>The reference snapshot, or null if there is none.</returns>
         private NodeState.ReferenceSnapshot? SelectReferences(NodeState node)
         {
-            return ReadSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
+            return ImageSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
         }
 
         /// <summary>
@@ -1606,7 +1614,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly AsyncLocal<RoutingSnapshot?> m_readSnapshot = new();
+        private readonly AsyncLocal<RoutingSnapshot?> m_imageSnapshot = new();
         private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
         private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
         private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
@@ -1691,7 +1699,7 @@ namespace Opc.Ua.Server
                 NodeManagerRoutingTable? owner = Interlocked.Exchange(ref m_owner, null);
                 if (owner is not null)
                 {
-                    owner.m_readSnapshot.Value = m_previous;
+                    owner.m_imageSnapshot.Value = m_previous;
                 }
             }
 

@@ -82,10 +82,12 @@ namespace Opc.Ua.Server
         /// Captures the node managers that a history continuation depends on, if its source requires captured
         /// ownership.
         /// </summary>
+        /// <param name="context">The operation whose routing view owns the read.</param>
         /// <param name="state">The continuation state to capture.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>Good if captured or not required; otherwise the reason it cannot be captured.</returns>
         internal async ValueTask<ServiceResult> CaptureHistoryContinuationAsync(
+            OperationContext context,
             HistorianContinuationState state,
             CancellationToken cancellationToken)
         {
@@ -93,9 +95,9 @@ namespace Opc.Ua.Server
             {
                 return ServiceResult.Good;
             }
-            m_nodeManagers.CaptureUntilReturn();
-            (object? handle, IAsyncNodeManager? source) = await m_owner.GetManagerHandleAsync(
-                state.OriginNodeId, cancellationToken).ConfigureAwait(false);
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
+            (object? handle, IAsyncNodeManager? source) = await GetManagerHandleAsync(
+                context, state.OriginNodeId, cancellationToken).ConfigureAwait(false);
             if (handle is null || source is null)
             {
                 return StatusCodes.BadNodeIdUnknown;
@@ -128,8 +130,8 @@ namespace Opc.Ua.Server
                     return ServiceResult.Create(StatusCodes.BadNotSupported,
                         "A history continuation dependency must identify a local Node.");
                 }
-                (object? target, IAsyncNodeManager? manager) = await m_owner.GetManagerHandleAsync(
-                    nodeId, cancellationToken).ConfigureAwait(false);
+                (object? target, IAsyncNodeManager? manager) = await GetManagerHandleAsync(
+                    context, nodeId, cancellationToken).ConfigureAwait(false);
                 if (target is null || manager is null)
                 {
                     return ServiceResult.Create(StatusCodes.BadNodeIdUnknown,
@@ -147,7 +149,7 @@ namespace Opc.Ua.Server
             ArrayOf<IAsyncNodeManager> retained = [.. owners];
             state.Ownership.Manager = source;
             state.Ownership.SetDependencyOwners(retained);
-            state.Ownership.RoutingSnapshot = m_nodeManagers.CapturedRevision.ForContinuation(retained);
+            state.Ownership.RoutingSnapshot = GetRouting(context).ForContinuation(retained);
             return ServiceResult.Good;
         }
 
@@ -196,7 +198,8 @@ namespace Opc.Ua.Server
                 return (result, StatusCodes.BadContinuationPointInvalid);
             }
             var state = use.Point as HistorianContinuationState;
-            m_nodeManagers.CaptureUntilReturn(state?.Ownership.RoutingSnapshot);
+            using OperationContext.RoutingScope continuationRouting =
+                CaptureRouting(context, state?.Ownership.RoutingSnapshot);
             ServiceResult? error = await ValidateHistoryReadRequestAsync(context, node, cancellationToken)
                 .ConfigureAwait(false);
             if (ServiceResult.IsBad(error))
@@ -217,7 +220,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    foreach (IAsyncNodeManager manager in m_nodeManagers)
+                    foreach (IAsyncNodeManager manager in GetRouting(context).VisibleNodeManagers)
                     {
                         await manager.HistoryReadAsync(
                             context, details, timestampsToReturn, release, [node], results, errors, cancellationToken)

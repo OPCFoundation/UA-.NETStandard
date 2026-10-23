@@ -2407,7 +2407,7 @@ namespace Opc.Ua.Server.Historian
             try
             {
                 (object? handle, IAsyncNodeManager? nodeManager) = await systemContext.Server.NodeManager
-                    .GetManagerHandleAsync(nodeId, cancellationToken)
+                    .ResolveManagerHandleAsync(operationContext, nodeId, cancellationToken)
                     .ConfigureAwait(false);
                 if (handle != null && nodeManager != null)
                 {
@@ -3321,7 +3321,8 @@ namespace Opc.Ua.Server.Historian
                 ServiceResult admission = ServiceResult.Good;
                 if (systemContext.Server?.NodeManager is MasterNodeManager master)
                 {
-                    admission = await master.CaptureHistoryContinuationAsync(state, cancellationToken)
+                    admission = await master.CaptureHistoryContinuationAsync(
+                        systemContext.OperationContext!, state, cancellationToken)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsGood(admission) &&
                         state.Ownership.HasCapturedDependencies &&

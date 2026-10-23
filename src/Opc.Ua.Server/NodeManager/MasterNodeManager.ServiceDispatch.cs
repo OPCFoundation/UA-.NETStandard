@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// here stay on <see cref="MasterNodeManager"/> so overrides, protected access, and
     /// the public API surface are unchanged.
     /// </summary>
-    public partial class MasterNodeManager
+    public partial class MasterNodeManager : IRequestRouting
     {
         /// <summary>
         /// Determine the required history access permission depending on the HistoryUpdateDetails
@@ -101,6 +101,30 @@ namespace Opc.Ua.Server
                     Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
             }
+        }
+
+        /// <inheritdoc/>
+        void IRequestRouting.PinRequest(OperationContext context)
+        {
+            context.PinRouting(m_nodeManagers.Revision);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> IRequestRouting.GetManagerHandleAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.GetManagerHandleAsync(context, nodeId, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<NodeState?> IRequestRouting.FindNodeInAddressSpaceAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            return m_serviceDispatch.FindNodeInAddressSpaceAsync(context, nodeId, cancellationToken);
         }
 
         /// <inheritdoc/>

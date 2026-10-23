@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool before = true;
             bool after = true;
             survivor.ReadCallbackNodeId = value;
-            survivor.ReadCallback = async token =>
+            survivor.ReadCallback = async (_, token) =>
             {
                 before = objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root);
                 entered.TrySetResult(true);

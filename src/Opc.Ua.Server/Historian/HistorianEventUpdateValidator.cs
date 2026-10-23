@@ -303,7 +303,8 @@ namespace Opc.Ua.Server.Historian
                             BrowseNames.SourceNode);
                     }
                     (object? handle, IAsyncNodeManager? _) = await systemContext
-                        .Server.NodeManager.GetManagerHandleAsync(
+                        .Server.NodeManager.ResolveManagerHandleAsync(
+                            systemContext.OperationContext,
                             sourceNode,
                             cancellationToken)
                         .ConfigureAwait(false);

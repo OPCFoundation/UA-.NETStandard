@@ -301,11 +301,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var releaseReadiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool retainedRoutes = false;
             originalManager.ReadCallbackNodeId = valueId;
-            originalManager.ReadCallback = async token =>
+            originalManager.ReadCallback = async (context, token) =>
             {
                 readEntered.TrySetResult(true);
                 await releaseRead.Task.WaitAsync(token).ConfigureAwait(false);
-                retainedRoutes = master.NamespaceManagers[ns].Contains(originalManager);
+                retainedRoutes = context.RoutingSnapshot!.VisibleNamespaceManagers[ns].Contains(originalManager);
             };
             TrackingLifecycleNodeManager? replacement = null;
             ReadinessLifecycleNodeManager? candidate = null;

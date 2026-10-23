@@ -162,10 +162,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (table.Capture(previous))
             {
                 Assert.That(table.GetReadImage(firstPermanent), Is.SameAs(readImage));
-                Assert.That(table.ToArray(), Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
-                AssertSingleManagerRoute(table.NamespaceManagers, 2, original);
-                AssertSingleManagerRoute(table.NamespaceManagers, 3, original);
-                Assert.That(table.NamespaceManagers.ContainsKey(9), Is.False);
+                var routing = table.GetDispatchView(previous);
+                Assert.That(routing.NodeManagers, Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
+                AssertSingleManagerRoute(routing.NamespaceManagers, 2, original);
+                AssertSingleManagerRoute(routing.NamespaceManagers, 3, original);
+                Assert.That(routing.NamespaceManagers.ContainsKey(9), Is.False);
             }
 
             void Mutate()

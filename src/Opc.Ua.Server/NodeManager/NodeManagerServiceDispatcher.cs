@@ -71,6 +71,12 @@ namespace Opc.Ua.Server
             m_nodeManagers = nodeManagers ?? throw new ArgumentNullException(nameof(nodeManagers));
             Server = server ?? throw new ArgumentNullException(nameof(server));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            Func<NodeId, CancellationToken, ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>> lookup =
+                owner.GetManagerHandleAsync;
+            if (lookup.Method.DeclaringType != typeof(MasterNodeManager))
+            {
+                m_handleLookupOverride = lookup;
+            }
         }
 
         /// <summary>
@@ -79,10 +85,87 @@ namespace Opc.Ua.Server
         private IServerInternal Server { get; }
 
         /// <summary>
-        /// The visible NodeManagers serving each namespace index.
+        /// Selects the operation's view without consulting execution-context metadata images.
         /// </summary>
-        private IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> NamespaceManagers
-            => m_nodeManagers.NamespaceManagers;
+        /// <param name="context">The operation selecting routes.</param>
+        /// <returns>The explicit view, or live routing for internal work without a service scope.</returns>
+        private NodeManagerRoutingTable.RoutingSnapshot GetRouting(OperationContext context)
+        {
+            return context.RoutingSnapshot ?? m_nodeManagers.Revision;
+        }
+
+        /// <summary>
+        /// Pins routes on the operation and bridges contextless metadata readers until P2.
+        /// </summary>
+        /// <param name="context">The operation receiving the view.</param>
+        /// <param name="snapshot">A continuation's issuing view, or null for service entry.</param>
+        /// <returns>The scope restoring the operation's previous view.</returns>
+        internal OperationContext.RoutingScope CaptureRouting(
+            OperationContext context,
+            NodeManagerRoutingTable.RoutingSnapshot? snapshot = null)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            OperationContext.RoutingScope scope = context.UseRouting(snapshot ?? GetRouting(context));
+            m_nodeManagers.CaptureUntilReturn(context.RoutingSnapshot);
+            return scope;
+        }
+
+        /// <summary>
+        /// Resolves a handle through the explicit operation view.
+        /// </summary>
+        /// <param name="context">The operation selecting routes.</param>
+        /// <param name="nodeId">The node to resolve.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The handle and owning manager, if found.</returns>
+        internal ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
+            OperationContext context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
+        {
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = GetRouting(context);
+            return m_handleLookupOverride is null
+                ? ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken)
+                : GetOverriddenManagerHandleAsync(nodeId, snapshot, cancellationToken);
+        }
+
+        /// <summary>
+        /// Honors external legacy lookup owners without crossing managed routing revisions.
+        /// </summary>
+        /// <param name="nodeId">The node to resolve.</param>
+        /// <param name="snapshot">The view selecting eligible owners.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The handle and owning manager, if found.</returns>
+        private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetOverriddenManagerHandleAsync(
+            NodeId nodeId,
+            NodeManagerRoutingTable.RoutingSnapshot snapshot,
+            CancellationToken cancellationToken)
+        {
+            (object? handle, IAsyncNodeManager? nodeManager) result =
+                await m_handleLookupOverride!(nodeId, cancellationToken).ConfigureAwait(false);
+            if (result.nodeManager is null)
+            {
+                return result;
+            }
+            foreach (IAsyncNodeManager manager in snapshot.VisibleNodeManagers)
+            {
+                if (ReferenceEquals(manager, result.nodeManager))
+                {
+                    return result;
+                }
+            }
+            foreach (IAsyncNodeManager manager in m_nodeManagers.Revision.VisibleNodeManagers)
+            {
+                if (ReferenceEquals(manager, result.nodeManager))
+                {
+                    return await ResolveManagerHandleAsync(nodeId, snapshot, cancellationToken).ConfigureAwait(false);
+                }
+            }
+            // External proxy owners are controlled by the override, not the managed routing lifetime.
+            return result;
+        }
 
         /// <summary>
         /// Resolves a node's handle and owning synchronous node manager through the namespace routing table.
@@ -139,8 +222,24 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Resolves a node's handle and owning asynchronous node manager through the namespace routing table.
         /// </summary>
-        internal async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>
-            GetManagerHandleAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        internal ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> GetManagerHandleAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            return ResolveManagerHandleAsync(nodeId, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves a node through explicitly selected namespace routes, or live routes when no view is supplied.
+        /// </summary>
+        /// <param name="nodeId">The node to resolve.</param>
+        /// <param name="snapshot">The explicit routing view, or null for live routing.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The handle and owning manager, if found.</returns>
+        private async ValueTask<(object? handle, IAsyncNodeManager? nodeManager)> ResolveManagerHandleAsync(
+            NodeId nodeId,
+            NodeManagerRoutingTable.RoutingSnapshot? snapshot,
+            CancellationToken cancellationToken)
         {
             object? handle;
 
@@ -152,7 +251,7 @@ namespace Opc.Ua.Server
 
             // use the namespace index to select the node manager.
             int index = nodeId.NamespaceIndex;
-            var routing = m_nodeManagers.GetDispatchView();
+            var routing = m_nodeManagers.GetDispatchView(snapshot);
 
             // check if node managers are registered - use the core node manager if unknown.
             if (!routing.NamespaceManagers.TryGetValue(index, out IReadOnlyList<IAsyncNodeManager>? nodeManagers))
@@ -199,7 +298,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowsePath> browsePaths,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             bool diagnosticsExist = false;
             var results = new List<BrowsePathResult>(browsePaths.Count);
             var diagnosticInfos = new List<DiagnosticInfo>(browsePaths.Count);
@@ -355,7 +454,8 @@ namespace Opc.Ua.Server
             Debug.Assert(result != null);
 
             // check for valid start node.
-            (object? sourceHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
+            (object? sourceHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                context,
                 browsePath!.StartingNode,
                 cancellationToken)
                 .ConfigureAwait(false);
@@ -461,7 +561,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        (handle, manager) = await m_owner.GetManagerHandleAsync(
+                        (handle, manager) = await GetManagerHandleAsync(
+                            context,
                             ExpandedNodeId.ToNodeId(nextTarget, Server.NamespaceUris), cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -561,7 +662,8 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await m_owner.GetManagerHandleAsync(
+                        (object? targetHandle, IAsyncNodeManager? targetNodeManager) = await GetManagerHandleAsync(
+                                context,
                                 ExpandedNodeId.ToNodeId(targetId, Server.NamespaceUris),
                                 cancellationToken)
                             .ConfigureAwait(false);
@@ -613,11 +715,7 @@ namespace Opc.Ua.Server
             ArrayOf<BrowseDescription> nodesToBrowse,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             // the timestamp/version checks are service level results (OPC 10000-4, 5.9.2.3).
             ViewDescriptionValidator.ValidateParameters(view);
@@ -625,7 +723,7 @@ namespace Opc.Ua.Server
             if (view != null && !view.ViewId.IsNull)
             {
                 (object? viewHandle, IAsyncNodeManager? viewManager) =
-                    await m_owner.GetManagerHandleAsync(view.ViewId, cancellationToken)
+                    await GetManagerHandleAsync(context, view.ViewId, cancellationToken)
                     .ConfigureAwait(false);
 
                 if (viewHandle == null || viewManager == null)
@@ -832,11 +930,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ByteString> continuationPoints,
                 CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             bool diagnosticsExist = false;
             var results = new List<BrowseResult>(continuationPoints.Count);
@@ -863,8 +957,12 @@ namespace Opc.Ua.Server
                     ServiceResult error = ServiceResult.Good;
                     try
                     {
-                        using NodeManagerRoutingTable.ReadScope continuationRouting =
-                            m_nodeManagers.Capture(cp?.RoutingSnapshot);
+                        NodeManagerRoutingTable.RoutingSnapshot continuationSnapshot =
+                            cp?.RoutingSnapshot ?? GetRouting(context);
+                        using NodeManagerRoutingTable.ReadScope continuationImages =
+                            m_nodeManagers.Capture(continuationSnapshot);
+                        using OperationContext.RoutingScope continuationRouting =
+                            context.UseRouting(continuationSnapshot);
                         if (cp is not null)
                         {
                             error = await ValidatePermissionsAsync(
@@ -975,7 +1073,8 @@ namespace Opc.Ua.Server
             Debug.Assert(result != null);
 
             // find node manager that owns the node.
-            (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(nodeToBrowse!.NodeId, cancellationToken)
+            (object? handle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                context, nodeToBrowse!.NodeId, cancellationToken)
                 .ConfigureAwait(false);
 
             if (handle == null)
@@ -1013,7 +1112,7 @@ namespace Opc.Ua.Server
             using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
                 Manager = nodeManager!,
-                RoutingSnapshot = m_nodeManagers.CapturedRevision,
+                RoutingSnapshot = GetRouting(context),
                 View = view,
                 NodeToBrowse = handle,
                 RequestedNodeId = nodeToBrowse.NodeId,
@@ -1063,8 +1162,8 @@ namespace Opc.Ua.Server
             Debug.Assert(cp != null);
 
             ContinuationPoint? currentCp = cp;
-            NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? m_nodeManagers.CapturedRevision;
-            m_nodeManagers.CaptureUntilReturn(snapshot);
+            NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? GetRouting(context);
+            using OperationContext.RoutingScope continuationRouting = CaptureRouting(context, snapshot);
             bool saved = false;
             try
             {
@@ -1118,7 +1217,7 @@ namespace Opc.Ua.Server
                         if (!currentCp.HasCapturedDependencies)
                         {
                             ServiceResult dependencyResult = await CaptureBrowseDependenciesAsync(
-                                currentCp, snapshot, cancellationToken).ConfigureAwait(false);
+                                context, currentCp, snapshot, cancellationToken).ConfigureAwait(false);
                             if (ServiceResult.IsBad(dependencyResult))
                             {
                                 return (dependencyResult, null, []);
@@ -1172,6 +1271,7 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<ServiceResult> CaptureBrowseDependenciesAsync(
+            OperationContext context,
             ContinuationPoint point,
             NodeManagerRoutingTable.RoutingSnapshot snapshot,
             CancellationToken cancellationToken)
@@ -1202,8 +1302,8 @@ namespace Opc.Ua.Server
             var owners = new List<IAsyncNodeManager> { point.Manager };
             foreach (NodeId targetId in targets)
             {
-                (object? handle, IAsyncNodeManager? manager) = await m_owner.GetManagerHandleAsync(
-                    targetId, cancellationToken).ConfigureAwait(false);
+                (object? handle, IAsyncNodeManager? manager) = await GetManagerHandleAsync(
+                    context, targetId, cancellationToken).ConfigureAwait(false);
                 if (handle is not null && manager is not null &&
                     !owners.Exists(owner => ReferenceEquals(owner, manager)))
                 {
@@ -1259,7 +1359,8 @@ namespace Opc.Ua.Server
             try
             {
                 // find node manager that owns the node.
-                (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(targetId, cancellationToken)
+                (object? handle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                    context, targetId, cancellationToken)
                     .ConfigureAwait(false);
 
                 // dangling reference - nothing more to do.
@@ -1309,14 +1410,32 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds a node state exposed through a node handle by one of the server's node managers.
         /// </summary>
-        internal async ValueTask<NodeState?> FindNodeInAddressSpaceAsync(NodeId nodeId, CancellationToken cancellationToken = default)
+        internal ValueTask<NodeState?> FindNodeInAddressSpaceAsync(
+            NodeId nodeId,
+            CancellationToken cancellationToken = default)
+        {
+            return FindNodeInAddressSpaceAsync(null, nodeId, cancellationToken);
+        }
+
+        /// <summary>
+        /// Finds an in-memory node through an explicit operation view, or live routes for contextless work.
+        /// </summary>
+        /// <param name="context">The operation selecting routes, or null for live routing.</param>
+        /// <param name="nodeId">The node to find.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>The node, if found.</returns>
+        internal async ValueTask<NodeState?> FindNodeInAddressSpaceAsync(
+            OperationContext? context,
+            NodeId nodeId,
+            CancellationToken cancellationToken)
         {
             if (nodeId.IsNull)
             {
                 return null;
             }
             // search node id in all node managers
-            foreach (IAsyncNodeManager nodeManager in m_owner.AsyncNodeManagers)
+            foreach (IAsyncNodeManager nodeManager in
+                context?.RoutingSnapshot?.VisibleNodeManagers ?? m_nodeManagers.Revision.VisibleNodeManagers)
             {
                 if ((await nodeManager.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false))
                     is not NodeHandle handle)
@@ -1339,7 +1458,7 @@ namespace Opc.Ua.Server
             ArrayOf<ReadValueId> nodesToRead,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             if (maxAge < 0)
             {
                 throw new ServiceResultException(StatusCodes.BadMaxAgeInvalid);
@@ -1366,7 +1485,7 @@ namespace Opc.Ua.Server
 
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
-                m_nodeManagers.GetDispatchView();
+                m_nodeManagers.GetDispatchView(context.RoutingSnapshot);
             var routes = new NamespaceRoutes();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -1493,7 +1612,7 @@ namespace Opc.Ua.Server
             List<HistoryReadResult> results,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             // validate history details parameter.
             if (historyReadDetails.IsNull)
             {
@@ -1580,7 +1699,7 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
                     bool[] pending = [];
                     if (m_owner.RequiresHistoryContinuationOwnership(nodeManager))
@@ -1718,11 +1837,7 @@ namespace Opc.Ua.Server
             ArrayOf<WriteValue> nodesToWrite,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             int count = nodesToWrite.Count;
 
@@ -1734,7 +1849,7 @@ namespace Opc.Ua.Server
 
             (IAsyncNodeManager[] dispatchOrder,
                 IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>> namespaceManagers) =
-                m_nodeManagers.GetDispatchView();
+                m_nodeManagers.GetDispatchView(context.RoutingSnapshot);
             var routes = new NamespaceRoutes();
 
             // add placeholder for each result.
@@ -1844,7 +1959,7 @@ namespace Opc.Ua.Server
                 ArrayOf<ExtensionObject> historyUpdateDetails,
                 CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             var detailTypes = new List<Type>();
             var nodesToUpdate = new List<HistoryUpdateDetails>();
             var inputErrors = new List<ServiceResult?>();
@@ -1937,7 +2052,7 @@ namespace Opc.Ua.Server
             {
                 foreach (Type detailsType in detailTypes)
                 {
-                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                     {
                         await nodeManager.HistoryUpdateAsync(
                             context,
@@ -2002,11 +2117,7 @@ namespace Opc.Ua.Server
                 ArrayOf<CallMethodRequest> methodsToCall,
                 CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             bool diagnosticsExist = false;
             var results = new List<CallMethodResult>(methodsToCall.Count);
@@ -2066,7 +2177,7 @@ namespace Opc.Ua.Server
             // call each node manager.
             if (validItems)
             {
-                foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
                     await nodeManager.CallAsync(
                         context,
@@ -2122,8 +2233,9 @@ namespace Opc.Ua.Server
             IList<IEventMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
-            IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+            IAsyncNodeManager[] activeNodeManagers = [.. GetRouting(context).VisibleNodeManagers];
             NotificationDispatchLease[] dispatches =
                 m_owner.GetConditionRefreshDispatches(
                     activeNodeManagers,
@@ -2169,7 +2281,7 @@ namespace Opc.Ua.Server
             bool createDurable,
             CancellationToken cancellationToken = default)
         {
-            m_nodeManagers.CaptureUntilReturn();
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             await CreateMonitoredItemsCoreAsync(
                 context,
                 subscriptionId,
@@ -2268,7 +2380,7 @@ namespace Opc.Ua.Server
                     cancellationToken.ThrowIfCancellationRequested();
 
                     // create items for data access.
-                    foreach (IAsyncNodeManager nodeManager in m_nodeManagers)
+                    foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                     {
                         await nodeManager.CreateMonitoredItemsAsync(
                                 context,
@@ -2386,8 +2498,8 @@ namespace Opc.Ua.Server
                     }
 
                     // check if a valid node.
-                    (object? handle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
-                        itemToCreate.ItemToMonitor.NodeId, cancellationToken)
+                    (object? handle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                        context, itemToCreate.ItemToMonitor.NodeId, cancellationToken)
                         .ConfigureAwait(false);
 
                     if (handle == null)
@@ -2435,7 +2547,7 @@ namespace Opc.Ua.Server
                         createDurable);
 
                     ArrayOf<IAsyncNodeManager> eventManagers = monitoredItem.MonitoringAllEvents
-                        ? [.. m_nodeManagers]
+                        ? [.. GetRouting(context).VisibleNodeManagers]
                         : [nodeManager];
                     ServiceResult error = await SubscribeCreatedEventMonitoredItemAsync(
                         context,
@@ -2813,10 +2925,7 @@ namespace Opc.Ua.Server
             IList<MonitoringFilterResult> filterResults,
             CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             if (monitoredItems == null)
             {
@@ -3000,7 +3109,7 @@ namespace Opc.Ua.Server
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
                     await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
-                    IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
+                    IAsyncNodeManager[] activeNodeManagers = [.. GetRouting(context).VisibleNodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
                             activeNodeManagers,
@@ -3078,10 +3187,7 @@ namespace Opc.Ua.Server
             MonitoredItemTransferOptions transferOptions,
             CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
             if (monitoredItems == null)
             {
                 throw new ArgumentNullException(nameof(monitoredItems));
@@ -3115,10 +3221,7 @@ namespace Opc.Ua.Server
                 MonitoredItemTransferOptions transferOptions,
                 CancellationToken cancellationToken)
         {
-            if (destinationContext == null)
-            {
-                throw new ArgumentNullException(nameof(destinationContext));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(destinationContext);
             if (monitoredItems == null)
             {
                 throw new ArgumentNullException(nameof(monitoredItems));
@@ -3279,10 +3382,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             if (itemsToDelete == null)
             {
@@ -3463,10 +3563,7 @@ namespace Opc.Ua.Server
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
+            using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
 
             if (itemsToModify == null)
             {
@@ -3882,7 +3979,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.BadMethodInvalid;
             }
 
-            (_, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(callMethodRequest.ObjectId, cancellationToken)
+            (_, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                operationContext, callMethodRequest.ObjectId, cancellationToken)
                     .ConfigureAwait(false);
 
             if (nodeManager == null)
@@ -4041,7 +4139,8 @@ namespace Opc.Ua.Server
                 return StatusCodes.Good;
             }
 
-            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(
+            (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                    context,
                     readValueId.NodeId,
                     cancellationToken)
                 .ConfigureAwait(false);
@@ -4171,7 +4270,8 @@ namespace Opc.Ua.Server
         {
             if (context.Session != null || context.UserIdentity != null || context.ChannelContext != null)
             {
-                (object? nodeHandle, IAsyncNodeManager? nodeManager) = await m_owner.GetManagerHandleAsync(nodeId, cancellationToken)
+                (object? nodeHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                    context, nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
                 return await ValidatePermissionsAsync(
@@ -4417,6 +4517,10 @@ namespace Opc.Ua.Server
         private readonly MasterNodeManager m_owner;
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly ILogger m_logger;
+
+        /// <summary>The optional legacy virtual lookup, bound once rather than inspected on a hot path.</summary>
+        private readonly Func<NodeId, CancellationToken,
+            ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>>? m_handleLookupOverride;
 
         /// <summary>
         /// The namespace routes of the valid operations of one service call, so that the call

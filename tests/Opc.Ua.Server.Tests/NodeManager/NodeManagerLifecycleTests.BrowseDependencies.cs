@@ -272,15 +272,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     session, source.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 int calls = 0;
-                source.Manager.ValidateNodeCallback = async (nodeId, token) =>
+                source.Manager.ValidateNodeCallback = async (context, nodeId, token) =>
                 {
                     if (nodeId == new NodeId(kRootNodeId, source.NamespaceIndex) &&
                         Interlocked.Increment(ref calls) == 1)
                     {
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(token).ConfigureAwait(false);
-                        var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
-                        capturedTarget = master.NamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
+                        capturedTarget = context.OperationContext!.RoutingSnapshot!
+                            .VisibleNamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
                     }
                 };
                 Task<BrowseNextResponse> pending = session.BrowseNextAsync(
@@ -320,7 +320,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                source.Manager.ValidateNodeCallback = (_, _) => default;
+                source.Manager.ValidateNodeCallback = (_, _, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await RetireBrowseDependenciesAsync(
                     [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
                 bool pointDisposedBeforeMetadata = false;
-                target.Manager.ValidateNodeCallback = async (nodeId, token) =>
+                target.Manager.ValidateNodeCallback = async (_, nodeId, token) =>
                 {
                     if (nodeId == new NodeId(kValueNodeId, target.NamespaceIndex))
                     {
@@ -423,7 +423,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                target.Manager.ValidateNodeCallback = (_, _) => default;
+                target.Manager.ValidateNodeCallback = (_, _, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -733,7 +733,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            source.ValidateNodeCallback = async (_, token) =>
+            source.ValidateNodeCallback = async (_, _, token) =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -764,7 +764,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                source.ValidateNodeCallback = (_, _) => default;
+                source.ValidateNodeCallback = (_, _, _) => default;
             }
         }
 

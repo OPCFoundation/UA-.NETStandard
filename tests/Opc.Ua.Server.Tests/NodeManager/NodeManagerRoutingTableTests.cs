@@ -71,12 +71,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                 [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
-            using (table.Capture())
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using (context.UseRouting(table.Revision))
+            using (table.Capture(context.RoutingSnapshot))
             {
                 routes.Reserve();
                 routes.Publish();
-                Assert.That(table.Any(manager => ReferenceEquals(manager, candidate)), Is.False,
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(candidate),
                     "An in-flight request must retain the unpublished routing image.");
+                Assert.That(table, Does.Contain(candidate), "Contextless work must use live routes.");
             }
             using (Assert.EnterMultipleScope())
             {
@@ -94,7 +97,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task CaptureUntilReturnEndsWhenTheAsyncMethodReturnsAsync(bool completeAsynchronously)
+        public async Task MetadataImageCaptureEndsWhenTheAsyncMethodReturnsAsync(bool completeAsynchronously)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager lifecycleManager = CreateManager();
@@ -109,8 +112,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await Task.Yield();
                 }
                 Assert.That(table.CapturedRevision, Is.SameAs(captured),
-                    "The rest of the method must keep the captured routing image.");
-                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.False);
+                    "The rest of the method must keep the captured metadata image.");
+                Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True,
+                    "A metadata image must never select dispatch routes.");
             }
 
             await CaptureAndPublishAsync().ConfigureAwait(false);
@@ -118,6 +122,77 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(table.CapturedRevision, Is.SameAs(table.Revision),
                 "The caller must read the live routing once the method returned.");
             Assert.That(table.Any(manager => ReferenceEquals(manager, lifecycleManager)), Is.True);
+        }
+
+        /// <summary>
+        /// Independent work inherits the transitional metadata bridge, but never a request's dispatch view.
+        /// </summary>
+        [Test]
+        public async Task IndependentBackgroundWorkUsesLiveRoutesDespiteInheritedRequestMetadataAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager added = CreateManager();
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            using OperationContext.RoutingScope requestRouting = context.UseRouting(table.Revision);
+            using NodeManagerRoutingTable.ReadScope requestImages = table.Capture(context.RoutingSnapshot);
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task<(IAsyncNodeManager[] Routes, NodeManagerRoutingTable.RoutingSnapshot Metadata)> background =
+                Task.Run(async () =>
+                {
+                    started.SetResult(true);
+                    await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    using var independent = new OperationContext(
+                        new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+                    return (table.GetDispatchView(independent.RoutingSnapshot).NodeManagers, table.CapturedRevision);
+                }, timeout.Token);
+            try
+            {
+                await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                table.Add(added, AddNamespaceIndexes);
+            }
+            finally
+            {
+                published.TrySetResult(true);
+            }
+            var result = await background.ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(result.Metadata, Is.SameAs(context.RoutingSnapshot),
+                    "ExecutionContext did flow the metadata bridge into the background work.");
+                Assert.That(result.Routes, Does.Contain(added),
+                    "The inherited bridge must not select background dispatch routes.");
+                Assert.That(table.GetDispatchView(context.RoutingSnapshot).NodeManagers, Does.Not.Contain(added),
+                    "Only the original request explicitly holds its earlier routing view.");
+            }
+        }
+
+        /// <summary>
+        /// Service and continuation scopes restore a request's original view, which disposal releases.
+        /// </summary>
+        [Test]
+        public void RequestPinSurvivesNestedScopesAndIsReleasedWithTheContext()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
+            context.PinRouting(table.Revision);
+            NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
+            table.Add(CreateManager(), AddNamespaceIndexes);
+            context.PinRouting(table.Revision);
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original), "A later dispatch must not repin the request.");
+            using (context.UseRouting(table.Revision))
+            {
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+                using (context.UseRouting(original))
+                {
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+                }
+                Assert.That(context.RoutingSnapshot, Is.SameAs(table.Revision));
+            }
+            Assert.That(context.RoutingSnapshot, Is.SameAs(original));
+            context.Dispose();
+            Assert.That(context.RoutingSnapshot, Is.Null);
         }
 
         [Test]

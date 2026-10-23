@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Server.Tests.NodeManager
@@ -61,7 +60,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (table.Capture(captured))
             {
                 Assert.That(table.GetReadImage(owner), Is.SameAs(previous));
-                Assert.That(table.ToArray(), Does.Contain(owner));
+                Assert.That(table.GetDispatchView(captured).NodeManagers, Does.Contain(owner));
+                Assert.That(table.Contains(owner), Is.EqualTo(!retire),
+                    "Metadata images must not change the live owner list.");
                 using (table.UseLiveRouting())
                 {
                     Assert.That(table.GetReadImage(owner), retire ? Is.Null : Is.SameAs(next));

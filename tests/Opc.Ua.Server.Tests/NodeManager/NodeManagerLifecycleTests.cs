@@ -7999,11 +7999,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets a callback executed before the underlying read batch.
             /// </summary>
-            public Func<CancellationToken, ValueTask> ReadCallback { get; set; } = null!;
+            public Func<OperationContext, CancellationToken, ValueTask> ReadCallback { get; set; } = null!;
 
             public NodeId ReadCallbackNodeId { get; set; }
 
-            public Func<NodeId, CancellationToken, ValueTask> ValidateNodeCallback { get; set; } = null!;
+            public Func<ServerSystemContext, NodeId, CancellationToken, ValueTask> ValidateNodeCallback
+            { get; set; } = null!;
 
             public async ValueTask AddContinuationChildrenAsync(
                 string prefix,
@@ -8047,7 +8048,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (ReadCallback is not null &&
                     (ReadCallbackNodeId.IsNull || nodesToRead.Contains(node => node.NodeId == ReadCallbackNodeId)))
                 {
-                    await ReadCallback(cancellationToken).ConfigureAwait(false);
+                    await ReadCallback(context, cancellationToken).ConfigureAwait(false);
                 }
                 await base.ReadAsync(
                         context,
@@ -8193,7 +8194,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (ValidateNodeCallback is not null)
                 {
-                    await ValidateNodeCallback(handle.NodeId, cancellationToken).ConfigureAwait(false);
+                    await ValidateNodeCallback(context, handle.NodeId, cancellationToken).ConfigureAwait(false);
                 }
                 return await base.ValidateNodeAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
             }

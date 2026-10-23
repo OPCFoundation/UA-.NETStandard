@@ -212,6 +212,19 @@ The master node manager builds a routing table keyed by namespace index. During 
 
 Multiple managers can serve the same namespace. `RegisterNamespaceManager(string namespaceUri, IAsyncNodeManager nodeManager)` appends a manager to the namespace route instead of replacing the existing route; the routing table also preserves manager order during lifecycle replacement. This is important for namespace 0 and for generated or runtime models that add nodes in namespaces already used by another manager.
 
+An admitted request owns its routing view on `OperationContext`, before application admission callbacks run.
+Dispatch and permission lookups use that explicit view; completing the request releases it. Independent
+background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
+read live routes, and internal subscriber contexts are not permanently pinned. Browse and history continuation
+resumes temporarily select their issuing view and restore the request's view afterward. Contextless metadata
+readers still use an image-only bridge while type, factory, reference, and read-image publication is migrated;
+that bridge never selects service-dispatch routes.
+
+Legacy `MasterNodeManager.GetManagerHandleAsync` overrides remain effective during dispatch. An owner registered
+only in a newer routing view cannot replace the request's pinned owner. Owners outside both the pinned and live
+managed routing tables are trusted as external proxy owners: the override must manage their lifetime and must
+not return stale instances already retired through the lifecycle API.
+
 Read and Write call `ReadAsync`/`WriteAsync` only on the managers that appear in the route of a requested namespace, in dispatch order, so a request does not pay for managers that cannot own any of its nodes. If any valid node is in a namespace without a route, every manager is called as before. A manager that processes nodes outside the namespaces it registers must register them with `RegisterNamespaceManager` to keep receiving those Reads and Writes.
 
 The master node manager also merges references across managers. Each manager receives the shared `externalReferences` table while `CreateAddressSpaceAsync` runs. After all managers have created their nodes and historical-access advertisement has been reconciled, the master calls `AddReferencesAsync(externalReferences, ...)` on every manager. `MasterNodeManager.CreateExternalReference` is the helper most custom managers use to put a cross-manager reference in that table. The target manager then materialises the reference on the node it owns, so a node owned by one manager can be browseable from a parent, folder, metadata object, or notifier owned by another manager. Attaching a child only in the source manager is not enough when the source and target owners differ.

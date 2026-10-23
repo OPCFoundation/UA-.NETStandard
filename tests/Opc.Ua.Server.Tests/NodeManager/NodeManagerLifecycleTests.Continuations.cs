@@ -284,14 +284,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            owner.Manager.ValidateNodeCallback = async (nodeId, token) =>
+            owner.Manager.ValidateNodeCallback = async (context, nodeId, token) =>
             {
                 if (nodeId == new NodeId(kRootNodeId, owner.NamespaceIndex) &&
                     Interlocked.Increment(ref calls) == 1)
                 {
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(token).ConfigureAwait(false);
-                    capturedRoutes = master.NamespaceManagers[owner.NamespaceIndex].Contains(owner.Manager);
+                    capturedRoutes = context.OperationContext!.RoutingSnapshot!
+                        .VisibleNamespaceManagers[owner.NamespaceIndex].Contains(owner.Manager);
                 }
             };
             Task<BrowseNextResponse> pending = session.BrowseNextAsync(
@@ -347,7 +348,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
             await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            owner.Manager.ValidateNodeCallback = async (_, token) =>
+            owner.Manager.ValidateNodeCallback = async (_, _, token) =>
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
@@ -379,7 +380,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                owner.Manager.ValidateNodeCallback = (_, _) => default;
+                owner.Manager.ValidateNodeCallback = (_, _, _) => default;
             }
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));

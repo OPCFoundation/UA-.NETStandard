@@ -245,10 +245,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 observed = context;
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
-                var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
                 AssertLifecycleValue(source);
-                capturedSource = master.NamespaceManagers[source.NamespaceIndexes[0]].Contains(source);
-                capturedTarget = master.NamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
+                var routes = context.OperationContext.RoutingSnapshot!.VisibleNamespaceManagers;
+                capturedSource = routes[source.NamespaceIndexes[0]].Contains(source);
+                capturedTarget = routes[target.NamespaceIndex].Contains(target.Manager);
             });
             var owner = await AddHistoryOwnerAsync(data, provider, kModelNamespaceUri, timeout.Token)
                 .ConfigureAwait(false);

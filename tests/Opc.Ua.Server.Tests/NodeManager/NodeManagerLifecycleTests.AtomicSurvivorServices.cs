@@ -96,7 +96,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
                 Assert.That(original.DisposeCount, Is.EqualTo(1));
-                original.ValidateNodeCallback = (_, _) =>
+                original.ValidateNodeCallback = (_, _, _) =>
                     throw new InvalidOperationException("A survivor service re-entered its retired source.");
                 request.RequestedParameters.ClientHandle = 81;
                 request.RequestedParameters.QueueSize = 4;

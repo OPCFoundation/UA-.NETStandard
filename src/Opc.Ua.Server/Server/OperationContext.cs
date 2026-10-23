@@ -200,6 +200,12 @@ namespace Opc.Ua.Server
         internal NotificationAuthorization? NotificationAuthorization { get; }
 
         /// <summary>
+        /// Gets the routing view explicitly owned by this operation, if it is dispatching a service.
+        /// Internal subscriber contexts without a service scope use live routing.
+        /// </summary>
+        internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; private set; }
+
+        /// <summary>
         /// The lifetime of the request.
         /// This object is used to track the lifetime of the request and to trigger cancellation if the client aborts the request or if the request times out.
         /// </summary>
@@ -393,9 +399,31 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
+                    RoutingSnapshot = null;
                     System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Attaches the request's view before application admission or service callbacks run.
+        /// </summary>
+        /// <param name="snapshot">The current published view.</param>
+        internal void PinRouting(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            RoutingSnapshot ??= snapshot;
+        }
+
+        /// <summary>
+        /// Uses an explicit routing view until the service or continuation scope ends.
+        /// </summary>
+        /// <param name="snapshot">The view selected for this operation.</param>
+        /// <returns>The scope restoring the operation's previous view.</returns>
+        internal RoutingScope UseRouting(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        {
+            var scope = new RoutingScope(this, RoutingSnapshot);
+            RoutingSnapshot = snapshot;
+            return scope;
         }
 
         /// <summary>
@@ -612,6 +640,39 @@ namespace Opc.Ua.Server
         {
             m_defaultPermissionCacheDisabled = true;
             m_defaultPermissions = null;
+        }
+
+        /// <summary>
+        /// Restores an operation's routing view without changing the execution context.
+        /// </summary>
+        internal readonly struct RoutingScope : IDisposable
+        {
+            /// <summary>
+            /// Initializes a scope over the operation's previous routing view.
+            /// </summary>
+            /// <param name="context">The operation receiving the view.</param>
+            /// <param name="previous">The view to restore.</param>
+            internal RoutingScope(
+                OperationContext context,
+                NodeManagerRoutingTable.RoutingSnapshot? previous)
+            {
+                m_context = context;
+                m_previous = previous;
+            }
+
+            /// <summary>
+            /// Restores the previous view.
+            /// </summary>
+            public void Dispose()
+            {
+                m_context.RoutingSnapshot = m_previous;
+            }
+
+            /// <summary>The operation receiving the view.</summary>
+            private readonly OperationContext m_context;
+
+            /// <summary>The view to restore.</summary>
+            private readonly NodeManagerRoutingTable.RoutingSnapshot? m_previous;
         }
 
         private StringTable? m_stringTable;

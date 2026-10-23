@@ -401,7 +401,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool factoryBeforePublication = false;
             bool factoryAfterPublication = false;
             firstManager.ReadCallbackNodeId = firstId;
-            firstManager.ReadCallback = async token =>
+            firstManager.ReadCallback = async (context, token) =>
             {
                 beforePublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
                 factoryBeforePublication = factory.TryGetEncodeableType(alias, out _);
