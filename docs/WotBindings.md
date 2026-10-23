@@ -61,6 +61,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Resolving a relation: companion ReferenceTypes](#resolving-a-relation-companion-referencetypes)
   - [Alarms and Conditions](#alarms-and-conditions)
   - [Compatibility switch for non-portable identifiers](#compatibility-switch-for-non-portable-identifiers)
+- [Known published 1.0 gaps and follow-up work](#known-published-10-gaps-and-follow-up-work)
 
 ## Bindings that ship today
 
@@ -363,11 +364,22 @@ Structure-array allocation.
 
 ### Published OPC 10101 v1.00 consumer mode
 
-The Binding consumer can explicitly select the published OPC 10101 v1.00
-interpretation. Selection is caller-controlled; neither a `bindingVersion`
-annotation nor the UA Binding vocabulary silently changes the current mode.
-This also lets a consumer process an original published TD that has no revision
-annotation:
+Select `PublishedOneZero` to consume a TD using published OPC 10101 v1.00 rules.
+The default, `Current`, retains this runtime's 1.1 draft behavior. These are processing
+choices, not conformance guarantees: neither `bindingVersion` nor vocabulary
+terms select a mode automatically, and a published TD need not carry a revision
+annotation.
+
+| Consumer behavior | Published 1.0 (`PublishedOneZero`) | 1.1 draft behavior (`Current`, default) |
+| --- | --- | --- |
+| Numeric namespace identities | Resolves `ns=<index>` target NodeIds and numeric browse-path prefixes through the original document context, never the Session's namespace ordering. Missing mappings fail planning. | Does not apply published context remapping to target NodeIds; use portable `nsu=` identities. Numeric browse-path prefixes are rejected. |
+| Call receiver | Requires the action-level `uav:componentOf` array from §7.1.3. Checks candidates against the selected endpoint and Method; requires one valid Object receiver. | Uses a form-level `uav:callObjectId`, or captures the original source Thing Object when it is omitted. Local projection containment does not supply a receiver. |
+| Explicit receiver selection | Accepts form-level `uav:callObjectId` as an implementation extension, not published 1.0 vocabulary. It must identify an owner-array candidate and can disambiguate valid owners. | Uses form-level `uav:callObjectId` for explicit receiver selection. |
+| Object-shaped action inputs and outputs | Reads native ordered `InputArguments` and `OutputArguments` from the Server. JSON member order and 1.1 layout annotations do not determine argument order. Missing or inconsistent metadata fails before `Call`. | Uses the action payload contracts described above, including `argumentLayout` and `fieldOrder`. |
+| Operations | Supports applicable read, write, observe, and Call consumer paths. Published 1.0 defines no UA event mapping. | Retains the runtime's read, write, observe, Call, and event-subscription mappings. |
+| Authorization and security | TD access flags and operation defaults do not grant Server permissions. Endpoint and credential-provider requirements must be satisfied. | The same Server authorization and application security checks apply. |
+
+Pass the mode when creating the request:
 
 ```csharp
 var selection = new WotBindingSelectionContext(
@@ -387,34 +399,8 @@ WotBindingProcessingMode.PublishedOneZero)` when extracting forms directly.
 Pass the same explicit mode in the plan request's `WotBindingSelectionContext`;
 the existing extractor overload without a mode continues to use current rules.
 
-In this mode the OPC UA consumer resolves published `ns=<index>` NodeIds and
-numeric browse-name prefixes only through the namespace URI mapping in the
-original document context. It canonicalizes target identities before dispatch;
-it never treats the connected Session's NamespaceArray as document authority.
-An absent mapping, conflicting target, partial browse path, or ambiguous live
-target fails visibly.
-
-Published actions use the required action-level array-valued
-`uav:componentOf` as a set of owner candidates (OPC 10101 v1.00 §7.1.3).
-Each candidate is resolved and checked against the selected Method and current
-endpoint; dispatch requires one valid receiver. An optional form-level
-`uav:callObjectId` must name one of those candidates and can disambiguate
-multiple valid owners. The deprecated scalar
-form-level `uav:componentOf` is not accepted. For object-shaped action input
-and output schemas, the runtime obtains native ordered `InputArguments` and
-`OutputArguments` metadata from the Server; JSON property order and later
-`argumentLayout` / `fieldOrder` annotations are not used as an argument-order
-authority. Missing or inconsistent native metadata fails before `Call`.
-Native DataTypes and ranks also constrain values: for example, a generic
-`integer` schema does not permit an Int64 value for a native Int32 argument.
-For source-routed projections, pass the live resolver's `WotDocument` into
-planning so its original ownership evidence remains available. A serialized
-`uav:resolvedFrom` locator is not that evidence, even when the resolved JSON
-contains an owner array. Re-resolve the original documents instead of treating
-projection-local containment as source authority.
-
-For example, a published action may identify its owning Object on the action
-and describe named input and output values without later layout annotations:
+A published action identifies its owning Object on the action and describes
+named input and output values without 1.1 layout annotations:
 
 ```json
 {
@@ -449,36 +435,26 @@ and describe named input and output values without later layout annotations:
 }
 ```
 
-The action's input/output member order in JSON is not a positional contract;
-the runtime resolves the native Method argument metadata and uses its declared
-order.
+The runtime orders these values using native Method metadata and checks their
+native DataTypes and ranks. A generic `integer` schema, for example, does not
+permit an Int64 argument where the Method requires Int32.
 
-The mode applies to existing OPC UA binding read, write, observe, and Call
-consumer paths. TD access flags and standard operation defaults remain
-declarations; the Server still authorizes each UA service. Security definitions
-are resolved against the application's endpoint policy and configured
-credential providers. An unsupported or unacceptable endpoint/token
-configuration fails closed rather than downgrading security. The current
-runtime's event subscription mapping is retained as a separate regression
-surface; published OPC 10101 v1.00 defines no UA event mapping.
+#### Runtime extensions and source-routed projections
 
-Payload support remains qualified: accepting `application/octet-stream` and
-passing typed `Variant` arguments to native UA services does **not** establish
-general UA Binary payload serialization interoperability. The default
-octet-stream codec handles bytes and its documented text fallback; this
-follow-up does not add a general UA Binary payload codec. That serialization
-gap remains open rather than being counted as supported from MIME admission.
-External IssuedToken acquisition likewise requires an application-supplied
-provider; tests of acquisition-reference handoff do not demonstrate an
-identity-provider implementation.
+`uav:callObjectId` and `uav:resolvedFrom` are not published 1.0 vocabulary.
+The former is the optional receiver-selection extension described in the table;
+the latter records a projection's source location, not proof of its authority.
+When planning a source-routed projection, pass the live resolver's `WotDocument`
+so the planner retains the original owner array. If only serialized projected
+JSON remains, resolve the original documents again.
 
-This explicit consumer mode is not a converter-wide non-portable-identifier
-switch and does not make the stack a complete TD/TM/Binding-result schema
-validator. The required schema-validation dependency/license/AOT blocker
-remains open. The local clause-to-test map is a test locator, not a CTT,
-profile-certification, or full-conformance report. See the
-[part-version-qualified traceability map](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json)
-for test locators; the normative baseline is the
+This mode changes Binding consumption only; it does not enable the converter's
+`AllowNonPortableIdentifiers` option. See
+[Known published 1.0 gaps and follow-up work](#known-published-10-gaps-and-follow-up-work)
+for unsupported capabilities.
+
+The [part-version-qualified traceability map](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json)
+locates tests against the
 [published OPC 10101 v1.00 document](https://reference.opcfoundation.org/specs/OPC-10101/v1.00).
 The reviewed plaintext rendering is pinned by SHA-256
 `4ec1170c1c33c63907e7810e6ab0537d62b55735bc2d1191ec7f57bbf9926d93`.
@@ -2200,3 +2176,18 @@ foreach (WotDiagnostic diagnostic in result.Diagnostics)
 The option defaults to `false`, which matches the release 1.1 validator. Leave it at
 the default once the documents are rewritten; it exists to keep a v1.00 corpus
 readable during migration, not as a supported long-term mode.
+
+## Known published 1.0 gaps and follow-up work
+
+`PublishedOneZero` supports the consumer paths listed above, but does not provide
+complete published OPC 10101 v1.00 interoperability.
+
+| Capability | Current limit and follow-up |
+| --- | --- |
+| UA Binary payload serialization | No general UA Binary payload codec is implemented. Accepting `application/octet-stream` or passing typed `Variant` values to native UA services does not prove payload interoperability. The default octet-stream codec handles bytes and its documented text fallback only. |
+| Complete TD/TM/Binding-result schema validation | Not implemented. Selecting a schema-validation dependency remains blocked on license, dependency, and NativeAOT compatibility review. |
+| External IssuedToken acquisition | Requires an application-supplied provider. Tests cover acquisition-reference handoff, not an identity-provider implementation. Unsupported endpoint or token configurations are rejected without downgrading security. |
+| Published 1.0 event mapping | Not defined by that specification. The existing runtime event mapping is tested separately; it is not evidence of published 1.0 event support. |
+
+The clause-to-test map records local test coverage. It is not a CTT result,
+profile certification, or a full-conformance report.
