@@ -464,6 +464,8 @@ A transferred subscription needs a client-side owner on the backup session, othe
 
 OPC UA does not standardize how active and backup clients exchange `SessionId` or subscription ids. In this stack the client replica set coordinates through the registered client-side shared store (`AddRedundantClientSharedStore` / `AddRaftClientSharedStore` — a CRDT- or [Raft](https://raft.github.io/)-backed `ISharedKeyValueStore` that the `ClientReplicaCoordinator` consumes).
 
+Applications that run their own hand-over between client processes can use the `ISessionTakeover` capability of `Session` and `ManagedSession` instead. The previous owner retires without closing the server session, and the new owner prepares a helper session with the saved state and then activates exactly that server session by reusing its token, without creating another one. See [Taking over a session](Sessions.md#taking-over-a-session-isessiontakeover).
+
 ## Network redundancy (as per Part 4 §6.6.4)
 
 Transparent network redundancy is handled below OPC UA by routers, virtual adapters, load balancers, or Kubernetes Services. Non-transparent network redundancy uses multiple endpoints for the same logical server; the client selects another endpoint and recreates only the SecureChannel while reusing the session and subscriptions.

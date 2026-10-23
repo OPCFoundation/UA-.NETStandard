@@ -800,7 +800,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool Connected
-            => m_session?.Connected ?? false;
+            => !IsPrepared && (m_session?.Connected ?? false);
 
         /// <inheritdoc/>
         public ClientTraceFlags ActivityTraceFlags
@@ -940,6 +940,11 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            if (IsPrepared)
+            {
+                await ActivatePreparedSessionAsync(connection, channel, ct).ConfigureAwait(false);
+                return;
+            }
             if (channel != null && m_session?.ChannelRecoveryInProgress == true)
             {
                 throw new ServiceResultException(
@@ -1410,6 +1415,10 @@ namespace Opc.Ua.Client
             IRetryBudget? budget,
             CancellationToken ct)
         {
+            if (GetRetirementFailure() is ServiceResult retired)
+            {
+                return retired;
+            }
             try
             {
                 // The session works on its own copy, so another session that
@@ -1579,6 +1588,11 @@ namespace Opc.Ua.Client
                         unadopted = waitingConnection;
                     }
 
+                    if (GetRetirementFailure() is ServiceResult retiredBeforeCreate)
+                    {
+                        return retiredBeforeCreate;
+                    }
+
                     if (waitingConnection != null)
                     {
                         ISessionFactory reverseFactory = CreateChannelManagerFactory() ?? SessionFactory;
@@ -1667,6 +1681,18 @@ namespace Opc.Ua.Client
                     connectLease?.Dispose();
                 }
 
+                // A new server session supersedes one an earlier close already claimed. The
+                // interlocked exchange also orders the binding before the retirement check below,
+                // so either the retirement fences the bound session or this check observes it.
+                Interlocked.CompareExchange(ref m_serverSessionFate, kServerSessionOpen, kServerSessionClosing);
+                if (GetRetirementFailure() is ServiceResult retiredAfterCreate)
+                {
+                    // The new server session is not the retained one and nobody else can reach
+                    // it, so close it instead of keeping it bound to a retired facade.
+                    await DiscardIncompleteSessionAsync(session).ConfigureAwait(false);
+                    return retiredAfterCreate;
+                }
+
                 try
                 {
                     if (m_identityProvider != null)
@@ -1720,6 +1746,7 @@ namespace Opc.Ua.Client
                 }
 
                 m_logger.ManagedSessionConnectedSessionIdSessionId(session.SessionId);
+                ObserveServerSession(session.SessionId);
 
                 return ServiceResult.Good;
             }
@@ -1808,6 +1835,10 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            if (GetRetirementFailure() is ServiceResult retired)
+            {
+                return retired;
+            }
             Session? session = m_session;
             if (session == null)
             {
@@ -2013,7 +2044,7 @@ namespace Opc.Ua.Client
         /// Creates an error when a candidate endpoint changes an explicitly
         /// configured mode or policy.
         /// </summary>
-        private static ServiceResultException? GetSecurityConfigurationMismatch(
+        internal static ServiceResultException? GetSecurityConfigurationMismatch(
             EndpointDescription required,
             EndpointDescription candidate)
         {
@@ -2078,6 +2109,12 @@ namespace Opc.Ua.Client
             using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
+                if (IsPrepared)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "A session prepared for a takeover is activated with ReconnectAsync.");
+                }
                 Session session = InnerSession;
                 await SwitchEndpointAsync(
                     session,
@@ -2406,6 +2443,10 @@ namespace Opc.Ua.Client
             IRetryBudget budget,
             CancellationToken ct)
         {
+            if (GetRetirementFailure() is ServiceResult retired)
+            {
+                return retired;
+            }
             if (m_redundancyHandler == null)
             {
                 return new ServiceResult(
@@ -2625,16 +2666,26 @@ namespace Opc.Ua.Client
                 SetBindingSession(null);
                 UnwireSessionEvents(session);
 
-                try
+                if (ClaimServerSessionCloseOrRetain(session))
                 {
-                    m_closeResult = await session
-                        .CloseAsync(m_closeTimeout, m_closeChannel, ct)
-                        .ConfigureAwait(false);
+                    // A retired facade, or a takeover that never committed its ownership, keeps
+                    // the server session alive for its owner.
+                    session.AbandonServerSession();
+                    m_closeResult = StatusCodes.Good;
                 }
-                catch (Exception ex)
+                else
                 {
-                    m_logger.ManagedSessionSessionCloseFailed(ex);
-                    m_closeResult = StatusCodes.Bad;
+                    try
+                    {
+                        m_closeResult = await session
+                            .CloseAsync(m_closeTimeout, m_closeChannel, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.ManagedSessionSessionCloseFailed(ex);
+                        m_closeResult = StatusCodes.Bad;
+                    }
                 }
 
                 // Disposing a session closes and disposes its transport
@@ -2935,6 +2986,7 @@ namespace Opc.Ua.Client
                 OnInnerPublishSequenceNumbers;
             session.PublishAcknowledgementsCompleted += OnInnerAcknowledgementsCompleted;
             session.SubscriptionAcknowledgementsDiscarded += OnInnerAcknowledgementsDiscarded;
+            session.SessionGenerationChanged += OnInnerSessionGenerationChanged;
             session.SubscriptionsChanged +=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing += OnInnerSessionClosing;
@@ -2956,6 +3008,7 @@ namespace Opc.Ua.Client
                 OnInnerPublishSequenceNumbers;
             session.PublishAcknowledgementsCompleted -= OnInnerAcknowledgementsCompleted;
             session.SubscriptionAcknowledgementsDiscarded -= OnInnerAcknowledgementsDiscarded;
+            session.SessionGenerationChanged -= OnInnerSessionGenerationChanged;
             if (m_session == null || ReferenceEquals(session, m_session))
             {
                 Session.RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded,
@@ -3444,21 +3497,38 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            await DisposeCoreAsync(retainServerSession: false).ConfigureAwait(false);
+            GC.SuppressFinalize(this);
+        }
+
+        private async ValueTask DisposeCoreAsync(bool retainServerSession)
+        {
             TaskCompletionSource<bool>? existing = Volatile.Read(ref m_disposalCompletion);
-            if (existing != null)
-            {
-                await existing.Task.ConfigureAwait(false);
-                return;
-            }
-
             var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            existing = Interlocked.CompareExchange(ref m_disposalCompletion, completion, null);
+            existing ??= Interlocked.CompareExchange(ref m_disposalCompletion, completion, null);
             if (existing != null)
             {
                 await existing.Task.ConfigureAwait(false);
+                if (retainServerSession && Volatile.Read(ref m_serverSessionFate) != kServerSessionRetained)
+                {
+                    // The disposal that won already closed (or is closing) the server session.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState,
+                        "The session was already disposed without retaining its server session.");
+                }
                 return;
             }
 
+            // Let a takeover step in flight end first, so whether the session is prepared is final.
+            await AbortTakeoverAsync().ConfigureAwait(false);
+
+            // A prepared takeover never committed its ownership, so its server session survives
+            // a dispose as well. Retention and a close the worker already committed exclude each other.
+            bool retain = retainServerSession || m_session?.IsPrepared == true;
+            bool retentionLost = retain && Interlocked.CompareExchange(
+                ref m_serverSessionFate, kServerSessionRetained, kServerSessionOpen) == kServerSessionClosing;
+            retain &= !retentionLost;
+            retentionLost &= retainServerSession;
             try
             {
                 Interlocked.Exchange(ref m_disposed, 1);
@@ -3468,9 +3538,9 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Volatile.Read(ref m_abandonServerSession))
+                    if (retain)
                     {
-                        // Stop all teardown paths from reaching the demoted replica's server session.
+                        // Stop all teardown paths from reaching the retained server session.
                         m_session?.AbandonServerSession();
                     }
 
@@ -3488,6 +3558,11 @@ namespace Opc.Ua.Client
 
                     if (session != null)
                     {
+                        if (retain)
+                        {
+                            // The worker may have bound another session object meanwhile.
+                            session.AbandonServerSession();
+                        }
                         UnwireSessionEvents(session);
                         try
                         {
@@ -3501,6 +3576,8 @@ namespace Opc.Ua.Client
 
                     // Dispose the lock only after every task that could still hold it has stopped.
                     m_serviceLock.Dispose();
+                    m_takeoverAbort.Dispose();
+                    m_takeoverGate.Dispose();
                 }
                 finally
                 {
@@ -3524,7 +3601,12 @@ namespace Opc.Ua.Client
             }
 
             await completion.Task.ConfigureAwait(false);
-            GC.SuppressFinalize(this);
+            if (retentionLost)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState,
+                    "The session was already closing; its server session was not retained.");
+            }
         }
 
         private async Task ObserveDisposalAsync(Task disposal)
@@ -3553,10 +3635,11 @@ namespace Opc.Ua.Client
         /// client replica whose server session is taken over by the new leader
         /// through token reuse.
         /// </summary>
-        internal async ValueTask AbandonServerSessionAsync()
+        /// <exception cref="ServiceResultException">A disposal that does not
+        /// retain the server session already started.</exception>
+        internal ValueTask AbandonServerSessionAsync()
         {
-            Volatile.Write(ref m_abandonServerSession, true);
-            await DisposeAsync().ConfigureAwait(false);
+            return DisposeCoreAsync(retainServerSession: true);
         }
 
         private sealed class DelayState : IDisposable
@@ -3598,7 +3681,7 @@ namespace Opc.Ua.Client
         private volatile Session? m_session;
         private ClientChannelManager? m_ownedChannelManager;
         private TaskCompletionSource<bool>? m_disposalCompletion;
-        private bool m_abandonServerSession;
+        private int m_serverSessionFate;
         private IDisposable? m_ownedTransportResources;
         private readonly AsyncReaderWriterLock m_serviceLock = new();
         private readonly ApplicationConfiguration m_configuration;

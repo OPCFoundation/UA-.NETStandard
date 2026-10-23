@@ -299,14 +299,15 @@ namespace Opc.Ua.Client
             }
             m_pendingAcknowledgementDiscards.Enqueue(
                 new SubscriptionAcknowledgementsDiscardedEventArgs(subscriptionId, generation));
-            RaisePendingAcknowledgementDiscards();
+            RaisePendingLifecycleEvents();
         }
 
         /// <summary>
-        /// Raises retirement notifications queued while the session lock was held, in order.
-        /// Does nothing while the current thread holds the session lock.
+        /// Raises acknowledgement retirement and session generation notifications queued while
+        /// the session lock was held, in order. Does nothing while the current thread holds the
+        /// session lock.
         /// </summary>
-        private void RaisePendingAcknowledgementDiscards()
+        private void RaisePendingLifecycleEvents()
         {
             if (m_lock.IsHeldByCurrentThread)
             {
@@ -317,6 +318,7 @@ namespace Opc.Ua.Client
             {
                 RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded, args, this, m_logger);
             }
+            RaisePendingSessionGenerationChanges();
         }
 
         /// <summary>

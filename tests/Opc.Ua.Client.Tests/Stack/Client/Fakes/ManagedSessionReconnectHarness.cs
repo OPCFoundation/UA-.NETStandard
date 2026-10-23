@@ -175,6 +175,38 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public bool FailFirstReplacementOpen { get; set; }
 
         /// <summary>
+        /// Gets the authentication token of the saved session a takeover test activates; its activations are
+        /// scripted by <see cref="TakeoverActivationStatus"/> and <see cref="TakeoverActivation"/>.
+        /// </summary>
+        public static NodeId TakeoverToken { get; } = new("token-saved", 1);
+
+        /// <summary>
+        /// Gets the session id of the saved session a takeover test activates.
+        /// </summary>
+        public static NodeId TakeoverSessionId { get; } = new("session-saved", 1);
+
+        /// <summary>
+        /// Gets or sets the error returned when the saved takeover session is activated; non-bad values succeed.
+        /// </summary>
+        public StatusCode TakeoverActivationStatus { get; set; } = StatusCodes.Good;
+
+        /// <summary>
+        /// Gets or sets an optional gate an activation of the saved takeover session waits at.
+        /// </summary>
+        public AsyncOperationGate? TakeoverActivation { get; set; }
+
+        /// <summary>
+        /// Gets or sets the session timeout the server revises CreateSession requests to, or null for the
+        /// scripted default.
+        /// </summary>
+        public double? RevisedSessionTimeout { get; set; }
+
+        /// <summary>
+        /// Gets or sets the session timeout the managed session requests.
+        /// </summary>
+        public TimeSpan RequestedSessionTimeout { get; set; } = TimeSpan.FromSeconds(60);
+
+        /// <summary>
         /// Gets the real managed session after <see cref="ConnectAsync"/> has completed.
         /// </summary>
         public UaManagedSession Session { get; private set; } = null!;
@@ -250,9 +282,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public ArrayOf<IServiceRequest> Requests => m_requests.ToArrayOf();
 
         /// <summary>
-        /// Gets the most recently started inner channel-recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// Gets or sets the most recently started recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// A test that already observed the outcome clears it so disposal does not await it again.
         /// </summary>
-        public Task? Recovery { get; private set; }
+        public Task? Recovery { get; set; }
 
         /// <summary>
         /// Connects the real managed session over scripted channels and starts observing outer recovery
@@ -272,6 +305,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                 new ManagedSessionOptions
                 {
                     Endpoint = SessionChannelHarness.CreateEndpoint(),
+                    SessionTimeout = RequestedSessionTimeout,
                     SubscriptionEngineFactory = EngineFactory,
                     TransferSubscriptionsOnRecreate = transferSubscriptionsOnRecreate,
                     TimeProvider = Clock,
@@ -407,9 +441,16 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (Session != null)
+            if (Session != null && !Session.Disposed)
             {
-                EngineFactory.Engine.PausePublishing();
+                try
+                {
+                    EngineFactory.Engine.PausePublishing();
+                }
+                catch (ObjectDisposedException)
+                {
+                    // A closed session already disposed its engine.
+                }
             }
             ReleaseAllGates();
             await m_shutdown.CancelAsync().WaitAsync(PhaseTimeout).ConfigureAwait(false);
@@ -456,6 +497,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     string suffix = sessionNumber.ToString(CultureInfo.InvariantCulture);
                     sessionResponse.SessionId = new NodeId($"session-{suffix}", 1);
                     sessionResponse.AuthenticationToken = new NodeId($"token-{suffix}", 1);
+                    if (RevisedSessionTimeout is double revised)
+                    {
+                        sessionResponse.RevisedSessionTimeout = revised;
+                    }
                     if (sessionNumber == 2)
                     {
                         await ReplacementSession.WaitAsync(ct).ConfigureAwait(false);
@@ -469,6 +514,18 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
                     if (activate.RequestHeader.AuthenticationToken.IsNull)
                     {
                         throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    }
+                    if (activate.RequestHeader.AuthenticationToken == TakeoverToken)
+                    {
+                        if (TakeoverActivation is AsyncOperationGate takeover)
+                        {
+                            await takeover.WaitAsync(ct).ConfigureAwait(false);
+                        }
+                        if (StatusCode.IsBad(TakeoverActivationStatus))
+                        {
+                            throw new ServiceResultException(TakeoverActivationStatus);
+                        }
+                        return channel.CreateResponse(request);
                     }
                     if (Interlocked.Increment(ref m_activationCount) > 1 &&
                         (activate.RequestHeader.AuthenticationToken == new NodeId("token-1", 1) ||

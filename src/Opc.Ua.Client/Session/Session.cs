@@ -210,6 +210,7 @@ namespace Opc.Ua.Client
             Handle = template.Handle;
             m_identity = template.Identity;
             m_keepAliveInterval = template.KeepAliveInterval;
+            InheritSessionGeneration(template);
 
             // The keep alive timer is already created (in off state) by the
             // constructor this one chains to; creating a second one here would
@@ -231,6 +232,7 @@ namespace Opc.Ua.Client
                     .m_PublishSequenceNumbersToAcknowledge;
                 PublishAcknowledgementsCompleted = template.PublishAcknowledgementsCompleted;
                 SubscriptionAcknowledgementsDiscarded = template.SubscriptionAcknowledgementsDiscarded;
+                SessionGenerationChanged = template.SessionGenerationChanged;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -561,7 +563,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected && CanReceiveResponses())
+                    if (Connected && CanReceiveResponses() && TryClaimServerSessionClose())
                     {
                         var request = new CloseSessionRequest
                         {
@@ -627,6 +629,7 @@ namespace Opc.Ua.Client
                 OnAcknowledgementsDiscarded(0);
                 PublishAcknowledgementsCompleted = null;
                 SubscriptionAcknowledgementsDiscarded = null;
+                SessionGenerationChanged = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -1227,7 +1230,7 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
-            RaisePendingAcknowledgementDiscards();
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -1584,7 +1587,7 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
-            RaisePendingAcknowledgementDiscards();
+            RaisePendingLifecycleEvents();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1793,7 +1796,7 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
-                    RaisePendingAcknowledgementDiscards();
+                    RaisePendingLifecycleEvents();
                 }
                 if (closeChannel)
                 {
@@ -2331,6 +2334,7 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Not connected to server.");
                 }
+                ThrowIfPreparedForTakeover();
 
                 // get current nonce.
                 serverNonce = m_serverNonce;
@@ -2372,6 +2376,8 @@ namespace Opc.Ua.Client
             SessionClient? recoveryClient = null,
             string? ephemeralKeyPolicyUri = null)
         {
+            ThrowIfPreparedForTakeover();
+
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
@@ -2533,6 +2539,7 @@ namespace Opc.Ua.Client
                 m_systemContext.UserIdentity = identity;
             }
 
+            CommitTakeoverActivation();
             IndicateSessionConfigurationChanged();
         }
 
@@ -3497,12 +3504,14 @@ namespace Opc.Ua.Client
         /// </summary>
         internal void AbandonServerSession()
         {
+            // Fence first: no teardown path may reach the server session from here on.
+            Volatile.Write(ref m_serverSessionFate, kServerSessionRetained);
             DeleteSubscriptionsOnClose = false;
             lock (m_lock)
             {
                 SessionCreated(default, default);
             }
-            RaisePendingAcknowledgementDiscards();
+            RaisePendingLifecycleEvents();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3546,6 +3555,9 @@ namespace Opc.Ua.Client
             bool retirePreviousSession = false)
         {
             ThrowIfDisposed();
+
+            // A prepared takeover may only be activated by its own activation, never replaced.
+            ThrowIfPreparedForTakeover();
             using Activity? activity = CachedActivitySource.StartActivity();
 
             NodeId previousSessionId = SessionId;
@@ -3809,7 +3821,7 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
-                        RaisePendingAcknowledgementDiscards();
+                        RaisePendingLifecycleEvents();
 
                         if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                         {
@@ -4150,12 +4162,13 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // close the session with the server.
+                // close the session with the server, unless it is retained for another owner or
+                // prepared for a takeover that never committed its ownership.
                 if (connected)
                 {
                     try
                     {
-                        if (CanReceiveResponses())
+                        if (CanReceiveResponses() && TryClaimServerSessionClose())
                         {
                             using CancellationTokenSource timeoutCts =
                                 CreateCloseRequestCancellationTokenSource(timeout, ct);
@@ -4206,7 +4219,10 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
-                        RaisePendingAcknowledgementDiscards();
+                        RaisePendingLifecycleEvents();
+
+                        // A prepared takeover is released locally; its server session stays alive.
+                        ReleaseTakeoverStage();
                     }
                 }
 
@@ -4258,11 +4274,19 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// On a session prepared with <see cref="PrepareTakeoverAsync"/> this activates the saved
+        /// session, see <see cref="ISessionTakeover"/>.
+        /// </remarks>
         public Task ReconnectAsync(
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             CancellationToken ct)
         {
+            if (IsPrepared)
+            {
+                return ActivatePreparedSessionAsync(connection, channel, ct);
+            }
             return ReconnectCoreAsync(
                 connection,
                 channel,
@@ -4309,6 +4333,7 @@ namespace Opc.Ua.Client
             bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
+            ThrowIfPreparedForTakeover();
 
             // When a channel manager is wired and the caller did not
             // explicitly supply a channel, delegate the
@@ -4943,12 +4968,14 @@ namespace Opc.Ua.Client
                     m_hadSession = true;
                 }
                 m_requestContextGeneration++;
+                ObserveServerSession(sessionId);
                 RequestContextChanged?.Invoke();
             }
             if (changed && Volatile.Read(ref m_retainAcknowledgementsAcrossSessionChange) == 0)
             {
                 OnAcknowledgementsDiscarded(0);
             }
+            RaisePendingLifecycleEvents();
         }
 
         /// <inheritdoc/>
@@ -4958,10 +4985,24 @@ namespace Opc.Ua.Client
         /// created, a request without token is not sent: after the Session
         /// was closed, it fails locally with Bad_SessionIdInvalid instead of
         /// reaching the Server as a session-less invocation. CreateSession
-        /// and ActivateSession are not affected.
+        /// and ActivateSession are not affected, unless the server session
+        /// was retained for another owner: then no request is sent at all.
         /// </remarks>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
+            if (IsServerSessionRetained)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionClosed,
+                    "The server session was retained for another owner.");
+            }
+            if (IsPrepared && (request is not ActivateSessionRequest || !Volatile.Read(ref m_activatingTakeover)))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionNotActivated,
+                    "The session is prepared for a takeover; activate it with ReconnectAsync first.");
+            }
+
             base.UpdateRequestHeader(request, useDefaults);
 
             if (m_hadSession &&

@@ -287,6 +287,7 @@ namespace Opc.Ua.Client.Redundancy
             }
 
             bool mutatedForReuse = false;
+            bool parked = false;
             try
             {
                 (bool found, ByteString stored) = await m_store
@@ -314,7 +315,9 @@ namespace Opc.Ua.Client.Redundancy
                     // Adopting the mirrored configuration replaces this session's own
                     // SessionId/AuthenticationToken; close that server session first so it
                     // (and a Hot standby's sampling subscriptions) is not orphaned until it
-                    // times out.
+                    // times out. A connected standby is parked meanwhile, so a keep-alive or
+                    // channel failure cannot start a recovery that creates another session.
+                    parked = m_session.TryBeginMirroredSessionAdoption();
                     await CloseOwnSessionQuietlyAsync(m_session, ct).ConfigureAwait(false);
                     mutatedForReuse = true;
                     if (!m_session.ApplySessionConfiguration(config))
@@ -326,12 +329,22 @@ namespace Opc.Ua.Client.Redundancy
                     await m_session.ReactivateMirroredSessionAsync(m_session.ConfiguredEndpoint, ct)
                         .ConfigureAwait(false);
                     m_adoptedSession = m_session;
+                    if (parked)
+                    {
+                        parked = false;
+                        m_session.EndMirroredSessionAdoption(connected: true);
+                    }
                     return true;
                 }
             }
             catch (Exception ex)
             {
                 m_logger.TokenReuseFastActivateFailedUsing(ex);
+                if (parked && !mutatedForReuse)
+                {
+                    // Nothing was adopted: the standby session is unchanged and usable again.
+                    m_session.EndMirroredSessionAdoption(connected: true);
+                }
                 if (mutatedForReuse)
                 {
                     // ApplySessionConfiguration already overwrote this session's identity with
