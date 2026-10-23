@@ -78,4 +78,13 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics\Opc.Ua.Robotics.csproj"
                       Condition="'$(TargetFramework)' == 'net10.0'" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Opc.Ua.Types.Tests\Wot\WotTraceabilityLedger.cs">
+      <Link>Wot\WotTraceabilityLedger.cs</Link>
+    </Compile>
+    <EmbeddedResource Include="..\Opc.Ua.Types.Tests\Wot\Assets\wot-binding-traceability.json">
+      <Link>Wot\Assets\wot-binding-traceability.json</Link>
+      <LogicalName>wot-binding-traceability.json</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
 </Project>

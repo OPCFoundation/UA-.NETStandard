@@ -29,7 +29,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
@@ -48,6 +47,101 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
     internal sealed partial class OpcUaWotBindingChannel
     {
         /// <summary>
+        /// Resolves the selected action receiver from an explicit identity or its published ownership candidates.
+        /// </summary>
+        private async ValueTask<NodeId> ResolveCallReceiverAsync(
+            ResolvedPathTarget target, CancellationToken cancellationToken)
+        {
+            NamespaceTable namespaceUris = target.State?.NamespaceUris ?? m_session.NamespaceUris;
+            ValidatePathSessionState(target.State);
+            NodeId receiver = await OpcUaWotCallReceiverResolver.ResolveAsync(
+                m_session, Form, target.NodeId, namespaceUris, cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(target.State);
+            return receiver;
+        }
+
+        /// <summary>
+        /// Reads and validates the current Method signature for published named argument schemas.
+        /// </summary>
+        private async ValueTask<WotPayloadDescriptor> ResolveNativeMethodPayloadAsync(
+            ResolvedPathTarget target, CancellationToken cancellationToken)
+        {
+            if (!Form.Addressing.Metadata.TryGetValue(
+                "bindingProcessingMode", out string? mode) ||
+                mode != "published-one-zero")
+            {
+                return Form.Payload;
+            }
+            PathSessionState state = target.State ??
+                throw new ServiceResultException(StatusCodes.BadInvalidState, "The Call source context is missing.");
+            ValidatePathSessionState(state);
+            ArrayOf<Argument> inputs = await ReadMethodArgumentsAsync(
+                target.NodeId, "InputArguments", state, cancellationToken).ConfigureAwait(false);
+            ArrayOf<Argument> outputs = await ReadMethodArgumentsAsync(
+                target.NodeId, "OutputArguments", state, cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(state);
+            return Form.Payload.WithNativeArgumentOrder(
+                inputs, outputs, state.NamespaceUris, m_session.TypeTree);
+        }
+
+        private async ValueTask<ArrayOf<Argument>> ReadMethodArgumentsAsync(
+            NodeId method,
+            string propertyName,
+            PathSessionState state,
+            CancellationToken cancellationToken)
+        {
+            NodeId property = default;
+            int remainingReferences = 10000;
+            await foreach (ReferenceDescription reference in m_session.EnumerateReferencesAsync(
+                method, Types.ReferenceTypeIds.HasProperty, nodeClassMask: (uint)NodeClass.Variable,
+                ct: cancellationToken).ConfigureAwait(false))
+            {
+                ValidatePathSessionState(state);
+                if (--remainingReferences < 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingLimitsExceeded, "The Method argument metadata browse exceeded its bound.");
+                }
+                if (reference is null)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnknownResponse, "The Method argument metadata browse returned a missing reference.");
+                }
+                if (reference.BrowseName.NamespaceIndex != 0 ||
+                    !string.Equals(reference.BrowseName.Name, propertyName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                if (reference.NodeId.ServerIndex != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid, "Method argument metadata must be local to the selected Server.");
+                }
+                NodeId candidate = ExpandedNodeId.ToNodeId(reference.NodeId, state.NamespaceUris);
+                if (candidate.IsNull || !property.IsNull)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadBrowseNameInvalid, "The Method has ambiguous argument metadata properties.");
+                }
+                property = candidate;
+            }
+            if (property.IsNull)
+            {
+                return [];
+            }
+            DataValue value = await m_session.ReadValueAsync(property, cancellationToken).ConfigureAwait(false);
+            ValidatePathSessionState(state);
+            if (!StatusCode.IsGood(value.StatusCode) ||
+                !value.WrappedValue.TryGetValue(out ArrayOf<Argument> arguments, state.CreateContext()))
+            {
+                throw new ServiceResultException(
+                    StatusCode.IsGood(value.StatusCode) ? StatusCodes.BadDecodingError : value.StatusCode,
+                    $"The Method {propertyName} metadata could not be decoded.");
+            }
+            return arguments;
+        }
+
+        /// <summary>
         /// Admits an inferred source Object only after endpoint and Core Method ownership checks.
         /// </summary>
         private async ValueTask ValidateSourceCallReceiverAsync(
@@ -60,138 +154,13 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             PathSessionState state = target.State ??
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "The Call source context is missing.");
             ValidatePathSessionState(state);
-            if (!WotCallReceiver.TryGetEndpoint(Form.Endpoint.BaseUri, out string expectedEndpoint) ||
-                !WotCallReceiver.TryGetEndpoint(
-                    m_session.ConfiguredEndpoint?.Description.EndpointUrl, out string actualEndpoint) ||
-                !string.Equals(expectedEndpoint, actualEndpoint, StringComparison.Ordinal))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed, "The Call source belongs to a different endpoint.");
-            }
-            ArrayOf<ReadValueId> attributes =
-            [
-                new ReadValueId { NodeId = receiver, AttributeId = Attributes.NodeClass },
-                new ReadValueId { NodeId = target.NodeId, AttributeId = Attributes.NodeClass }
-            ];
-            ReadResponse response = await m_session.ReadAsync(
-                null, 0, TimestampsToReturn.Neither, attributes, cancellationToken).ConfigureAwait(false);
-            ClientBase.ValidateResponse(response.Results, attributes);
-            ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, attributes);
-            for (int index = 0; index < attributes.Count; index++)
-            {
-                DataValue value = response.Results[index];
-                if (!StatusCode.IsGood(value.StatusCode))
-                {
-                    throw new ServiceResultException(
-                        value.StatusCode, "The source Call receiver or Method could not be inspected.");
-                }
-                if (!value.WrappedValue.TryGetValue(out int nodeClass) ||
-                    nodeClass != (int)(index == 0 ? NodeClass.Object : NodeClass.Method))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadNodeClassInvalid, "The source Call requires an Object receiver and a Method.");
-                }
-            }
+            NodeId resolved = await OpcUaWotCallReceiverResolver.ResolveAsync(
+                m_session, Form, target.NodeId, state.NamespaceUris, cancellationToken).ConfigureAwait(false);
             ValidatePathSessionState(state);
-            NodeId method = target.NodeId;
-            if ((method == global::Opc.Ua.MethodIds.ConditionType_ConditionRefresh ||
-                    method == global::Opc.Ua.MethodIds.ConditionType_ConditionRefresh2) &&
-                receiver != global::Opc.Ua.ObjectTypeIds.ConditionType)
+            if (resolved != receiver)
             {
                 throw new ServiceResultException(
-                    StatusCodes.BadMethodInvalid, "ConditionRefresh requires the ConditionType receiver.");
-            }
-            NodeId requiredConditionType =
-                method == global::Opc.Ua.MethodIds.AcknowledgeableConditionType_Acknowledge ||
-                method == global::Opc.Ua.MethodIds.AcknowledgeableConditionType_Confirm ||
-                Form.ConditionInvocation?.Action is "Acknowledge" or "Confirm"
-                    ? global::Opc.Ua.ObjectTypeIds.AcknowledgeableConditionType
-                    : method == global::Opc.Ua.MethodIds.ConditionType_Enable ||
-                        method == global::Opc.Ua.MethodIds.ConditionType_Disable ||
-                        method == global::Opc.Ua.MethodIds.ConditionType_AddComment ||
-                        Form.ConditionInvocation is not null
-                            ? global::Opc.Ua.ObjectTypeIds.ConditionType : default;
-            int remainingReferences = 10000;
-            bool ownsMethod = await HasMethodAsync(receiver).ConfigureAwait(false);
-            bool matchesCondition = requiredConditionType.IsNull;
-            if (ownsMethod && matchesCondition)
-            {
-                return;
-            }
-            NodeId type = await SingleTargetAsync(
-                receiver, Types.ReferenceTypeIds.HasTypeDefinition, BrowseDirection.Forward).ConfigureAwait(false);
-            var visited = new HashSet<NodeId>();
-            while (!type.IsNull)
-            {
-                if (visited.Count >= 100 || !visited.Add(type))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingLimitsExceeded, "The source ObjectType hierarchy is cyclic or too deep.");
-                }
-                matchesCondition |= type == requiredConditionType;
-                ownsMethod |= await HasMethodAsync(type).ConfigureAwait(false);
-                if (ownsMethod && matchesCondition)
-                {
-                    return;
-                }
-                type = await SingleTargetAsync(
-                    type, Types.ReferenceTypeIds.HasSubtype, BrowseDirection.Inverse).ConfigureAwait(false);
-            }
-            throw new ServiceResultException(
-                StatusCodes.BadMethodInvalid,
-                "The original source Object and its ObjectType hierarchy do not own the selected Method.");
-
-            async ValueTask<bool> HasMethodAsync(NodeId owner)
-            {
-                await foreach (ReferenceDescription reference in m_session.EnumerateReferencesAsync(
-                    owner, Types.ReferenceTypeIds.HasComponent, nodeClassMask: (uint)NodeClass.Method,
-                    ct: cancellationToken).ConfigureAwait(false))
-                {
-                    CheckReference(reference);
-                    if (reference.NodeId.ServerIndex == 0 &&
-                        ExpandedNodeId.ToNodeId(reference.NodeId, state.NamespaceUris) == target.NodeId)
-                    {
-                        return true;
-                    }
-                }
-                ValidatePathSessionState(state);
-                return false;
-            }
-
-            async ValueTask<NodeId> SingleTargetAsync(NodeId owner, NodeId referenceType, BrowseDirection direction)
-            {
-                NodeId result = default;
-                await foreach (ReferenceDescription reference in m_session.EnumerateReferencesAsync(
-                    owner, referenceType, direction, false, (uint)NodeClass.ObjectType,
-                    ct: cancellationToken).ConfigureAwait(false))
-                {
-                    CheckReference(reference);
-                    NodeId candidate = ExpandedNodeId.ToNodeId(reference.NodeId, state.NamespaceUris);
-                    if (reference.NodeId.ServerIndex != 0 || candidate.IsNull ||
-                        (!result.IsNull && result != candidate))
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadNodeIdInvalid, "The source ObjectType hierarchy is not unambiguous and local.");
-                    }
-                    result = candidate;
-                }
-                ValidatePathSessionState(state);
-                return result;
-            }
-
-            void CheckReference(ReferenceDescription reference)
-            {
-                ValidatePathSessionState(state);
-                if (--remainingReferences < 0)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadEncodingLimitsExceeded, "The source Call ownership browse exceeded its bound.");
-                }
-                if (reference is null)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadUnknownResponse, "The source ownership browse returned a missing reference.");
-                }
+                    StatusCodes.BadMethodInvalid, "The previously selected Call receiver is no longer valid.");
             }
         }
 

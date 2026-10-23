@@ -18,6 +18,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Identity modes, provenance, and bounds](#identity-modes-provenance-and-bounds)
   - [Property observation and contextual values](#property-observation-and-contextual-values)
   - [Action payload contracts](#action-payload-contracts)
+  - [Published OPC 10101 v1.00 consumer mode](#published-opc-10101-v100-consumer-mode)
   - [Portable browse-path targets](#portable-browse-path-targets)
   - [Registering binders and executors](#registering-binders-and-executors)
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
@@ -360,6 +361,128 @@ finite numbers. `MaxPayloadBytes` counts actual UTF-8; `MaxPayloadDepth` counts
 root containers as one and scalars as zero; context `MaxArrayLength` also bounds
 Structure-array allocation.
 
+### Published OPC 10101 v1.00 consumer mode
+
+The Binding consumer can explicitly select the published OPC 10101 v1.00
+interpretation. Selection is caller-controlled; neither a `bindingVersion`
+annotation nor the UA Binding vocabulary silently changes the current mode.
+This also lets a consumer process an original published TD that has no revision
+annotation:
+
+```csharp
+var selection = new WotBindingSelectionContext(
+    selectedBindingIds: [],
+    selectedBindingUris: [],
+    processingMode: WotBindingProcessingMode.PublishedOneZero);
+WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+    resourceXid,
+    WoTDocumentKindEnum.ThingDescription,
+    documentBytes,
+    selection: selection);
+WotBindingPlan plan = binderRegistry.Prepare(request);
+```
+
+Call `WotFormExtractor.Extract(ByteString.From(documentBytes),
+WotBindingProcessingMode.PublishedOneZero)` when extracting forms directly.
+Pass the same explicit mode in the plan request's `WotBindingSelectionContext`;
+the existing extractor overload without a mode continues to use current rules.
+
+In this mode the OPC UA consumer resolves published `ns=<index>` NodeIds and
+numeric browse-name prefixes only through the namespace URI mapping in the
+original document context. It canonicalizes target identities before dispatch;
+it never treats the connected Session's NamespaceArray as document authority.
+An absent mapping, conflicting target, partial browse path, or ambiguous live
+target fails visibly.
+
+Published actions use the required action-level array-valued
+`uav:componentOf` as a set of owner candidates (OPC 10101 v1.00 §7.1.3).
+Each candidate is resolved and checked against the selected Method and current
+endpoint; dispatch requires one valid receiver. An optional form-level
+`uav:callObjectId` must name one of those candidates and can disambiguate
+multiple valid owners. The deprecated scalar
+form-level `uav:componentOf` is not accepted. For object-shaped action input
+and output schemas, the runtime obtains native ordered `InputArguments` and
+`OutputArguments` metadata from the Server; JSON property order and later
+`argumentLayout` / `fieldOrder` annotations are not used as an argument-order
+authority. Missing or inconsistent native metadata fails before `Call`.
+Native DataTypes and ranks also constrain values: for example, a generic
+`integer` schema does not permit an Int64 value for a native Int32 argument.
+For source-routed projections, pass the live resolver's `WotDocument` into
+planning so its original ownership evidence remains available. A serialized
+`uav:resolvedFrom` locator is not that evidence, even when the resolved JSON
+contains an owner array. Re-resolve the original documents instead of treating
+projection-local containment as source authority.
+
+For example, a published action may identify its owning Object on the action
+and describe named input and output values without later layout annotations:
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "uav": "http://opcfoundation.org/UA-WoT-Binding/" }
+  ],
+  "@type": "Thing",
+  "title": "Published pump",
+  "actions": {
+    "setTarget": {
+      "uav:componentOf": ["nsu=urn:example:pump;s=Pump"],
+      "input": {
+        "type": "object",
+        "properties": {
+          "setpoint": { "type": "number" },
+          "enabled": { "type": "boolean" }
+        },
+        "required": ["setpoint", "enabled"]
+      },
+      "output": {
+        "type": "object",
+        "properties": { "accepted": { "type": "boolean" } },
+        "required": ["accepted"]
+      },
+      "forms": [{
+        "href": "opc.tcp://pump.example:4840",
+        "uav:id": "nsu=urn:example:pump;s=SetTarget"
+      }]
+    }
+  }
+}
+```
+
+The action's input/output member order in JSON is not a positional contract;
+the runtime resolves the native Method argument metadata and uses its declared
+order.
+
+The mode applies to existing OPC UA binding read, write, observe, and Call
+consumer paths. TD access flags and standard operation defaults remain
+declarations; the Server still authorizes each UA service. Security definitions
+are resolved against the application's endpoint policy and configured
+credential providers. An unsupported or unacceptable endpoint/token
+configuration fails closed rather than downgrading security. The current
+runtime's event subscription mapping is retained as a separate regression
+surface; published OPC 10101 v1.00 defines no UA event mapping.
+
+Payload support remains qualified: accepting `application/octet-stream` and
+passing typed `Variant` arguments to native UA services does **not** establish
+general UA Binary payload serialization interoperability. The default
+octet-stream codec handles bytes and its documented text fallback; this
+follow-up does not add a general UA Binary payload codec. That serialization
+gap remains open rather than being counted as supported from MIME admission.
+External IssuedToken acquisition likewise requires an application-supplied
+provider; tests of acquisition-reference handoff do not demonstrate an
+identity-provider implementation.
+
+This explicit consumer mode is not a converter-wide non-portable-identifier
+switch and does not make the stack a complete TD/TM/Binding-result schema
+validator. The required schema-validation dependency/license/AOT blocker
+remains open. The local clause-to-test map is a test locator, not a CTT,
+profile-certification, or full-conformance report. See the
+[part-version-qualified traceability map](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json)
+for test locators; the normative baseline is the
+[published OPC 10101 v1.00 document](https://reference.opcfoundation.org/specs/OPC-10101/v1.00).
+The reviewed plaintext rendering is pinned by SHA-256
+`4ec1170c1c33c63907e7810e6ab0537d62b55735bc2d1191ec7f57bbf9926d93`.
+
 ### Portable browse-path targets
 
 On .NET 8+, OPC UA forms can address read/write/observe, Call, and event
@@ -389,7 +512,10 @@ nearest `uav:id`. An outer explicit anchor wins over a nearer fallback identity.
 The path retains its declaration's context, not a form-local prefix override.
 Annex A supports hierarchical `/`, Aggregates `.`, explicit `<HasComponent>`,
 exact `<#HasComponent>`, inverse `<!HasComponent>`, escaped `&/`, and URI-qualified
-BrowseNames. Numeric namespace prefixes are non-portable.
+BrowseNames. A numeric namespace prefix is accepted only under explicit
+`PublishedOneZero` processing and only when the original document context maps
+it to a namespace URI. Other modes and context-free portability validation
+continue to reject numeric prefixes.
 
 Before business I/O, translation against current Session tables requires one
 complete local target with the right NodeClass; simultaneous NodeIds must agree.
@@ -460,8 +586,8 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`. A form-scoped `uav:callObjectId` takes precedence; otherwise the planner can capture the explicitly identified original source Thing Object as described below. Local containment is not receiver authority. |
-| `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
+| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`. Current processing uses a form-scoped `uav:callObjectId` or the explicitly identified original source Thing Object. Published v1.00 processing instead requires action-level owner candidates in `uav:componentOf` and validates one unique live receiver. Local containment is not receiver authority. |
+| `subscribeevent` | Current runtime event extension: a native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` uses the compiled `WotEventSelection`. The eight mandatory `BaseEventType` fields are selected when no selection is stated; otherwise the selection comes from the linked EventType and `uav:eventSelectClauses`. Each selected field is delivered in `WotNotification.EventFields`, keyed by browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as source / server timestamp. This is not a published OPC 10101 v1.00 event mapping. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
@@ -473,13 +599,15 @@ A present form-scoped `uav:callObjectId` must be a portable, non-null NodeId.
 An invalid explicit value fails planning; it never falls back to the Thing.
 The aggregation sample retains this explicit Binding 1.1 contract.
 
-When the term is omitted, extraction can capture the original source Thing's
-explicit `uav:id`. The document must describe an Object, not a Thing Model,
-Variable, Method, View or projection envelope. Its OPC UA base and forms must
-identify one endpoint, matching the selected action endpoint. Missing identity,
-multiple endpoints and relocated actions without captured receiver authority
-fail closed. Scenario/projection envelopes cannot supply their local root as
-an upstream receiver.
+In current processing (not `PublishedOneZero`), when the term is omitted,
+extraction can capture the original source Thing's explicit `uav:id`. The
+document must describe an Object, not a Thing Model, Variable, Method, View or
+projection envelope. Its OPC UA base and forms must identify one endpoint,
+matching the selected action endpoint. Missing identity, multiple endpoints and
+relocated actions without captured receiver authority fail closed.
+Scenario/projection envelopes cannot supply their local root as an upstream
+receiver. Published v1.00 processing instead requires the action-level
+`uav:componentOf` candidate array described above.
 
 For source-routed projections, resolution retains original Object receiver facts
 on the live `WotDocument` result without adding or replacing JSON form terms.
@@ -545,16 +673,16 @@ Condition occurrence bindings still require their captured source correlation;
 omission does not make an unexposed Condition identifiable or authorize an
 unrelated Object.
 
-**Published Binding v1.00 interoperability remains incomplete.** Published
-[OPC 10101 v1.00 Section 7.1.3](https://reference.opcfoundation.org/specs/OPC-10101/v1.00/t63916693358/download/markdown)
-requires an **action-level `uav:componentOf` array** declaring the owning Object.
-Section 6.5.3's lack of mandatory *form* terms does not remove that requirement.
-The published array is distinct from the obsolete scalar form-level fallback
-and from local projection containment. This runtime does not select a receiver
-from that published action-level owner array, nor reconstruct native argument
-ordering from server metadata for schemas lacking the current explicit layout.
-Source-Thing selection therefore does not establish full published v1.00
-interoperability. These limits are separate from
+Published OPC 10101 v1.00 §7.1.3 requires an **action-level
+`uav:componentOf` array** declaring owning Object candidates; §6.5.3's lack of
+mandatory *form* terms does not remove that requirement. Published processing
+uses the array and native Method argument metadata, not the obsolete scalar
+form-level fallback, local projection containment, JSON object order, or later
+`argumentLayout` / `fieldOrder` terms. This is a scoped runtime implementation,
+not a claim of full published-v1.00 conformance or profile certification.
+Published OPC 10101 v1.00 Section 6.1 defines no UA event mapping, so the
+runtime's current event selection behavior is not part of this mode's
+interoperability claim. These qualifications are separate from
 [Connectivity 1.02 asset compatibility](WotCon.md#wot-con-102-compatibility) and
 do not close the mandatory schema-validation gap documented below.
 
@@ -562,7 +690,9 @@ do not close the mandatory schema-validation gap documented below.
 
 ### Event field selection (`tm:ref` and `uav:eventSelectClauses`)
 
-WoT Binding Section 6.1 states an event's `EventFilter` select clauses on the **event
+This section documents the current runtime event extension; OPC 10101 v1.00
+defines no UA event mapping. WoT Binding Section 6.1 states an event's
+`EventFilter` select clauses on the **event
 affordance** — never on a form — and states them by **linking the EventType definition**
 the fields are selected from. An `events` map is an affordance map wherever it appears,
 not only at the document root, so a clause on a member of a nested one — the event
@@ -1473,11 +1603,15 @@ The specification defines eleven conformance units and four recommended profiles
 | **WoT-JsonResidue** | covered | `WotJsonResidue`, pointer-addressed preservation through the NodeSet Extension |
 | **WoT-NodeSetPreservation** | covered | the byte-exact `uav:nodeSet` envelope with digest verification |
 | **WoT-ExactRoundtrip** | covered | the envelope-free roundtrip invariants, including residue |
-| **WoT-EventMapping** | covered | `subscribeevent` / `unsubscribeevent` mapped to event MonitoredItems, including the EventType `tm:ref` fast path, the `uav:eventSelectClauses` overlay and the implicit `BaseEventType` default (Section 6.1) |
+| **WoT-EventMapping** | covered | Current runtime event extension: `subscribeevent` / `unsubscribeevent` map to event MonitoredItems, including EventType `tm:ref`, `uav:eventSelectClauses`, and the implicit `BaseEventType` default. Published OPC 10101 v1.00 defines no UA event mapping. |
 | **WoT-ConditionMapping** | covered | Section 13 (`uav:conditionType`, `uav:conditionTypeId`, `uav:conditionAction`, `uav:actsOn`) in `WotNodeSetConverter.Conditions`, with the Condition supertype resolution and the Section 13.3/13.4 conformance rules |
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
 | **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
+
+These unit labels describe implementation paths and runtime behavior; the
+published-v1.00 consumer mode above is scoped and does not establish full
+conformance to OPC 10101 v1.00.
 
 The table identifies implementation paths, not certification of every requirement
 in **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
@@ -2001,6 +2135,12 @@ Release 1.1 rejects two identifier forms that OPC 10101 v1.00 permitted. Both ar
 session-local: a document carrying either binds to the wrong namespace as soon as
 the server's namespace table is reordered, which is exactly what a document meant
 to be stored and re-read must not do.
+
+This table describes conversion and persisted-annotation portability, not the
+explicit OPC UA Binding consumer mode above. That mode resolves numeric target
+NodeIds and browse-path prefixes through the original document context. It does
+not enable numeric `uav:browseName` conversion or change
+`WotNodeSetConverterOptions.AllowNonPortableIdentifiers`.
 
 | Rejected in release 1.1 | Permitted in v1.00 | Portable form to use instead |
 | --- | --- | --- |

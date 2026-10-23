@@ -287,6 +287,101 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         }
 
         /// <summary>
+        /// Verifies selected published 1.0 authorization and dispatch use the
+        /// same owner candidate from the original action source.
+        /// </summary>
+        [Test]
+        public async Task PublishedOneZeroComponentOfAuthorizationMatchesDispatchedPairAsync()
+        {
+            await using RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
+                includeWot: false, includeRegistry: false).ConfigureAwait(false);
+            NodeId owner = remote.Id("owner");
+            NodeId method = remote.Id("method");
+            remote.Values[(method, Attributes.NodeClass)] = new DataValue(Variant.From((int)NodeClass.Method));
+            remote.Browse(owner, ReferenceTypeIds.HasComponent,
+                [new ReferenceDescription { NodeId = method, NodeClass = NodeClass.Method }]);
+            remote.OnCall = _ => new CallMethodResult { StatusCode = StatusCodes.Good };
+            Uri endpoint = remote.Session.Object.ConfiguredEndpoint.EndpointUrl ??
+                throw new InvalidOperationException("The test session must have an endpoint.");
+            string ownerText = NodeId.ToExpandedNodeId(owner, remote.Context.NamespaceUris).ToString();
+            string methodText = NodeId.ToExpandedNodeId(method, remote.Context.NamespaceUris).ToString();
+            string resource = "object=" + ownerText + ";method=" + methodText;
+            await using var fixture = new WotRuntimeTestContext(options => options.NetworkRules =
+                [WotRuntimeTestContext.Rule(McpCapability.WotInvoke, ["Call"], [resource],
+                    endpoint.Scheme, endpoint.IdnHost, endpoint.Port)], realExecutors: true);
+            await using GdsManagedSession connection = await GdsManagedSession.CreateAsync(remote, fixture.Clock)
+                .ConfigureAwait(false);
+            await fixture.Services.GetRequiredService<OpcUaSessionManager>()
+                .RegisterExistingSessionAsync("selected", connection.Managed, "Anonymous").ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
+            string document = PublishedActionDocument(endpoint, ownerText, methodText);
+            JsonObject opened = WotRuntimeTestContext.Payload(await fixture.Tools.OpenAsync("published-action",
+                new WotDocumentSource { Text = document },
+                Selection(document) with { Affordance = "run", Kind = WotAffordanceKind.Action },
+                ["invokeaction"], options: new WotRuntimeOpenOptions
+                {
+                    SessionName = "selected",
+                    BindingProcessingMode = WotBindingProcessingMode.PublishedOneZero
+                })
+                .ConfigureAwait(false));
+            _ = WotRuntimeTestContext.Payload(await fixture.Tools.InvokeActionAsync(
+                opened["runtime"]!["handle"]!.GetValue<string>()).ConfigureAwait(false));
+
+            Assert.That(remote.Calls, Has.Count.EqualTo(1));
+            Assert.That(remote.Calls[0].ObjectId, Is.EqualTo(owner));
+            Assert.That(remote.Calls[0].MethodId, Is.EqualTo(method));
+            Assert.That(connection.Requests.OfType<CallRequest>().Count(), Is.EqualTo(1));
+            Assert.That(Selection(document).BindingId, Is.EqualTo("opc.opcua"));
+            Assert.That(Selection(document).BindingVersion, Is.EqualTo("10101"));
+        }
+
+        /// <summary>
+        /// Verifies a receiver outside the caller's exact resource grant is
+        /// denied without issuing an OPC UA Call.
+        /// </summary>
+        [Test]
+        public async Task PublishedOneZeroDeniedComponentOfReceiverIssuesNoCallAsync()
+        {
+            await using RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
+                includeWot: false, includeRegistry: false).ConfigureAwait(false);
+            NodeId sourceOwner = remote.Id("owner");
+            NodeId grantedOwner = remote.Id("other-owner");
+            NodeId method = remote.Id("method");
+            remote.Values[(method, Attributes.NodeClass)] = new DataValue(Variant.From((int)NodeClass.Method));
+            remote.Browse(sourceOwner, ReferenceTypeIds.HasComponent,
+                [new ReferenceDescription { NodeId = method, NodeClass = NodeClass.Method }]);
+            remote.OnCall = _ => new CallMethodResult { StatusCode = StatusCodes.Good };
+            Uri endpoint = remote.Session.Object.ConfiguredEndpoint.EndpointUrl ??
+                throw new InvalidOperationException("The test session must have an endpoint.");
+            string sourceOwnerText = NodeId.ToExpandedNodeId(sourceOwner, remote.Context.NamespaceUris).ToString();
+            string grantedOwnerText = NodeId.ToExpandedNodeId(grantedOwner, remote.Context.NamespaceUris).ToString();
+            string methodText = NodeId.ToExpandedNodeId(method, remote.Context.NamespaceUris).ToString();
+            string grantedResource = "object=" + grantedOwnerText + ";method=" + methodText;
+            await using var fixture = new WotRuntimeTestContext(options => options.NetworkRules =
+                [WotRuntimeTestContext.Rule(McpCapability.WotInvoke, ["Call"], [grantedResource],
+                    endpoint.Scheme, endpoint.IdnHost, endpoint.Port)], realExecutors: true);
+            await using GdsManagedSession connection = await GdsManagedSession.CreateAsync(remote, fixture.Clock)
+                .ConfigureAwait(false);
+            await fixture.Services.GetRequiredService<OpcUaSessionManager>()
+                .RegisterExistingSessionAsync("selected", connection.Managed, "Anonymous").ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
+            string document = PublishedActionDocument(endpoint, sourceOwnerText, methodText);
+            JsonObject denied = WotRuntimeTestContext.Payload(await fixture.Tools.OpenAsync("denied-published-action",
+                new WotDocumentSource { Text = document },
+                Selection(document) with { Affordance = "run", Kind = WotAffordanceKind.Action },
+                ["invokeaction"], options: new WotRuntimeOpenOptions
+                {
+                    SessionName = "selected",
+                    BindingProcessingMode = WotBindingProcessingMode.PublishedOneZero
+                }).ConfigureAwait(false), error: true);
+
+            Assert.That(denied["statusCodeValue"]!.GetValue<uint>(),
+                Is.EqualTo(StatusCodes.BadUserAccessDenied.Code));
+            Assert.That(connection.Requests.OfType<CallRequest>(), Is.Empty);
+            Assert.That(remote.Calls, Is.Empty);
+        }
+
+        /// <summary>
         /// Creates an exact read grant for a host-owned named session endpoint.
         /// </summary>
         private static WotRuntimeTestContext Create(Uri endpoint, string resource, bool realExecutors = true)
@@ -328,6 +423,33 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                             ["href"] = endpoint.AbsoluteUri,
                             ["uav:id"] = node.ToString(),
                             ["op"] = "readproperty"
+                        })
+                    }
+                }
+            }.ToJsonString();
+        }
+
+        /// <summary>
+        /// Creates a source TD whose action owner is stated only as the
+        /// published action-level array-valued componentOf provenance.
+        /// </summary>
+        private static string PublishedActionDocument(Uri endpoint, string owner, string method)
+        {
+            return new JsonObject
+            {
+                ["@context"] = "https://www.w3.org/2022/wot/td/v1.1",
+                ["title"] = "Published source action",
+                ["base"] = endpoint.AbsoluteUri,
+                ["actions"] = new JsonObject
+                {
+                    ["run"] = new JsonObject
+                    {
+                        ["uav:componentOf"] = new JsonArray(JsonValue.Create(owner)),
+                        ["forms"] = new JsonArray(new JsonObject
+                        {
+                            ["href"] = endpoint.AbsoluteUri,
+                            ["uav:id"] = method,
+                            ["op"] = "invokeaction"
                         })
                     }
                 }

@@ -89,6 +89,9 @@ namespace Opc.Ua.Wot
         /// <param name="formPointer">The pointer of a form in properties, actions, events, or root forms.</param>
         /// <param name="maxPathLength">The bound applied before parsing the path.</param>
         /// <param name="maxElements">The maximum number of native path steps.</param>
+        /// <param name="allowNumericNamespacePrefixes">
+        /// Whether numeric prefixes may resolve through the carrying context. Defaults to <c>false</c>.
+        /// </param>
         /// <exception cref="ArgumentNullException">A required argument is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">A bound is non-positive.</exception>
         /// <exception cref="ServiceResultException">The path, anchor, context, or form pointer is invalid.</exception>
@@ -96,7 +99,8 @@ namespace Opc.Ua.Wot
             WotDocument document,
             string formPointer,
             int maxPathLength = 65536,
-            int maxElements = 1024)
+            int maxElements = 1024,
+            bool allowNumericNamespacePrefixes = false)
         {
             if (document is null)
             {
@@ -170,7 +174,8 @@ namespace Opc.Ua.Wot
             var parsed = RelativePathFormatter.ParsePortable(
                 path, namespaces,
                 prefix => document.TryGetContextPrefix(prefix, out string uri, carryingNode) ? uri : null,
-                maxElements);
+                maxElements,
+                allowNumericPrefixes: allowNumericNamespacePrefixes);
             if (parsed.Elements.Count == 0)
             {
                 throw new ServiceResultException(

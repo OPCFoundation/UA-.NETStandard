@@ -323,11 +323,13 @@ namespace Opc.Ua
         /// <param name="namespaceUris">The namespace URIs.</param>
         /// <param name="resolvePrefix">The resolve prefix.</param>
         /// <param name="maxElements">The max elements.</param>
+        /// <param name="allowNumericPrefixes">Whether mapped numeric prefixes are permitted.</param>
         internal static RelativePathFormatter ParsePortable(
             string text,
             NamespaceTable namespaceUris,
             Func<string, string?> resolvePrefix,
-            int maxElements)
+            int maxElements,
+            bool allowNumericPrefixes = false)
         {
             var path = new RelativePathFormatter();
             using var reader = new StringReader(text);
@@ -338,7 +340,7 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadEncodingLimitsExceeded, "The browse path exceeds the element limit.");
                 }
-                path.Elements.Add(Element.Parse(reader, namespaceUris, resolvePrefix));
+                path.Elements.Add(Element.Parse(reader, namespaceUris, resolvePrefix, allowNumericPrefixes));
             }
             return path;
         }
@@ -524,10 +526,12 @@ namespace Opc.Ua
             /// <param name="reader">The string reader.</param>
             /// <param name="namespaceUris">The namespace URIs.</param>
             /// <param name="resolvePrefix">The resolve prefix.</param>
+            /// <param name="allowNumericPrefixes">Whether mapped numeric prefixes are permitted.</param>
             internal static Element Parse(
                 StringReader reader,
                 NamespaceTable? namespaceUris,
-                Func<string, string?>? resolvePrefix)
+                Func<string, string?>? resolvePrefix,
+                bool allowNumericPrefixes = false)
             {
                 var element = new Element();
 
@@ -557,14 +561,16 @@ namespace Opc.Ua
                             reader.Read();
                         }
 
-                        element.ReferenceTypeName = ParseName(reader, true, namespaceUris, resolvePrefix);
+                        element.ReferenceTypeName = ParseName(
+                            reader, true, namespaceUris, resolvePrefix, allowNumericPrefixes);
                         break;
                     default:
                         element.ElementType = ElementType.AnyHierarchical;
                         break;
                 }
 
-                element.TargetName = ParseName(reader, false, namespaceUris, resolvePrefix);
+                element.TargetName = ParseName(
+                    reader, false, namespaceUris, resolvePrefix, allowNumericPrefixes);
 
                 return element;
             }
@@ -577,7 +583,8 @@ namespace Opc.Ua
                 StringReader reader,
                 bool referenceName,
                 NamespaceTable? namespaceUris,
-                Func<string, string?>? resolvePrefix)
+                Func<string, string?>? resolvePrefix,
+                bool allowNumericPrefixes)
             {
                 ushort namespaceIndex = 0;
 
@@ -585,7 +592,8 @@ namespace Opc.Ua
                 var buffer = new StringBuilder();
                 if (namespaceUris is not null)
                 {
-                    namespaceIndex = ParsePortableNamespace(reader, buffer, namespaceUris, resolvePrefix!);
+                    namespaceIndex = ParsePortableNamespace(
+                        reader, buffer, namespaceUris, resolvePrefix!, allowNumericPrefixes);
                 }
                 int last = reader.Peek();
 
@@ -698,7 +706,8 @@ namespace Opc.Ua
                 StringReader reader,
                 StringBuilder buffer,
                 NamespaceTable namespaceUris,
-                Func<string, string?> resolvePrefix)
+                Func<string, string?> resolvePrefix,
+                bool allowNumericPrefixes)
             {
                 if (reader.Peek() == '{')
                 {
@@ -738,7 +747,7 @@ namespace Opc.Ua
                 reader.Read();
                 string prefix = buffer.ToString();
                 buffer.Clear();
-                bool numeric = true;
+                bool numeric = prefix.Length > 0;
                 foreach (char character in prefix)
                 {
                     if (character is < '0' or > '9')
@@ -747,11 +756,14 @@ namespace Opc.Ua
                         break;
                     }
                 }
-                if (numeric)
+                if (numeric &&
+                    (!allowNumericPrefixes ||
+                        !ushort.TryParse(prefix, NumberStyles.None, CultureInfo.InvariantCulture, out ushort index) ||
+                        index == 0))
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadBrowseNameInvalid,
-                        "A portable browse path requires a non-numeric namespace prefix.");
+                        "A numeric browse-path namespace prefix must be a context-mapped non-zero UInt16.");
                 }
                 string? namespaceUri = resolvePrefix(prefix);
                 if (string.IsNullOrEmpty(namespaceUri))

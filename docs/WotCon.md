@@ -1517,6 +1517,9 @@ non-numeric prefix or `nsu=<NamespaceUri>;<Name>` instead.
 against OPC 10101 v1.00 readable while it is rewritten; see
 [WoT protocol bindings](WotBindings.md#compatibility-switch-for-non-portable-identifiers)
 for the forms and worked examples.
+That converter option does not select Binding consumer semantics. Consumers must
+explicitly choose the published 1.00 interpretation; see
+[Published OPC 10101 v1.00 consumer mode](WotBindings.md#published-opc-10101-v100-consumer-mode).
 
 ### 12.6 The 1.02 asset surface
 

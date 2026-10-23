@@ -171,5 +171,278 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         private static readonly string[] s_order = ["High", "Low"];
+
+        /// <summary>
+        /// Verifies that published object-shaped action schemas need no 1.1 layout annotations and
+        /// that native Method metadata, rather than JSON member order, resolves their argument order.
+        /// </summary>
+        [Test]
+        public void PublishedObjectSchemasResolveInNativeInputAndOutputOrder()
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{
+                  "type":"object",
+                  "required":["First","Second"],
+                  "properties":{
+                    "Second":{"type":"integer","uav:dataTypeId":"i=6"},
+                    "First":{"type":"integer","uav:dataTypeId":"i=6"}
+                  }
+                },
+                "output":{
+                  "type":"object",
+                  "properties":{
+                    "ResultB":{"type":"integer","uav:dataTypeId":"i=6"},
+                    "ResultA":{"type":"integer","uav:dataTypeId":"i=6"}
+                  }
+                },
+                """);
+
+            WotPayloadDescriptor resolved = form.Payload.WithNativeArgumentOrder(
+                [
+                    new Argument { Name = "First", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar },
+                    new Argument { Name = "Second", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ],
+                [
+                    new Argument { Name = "ResultA", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar },
+                    new Argument { Name = "ResultB", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ],
+                new NamespaceTable());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(form.Payload.ContentType, Is.EqualTo("application/octet-stream"));
+                Assert.That(form.Payload.InputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.NamedUnresolved));
+                Assert.That(form.Payload.OutputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.NamedUnresolved));
+                Assert.That(resolved.InputLayout!.FieldOrder.ToArray(), Is.EqualTo(s_expectedInputArgumentOrder));
+                Assert.That(resolved.InputLayout.GetArgumentName(0), Is.EqualTo("First"));
+                Assert.That(resolved.InputLayout.GetArgumentName(1), Is.EqualTo("Second"));
+                Assert.That(resolved.InputLayout.GetArgumentSchema(0).GetProperty("uav:dataTypeId").GetString(),
+                    Is.EqualTo("i=6"));
+                Assert.That(resolved.OutputLayout!.FieldOrder.ToArray(), Is.EqualTo(s_expectedOutputArgumentOrder));
+                Assert.That(resolved.OutputLayout.GetArgumentSchema(0).GetProperty("uav:dataTypeId").GetString(),
+                    Is.EqualTo("i=6"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that a published schema cannot claim a native signature with different arity, name,
+        /// DataType, or ValueRank.
+        /// </summary>
+        /// <param name="mismatch">The signature mismatch to exercise.</param>
+        [TestCase("arity")]
+        [TestCase("name")]
+        [TestCase("type")]
+        [TestCase("rank")]
+        public void PublishedObjectSchemaRejectsNativeSignatureMismatch(string mismatch)
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{
+                  "type":"object",
+                  "properties":{
+                    "Second":{"type":"integer","uav:dataTypeId":"i=6"},
+                    "First":{"type":"integer","uav:dataTypeId":"i=6"}
+                  }
+                },
+                """);
+            ArrayOf<Argument> nativeInputs = mismatch switch
+            {
+                "arity" =>
+                [
+                    new Argument { Name = "First", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ],
+                "name" =>
+                [
+                    new Argument { Name = "Missing", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar },
+                    new Argument { Name = "Second", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ],
+                "type" =>
+                [
+                    new Argument { Name = "First", DataType = new NodeId(12), ValueRank = ValueRanks.Scalar },
+                    new Argument { Name = "Second", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ],
+                _ =>
+                [
+                    new Argument { Name = "First", DataType = new NodeId(6), ValueRank = ValueRanks.OneDimension },
+                    new Argument { Name = "Second", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }
+                ]
+            };
+
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                form.Payload.WithNativeArgumentOrder(nativeInputs, [], new NamespaceTable()));
+
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadConfigurationError));
+        }
+
+        /// <summary>
+        /// Verifies that a published action with no input or output schemas has a zero-position signature.
+        /// </summary>
+        [Test]
+        public void PublishedActionWithoutSchemasDeclaresZeroNativeArguments()
+        {
+            WotCompiledForm form = CompilePublished(string.Empty);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(form.Payload.InputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.None));
+                Assert.That(form.Payload.InputLayout.ArgumentCount, Is.Zero);
+                Assert.That(form.Payload.OutputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.None));
+                Assert.That(form.Payload.OutputLayout.ArgumentCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that a typed object-shaped structure is one native argument without 1.1 layout terms.
+        /// </summary>
+        [Test]
+        public void PublishedStructuredSchemaWithoutLayoutAnnotationIsOneArgument()
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{
+                  "type":"object",
+                  "uav:dataTypeId":"i=296",
+                  "properties":{
+                    "Name":{"type":"string","uav:dataTypeId":"i=12"},
+                    "DataType":{"type":"string","uav:dataTypeId":"i=17"}
+                  }
+                },
+                """);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(form.Payload.InputLayout!.Kind, Is.EqualTo(WotMethodArgumentLayoutKind.Single));
+                Assert.That(form.Payload.InputLayout.ArgumentCount, Is.EqualTo(1));
+                Assert.That(form.Payload.InputLayout.Schema.TryGetProperty("uav:argumentLayout", out _), Is.False);
+                Assert.That(form.Payload.InputLayout.Schema.TryGetProperty("uav:fieldOrder", out _), Is.False);
+                Assert.That(form.Payload.InputLayout.Schema.GetProperty("properties").EnumerateObject().Count(),
+                    Is.EqualTo(2));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that JSON optional properties do not shorten a published native Method signature.
+        /// </summary>
+        [Test]
+        public void PublishedOptionalSchemaMemberDoesNotShortenNativeArity()
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{
+                  "type":"object",
+                  "properties":{
+                    "OptionalNote":{"type":"string","uav:dataTypeId":"i=12"},
+                    "Value":{"type":"integer","uav:dataTypeId":"i=6"}
+                  }
+                },
+                """);
+            WotPayloadDescriptor resolved = form.Payload.WithNativeArgumentOrder(
+                [
+                    new Argument { Name = "Value", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar },
+                    new Argument { Name = "OptionalNote", DataType = new NodeId(12), ValueRank = ValueRanks.Scalar }
+                ],
+                [],
+                new NamespaceTable());
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+
+            ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
+                resolved.ValidateInputs([new Variant(7)], context));
+
+            Assert.That(resolved.InputLayout!.ArgumentCount, Is.EqualTo(2));
+            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        /// <summary>
+        /// Verifies that an abstract integer schema does not authorize a different native integer width.
+        /// </summary>
+        [Test]
+        public void PublishedNativeIntegerWidthConstrainsInputAndOutputValues()
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{"type":"object","properties":{"Value":{"type":"integer"}}},
+                "output":{"type":"object","properties":{"Result":{"type":"integer"}}},
+                """);
+            WotPayloadDescriptor resolved = form.Payload.WithNativeArgumentOrder(
+                [new Argument { Name = "Value", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }],
+                [new Argument { Name = "Result", DataType = new NodeId(6), ValueRank = ValueRanks.Scalar }],
+                new NamespaceTable());
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+
+            Assert.DoesNotThrow(() => resolved.ValidateInputs([new Variant(7)], context));
+            Assert.DoesNotThrow(() => resolved.ValidateOutputs([new Variant(8)], context));
+            ServiceResultException? inputError = Assert.Throws<ServiceResultException>(() =>
+                resolved.ValidateInputs([new Variant(7L)], context));
+            ServiceResultException? outputError = Assert.Throws<ServiceResultException>(() =>
+                resolved.ValidateOutputs([new Variant(8L)], context));
+
+            Assert.That(inputError!.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(outputError!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        /// <summary>
+        /// Verifies that an ordinary action name and schema do not create a Condition occurrence.
+        /// </summary>
+        [Test]
+        public void PublishedActionWithoutConditionTermHasNoConditionInvocation()
+        {
+            WotCompiledForm form = CompilePublished(
+                """
+                "input":{"type":"integer","uav:dataTypeId":"i=6"},
+                """,
+                actionName: "ConditionMaintenance");
+
+            Assert.That(form.ConditionInvocation, Is.Null);
+            Assert.That(form.Addressing.Metadata.ContainsKey("callObjectId"), Is.False);
+        }
+
+        private static WotCompiledForm CompilePublished(string schemas, string actionName = "run")
+        {
+            string document = $$$"""
+                {
+                  "@context":["https://www.w3.org/2022/wot/td/v1.1",
+                    {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
+                  "securityDefinitions":{"none":{"scheme":"nosec"}},
+                  "security":["none"],
+                  "actions":{
+                    "{{{actionName}}}":{
+                      "uav:componentOf":["nsu=urn:published;s=Owner"],
+                      {{{schemas}}}
+                      "forms":[{
+                        "href":"opc.tcp://published.example:4840",
+                        "uav:id":"nsu=urn:published;s=Run",
+                        "op":"invokeaction",
+                        "contentType":"application/octet-stream"
+                      }]
+                    }
+                  }
+                }
+                """;
+            var selection = new WotBindingSelectionContext(
+                [], [], WotBindingProcessingMode.PublishedOneZero);
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "published-action-layout",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: selection);
+            var registry = new WotProtocolBinderRegistry([new OpcUaBindingPlanner()]);
+            WotBindingPlan plan = registry.Prepare(request);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError), Is.False,
+                string.Join("; ", plan.Diagnostics.Select(diagnostic => diagnostic.Message)));
+            return plan.CompiledForms.Single();
+        }
+
+        /// <summary>
+        /// The expected native input argument order for the published object schema test.
+        /// </summary>
+        private static readonly string[] s_expectedInputArgumentOrder = ["First", "Second"];
+
+        /// <summary>
+        /// The expected native output argument order for the published object schema test.
+        /// </summary>
+        private static readonly string[] s_expectedOutputArgumentOrder = ["ResultA", "ResultB"];
     }
 }
