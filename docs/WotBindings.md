@@ -456,8 +456,6 @@ for unsupported capabilities.
 The [part-version-qualified traceability map](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json)
 locates tests against the
 [published OPC 10101 v1.00 document](https://reference.opcfoundation.org/specs/OPC-10101/v1.00).
-The reviewed plaintext rendering is pinned by SHA-256
-`4ec1170c1c33c63907e7810e6ab0537d62b55735bc2d1191ec7f57bbf9926d93`.
 
 ### Portable browse-path targets
 
@@ -488,10 +486,12 @@ nearest `uav:id`. An outer explicit anchor wins over a nearer fallback identity.
 The path retains its declaration's context, not a form-local prefix override.
 Annex A supports hierarchical `/`, Aggregates `.`, explicit `<HasComponent>`,
 exact `<#HasComponent>`, inverse `<!HasComponent>`, escaped `&/`, and URI-qualified
-BrowseNames. A numeric namespace prefix is accepted only under explicit
-`PublishedOneZero` processing and only when the original document context maps
-it to a namespace URI. Other modes and context-free portability validation
-continue to reject numeric prefixes.
+BrowseNames. Context prefixes containing a numeric suffix, such as `ns1:Value`
+with `"@context": {"ns1": "urn:example:plant"}`, work in both modes: `ns1` is
+a named prefix, not a Session namespace index. An entirely numeric prefix such
+as `1:Value` requires explicit `PublishedOneZero` processing and an original
+document context mapping `"1"` to a namespace URI. `Current` and context-free
+portability validation continue to reject entirely numeric prefixes.
 
 Before business I/O, translation against current Session tables requires one
 complete local target with the right NodeClass; simultaneous NodeIds must agree.
