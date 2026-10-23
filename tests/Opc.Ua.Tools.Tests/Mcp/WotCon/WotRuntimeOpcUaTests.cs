@@ -162,14 +162,15 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(connection.Requests, Is.Empty);
         }
 
-        [Test]
-        public async Task ProtectedActionStillRequiresTypedSecretSafeToolsAsync()
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ProtectedActionStillRequiresTypedSecretSafeToolsAsync(bool protectedMethod)
         {
             await using RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
                 includeWot: false, includeRegistry: false).ConfigureAwait(false);
             ushort ns = remote.Context.NamespaceUris.GetIndexOrAppend(Gds.Namespaces.OpcUaGds);
-            var method = new NodeId("secret-method", ns);
-            var owner = new NodeId("secret-owner", ns);
+            NodeId method = protectedMethod ? new NodeId("secret-method", ns) : remote.Id("method");
+            NodeId owner = protectedMethod ? remote.Id("owner") : new NodeId("secret-owner", ns);
             Uri endpoint = remote.Session.Object.ConfiguredEndpoint.EndpointUrl ??
                 throw new InvalidOperationException("The test session must have an endpoint.");
             string resource = "object=" +
@@ -196,7 +197,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                         {
                             ["href"] = endpoint.AbsoluteUri,
                             ["uav:id"] = method.ToString(),
-                            ["uav:componentOf"] = owner.ToString(),
+                            ["uav:callObjectId"] =
+                                NodeId.ToExpandedNodeId(owner, remote.Context.NamespaceUris).ToString(),
                             ["op"] = "invokeaction"
                         })
                     }

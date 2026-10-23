@@ -140,9 +140,9 @@ namespace Opc.Ua.Mcp
                     resource = Node(session, form.Addressing.Target);
                     if (form.Operation == WoTBindingCapabilityEnum.InvokeAction)
                     {
-                        if (!form.Addressing.Metadata.TryGetValue("componentOf", out string? owner))
+                        if (!form.Addressing.Metadata.TryGetValue("callObjectId", out string? owner))
                         {
-                            throw new ArgumentException("An OPC UA action requires an explicit componentOf object.");
+                            throw new ArgumentException("An OPC UA action requires an explicit callObjectId receiver.");
                         }
                         resource = "object=" + Node(session, owner) + ";method=" + resource;
                     }
