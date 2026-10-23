@@ -41,6 +41,158 @@ namespace Opc.Ua.Types.Tests.Nodes
     public partial class TypeTableTests
     {
         /// <summary>
+        /// Verifies that the unchanged-capture shortcut still produces independently owned hierarchy storage.
+        /// </summary>
+        [Test]
+        public void UnchangedAdditiveMergeOwnsItsHierarchy()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision);
+            merged.Remove(s_grandchildTypeId);
+
+            Assert.That(proposed.IsKnown(s_grandchildTypeId), Is.True);
+            Assert.That(m_typeTable.IsKnown(s_grandchildTypeId), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that existing deleted ancestors remain usable without resurrecting their registrations.
+        /// </summary>
+        [Test]
+        public void AdditiveMergePreservesExistingDeletedAncestors()
+        {
+            m_typeTable.Remove(s_childTypeId);
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId added = new(5000);
+            proposed.AddSubtype(added, s_rootTypeId);
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.IsKnown(s_childTypeId), Is.False);
+                Assert.That(merged.FindSuperType(s_grandchildTypeId), Is.EqualTo(s_childTypeId));
+                Assert.That(merged.IsTypeOf(s_grandchildTypeId, s_rootTypeId), Is.True);
+                Assert.That(merged.IsTypeOf(added, s_rootTypeId), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that additive preparation preserves serving registrations and independent ownership.
+        /// </summary>
+        [Test]
+        public void AdditiveMergePreservesServingRegistrationsAndIndependentOwnership()
+        {
+            Assert.That(m_typeTable.AddEncoding(s_dataTypeId, s_encodingId1), Is.True);
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            proposed.AddSubtype(s_dataTypeId, NodeId.Null);
+            Assert.That(proposed.AddEncoding(s_dataTypeId, s_encodingId2), Is.True);
+            proposed.Remove(s_refChildTypeId);
+            NodeId added = new(5000);
+            proposed.AddSubtype(added, s_grandchildTypeId);
+
+            TypeTable merged = m_typeTable.PrepareAdditiveMerge(proposed, source, revision);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.FindDataTypeId(s_encodingId1), Is.EqualTo(s_dataTypeId));
+                Assert.That(merged.FindDataTypeId(s_encodingId2), Is.EqualTo(s_dataTypeId));
+                Assert.That(merged.FindReferenceType(s_refChildBrowseName), Is.EqualTo(s_refChildTypeId));
+                Assert.That(merged.IsTypeOf(added, s_rootTypeId), Is.True);
+                Assert.That(m_typeTable.IsKnown(added), Is.False);
+                Assert.That(m_typeTable.FindDataTypeId(s_encodingId2).IsNull, Is.True);
+                Assert.That(proposed.FindDataTypeId(s_encodingId1).IsNull, Is.True);
+                Assert.That(m_typeTable.IsCurrentSnapshot(source, revision), Is.True);
+            }
+            merged.Remove(added);
+            Assert.That(proposed.IsKnown(added), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a serving hierarchy cannot be redefined by a staged graph.
+        /// </summary>
+        [Test]
+        public void AdditiveMergeRejectsServingSupertypeChanges()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            proposed.AddSubtype(s_grandchildTypeId, s_rootTypeId);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            Assert.That(m_typeTable.FindSuperType(s_grandchildTypeId), Is.EqualTo(s_childTypeId));
+        }
+
+        /// <summary>
+        /// Verifies that reference names cannot be renamed or reassigned while serving.
+        /// </summary>
+        /// <param name="rename">Whether to rename an existing reference rather than reuse its name.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsServingReferenceNameChanges(bool rename)
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            proposed.AddReferenceSubtype(
+                rename ? s_refTypeId : new NodeId(5000),
+                NodeId.Null,
+                rename ? new QualifiedName("RenamedReference") : s_refBrowseName);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            Assert.That(m_typeTable.FindReferenceType(s_refBrowseName), Is.EqualTo(s_refTypeId));
+        }
+
+        /// <summary>
+        /// Verifies that a serving encoding cannot be reassigned to another data type.
+        /// </summary>
+        [Test]
+        public void AdditiveMergeRejectsServingEncodingReassignment()
+        {
+            Assert.That(m_typeTable.AddEncoding(s_dataTypeId, s_encodingId1), Is.True);
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            Assert.That(proposed.AddEncoding(s_rootTypeId, s_encodingId1), Is.True);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            Assert.That(m_typeTable.FindDataTypeId(s_encodingId1), Is.EqualTo(s_dataTypeId));
+        }
+
+        /// <summary>
+        /// Verifies that entirely new declarations cannot introduce a hierarchy cycle.
+        /// </summary>
+        [Test]
+        public void AdditiveMergeRejectsCyclicNewTypes()
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            NodeId first = new(5000);
+            NodeId second = new(5001);
+            proposed.AddSubtype(first, NodeId.Null);
+            proposed.AddSubtype(second, first);
+            proposed.AddSubtype(first, second);
+
+            Assert.Throws<InvalidOperationException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+            Assert.That(m_typeTable.IsKnown(first), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that preparation cannot merge against a different or changed source.
+        /// </summary>
+        /// <param name="changeRevision">Whether the revision rather than the source identity changes.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsChangedSource(bool changeRevision)
+        {
+            TypeTable proposed = m_typeTable.CaptureSnapshot(out TypeTable source, out long revision);
+            if (changeRevision)
+            {
+                m_typeTable.AddSubtype(new NodeId(5000), NodeId.Null);
+            }
+            else
+            {
+                source = new TypeTable(m_namespaceTable);
+            }
+            Assert.Throws<InvalidOperationException>(() =>
+                m_typeTable.PrepareAdditiveMerge(proposed, source, revision));
+        }
+
+        /// <summary>
         /// Verifies that snapshot owns hierarchy encodings and reference names.
         /// </summary>
         [Test]

@@ -217,8 +217,13 @@ Dispatch and permission lookups use that explicit view; completing the request r
 background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
 read live routes, and internal subscriber contexts are not permanently pinned. Browse and history continuation
 resumes temporarily select their issuing view and restore the request's view afterward. Contextless metadata
-readers still use an image-only bridge while type, factory, reference, and read-image publication is migrated;
+readers still use an image-only bridge while type, factory, and reference publication is migrated;
 that bridge never selects service-dispatch routes.
+
+Application-state providers implement `INodeManagerReadImageSource` for live reads. Request-aware consumers call
+`source.GetReadImage(operationContext, owner)` explicitly. A pinned view with no state for the owner returns
+`null`, even if a later publication has state; work without a request pin reads the provider's live image.
+Application-state selection never consults the metadata execution-context bridge.
 
 Legacy `MasterNodeManager.GetManagerHandleAsync` overrides remain effective during dispatch. An owner registered
 only in a newer routing view cannot replace the request's pinned owner. Owners outside both the pinned and live
@@ -1018,6 +1023,14 @@ encodeables so existing Sessions and in-flight values remain decodable.
 encoding and encodeable-factory registrations) in private images, then publishes them together with
 the routing snapshot. In-flight requests keep the images they captured, and writes to a serving
 image fail with `InvalidOperationException` while the decision callback runs.
+
+Batch metadata publication is additive and compatibility-checked before the durable decision.
+It preserves serving type relationships, reference names, encoding ownership and activators.
+A replacement must not reparent a serving type, reuse a reference name or encoding for another
+type, or change a registered CLR type, XML name or data type definition. Such changes fail before
+the decision callback; use new type and encoding identifiers for incompatible definitions.
+Preparation also requires the same serving identity and revision at commit: even an unrelated
+concurrent metadata addition makes the batch stale and requires preparation again.
 
 ```csharp
 await using IPreparedNodeManagerBatch batch = await batchLifecycle.PrepareAsync(

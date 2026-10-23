@@ -21,6 +21,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -68,6 +69,19 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Compatible metadata in prepared NodeManager batches
+
+Prepared NodeManager batches now reject incompatible metadata before invoking the durable decision
+callback. Existing type supertypes, reference names, encoding ownership and encodeable activators
+remain valid when a replacement is published. Use new type and encoding identifiers instead of
+reparenting a published type or changing a registered CLR type, XML name or data type definition.
+This does not change direct `TypeTable` mutation APIs.
+
+A serving metadata change after preparation makes that batch stale, including an unrelated
+compatible addition. Dispose the unpublished batch and prepare it again against the current
+revision. See [prepared NodeManager batches](NodeManagers.md#datatypes)
+for the decision and cleanup contract.
 
 ## Program state numbers and managed execution
 

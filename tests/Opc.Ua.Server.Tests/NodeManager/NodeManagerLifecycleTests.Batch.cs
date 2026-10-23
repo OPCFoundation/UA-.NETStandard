@@ -283,6 +283,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             const uint typeIdentifier = 8100;
             ushort namespaceIndex = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(modelUri);
             NodeId typeId = new(typeIdentifier, namespaceIndex);
+            NodeId addedTypeId = new(typeIdentifier + 1, namespaceIndex);
             NodeManagerRegistration? previous = null;
             if (replace)
             {
@@ -291,7 +292,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             NodeId originalParent = replace ? Ua.ObjectTypeIds.BaseObjectType : NodeId.Null;
             Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId), Is.EqualTo(originalParent));
-            var factory = new RuntimeNodeSetNodeManagerFactory(Options(Ua.ObjectTypeIds.FolderType));
+            NodeId proposedParent = replace ? originalParent : Ua.ObjectTypeIds.FolderType;
+            var factory = new RuntimeNodeSetNodeManagerFactory(Options(proposedParent, includeChild: true));
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             NodeId whilePrepared;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
@@ -301,6 +303,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false))
             {
                 whilePrepared = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
+                Assert.That(m_server.CurrentInstance.TypeTree.IsKnown(addedTypeId), Is.False);
                 if (publish)
                 {
                     NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
@@ -312,8 +315,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(whilePrepared, Is.EqualTo(originalParent),
                     "Private preparation must not add or replace a serving type relationship.");
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
-                    Is.EqualTo(publish ? Ua.ObjectTypeIds.FolderType : originalParent),
-                    "Abort retains the old type image; publication installs the complete new image.");
+                    Is.EqualTo(publish ? proposedParent : originalParent),
+                    "Publication preserves serving definitions and adds compatible declarations.");
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(addedTypeId),
+                    Is.EqualTo(publish ? typeId : NodeId.Null));
                 Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(replace || publish ? 1 : 0));
                 if (replace && !publish)
                 {
@@ -322,8 +327,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
             }
 
-            RuntimeNodeSetOptions Options(NodeId parent)
+            RuntimeNodeSetOptions Options(NodeId parent, bool includeChild = false)
             {
+                string child = includeChild ? $$"""
+                      <UAObjectType NodeId="ns=1;i={{typeIdentifier + 1}}" BrowseName="1:BatchChildType">
+                        <DisplayName>BatchChildType</DisplayName>
+                        <References>
+                          <Reference ReferenceType="i=45" IsForward="false">ns=1;i={{typeIdentifier}}</Reference>
+                        </References>
+                      </UAObjectType>
+                    """ : string.Empty;
                 string xml = $$"""
                     <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
                       <NamespaceUris><Uri>{{modelUri}}</Uri></NamespaceUris>
@@ -334,6 +347,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                           <Reference ReferenceType="i=45" IsForward="false">{{parent}}</Reference>
                         </References>
                       </UAObjectType>
+                      {{child}}
                     </UANodeSet>
                     """;
                 return new RuntimeNodeSetOptions
@@ -345,6 +359,63 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ]
                 };
             }
+        }
+
+        /// <summary>
+        /// Verifies that incompatible metadata aborts before the durable decision and preserves the live owner.
+        /// </summary>
+        /// <param name="changeFactory">Whether to change an activator rather than a type relationship.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedBatchRejectsIncompatibleMetadataBeforeDecisionAsync(bool changeFactory)
+        {
+            NodeManagerRegistration previous = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kFirstRegistrationValue, _ => { }), null).ConfigureAwait(false);
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
+            NodeId typeId = new(8400, namespaceIndex);
+            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
+            IEncodeableFactory factory = m_server.CurrentInstance.Factory;
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? serving), Is.True);
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.EUInformation, out IEncodeableType? proposed),
+                Is.True);
+            AssertLifecycleValue(proposed);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Replace(previous,
+                        CreateTrackingNodeManagementFactory(303, _ =>
+                        {
+                            if (changeFactory)
+                            {
+                                factory.Builder.AddEncodeableType(DataTypeIds.Range, proposed).Commit();
+                            }
+                            else
+                            {
+                                m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
+                            }
+                        }))
+                ], null).ConfigureAwait(false);
+            int decisions = 0;
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            {
+                await prepared.CommitAsync(_ =>
+                {
+                    decisions++;
+                    return default;
+                }).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(decisions, Is.Zero);
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(GetBranchRegistration(lifecycle, previous.Id), Is.SameAs(previous));
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
+                    Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? retained), Is.True);
+                Assert.That(retained, Is.SameAs(serving));
+            }
+            await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
         }
 
         [TestCase(false)]
@@ -366,6 +437,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(secondManager);
             NodeId typeId = new(8303,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+            NodeId addedTypeId = new(8304, typeId.NamespaceIndex);
             m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.BaseObjectType);
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
             Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? structure), Is.True);
@@ -377,7 +449,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Replace(first,
                         CreateTrackingNodeManagementFactory(303, _ =>
                         {
-                            m_server.CurrentInstance.TypeTree.AddSubtype(typeId, Ua.ObjectTypeIds.FolderType);
+                            m_server.CurrentInstance.TypeTree.AddSubtype(addedTypeId, typeId);
                             factory.Builder.AddEncodeableType(alias, structure).Commit();
                         })),
                     NodeManagerBatchChange.Replace(second,
@@ -399,7 +471,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId beforePublication = NodeId.Null;
             NodeId afterPublication = NodeId.Null;
             bool factoryBeforePublication = false;
-            bool factoryAfterPublication = false;
             firstManager.ReadCallbackNodeId = firstId;
             firstManager.ReadCallback = async (context, token) =>
             {
@@ -408,7 +479,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
                 afterPublication = m_server.CurrentInstance.TypeTree.FindSuperType(typeId);
-                factoryAfterPublication = factory.TryGetEncodeableType(alias, out _);
             };
             Task<ReadResponse> pendingRead = ReadPairAsync();
             Task<NodeManagerBatchResult>? pendingCommit = null;
@@ -477,12 +547,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(secondManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
                 Assert.That(beforePublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
                 Assert.That(afterPublication, Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType),
-                    "A native request must retain its captured type image when routing is published.");
+                    "An additive publication cannot change a serving type's definition.");
                 Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(typeId),
-                    Is.EqualTo(rejectDecision ? Ua.ObjectTypeIds.BaseObjectType : Ua.ObjectTypeIds.FolderType));
+                    Is.EqualTo(Ua.ObjectTypeIds.BaseObjectType));
+                Assert.That(m_server.CurrentInstance.TypeTree.FindSuperType(addedTypeId),
+                    Is.EqualTo(rejectDecision ? NodeId.Null : typeId));
                 Assert.That(factoryBeforePublication, Is.False);
-                Assert.That(factoryAfterPublication, Is.False,
-                    "The native request must retain the factory image captured with its routes.");
                 Assert.That(factory.TryGetEncodeableType(alias, out _), Is.EqualTo(!rejectDecision));
             }
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);

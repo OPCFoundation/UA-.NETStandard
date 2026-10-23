@@ -42,6 +42,203 @@ namespace Opc.Ua.Types.Tests.Encoders
     public sealed class EncodeableFactorySnapshotTests
     {
         /// <summary>
+        /// Verifies that the unchanged-capture shortcut still produces independently owned registration maps.
+        /// </summary>
+        [Test]
+        public void UnchangedAdditiveMergeOwnsItsRegistrationMaps()
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType serving = CreateTypedStructure(typeof(StructureDefinition));
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            EncodeableFactory merged = factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable());
+            merged.Builder.AddEnumeratedType(s_enumId, CreateEnumeration()).Commit();
+
+            Assert.That(proposed.TryGetEnumeratedType(s_enumId, out _), Is.False);
+            Assert.That(factory.TryGetEnumeratedType(s_enumId, out _), Is.False);
+            Assert.That(merged.TryGetEnumeratedType(s_enumId, out _), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that matching CLR identities do not hide asymmetric definition-source capabilities.
+        /// </summary>
+        /// <param name="sourceHasDefinition">Whether only the serving activator exposes a definition.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsAsymmetricDefinitionSources(bool sourceHasDefinition)
+        {
+            var factory = new EncodeableFactory();
+            StructureDefinition definition = CreateDefinition(DataTypeIds.Int32);
+            IEncodeableType serving = CreateTypedStructure(
+                typeof(StructureDefinition), definition: sourceHasDefinition ? definition : null);
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(s_structureId, CreateTypedStructure(
+                typeof(StructureDefinition), definition: sourceHasDefinition ? null : definition)).Commit();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+        }
+
+        /// <summary>
+        /// Verifies that additive preparation preserves serving activators and owns its maps.
+        /// </summary>
+        [Test]
+        public void AdditiveMergePreservesServingActivatorsAndIndependentMaps()
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType serving = CreateTypedStructure(typeof(StructureDefinition));
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder
+                .AddEncodeableType(s_structureId, CreateTypedStructure(typeof(StructureDefinition)))
+                .AddEnumeratedType(s_enumId, CreateEnumeration()).Commit();
+
+            EncodeableFactory merged = factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable());
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(merged.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
+                Assert.That(retained, Is.SameAs(serving));
+                Assert.That(merged.TryGetType(serving.XmlName, out IType? named), Is.True);
+                Assert.That(named, Is.SameAs(serving));
+                Assert.That(merged.TryGetEnumeratedType(s_enumId, out _), Is.True);
+                Assert.That(factory.TryGetEnumeratedType(s_enumId, out _), Is.False);
+            }
+            ExpandedNodeId additional = new(9003, kNamespace);
+            merged.Builder.AddEncodeableType(additional, serving).Commit();
+            Assert.That(proposed.TryGetEncodeableType(additional, out _), Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that serving registrations cannot change between structures and enumerations.
+        /// </summary>
+        /// <param name="structureFirst">Whether the serving registration is a structure.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsRegistrationKindChanges(bool structureFirst)
+        {
+            var factory = new EncodeableFactory();
+            if (structureFirst)
+            {
+                factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
+            }
+            else
+            {
+                factory.Builder.AddEnumeratedType(s_structureId, CreateEnumeration()).Commit();
+            }
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            if (structureFirst)
+            {
+                proposed.Builder.AddEnumeratedType(s_structureId, CreateEnumeration()).Commit();
+            }
+            else
+            {
+                proposed.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
+            }
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+            Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.EqualTo(structureFirst));
+            Assert.That(factory.TryGetEnumeratedType(s_structureId, out _), Is.EqualTo(!structureFirst));
+        }
+
+        /// <summary>
+        /// Verifies that serving registrations cannot change CLR type or XML name.
+        /// </summary>
+        /// <param name="changeName">Whether the XML name rather than the CLR type changes.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsActivatorIdentityChanges(bool changeName)
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType serving = CreateTypedStructure(typeof(StructureDefinition));
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            IEncodeableType replacement = CreateTypedStructure(
+                changeName ? typeof(StructureDefinition) : typeof(EnumDefinition),
+                changeName ? new XmlQualifiedName("Renamed", kNamespace) : serving.XmlName);
+            proposed.Builder.AddEncodeableType(s_structureId, replacement).Commit();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+            Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
+            Assert.That(retained, Is.SameAs(serving));
+        }
+
+        /// <summary>
+        /// Verifies that structural definitions are checked even when CLR types are equal.
+        /// </summary>
+        /// <param name="compatible">Whether the staged definition preserves the field data type.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeChecksDataTypeDefinitions(bool compatible)
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType serving = CreateTypedStructure(
+                typeof(StructureDefinition), definition: CreateDefinition(DataTypeIds.Int32));
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(s_structureId, CreateTypedStructure(
+                typeof(StructureDefinition),
+                definition: CreateDefinition(compatible ? DataTypeIds.Int32 : DataTypeIds.String))).Commit();
+
+            if (compatible)
+            {
+                EncodeableFactory merged = factory.PrepareAdditiveMerge(
+                    proposed, source, revision, new NamespaceTable());
+                Assert.That(merged.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
+                Assert.That(retained, Is.SameAs(serving));
+            }
+            else
+            {
+                Assert.Throws<InvalidOperationException>(() =>
+                    factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+            }
+            Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? original), Is.True);
+            Assert.That(original, Is.SameAs(serving));
+        }
+
+        /// <summary>
+        /// Verifies that a new identifier cannot steal a serving XML registration.
+        /// </summary>
+        [Test]
+        public void AdditiveMergeRejectsXmlNameCollisions()
+        {
+            var factory = new EncodeableFactory();
+            IEncodeableType serving = CreateTypedStructure(typeof(StructureDefinition));
+            factory.Builder.AddEncodeableType(s_structureId, serving).Commit();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            proposed.Builder.AddEncodeableType(
+                new ExpandedNodeId(9003, kNamespace),
+                CreateTypedStructure(typeof(EnumDefinition), serving.XmlName)).Commit();
+
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+            Assert.That(factory.KnownTypeIds, Is.EqualTo(new[] { s_structureId }));
+        }
+
+        /// <summary>
+        /// Verifies that preparation rejects changed serving identity or revision.
+        /// </summary>
+        /// <param name="changeRevision">Whether the revision rather than the source identity changes.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdditiveMergeRejectsChangedSource(bool changeRevision)
+        {
+            var factory = new EncodeableFactory();
+            EncodeableFactory proposed = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            if (changeRevision)
+            {
+                factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
+            }
+            else
+            {
+                source = new EncodeableFactory();
+            }
+            Assert.Throws<InvalidOperationException>(() =>
+                factory.PrepareAdditiveMerge(proposed, source, revision, new NamespaceTable()));
+        }
+
+        /// <summary>
         /// Verifies that snapshot owns encodeable enumerated and XML maps.
         /// </summary>
         [Test]
@@ -231,6 +428,52 @@ namespace Opc.Ua.Types.Tests.Encoders
             owner.Release(selected);
             factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
+        }
+
+        /// <summary>
+        /// Creates an activator with a stable CLR identity and optional structural definition.
+        /// </summary>
+        /// <param name="systemType">The CLR identity.</param>
+        /// <param name="name">The XML name, or the fixture default.</param>
+        /// <param name="definition">The definition exposed by the activator, when available.</param>
+        /// <returns>The activator.</returns>
+        private static IEncodeableType CreateTypedStructure(
+            Type systemType,
+            XmlQualifiedName? name = null,
+            DataTypeDefinition? definition = null)
+        {
+            var type = new Mock<IEncodeableType>();
+            type.SetupGet(value => value.Type).Returns(systemType);
+            type.SetupGet(value => value.XmlName).Returns(name ?? new XmlQualifiedName("Structure", kNamespace));
+            if (definition is not null)
+            {
+                type.As<IDataTypeDefinitionSource>()
+                    .Setup(value => value.GetDataTypeDefinition(It.IsAny<NamespaceTable>())).Returns(definition);
+            }
+            return type.Object;
+        }
+
+        /// <summary>
+        /// Creates a structure definition whose field type participates in compatibility.
+        /// </summary>
+        /// <param name="fieldType">The field data type.</param>
+        /// <returns>The definition.</returns>
+        private static StructureDefinition CreateDefinition(NodeId fieldType)
+        {
+            return new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = "Value",
+                        DataType = fieldType,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
         }
 
         private static IEncodeableType CreateStructure()

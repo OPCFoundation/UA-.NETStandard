@@ -152,6 +152,9 @@ namespace Opc.Ua.Server
                             }
                         }
 
+                        typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
+                        factory = originalFactory.PrepareAdditiveMerge(
+                            factory, originalFactory, factoryRevision, Server.NamespaceUris);
                         var nextReferences = m_dynamicExternalReferences
                             .Where(entry => !retiring.Contains(entry.Key))
                             .ToDictionary(entry => entry.Key, entry => entry.Value);

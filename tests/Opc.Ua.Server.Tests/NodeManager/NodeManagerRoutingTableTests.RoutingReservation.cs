@@ -159,9 +159,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Neither publication nor a later write may reveal an unrelated hidden owner.");
             Assert.That(table.GetReadImage(firstPermanent),
                 mutation == "Clear" ? Is.Null : Is.SameAs(readImage));
-            using (table.Capture(previous))
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
-                Assert.That(table.GetReadImage(firstPermanent), Is.SameAs(readImage));
+                context.PinRouting(previous);
+                Assert.That(CreateReadImageSource(table, firstPermanent).Object.GetReadImage(context, firstPermanent),
+                    Is.SameAs(readImage));
                 var routing = table.GetDispatchView(previous);
                 Assert.That(routing.NodeManagers, Is.EqualTo(new[] { firstPermanent, secondPermanent, original }));
                 AssertSingleManagerRoute(routing.NamespaceManagers, 2, original);

@@ -176,12 +176,12 @@ namespace Opc.Ua.WotCon.Server
 
         private RegistryReadImage? GetCapturedReadImage(ISystemContext context)
         {
-            if (context is not ServerSystemContext { OperationContext: not null } ||
+            if (context is not ServerSystemContext { OperationContext: { } operation } ||
                 m_manager.Server.NodeManager is not INodeManagerReadImageSource images)
             {
                 return null;
             }
-            return images.GetReadImage(m_manager) switch
+            return images.GetReadImage(operation, m_manager) switch
             {
                 RegistryReadImage current => current,
                 null => Volatile.Read(ref m_initialReadImage),

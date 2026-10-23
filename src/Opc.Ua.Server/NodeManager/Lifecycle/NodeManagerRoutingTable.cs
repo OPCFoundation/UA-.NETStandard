@@ -1323,13 +1323,13 @@ namespace Opc.Ua.Server
         private RoutingSnapshot ImageSnapshot => m_imageSnapshot.Value ?? ReadSnapshot;
 
         /// <summary>
-        /// Gets the read image published for a node manager in the active snapshot.
+        /// Gets the live published application state for a node manager.
         /// </summary>
         /// <param name="owner">The node manager that owns the image.</param>
         /// <returns>The read image, or null if the owner has none.</returns>
         internal INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner)
         {
-            return ImageSnapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
+            return Revision.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
         }
 
         /// <summary>

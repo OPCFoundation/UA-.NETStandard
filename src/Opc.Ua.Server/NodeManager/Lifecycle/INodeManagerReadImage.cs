@@ -28,8 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -46,7 +44,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Provides application state from the request's captured routing image, or the live image outside a request.
+    /// Provides live published application state. Use the context-aware extension to select a request's view.
     /// </summary>
     public interface INodeManagerReadImageSource
     {
@@ -56,5 +54,38 @@ namespace Opc.Ua.Server
         /// <param name="owner">The exact NodeManager that owns the state.</param>
         /// <returns>The image for the owner, or null if none has been published.</returns>
         INodeManagerReadImage? GetReadImage(IAsyncNodeManager owner);
+    }
+
+    /// <summary>
+    /// Selects immutable application state through an explicit request view.
+    /// </summary>
+    public static class NodeManagerReadImageExtensions
+    {
+        /// <summary>
+        /// Gets the request's published application state, or live state for work without a request pin.
+        /// </summary>
+        /// <param name="source">The provider of live application state.</param>
+        /// <param name="context">The operation selecting the view, or null for live work.</param>
+        /// <param name="owner">The exact NodeManager that owns the state.</param>
+        /// <returns>The selected image, or null if that view has no image for the owner.</returns>
+        public static INodeManagerReadImage? GetReadImage(
+            this INodeManagerReadImageSource source,
+            OperationContext? context,
+            IAsyncNodeManager owner)
+        {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
+            if (owner is null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            if (context?.RoutingSnapshot is not { } snapshot)
+            {
+                return source.GetReadImage(owner);
+            }
+            return snapshot.ReadImages.TryGetValue(owner, out INodeManagerReadImage? image) ? image : null;
+        }
     }
 }
