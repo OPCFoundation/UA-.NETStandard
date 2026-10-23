@@ -418,23 +418,21 @@ namespace Opc.Ua.Core.Security.Tests
             const string testPassword = "SessionPass123!";
             try
             {
-                UserDb.CreateUser(
-                    testUser, ToUtf8(testPassword),
-                    [Role.AuthenticatedUser]);
+                ProvisionSessionUser(testUser, testPassword);
 
                 using ISession session = await TryConnectAsUserAsync(
                     testUser, testPassword).ConfigureAwait(false);
                 if (session == null)
                 {
                     Assert.Fail(
-                        "Username token not available on this endpoint.");
+                        "Could not connect as provisioned test user.");
                 }
                 Assert.That(session!.Connected, Is.True,
                     "Should connect with newly created user.");
             }
             finally
             {
-                UserDb.DeleteUser(testUser);
+                RemoveSessionUser(testUser);
             }
         }
 
@@ -446,9 +444,7 @@ namespace Opc.Ua.Core.Security.Tests
             string testUser = "testuser_sess2_" + Guid.NewGuid().ToString("N")[..8];
             const string testPassword = "SessionPass123!";
 
-            UserDb.CreateUser(
-                testUser, ToUtf8(testPassword),
-                [Role.AuthenticatedUser]);
+            ProvisionSessionUser(testUser, testPassword);
 
             // Verify can connect first
             using (ISession session = await TryConnectAsUserAsync(
@@ -456,15 +452,15 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (session == null)
                 {
-                    UserDb.DeleteUser(testUser);
+                    RemoveSessionUser(testUser);
                     Assert.Fail(
-                        "Username token not available on this endpoint.");
+                        "Could not connect as provisioned test user.");
                 }
                 Assert.That(session!.Connected, Is.True);
             }
 
             // Delete and verify connection fails
-            UserDb.DeleteUser(testUser);
+            RemoveSessionUser(testUser);
 
             using ISession failSession = await TryConnectAsUserAsync(
                 testUser, testPassword).ConfigureAwait(false);
@@ -482,9 +478,7 @@ namespace Opc.Ua.Core.Security.Tests
             const string newPassword = "NewSessionPass!";
             try
             {
-                UserDb.CreateUser(
-                    testUser, ToUtf8(oldPassword),
-                    [Role.AuthenticatedUser]);
+                ProvisionSessionUser(testUser, oldPassword);
 
                 UserDb.ChangePassword(
                     testUser, ToUtf8(oldPassword), ToUtf8(newPassword));
@@ -494,14 +488,14 @@ namespace Opc.Ua.Core.Security.Tests
                 if (session == null)
                 {
                     Assert.Fail(
-                        "Username token not available on this endpoint.");
+                        "Could not connect as provisioned test user.");
                 }
                 Assert.That(session!.Connected, Is.True,
                     "Should connect with new password.");
             }
             finally
             {
-                UserDb.DeleteUser(testUser);
+                RemoveSessionUser(testUser);
             }
         }
 
@@ -514,9 +508,7 @@ namespace Opc.Ua.Core.Security.Tests
             const string testPassword = "ReconPass!";
             try
             {
-                UserDb.CreateUser(
-                    testUser, ToUtf8(testPassword),
-                    [Role.AuthenticatedUser]);
+                ProvisionSessionUser(testUser, testPassword);
 
                 // First connection
                 ISession session1 = await TryConnectAsUserAsync(
@@ -524,7 +516,7 @@ namespace Opc.Ua.Core.Security.Tests
                 if (session1 == null)
                 {
                     Assert.Fail(
-                        "Username token not available on this endpoint.");
+                        "Could not connect as provisioned test user.");
                 }
                 Assert.That(session1!.Connected, Is.True);
                 await session1.CloseAsync(5000, true).ConfigureAwait(false);
@@ -536,14 +528,14 @@ namespace Opc.Ua.Core.Security.Tests
                 if (session2 == null)
                 {
                     Assert.Fail(
-                        "Username token not available on this endpoint.");
+                        "Could not connect as provisioned test user.");
                 }
                 Assert.That(session2!.Connected, Is.True,
                     "Should be able to reconnect after disconnect.");
             }
             finally
             {
-                UserDb.DeleteUser(testUser);
+                RemoveSessionUser(testUser);
             }
         }
 
@@ -738,6 +730,45 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 return null!;
             }
+        }
+
+        /// <summary>
+        /// Provisions a test user through the server's user management so the
+        /// account is tracked as active for session authentication.
+        /// </summary>
+        private void ProvisionSessionUser(string userName, string password)
+        {
+            Opc.Ua.Server.UserManagement.IUserManagement userManagement = GetUserManagement();
+            ServiceResult result = userManagement.AddUser(
+                userName,
+                password,
+                UserConfigurationMask.None,
+                string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True,
+                $"Failed to provision test user '{userName}': {result}");
+        }
+
+        /// <summary>
+        /// Removes a test user through the server's user management, falling back
+        /// to the user database when the account is no longer tracked.
+        /// </summary>
+        private void RemoveSessionUser(string userName)
+        {
+            if (ServiceResult.IsBad(GetUserManagement().RemoveUser(userName, null)))
+            {
+                UserDb.DeleteUser(userName);
+            }
+        }
+
+        private Opc.Ua.Server.UserManagement.IUserManagement GetUserManagement()
+        {
+            Opc.Ua.Server.UserManagement.IUserManagement? userManagement =
+                ReferenceServer?.CurrentInstance.UserManagement;
+            if (userManagement == null)
+            {
+                Assert.Ignore("UserManagement is not available on this server.");
+            }
+            return userManagement!;
         }
 
         private static byte[] ToUtf8(string s)

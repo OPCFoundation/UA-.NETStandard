@@ -156,7 +156,7 @@ domain-specific companions and draft extensions.
 | Model catalogues, deployments, and inference | AI Model Management and Inference (draft) | [AI Model Management](AI.md) |
 | Resource registration, versioning, and federation | xRegistry abstract base model (draft) | [xRegistry](XRegistry.md) |
 | Scene bindings and address-space materialization | OpenUSD Bindings and OpenUSD Scene (both draft) | [OpenUSD](OpenUsd.md) |
-| Web of Things connectivity and conversion | OPC 10100-1, with preview registry extensions | [WoT Connectivity](WoTConnectivity.md), [WoT / NodeSet Conversion](WoTNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
+| Web of Things connectivity and conversion | OPC 10100-1, with preview registry extensions | [WoT Connectivity](WotCon.md), [WoT / NodeSet Conversion](WotNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
 
 The draft [Generators model](../samples/OpenUsd/GeneratorServer/Generators.md) in the
 generator server is a sample-local model, not a standalone SDK library.

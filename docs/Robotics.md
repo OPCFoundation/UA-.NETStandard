@@ -43,6 +43,10 @@ OPC 10000-100 Device Integration, or another companion model.
   - [Model providers](#model-providers)
 - [Build context](#build-context)
 - [Topology builders](#topology-builders)
+  - [Binding live values](#binding-live-values)
+  - [Semantic references](#semantic-references)
+  - [Standard operations and programs](#standard-operations-and-programs)
+  - [Validation](#validation)
 - [Custom node managers and non-DI hosting](#custom-node-managers-and-non-di-hosting)
 - [Vendor extensions](#vendor-extensions)
 - [Layering](#layering)
@@ -77,8 +81,8 @@ OPC 10000-100 Device Integration, or another companion model.
   - [The lifecycle](#the-lifecycle)
   - [Missions](#missions)
   - [Command authority](#command-authority)
-  - [Safety and the boundary](#safety-and-the-boundary-that-is-never-crossed)
-  - [What this interface carries and what it brokers](#what-this-interface-carries-and-what-it-brokers)
+  - [Safety, and the boundary that is never crossed](#safety-and-the-boundary-that-is-never-crossed)
+  - [What this interface carries, and what it brokers](#what-this-interface-carries-and-what-it-brokers)
   - [NodeIds in intents are untrusted input](#nodeids-in-intents-are-untrusted-input)
   - [Interoperating with OPC 40010](#interoperating-with-opc-40010)
   - [Facets](#facets)
@@ -1600,7 +1604,7 @@ channel leasing and the client handles shown above. It does not provide a safety
 servo-level real-time channel, or a vendor robot driver. The facet calculator checks every structural
 requirement in clause 12.2, but behavioural requirements remain the server's attestation and require
 interop or acceptance testing to verify. The sample executor is a simulator, transition conditions are
-only as powerful as the server-supplied `ConditionEvaluator`, and real-time channels are brokered as
+limited by the server-supplied `ConditionEvaluator`, and real-time channels are brokered as
 leases rather than implemented as a cyclic transport in this package. The namespace
 `http://opcfoundation.org/UA/RobotIntent/` and all NodeIds remain provisional until the companion
 specification is ratified.
@@ -1631,25 +1635,31 @@ requirement.
 
 Intents are a **DataType hierarchy**, not one Method per verb.
 
-```
-IntentDataType (abstract)
-├── MotionIntentDataType (abstract)
-│   ├── JointMoveIntentDataType        movej / MoveJ / PTP / J / MOVJ
-│   ├── LinearMoveIntentDataType       movel / MoveL / LIN / L / MOVL
-│   ├── CircularMoveIntentDataType     movec / MoveC / CIRC / C / MOVC
-│   ├── TrajectoryIntentDataType       a time-parameterised path, handed over whole
-│   ├── CartesianPathIntentDataType    a taught path with per-waypoint blending
-│   ├── ForceIntentDataType            move until contact
-│   └── ProcessIntentDataType (abstract)
-│       ├── ArcWeldIntentDataType          SpotWeldIntentDataType
-│       ├── DispenseIntentDataType         FastenIntentDataType
-│       └── PalletiseIntentDataType        SurfaceFinishIntentDataType
-├── GraspIntentDataType / ReleaseIntentDataType
-├── PickIntentDataType / PlaceIntentDataType
-├── ToolChangeIntentDataType
-├── SetOutputIntentDataType
-├── CallProgramIntentDataType
-└── WaitIntentDataType
+```mermaid
+flowchart LR
+    intent["IntentDataType (abstract)"]
+    motion["MotionIntentDataType (abstract)"]
+    process["ProcessIntentDataType (abstract)"]
+    intent --> motion
+    motion --> joint["JointMoveIntentDataType<br/>movej / MoveJ / PTP / J / MOVJ"]
+    motion --> linear["LinearMoveIntentDataType<br/>movel / MoveL / LIN / L / MOVL"]
+    motion --> circular["CircularMoveIntentDataType<br/>movec / MoveC / CIRC / C / MOVC"]
+    motion --> trajectory["TrajectoryIntentDataType<br/>Time-parameterised path, handed over whole"]
+    motion --> cartesian["CartesianPathIntentDataType<br/>Taught path with per-waypoint blending"]
+    motion --> force["ForceIntentDataType<br/>Move until contact"]
+    motion --> process
+    process --> arc["ArcWeldIntentDataType"]
+    process --> spot["SpotWeldIntentDataType"]
+    process --> dispense["DispenseIntentDataType"]
+    process --> fasten["FastenIntentDataType"]
+    process --> palletise["PalletiseIntentDataType"]
+    process --> finish["SurfaceFinishIntentDataType"]
+    intent --> grasp["GraspIntentDataType / ReleaseIntentDataType"]
+    intent --> pick["PickIntentDataType / PlaceIntentDataType"]
+    intent --> tool["ToolChangeIntentDataType"]
+    intent --> output["SetOutputIntentDataType"]
+    intent --> program["CallProgramIntentDataType"]
+    intent --> wait["WaitIntentDataType"]
 ```
 
 Three consequences follow, and each is why the shape was chosen:
@@ -1754,7 +1764,7 @@ told *that*, not that its parameters are wrong:
 A refusal creates no operation instance and moves nothing. It is reported in the **output arguments** —
 `Accepted` false with a `Failure` and a `Message` — and the call returns `Good`. A Bad `StatusCode`
 still means what it always meant: the transport, the Session or the Service layer failed. The
-distinction is normative, and it is what makes the failure set diagnosable: a client decides whether to
+distinction is normative: a client decides whether to
 retry, re-plan or escalate from the `IntentFailureEnum` value alone.
 
 #### Queueing and blending
@@ -1797,16 +1807,21 @@ work in advance and still change what has not yet been committed.
 Every step carries `Released`. The released steps form a prefix called the **base**; the rest form the
 **horizon**.
 
-```
-Step 0        Step 1        Step 2   │   Step 3        Step 4
-released      released      released │   horizon       horizon
-└────────── base: committed ─────────┘   └── revisable ──┘
+```mermaid
+flowchart LR
+    subgraph base["Base: committed"]
+        step0["Step 0<br/>released"] --> step1["Step 1<br/>released"] --> step2["Step 2<br/>released"]
+    end
+    subgraph horizon["Horizon: revisable"]
+        step3["Step 3<br/>horizon"] --> step4["Step 4<br/>horizon"]
+    end
+    step2 --> step3
 ```
 
 The base is committed and immutable: the server assumes every released step is executing or already
 executed and refuses any update that would alter, remove or reorder one. `UpdateMission` replaces the
 horizon wholly and may release some of it, extending the base. `MissionUpdateId` must be strictly
-greater than the mission's current value, which is what makes two updates that crossed in flight safe —
+greater than the mission's current value so two updates that crossed in flight are ordered —
 the later one wins and the earlier is rejected with `Outdated` rather than applied out of order. An
 update is applied **atomically**.
 
@@ -1815,8 +1830,7 @@ sequential function chart. Conditions are OPC UA `ContentFilter`s — the base s
 grammar, reused rather than invented — and `DivergenceKind` says whether exactly one transition is taken
 (`Alternative`, evaluated in array order so two clients predict the same branch) or all of them are
 (`Parallel`). Per-step `ErrorPolicy` covers `Abort`, `Retry`, `Skip`, `Fallback` and `Compensate`. An
-empty `Transitions` array leaves the mission the flat sequence it was, which is what makes the graph an
-addition rather than a replacement.
+empty `Transitions` array leaves the mission as a flat sequence.
 
 Where a step has outgoing transitions and none of their conditions holds, the mission terminates `Failed` with
 `NoTransition` (`IntentFailureEnum` value 20). The same outcome is reported if the selected transition target no
@@ -1876,17 +1890,17 @@ not a protective measure.
 
 ### What this interface carries, and what it brokers
 
-OPC UA method invocation is not deterministic and completes in tens of milliseconds. Vendor real-time
-channels run two to four orders of magnitude faster on dedicated transports. The model divides the work
-rather than pretending the gap is not there.
+This model uses OPC UA Methods to submit complete operations, not to schedule cyclic real-time control.
+Method calls provide no deterministic completion deadline. A cyclic controller needs a
+separately described real-time channel with a specified cycle time and jitter budget.
 
 **Carried here.** A trajectory, a Cartesian path or a force-controlled move is handed over *whole* and
-run by the robot's own motion kernel. The round trip happens once, at submission, so transport latency
-bounds how quickly work can be *started* and never how accurately it is *executed*. This is the shape of
+run by the robot's own motion kernel. The round trip happens once, at submission; subsequent trajectory
+setpoints are scheduled locally rather than by further OPC UA round trips. This is the shape of
 `FollowJointTrajectory` in ROS and of the PLCopen buffered path function blocks, and it is why
 trajectory execution belongs here while trajectory streaming does not.
 
-**Brokered.** Where a client genuinely needs a high-rate channel — visual servoing, force tracking,
+**Brokered.** Where a client needs a high-rate channel — visual servoing, force tracking,
 conveyor following — `RealTimeChannelType` describes one and `OpenRealTimeChannel` leases it. The
 samples travel on that channel and never through this interface. Of the transports named (`Rtde`,
 `Egm`, `Fri`, `Rsi`, `MotoRos2`, `OpcUaFx`, `Other`) only `OpcUaFx` is an OPC Foundation specification;
@@ -1894,7 +1908,7 @@ the rest are vendor channels the model describes without defining.
 
 A lease lapses at `LeaseExpiry` unless renewed, and is released when the holding Session closes — the
 same reasoning as command authority: a client that dies must not hold a resource for good. While a lease
-is held, the server refuses motion intents with `CapabilityNotSupported` unless it can genuinely
+is held, the server refuses motion intents with `CapabilityNotSupported` unless it can
 arbitrate between the two sources, because two things commanding one robot with no arbitration is
 exactly the failure that rule exists to prevent.
 
@@ -1928,8 +1942,8 @@ the structural statement that non-null `Joint` values are not supported. The sto
 `CapabilityNotSupported`. Where the controller does expose an OPC 40450/40451 model, a `Joint` that does not resolve
 to a joint in that model is malformed input and is refused with `ParameterInvalid`.
 
-Commanding is a privileged operation. Every Method here moves a machine that can injure people and
-destroy property, so the server requires an authenticated Session and restricts the Methods of
+Commanding is a privileged operation. The control interface can initiate machine motion that can injure
+people and destroy property, so the server requires an authenticated Session and restricts the Methods of
 `IntentControllerType` by Role, distinctly from read access to the same address space. Observing a robot
 and commanding one are different privileges and are not conflated. `UserExecutable` is applied so a
 client discovers what it may invoke before invoking it.

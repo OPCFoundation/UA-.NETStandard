@@ -81,13 +81,70 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Value snapshots read at enqueue time in the context of each Value monitored item's
         /// subscriber, keyed by monitored item id. Only captured when the reporter was denied
-        /// reading a value whose user access level depends on the user, so a subscriber that may
-        /// read it receives the value of this change rather than a later one.
+        /// reading a value with subscriber-dependent user access or a registered asynchronous read policy,
+        /// so a subscriber that may read it receives the value of this change rather than a later one.
         /// Session and identity attribution prevent a later attachment or transfer from inheriting
         /// a value captured for a different owner.
         /// </summary>
         public Dictionary<uint, (DataValue Value, ISession? Session, IUserIdentity? Identity)>?
-            SubscriberValueSnapshots { get; set; }
+            SubscriberValueSnapshots
+        { get; set; }
+    }
+
+    /// <summary>
+    /// Requests one current value sample for a monitored item after a semantic change.
+    /// </summary>
+    internal sealed class SemanticResample : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResample"/> class.
+        /// </summary>
+        /// <param name="context">The source system context.</param>
+        /// <param name="source">The exact source node being sampled.</param>
+        /// <param name="item">The monitored item which requested the resample.</param>
+        public SemanticResample(ISystemContext context, NodeState source, IDataChangeMonitoredItem2 item)
+        {
+            Context = context;
+            Source = source;
+            Item = item;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+
+        /// <inheritdoc/>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+
+        /// <summary>
+        /// Gets the exact source node that was admitted.
+        /// </summary>
+        public NodeState Source { get; }
+
+        /// <summary>
+        /// Gets the monitored item that was admitted.
+        /// </summary>
+        public IDataChangeMonitoredItem2 Item { get; }
+    }
+
+    /// <summary>
+    /// Wakes the monitored-node consumer to inspect its lifecycle-owned semantic-resample queue.
+    /// </summary>
+    internal sealed class SemanticResampleSignal : INodeNotification
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SemanticResampleSignal"/> class.
+        /// </summary>
+        /// <param name="context">The server context.</param>
+        public SemanticResampleSignal(ISystemContext context)
+        {
+            Context = context;
+        }
+
+        /// <inheritdoc/>
+        public ISystemContext Context { get; }
+
+        /// <inheritdoc/>
+        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
     }
 
     /// <summary>

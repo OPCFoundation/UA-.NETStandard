@@ -112,9 +112,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task SetUpAsync()
         {
             m_pkiRoot = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
-                nameof(NodeManagerLifecycleTests),
-                Guid.NewGuid().ToString("N"));
+                AppContext.BaseDirectory,
+                "nl-" + Guid.NewGuid().ToString("N"));
 
             m_fixture = new ServerFixture<LifecycleTestServer>(t => new LifecycleTestServer(t))
             {

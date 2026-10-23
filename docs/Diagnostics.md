@@ -8,11 +8,52 @@ replay engine shipped by `OPCFoundation.NetStandard.Opc.Ua.Core.Diagnostics`.
 
 It replaces the previous `Observability.md` and `PacketCapture.md` docs.
 
+## Contents
+
 - [1. Telemetry context (`ITelemetryContext`)](#1-telemetry-context-itelemetrycontext)
+  - [Overview](#overview)
+  - [Extension methods](#extension-methods)
+  - [Obtaining a telemetry context](#obtaining-a-telemetry-context)
+  - [Using the telemetry context](#using-the-telemetry-context)
+  - [Refactoring guidance](#refactoring-guidance)
+  - [High-speed logging and source generators](#high-speed-logging-and-source-generators)
+  - [Extensibility patterns](#extensibility-patterns)
+  - [Metrics emitted by the stack](#metrics-emitted-by-the-stack)
+  - [Wiring up a metrics exporter](#wiring-up-a-metrics-exporter)
+  - [Opt-out / no-op contexts](#opt-out--no-op-contexts)
+  - [Temporary compromises](#temporary-compromises)
 - [2. OPC UA server audit events](#2-opc-ua-server-audit-events)
+  - [Enabling auditing](#enabling-auditing)
+  - [Raising an audit event](#raising-an-audit-event)
+  - [Redacted private-key material](#redacted-private-key-material)
+  - [Subscribing on the server](#subscribing-on-the-server)
 - [3. OPC UA server built-in diagnostics nodes](#3-opc-ua-server-built-in-diagnostics-nodes)
+  - [Enabling diagnostics](#enabling-diagnostics)
+  - [Information-model surface](#information-model-surface)
+  - [Performance considerations](#performance-considerations)
 - [4. Packet capture, dissection, and replay](#4-packet-capture-dissection-and-replay)
+  - [Security model](#security-model)
+  - [When to use it](#when-to-use-it)
+  - [Architecture](#architecture)
+  - [Integration with the central channel manager](#integration-with-the-central-channel-manager)
+  - [Capture sources](#capture-sources)
+  - [Enabling pcap capture without dependency injection](#enabling-pcap-capture-without-dependency-injection)
+  - [Quick start: in-process client capture](#quick-start-in-process-client-capture)
+  - [Quick start: replay and decode an existing pcap](#quick-start-replay-and-decode-an-existing-pcap)
+  - [Quick start: mock-server replay](#quick-start-mock-server-replay)
+  - [Security profile coverage](#security-profile-coverage)
+  - [Transport coverage](#transport-coverage)
+  - [File format reference](#file-format-reference)
+  - [Dependencies and governance](#dependencies-and-governance)
+  - [Security considerations](#security-considerations)
+  - [Limitations](#limitations)
+  - [Troubleshooting](#troubleshooting)
 - [5. PubSub packet capture and dissection](#5-pubsub-packet-capture-and-dissection)
+  - [Architecture — capturing transport decorator](#architecture--capturing-transport-decorator)
+  - [Capturing and dissecting](#capturing-and-dissecting)
+  - [Decrypting encrypted UADP](#decrypting-encrypted-uadp)
+  - [Environment-variable auto-capture](#environment-variable-auto-capture)
+  - [Security considerations](#security-considerations-1)
 - [6. Related references](#6-related-references)
 
 ## 1. Telemetry context (`ITelemetryContext`)
@@ -198,7 +239,7 @@ pattern end-to-end.
 - A logger/meter created in the outer class can be passed to inner
   classes created inside the outer class — for example
   PubSub message objects.
-- If a class genuinely cannot obtain a logger yet (gradual migration),
+- If a class cannot obtain a logger yet (gradual migration),
   initialize the field with `Telemetry.NullLogger.Instance`. In
   release builds this is a no-op; in debug builds it is a debug-check
   logger that asserts on use, surfacing the missing wiring. This is
@@ -218,6 +259,105 @@ calls are not allowed.
 > parameter rules, and the `IsEnabled` guard for expensive arguments
 > (`CA1873`, enabled solution-wide) live in the
 > [Developer Guide](DeveloperGuide.md#add-a-log-message-source-generated).
+
+### Sensitive data in logs (data classification)
+
+The stack's log messages contain values that can be confidential in a
+deployment: network addresses describe the plant network, certificate
+subjects and application URIs identify installations, user names and file
+paths identify people and hosts, and exception texts can contain any of
+them. The stack does not decide what to hide. It classifies these values,
+and the application decides per classification what reaches its logs. It
+uses the standard .NET
+[data classification and redaction](https://learn.microsoft.com/dotnet/core/extensions/data-redaction)
+packages (`Microsoft.Extensions.Compliance.*`, `Microsoft.Extensions.Telemetry`).
+
+Every `[LoggerMessage]` parameter that holds such a value carries one of the
+attributes of `Opc.Ua.Redaction.OpcUaDataClassifications` (taxonomy `OpcUa`):
+
+| Classification | Attribute | Examples |
+|---|---|---|
+| `NetworkAddress` | `[NetworkAddress]` | endpoint, discovery, proxy, reverse connect and broker URLs; host and domain names; IP and MAC addresses; socket end points; ports |
+| `ApplicationIdentity` | `[ApplicationIdentity]` | certificates; certificate subject, issuer, thumbprint and serial number; application URIs |
+| `UserIdentity` | `[UserIdentity]` | user names, identity token subjects and claims, identity mapping criteria |
+| `FilePath` | `[FilePath]` | file, directory and certificate store paths |
+| `SensitiveText` | `[SensitiveText]` | exception messages and diagnostic text passed as a parameter |
+
+Identifiers that correlate entries, such as `ChannelId`, `SessionId`,
+`SubscriptionId` and status codes, are not classified.
+
+#### The logging pipeline must be redaction-aware
+
+Classified values are only written by the redaction-aware ("extended")
+logger of `Microsoft.Extensions.Telemetry`. **A plain `ILoggerFactory`
+(`LoggerFactory.Create(...)` or `services.AddLogging(...)` without
+`EnableRedaction()`) logs `(null)` in place of every classified value.**
+
+The stack enables the extended logger itself in
+`services.AddOpcUa().AddLogging(...)` and `DefaultTelemetry.Create(...)`.
+Without further configuration the values are logged unchanged, as before.
+`services.AddOpcUa()` alone does not change the host's logging. An
+application that configures logging itself (a generic host, or its own
+`ILoggerFactory` passed to the stack) enables it there:
+
+```csharp
+// Generic host
+builder.Logging.EnableOpcUaRedaction();
+
+// Own factory
+using ILoggerFactory loggerFactory = LoggerFactory.Create(logging => logging
+    .EnableOpcUaRedaction()   // EnableRedaction(), discriminator off
+    .AddConsole());
+```
+
+`EnableOpcUaRedaction()` is `EnableRedaction()` with
+`LoggerRedactionOptions.ApplyDiscriminator = false`. With the discriminator
+on, values that are not redacted get the parameter name appended
+(`opc.tcp://host:4840:Url`).
+
+#### Redacting
+
+Register redactors per classification with `AddRedaction` (package
+`Microsoft.Extensions.Compliance.Redaction`). Once any redactor is
+registered, every classification without its own redactor is erased by the
+fallback redactor:
+
+```csharp
+services.AddOpcUa().AddLogging(logging => logging.AddConsole());
+services.AddRedaction(redaction => redaction
+    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.NetworkAddress)
+    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.UserIdentity)
+    .SetHmacRedactor(
+        options => { options.Key = hmacKey; options.KeyId = 1; },
+        OpcUaDataClassifications.ApplicationIdentity)
+    .SetFallbackRedactor<NullRedactor>()); // keep FilePath and SensitiveText
+```
+
+With an HMAC redactor the same value always produces the same token, so
+entries stay correlatable without exposing the value. Redaction applies to
+the formatted message and to the structured state, so OpenTelemetry and
+other structured exporters only receive redacted values. A downstream
+collector that redacts by itself gets the raw values when the
+classifications are mapped to `NullRedactor`, and filters on the structured
+keys.
+
+#### What is not classified
+
+- The `Exception` passed to a log call. Its message and stack trace are
+  written by the logger provider. With the extended logger,
+  `LoggerEnrichmentOptions.IncludeExceptionMessage = false` removes
+  exception messages from the log state.
+- Exception and `ServiceResult` messages created by the stack. They are
+  returned to callers and peers and can contain addresses.
+- The few log calls whose level is decided at run time (`logger.Log(level,
+  ...)`), which cannot carry attributes.
+
+#### The removed redaction API
+
+`Redact.Create(...)`, `RedactionWrapper<T>`, `IRedactionStrategy`,
+`RedactionStrategies` and `SimpleRedactionStrategy` were removed.
+Configure redactors with `AddRedaction` instead of
+`RedactionStrategies.SetStrategy`.
 
 ### Extensibility patterns
 
@@ -497,7 +637,7 @@ the OpenTelemetry MeterProvider.
 
 ### Opt-out / no-op contexts
 
-Pass a no-op `ITelemetryContext` when telemetry is genuinely
+Pass a no-op `ITelemetryContext` when telemetry is
 unwanted (typically only in unit tests or constrained AOT
 scenarios):
 
@@ -664,8 +804,7 @@ diagnostic update callbacks; subsequent reads reflect the removal.
 
 Server vendors that need additional diagnostics should expose them
 under their own object hierarchy rather than mutating the
-spec-defined tree. The spec-defined tree is what tooling such as
-UaExpert relies on.
+spec-defined tree. Tooling such as UaExpert relies on that tree.
 
 ### Performance considerations
 
@@ -690,12 +829,23 @@ Decoding follows OPC UA Part 6 secure conversation framing and reuses
 the stack `UaSCUaBinaryChannel` path instead of reimplementing
 cryptography.
 
-For finalized files, set `StartCaptureRequest.RequireCompleteReplay = true` when
-starting `ReplayCaptureSource` or a managed replay session. The corresponding
-`PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, ct)` overload rejects
-missing/partial global headers and partial trailing records. The original reader
-overload remains tolerant of an incomplete trailing header for active-capture
-snapshots. Strict mode does not add decryption keys or transmit any data.
+The [UaLens capture window](UaLens.md#packet-capture-and-offline-replay) is a
+more constrained packet-only adapter over these modules. Its private registry
+filters out channel-token notifications, so packet-data consent does **not**
+enable key extraction. It has separate raw-PCAP export consent and never enables
+mock-client/network replay. The engine and MCP defaults below are unchanged.
+
+Replay import and raw export require a complete, structurally valid PCAP or
+PCAPNG container, independently of `StartCaptureRequest.RequireCompleteReplay`.
+Raw export revalidates the exact exported bytes, so replacing an admitted replay
+file cannot turn it into an arbitrary-file download. Keylogs, registered key
+artifacts and PCAPNG decryption-secret blocks are excluded from ordinary capture
+export; key disclosure remains a separate explicitly enabled capability.
+
+`PcapFileReader.ReadAllAsync(path, requireCompleteFile: true, ct)` additionally
+rejects missing/partial global headers and partial trailing records for direct
+reader callers. Its original overload remains tolerant of an incomplete trailing
+header for active-capture snapshots. Strict mode does not add keys or transmit data.
 
 ### Security model
 
@@ -888,7 +1038,8 @@ environment:
    `EnvironmentFile`) and that the destination directory is owned by
    the service account with mode `0700`. See the
    **Environment-variable configuration** section above.
-7. Subscribe to upstream CVE feeds for `SharpPcap` and `PacketDotNet`
+7. Subscribe to upstream CVE feeds for `SharpPcap`, `PacketDotNet` and the
+   native capture backend used by the deployment
    (see the **Dependencies and governance** section near the bottom of
    this document).
 
@@ -905,10 +1056,9 @@ operationally or accept as residual risk.
   vulnerability in the OPC UA Client) can read keys directly from
   process memory before the encrypt-at-rest path runs. Mitigation
   options:
-  1. Run the host under a **dedicated service account with no shell
-     access** so a compromise can't pivot. The keylog files are
-     already mode `0600` and confined to the per-user data
-     directory; the service account boundary is the missing piece.
+  1. Run the host under a **dedicated, least-privilege service account**
+     with interactive shell access disabled. Restrict its filesystem and
+     network permissions to those required.
   2. Register a custom `IKeyEscrowProvider` that hands keys to a
      KMS (e.g., Azure Key Vault HSM) instead of the disk writer.
      The disk writer is then unused.
@@ -921,10 +1071,12 @@ operationally or accept as residual risk.
   deployments. Keep the default (`false`) and add telemetry if you
   must override it.
 
-- **Native dependencies on libpcap / Npcap.** `SharpPcap` and
-  `PacketDotNet` are unmanaged native loads (see the **Dependencies
-  and governance** section). Subscribe to upstream CVE feeds and bump
-  within 30 days for HIGH or CRITICAL advisories.
+- **Native dependencies on libpcap / Npcap.** `SharpPcap` is a managed
+  capture API that uses libpcap/Npcap for NIC capture; `PacketDotNet`
+  provides managed packet parsing. Maintain the selected native backend
+  as well as the managed packages (see **Dependencies and governance**).
+  Subscribe to upstream CVE feeds and update within 30 days for HIGH or
+  CRITICAL advisories.
 
 ### When to use it
 
@@ -960,8 +1112,7 @@ reads from that same global registry — picks the wrapped
 factory up automatically. There is no extra wiring code; the
 composition is pure layering at the transport binding level.
 
-Three properties of the channel manager flow through to capture for
-free:
+Capture preserves three channel-manager behaviors:
 
 - **Sharing.** When multiple participants share a single
   `IManagedTransportChannel` (the refcount + key-equivalence model in
@@ -1018,6 +1169,10 @@ accepted by a hosted OPC UA server. It uses the same frame sink plus
 `.uakeys.json` or `.uakeys.txt`. Use it for offline decode, summaries,
 and mock-client or mock-server replay.
 
+PubSub dissection and all shared key-loading paths authorize a supplied keylog
+against the host-approved capture root immediately before opening it. Knowing an
+absolute path outside that root does not grant use of its keys.
+
 Capture requests accept these canonical wire names and also the CLR
 member names (`Nic`, `InProcessClient`, `InProcessServer`, `Replay`) for
 compatibility. Capture metadata is serialized with the canonical
@@ -1033,11 +1188,11 @@ server, a `ServerBase`/`StandardServer` host that is not built around
 `Microsoft.Extensions.DependencyInjection`, or any client that creates
 sessions through the static/fluent APIs.
 
-There are **two independent steps**, and forgetting the second is the
-most common reason "nothing is captured":
+Capture needs both steps; installing a binding without starting a capture
+session records nothing:
 
 1. **Install a binding** so the affected channels become
-   capture-*aware*. This alone records nothing.
+   capture-*aware*.
 2. **Start a capture session** (a `CaptureSessionManager` session)
    sharing the *same* `IChannelCaptureRegistry`. Recording is gated by
    the registry's `CurrentObserver`, which is `null` until a session is
@@ -1100,7 +1255,7 @@ await using (manager.ConfigureAwait(false))
     // 3. Every client that connects while the session is running has its
     //    inbound/outbound frames and channel-token key material recorded.
 
-    await manager.StopAsync(session.SessionId, ct).ConfigureAwait(false);
+    await manager.StopAsync(session.Id, ct).ConfigureAwait(false);
     // session.SessionFolder now contains capture.pcap (+ keys.uakeys.json).
 }
 ```
@@ -1207,12 +1362,13 @@ var session = await manager.StartAsync(new StartCaptureRequest
 // wrapped by the capture binding. Channel sharing means a single
 // recording stream covers every participant on the same endpoint.
 
-await manager.StopAsync(session.SessionId, ct);
+await manager.StopAsync(session.Id, ct);
 
-var bytes = await manager.GetCaptureAsync(
-    session.SessionId,
-    FormatKind.ServiceTimeline,
-    ct);
+TraceFormatterRegistry formatters = serviceProvider.GetRequiredService<TraceFormatterRegistry>();
+FormatResult timeline = await formatters
+    .Get(FormatKind.ServiceTimeline)
+    .FormatAsync(session.Source, maxFrames: null, ct);
+byte[] bytes = timeline.Bytes;
 ```
 
 ### Quick start: replay and decode an existing pcap
@@ -1230,10 +1386,10 @@ var session = await manager.StartAsync(new StartCaptureRequest
     SessionFolder = "C:/captures"
 }, ct);
 
-var timeline = await manager.GetCaptureAsync(
-    session.SessionId,
-    FormatKind.ServiceTimeline,
-    ct);
+FormatResult timeline = await serviceProvider
+    .GetRequiredService<TraceFormatterRegistry>()
+    .Get(FormatKind.ServiceTimeline)
+    .FormatAsync(session.Source, maxFrames: null, ct);
 ```
 
 ### Quick start: mock-server replay
@@ -1241,15 +1397,17 @@ var timeline = await manager.GetCaptureAsync(
 ```csharp
 services.AddPcap();
 
-CaptureSessionManager manager = serviceProvider.GetRequiredService<CaptureSessionManager>();
+ReplaySessionManager replays = serviceProvider.GetRequiredService<ReplaySessionManager>();
 
-var replay = await manager.ReplayAsync(new ReplayPcapRequest
+ReplaySession replay = await replays.StartAsync(new StartReplayRequest
 {
     PcapFilePath = "C:/captures/server-conversation.pcap",
     KeyLogFilePath = "C:/captures/server-conversation.uakeys.json",
     Mode = ReplayMode.MockServer,
-    ListenEndpointUrl = "opc.tcp://localhost:4840/CapturedServer"
+    ListenPort = 4840
 }, ct);
+
+Console.WriteLine($"Mock server listening on {replay.ListenUri}");
 ```
 
 ### Security profile coverage
@@ -1387,18 +1545,20 @@ promised.
 
 ### Dependencies and governance
 
-The packet-capture binding has two native-code transitive
-dependencies:
+The packet-capture binding uses the managed packages below. NIC capture
+additionally requires the native libpcap/Npcap backend installed for the host.
 
-| Package | Native binding | Upstream advisories |
+| Package | Role and native requirements | Upstream advisories |
 |---|---|---|
-| `PacketDotNet` | Wireshark-style packet decode | https://github.com/dotpcap/packetnet/security/advisories |
-| `SharpPcap` | `libpcap` / `Npcap` capture | https://github.com/dotpcap/sharppcap/security/advisories |
+| `PacketDotNet` | Managed packet parsing; not a native capture library | https://github.com/dotpcap/packetnet/security/advisories |
+| `SharpPcap` | Managed capture API over the native `libpcap` / `Npcap` backend | https://github.com/dotpcap/sharppcap/security/advisories |
 
-Both are pinned in `Directory.Packages.props` and tracked in the
-project SBOM. Operators deploying this binding should subscribe to
-the upstream advisory feeds and review at least monthly. HIGH or
-CRITICAL CVEs should be addressed within 30 days.
+Both packages are pinned in `Directory.Packages.props` and tracked in the
+project SBOM. Operators should maintain the selected native backend
+separately; a NuGet package update does not necessarily update the installed
+capture library or driver. Subscribe to advisory feeds for the managed
+packages and native backend and review at least monthly. HIGH or CRITICAL
+CVEs should be addressed within 30 days.
 
 Run `dotnet list package --vulnerable --include-transitive` against
 `src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj` in

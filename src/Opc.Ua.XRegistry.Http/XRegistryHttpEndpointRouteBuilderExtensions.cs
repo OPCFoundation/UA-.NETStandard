@@ -342,9 +342,9 @@ namespace Opc.Ua.XRegistry.Http
 
             if (m_logger.IsEnabled(LogLevel.Information))
             {
-                m_logger.RegistryRequestCompleted(request.Action, Redact.Create(request.Context.Subject),
-                    Redact.Create(request.Context.Authority), Redact.Create(request.Path),
-                    Redact.Create(description?.RegistryId ?? string.Empty), prepared.StatusCode);
+                m_logger.RegistryRequestCompleted(request.Action, request.Context.Subject,
+                    request.Context.Authority, request.Path,
+                    description?.RegistryId ?? string.Empty, prepared.StatusCode);
             }
             return prepared;
         }
@@ -693,9 +693,9 @@ namespace Opc.Ua.XRegistry.Http
             Message = "xRegistry HTTP audit: {Action} caller={Caller} authority={Authority} target={Target} "
                 + "upstream={Upstream} status={Status}. No request payload or credential is recorded.")]
         public static partial void RegistryRequestCompleted(
-            this ILogger logger, XRegistryAction action, RedactionWrapper<string> caller,
-            RedactionWrapper<string> authority, RedactionWrapper<string> target,
-            RedactionWrapper<string> upstream, int status);
+            this ILogger logger, XRegistryAction action, [UserIdentity] string caller,
+            [ApplicationIdentity] string authority, [SensitiveText] string target,
+            [ApplicationIdentity] string upstream, int status);
     }
 }
 #endif

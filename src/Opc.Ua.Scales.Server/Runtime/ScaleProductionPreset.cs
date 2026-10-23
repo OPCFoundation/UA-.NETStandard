@@ -300,16 +300,14 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindMethods()
         {
-            if (Preset.AddProduct != null)
-            {
-                Preset.AddProduct.OnCall = (
-                    ISystemContext context,
-                    MethodState method,
-                    NodeId objectId,
-                    string productName,
-                    string productId,
-                    NodeId productType,
-                    ref NodeId productNodeId) =>
+            Preset.AddProduct?.OnCall = (
+                    context,
+                    method,
+                    objectId,
+                    productName,
+                    productId,
+                    productType,
+                    ref productNodeId) =>
                 {
                     ProductState product = AddProductCore(
                         context,
@@ -325,31 +323,18 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return result;
                 };
-            }
-            if (Preset.RemoveProduct != null)
-            {
-                Preset.RemoveProduct.OnCallAsync = async (context, method, objectId, productId, ct) =>
+            Preset.RemoveProduct?.OnCallAsync = async (context, method, objectId, productId, ct) =>
                     new RemoveProductMethodStateResult
                     {
                         ServiceResult = await RemoveCoreAsync(context, productId, checkLock: true, ct)
                             .ConfigureAwait(false)
                     };
-            }
-            if (Preset.SelectProduct != null)
-            {
-                Preset.SelectProduct.OnCall = (context, method, objectId, productId) =>
+            Preset.SelectProduct?.OnCall = (context, method, objectId, productId) =>
                     SelectCore(context, productId, checkLock: true);
-            }
-            if (Preset.DeselectProduct != null)
-            {
-                Preset.DeselectProduct.OnCall = (context, method, objectId, productId) =>
+            Preset.DeselectProduct?.OnCall = (context, method, objectId, productId) =>
                     DeselectCore(context, productId, checkLock: true);
-            }
-            if (Preset.SwitchProduct != null)
-            {
-                Preset.SwitchProduct.OnCall = (context, method, objectId, productId) =>
+            Preset.SwitchProduct?.OnCall = (context, method, objectId, productId) =>
                     SwitchCore(context, productId, checkLock: true);
-            }
         }
 
         private ProductState AddProductCore(
@@ -431,7 +416,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return null!;
                 }
 
-                product.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+                product.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
                 product.DisplayName = new LocalizedText(productId);
                 InitializeProduct(
                     m_services.Context,
@@ -441,6 +426,16 @@ namespace Opc.Ua.Scales.Server.Runtime
                     selectable: Preset.SelectProduct != null || Preset.CurrentProducts != null,
                     lockable: Lockable && m_services.LockService != null);
                 configure?.Invoke(product);
+                if (product.NodeId.IsNull)
+                {
+                    m_services.Context.AssignInstanceNodeId(product);
+                    m_services.Context.AssignInstanceChildNodeIds(product);
+                }
+                BindProduct(product);
+                if (lockForCaller && Lockable && m_services.LockService is { } lockService)
+                {
+                    lockService.InitLock(callContext, product.NodeId, string.Empty);
+                }
 
                 lock (m_lock)
                 {
@@ -461,11 +456,6 @@ namespace Opc.Ua.Scales.Server.Runtime
             if (m_registered)
             {
                 m_services.Register(product);
-            }
-            BindProduct(product);
-            if (lockForCaller && Lockable && m_services.LockService is { } lockService)
-            {
-                lockService.InitLock(callContext, product.NodeId, string.Empty);
             }
             Preset.ClearChangeMasks(m_services.Context, includeChildren: true);
             result = ServiceResult.Good;
@@ -617,6 +607,17 @@ namespace Opc.Ua.Scales.Server.Runtime
                     {
                         return access;
                     }
+                    foreach (string current in m_current)
+                    {
+                        if (m_products.TryGetValue(current, out ProductState? previous))
+                        {
+                            access = ScaleValues.CheckLock(m_services, callContext, previous.NodeId);
+                            if (ServiceResult.IsBad(access))
+                            {
+                                return access;
+                            }
+                        }
+                    }
                 }
                 changed = m_current.Count != 1 || !m_current.Contains(productId!);
                 if (changed)
@@ -722,14 +723,8 @@ namespace Opc.Ua.Scales.Server.Runtime
                 product.AddProductMode(context);
                 if (product.ProductMode != null)
                 {
-                    if (product.ProductMode.TrueState != null)
-                    {
-                        product.ProductMode.TrueState.Value = new LocalizedText("Processing");
-                    }
-                    if (product.ProductMode.FalseState != null)
-                    {
-                        product.ProductMode.FalseState.Value = new LocalizedText("NotProcessing");
-                    }
+                    product.ProductMode.TrueState?.Value = new LocalizedText("Processing");
+                    product.ProductMode.FalseState?.Value = new LocalizedText("NotProcessing");
                     product.ProductMode.Value = false;
                 }
             }
@@ -741,6 +736,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindProduct(ProductState product)
         {
+            m_services.BindProductWriteGuards(product);
             if (product.Lock != null && m_registered && m_services.LockService is { } lockService)
             {
                 product.Lock.BindToLockService(product.NodeId, lockService);
@@ -761,17 +757,15 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindZones(CatchweigherProductState product)
         {
-            if (product.AddZone != null)
-            {
-                product.AddZone.OnCall = (
-                    ISystemContext context,
-                    MethodState method,
-                    NodeId objectId,
-                    LocalizedText zoneName,
-                    double lowerLimit,
-                    double upperLimit,
-                    EUInformation engineeringUnits,
-                    ref NodeId zoneNodeId) =>
+            product.AddZone?.OnCall = (
+                    context,
+                    method,
+                    objectId,
+                    zoneName,
+                    lowerLimit,
+                    upperLimit,
+                    engineeringUnits,
+                    ref zoneNodeId) =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -800,10 +794,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     zoneNodeId = zone.NodeId;
                     return ServiceResult.Good;
                 };
-            }
-            if (product.RemoveZone != null)
-            {
-                product.RemoveZone.OnCallAsync = async (context, method, objectId, zoneNodeId, ct) =>
+            product.RemoveZone?.OnCallAsync = async (context, method, objectId, zoneNodeId, ct) =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -834,7 +825,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return new RemoveZoneMethodStateResult { ServiceResult = ServiceResult.Good };
                 };
-            }
         }
 
         /// <summary>
@@ -860,7 +850,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             ZoneState zone = context.CreateInstanceOfZoneType(
                 product,
                 m_services.InstanceName(zoneName.Text ?? "Zone"));
-            zone.ReferenceTypeId = Opc.Ua.ReferenceTypeIds.HasComponent;
+            zone.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
             zone.DisplayName = zoneName;
             ScaleValues.Set(context, zone.Name, zoneName);
             ScaleValues.Set(context, zone.LowerLimit, Variant.From(lowerLimit));
@@ -882,9 +872,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindPieceCounting(PieceCountingProductState product)
         {
-            if (product.SetTargetItemCount != null)
-            {
-                product.SetTargetItemCount.OnCall = (context, method, objectId, targetItemCount) =>
+            product.SetTargetItemCount?.OnCall = (context, method, objectId, targetItemCount) =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -906,10 +894,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return ServiceResult.Good;
                 };
-            }
-            if (product.SetTargetPieceCount != null)
-            {
-                product.SetTargetPieceCount.OnCall = (context, method, objectId, target, plus, minus) =>
+            product.SetTargetPieceCount?.OnCall = (context, method, objectId, target, plus, minus) =>
                 {
                     ServiceResult access = ScaleValues.CheckLock(m_services, context, product.NodeId);
                     if (ServiceResult.IsBad(access))
@@ -937,7 +922,6 @@ namespace Opc.Ua.Scales.Server.Runtime
                     }
                     return ServiceResult.Good;
                 };
-            }
         }
 
         private void BindVehicle(VehicleProductState product)

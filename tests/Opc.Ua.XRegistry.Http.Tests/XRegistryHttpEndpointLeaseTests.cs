@@ -29,21 +29,22 @@
 
 #if XREGISTRY_HTTP_MODERN
 using System;
-using System.Collections.Concurrent;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Compliance.Redaction;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Redaction;
-using Opc.Ua.Types.Redaction;
 using Opc.Ua.XRegistry.Protocol;
 
 namespace Opc.Ua.XRegistry.Http.Tests
@@ -56,21 +57,18 @@ namespace Opc.Ua.XRegistry.Http.Tests
         [NonParallelizable]
         public async Task AuditRecordsCallerAndUpstreamWithoutPayloadOrCredentialsAsync(bool redact)
         {
-            var messages = new ConcurrentQueue<string>();
-            var logger = new Mock<ILogger>();
-            logger.Setup(value => value.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
-            // Matching a Log expression does not evaluate a real log call.
-            // TODO: Remove when CA1873 recognizes mock expression trees.
-#pragma warning disable CA1873
-            logger.Setup(value => value.Log(
-                It.IsAny<LogLevel>(), It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception?>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
-                .Callback(new InvocationAction(call => messages.Enqueue(call.Arguments[2]?.ToString() ?? string.Empty)));
-#pragma warning restore CA1873
-            var factory = new Mock<ILoggerFactory>();
-            factory.Setup(value => value.CreateLogger(It.IsAny<string>())).Returns(logger.Object);
+            var services = new ServiceCollection();
+            services.AddLogging(builder => builder.EnableOpcUaRedaction().AddFakeLogging());
+            if (redact)
+            {
+                services.AddRedaction(builder => builder
+                    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.UserIdentity)
+                    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.ApplicationIdentity)
+                    .SetRedactor<ErasingRedactor>(OpcUaDataClassifications.SensitiveText));
+            }
+            using ServiceProvider provider = services.BuildServiceProvider();
             var telemetry = new Mock<ITelemetryContext>();
-            telemetry.SetupGet(value => value.LoggerFactory).Returns(factory.Object);
+            telemetry.SetupGet(value => value.LoggerFactory).Returns(provider.GetRequiredService<ILoggerFactory>());
             var backend = new FakeRegistryEndpoint
             {
                 Response = new XRegistryResponse(200)
@@ -82,47 +80,35 @@ namespace Opc.Ua.XRegistry.Http.Tests
             };
             string payload = Guid.NewGuid().ToString("N");
             string credential = Guid.NewGuid().ToString("N");
-            RedactionStrategies.ResetStrategy();
-            try
+            await using HttpRouteTestHost host = await HttpRouteTestHost.StartAsync(backend,
+                HttpHostTestData.OpenOptions with
+                {
+                    Transport = new XRegistryHttpOptions { Telemetry = telemetry.Object },
+                    CreateContextAsync = (_, _) => new ValueTask<XRegistryCallContext>(
+                        new XRegistryCallContext("audit-caller")
+                        { Authority = "audit-authority", IsAuthenticated = true })
+                }).ConfigureAwait(false);
+            using var request = new HttpRequestMessage(HttpMethod.Put,
+                new Uri("/registry" + HttpTestData.ResourcePath, UriKind.Relative))
             {
-                if (redact)
-                {
-                    RedactionStrategies.SetStrategy(new SimpleRedactionStrategy());
-                }
-                await using HttpRouteTestHost host = await HttpRouteTestHost.StartAsync(backend,
-                    HttpHostTestData.OpenOptions with
-                    {
-                        Transport = new XRegistryHttpOptions { Telemetry = telemetry.Object },
-                        CreateContextAsync = (_, _) => new ValueTask<XRegistryCallContext>(
-                            new XRegistryCallContext("audit-caller")
-                            { Authority = "audit-authority", IsAuthenticated = true })
-                    }).ConfigureAwait(false);
-                using var request = new HttpRequestMessage(HttpMethod.Put,
-                    new Uri("/registry" + HttpTestData.ResourcePath, UriKind.Relative))
-                {
-                    Content = new StringContent(payload, Encoding.UTF8, "text/plain")
-                };
-                request.Headers.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
-                using HttpResponseMessage response = await host.Client.SendAsync(request).ConfigureAwait(false);
-                string audit = messages.Single(
-                    message => message.StartsWith("xRegistry HTTP audit:", StringComparison.Ordinal));
-                Assert.Multiple(() =>
-                {
-                    Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-                    Assert.That(audit, Does.Contain("Replace").And.Contain("status=200"));
-                    Assert.That(audit, Does.Not.Contain(payload).And.Not.Contain(credential));
-                    Assert.That(audit.Contains("audit-caller", StringComparison.Ordinal), Is.EqualTo(!redact));
-                    Assert.That(audit.Contains("audit-authority", StringComparison.Ordinal), Is.EqualTo(!redact));
-                    Assert.That(audit.Contains("independent-provider", StringComparison.Ordinal), Is.EqualTo(!redact));
-                    Assert.That(
-                        audit.Contains(HttpTestData.ResourcePath, StringComparison.Ordinal), Is.EqualTo(!redact));
-                });
-            }
-            finally
+                Content = new StringContent(payload, Encoding.UTF8, "text/plain")
+            };
+            request.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", credential);
+            using HttpResponseMessage response = await host.Client.SendAsync(request).ConfigureAwait(false);
+            string audit = provider.GetFakeLogCollector().GetSnapshot().Select(record => record.Message).Single(
+                message => message.StartsWith("xRegistry HTTP audit:", StringComparison.Ordinal));
+            Assert.Multiple(() =>
             {
-                RedactionStrategies.ResetStrategy();
-            }
+                Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
+                Assert.That(audit, Does.Contain("Replace").And.Contain("status=200"));
+                Assert.That(audit, Does.Not.Contain(payload).And.Not.Contain(credential));
+                Assert.That(audit.Contains("audit-caller", StringComparison.Ordinal), Is.EqualTo(!redact));
+                Assert.That(audit.Contains("audit-authority", StringComparison.Ordinal), Is.EqualTo(!redact));
+                Assert.That(audit.Contains("independent-provider", StringComparison.Ordinal), Is.EqualTo(!redact));
+                Assert.That(
+                    audit.Contains(HttpTestData.ResourcePath, StringComparison.Ordinal), Is.EqualTo(!redact));
+            });
         }
 
         [TestCase(false)]

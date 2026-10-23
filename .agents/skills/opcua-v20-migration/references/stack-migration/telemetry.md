@@ -2,13 +2,11 @@
 
 > **When to read this:** Read this when migrating logger use (`Utils.LogX`, `Utils.Trace`, static log helpers) to the new `ITelemetryContext` model that resolves `ILogger` via `telemetry.CreateLogger<T>()`.
 
-Observability in 2.0 is plumbed through `ITelemetryContext`. Loggers are resolved from the telemetry context via `telemetry.CreateLogger<T>()` rather than from `Utils.Trace` / `Utils.LogX`. The static logging helpers remain compilable but are `[Obsolete]`; consumers should resolve `ILogger` from `ITelemetryContext` instead.
-
-Constructor injection across the public API is not uniform - the parameter is required positionally on most types, optional on `ApplicationInstance`, and absent on `Session` / `CustomNodeManager2`. The table below summarises the precise shape per type:
+Telemetry enters each API at a different point:
 
 | Type | Telemetry parameter | Notes |
 |---|---|---|
-| `ApplicationInstance(ITelemetryContext? telemetry)` | Nullable | Also `ApplicationInstance(ApplicationConfiguration, ITelemetryContext?)`. Passing `null` falls back to a default telemetry context. |
+| `ApplicationInstance(ITelemetryContext? telemetry)` | Required argument, nullable value | Also `ApplicationInstance(ApplicationConfiguration, ITelemetryContext?)`. Passing `null` uses a null logger for the instance. Constructors without a telemetry parameter remain available but are `[Obsolete]`. |
 | `ServerBase(ITelemetryContext telemetry)` | Required positional | The only public ctor. |
 | `CertificateManagerFactory.Create(SecurityConfiguration, ITelemetryContext, Action<CertificateManagerOptions>?)` | Required positional (2nd parameter) | Factory entry point for `CertificateManager`. |
 | `DefaultSessionFactory()` / `DefaultSessionFactory(ITelemetryContext telemetry)` | Both ctors exist | The parameterless ctor is `[Obsolete]`; use the telemetry-aware overload. |
@@ -41,21 +39,12 @@ ISession session = await factory.CreateAsync(/* ... */);
   - [From static logger management](#from-static-logger-management)
   - [From static `Utils.Log*` methods](#from-static-utilslog-methods)
   - [From `Utils.Trace*` methods](#from-utilstrace-methods)
-- [Non-exhaustive summary of breaking changes](#non-exhaustive-summary-of-breaking-changes)
-  - [Core infrastructure constructors](#core-infrastructure-constructors)
-  - [Interface additions](#interface-additions)
-  - [System context](#system-context)
-  - [Certificate and security](#certificate-and-security)
-  - [Transport layer](#transport-layer)
-  - [Client library](#client-library)
-  - [Configuration library](#configuration-library)
-  - [Server library](#server-library)
-  - [PubSub library](#pubsub-library)
-  - [Method signatures](#method-signatures)
+- [Telemetry constructors and related migrations](#telemetry-constructors-and-related-migrations)
   - [Removed and `[Obsolete]` `Utils` static APIs](#removed-and-obsolete-utils-static-apis)
 - [ETW `EventSource` provider removal](#etw-eventsource-provider-removal)
   - [`ClientTraceFlags.EventLog` removed (source breaking)](#clienttraceflagseventlog-removed-source-breaking)
   - [Migrating `EventListener` / `dotnet-trace` consumers](#migrating-eventlistener--dotnet-trace-consumers)
+- [Sensitive log data is classified](#sensitive-log-data-is-classified)
 - [Migration utilities](#migration-utilities)
 
 ## Replacing the static logger surface
@@ -76,7 +65,7 @@ var telemetryContext = DefaultTelemetry.Create(builder => builder.AddConsole());
 var applicationInstance = new ApplicationInstance(telemetryContext);
 ```
 
-Even better, register the OPC UA fluent surface via
+For dependency-injection hosts, register the OPC UA fluent surface via
 `Microsoft.Extensions.DependencyInjection`:
 
 ```csharp
@@ -120,110 +109,39 @@ logger.LogInformation("Request processed successfully");
 
 ---
 
-## Non-exhaustive summary of breaking changes
+## Telemetry constructors and related migrations
 
-The telemetry-context rollout touched many core types. The list
-below covers replaced constructors, modified factory methods, and
-`[Obsolete]` shims grouped by layer. Most affected APIs are
-internal to the stack; the most common external impact is that
-**applications must create an `ApplicationInstance` with an
-explicit telemetry context**.
+Update these constructor and method calls when migrating telemetry:
 
-### Core infrastructure constructors
+- Replace `SystemContext()` with `SystemContext(ITelemetryContext)` or
+  `SystemContext(IOperationContext, ITelemetryContext)`.
+- Pass telemetry to `DirectoryCertificateStore(ITelemetryContext)` and
+  `TcpTransportChannel(ITelemetryContext)`; their parameterless constructors
+  have been removed.
+- Where an `ICertificateStore` is required, replace the old
+  `CertificateIdentifierCollection` store usage with
+  `CertificateIdentifierCollectionStore(ITelemetryContext)`.
+- Prefer `ApplicationConfiguration(ITelemetryContext)` to the parameterless
+  constructor, which remains available.
+- Pass telemetry to `ConfiguredEndpointCollection.Load(..., ITelemetryContext)`.
+- Use `ServerSecurityPolicy.CalculateSecurityLevel(mode, policyUri, ILogger)`
+  (or the corresponding `SecuredApplication` overload); the overload without
+  a logger is obsolete.
+- Replace obsolete `ServiceMessageContext()` and
+  `ServiceMessageContext(ITelemetryContext)` calls with
+  `ServiceMessageContext.Create(ITelemetryContext)`.
 
-- `ServiceMessageContext()` → `ServiceMessageContext(ITelemetryContext)`
-  (parameter-less constructor removed).
-- `EncodeableFactory()` → `EncodeableFactory(ITelemetryContext)`
-  (parameter-less constructor removed).
-- `ApplicationConfiguration` gains
-  `ApplicationConfiguration(ITelemetryContext)`.
-- `ContentFilter.Evaluate(...)` moved to a new `FilterEvaluator`
-  class that requires telemetry context.
+See the topic guides for related API migrations:
 
-### Interface additions
-
-- `IServiceMessageContext` gains
-  `ITelemetryContext Telemetry { get; }`.
-- `ITransportBindingFactory<T>.Create(...)` now takes
-  `ITelemetryContext`.
-- `ITelemetryContext` gains `CreateMeter(Assembly)` and
-  `GetActivitySource(Assembly)` for component-specific telemetry.
-
-### System context
-
-- `SystemContext()` → `SystemContext(ITelemetryContext)` and
-  `SystemContext(IOperationContext, ITelemetryContext)`
-  (parameter-less constructor removed).
-
-### Certificate and security
-
-- `CertificateValidator` gains
-  `CertificateValidator(ITelemetryContext)`.
-- `CertificateStoreIdentifier.CreateStore(string, ITelemetryContext)`
-  and `OpenStore(ITelemetryContext)` — custom stores must
-  implement the new signature.
-- `CertificateIdentifier.OpenStore(ITelemetryContext)` — same
-  custom-store impact.
-- `CertificateIdentifierCollection` no longer implements
-  `ICertificateStore`; use `CertificateIdentifierCollectionStore`
-  for the read-only store behaviour.
-- `DirectoryCertificateStore` and `X509CertificateStore` lose their
-  parameter-less constructors; pass an `ITelemetryContext`.
-
-### Transport layer
-
-- `TcpTransportChannel`, `TcpTransportListener`,
-  `HttpsTransportListener`: parameter-less constructors removed;
-  factory `Create(...)` methods now take an `ITelemetryContext`.
-- `TransportBindings.GetChannel(uriScheme, telemetry)` /
-  `GetListener(uriScheme, telemetry)`: telemetry parameter added.
-
-### Client library
-
-- `SessionClient`: new constructor
-  `(ITransportChannel, ITelemetryContext)`.
-- `Subscription(ITelemetryContext)` (otherwise attached on
-  `AddSubscription`).
-- `Browser(ISession, ITelemetryContext)` (otherwise set via the new
-  `Telemetry` property).
-- `ReverseConnectManager(ITelemetryContext)`; default constructor
-  `[Obsolete]`.
-- `DefaultSessionFactory(ITelemetryContext)` and the **new**
-  `ManagedSessionFactory(ITelemetryContext)` (which wraps raw
-  sessions in reconnect-aware `ManagedSession`s).
-- `TraceableSessionFactory(ITelemetryContext)` and
-  `TraceableSession(ISession, ITelemetryContext)`.
-- `ComplexTypeSystem(..., ITelemetryContext)`.
-- `SessionReconnectHandler(ITelemetryContext, bool, int)`.
-
-### Configuration library
-
-- `ApplicationInstance(ITelemetryContext)` and
-  `ApplicationInstance(ITelemetryContext, ApplicationConfiguration)`;
-  non-telemetry constructors `[Obsolete]`.
-- `ConfiguredEndpointCollection.Load(..., ITelemetryContext)`.
-- `ConfiguredEndpoint.UpdateFromServerAsync(ITelemetryContext, ...)`.
-
-### Server library
-
-- `DataChangeMonitoredItemQueue`, `EventMonitoredItemQueue`,
-  `MonitoredItemQueueFactory`: constructors now take
-  `ITelemetryContext`.
-
-### PubSub library
-
-- `UaPubSubApplication.Create(IUaPubSubDataStore, ITelemetryContext)`.
-- `UaPubSubConfigurator(ITelemetryContext)`.
-- `UdpClientBroadcast(..., ITelemetryContext)` (internal).
-- `UdpClientUnicast(..., ITelemetryContext)` (internal).
-
-### Method signatures
-
-- `UserIdentityToken.GetOrCreateCertificate(ITelemetryContext)`
-  — certificate creation is no longer implicit on the
-  `Certificate` getter; call this method explicitly when needed.
-- `ServerSecurityPolicy.CalculateSecurityLevel(..., ILogger)`
-  — the non-logger overload is `[Obsolete]`.
+| Area | Current migration guidance |
+|---|---|
+| Types and encoding | [Built-in types](types.md), [Encoders and complex types](encoders.md) |
+| Certificates and security | [Certificates](certificates.md), [Identity and secrets](identity.md) |
+| Application configuration | [Configuration](configuration.md) |
+| Client sessions and transports | [Sessions and subscriptions](sessions-subscriptions.md), [Async transport listeners](transport-listener-async.md) |
+| Server node managers and state | [Node states](node-states.md) |
+| PubSub | [PubSub](pubsub.md) |
+| Telemetry and logging APIs | [Diagnostics](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md), [Source-generated logging recipe](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DeveloperGuide.md#add-a-log-message-source-generated) |
 
 ### Removed and `[Obsolete]` `Utils` static APIs
 
@@ -329,6 +247,28 @@ builder.Services.AddOpenTelemetry().WithLogging(l => l
 > **Out of scope.** The OPC UA information-model `EventSourceRegistry` / `HasEventSource` reference type (`Opc.Ua.Server.Fluent`, used for Alarms & Conditions modelling) and the BCL's own `System.Buffers.ArrayPoolEventSource` are unrelated to this removal — neither is a stack-owned ETW provider, and neither is affected by this migration.
 
 ---
+
+## Sensitive log data is classified
+
+The stack's `[LoggerMessage]` parameters that hold network addresses,
+application or user identities, file paths or exception texts carry the data
+classification attributes of `Opc.Ua.Redaction` (see
+[Diagnostics: Sensitive data in logs](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Diagnostics.md#sensitive-data-in-logs-data-classification)).
+
+- **Behavior breaking:** a plain `ILoggerFactory` logs `(null)` in place of
+  classified values. `AddOpcUa().AddLogging(...)` and
+  `DefaultTelemetry.Create(...)` enable the redaction-aware logger
+  themselves. If you configure logging yourself (generic host,
+  `services.AddLogging(...)`, your own `ILoggerFactory`), call
+  `EnableOpcUaRedaction()` (or `EnableRedaction()`) on its
+  `ILoggingBuilder`, e.g. `builder.Logging.EnableOpcUaRedaction()`.
+- **Source breaking:** `Redact`, `RedactionWrapper<T>`,
+  `IRedactionStrategy`, `RedactionStrategies` and `SimpleRedactionStrategy`
+  were removed. Replace `RedactionStrategies.SetStrategy(...)` with
+  `services.AddRedaction(...)` redactors per `OpcUaDataClassifications`
+  value.
+- Log messages that used to pass a redacted exception as a message
+  parameter now pass the exception message as a `[SensitiveText]` string.
 
 ## Migration utilities
 

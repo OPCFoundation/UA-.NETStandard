@@ -612,7 +612,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
         {
             McpExecutionOptions options = granted
                 ? GrantedOptions(McpCapability.IdentityAdministration)
-                : new McpExecutionOptions();
+                : GrantedOptions();
             OpcUaSessionManager manager = await CreateManagerAsync(options).ConfigureAwait(false);
             using IDisposable caller = m_callers.EnterTrustedCaller(s_caller);
             Assert.That(manager.OperationPolicy.IsEnabled(McpCapability.IdentityAdministration), Is.EqualTo(granted));
@@ -1025,13 +1025,10 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             var services = new ServiceCollection();
             services.AddSingleton(m_callers);
             services.AddSingleton<IMcpFixedSessionContract>(new FixedMockSessionContract(m_model.Session.Object));
-            if (configured)
+            services.AddSingleton(new OpcUaMcpOptions
             {
-                services.AddSingleton(new OpcUaMcpOptions
-                {
-                    Execution = GrantedOptions(McpCapability.IdentityAdministration)
-                });
-            }
+                Execution = configured ? GrantedOptions(McpCapability.IdentityAdministration) : GrantedOptions()
+            });
             var telemetry = new Mock<ITelemetryContext>(MockBehavior.Strict);
             telemetry.SetupGet(context => context.LoggerFactory).Returns(NullLoggerFactory.Instance);
             services.AddSingleton(provider => new OpcUaSessionManager(
@@ -1079,7 +1076,8 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             Assert.That(manager.GetSessionOrThrow(requested), Is.SameAs(m_model.Session.Object));
             Assert.That(selected.Name, Is.EqualTo("Prod-A"));
             Assert.That(selected.Session.SessionName, Is.EqualTo("ServerAssigned"));
-            Assert.That(selected.Endpoint, Is.SameAs(m_model.Endpoint));
+            Assert.That(selected.Endpoint, Is.Not.SameAs(m_model.Endpoint));
+            Assert.That(Utils.IsEqual(selected.Endpoint, m_model.Endpoint), Is.True);
             Assert.That(selected.AuthType, Is.EqualTo("UserName"));
             Assert.That(selected.IsConnected, Is.True);
             Assert.That(selected.OwnsSession, Is.False);
@@ -1098,20 +1096,25 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             OpcUaSessionManager manager = await CreateManagerAsync(options).ConfigureAwait(false);
             using IDisposable caller = m_callers.EnterTrustedCaller(s_caller);
 
-            string json = await ConvenienceTools.WriteValueAsync(
-                manager, kValueA, "42", "Int32", "prod-a", m_cancellation.Token).ConfigureAwait(false);
-
-            AssertSelectedSession(manager);
-            Assert.That(manager.GetSessionInfoOrThrow("prod-a").Name, Is.EqualTo("Prod-A"));
             if (allowed)
             {
+                string json = await ConvenienceTools.WriteValueAsync(
+                    manager, kValueA, "42", "Int32", "prod-a", m_cancellation.Token).ConfigureAwait(false);
+
+                AssertSelectedSession(manager);
+                Assert.That(manager.GetSessionInfoOrThrow("prod-a").Name, Is.EqualTo("Prod-A"));
                 AssertInt32Write(Node("ValueA"), 42);
                 AssertWriteValueResponse(json, "Good");
             }
             else
             {
-                AssertDenied(json, "BadUserAccessDenied",
-                    "The caller has no privileged-operation grant for the selected UA session.");
+                ServiceResultException exception = await CaptureAsync<ServiceResultException>(() =>
+                    ConvenienceTools.WriteValueAsync(
+                        manager, kValueA, "42", "Int32", "prod-a", m_cancellation.Token)).ConfigureAwait(false);
+                Assert.That(exception.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied.Code));
+                Assert.That(exception.Message,
+                    Does.Contain("The caller has no privileged-operation grant for the selected UA session."));
+                AssertNoMetadata();
             }
         }
 
@@ -1653,7 +1656,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             }
             else if (authority == "Ungranted")
             {
-                options.CallerGrants = [];
+                options.CallerGrants[0].Capabilities = [];
             }
             return options;
         }
@@ -1925,7 +1928,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
             var services = new ServiceCollection();
             services.AddSingleton(m_callers);
             services.AddSingleton<IMcpFixedSessionContract>(new FixedMockSessionContract(m_model.Session.Object));
-            services.AddOpcUaMcpCore(new OpcUaMcpOptions { Execution = options ?? new McpExecutionOptions() });
+            services.AddOpcUaMcpCore(new OpcUaMcpOptions { Execution = options ?? GrantedOptions() });
             if (fullRegistration)
             {
                 services.AddMcpServer().WithOpcUaCoreTools(McpToolProfile.Full);
@@ -1948,7 +1951,7 @@ namespace Opc.Ua.Tools.Tests.McpAuthorization
         {
             if (authority == Authority.OrdinaryDefaultDeny)
             {
-                return new McpExecutionOptions();
+                return GrantedOptions();
             }
             foreach (NodeId node in nodes)
             {

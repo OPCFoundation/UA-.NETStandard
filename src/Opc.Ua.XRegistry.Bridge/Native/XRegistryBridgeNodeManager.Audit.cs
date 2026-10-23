@@ -62,13 +62,13 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             XRegistryCallContext caller = XRegistryBridgeNativeOptions.CreateContext(context);
             if (logger.IsEnabled(LogLevel.Information))
             {
-                logger.NativeRegistryAudit(action, Redact.Create(caller.Subject),
-                    Redact.Create(m_options.ProjectionContext.Subject), Redact.Create(path), status);
+                logger.NativeRegistryAudit(action, caller.Subject,
+                    m_options.ProjectionContext.Subject, path, status);
             }
             if (!methodId.IsNull && action is not (XRegistryAction.Read or XRegistryAction.Describe))
             {
                 Server.ReportAuditUpdateMethodEvent(context, RegistryNodeId, methodId,
-                    [Variant.From(action.ToString()), Variant.From(Redact.Create(path).ToString())],
+                    [Variant.From(action.ToString()), Variant.From(path)],
                     "xRegistry transaction",
                         status is >= 200 and < 300 ? StatusCodes.Good : StatusCodes.BadUnexpectedError,
                     logger);
@@ -83,7 +83,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 "xRegistry native audit: {Action} caller={Caller} upstream={Upstream} target={Target} status={Status}. "
                 + "Zero status denotes an unconfirmed outcome; payloads and credentials are omitted.")]
         public static partial void NativeRegistryAudit(
-            this ILogger logger, XRegistryAction action, RedactionWrapper<string> caller,
-            RedactionWrapper<string> upstream, RedactionWrapper<string> target, int status);
+            this ILogger logger, XRegistryAction action, [UserIdentity] string caller,
+            [UserIdentity] string upstream, [SensitiveText] string target, int status);
     }
 }

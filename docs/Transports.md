@@ -10,12 +10,20 @@ to integrate with web-based tooling.
 ## Contents
 
 - [Transport profile matrix](#transport-profile-matrix)
+  - [Committed session bindings](#committed-session-bindings)
+  - [Incomplete-message resource limits](#incomplete-message-resource-limits)
 - [Assembly layout](#assembly-layout)
 - [Server-side configuration](#server-side-configuration)
+  - [Security configuration](#security-configuration)
 - [Client-side usage](#client-side-usage)
 - [Discovery](#discovery)
 - [Opt-in: Kestrel-hosted `opc.tcp`](#opt-in-kestrel-hosted-opctcp)
 - [Implementing a custom byte transport](#implementing-a-custom-byte-transport)
+  - [When you need this](#when-you-need-this)
+  - [Contract summary](#contract-summary)
+  - [Implementation checklist](#implementation-checklist)
+  - [Wiring the transport into the channel pipeline](#wiring-the-transport-into-the-channel-pipeline)
+  - [Worked example](#worked-example)
 - [See also](#see-also)
 
 ## Transport profile matrix
@@ -172,8 +180,7 @@ maximum, avoiding unnecessary retained capacity for small chunks.
 
 ## Assembly layout
 
-* **`Opc.Ua.Core`** (this is what every Server / Client application
-  references):
+* **`Opc.Ua.Core`** (referenced by every Server / Client application):
   - `IUaSCByteTransport` — the runtime transport boundary used by the
     UA Secure Conversation channel pipeline.
   - `TcpByteTransport`, `TcpByteTransportFactory` — TCP implementation.
@@ -183,8 +190,8 @@ maximum, avoiding unnecessary retained capacity for small chunks.
     `OpcHttpsTransportChannelFactory` — polymorphic client-side channel
     that handles both `https-uabinary` and `https-uajson` based on the
     endpoint's `TransportProfileUri`.
-* **`Opc.Ua.Bindings.Https`** (Kestrel-dependent; pulled in
-  automatically when an HTTPS or WSS endpoint is configured):
+* **`Opc.Ua.Bindings.Https`** (optional, Kestrel-dependent; requires
+  an explicit package reference and transport registration):
   - `HttpsTransportListener` — Kestrel-hosted listener that dispatches
     requests on `(Upgrade, ContentType)` to the binary / JSON / WSS
     handlers.
@@ -263,6 +270,12 @@ sub-protocol) only accept `SecurityMode.None` regardless of the
 configured security policies — see Part 6 §7.4.5 / §7.5.2 for the
 spec rationale.
 
+Binary WSS SecureChannels participate in application peer-trust revalidation.
+A committed `Peers` TrustList or CRL change closes only channels whose complete
+peer chain no longer validates, including outbound reverse connections, without
+restarting the shared HTTPS host. Ordinary request-scoped HTTPS remains governed
+by its TLS validation rather than this application-channel sweep.
+
 All HTTPS and WSS client bindings, including WebApi, require the TLS certificate
 to match the endpoint hostname before invoking a configured OPC UA certificate
 validator. Trusting a certificate or its issuer does not bypass hostname
@@ -276,12 +289,12 @@ session-local, never shared by every client of a listener.
 
 ## Client-side usage
 
-The client API is the standard `Session` + `EndpointDescription` flow;
-the transport is selected automatically from
+The client API is the standard `ManagedSessionBuilder` flow; the
+transport is selected automatically from the endpoint URL scheme and
 `EndpointDescription.TransportProfileUri`:
 
 ```csharp
-ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+ITelemetryContext telemetry = DefaultTelemetry.Create(builder => builder.AddConsole());
 var application = new ApplicationInstance(telemetry)
 {
     ApplicationName = "MyClient",
@@ -291,17 +304,14 @@ ApplicationConfiguration configuration = await application
     .Build("urn:localhost:MyClient", "urn:localhost:product")
     .AsClient()
     .AddSecurityConfiguration("CN=MyClient")
-    .Create()
+    .CreateAsync()
     .ConfigureAwait(false);
 
-// 1) Direct connect to a known opc.wss endpoint (binary UASC):
-EndpointDescription wssEndpoint = CoreClientUtils.SelectEndpoint(
-    application,
-    "opc.wss://server.example.com:62543/MyServer",
-    useSecurity: true);
-ISession session = await Session.CreateAsync(
-    configuration, new ConfiguredEndpoint(null, wssEndpoint), false,
-    "WssSession", 60_000, null, null).ConfigureAwait(false);
+// 1) Connect to a known opc.wss endpoint (binary UASC):
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint("opc.wss://server.example.com:62543/MyServer")
+    .ConnectAsync(ct)
+    .ConfigureAwait(false);
 
 // 2) HTTPS-JSON endpoint (Security Mode None):
 var jsonEndpoint = new EndpointDescription
@@ -311,9 +321,10 @@ var jsonEndpoint = new EndpointDescription
     SecurityPolicyUri = SecurityPolicies.None,
     TransportProfileUri = Profiles.HttpsJsonTransport
 };
-ISession jsonSession = await Session.CreateAsync(
-    configuration, new ConfiguredEndpoint(null, jsonEndpoint), false,
-    "JsonSession", 60_000, null, null).ConfigureAwait(false);
+ManagedSession jsonSession = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(new ConfiguredEndpoint(null, jsonEndpoint))
+    .ConnectAsync(ct)
+    .ConfigureAwait(false);
 ```
 
 A few notes:
@@ -526,7 +537,7 @@ wire.
       channel for chunks that span multiple buffers (typical for the
       asymmetric handshake). If your transport does not support
       vectored writes, concatenate the segments into a single buffer
-      before sending (this is what `WebSocketByteTransportBase` does).
+      before sending (as `WebSocketByteTransportBase` does).
 - [ ] Client vs server. Client transports implement `ConnectAsync` to
       dial outbound; server transports built from an
       already-accepted connection should throw `NotSupportedException`

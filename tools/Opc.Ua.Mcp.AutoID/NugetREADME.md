@@ -8,8 +8,8 @@ synchronous `Scan`, starts and stops the asynchronous scan, collects scan events
 for a bounded window, reads tag memory and queries RTLS locations.
 
 Tag commands that change a tag (`WriteTag`, `WriteTagID`, `KillTag`, `LockTag`,
-`SetTagPassword`) and passwords are not exposed: the profile cannot damage a tag
-or carry a secret. Use the typed `Opc.Ua.AutoID.Client` package for those.
+`SetTagPassword`) and password arguments are not exposed. Use the typed
+`Opc.Ua.AutoID.Client` package for those operations.
 
 Every call resolves its `sessionName` anew. Discovery uses live offset paging.
 

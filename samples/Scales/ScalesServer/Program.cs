@@ -38,6 +38,7 @@ using ScalesSample;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
+builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 
 int port = 62548;

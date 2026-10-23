@@ -66,16 +66,21 @@ namespace Opc.Ua.Configuration.Tests
             Directory.CreateDirectory(Path.Combine(legacyApplicationRoot, "pki", "own"));
             try
             {
-                var logger = new CapturingLogger();
+                var capturing = new CapturingLogger();
+                // The paths are classified log parameters: log through a redaction-aware factory.
+                using ILoggerFactory factory = LoggerFactory.Create(builder => builder
+                    .EnableOpcUaRedaction()
+                    .AddProvider(capturing));
+                ILogger logger = factory.CreateLogger(nameof(DefaultPkiRootTests));
 
                 string pkiRoot = DefaultPkiRoot.Get(appName, logger);
 
-                Assert.That(logger.Warnings, Has.Count.EqualTo(1));
-                Assert.That(logger.Warnings[0], Does.Contain(Path.Combine(legacyApplicationRoot, "pki")));
-                Assert.That(logger.Warnings[0], Does.Contain(pkiRoot));
+                Assert.That(capturing.Warnings, Has.Count.EqualTo(1));
+                Assert.That(capturing.Warnings[0], Does.Contain(Path.Combine(legacyApplicationRoot, "pki")));
+                Assert.That(capturing.Warnings[0], Does.Contain(pkiRoot));
 
                 DefaultPkiRoot.Get("DefaultPkiRoot-" + Guid.NewGuid().ToString("N"), logger);
-                Assert.That(logger.Warnings, Has.Count.EqualTo(1), "No legacy stores, no warning.");
+                Assert.That(capturing.Warnings, Has.Count.EqualTo(1), "No legacy stores, no warning.");
             }
             finally
             {
@@ -83,8 +88,17 @@ namespace Opc.Ua.Configuration.Tests
             }
         }
 
-        private sealed class CapturingLogger : ILogger
+        private sealed class CapturingLogger : ILogger, ILoggerProvider
         {
+            public ILogger CreateLogger(string categoryName)
+            {
+                return this;
+            }
+
+            public void Dispose()
+            {
+            }
+
             public List<string> Warnings { get; } = [];
 
             public IDisposable? BeginScope<TState>(TState state)

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Security
@@ -124,7 +125,7 @@ namespace Opc.Ua.Security
             this ILogger logger,
             string implementationInfo,
             string secureChannelId,
-            string endpointUrl,
+            [NetworkAddress] string endpointUrl,
             string securityMode,
             string? securityPolicyUri,
             string encoding);
@@ -133,13 +134,13 @@ namespace Opc.Ua.Security
             Message = "Client Certificate: {Certificate}")]
         public static partial void AuditLogMessage1(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.Audit + 2, Level = LogLevel.Information,
             Message = "Server Certificate: {Certificate}")]
         public static partial void AuditLogMessage2(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.Certificate? certificate);
+            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.Certificate? certificate);
 
         [LoggerMessage(EventId = CoreEventIds.Audit + 3, Level = LogLevel.Information,
             Message = "SECURE CHANNEL CREATED [{ImplementationInfo}] [ID={SecureChannelId}] Connected " +
@@ -148,7 +149,7 @@ namespace Opc.Ua.Security
             this ILogger logger,
             string implementationInfo,
             string secureChannelId,
-            string endpointUrl);
+            [NetworkAddress] string endpointUrl);
 
         [LoggerMessage(EventId = CoreEventIds.Audit + 4, Level = LogLevel.Information,
             Message = "SECURE CHANNEL RENEWED [{ImplementationInfo}] [ID={SecureChannelId}]")]

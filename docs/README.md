@@ -34,6 +34,7 @@ paths that match your application, or use the contents list to find a feature.
 - [7. Draft and experimental capabilities](#7-draft-and-experimental-capabilities)
 - [Reference and upgrade](#reference-and-upgrade)
 - [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
+- [UaLens NodeSet2 explorer](UaLens.md#opening-nodeset2-files)
 
 ## How to use this index
 
@@ -65,6 +66,9 @@ Run a client and server, then learn the terms that the other guides use.
   started server, then read, write, and call it from the client.
 - [Sample catalogue](Samples.md) — minimal, reference, PubSub, and
   companion-model applications.
+- [UaLens desktop engineering workspace](UaLens.md) — connection, exploration,
+  monitoring, administration and saved workspaces, with guided companion
+  workflows, configuration prerequisites and safety limits.
 - [Packages and supported platforms](DeveloperGuide.md#packages-platform-support-and-versioning)
   — choose packages and target frameworks.
 
@@ -221,7 +225,7 @@ models that each model depends on.
 - [Robotics](Robotics.md) (OPC 40010-1; preview package) — motion-device
   systems, based on the Industrial Automation and Device Integration models.
   The guide's draft Robot Intent model is listed in [stage 7](#7-draft-and-experimental-capabilities).
-- [WoT connectivity](WoTConnectivity.md) (OPC 10100-1; preview package) —
+- [WoT connectivity](WotCon.md) (OPC 10100-1; preview package) —
   connect Web of Things assets. Its registry extension is listed in stage 7.
 
 For more examples, including the Pumps and Machinery models, see the
@@ -292,9 +296,11 @@ Assumes the client or server path.
   OPC UA servers. [Stack workflow profiles](McpServer.md#stack-workflow-tools)
   add GDS/credential issuance, roles/users, files, alarms, history, schemas,
   policy-controlled PubSub and live WoT execution.
-- [WoT / NodeSet conversion](WoTNodeSetConversion.md) and
+- [WoT / NodeSet conversion](WotNodeSetConversion.md) and
   [WoT protocol bindings](WotBindings.md) — convert Thing Descriptions and add
-  protocol bindings. Read WoT connectivity first.
+  protocol bindings. The conversion guide also covers
+  [resolver ownership and DataType declaration inputs](WotNodeSetConversion.md#conversion-providers).
+  Read WoT connectivity first.
 
 ### Session recovery and performance
 
@@ -307,7 +313,8 @@ The subscription guides assume the client path; the sizing guides assume
   queued notifications while clients are disconnected.
 - [Generation-bound session clients](SessionBindings.md) — capture dispatch,
   session identity and mapping snapshots without reconnecting to a replacement peer.
-- [Server scalability](ServerScalability.md) — sizing limits and bottlenecks.
+- [Server scalability](ServerScalability.md) — sizing limits, bottlenecks, and
+  runtime settings for servers under load (Server GC, hybrid CPUs, warm-up).
 - [Benchmarks](Benchmarks.md) — measured performance and methodology.
 
 <a id="global-discovery-server-gds"></a>
@@ -370,12 +377,12 @@ guide describes its current limitations.
   task-level motion commands. Does not require the Robotics model.
 - [OpenUSD](OpenUsd.md) (draft models; preview package) — bind values to OpenUSD
   scenes and materialize scenes in the address space.
-- [WoT Connectivity registry](WoTConnectivity.md#hosting-the-registry)
+- [WoT Connectivity registry](WotCon.md#hosting-the-registry)
   (draft model; preview package) — hosting, document provisioning, and refresh.
-- [WoT-Con 1.02 compatibility](WoTConnectivity.md#wot-con-102-compatibility) —
+- [WoT-Con 1.02 compatibility](WotCon.md#wot-con-102-compatibility) —
   existing-type bindings, declarations, and original document preservation.
-- [WoT design and provider contracts](WoT.md) — exact-Version dependencies and
-  leases, prepared storage/publication, and recovery.
+- [WoT runtime provider contracts](WotCon.md#13-runtime-provider-contracts) —
+  exact-Version dependencies and leases, prepared storage/publication, and recovery.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
 

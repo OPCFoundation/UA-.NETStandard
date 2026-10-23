@@ -35,6 +35,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Server
@@ -2863,7 +2864,7 @@ namespace Opc.Ua.Server
             Message = "RemoveCertificate: Failed to delete CRL {Crl}.")]
         public static partial void RemoveCertificateFailedToDeleteCRLCrl(
             this ILogger logger,
-            global::Opc.Ua.Security.Certificates.X509CRL crl);
+            [ApplicationIdentity] global::Opc.Ua.Security.Certificates.X509CRL crl);
 
         [LoggerMessage(EventId = ServerEventIds.TrustList + 1, Level = LogLevel.Warning,
             Message = "Failed to notify the certificate manager of the TrustList change for scope {Scope}.")]
@@ -2898,6 +2899,6 @@ namespace Opc.Ua.Server
                 "are rejected until a CRL of the CA is written with the TrustList file.")]
         public static partial void TrustListCaAddedWithoutCrl(
             this ILogger logger,
-            string subject);
+            [ApplicationIdentity] string subject);
     }
 }

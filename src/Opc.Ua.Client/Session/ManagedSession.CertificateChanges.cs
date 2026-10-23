@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Client
@@ -67,9 +68,10 @@ namespace Opc.Ua.Client
         ///     <see cref="CertificateChangeKind.ApplicationCertificateUpdated"/>
         ///     — call
         ///     <see cref="ISession.ReloadInstanceCertificateAsync(CancellationToken)"/>
-        ///     and trigger a reconnect so the new client cert takes
-        ///     effect immediately rather than at the next SecurityToken
-        ///     renewal (OPC UA Part 4 §5.5.2).
+        ///     and request a reconnect rather than waiting for the next
+        ///     security-token renewal (OPC UA Part 4 §5.5.2). Completion
+        ///     time depends on connection availability, in-flight work
+        ///     and the reconnect policy.
         ///   </item>
         ///   <item>
         ///     <see cref="CertificateChangeKind.TrustListUpdated"/> or
@@ -588,21 +590,21 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionValidateAsyncThrewCachedServerCertificate(
             this ILogger logger,
             Exception? exception,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 4, Level = LogLevel.Debug,
             Message = "ManagedSession: cached server certificate {Thumbprint} still trusted after " +
                 "trust/CRL update — no reconnect needed.")]
         public static partial void ManagedSessionCachedServerCertificateThumbprintStill(
             this ILogger logger,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 5, Level = LogLevel.Information,
             Message = "ManagedSession: cached server certificate {Thumbprint} no longer trusted after trust/CRL" +
                 " update ({Status}); triggering reconnect.")]
         public static partial void ManagedSessionCachedServerCertificateThumbprintNo(
             this ILogger logger,
-            string thumbprint,
+            [ApplicationIdentity] string thumbprint,
             StatusCode status);
 
         [LoggerMessage(EventId = ClientEventIds.ManagedSession + 6, Level = LogLevel.Warning,

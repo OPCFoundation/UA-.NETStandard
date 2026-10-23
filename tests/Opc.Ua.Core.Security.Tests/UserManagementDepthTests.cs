@@ -437,7 +437,7 @@ namespace Opc.Ua.Core.Security.Tests
             ISession? us = null;
             try
             {
-                UserDb.CreateUser(u, ToUtf8("SesPass!"), [Role.AuthenticatedUser]);
+                ProvisionSessionUser(u, "SesPass!");
                 us = await TryConnectAsUserAsync(u, "SesPass!").ConfigureAwait(false);
                 if (us == null)
                 {
@@ -454,7 +454,7 @@ namespace Opc.Ua.Core.Security.Tests
                     await us.CloseAsync(5000, true).ConfigureAwait(false);
                     us.Dispose();
                 }
-                UserDb.DeleteUser(u);
+                RemoveSessionUser(u);
             }
         }
 
@@ -484,7 +484,7 @@ namespace Opc.Ua.Core.Security.Tests
             ISession? us = null;
             try
             {
-                UserDb.CreateUser(u, ToUtf8("OldPw!"), [Role.AuthenticatedUser]);
+                ProvisionSessionUser(u, "OldPw!");
                 us = await TryConnectAsUserAsync(u, "OldPw!").ConfigureAwait(false);
                 if (us == null)
                 {
@@ -500,7 +500,7 @@ namespace Opc.Ua.Core.Security.Tests
                     await us.CloseAsync(5000, true).ConfigureAwait(false);
                     us.Dispose();
                 }
-                UserDb.DeleteUser(u);
+                RemoveSessionUser(u);
             }
         }
 
@@ -511,21 +511,19 @@ namespace Opc.Ua.Core.Security.Tests
             string u = "nspw_" + Guid.NewGuid().ToString("N")[..8];
             try
             {
-                UserDb.CreateUser(u, ToUtf8("First!"), [Role.AuthenticatedUser]);
+                ProvisionSessionUser(u, "First!");
                 UserDb.CreateUser(u, ToUtf8("Second!"), [Role.AuthenticatedUser]);
                 ISession old = await TryConnectAsUserAsync(u, "First!").ConfigureAwait(false);
                 Assert.That(old, Is.Null, "Old password should not work.");
                 ISession ns = await TryConnectAsUserAsync(u, "Second!").ConfigureAwait(false);
-                if (ns != null)
-                {
-                    Assert.That(ns.Connected, Is.True);
-                    await ns.CloseAsync(5000, true).ConfigureAwait(false);
-                    ns.Dispose();
-                }
+                Assert.That(ns, Is.Not.Null, "New password should work.");
+                Assert.That(ns.Connected, Is.True);
+                await ns.CloseAsync(5000, true).ConfigureAwait(false);
+                ns.Dispose();
             }
             finally
             {
-                UserDb.DeleteUser(u);
+                RemoveSessionUser(u);
             }
         }
 
@@ -648,6 +646,45 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 return null!;
             }
+        }
+
+        /// <summary>
+        /// Provisions a test user through the server's user management so the
+        /// account is tracked as active for session authentication.
+        /// </summary>
+        private void ProvisionSessionUser(string userName, string password)
+        {
+            Opc.Ua.Server.UserManagement.IUserManagement userManagement = GetUserManagement();
+            ServiceResult result = userManagement.AddUser(
+                userName,
+                password,
+                UserConfigurationMask.None,
+                string.Empty);
+            Assert.That(ServiceResult.IsGood(result), Is.True,
+                $"Failed to provision test user '{userName}': {result}");
+        }
+
+        /// <summary>
+        /// Removes a test user through the server's user management, falling back
+        /// to the user database when the account is no longer tracked.
+        /// </summary>
+        private void RemoveSessionUser(string userName)
+        {
+            if (ServiceResult.IsBad(GetUserManagement().RemoveUser(userName, null)))
+            {
+                UserDb.DeleteUser(userName);
+            }
+        }
+
+        private Opc.Ua.Server.UserManagement.IUserManagement GetUserManagement()
+        {
+            Opc.Ua.Server.UserManagement.IUserManagement? userManagement =
+                ReferenceServer?.CurrentInstance.UserManagement;
+            if (userManagement == null)
+            {
+                Assert.Ignore("UserManagement is not available on this server.");
+            }
+            return userManagement!;
         }
 
         private static byte[] ToUtf8(string s)

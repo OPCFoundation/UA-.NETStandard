@@ -43,8 +43,10 @@ using ModelContextProtocol.Server;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
+using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Mcp;
 using Opc.Ua.Server.TestFramework;
+using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
@@ -126,7 +128,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 TransferRoot = m_root,
                 MaxTransferBytes = 256 * 1024
             }).AddOpcUaMcpWotCon().AddOpcUaMcpXRegistry();
-            services.Configure<OpcUaClientOptions>(options => options.PkiRoot = Path.Combine(m_root, "client-pki"));
+            m_client = new ClientFixture(NUnitTelemetryContext.Create());
+            await m_client.LoadClientConfigurationAsync(Path.Combine(m_root, "client-pki"), "WotMcpLiveClient")
+                .ConfigureAwait(false);
+            services.AddSingleton(new OpcUaClientOptions { Configuration = m_client.Config });
             var profiles = McpToolProfileSet.Parse("wot,xregistry");
             services.AddMcpServer()
                 .WithStreamServerTransport(Stream.Null, Stream.Null)
@@ -179,6 +184,10 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             m_registry?.Dispose();
             m_content?.Dispose();
             m_server?.Dispose();
+            if (m_client is not null)
+            {
+                await m_client.DisposeAsync().ConfigureAwait(false);
+            }
             if (m_root is not null && Directory.Exists(m_root))
             {
                 Directory.Delete(m_root, recursive: true);
@@ -454,6 +463,8 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         private WotMaterializationCoordinator? m_coordinator;
         private ServiceProvider? m_services;
         private OpcUaSessionManager? m_sessions;
+        /// <summary>The fixture-owned client configuration and application certificates.</summary>
+        private ClientFixture? m_client;
     }
 }
 #endif

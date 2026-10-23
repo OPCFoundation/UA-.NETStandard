@@ -1,8 +1,13 @@
 # Fuzzing coverage expansion under `fuzzing/`
 
+> **Historical proposal:** The baseline, paths and CI references below describe
+> the planning context, not current repository status. See
+> [Fuzz testing](../fuzzing/Fuzzing.md) for the maintained area inventory and
+> operating instructions. This plan is not an implementation-completion record.
+
 ## Problem & goal
 
-The `fuzzing/` tree currently fuzzes only the **Encoders** area (Binary / JSON / XML
+At the time of this proposal, the `fuzzing/` tree fuzzed only the **Encoders** area (Binary / JSON / XML
 decode + encode) via SharpFuzz (afl-fuzz + libFuzzer), with a deterministic NUnit
 replay suite (`Encoders.Fuzz.Tests`) and corpus/playback tooling (`*.Fuzz.Tools`).
 Large untrusted-input surfaces are not fuzzed, and the per-area scaffolding is
@@ -21,7 +26,7 @@ test projects are wired into `UA.slnx` and CI.
 * Enrich seed corpora + add dictionaries: **yes.**
 * Wire new `*.Fuzz.Tests` into `UA.slnx` + CI as regression tests: **yes.**
 
-## Current state (baseline)
+## Planning baseline
 
 * `fuzzing/common/Fuzz/` — shared host: `Program.cs`, `FuzzMethods.cs`
   (reflection-driven target discovery over `FuzzableCode`).
@@ -41,8 +46,9 @@ test projects are wired into `UA.slnx` and CI.
   and depends on PacketDotNet + SharpPcap. Public surfaces relevant to fuzzing:
   `OpcUaFrameParser` (TCP → UA-SC chunk splitter), `TcpStreamReassembler`
   (raw TCP), `OfflineSecureChannel` (re-uses the stack's
-  `UaSCUaBinaryChannel.ReadSymmetricMessage` so all security profiles are
-  covered for free), `ServiceCallReassembler` (chunk → service-call assembly),
+  `UaSCUaBinaryChannel.ReadSymmetricMessage`; per-profile coverage still requires
+  matching key material, seeds and target configuration),
+  `ServiceCallReassembler` (chunk → service-call assembly),
   and `MockServerReplay` / `MockClientReplay` (stateful loopback replay drivers).
 * `tests/Opc.Ua.Core.Diagnostics.Tests` (net10.0-only test project) contains mock
   handshake / replay helpers (`ReplayTestHelpers`, `MockServerReplayTests`,
@@ -166,9 +172,11 @@ are discovered from disk instead of the hardcoded `[".Binary", ".Json", ".Xml"]`
   * `OfflineSecureChannel.ReadChunk(chunkBytes, fromClient)` — instantiate
     one decoder per fuzz iteration over a fixed test `ChannelKeyMaterial`;
     covers symmetric decrypt/verify, sequence-window validation, and the
-    asymmetric-chunk passthrough path. Because this calls
-    `UaSCUaBinaryChannel.ReadSymmetricMessage`, every security profile is
-    exercised through the binding without per-profile harness code.
+    asymmetric-chunk passthrough path. The target reuses
+    `UaSCUaBinaryChannel.ReadSymmetricMessage`. Coverage of a security profile
+    still requires matching channel key material, seeds and a target configuration
+    that reaches that profile's code paths; decoder reuse alone does not establish
+    per-profile coverage.
   * `ServiceCallReassembler` — drive sequences of `OfflineDecodedChunk`s with
     bad/missing/duplicate sequence numbers, oversize requests, mismatched
     request IDs.

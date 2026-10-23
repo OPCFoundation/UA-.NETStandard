@@ -39,6 +39,7 @@ using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Mqtt.Internal;
 using Opc.Ua.PubSub.Transports;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Mqtt
 {
@@ -954,7 +955,7 @@ namespace Opc.Ua.PubSub.Mqtt
         public static partial void MqttTransportOpened(
             this ILogger logger,
             string? connection,
-            MqttEndpoint endpoint,
+            [NetworkAddress] MqttEndpoint endpoint,
             PubSubTransportDirection direction,
             string profile);
 

@@ -107,9 +107,9 @@ namespace Opc.Ua.Pumps
         /// (group browse name, signal) pairs.
         /// </summary>
         /// <remarks>
-        /// A signal that the server publishes as <c>false</c>, or with a bad
-        /// status, is not raised and is left out. An empty result therefore
-        /// means "nothing is being reported", which is the healthy case.
+        /// Includes Boolean <c>true</c> readings whose status is not bad.
+        /// An empty result means no readable signal is raised; signals that
+        /// are missing, non-Boolean or bad are not counted.
         /// </remarks>
         public IEnumerable<KeyValuePair<string, PumpValue>> ActiveSignals
         {

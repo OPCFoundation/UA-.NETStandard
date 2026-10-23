@@ -357,6 +357,7 @@ namespace Opc.Ua.Server.Programs
                     creationArguments,
                     false,
                     linked.Token).ConfigureAwait(false);
+                runtime.RegisterDiagnosticReadAuthorization(this);
                 PrepareAuthoredNodeIdsForRegistration(node);
                 ValidateInvocationNodeIds(node);
                 staged = true;

@@ -82,7 +82,12 @@ namespace Opc.Ua.Aot.Tests
                 byte[] password = Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N"));
                 var userDatabase = server.UserDatabase
                     ?? throw new InvalidOperationException("The reference server has no user database.");
-                await Assert.That(userDatabase.CreateUser(userName, password, [Role.Operator])).IsTrue();
+                var userManagement = server.CurrentInstance.UserManagement
+                    ?? throw new InvalidOperationException("The reference server has no user management.");
+                ServiceResult provisioned = userManagement.AddUser(
+                    userName, Encoding.UTF8.GetString(password), UserConfigurationMask.None, string.Empty);
+                await Assert.That(ServiceResult.IsGood(provisioned)).IsTrue();
+                await Assert.That(userDatabase.CreateUser(userName, password, [Role.Operator])).IsFalse();
                 var writer = new XRegistryCallContext(userName)
                 {
                     IsAuthenticated = true,

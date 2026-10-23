@@ -1842,11 +1842,14 @@ namespace Opc.Ua.Export
             importedNode.UserWriteMask = (AttributeWriteMask)node.UserWriteMask;
             importedNode.Extensions = node.Extensions?.Select(x => XmlElement.From(x)).ToArray();
 
-            if (node.RolePermissions != null)
+            ModelTableEntry? model = Models?.FirstOrDefault(entry =>
+                entry.ModelUri == context.NamespaceUris.GetString(importedNode.NodeId.NamespaceIndex));
+            RolePermission[]? rolePermissions = node.RolePermissions ?? model?.RolePermissions;
+            if (rolePermissions != null)
             {
                 var permissions = new List<RolePermissionType>();
 
-                foreach (RolePermission ii in node.RolePermissions)
+                foreach (RolePermission ii in rolePermissions)
                 {
                     var permission = new RolePermissionType
                     {
@@ -1863,6 +1866,10 @@ namespace Opc.Ua.Export
             if (node.AccessRestrictionsSpecified)
             {
                 importedNode.AccessRestrictions = (AccessRestrictionType?)node.AccessRestrictions;
+            }
+            else if (model?.AccessRestrictions is > 0)
+            {
+                importedNode.AccessRestrictions = (AccessRestrictionType)model.AccessRestrictions;
             }
 
             if (!string.IsNullOrEmpty(node.SymbolicName))

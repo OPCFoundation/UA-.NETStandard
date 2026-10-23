@@ -13,10 +13,14 @@
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
+    <PackageVersion Include="Aspire.Hosting.AppHost" Version="13.6.0" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="4.0.0" />
     <PackageVersion Include="BitFaster.Caching" Version="2.6.1" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <PackageVersion Include="CommunityToolkit.Mvvm" Version="8.4.2" />
     <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
     <PackageVersion Include="coverlet.collector" Version="10.1.0" />
     <PackageVersion Include="Crdt" Version="1.2.0" />
@@ -29,6 +33,8 @@
     <PackageVersion Include="EmbedIO" Version="3.5.2" />
     <PackageVersion Include="JsonSchema.Net" Version="9.4.1" />
     <PackageVersion Include="Makaretu.Dns.Multicast" Version="0.27.0" />
+    <!-- Aspire/StreamJsonRpc otherwise restore vulnerable MessagePack 2.5.302 (GHSA-qhrr-8q5h-9q3h). -->
+    <PackageVersion Include="MessagePack" Version="2.5.307" />
     <!-- Keep the legacy ASP.NET Core transport stack on the 2.3 band for net48/netstandard.
          Connections.Abstractions must stay aligned with Kestrel, not the modern 10.x API. -->
     <PackageVersion Include="Microsoft.AspNetCore.Connections.Abstractions" Version="2.3.13" />
@@ -47,6 +53,9 @@
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp.Workspaces" Version="$(RoslynApiVersionVS2026)" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Workspaces.Common" Version="$(RoslynApiVersionVS2026)" />
+    <PackageVersion Include="Microsoft.Extensions.Compliance.Abstractions" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Compliance.Redaction" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Compliance.Testing" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13" />
@@ -56,6 +65,7 @@
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.ResourceMonitoring" Version="10.5.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.13" />
@@ -63,6 +73,9 @@
     <PackageVersion Include="Microsoft.Extensions.Caching.Abstractions" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.13" />
     <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.13" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Telemetry" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Telemetry.Abstractions" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.11.0" />
     <PackageVersion Include="ModelContextProtocol" Version="2.2.0" />
     <PackageVersion Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
@@ -111,6 +124,7 @@
     <PackageVersion Include="PolySharp" Version="1.16.0" />
     <PackageVersion Include="Roslynator.Analyzers" Version="5.0.1" />
     <PackageVersion Include="Roslynator.Formatting.Analyzers" Version="5.0.1" />
+    <PackageVersion Include="ScottPlot.Avalonia" Version="5.1.59" />
     <PackageVersion Include="SharpFuzz" Version="2.3.0" />
     <!-- Transitive vulnerability pin (consumed via Testcontainers.*):
          - SSH.NET 2026.0.0 fixes GHSA-q939-rpr3-3284 -->
@@ -160,14 +174,14 @@
        match; a partial bump fails when the natives load rather than when the
        solution builds. -->
   <ItemGroup>
-    <PackageVersion Include="OpenUsd" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Viewer" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.14.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.14.0-alpha" />
+    <PackageVersion Include="OpenUsd" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Viewer" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.15.0-alpha" />
     <PackageVersion Include="Avalonia" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
   </ItemGroup>

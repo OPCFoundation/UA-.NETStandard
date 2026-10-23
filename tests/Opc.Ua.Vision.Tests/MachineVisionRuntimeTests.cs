@@ -503,16 +503,18 @@ namespace Opc.Ua.Vision.Tests
             await fixture.StartAsync(MachineVisionParts.All).ConfigureAwait(false);
             IVisionBuildContext context = fixture.CreateBuildContext();
             MachineVisionAssetBuilder first = context.AddMachineVisionAsset("First")
-                .WithIdentification(Identification("first", "urn:vision:first"));
+                .WithIdentification(Identification("first", "urn:vision:first"))
+                .WithComponents();
             MachineVisionNodeBuilder component = first.AddItem(MachineVisionItemKind.ImageSensor, "SharedCamera")
                 .WithIdentification(Identification("camera"));
-            await first.BuildAsync().ConfigureAwait(false);
+            MachineVisionAssetHandle firstAsset = await first.BuildAsync().ConfigureAwait(false);
             var camera = (BaseObjectState)component.State;
             NodeState? originalParent = camera.Parent;
             NodeId originalType = camera.TypeDefinitionId;
             NodeId originalReference = camera.ReferenceTypeId;
             MachineVisionAssetBuilder second = context.AddMachineVisionAsset("Second")
-                .WithIdentification(Identification("second", "urn:vision:second"));
+                .WithIdentification(Identification("second", "urn:vision:second"))
+                .WithComponents();
             second.AddItem(MachineVisionItemKind.ImageSensor, camera);
             MachineVisionAssetHandle asset = await second.BuildAsync().ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -523,6 +525,14 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(fixture.Manager.FindPredefinedNode<NodeState>(camera.NodeId), Is.SameAs(camera));
                 Assert.That(asset.State.ImageSensors!.ReferenceExists(
                     ReferenceTypeIds.Organizes, false, camera.NodeId), Is.True);
+                Assert.That(firstAsset.State.Components!.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, false, camera.NodeId), Is.True);
+                Assert.That(asset.State.Components!.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, false, camera.NodeId), Is.True);
+                Assert.That(camera.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, true, firstAsset.State.Components.NodeId), Is.True);
+                Assert.That(camera.ReferenceExists(
+                    ReferenceTypeIds.HasComponent, true, asset.State.Components.NodeId), Is.True);
             });
         }
 

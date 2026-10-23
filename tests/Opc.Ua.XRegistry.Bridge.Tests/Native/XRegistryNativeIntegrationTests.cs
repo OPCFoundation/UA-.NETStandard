@@ -104,11 +104,22 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
                 }
             ];
             m_server = await m_serverFixture.StartAsync(Path.Combine(m_root, "server")).ConfigureAwait(false);
+            var userManagement = m_server.CurrentInstance.UserManagement
+                ?? throw new AssertionException("The reference server must provide user management.");
+            foreach (string user in new[] { m_allowedUser, m_deniedUser, m_roleDeniedUser })
+            {
+                ServiceResult provisioned = userManagement.AddUser(
+                    user, Encoding.UTF8.GetString(m_password.Span), UserConfigurationMask.None, string.Empty);
+                Assert.That(ServiceResult.IsGood(provisioned), Is.True);
+            }
             Assert.That(m_server.UserDatabase.CreateUser(m_allowedUser, m_password.Span, [Role.Operator]),
-                Is.True);
+                Is.False);
             Assert.That(m_server.UserDatabase.CreateUser(m_deniedUser, m_password.Span, [Role.Operator]),
-                Is.True);
-            Assert.That(m_server.UserDatabase.CreateUser(m_roleDeniedUser, m_password.Span, [Role.Observer]), Is.True);
+                Is.False);
+            Assert.That(m_server.UserDatabase.CreateUser(m_roleDeniedUser, m_password.Span, [Role.Observer]), Is.False);
+            Assert.That(m_server.UserDatabase.GetUserRoles(m_allowedUser), Is.EquivalentTo(new[] { Role.Operator }));
+            Assert.That(m_server.UserDatabase.GetUserRoles(m_deniedUser), Is.EquivalentTo(new[] { Role.Operator }));
+            Assert.That(m_server.UserDatabase.GetUserRoles(m_roleDeniedUser), Is.EquivalentTo(new[] { Role.Observer }));
             m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend("urn:native-tests:namespace-padding");
             var factory = new CapturingFactory(new XRegistryBridgeNodeManagerFactory(m_forwarder, m_options));
             await m_server.NodeManagerLifecycle.AddAsync(factory, callerContext: null).ConfigureAwait(false);

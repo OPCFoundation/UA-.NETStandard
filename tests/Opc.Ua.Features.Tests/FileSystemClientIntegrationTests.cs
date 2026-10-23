@@ -77,7 +77,7 @@ namespace Opc.Ua.Features.Tests
         {
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
-            m_providerRoot = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            m_providerRoot = Path.Combine(AppContext.BaseDirectory, Path.GetRandomFileName());
             Directory.CreateDirectory(m_providerRoot);
 
             m_serverFixture = new ServerFixture<ReferenceServer>(

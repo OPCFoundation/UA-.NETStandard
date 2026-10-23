@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Server.UserManagement
 {
@@ -527,13 +528,13 @@ namespace Opc.Ua.Server.UserManagement
             this ILogger logger,
             Exception ex,
             NodeId sessionId,
-            string userName);
+            [UserIdentity] string userName);
 
         [LoggerMessage(EventId = ServerEventIds.UserManagementBinding + 1, Level = LogLevel.Error,
             Message = "Error closing sessions for deactivated user {UserName}.")]
         public static partial void ErrorClosingSessionsForDeactivatedUserUserName(
             this ILogger logger,
             Exception ex,
-            string userName);
+            [UserIdentity] string userName);
     }
 }

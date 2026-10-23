@@ -340,6 +340,7 @@ namespace Opc.Ua.Mcp.Tools
                         throw new ServiceResultException(StatusCodes.BadIdentityTokenRejected,
                             "The requested group/token/expiry does not match the protected key.");
                     }
+                    _ = McpSecretReferences.GetResourceBinding(info, node);
                     using ISecret secret = await m_secrets.ResolveAsync(
                         input.KeyReference, input.Resource, McpCapability.PubSubSecurity, token).ConfigureAwait(false);
                     byte[] material = secret.Bytes.ToArray();

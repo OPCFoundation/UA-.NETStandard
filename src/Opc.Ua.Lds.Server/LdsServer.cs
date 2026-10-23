@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -491,6 +492,18 @@ namespace Opc.Ua.Lds.Server
             {
                 return new ServiceResult(StatusCodes.BadInvalidArgument,
                     new LocalizedText("ServerType is out of range."));
+            }
+
+            // Part 12 semaphore files describe applications on the LDS host, not remote hosts.
+            // Only transport-observed loopback addresses provide conservative locality evidence.
+            if (!string.IsNullOrEmpty(server.SemaphoreFilePath) &&
+                (!RegisteredServerStore.LocalSemaphorePath.IsValid(server.SemaphoreFilePath) ||
+                secureChannelContext?.PeerAddress is not IPAddress peerAddress ||
+                !IPAddress.IsLoopback(peerAddress.IsIPv4MappedToIPv6 ? peerAddress.MapToIPv4() : peerAddress)))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    new LocalizedText("SemaphoreFilePath requires a local absolute file path and a loopback peer."));
             }
 
             ByteString certBytes = secureChannelContext?.ClientChannelCertificate ?? default;

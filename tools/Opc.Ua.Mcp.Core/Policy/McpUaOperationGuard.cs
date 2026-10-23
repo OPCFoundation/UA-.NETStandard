@@ -139,6 +139,32 @@ namespace Opc.Ua.Mcp
         }
 
         /// <summary>
+        /// Classifies a general file operation and refuses every protected ownership domain, including for
+        /// administrators. Protected files must use their dedicated typed, caller-owned workflows.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask AuthorizeUnprotectedFileAsync(
+            OpcUaSessionManager.SessionInfo session, NodeId node, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(session);
+            ct.ThrowIfCancellationRequested();
+            if (node.IsNull)
+            {
+                throw new ServiceResultException(StatusCodes.BadNodeIdInvalid, "A file target is required.");
+            }
+            ArrayOf<Protection> protections = await ClassifyAsync(session.Session, node, ct).ConfigureAwait(false);
+            foreach (Protection protection in protections)
+            {
+                Require(session, protection.Capability);
+            }
+            if (protections.Count != 0)
+            {
+                throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
+                    "Use the dedicated protected-model workflow instead of a general file operation.");
+            }
+        }
+
+        /// <summary>
         /// Resolves only real ownership links, with explicit limits and no fallback after failed metadata reads.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>

@@ -184,6 +184,98 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             }
         }
 
+        /// <summary>
+        /// Captured records cannot authenticate in the next truncated sequence cycle or consume its genuine record.
+        /// </summary>
+        [TestCase(DtlsCipherSuite.TlsSha256Sha256)]
+        [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
+        [TestCase(DtlsCipherSuite.TlsAes128GcmSha256)]
+        [Category("SecurityRegression")]
+        public void SecurityF20CapturedRecordCannotCrossSequenceCycle(DtlsCipherSuite cipherSuite)
+        {
+            SkipIfAeadUnsupported(cipherSuite);
+            byte[] secret = CreateSecret(cipherSuite);
+            DtlsProfile profile = CreateProfile(cipherSuite);
+            using var originalWriter = new DtlsRecordProtection(profile, secret, epoch: 1);
+            using var rolloverWriter = new DtlsRecordProtection(
+                profile, secret, epoch: 1, initialWriteSequenceNumber: ushort.MaxValue);
+            using var reader = new DtlsRecordProtection(profile, secret, epoch: 1);
+            byte[] originalPayload = [0x00, 0x11];
+            byte[] lastPayload = [0xff, 0xff];
+            byte[] rolloverPayload = [0x01, 0x00, 0x00];
+            byte[] nextPayload = [0x01, 0x00, 0x01];
+            byte[] captured = originalWriter.Seal(originalPayload);
+
+            Assert.That(reader.Open(captured), Is.EqualTo(originalPayload));
+            Assert.That(reader.Open(rolloverWriter.Seal(lastPayload)), Is.EqualTo(lastPayload));
+            byte[] rolloverRecord = rolloverWriter.Seal(rolloverPayload);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.TryOpen(captured, out byte[]? replayed), Is.False,
+                    "Sequence zero must not authenticate as sequence 65536 after the truncated counter wraps.");
+                Assert.That(replayed, Is.Null);
+            });
+            Assert.That(reader.Open(rolloverRecord), Is.EqualTo(rolloverPayload),
+                "Rejecting the replay must not consume the genuine sequence 65536.");
+            Assert.That(reader.Open(rolloverWriter.Seal(nextPayload)), Is.EqualTo(nextPayload));
+            Assert.That(reader.TryOpen(rolloverRecord, out _), Is.False,
+                "A genuine record is still accepted only once.");
+        }
+
+        /// <summary>
+        /// Integrity authentication distinguishes full epochs with the same two on-wire epoch bits.
+        /// </summary>
+        [TestCase(DtlsCipherSuite.TlsSha256Sha256)]
+        [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
+        [Category("SecurityRegression")]
+        public void SecurityF20IntegrityMacBindsFullEpoch(DtlsCipherSuite cipherSuite)
+        {
+            byte[] secret = CreateSecret(cipherSuite);
+            DtlsProfile profile = CreateProfile(cipherSuite);
+            using var previousWriter = new DtlsRecordProtection(profile, secret, epoch: 1);
+            using var currentWriter = new DtlsRecordProtection(profile, secret, epoch: 5);
+            using var reader = new DtlsRecordProtection(profile, secret, epoch: 5);
+            byte[] payload = [0x45, 0x50, 0x4f, 0x43, 0x48];
+            byte[] previousRecord = previousWriter.Seal(payload);
+            byte[] currentRecord = currentWriter.Seal(payload);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(currentRecord, Is.Not.EqualTo(previousRecord),
+                    "Epochs with identical truncated wire bits must produce different integrity tags.");
+                Assert.That(reader.TryOpen(previousRecord, out byte[]? replayed), Is.False);
+                Assert.That(replayed, Is.Null);
+            });
+            Assert.That(reader.Open(currentRecord), Is.EqualTo(payload),
+                "An earlier epoch must not poison the current epoch's replay window.");
+        }
+
+        /// <summary>
+        /// A record authenticated with previous traffic keys cannot block the current key's genuine record.
+        /// </summary>
+        [TestCase(DtlsCipherSuite.TlsSha256Sha256)]
+        [TestCase(DtlsCipherSuite.TlsSha384Sha384)]
+        [Category("SecurityRegression")]
+        public void SecurityF20PreviousTrafficKeyCannotPoisonReplayWindow(DtlsCipherSuite cipherSuite)
+        {
+            byte[] previousSecret = CreateSecret(cipherSuite);
+            byte[] currentSecret = [.. previousSecret];
+            currentSecret[0] ^= 0xff;
+            DtlsProfile profile = CreateProfile(cipherSuite);
+            using var previousWriter = new DtlsRecordProtection(profile, previousSecret, epoch: 1);
+            using var currentWriter = new DtlsRecordProtection(profile, currentSecret, epoch: 1);
+            using var reader = new DtlsRecordProtection(profile, currentSecret, epoch: 1);
+            byte[] payload = [0x4b, 0x45, 0x59];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.TryOpen(previousWriter.Seal(payload), out byte[]? rejected), Is.False);
+                Assert.That(rejected, Is.Null);
+            });
+            Assert.That(reader.Open(currentWriter.Seal(payload)), Is.EqualTo(payload));
+        }
+
         [Test]
         public async Task ParallelAeadProtectionSerializesSequenceAndCryptoUseAsync()
         {
@@ -196,26 +288,24 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 CreateProfile(DtlsCipherSuite.TlsAes128GcmSha256), secret, epoch: 1);
             var startSealing = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<byte[]>[] sealTasks = Enumerable.Range(0, recordCount)
+            Task<byte[]>[] sealTasks = [.. Enumerable.Range(0, recordCount)
                 .Select(index => Task.Run(async () =>
                 {
                     await startSealing.Task.ConfigureAwait(false);
                     return writer.Seal(BitConverter.GetBytes(index));
-                }))
-                .ToArray();
+                }))];
 
             startSealing.SetResult(true);
             byte[][] records = await Task.WhenAll(sealTasks).ConfigureAwait(false);
 
             var startOpening = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<byte[]>[] openTasks = records
+            Task<byte[]>[] openTasks = [.. records
                 .Select(record => Task.Run(async () =>
                 {
                     await startOpening.Task.ConfigureAwait(false);
                     return reader.Open(record);
-                }))
-                .ToArray();
+                }))];
 
             startOpening.SetResult(true);
             byte[][] plaintexts = await Task.WhenAll(openTasks).ConfigureAwait(false);
@@ -266,7 +356,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 secret,
                 epoch: 1);
             reader.Dispose();
-            Assert.That(() => reader.Dispose(), Throws.Nothing);
+            Assert.That(reader.Dispose, Throws.Nothing);
         }
 
         private static void SkipIfAeadUnsupported(DtlsCipherSuite cipherSuite)

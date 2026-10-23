@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.PubSub.Security;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -216,6 +217,14 @@ namespace Opc.Ua.PubSub.Configuration
             }
             ValidateConnectionAddress(connection, path, profile, issues);
             ValidateConnectionTransportSettings(connection, path, issues);
+            try
+            {
+                _ = PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(connection, out _, out _);
+            }
+            catch (PubSubConfigurationException exception)
+            {
+                issues.AddRange(exception.Issues);
+            }
         }
 
         private static void ValidateConnectionAddress(

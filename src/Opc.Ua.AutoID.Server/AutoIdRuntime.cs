@@ -34,6 +34,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.AutoID.Server.Builders;
 using Opc.Ua.Di.Server;
+using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Machinery.Server;
 using Opc.Ua.Server;
 
@@ -64,6 +65,7 @@ namespace Opc.Ua.AutoID.Server
             Manager = manager ?? throw new ArgumentNullException(nameof(manager));
             Options = (options ?? throw new ArgumentNullException(nameof(options))).Validate();
             m_logger = manager.SystemContext.Telemetry.CreateLogger<AutoIdRuntime>();
+            m_placement = new AutoIdReaderPlacement(manager);
             manager.RegisterConformanceContributor(this);
             m_sessionLease = manager.RegisterSessionClosingHandler(OnSessionClosingAsync);
         }
@@ -317,61 +319,40 @@ namespace Opc.Ua.AutoID.Server
             AutoIdReaderBuilder builder,
             CancellationToken cancellationToken)
         {
-            AutoIdReaderKind kind = builder.Provider.Kind;
-            ISystemContext context = SystemContext;
             QualifiedName name = builder.BrowseName;
             AutoIdDeviceState device;
             Action applyIdentification;
-            switch (kind)
+            NodeState parentNode;
+            try
             {
-                case AutoIdReaderKind.Rfid:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        ObjectTypeIds.RfidReaderDeviceType,
-                        parent => context.CreateInstanceOfRfidReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Ocr:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        ObjectTypeIds.OcrReaderDeviceType,
-                        parent => context.CreateInstanceOfOcrReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Optical:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        ObjectTypeIds.OpticalReaderDeviceType,
-                        parent => context.CreateInstanceOfOpticalReaderDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.OpticalVerifier:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        ObjectTypeIds.OpticalVerifierDeviceType,
-                        parent => context.CreateInstanceOfOpticalVerifierDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                case AutoIdReaderKind.Rtls:
-                    (device, applyIdentification) = await CreateDeviceAsync(
-                        builder,
-                        ObjectTypeIds.RtlsDeviceType,
-                        parent => context.CreateInstanceOfRtlsDeviceType(parent, name),
-                        cancellationToken).ConfigureAwait(false);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(builder), kind, "Unknown reader kind.");
+                (device, applyIdentification) = await CreateDeviceOfKindAsync(builder, cancellationToken)
+                    .ConfigureAwait(false);
+                parentNode = device.Parent ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConfigurationError,
+                        "The reader '{0}' has no parent.",
+                        name);
             }
-
-            NodeState parentNode = device.Parent ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadConfigurationError,
-                    "The reader '{0}' has no parent.",
-                    name);
+            catch
+            {
+                if (builder.OwnsProviderOnDispose)
+                {
+                    // No reader took ownership of the provider: the identification delegate, the
+                    // component checks or the device creation failed first.
+                    await DisposeProviderQuietlyAsync(builder.Provider, name.Name).ConfigureAwait(false);
+                }
+                throw;
+            }
             AutoIdReader? reader = null;
+            NodeState? organizedBy = null;
             try
             {
                 applyIdentification();
+                if (builder.Machine != null)
+                {
+                    await m_placement.AddComponentIdentificationAsync(device, cancellationToken).ConfigureAwait(false);
+                }
+                organizedBy = KeepReachableFromDeviceSet(parentNode, device);
                 reader = new AutoIdReader(
                     this,
                     device,
@@ -400,13 +381,114 @@ namespace Opc.Ua.AutoID.Server
                     // The reader never took ownership of the provider.
                     await DisposeProviderQuietlyAsync(builder.Provider, builder.BrowseName.Name).ConfigureAwait(false);
                 }
+                if (organizedBy != null)
+                {
+                    AutoIdReaderPlacement.RemoveOrganize(organizedBy, device);
+                }
                 await RemoveUnregisteredDeviceAsync(parentNode, device).ConfigureAwait(false);
                 throw;
             }
         }
 
+        /// <summary>
+        /// Runs the builder's identification delegate once, checks a component of a machine before
+        /// anything is registered, and creates the device of the provider's reader kind.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException">The provider reports an unknown reader kind.</exception>
+        private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceOfKindAsync(
+            AutoIdReaderBuilder builder,
+            CancellationToken cancellationToken)
+        {
+            AutoIdReaderKind kind = builder.Provider.Kind;
+            ISystemContext context = SystemContext;
+            QualifiedName name = builder.BrowseName;
+            DeviceIdentificationData? nameplate = null;
+            if (builder.Identification != null)
+            {
+                nameplate = new DeviceIdentificationData();
+                builder.Identification(nameplate);
+            }
+            NodeState? requestedParent = builder.Parent;
+            if (builder.Machine != null)
+            {
+                // Checked before anything is registered: a reader that cannot be a component of
+                // the machine is not created at all.
+                requestedParent = m_placement.ResolveComponents(builder.Machine, name);
+                AutoIdReaderPlacement.ValidateComponentNameplate(nameplate, name);
+            }
+            switch (kind)
+            {
+                case AutoIdReaderKind.Rfid:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.RfidReaderDeviceType,
+                        parent => context.CreateInstanceOfRfidReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Ocr:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OcrReaderDeviceType,
+                        parent => context.CreateInstanceOfOcrReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Optical:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OpticalReaderDeviceType,
+                        parent => context.CreateInstanceOfOpticalReaderDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.OpticalVerifier:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.OpticalVerifierDeviceType,
+                        parent => context.CreateInstanceOfOpticalVerifierDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                case AutoIdReaderKind.Rtls:
+                    return await CreateDeviceAsync(
+                        builder,
+                        requestedParent,
+                        nameplate,
+                        ObjectTypeIds.RtlsDeviceType,
+                        parent => context.CreateInstanceOfRtlsDeviceType(parent, name),
+                        cancellationToken).ConfigureAwait(false);
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(builder), kind, "Unknown reader kind.");
+            }
+        }
+
+        /// <summary>
+        /// Keeps a reader placed below another parent reachable from the DI <c>DeviceSet</c>
+        /// (OPC 10000-100 4.9): when <c>DeviceSet</c> does not reach the parent, it organizes the
+        /// reader directly.
+        /// </summary>
+        /// <returns>The <c>DeviceSet</c> that now organizes the reader, else <see langword="null"/>.</returns>
+        /// <exception cref="ServiceResultException">The node manager publishes no <c>DeviceSet</c>.</exception>
+        private NodeState? KeepReachableFromDeviceSet(NodeState parent, AutoIdDeviceState device)
+        {
+            NodeState deviceSet = m_placement.FindDeviceSet() ??
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConfigurationError,
+                    "The node manager publishes no DeviceSet to locate the reader '{0}' from.",
+                    device.BrowseName);
+            if (m_placement.IsReachableFrom(deviceSet, parent))
+            {
+                return null;
+            }
+            AutoIdReaderPlacement.Organize(deviceSet, device);
+            return deviceSet;
+        }
+
         private async ValueTask<(AutoIdDeviceState Device, Action ApplyIdentification)> CreateDeviceAsync<TDevice>(
             AutoIdReaderBuilder builder,
+            NodeState? parent,
+            DeviceIdentificationData? nameplate,
             ExpandedNodeId typeId,
             Func<NodeState, TDevice> create,
             CancellationToken cancellationToken)
@@ -416,24 +498,44 @@ namespace Opc.Ua.AutoID.Server
             Di.Server.Builders.IDeviceBuilder<TDevice> deviceBuilder = await Manager.CreateDeviceAsync(
                 builder.BrowseName,
                 typeDefinitionId,
-                parent =>
+                deviceParent =>
                 {
-                    TDevice device = create(parent);
+                    TDevice device = create(deviceParent);
                     AutoIdDeviceConfigurator.Configure(SystemContext, device, builder);
                     return device;
                 },
-                builder.Parent,
+                parent,
                 cancellationToken).ConfigureAwait(false);
             return (
                 deviceBuilder.Device,
                 () =>
                 {
-                    if (builder.Identification != null)
+                    if (nameplate != null)
                     {
-                        deviceBuilder.WithIdentification(builder.Identification);
+                        deviceBuilder.WithIdentification(data => CopyNameplate(nameplate, data));
                     }
                 }
             );
+        }
+
+        /// <summary>
+        /// Copies the nameplate the builder's delegate produced once, so the delegate is not run
+        /// a second time.
+        /// </summary>
+        private static void CopyNameplate(DeviceIdentificationData source, DeviceIdentificationData target)
+        {
+            target.Manufacturer = source.Manufacturer;
+            target.ManufacturerUri = source.ManufacturerUri;
+            target.Model = source.Model;
+            target.HardwareRevision = source.HardwareRevision;
+            target.SoftwareRevision = source.SoftwareRevision;
+            target.DeviceRevision = source.DeviceRevision;
+            target.ProductCode = source.ProductCode;
+            target.DeviceManual = source.DeviceManual;
+            target.DeviceClass = source.DeviceClass;
+            target.SerialNumber = source.SerialNumber;
+            target.ProductInstanceUri = source.ProductInstanceUri;
+            target.RevisionCounter = source.RevisionCounter;
         }
 
         private async ValueTask DisposeProviderQuietlyAsync(IAutoIdReaderProvider provider, string? name)
@@ -603,6 +705,7 @@ namespace Opc.Ua.AutoID.Server
         }
 
         private readonly ILogger m_logger;
+        private readonly AutoIdReaderPlacement m_placement;
         private readonly Lock m_lock = new();
         private readonly List<AutoIdReader> m_readers = [];
         private readonly SemaphoreSlim m_createGate = new(1, 1);

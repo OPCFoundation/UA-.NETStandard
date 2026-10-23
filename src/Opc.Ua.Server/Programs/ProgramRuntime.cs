@@ -283,6 +283,7 @@ namespace Opc.Ua.Server.Programs
         private async Task DisposeCoreAsync()
         {
             m_stopping = true;
+            ReleaseDiagnosticReadAuthorization();
             if (m_operations == 0)
             {
                 m_drained.TrySetResult(true);

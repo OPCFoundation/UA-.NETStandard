@@ -29,6 +29,7 @@
 
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Threading;
 using Opc.Ua.PubSub.Encoding;
@@ -40,7 +41,7 @@ namespace Opc.Ua.PubSub.Security
     /// RNG. Each call to <see cref="GetNext"/> generates 4 random
     /// bytes for <c>MessageRandom</c> and appends a monotonic per-key
     /// <c>MessageSequenceNumber</c> per Part 14 Table 156. The counter
-    /// resets whenever the active key changes and is hard-capped so a
+    /// is maintained for every observed key context and is hard-capped so a
     /// publisher never reuses a <c>(key, nonce)</c> pair.
     /// </summary>
     /// <remarks>
@@ -62,9 +63,8 @@ namespace Opc.Ua.PubSub.Security
 
         private readonly Lock m_lock = new();
         private readonly RandomNumberGenerator m_rng;
-        private bool m_hasKey;
-        private uint m_currentKeyId;
-        private ulong m_messageCount;
+        private readonly Dictionary<(uint TokenId, string KeyNonce), ulong> m_messageCounts = [];
+        private const int MaxKeyContexts = 65536;
         private bool m_disposed;
 
         /// <summary>
@@ -131,14 +131,15 @@ namespace Opc.Ua.PubSub.Security
                     throw new ObjectDisposedException(nameof(RandomNonceProvider));
                 }
 
-                if (!m_hasKey || m_currentKeyId != keyId)
+                var identity = (keyId, Convert.ToBase64String(keyNonce.ToArray()));
+                bool existing = m_messageCounts.TryGetValue(identity, out ulong messageCount);
+                if (!existing && m_messageCounts.Count >= MaxKeyContexts)
                 {
-                    m_hasKey = true;
-                    m_currentKeyId = keyId;
-                    m_messageCount = 0;
+                    throw new InvalidOperationException(
+                        "PubSub nonce context capacity exhausted; replace the provider only with fresh keys.");
                 }
 
-                if (m_messageCount >= MaxMessagesPerKey)
+                if (messageCount >= MaxMessagesPerKey)
                 {
                     throw new InvalidOperationException(
                         "PubSub nonce counter exhausted for key " +
@@ -148,8 +149,8 @@ namespace Opc.Ua.PubSub.Security
 
                 // Part 14 Table 156: the SequenceNumber is reset to 1
                 // after the key and SecurityTokenId are updated.
-                m_messageCount++;
-                ulong sequenceNumber = m_messageCount;
+                ulong sequenceNumber = messageCount + 1;
+                m_messageCounts[identity] = sequenceNumber;
 
                 Span<byte> messageRandom = stackalloc byte[AesCtrNonceLayout.MessageRandomLength];
 #if NET6_0_OR_GREATER
@@ -174,6 +175,7 @@ namespace Opc.Ua.PubSub.Security
                     return;
                 }
                 m_disposed = true;
+                m_messageCounts.Clear();
                 m_rng.Dispose();
             }
         }

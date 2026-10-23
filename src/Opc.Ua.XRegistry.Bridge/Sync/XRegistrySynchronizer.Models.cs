@@ -35,7 +35,6 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Opc.Ua.Redaction;
 using Opc.Ua.XRegistry.Protocol;
 using Opc.Ua.XRegistry.Server.Protocol;
 
@@ -201,8 +200,8 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
                     await pass.Reader(destination).ExecuteAsync(request, ct).ConfigureAwait(false);
                 if (m_logger.IsEnabled(LogLevel.Information))
                 {
-                    m_logger.SyncMutationCompleted(Redact.Create(m_options.JobId), Redact.Create(id),
-                        Redact.Create("/modelsource"), destination, response.StatusCode);
+                    m_logger.SyncMutationCompleted(m_options.JobId, id,
+                        "/modelsource", destination, response.StatusCode);
                 }
                 intent = intent with
                 {

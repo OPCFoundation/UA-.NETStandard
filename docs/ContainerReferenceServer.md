@@ -8,7 +8,7 @@ local build:
 - Pull the latest or a release image from the [GitHub Container Registry](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). These images support Linux targets.
 - The image supports `amd64` and `arm64`. The sample builds inside a container, so you do not need to install the .NET SDK. This change was introduced in [this commit](https://github.com/OPCFoundation/UA-.NETStandard/commit/61a61081f6060804b12b8f351e32a8075703263d).
 - Build locally with Docker Desktop on Linux or Windows. Docker Desktop settings select the target container OS.
-- Visual Studio 2019 and later include container support, but issues in the UA Reference solution currently prevent build, startup, or connection.
+- Visual Studio's integrated container build/debug has reported build, startup, and connection failures with the UA Reference solution. Use the Docker CLI or repository scripts below.
 - Visual Studio 2022 supports native debugging of a Linux distribution through WSL.
 
 ## Contents
@@ -19,7 +19,6 @@ local build:
 - [Run the reference server container](#run-the-reference-server-container)
   - [Run the local build of the Docker container](#run-the-local-build-of-the-docker-container)
   - [Run the prebuilt Docker container hosted on GitHub](#run-the-prebuilt-docker-container-hosted-on-github)
-- [Known limitations and issues](#known-limitations-and-issues)
 
 ## Other published sample images
 
@@ -39,7 +38,7 @@ and publishes the sample images below to the GitHub Container Registry
 | `redundantclient` | `samples/Redundancy/RedundantClient` |
 | `redundantpubsub` | `samples/Redundancy/RedundantPubSub` |
 | `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
-| `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
+| `pumpserver` | `samples/Di/PumpDeviceIntegrationServer` |
 
 The workflow does not compile anything under emulation. Its
 `publish-samples` job publishes every sample above once, natively, as
@@ -140,7 +139,3 @@ On Linux, execute the following commands in a shell:
 sudo docker pull ghcr.io/opcfoundation/uanetstandard/refserver:latest
 sudo docker run -it -p 62541:62541 -h $HOSTNAME -v "$(pwd)/OPC Foundation:/root/.local/share/OPC Foundation" ghcr.io/opcfoundation/uanetstandard/refserver:latest -c -s
 ```
-
-## Known limitations and issues
-
-- VS integrated docker build/debug support is not working with the Solution.

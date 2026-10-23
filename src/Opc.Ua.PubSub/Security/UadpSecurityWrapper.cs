@@ -138,6 +138,30 @@ namespace Opc.Ua.PubSub.Security
         public IPubSubSecurityPolicy Policy { get; }
 
         /// <summary>
+        /// Authenticates an already wrapped outbound frame without consuming subscriber replay state.
+        /// </summary>
+        internal async ValueTask<bool> VerifyOutboundAsync(
+            ReadOnlyMemory<byte> frame, int prefixLength, CancellationToken cancellationToken)
+        {
+            if (!UadpSecurityHeader.TryRead(frame.Span[prefixLength..], out UadpSecurityHeader header,
+                out int headerLength) ||
+                Policy.SignatureLength <= 0 ||
+                frame.Length < prefixLength + headerLength + Policy.SignatureLength ||
+                header.MessageNonce.Length != Policy.NonceLength)
+            {
+                return false;
+            }
+            using PubSubSecurityKey? ownedKey = (m_keyProvider as Sks.PushSecurityKeyProvider)
+                ?.GetSnapshot(header.SecurityTokenId, cancellationToken);
+            PubSubSecurityKey? key = m_keyProvider is Sks.PushSecurityKeyProvider
+                ? ownedKey
+                : await m_keyProvider.TryGetKeyAsync(header.SecurityTokenId, cancellationToken).ConfigureAwait(false);
+            return key is not null && key.TokenId != 0 && key.TokenId == header.SecurityTokenId &&
+                Policy.Verify(frame.Span[..^Policy.SignatureLength], frame.Span[^Policy.SignatureLength..],
+                    key.SigningKey.Span);
+        }
+
+        /// <summary>
         /// Wraps an unsecured NetworkMessage. Caller supplies the
         /// outer prefix (already encoded) and the inner payload (the
         /// portion to be encrypted) — the prefix is concatenated as-is
@@ -163,7 +187,12 @@ namespace Opc.Ua.PubSub.Security
             UadpSecurityWrapOptions options = UadpSecurityWrapOptions.SignAndEncrypt,
             CancellationToken cancellationToken = default)
         {
-            PubSubSecurityKey key = await m_keyProvider
+            using PubSubSecurityKey? ownedKey = (m_keyProvider as Sks.PushSecurityKeyProvider)
+                ?.GetSnapshot(null, cancellationToken);
+            PubSubSecurityKey key = m_keyProvider is Sks.PushSecurityKeyProvider
+                ? ownedKey ??
+                    throw new ServiceResultException(StatusCodes.BadSecurityChecksFailed, "No valid pushed key.")
+                : await m_keyProvider
                 .GetCurrentKeyAsync(cancellationToken)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
@@ -329,7 +358,11 @@ namespace Opc.Ua.PubSub.Security
                     "SecurityFooterSize exceeds the secured body");
             }
 
-            PubSubSecurityKey? key = await m_keyProvider
+            using PubSubSecurityKey? ownedKey = (m_keyProvider as Sks.PushSecurityKeyProvider)
+                ?.GetSnapshot(header.SecurityTokenId, cancellationToken);
+            PubSubSecurityKey? key = m_keyProvider is Sks.PushSecurityKeyProvider
+                ? ownedKey
+                : await m_keyProvider
                 .TryGetKeyAsync(header.SecurityTokenId, cancellationToken)
                 .ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();

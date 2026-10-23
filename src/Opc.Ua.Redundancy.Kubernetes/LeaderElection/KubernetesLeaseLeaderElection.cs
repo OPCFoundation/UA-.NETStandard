@@ -36,6 +36,7 @@ using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Redundancy.Kubernetes
 {
@@ -674,14 +675,14 @@ namespace Opc.Ua.Redundancy.Kubernetes
         public static partial void KubernetesLeaseElectionRenewFailed(
             this ILogger logger,
             Exception exception,
-            string nodeId);
+            [NetworkAddress] string nodeId);
 
         [LoggerMessage(EventId = RedundancyKubernetesEventIds.KubernetesLeaseLeaderElection + 1, Level = LogLevel.Error,
             Message = "Kubernetes Lease election release failed for {NodeId}.")]
         public static partial void KubernetesLeaseElectionReleaseFailed(
             this ILogger logger,
             Exception exception,
-            string nodeId);
+            [NetworkAddress] string nodeId);
     }
 
 }

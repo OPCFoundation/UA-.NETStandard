@@ -22,18 +22,19 @@ Vision server without knowing NodeIds or BrowseNames:
   transforms between any two named frames (camera → flange → base, camera →
   flange → tool centre point). Follows the §5.12 conventions exactly —
   right-handed frames, quaternion order (x, y, z, w), corner-datum principal
-  point, and refuses a non-unit quaternion within tolerance 1e-6;
-- `VisionMediaClient` — `GetClip` by reference (default), inline
-  `LatestClip`/`LatestClipMetadata`, and honest surfacing of the §6.4 case
-  where inline delivery is disabled (`Bad_NotSupported`);
+  point, and rejects a quaternion when the absolute difference between its
+  norm and 1 exceeds 1e-6;
+- `VisionMediaClient` — `GetClip` by reference (default) and inline
+  `LatestClip`/`LatestClipMetadata`; reports `Bad_NotSupported` when inline
+  delivery is disabled (§6.4);
 - `VisionPipelineClient` — `RunInference`, `StartContinuous`, `Stop`, and
   reading pipeline members including the deployment inference location;
 - `VisionResultReader` — reads `DetectionResultType`, `InspectionResultType`,
   `SegmentationResultType` and streams result changes over an
   `IStreamingSubscription`;
 - `VisionFeedbackClient` — `SubmitDetections`, `SubmitInspectionResult`,
-  `SubmitCorrection`, `SubmitImageReference`, the headline path for an
-  off-server vision-language model publishing results the Server did not
+  `SubmitCorrection`, `SubmitImageReference` let an
+  off-server vision-language model publish results the Server did not
   compute;
 - `AddVisionClient()` — DI registration for `IOpcUaClientBuilder`;
 - `session.Vision(telemetry)` — non-DI extension for creating a client over

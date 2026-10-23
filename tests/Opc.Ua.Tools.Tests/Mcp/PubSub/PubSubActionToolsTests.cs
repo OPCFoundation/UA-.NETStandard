@@ -193,7 +193,6 @@ namespace Opc.Ua.Tools.Tests.Mcp
         public async Task ActiveRuntimeRegistersEchoAndMethodRespondersAsync()
         {
             await using var scope = new PubSubMcpTestScope(allowMethodBinding: true);
-            using IDisposable caller = scope.Enter();
             await using PubSubRuntimeManager manager =
                 scope.NewManager();
             int port = scope.Port;
@@ -201,6 +200,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
                 .GetSessionInfoOrThrow(McpTestEnvironment.SessionName);
             _ = await scope.Sessions.RegisterExistingSessionAsync(
                 existing.Name, existing.Session, existing.AuthType).ConfigureAwait(false);
+            using IDisposable caller = scope.Enter();
             await manager.StartPublisherAsync(
                 $"opc.udp://127.0.0.1:{port}",
                 1,

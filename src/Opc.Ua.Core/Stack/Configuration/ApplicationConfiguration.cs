@@ -37,6 +37,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -973,20 +974,20 @@ namespace Opc.Ua
         public static partial void AppConfigLog1(
             this ILogger logger,
             Exception? exception,
-            string? filePath);
+            [FilePath] string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 2, Level = LogLevel.Error,
             Message = "Could not load configuration from file: {FilePath}")]
         public static partial void AppConfigLog2(
             this ILogger logger,
             Exception? exception,
-            string? filePath);
+            [FilePath] string? filePath);
 
         [LoggerMessage(EventId = CoreEventIds.ApplicationConfiguration + 3, Level = LogLevel.Error,
             Message = "Could not save configuration to file: {FilePath}")]
         public static partial void AppConfigLog3(
             this ILogger logger,
             Exception? exception,
-            string? filePath);
+            [FilePath] string? filePath);
     }
 }

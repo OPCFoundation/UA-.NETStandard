@@ -709,7 +709,7 @@ namespace Opc.Ua.XRegistry.Bridge.Sync
             Message =
                 "xRegistry sync audit: job={Job} operation={Operation} target={Target} side={Side} status={Status}.")]
         public static partial void SyncMutationCompleted(
-            this ILogger logger, RedactionWrapper<string> job, RedactionWrapper<string> operation,
-            RedactionWrapper<string> target, XRegistrySyncSide side, int status);
+            this ILogger logger, [SensitiveText] string job, [SensitiveText] string operation,
+            [SensitiveText] string target, XRegistrySyncSide side, int status);
     }
 }
