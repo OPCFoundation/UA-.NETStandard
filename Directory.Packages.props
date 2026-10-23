@@ -173,14 +173,14 @@
        match; a partial bump fails when the natives load rather than when the
        solution builds. -->
   <ItemGroup>
-    <PackageVersion Include="OpenUsd" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Viewer" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.15.0-alpha" />
-    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.15.0-alpha" />
+    <PackageVersion Include="OpenUsd" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Viewer" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.D3D12" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Rendering.Silk.Vulkan" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Core" Version="0.16.6-alpha" />
+    <PackageVersion Include="OpenUsd.Runtime.Imaging" Version="0.16.6-alpha" />
     <PackageVersion Include="Avalonia" Version="12.1.4" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.4" />
   </ItemGroup>

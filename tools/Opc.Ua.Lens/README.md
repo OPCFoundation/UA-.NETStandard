@@ -52,10 +52,6 @@ Other RIDs, Linux distributions, macOS Intel, signing/notarization, and installe
 integration are not covered by this matrix. The managed package requires a
 .NET 10 runtime; the native artifact does not.
 
-Linux native-rendering checks are temporarily excluded pending the OpenUSD
-compositor compatibility fix described [below](#native-renderer-artifact-check).
-A green Linux artifact job currently proves startup and shutdown, not rendering.
-
 All jobs install the exact .NET SDK pinned in [`global.json`](../../global.json)
 and restore their dependencies from nuget.org. Artifact checks use NUnit in
 `Opc.Ua.Lens.Artifacts.Tests`; the test project does not reference the application.
@@ -280,15 +276,11 @@ On macOS, run the NUnit command from a logged-in desktop.
 CI selects these cases for both the NativeAOT artifact and installed managed tool.
 The ordinary startup check remains separate and does not activate OpenUSD.
 
-**Temporary Linux exclusion:** the native viewport artifact case, the two live
-embedded-viewport workflow cases, and the native workflow smoke case are disabled
-on Linux while OpenUSD/Avalonia Vulkan compositor compatibility with hosted
-Ubuntu/Xvfb is repaired. Linux builds, package installation, ordinary desktop
-tests, startup and shutdown remain enabled. Windows and macOS rendering checks
-are unchanged. Remove the Linux exclusions in `PublishedArtifactTests`,
-`OpenUsdViewportWindowTests` and `DiagnosticCommandTests` after the compatibility
-fix is integrated and the unchanged rendering checks pass on that runner.
-Skipped cases do not qualify Linux rendering.
+OpenUSD 0.16.6-alpha prefers shared GPU surfaces for Linux Vulkan presentation. When
+Avalonia cannot import external images or semaphores, it reads completed Vulkan
+frames into host memory and presents them through an Avalonia bitmap. This path
+adds a frame copy but retains the same scene renderer and acceptance checks.
+Mesa software-driver results do not qualify a physical GPU.
 
 The native check renders one local cube through D3D12, Vulkan or Metal, captures
 its named camera through the retained Vision adapter, changes the cube's color,

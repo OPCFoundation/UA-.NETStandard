@@ -114,6 +114,8 @@ namespace Opc.Ua.Client
         private bool m_hasConnected;
         private readonly ITimer m_recoveryTimer;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
+        private ConnectionStateBudgetOperation? m_requestedFailover;
+        private TaskCompletionSource<ServiceResult>? m_requestedFailoverOutcome;
         private readonly Queue<ConnectionStateChangedEventArgs> m_stateChanges = new();
         private bool m_dispatchingStateChanges;
 
@@ -381,6 +383,49 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Starts a failover of the connected session that runs
+        /// <paramref name="operation"/> in the <see cref="ConnectionState.Failover"/>
+        /// state. When the operation fails the machine transitions to
+        /// <see cref="ConnectionState.Reconnecting"/>, so the reconnect policy
+        /// restores the session.
+        /// </summary>
+        /// <param name="operation">The failover operation.</param>
+        /// <param name="outcome">
+        /// Completed with the result of the failover including the subscription
+        /// recovery that follows <paramref name="operation"/>, or cancelled when
+        /// the failover does not run to completion.
+        /// </param>
+        /// <returns><see langword="false"/> when the session is not connected.</returns>
+        internal bool RequestFailover(
+            ConnectionStateBudgetOperation operation,
+            TaskCompletionSource<ServiceResult>? outcome = null)
+        {
+            lock (m_lock)
+            {
+                if (m_worker == null ||
+                    m_disposed != 0 ||
+                    m_state != ConnectionState.Connected)
+                {
+                    return false;
+                }
+
+                m_requestedFailover = operation;
+                m_requestedFailoverOutcome = outcome;
+                m_lastError = null;
+                ClearReconnectBudget();
+                m_settled.Reset();
+                TransitionTo(
+                    ConnectionState.Failover,
+                    error: null,
+                    reconnectAttempt: 0);
+            }
+
+            m_trigger.Set();
+            DispatchStateChanges();
+            return true;
+        }
+
+        /// <summary>
         /// Request closing the session.
         /// </summary>
         public void RequestClose()
@@ -392,6 +437,9 @@ namespace Opc.Ua.Client
                 {
                     m_recoveryTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
                     m_requestedReconnect = null;
+                    m_requestedFailover = null;
+                    m_requestedFailoverOutcome?.TrySetCanceled();
+                    m_requestedFailoverOutcome = null;
                     TransitionTo(
                         ConnectionState.Closing,
                         error: null,
@@ -911,21 +959,38 @@ namespace Opc.Ua.Client
 
             IRetryBudget budget = GetOrCreateReconnectBudget();
 
+            ConnectionStateBudgetOperation? requested;
+            TaskCompletionSource<ServiceResult>? outcome;
+            lock (m_lock)
+            {
+                requested = m_requestedFailover;
+                outcome = m_requestedFailoverOutcome;
+                m_requestedFailover = null;
+                m_requestedFailoverOutcome = null;
+            }
+
             ServiceResult result;
             using (CancellationTokenSource closeAware = CreateCloseAwareTokenSource(ct))
             {
                 try
                 {
-                    result = await InvokeFailoverAsync(budget, closeAware.Token)
+                    result = await InvokeFailoverAsync(requested, budget, closeAware.Token)
                         .ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested)
                 {
                     // A close was requested while failing over: return so the
                     // worker loop handles the Closing state right away.
+                    outcome?.TrySetCanceled(CancellationToken.None);
                     return;
                 }
+                catch (OperationCanceledException)
+                {
+                    outcome?.TrySetCanceled(ct);
+                    throw;
+                }
             }
+            outcome?.TrySetResult(result);
 
             lock (m_lock)
             {
@@ -945,6 +1010,19 @@ namespace Opc.Ua.Client
                         error: null,
                         reconnectAttempt: 0);
                     m_settled.Set();
+                }
+                else if (requested != null)
+                {
+                    // A requested failover leaves a session the reconnect policy can
+                    // restore; it must not wait for the recovery timer.
+                    ClearReconnectBudget();
+                    m_logger.ConnectionStateMachineFailoverFailedError(result);
+                    m_lastError = result;
+                    TransitionTo(
+                        ConnectionState.Reconnecting,
+                        error: result,
+                        reconnectAttempt: 0);
+                    m_trigger.Set();
                 }
                 else
                 {
@@ -1089,11 +1167,17 @@ namespace Opc.Ua.Client
         /// Safely invoke the failover delegate.
         /// </summary>
         private async Task<ServiceResult> InvokeFailoverAsync(
+            ConnectionStateBudgetOperation? requested,
             IRetryBudget budget,
             CancellationToken ct)
         {
             try
             {
+                if (requested != null)
+                {
+                    ServiceResult result = await requested(budget, ct).ConfigureAwait(false);
+                    return await CompleteRecoveryAfterHandshakeAsync(result, ct).ConfigureAwait(false);
+                }
                 if (FailoverWithBudgetAsync != null)
                 {
                     ServiceResult result = await FailoverWithBudgetAsync(budget, ct).ConfigureAwait(false);
