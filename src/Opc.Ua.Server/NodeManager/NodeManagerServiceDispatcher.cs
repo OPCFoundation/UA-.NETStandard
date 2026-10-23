@@ -1179,8 +1179,12 @@ namespace Opc.Ua.Server
             if (point.Data is not IBrowseContinuationDependencies dependencies ||
                 !dependencies.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds))
             {
-                return ServiceResult.Create(StatusCodes.BadNotSupported,
-                    "The Browse continuation cannot declare its complete remaining dependencies.");
+                // Lazy browsers cannot enumerate future targets without consuming their cursor.
+                // Until retirement uses generation gates, conservatively protect the issuing view.
+                ArrayOf<IAsyncNodeManager> issuingOwners = [.. snapshot.VisibleNodeManagers];
+                point.SetDependencyOwners(issuingOwners);
+                point.RoutingSnapshot = snapshot;
+                return ServiceResult.Good;
             }
 
             var targets = new HashSet<NodeId>();

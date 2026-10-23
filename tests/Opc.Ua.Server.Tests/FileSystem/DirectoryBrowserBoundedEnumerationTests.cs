@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -48,6 +49,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         public void SetUp()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queueFactory);
+            m_server = server;
             server.SetupGet(value => value.Telemetry).Returns(NUnitTelemetryContext.Create());
             m_provider = new Mock<IFileSystemProvider>(MockBehavior.Strict);
             m_provider.SetupGet(value => value.MountName).Returns("BoundedDirectory");
@@ -109,6 +111,103 @@ namespace Opc.Ua.Server.Tests.FileSystem
             }
             Assert.That(returned, Is.EqualTo(entryCount));
             Assert.That(entries.MoveNextCount, Is.EqualTo(entryCount + 1));
+        }
+
+        /// <summary>
+        /// Verifies real directory cursors survive dispatcher pagination without declaring future dependencies.
+        /// </summary>
+        [TestCase(1u)]
+        [TestCase(17u)]
+        public async Task DispatcherReturnsEveryDirectoryEntryAcrossContinuationPagesAsync(uint pageSize)
+        {
+            const int entryCount = 53;
+            var entries = new CountingEntries(entryCount);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string path, CancellationToken _) =>
+                {
+                    int index = path.Length == 0
+                        ? 0
+#if NET8_0_OR_GREATER
+                        : int.Parse(path.AsSpan("entry-".Length), CultureInfo.InvariantCulture);
+#else
+                        : int.Parse(path.Substring("entry-".Length), CultureInfo.InvariantCulture);
+#endif
+                    return new ValueTask<FileSystemEntry?>(new FileSystemEntry(
+                        path, path, path.Length == 0 || index % 2 == 0, index, false,
+                        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), string.Empty));
+                });
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            m_server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            m_server.Object.TypeTree.AddReferenceSubtype(
+                ReferenceTypeIds.References, NodeId.Null, new QualifiedName(BrowseNames.References));
+            m_server.Object.TypeTree.AddReferenceSubtype(
+                ReferenceTypeIds.HasComponent, ReferenceTypeIds.References, new QualifiedName(BrowseNames.HasComponent));
+            await using var master = new MasterNodeManager(
+                m_server.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration { MaxBrowseContinuationPoints = 10 }
+                },
+                null,
+                m_manager);
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), 10, 10, null);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            using var context = new OperationContext(
+                new RequestHeader(), null!, RequestType.Browse, RequestLifetime.None, session.Object);
+            try
+            {
+                (ArrayOf<BrowseResult> results, _) = await master.BrowseAsync(context, new ViewDescription(), pageSize,
+                    [new BrowseDescription
+                    {
+                        NodeId = m_directory.NodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }]).ConfigureAwait(false);
+                var actual = new List<ExpandedNodeId>();
+                int pages = 0;
+                while (true)
+                {
+                    Assert.That(++pages, Is.LessThanOrEqualTo(entryCount + 1));
+                    Assert.That(results.Count, Is.EqualTo(1));
+                    BrowseResult page = results[0];
+                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(page.References.Count, Is.LessThanOrEqualTo(pageSize));
+                    foreach (ReferenceDescription reference in page.References)
+                    {
+                        actual.Add(reference.NodeId);
+                    }
+                    if (page.ContinuationPoint.IsEmpty)
+                    {
+                        break;
+                    }
+                    (results, _) = await master.BrowseNextAsync(context, false, [page.ContinuationPoint])
+                        .ConfigureAwait(false);
+                }
+                ExpandedNodeId[] expected = [.. Enumerable.Range(0, entryCount).Select(index =>
+                {
+                    string name = "entry-" + index.ToString("D5", CultureInfo.InvariantCulture);
+                    return new ExpandedNodeId(index % 2 == 0
+                        ? FileSystemNodeId.BuildDirectory(name, m_manager.NamespaceIndex)
+                        : FileSystemNodeId.BuildFile(name, m_manager.NamespaceIndex));
+                })];
+                Assert.That(pages, Is.GreaterThan(1));
+                Assert.That(actual, Is.EqualTo(expected), "Every expected entry appears once, in cursor order.");
+                Assert.That(entries.EnumerationCount, Is.EqualTo(1));
+                await entries.Disposed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(entries.DisposeCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                points.Clear();
+            }
         }
 
         [TestCase(0)]
@@ -704,6 +803,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         private MonitoredItemQueueFactory m_queueFactory = null!;
+        private Mock<IServerInternal> m_server = null!;
         private Mock<IFileSystemProvider> m_provider = null!;
         private FileSystemNodeManager m_manager = null!;
         private DirectoryObjectState m_directory = null!;

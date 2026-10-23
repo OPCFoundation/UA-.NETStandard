@@ -964,9 +964,13 @@ returns `BadContinuationPointInvalid`. Shutdown discards saved continuation poin
 
 Custom parts, each only needed if you replace the built-in one:
 
-- **Lazy browser:** implement `IBrowseContinuationDependencies` on `ContinuationPoint.Data` and list
-  every NodeManager owning a target it can still return. Empty means only the issuing manager. If it
-  cannot be declared, paged Browse returns `BadNotSupported`; unpaged Browse is unchanged.
+- **Lazy browser:** pagination does not require a dependency declaration. When
+  `IBrowseContinuationDependencies` can declare every remaining target, the server retains only
+  their exact owners and the issuing manager. Otherwise it conservatively retains the issuing
+  routing view until the continuation ends, without eagerly enumerating the browser. This also
+  supports the file-system `DirectoryBrowser`. A declaration is an optional retention optimization,
+  not a prerequisite for paged Browse. Without one, an open continuation can delay retirement of
+  unrelated managers in that issuing view until it is completed, released, or evicted.
 - **Dynamic history provider:** implement `IHistorianContinuationDependencies` and declare the extra
   local Nodes a later page needs. A missing declaration returns `BadNotSupported` with no partial
   data. See [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).

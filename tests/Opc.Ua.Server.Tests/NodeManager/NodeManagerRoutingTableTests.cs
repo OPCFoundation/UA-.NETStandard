@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void AddWithVisibleFalseHidesManagerFromEnumerationButNotFromIndexer()
+        public void AddWithVisibleFalseHidesManagerFromReadOnlyList()
         {
             NodeManagerRoutingTable table = CreateTable(
                 out IAsyncNodeManager firstPermanent,
@@ -507,8 +507,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             table.Add(hiddenManager, AddNamespaceIndexes, visible: false);
 
-            Assert.That(table, Has.Count.EqualTo(3));
-            Assert.That(table[2], Is.SameAs(hiddenManager));
+            Assert.That(table, Has.Count.EqualTo(2));
+            Assert.That((IReadOnlyCollection<IAsyncNodeManager>)table, Has.Count.EqualTo(2));
+            Assert.That(table, Is.Not.Contains(hiddenManager));
             Assert.That(table.IsVisible(hiddenManager), Is.False);
             using IEnumerator<IAsyncNodeManager> visibleSnapshot = table.GetEnumerator();
             AssertManagerSnapshot(visibleSnapshot, firstPermanent, secondPermanent);

@@ -54,16 +54,16 @@ namespace Opc.Ua.Server
     internal sealed class NodeManagerRoutingTable : IReadOnlyList<IAsyncNodeManager>
     {
         /// <summary>
-        /// Gets the number of registered NodeManagers, including hidden ones.
+        /// Gets the number of visible NodeManagers.
         /// </summary>
-        public int Count => ReadSnapshot.NodeManagers.Length;
+        public int Count => ReadSnapshot.VisibleNodeManagers.Length;
 
         /// <summary>
-        /// Gets the registered NodeManager at the given position, including hidden ones.
+        /// Gets the visible NodeManager at the given position.
         /// </summary>
         /// <param name="index">The position of the NodeManager.</param>
         public IAsyncNodeManager this[int index]
-            => ReadSnapshot.NodeManagers[index];
+            => ReadSnapshot.VisibleNodeManagers[index];
 
         /// <summary>
         /// Gets the NodeManagers that serve each namespace index, excluding hidden ones.

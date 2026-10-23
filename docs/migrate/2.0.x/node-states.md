@@ -359,6 +359,8 @@ Return `false` when lazy dependencies cannot be bounded; report the complete
 remaining set rather than only currently buffered references. This metadata
 contract alone does not change pagination or retain NodeManager generations:
 continuation admission, retention and invalidation remain server responsibilities.
+Paged Browse also works without this optional declaration: the server conservatively
+retains the issuing routing view rather than enumerating a lazy cursor in advance.
 
 ### NodeBrowser gains an async iteration seam
 

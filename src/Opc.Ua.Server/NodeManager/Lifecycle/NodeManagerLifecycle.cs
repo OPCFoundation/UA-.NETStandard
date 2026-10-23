@@ -4563,7 +4563,11 @@ namespace Opc.Ua.Server
             /// cleanup. Callback-safe lifecycle operations skip the generation until that
             /// pass revalidates.
             /// </summary>
-            public bool DrainPending { get; set; }
+            public bool DrainPending
+            {
+                get => Volatile.Read(ref m_drainPending);
+                set => Volatile.Write(ref m_drainPending, value);
+            }
 
             /// <summary>
             /// Gets whether this generation was retired by a shadow reload and may still
@@ -4580,6 +4584,9 @@ namespace Opc.Ua.Server
             public bool DetachActiveMonitoredItems { get; }
 
             public ShutdownCleanupState ShutdownCleanup { get; } = new();
+
+            /// <summary>Publishes drain ownership across lifecycle semaphore release/reacquisition.</summary>
+            private bool m_drainPending;
         }
 
         private sealed class ShutdownCleanupState

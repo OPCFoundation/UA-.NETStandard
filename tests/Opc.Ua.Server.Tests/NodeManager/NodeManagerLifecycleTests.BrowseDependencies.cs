@@ -581,7 +581,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task NativeLazyBrowseRequiresCompleteDependencyContractAsync(bool declaresDependencies)
+        public async Task NativeLazyBrowsePreservesFutureTargetsWithoutRequiringDependencyDeclarationsAsync(
+            bool declaresDependencies)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var source = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -613,30 +614,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(disposedBrowsers, Is.EqualTo(1));
                 BrowseResult page = await BrowseContinuationRootAsync(
                     session, source.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
-                if (declaresDependencies)
-                {
-                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                    Assert.That(retired.Retired, Is.Zero);
-                    Assert.That(target.Manager.DisposeCount, Is.Zero);
-                    List<ReferenceDescription> references = await DrainBrowsePointAsync(
-                        session, page, timeout.Token).ConfigureAwait(false);
-                    Assert.That(references, Has.Count.EqualTo(4));
-                    Assert.That(references.Single(reference => reference.NodeId == targetId).BrowseName,
-                        Is.EqualTo(new QualifiedName(kValueBrowseName, target.NamespaceIndex)));
-                }
-                else
-                {
-                    Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported),
-                        "An opaque lazy browser cannot promise ownership from its currently buffered references.");
-                    Assert.That(page.ContinuationPoint.IsEmpty, Is.True);
-                    Assert.That(page.References.IsEmpty, Is.True, "Unsupported pagination is not partial success.");
-                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
-                        [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                    Assert.That(retired.Retired, Is.EqualTo(2u));
-                }
+                Assert.That(page.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
+                NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                    [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
+                Assert.That(retired.Retired, Is.Zero);
+                Assert.That(target.Manager.DisposeCount, Is.Zero);
+                List<ReferenceDescription> references = await DrainBrowsePointAsync(
+                    session, page, timeout.Token).ConfigureAwait(false);
+                Assert.That(references, Has.Count.EqualTo(4));
+                Assert.That(references.Single(reference => reference.NodeId == targetId).BrowseName,
+                    Is.EqualTo(new QualifiedName(kValueBrowseName, target.NamespaceIndex)));
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
