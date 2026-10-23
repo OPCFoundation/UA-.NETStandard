@@ -571,6 +571,100 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
+        /// Verifies that source-routed imported actions retain the original source
+        /// Object receiver rather than adopting the projection's identity.
+        /// </summary>
+        [Test]
+        public async Task SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver()
+        {
+            WotProjectionResolver resolver = Resolver(("urn:receiver-source", ReceiverSourceJson));
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(ReceiverProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(view.RootElement.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:projection;s=View"));
+                Assert.That(form.GetProperty("href").GetString(),
+                    Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.TryGetProperty("uav:callObjectId", out _), Is.False);
+                Assert.That(WotCallReceiver.TryCaptureSourceObject(
+                    view, action, out string receiver, out string endpoint, out string error), Is.True, error);
+                Assert.That(receiver, Is.EqualTo("nsu=urn:source;s=Owner"));
+                Assert.That(endpoint, Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(action.GetProperty("uav:resolvedFrom").GetString(),
+                    Is.EqualTo("urn:receiver-source#/actions/run"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that a source action's explicit receiver is not overwritten by root capture.
+        /// </summary>
+        [TestCase("\"nsu=urn:source;s=ExplicitOwner\"")]
+        [TestCase("null")]
+        [TestCase("\"\"")]
+        public async Task SourceRoutedImportedActionPreservesExplicitCallObjectId(string receiverJson)
+        {
+            string source = ReceiverSourceJson.Replace(
+                "\"op\": [\"invokeaction\"]",
+                "\"uav:callObjectId\":" + receiverJson + ",\"op\": [\"invokeaction\"]",
+                StringComparison.Ordinal);
+            WotProjectionResolver resolver = Resolver(("urn:receiver-source", source));
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(ReceiverProjectionJson));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.That(form.GetProperty("uav:callObjectId").GetRawText(), Is.EqualTo(receiverJson));
+            Assert.That(form.GetProperty("href").GetString(),
+                Is.EqualTo("opc.tcp://source.example:4840"));
+        }
+
+        /// <summary>
+        /// Verifies that a second projection cannot replace the original source receiver.
+        /// </summary>
+        [Test]
+        public async Task NestedSourceRoutedProjectionRetainsOriginalCallReceiver()
+        {
+            WotProjectionResolver resolver = Resolver(
+                ("urn:receiver-source", ReceiverSourceJson),
+                ("urn:receiver-intermediate", ReceiverProjectionJson));
+            string outer = ReceiverProjectionJson
+                .Replace("\"urn:receiver-source\"", "\"urn:receiver-intermediate\"", StringComparison.Ordinal)
+                .Replace("nsu=urn:projection;s=View", "nsu=urn:outer;s=View", StringComparison.Ordinal);
+            using var doc = WotDocument.Parse(Encoding.UTF8.GetBytes(outer));
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(doc).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement action = view.RootElement.GetProperty("actions").GetProperty("run");
+            JsonElement form = action.GetProperty("forms")[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(view.RootElement.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:outer;s=View"));
+                Assert.That(form.TryGetProperty("uav:callObjectId", out _), Is.False);
+                Assert.That(WotCallReceiver.TryCaptureSourceObject(
+                    view, action, out string receiver, out string endpoint, out string error), Is.True, error);
+                Assert.That(receiver, Is.EqualTo("nsu=urn:source;s=Owner"));
+                Assert.That(endpoint, Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.GetProperty("href").GetString(),
+                    Is.EqualTo("opc.tcp://source.example:4840"));
+                Assert.That(form.GetProperty("uav:id").GetString(),
+                    Is.EqualTo("nsu=urn:source;s=Run"));
+            });
+        }
+
+        /// <summary>
         /// Verifies that form without effective security declares none.
         /// </summary>
         [Test]
@@ -2043,6 +2137,50 @@ namespace Opc.Ua.Types.Tests.Wot
               ]
             }
           }
+        }
+        """;
+
+        private const string ReceiverSourceJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+          ],
+          "@type": ["Thing", "uav:object"],
+          "uav:id": "nsu=urn:source;s=Owner",
+          "base": "opc.tcp://source.example:4840",
+          "actions": {
+            "run": {
+              "forms": [{
+                "href": "opc.tcp://source.example:4840",
+                "uav:id": "nsu=urn:source;s=Run",
+                "op": ["invokeaction"]
+              }]
+            }
+          }
+        }
+        """;
+
+        private const string ReceiverProjectionJson = /*lang=json,strict*/ """
+        {
+          "@context": [
+            "https://www.w3.org/2022/wot/td/v1.1",
+            {
+              "uav": "http://opcfoundation.org/UA/WoT-Binding/",
+              "tm": "https://www.w3.org/2019/wot/tm#"
+            }
+          ],
+          "@type": ["Thing", "uav:projection"],
+          "uav:id": "nsu=urn:projection;s=View",
+          "title": "Source Call receiver projection",
+          "uav:scenario": "urn:scenario:CallReceiver",
+          "uav:projects": [{
+            "uav:sourceName": "source",
+            "href": "urn:receiver-source",
+            "type": "application/td+json",
+            "uav:routing": "source",
+            "uav:select": [{ "uav:affordanceKind": "action" }]
+          }]
         }
         """;
 

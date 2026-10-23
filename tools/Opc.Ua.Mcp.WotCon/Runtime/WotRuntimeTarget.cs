@@ -142,7 +142,7 @@ namespace Opc.Ua.Mcp
                     {
                         if (!form.Addressing.Metadata.TryGetValue("callObjectId", out string? owner))
                         {
-                            throw new ArgumentException("An OPC UA action requires an explicit callObjectId receiver.");
+                            throw new ArgumentException("An OPC UA action requires a captured callObjectId receiver.");
                         }
                         resource = "object=" + Node(session, owner) + ";method=" + resource;
                     }

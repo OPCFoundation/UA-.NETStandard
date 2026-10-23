@@ -69,20 +69,22 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             }
             ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Method, cancellationToken)
                 .ConfigureAwait(false);
+            await ValidateSourceCallReceiverAsync(receiver, target, cancellationToken).ConfigureAwait(false);
             source.Validate();
             NodeId method = target.NodeId;
             return new WotCapturedConditionAction(source, receiver, method,
-                (request, token) => InvokeCapturedConditionAsync(source, receiver, method, request, token));
+                (request, token) => InvokeCapturedConditionAsync(source, receiver, target, request, token));
         }
 
         private async ValueTask<WotInvokeResult> InvokeCapturedConditionAsync(
             WotEventSource source,
             NodeId receiver,
-            NodeId method,
+            ResolvedPathTarget target,
             WotInvokeRequest request,
             CancellationToken cancellationToken)
         {
             source.Validate();
+            await ValidateSourceCallReceiverAsync(receiver, target, cancellationToken).ConfigureAwait(false);
             ArrayOf<Variant> inputs = Form.ConditionInvocation is { } invocation
                 ? invocation.NormalizeInputs(request.Inputs) : request.Inputs;
             Form.Payload.ValidateInputs(inputs, request.Context);
@@ -90,10 +92,11 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 value, request.Context, source.Context));
             ArrayOf<CallMethodRequest> requests =
             [
-                new CallMethodRequest { ObjectId = receiver, MethodId = method, InputArguments = inputs }
+                new CallMethodRequest { ObjectId = receiver, MethodId = target.NodeId, InputArguments = inputs }
             ];
             RequestHeader? header = request.DiagnosticsMask == DiagnosticsMasks.None
                 ? null : new RequestHeader { ReturnDiagnostics = (uint)request.DiagnosticsMask };
+            ValidatePathSessionState(target.State);
             CallResponse response = await source.Client.CallAsync(header, requests, cancellationToken)
                 .ConfigureAwait(false);
             ClientBase.ValidateResponse(response.Results, requests);

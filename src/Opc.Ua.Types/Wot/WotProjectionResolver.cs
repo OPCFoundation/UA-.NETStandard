@@ -135,6 +135,7 @@ namespace Opc.Ua.Wot
                 new WotResolutionContext(m_options.ToResolverOptions());
             var resolving = new HashSet<string>(StringComparer.Ordinal);
             var supportOnly = new List<(WotAffordanceKind Kind, string Name)>();
+            var callReceivers = new List<(string Name, string Receiver, string Endpoint)>();
 
             byte[]? bytes = await ResolveViewAsync(
                 document,
@@ -144,7 +145,8 @@ namespace Opc.Ua.Wot
                 context,
                 diagnostics,
                 cancellationToken,
-                supportOnly).ConfigureAwait(false);
+                supportOnly,
+                callReceivers).ConfigureAwait(false);
 
             await CheckOrganizingAcyclicAsync(
                 projection,
@@ -162,6 +164,7 @@ namespace Opc.Ua.Wot
                     view = WotDocument.Parse(bytes, m_options);
 #pragma warning restore CA2000
                     view.MarkSupportOnly(supportOnly);
+                    view.CaptureSourceCallReceivers(callReceivers);
                 }
                 catch (Exception exception) when (
                     exception is JsonException or FormatException)
@@ -187,7 +190,8 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken,
-            List<(WotAffordanceKind Kind, string Name)>? supportOnly = null)
+            List<(WotAffordanceKind Kind, string Name)>? supportOnly = null,
+            List<(string Name, string Receiver, string Endpoint)>? callReceivers = null)
         {
             int errorsAtEntry = CountErrors(diagnostics);
             var openDocuments = new List<WotDocument>();
@@ -386,6 +390,19 @@ namespace Opc.Ua.Wot
                         if (member.Supporting)
                         {
                             supportOnly.Add((member.Kind, member.Name));
+                        }
+                    }
+                }
+                if (callReceivers is not null)
+                {
+                    foreach (ResolvedAffordance action in selection.Actions)
+                    {
+                        if (action.Source.Source.Routing == WotProjectionRouting.Source &&
+                            WotCallReceiver.TryCaptureSourceObject(
+                                action.Source.Document, action.Definition,
+                                out string receiver, out string endpoint, out _))
+                        {
+                            callReceivers.Add((action.Name, receiver, endpoint));
                         }
                     }
                 }
@@ -595,6 +612,7 @@ namespace Opc.Ua.Wot
                     {
                         return null;
                     }
+                    var nestedReceivers = new List<(string Name, string Receiver, string Endpoint)>();
                     byte[]? nestedBytes = await ResolveViewAsync(
                         document,
                         nested,
@@ -602,7 +620,7 @@ namespace Opc.Ua.Wot
                         resolving,
                         context,
                         diagnostics,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken, callReceivers: nestedReceivers).ConfigureAwait(false);
                     if (nestedBytes is null)
                     {
                         return null;
@@ -613,6 +631,7 @@ namespace Opc.Ua.Wot
 #pragma warning disable CA2000 // Ownership transfers to openDocuments, disposed in the caller's finally.
                         resolvedView = WotDocument.Parse(nestedBytes, m_options);
 #pragma warning restore CA2000
+                        resolvedView.CaptureSourceCallReceivers(nestedReceivers);
                     }
                     catch (Exception exception) when (
                         exception is JsonException or FormatException)

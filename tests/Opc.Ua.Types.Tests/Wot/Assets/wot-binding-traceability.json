@@ -22,6 +22,20 @@
   ],
   "clauses": [
     {
+      "clause": "OPC10101/sec-static-call-layout",
+      "title": "Current-draft source-Thing receiver selection; not full published v1.00 interoperability",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverWithoutMethodOwnershipIsRejectedBeforeCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverAccessDeniedDuringPreflightPreventsCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverMayCallMethodOwnedByItsObjectTypeHierarchy",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithOmittedReceiverCallsMethodOnSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithExplicitReceiverOverridesSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.WotConditionInvocationTests.DerivedConditionReceiverMustProveObjectTypeMethodOwnership"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
       "clause": "OPC10101-2/sec-the-projection-document",
       "title": "Ordinary TD/TM projection envelopes and result roles",
       "tests": [
@@ -47,6 +61,9 @@
       "title": "Provenance and owner-preserving closure; not full result schema validation",
       "tests": [
         "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.BulkProvenanceIsHrefPlusPointer",
+        "Opc.Ua.Types.Tests.Wot.WotCallReceiverTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionPreservesExplicitCallObjectId",
         "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.ConflictingContextPrefixesRemainInTheirSourceScopes",
         "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync"
       ],

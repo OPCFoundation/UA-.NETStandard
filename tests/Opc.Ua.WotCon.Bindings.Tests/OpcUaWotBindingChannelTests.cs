@@ -311,6 +311,49 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies that a captured omitted receiver dispatches the real Method call
+        /// to the source Thing's Methods Object.
+        /// </summary>
+        [Test]
+        public async Task InvokeAsyncWithOmittedReceiverCallsMethodOnSourceObjectAsync()
+        {
+            WotCompiledForm form = PrepareReceiverCallForm(
+                m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                    throw new InvalidOperationException("The connected fixture must identify its selected endpoint."),
+                MethodsObjectNodeId,
+                explicitReceiver: null);
+
+            Assert.That(form.Addressing.Metadata["callObjectId"], Is.EqualTo(MethodsObjectNodeId));
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
+        }
+
+        /// <summary>
+        /// Verifies that an explicit form receiver overrides a different source root identity.
+        /// </summary>
+        [Test]
+        public async Task InvokeAsyncWithExplicitReceiverOverridesSourceObjectAsync()
+        {
+            WotCompiledForm form = PrepareReceiverCallForm(
+                m_session.ConfiguredEndpoint.Description.EndpointUrl ??
+                    throw new InvalidOperationException("The connected fixture must identify its selected endpoint."),
+                ServerObjectNodeId,
+                explicitReceiver: MethodsObjectNodeId);
+
+            Assert.That(form.Addressing.Metadata["callObjectId"], Is.EqualTo(MethodsObjectNodeId));
+            WotInvokeResult result = await InvokeAddAsync(form).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Outputs, Has.Count.EqualTo(1));
+            Assert.That(result.Outputs[0].WrappedValue.TryGetValue(out float sum), Is.True);
+            Assert.That(sum, Is.EqualTo(3.5f));
+        }
+
+        /// <summary>
         /// Verifies that an invalid action method identifier returns BadNodeIdInvalid.
         /// </summary>
         [Test]
@@ -350,6 +393,58 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
                 Assert.That(result.Success, Is.False,
                     "Calling Methods_Add with null (zero) inputs must fail server-side and return a bad result.");
+            }
+        }
+
+        private WotCompiledForm PrepareReceiverCallForm(
+            string endpoint,
+            string sourceObjectId,
+            string? explicitReceiver)
+        {
+            string receiverMember = explicitReceiver is null
+                ? string.Empty
+                : "\"uav:callObjectId\":\"" + explicitReceiver + "\",";
+            string json = $$"""
+                {
+                  "@context": [
+                    "https://www.w3.org/2022/wot/td/v1.1",
+                    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+                  ],
+                  "@type": ["Thing", "uav:object"],
+                  "uav:id": "{{sourceObjectId}}",
+                  "base": "{{endpoint}}",
+                  "actions": {
+                    "add": {
+                      "input": {{PathAddInput().ToJsonString()}},
+                      "output": { "type": "number", "uav:dataTypeId": "i=10" },
+                      "forms": [{
+                        "href": "{{endpoint}}",
+                        {{receiverMember}}
+                        "uav:id": "{{AddMethodNodeId}}",
+                        "op": "invokeaction"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlanRequest request = WotBindingPlanRequest.FromDocument(
+                "call-receiver-live",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(json));
+            WotBindingPlan plan = m_registry.Prepare(request);
+            Assert.That(plan.Diagnostics.Any(diagnostic => diagnostic.IsError), Is.False,
+                string.Join("; ", plan.Diagnostics.Where(diagnostic => diagnostic.IsError)
+                    .Select(diagnostic => diagnostic.Message)));
+            return plan.CompiledForms.Single();
+        }
+
+        private async Task<WotInvokeResult> InvokeAddAsync(WotCompiledForm form)
+        {
+            IWotBindingChannel channel = await m_registry.OpenChannelAsync(form).ConfigureAwait(false);
+            await using (channel.ConfigureAwait(false))
+            {
+                return await channel.InvokeAsync([new Variant(1.5f), new Variant((uint)2)])
+                    .ConfigureAwait(false);
             }
         }
 

@@ -392,7 +392,10 @@ namespace Opc.Ua.WotCon.Bindings
                     PayloadSchema = PayloadSchema,
                     BrowsePathTarget = BrowsePathTarget,
                     BrowsePathError = BrowsePathError,
-                    HasBrowsePathCapture = HasBrowsePathCapture
+                    HasBrowsePathCapture = HasBrowsePathCapture,
+                    SourceCallReceiver = SourceCallReceiver,
+                    SourceCallEndpoint = SourceCallEndpoint,
+                    SourceCallError = SourceCallError
                 };
             }
             return true;

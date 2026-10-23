@@ -198,7 +198,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 }
                 metadata = metadata.Add("pathHrefNodeId", hrefTarget);
             }
-            if (!TryCompileCallReceiver(form, diagnostics, ref metadata))
+            if (!TryCompileCallReceiver(form, endpoint, diagnostics, ref metadata))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
@@ -854,6 +854,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
         private static bool TryCompileCallReceiver(
             WotAffordanceForm form,
+            WotEndpointDescriptor endpoint,
             List<WotBindingDiagnostic> diagnostics,
             ref ImmutableDictionary<string, string> metadata)
         {
@@ -889,10 +890,25 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 return true;
             }
+            if (form.SourceCallReceiver is { } sourceReceiver)
+            {
+                if (!WotCallReceiver.TryGetEndpoint(endpoint.BaseUri, out string selectedEndpoint) ||
+                    !string.Equals(selectedEndpoint, form.SourceCallEndpoint, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The selected Call endpoint differs from the original source Thing endpoint.",
+                        form.Pointer("href"), "href"));
+                    return false;
+                }
+                metadata = metadata.Add("callObjectId", sourceReceiver).Add("sourceCallReceiver", "object");
+                return true;
+            }
             diagnostics.Add(WotBindingDiagnostic.Error(
                 WotBindingDiagnosticCode.MissingRequiredField,
-                "An OPC UA action requires a selected source receiver in uav:callObjectId; " +
-                "local containment arrays do not identify that receiver.",
+                (form.SourceCallError ??
+                    "An OPC UA action requires a captured original source Thing Object.") +
+                    " Otherwise, author a form-scoped uav:callObjectId; local containment does not identify it.",
                 form.Pointer(term), term));
             return false;
         }

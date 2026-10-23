@@ -460,29 +460,103 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`, and the receiver by form-scoped `uav:callObjectId`. Local containment is not receiver authority. |
+| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`. A form-scoped `uav:callObjectId` takes precedence; otherwise the planner can capture the explicitly identified original source Thing Object as described below. Local containment is not receiver authority. |
 | `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId (`uav:id`, and `uav:callObjectId` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
 
-**Published Binding v1.00 interoperability.** The published
-[OPC 10101 Section 6.5.3](https://reference.opcfoundation.org/specs/OPC-10101/6.5.3)
-defines no mandatory UA-specific form terms and no form-scoped scalar
-`uav:componentOf` receiver. `uav:callObjectId` is an additive Binding 1.1 term,
-not a replacement spelling for a published form term. The aggregation sample
-uses this explicit receiver contract.
+### Source-Thing Call receiver selection
 
-The stack's OPC UA action planner and executor require a portable, non-null
-form-scoped `uav:callObjectId`. They do not implement the current draft's optional
-derivation from an explicitly identified source Thing Object at the selected
-endpoint. A published v1.00 action form without that added receiver is therefore
-not executable through this runtime as authored; its published status alone does
-not make receiver selection unambiguous. This is an interoperability limitation,
-not full Binding v1.00 action-execution support. It is separate from the
-[published Connectivity 1.02 asset surface](WotCon.md#wot-con-102-compatibility).
-Local `uav:componentOf` containment does not authorize an upstream Call.
+A present form-scoped `uav:callObjectId` must be a portable, non-null NodeId.
+An invalid explicit value fails planning; it never falls back to the Thing.
+The aggregation sample retains this explicit Binding 1.1 contract.
+
+When the term is omitted, extraction can capture the original source Thing's
+explicit `uav:id`. The document must describe an Object, not a Thing Model,
+Variable, Method, View or projection envelope. Its OPC UA base and forms must
+identify one endpoint, matching the selected action endpoint. Missing identity,
+multiple endpoints and relocated actions without captured receiver authority
+fail closed. Scenario/projection envelopes cannot supply their local root as
+an upstream receiver.
+
+For source-routed projections, resolution retains original Object receiver facts
+on the live `WotDocument` result without adding or replacing JSON form terms.
+Pass that result to `WotBindingPlanRequest.FromDocument(resourceXid, kind, document)`
+to carry the facts into the immutable plan. Nested imports retain these facts.
+An existing explicit value, including an invalid one, remains unchanged and takes
+precedence. Explicit imported ObjectType receivers, including the standard
+ConditionRefresh receiver, retain their existing explicit-Call behavior.
+Neither `uav:resolvedFrom` alone nor local `uav:componentOf` arrays supply authority.
+
+**Persisted resolved-only JSON does not retain these source facts.** Re-parsing it
+therefore rejects an omitted receiver, rather than inferring from the projection
+root or treating the provenance locator as proof. Automatic recovery of trusted
+original-source facts from that persisted result is not implemented. Retain the
+live resolution result, resolve the original projection again with its configured
+source acquisition, or author an explicit current-format receiver. Explicit
+`uav:callObjectId` imports are unaffected by this limitation.
+
+Before dispatching an inferred source-Thing Call, the executor checks the connected
+endpoint, reads the receiver and Method NodeClasses, and checks `HasComponent`
+ownership on the Object or its ObjectType/supertype hierarchy. The traversal is
+bounded to 100 types and 10,000 references, releases continuation points, and
+rejects ambiguous/remote type ancestry. Session generation and namespace context
+are checked through dispatch. Denied inspection, wrong classes or failed
+ownership produce an error without a speculative Call. Standard Condition instance
+actions additionally require the appropriate Condition type ancestry;
+ConditionRefresh/ConditionRefresh2 cannot use an inferred Object receiver.
+The Server remains authoritative for execution permissions and explicit-Call
+Object/ObjectType ownership. MCP uses the captured `callObjectId`
+for both its exact Method/receiver grant and mutation guards.
+
+For example, this no-argument action omits the receiver because the original
+Thing identifies it:
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+  ],
+  "@type": "Thing",
+  "title": "Source pump",
+  "securityDefinitions": { "none": { "scheme": "nosec" } },
+  "security": ["none"],
+  "base": "opc.tcp://source.example:4840",
+  "uav:id": "nsu=urn:example:pump;s=Pump",
+  "actions": {
+    "reset": {
+      "forms": [{
+        "href": "opc.tcp://source.example:4840",
+        "uav:id": "nsu=urn:example:pump;s=Reset",
+        "op": "invokeaction"
+      }]
+    }
+  }
+}
+```
+
+This is not a way to infer a Condition receiver from an event's `SourceNode`,
+a containing Object, or a local Method alias. A source-selected Condition
+receiver must pass the same Object/type ownership checks. Existing explicit
+Condition occurrence bindings still require their captured source correlation;
+omission does not make an unexposed Condition identifiable or authorize an
+unrelated Object.
+
+**Published Binding v1.00 interoperability remains incomplete.** Published
+[OPC 10101 v1.00 Section 7.1.3](https://reference.opcfoundation.org/specs/OPC-10101/v1.00/t63916693358/download/markdown)
+requires an **action-level `uav:componentOf` array** declaring the owning Object.
+Section 6.5.3's lack of mandatory *form* terms does not remove that requirement.
+The published array is distinct from the obsolete scalar form-level fallback
+and from local projection containment. This runtime does not select a receiver
+from that published action-level owner array, nor reconstruct native argument
+ordering from server metadata for schemas lacking the current explicit layout.
+Source-Thing selection therefore does not establish full published v1.00
+interoperability. These limits are separate from
+[Connectivity 1.02 asset compatibility](WotCon.md#wot-con-102-compatibility) and
+do not close the mandatory schema-validation gap documented below.
 
 <a id="event-field-selection"></a>
 

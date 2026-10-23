@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -107,6 +108,444 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             session.Verify(value => value.CallAsync(
                 It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that a derived receiver whose Object does not own the Method is denied before Call.
+        /// </summary>
+        [Test]
+        public async Task DerivedReceiverWithoutMethodOwnershipIsRejectedBeforeCall()
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out NamespaceTable namespaces);
+            ushort sourceNamespace = (ushort)namespaces.GetIndex("urn:source");
+            var browses = new List<BrowseDescription>();
+            session.Setup(value => value.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == new NodeId("Owner", 1) &&
+                        nodes[0].AttributeId == Attributes.NodeClass &&
+                        nodes[1].NodeId == new NodeId("Run", 1) &&
+                        nodes[1].AttributeId == Attributes.NodeClass),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)NodeClass.Object)),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        Assert.That(requests, Has.Count.EqualTo(1));
+                        browses.Add(requests[0]);
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new BrowseResult { References = [] }]
+                        });
+                    });
+
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadMethodInvalid));
+                Assert.That(result.Outputs, Is.Empty);
+                Assert.That(browses, Has.Count.EqualTo(2));
+                Assert.That(browses[0].NodeId, Is.EqualTo(new NodeId("Owner", sourceNamespace)));
+                Assert.That(browses[0].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                Assert.That(browses[0].BrowseDirection, Is.EqualTo(BrowseDirection.Forward));
+                Assert.That(browses[0].NodeClassMask, Is.EqualTo((uint)NodeClass.Method));
+                Assert.That(browses[1].NodeId, Is.EqualTo(new NodeId("Owner", sourceNamespace)));
+                Assert.That(browses[1].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasTypeDefinition));
+                Assert.That(browses[1].BrowseDirection, Is.EqualTo(BrowseDirection.Forward));
+                Assert.That(browses[1].NodeClassMask, Is.EqualTo((uint)NodeClass.ObjectType));
+            });
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that denied access to inspect the derived receiver is propagated before Call.
+        /// </summary>
+        [Test]
+        public async Task DerivedReceiverAccessDeniedDuringPreflightPreventsCall()
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out _);
+            session.Setup(value => value.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == new NodeId("Owner", 1) &&
+                        nodes[0].AttributeId == Attributes.NodeClass &&
+                        nodes[1].NodeId == new NodeId("Run", 1) &&
+                        nodes[1].AttributeId == Attributes.NodeClass),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        DataValue.FromStatusCode(StatusCodes.BadUserAccessDenied),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(result.Outputs, Is.Empty);
+                Assert.That(result.Error, Does.Contain("could not be inspected"));
+            });
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that endpoint mismatch is rejected before inspecting or invoking a derived receiver.
+        /// </summary>
+        [Test]
+        public async Task DerivedReceiverOnDifferentConfiguredEndpointIsRejectedBeforeCall()
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(
+                out _,
+                configuredEndpoint: "opc.tcp://other-source:4840");
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+                Assert.That(result.Outputs, Is.Empty);
+                Assert.That(result.Error, Does.Contain("different endpoint"));
+            });
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that both the derived receiver and selected target must have their required NodeClass.
+        /// </summary>
+        [TestCase(NodeClass.Variable, NodeClass.Method)]
+        [TestCase(NodeClass.Object, NodeClass.Object)]
+        public async Task DerivedReceiverWithWrongNodeClassIsRejectedBeforeCall(
+            NodeClass receiverClass,
+            NodeClass methodClass)
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out _);
+            session.Setup(value => value.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == new NodeId("Owner", 1) &&
+                        nodes[0].AttributeId == Attributes.NodeClass &&
+                        nodes[1].NodeId == new NodeId("Run", 1) &&
+                        nodes[1].AttributeId == Attributes.NodeClass),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)receiverClass)),
+                        new DataValue(new Variant((int)methodClass))
+                    ]
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeClassInvalid));
+            Assert.That(result.Outputs, Is.Empty);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that direct and inherited ObjectType Method declarations authorize the source Object.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DerivedReceiverMayCallMethodOwnedByItsObjectTypeHierarchy(bool inherited)
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out NamespaceTable namespaces);
+            ushort sourceNamespace = (ushort)namespaces.GetIndex("urn:source");
+            var browses = new List<BrowseDescription>();
+            session.Setup(value => value.ReadAsync(
+                    null,
+                    0,
+                    TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == new NodeId("Owner", 1) &&
+                        nodes[0].AttributeId == Attributes.NodeClass &&
+                        nodes[1].NodeId == new NodeId("Run", 1) &&
+                        nodes[1].AttributeId == Attributes.NodeClass),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)NodeClass.Object)),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ViewDescription>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        Assert.That(requests, Has.Count.EqualTo(1));
+                        BrowseDescription request = requests[0];
+                        browses.Add(request);
+                        NodeId typeOwner = new("OwnerType", sourceNamespace);
+                        ArrayOf<ReferenceDescription> references =
+                            request.NodeId == new NodeId("Owner", sourceNamespace) &&
+                            request.ReferenceTypeId == Types.ReferenceTypeIds.HasTypeDefinition
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = new ExpandedNodeId(
+                                        "OwnerType", sourceNamespace)
+                                }]
+                                : request.NodeId == typeOwner &&
+                                    request.ReferenceTypeId == Types.ReferenceTypeIds.HasComponent
+                                    && !inherited
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = new ExpandedNodeId(
+                                        "Run", sourceNamespace)
+                                }]
+                                : request.NodeId == typeOwner &&
+                                    request.ReferenceTypeId == Types.ReferenceTypeIds.HasSubtype &&
+                                    request.BrowseDirection == BrowseDirection.Inverse &&
+                                    inherited
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = new ExpandedNodeId(
+                                        "BaseType", sourceNamespace)
+                                }]
+                                : request.NodeId == new NodeId("BaseType", sourceNamespace) &&
+                                    request.ReferenceTypeId == Types.ReferenceTypeIds.HasComponent &&
+                                    inherited
+                                ? [new ReferenceDescription
+                                {
+                                    NodeId = new ExpandedNodeId(
+                                        "Run", sourceNamespace)
+                                }]
+                                : [];
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new BrowseResult { References = references }]
+                        });
+                    });
+            int callCount = 0;
+            session.Setup(value => value.CallAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<CallMethodRequest>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ArrayOf<CallMethodRequest>, CancellationToken>((_, requests, _) =>
+                {
+                    callCount++;
+                    Assert.That(requests, Has.Count.EqualTo(1));
+                    Assert.That(requests[0].ObjectId, Is.EqualTo(new NodeId("Owner", 1)));
+                    Assert.That(requests[0].MethodId, Is.EqualTo(new NodeId("Run", 1)));
+                    return new ValueTask<CallResponse>(new CallResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new CallMethodResult { StatusCode = StatusCodes.Good }]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Status, Is.EqualTo(StatusCodes.Good), result.Error);
+                Assert.That(callCount, Is.EqualTo(1));
+                Assert.That(browses, Has.Count.EqualTo(inherited ? 5 : 3));
+                Assert.That(browses[0].NodeId, Is.EqualTo(new NodeId("Owner", 1)));
+                Assert.That(browses[0].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                Assert.That(browses[1].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasTypeDefinition));
+                Assert.That(browses[2].NodeId, Is.EqualTo(new NodeId("OwnerType", 1)));
+                Assert.That(browses[2].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                Assert.That(browses[2].BrowseDirection, Is.EqualTo(BrowseDirection.Forward));
+                if (inherited)
+                {
+                    const int parentBrowse = 3;
+                    Assert.That(browses[parentBrowse].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasSubtype));
+                    Assert.That(browses[parentBrowse].BrowseDirection, Is.EqualTo(BrowseDirection.Inverse));
+                    Assert.That(browses[parentBrowse].NodeClassMask, Is.EqualTo((uint)NodeClass.ObjectType));
+                    Assert.That(browses[parentBrowse + 1].NodeId, Is.EqualTo(new NodeId("BaseType", 1)));
+                    Assert.That(browses[parentBrowse + 1].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                }
+            });
+        }
+
+        /// <summary>
+        /// Verifies that source Object inference cannot invoke type-level Condition refresh.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task InferredObjectCannotInvokeConditionRefreshBeforeCall(bool refresh2)
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out _);
+            NodeId method = refresh2
+                ? global::Opc.Ua.MethodIds.ConditionType_ConditionRefresh2
+                : global::Opc.Ua.MethodIds.ConditionType_ConditionRefresh;
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), 0, TimestampsToReturn.Neither,
+                    It.Is<ArrayOf<ReadValueId>>(nodes =>
+                        nodes.Count == 2 &&
+                        nodes[0].NodeId == new NodeId("Owner", 1) &&
+                        nodes[1].NodeId == method),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)NodeClass.Object)),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+            WotCompiledForm form = CreateForm(
+                ImmutableDictionary<string, string>.Empty
+                    .Add("callObjectId", "nsu=urn:source;s=Owner")
+                    .Add("sourceCallReceiver", "object"),
+                method.ToString());
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([new Variant((uint)1)]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadMethodInvalid));
+            Assert.That(result.Error, Does.Contain("ConditionType receiver"));
+            Assert.That(result.Outputs, Is.Empty);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that successful ownership metadata from an obsolete session cannot admit Call.
+        /// </summary>
+        [Test]
+        public async Task SessionIdentityChangedDuringOwnershipBrowsePreventsCall()
+        {
+            Mock<ISession> session = CreateSourceReceiverSession(out _);
+            NodeId sessionId = new("source-session", 0);
+            session.SetupGet(value => value.SessionId).Returns(() => sessionId);
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), 0, TimestampsToReturn.Neither,
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results =
+                    [
+                        new DataValue(new Variant((int)NodeClass.Object)),
+                        new DataValue(new Variant((int)NodeClass.Method))
+                    ]
+                });
+            int browseCount = 0;
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, ViewDescription, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                    (_, _, _, requests, _) =>
+                    {
+                        browseCount++;
+                        Assert.That(requests[0].NodeId, Is.EqualTo(new NodeId("Owner", 1)));
+                        Assert.That(requests[0].ReferenceTypeId, Is.EqualTo(Types.ReferenceTypeIds.HasComponent));
+                        sessionId = new NodeId("replacement-session", 0);
+                        return new ValueTask<BrowseResponse>(new BrowseResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results =
+                            [
+                                new BrowseResult
+                                {
+                                    References = [new ReferenceDescription
+                                    {
+                                        NodeId = new ExpandedNodeId("Run", 1)
+                                    }]
+                                }
+                            ]
+                        });
+                    });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, SourceCapturedForm(), new WotExecutorContext(),
+                new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable owner = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.Outputs, Is.Empty);
+            Assert.That(browseCount, Is.EqualTo(1));
+            Assert.That(sessionId, Is.EqualTo(new NodeId("replacement-session", 0)));
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
         }
 
         /// <summary>
@@ -524,17 +963,53 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 Times.Never);
         }
 
-        private static WotCompiledForm CreateForm(ImmutableDictionary<string, string>? addressing = null)
+        private static WotCompiledForm CreateForm(
+            ImmutableDictionary<string, string>? addressing = null,
+            string methodId = "nsu=urn:source;s=Run")
         {
             return new WotCompiledForm(
                 new WotBindingIdentity("opc.opcua", "1", "urn:test"), WotAffordanceKind.Action,
                 "run", "/actions/run/forms/0", WoTBindingCapabilityEnum.InvokeAction, "invokeaction",
                 new WotEndpointDescriptor("opc.tcp", "source", 4840, "opc.tcp://source:4840"),
-                new WotAddressingDescriptor("nsu=urn:source;s=Run",
+                new WotAddressingDescriptor(methodId,
                     addressing ??
                     ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:source;s=Owner")),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.InvokeAction, "invokeaction", "Call"),
                 new WotPayloadDescriptor("application/octet-stream", "binary"), [], true);
+        }
+
+        private static WotCompiledForm SourceCapturedForm()
+        {
+            return CreateForm(ImmutableDictionary<string, string>.Empty
+                .Add("callObjectId", "nsu=urn:source;s=Owner")
+                .Add("sourceCallReceiver", "object"));
+        }
+
+        private static Mock<ISession> CreateSourceReceiverSession(
+            out NamespaceTable namespaces,
+            string configuredEndpoint = "opc.tcp://source:4840")
+        {
+            ServiceMessageContext context = ServiceMessageContext.CreateEmpty(
+                TelemetryExtensions.InternalOnly__TelemetryHook());
+            namespaces = new NamespaceTable();
+            namespaces.Append("urn:source");
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            session.SetupGet(value => value.MessageContext).Returns(context);
+            session.SetupGet(value => value.OperationLimits).Returns(new OperationLimits());
+            session.SetupGet(value => value.ServerUris).Returns(new StringTable());
+            session.SetupGet(value => value.Factory).Returns(context.Factory);
+            session.SetupGet(value => value.SessionId).Returns(new NodeId("source-session", 0));
+            session.SetupGet(value => value.ConfiguredEndpoint).Returns(new ConfiguredEndpoint(
+                null,
+                new EndpointDescription
+                {
+                    EndpointUrl = configuredEndpoint,
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                },
+                null));
+            return session;
         }
 
         private static readonly TestCaseData[] s_statusCases =

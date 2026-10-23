@@ -77,7 +77,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
             m_context = context;
             m_eventSource = eventSource;
-            if (form.Addressing.BrowsePathTarget is not null)
+            if (form.Addressing.BrowsePathTarget is not null ||
+                form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
             {
                 m_session.SessionConfigurationChanged += OnPathConfigurationChanged;
             }
@@ -240,7 +241,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public ValueTask DisposeAsync()
         {
             m_eventSource?.DisposeBinding();
-            if (Form.Addressing.BrowsePathTarget is not null)
+            if (Form.Addressing.BrowsePathTarget is not null ||
+                Form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
             {
                 m_session.SessionConfigurationChanged -= OnPathConfigurationChanged;
             }
@@ -419,6 +421,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         StatusCodes.BadNodeIdInvalid, null,
                         $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
                 }
+                await ValidateSourceCallReceiverAsync(objectId, target, cancellationToken).ConfigureAwait(false);
                 if (inputContext is not null)
                 {
                     ServiceMessageContext sourceContext = target.State?.CreateContext() ?? CreateSourceContext();
