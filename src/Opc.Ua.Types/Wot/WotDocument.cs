@@ -1614,6 +1614,7 @@ namespace Opc.Ua.Wot
         private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
+
         /// <summary>Original source authority retained only for this live resolution result.</summary>
         private readonly Dictionary<JsonElement, (string Receiver, string Endpoint)> m_sourceCallReceivers = [];
         private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
