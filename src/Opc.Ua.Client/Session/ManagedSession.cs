@@ -61,7 +61,7 @@ namespace Opc.Ua.Client
     /// </para>
     /// </remarks>
     public partial class ManagedSession : IManagedSession,
-        ModelChange.INamespaceTableRefresher
+        ModelChange.INamespaceTableRefresher, ISubscriptionAcknowledgementEvents
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -883,6 +883,12 @@ namespace Opc.Ua.Client
             add => m_publishSequenceNumbersToAcknowledge += value;
             remove => m_publishSequenceNumbersToAcknowledge -= value;
         }
+
+        /// <inheritdoc/>
+        public event EventHandler<PublishAcknowledgementsCompletedEventArgs>? PublishAcknowledgementsCompleted;
+
+        /// <inheritdoc/>
+        public event EventHandler<SubscriptionAcknowledgementsDiscardedEventArgs>? SubscriptionAcknowledgementsDiscarded;
 
         /// <inheritdoc/>
         public event EventHandler SubscriptionsChanged
@@ -2927,6 +2933,8 @@ namespace Opc.Ua.Client
             session.PublishError += OnInnerPublishError;
             session.PublishSequenceNumbersToAcknowledge +=
                 OnInnerPublishSequenceNumbers;
+            session.PublishAcknowledgementsCompleted += OnInnerAcknowledgementsCompleted;
+            session.SubscriptionAcknowledgementsDiscarded += OnInnerAcknowledgementsDiscarded;
             session.SubscriptionsChanged +=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing += OnInnerSessionClosing;
@@ -2946,6 +2954,13 @@ namespace Opc.Ua.Client
             session.PublishError -= OnInnerPublishError;
             session.PublishSequenceNumbersToAcknowledge -=
                 OnInnerPublishSequenceNumbers;
+            session.PublishAcknowledgementsCompleted -= OnInnerAcknowledgementsCompleted;
+            session.SubscriptionAcknowledgementsDiscarded -= OnInnerAcknowledgementsDiscarded;
+            if (m_session == null || ReferenceEquals(session, m_session))
+            {
+                Session.RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded,
+                    new SubscriptionAcknowledgementsDiscardedEventArgs(0), this, m_logger);
+            }
             session.SubscriptionsChanged -=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing -= OnInnerSessionClosing;
@@ -3126,6 +3141,28 @@ namespace Opc.Ua.Client
         private void OnInnerSubscriptionsChanged(object? sender, EventArgs e)
         {
             m_subscriptionsChanged?.Invoke(this, e);
+        }
+
+        /// <summary>
+        /// Forwards only the current inner session's acknowledgement results.
+        /// </summary>
+        private void OnInnerAcknowledgementsCompleted(object? sender, PublishAcknowledgementsCompletedEventArgs e)
+        {
+            if (ReferenceEquals(sender, m_session))
+            {
+                Session.RaiseAcknowledgementEvent(PublishAcknowledgementsCompleted, e, this, m_logger);
+            }
+        }
+
+        /// <summary>
+        /// Forwards only the current inner session's acknowledgement retirement.
+        /// </summary>
+        private void OnInnerAcknowledgementsDiscarded(object? sender, SubscriptionAcknowledgementsDiscardedEventArgs e)
+        {
+            if (ReferenceEquals(sender, m_session))
+            {
+                Session.RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded, e, this, m_logger);
+            }
         }
 
         private void OnInnerSessionClosing(object? sender, EventArgs e)

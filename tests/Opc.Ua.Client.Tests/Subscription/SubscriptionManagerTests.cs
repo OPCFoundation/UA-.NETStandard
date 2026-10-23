@@ -291,6 +291,842 @@ namespace Opc.Ua.Client.Subscriptions
                 .Count(c => ReferenceEquals(c.Options, so2)), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A single pending acknowledgement must not be rounded down to zero
+        /// when two workers skip the wait-for-ack path.
+        /// </summary>
+        /// <param name="moreNotifications">Whether the server requests immediate publishing.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(10_000)]
+        public async Task SingleAcknowledgementMakesProgressWithMultipleWorkersAsync(
+            bool moreNotifications,
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            var subscription = new FakeManagedSubscription
+            {
+                Id = 1,
+                Created = true,
+                CurrentPublishingInterval = TimeSpan.FromMilliseconds(1),
+                CurrentKeepAliveCount = 1
+            };
+            context.CreateSubscriptionFactory = (_, _, _) => subscription;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            var primed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var acknowledged = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int completed = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    if (acknowledgement.SubscriptionId == 1 && acknowledgement.SequenceNumber == 42)
+                    {
+                        acknowledged.TrySetResult(true);
+                    }
+                }
+                await Task.Delay(20, ct).ConfigureAwait(false);
+                if (Interlocked.Increment(ref completed) >= 4)
+                {
+                    primed.TrySetResult(true);
+                }
+                return new PublishResponse
+                {
+                    SubscriptionId = 1,
+                    NotificationMessage = new NotificationMessage(),
+                    AvailableSequenceNumbers = [],
+                    Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                    MoreNotifications = moreNotifications,
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                };
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            manager.Resume();
+            await primed.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(2));
+
+            await manager.QueueAsync(subscription, subscription.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 42 },
+                testCt).ConfigureAwait(false);
+
+            await acknowledged.Task.WaitAsync(TimeSpan.FromSeconds(2), testCt).ConfigureAwait(false);
+            Assert.That(manager.PublishWorkerCount, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Deferred acknowledgements survive empty Publish cycles and policy failures,
+        /// while retirement removes only the matching subscription generation.
+        /// </summary>
+        /// <param name="action">Action applied before the policy releases acknowledgements.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase("release")]
+        [TestCase("drop")]
+        [TestCase("fault")]
+        [TestCase("publish-fault")]
+        [TestCase("complete")]
+        [TestCase("complete-cancelled")]
+        [CancelAfter(10_000)]
+        public async Task DeferredAcknowledgementsAreRetainedUntilReleasedOrDroppedAsync(
+            string action,
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            var discarded = new ConcurrentQueue<uint>();
+            context.OnDiscardAcknowledgements = discarded.Enqueue;
+            int nextSubscription = 0;
+            var partitions = new List<FakeManagedSubscription>();
+            context.CreateSubscriptionFactory = (_, _, _) =>
+            {
+                var partition = new FakeManagedSubscription
+                {
+                    Id = (uint)Interlocked.Increment(ref nextSubscription),
+                    Created = true,
+                    CurrentPublishingInterval = TimeSpan.FromMilliseconds(1),
+                    CurrentKeepAliveCount = 1
+                };
+                partitions.Add(partition);
+                return partition;
+            };
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 2,
+                MaxPublishWorkerCount = 2
+            };
+            var deferredIds = new ConcurrentDictionary<uint, bool>();
+            var sentIds = new ConcurrentQueue<uint>();
+            var policyFaulted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            int release = 0;
+            int faultOnce = 0;
+            int publishFaultOnce = action == "publish-fault" ? 1 : 0;
+            int publishCount = 0;
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                if (Interlocked.Exchange(ref faultOnce, 0) != 0)
+                {
+                    policyFaulted.TrySetResult(true);
+                    throw new InvalidOperationException("Injected acknowledgement policy failure.");
+                }
+                if (Volatile.Read(ref release) != 0)
+                {
+                    return (acknowledgements, []);
+                }
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    deferredIds.TryAdd(acknowledgement.SubscriptionId, true);
+                }
+                return ([], acknowledgements);
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                if (acknowledgements.Count != 0 && Interlocked.Exchange(ref publishFaultOnce, 0) != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadTimeout);
+                }
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sentIds.Enqueue(acknowledgement.SubscriptionId);
+                }
+                Interlocked.Increment(ref publishCount);
+                await Task.Delay(20, ct).ConfigureAwait(false);
+                return new PublishResponse
+                {
+                    SubscriptionId = 1,
+                    NotificationMessage = new NotificationMessage(),
+                    AvailableSequenceNumbers = [],
+                    Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                };
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            manager.Resume();
+            await manager.QueueAsync(partitions[0], partitions[0].MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 },
+                testCt).ConfigureAwait(false);
+            await manager.QueueAsync(partitions[1], partitions[1].MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 11 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => deferredIds.Count == 2, testCt).ConfigureAwait(false);
+            int heldAt = Volatile.Read(ref publishCount);
+            await WaitUntilAsync(() => Volatile.Read(ref publishCount) >= heldAt + 2, testCt)
+                .ConfigureAwait(false);
+            Assert.That(sentIds, Is.Empty);
+
+            if (action == "drop")
+            {
+                await manager.RunWithPublishingQuiescedAsync(_ =>
+                {
+                    Assert.That(manager.DropPendingForSubscription(partitions[0], 1), Is.EqualTo(1));
+                    return default;
+                }, testCt).ConfigureAwait(false);
+            }
+            else if (action == "fault")
+            {
+                Volatile.Write(ref faultOnce, 1);
+                await policyFaulted.Task.WaitAsync(testCt).ConfigureAwait(false);
+            }
+            else if (action is "complete" or "complete-cancelled")
+            {
+                using var completionCancellation = new CancellationTokenSource();
+                if (action == "complete-cancelled")
+                {
+                    completionCancellation.Cancel();
+                }
+                await manager.CompleteAsync(partitions[0], 1, completionCancellation.Token).ConfigureAwait(false);
+            }
+            Volatile.Write(ref release, 1);
+
+            bool retired = action is "drop" or "complete" or "complete-cancelled";
+            Assert.That(discarded.ToArray(), Is.EqualTo(retired ? new uint[] { 1 } : []));
+            int expectedCount = retired ? 1 : 2;
+            await WaitUntilAsync(() => sentIds.Count >= expectedCount, testCt).ConfigureAwait(false);
+            uint[] expected = retired ? [2u] : [1u, 2u];
+            Assert.That(sentIds.ToArray(), Is.EquivalentTo(expected));
+            if (action is "fault" or "publish-fault")
+            {
+                // The failing worker counts the failure after the policy signalled the test,
+                // and another worker can finish sending first.
+                await WaitUntilAsync(() => manager.BadPublishRequestCount >= 1, testCt).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Acknowledgements stamped by a subscription that has since been reset,
+        /// moved to another server id, or whose id the server reused for a sibling
+        /// must not be sent: they could confirm a message the client never processed.
+        /// </summary>
+        /// <param name="change">How the owning subscription changes after queuing.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase("generation")]
+        [TestCase("id-changed")]
+        [TestCase("id-reused")]
+        [CancelAfter(10_000)]
+        public async Task StaleOwnedAcknowledgementsAreNotSentAsync(string change, CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(3, acknowledgements);
+            };
+            for (int i = 0; i < 3; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription owner = partitions[0];
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 },
+                testCt).ConfigureAwait(false);
+            switch (change)
+            {
+                case "generation":
+                    owner.MessageGeneration++;
+                    break;
+                case "id-changed":
+                    owner.Id = 4;
+                    break;
+                default:
+                    // The server reused id 1 for a subscription created after the owner.
+                    partitions[1].Id = 1;
+                    manager.OnSubscriptionCreated(partitions[1], 1);
+                    await manager.QueueAsync(partitions[1], partitions[1].MessageGeneration,
+                        new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 11 },
+                        testCt).ConfigureAwait(false);
+                    break;
+            }
+            FakeManagedSubscription control = partitions[2];
+            await manager.QueueAsync(control, control.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 3, SequenceNumber = 99 },
+                testCt).ConfigureAwait(false);
+
+            manager.Resume();
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SequenceNumber == 99), testCt)
+                .ConfigureAwait(false);
+            Assert.That(sent.Any(ack => ack.SequenceNumber == 10), Is.False);
+            if (change == "id-reused")
+            {
+                await WaitUntilAsync(() => sent.Any(ack => ack.SequenceNumber == 11), testCt)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Completing one subscription must neither cancel nor wait for a Publish
+        /// request that is in flight for the session.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task CompleteDoesNotInterruptInFlightPublishAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int cancelled = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                started.TrySetResult(true);
+                try
+                {
+                    await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    Interlocked.Increment(ref cancelled);
+                    throw;
+                }
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            manager.Resume();
+            try
+            {
+                await started.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+                await manager.CompleteAsync(partitions[1], partitions[1].Id, testCt)
+                    .AsTask().WaitAsync(TimeSpan.FromSeconds(2), testCt).ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref cancelled), Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+            }
+        }
+
+        /// <summary>
+        /// Retirement notifications are raised after the publishing quiescence ends,
+        /// so observers never run inside the gate, and immediately otherwise.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task RetirementIsReportedOutsidePublishingQuiescenceAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            var discarded = new ConcurrentQueue<uint>();
+            context.OnDiscardAcknowledgements = discarded.Enqueue;
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            var retiring = new FakeManagedSubscription { Id = 5 };
+            int observedInside = -1;
+
+            await manager.RunWithPublishingQuiescedAsync(_ =>
+            {
+                manager.DropPendingForSubscription(retiring, 5);
+                observedInside = discarded.Count;
+                return default;
+            }, testCt).ConfigureAwait(false);
+
+            Assert.That(observedInside, Is.Zero);
+            Assert.That(discarded.ToArray(), Is.EqualTo(new uint[] { 5 }));
+            manager.DropPendingForSubscription(retiring, 6, deferNotification: true);
+            Assert.That(discarded.ToArray(), Is.EqualTo(new uint[] { 5 }),
+                "A deferred retirement is only reported when the caller flushes it.");
+            manager.ReportRetiredAcknowledgements();
+            Assert.That(discarded.ToArray(), Is.EqualTo(new uint[] { 5, 6 }));
+            manager.DropPendingForSubscription(retiring, 7);
+            Assert.That(discarded.ToArray(), Is.EqualTo(new uint[] { 5, 6, 7 }));
+        }
+
+        /// <summary>
+        /// The acknowledgement-deferral callback is serialized across publish workers,
+        /// matching the classic engine.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DeferralCallbackIsNotInvokedConcurrentlyAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 3,
+                MaxPublishWorkerCount = 3
+            };
+            int active = 0;
+            int maxActive = 0;
+            int calls = 0;
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                int current = Interlocked.Increment(ref active);
+                int observed;
+                while ((observed = Volatile.Read(ref maxActive)) < current &&
+                    Interlocked.CompareExchange(ref maxActive, current, observed) != observed)
+                {
+                }
+                Thread.Sleep(2);
+                Interlocked.Decrement(ref active);
+                Interlocked.Increment(ref calls);
+                return (acknowledgements, []);
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                await Task.Delay(1, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            manager.Resume();
+            FakeManagedSubscription owner = partitions[0];
+            uint sequenceNumber = 0;
+            while (Volatile.Read(ref calls) < 10)
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = ++sequenceNumber },
+                    testCt).ConfigureAwait(false);
+                await Task.Delay(2, testCt).ConfigureAwait(false);
+            }
+
+            Assert.That(Volatile.Read(ref maxActive), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A growing deferred backlog is reported once, not on every Publish.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DeferredBacklogWarningIsLoggedOnceAsync(CancellationToken testCt)
+        {
+            var provider = new CapturingLoggerProvider();
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder.AddProvider(provider));
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(context, loggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            int publishes = 0;
+            context.OnPrepareAcknowledgements = acknowledgements => ([], acknowledgements);
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                Interlocked.Increment(ref publishes);
+                await Task.Delay(1, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            for (uint sequenceNumber = 1; sequenceNumber <= 1100; sequenceNumber++)
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = sequenceNumber },
+                    testCt).ConfigureAwait(false);
+            }
+            manager.Resume();
+
+            await WaitUntilAsync(() => provider.WarningCount(kDeferredWarningText) >= 1, testCt)
+                .ConfigureAwait(false);
+            int publishesAtWarning = Volatile.Read(ref publishes);
+            await WaitUntilAsync(() => Volatile.Read(ref publishes) >= publishesAtWarning + 5, testCt)
+                .ConfigureAwait(false);
+
+            Assert.That(provider.WarningCount(kDeferredWarningText), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// An acknowledgement for a message older than a Publish response that the response
+        /// no longer lists is not sent: the server already removed that message (Part 4,
+        /// 5.14.5.2). Listed and newer messages are still acknowledged.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementsForMessagesTheServerNoLongerHoldsAreNotSentAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<uint>();
+            var windowRecorded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement.SequenceNumber);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    response.NotificationMessage = CreateDataMessage(5);
+                    response.AvailableSequenceNumbers = [4, 5];
+                }
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            owner.OnPublishReceivedAsyncFunc = (message, _, _) =>
+            {
+                if (message.SequenceNumber == 5)
+                {
+                    windowRecorded.TrySetResult(true);
+                }
+                return default;
+            };
+            manager.Resume();
+            await windowRecorded.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            foreach (uint sequenceNumber in new uint[] { 3, 4, 9 })
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = sequenceNumber },
+                    testCt).ConfigureAwait(false);
+            }
+
+            await WaitUntilAsync(() => sent.Contains(4u) && sent.Contains(9u), testCt).ConfigureAwait(false);
+            Assert.That(sent, Does.Not.Contain(3u));
+            Assert.That(context.AbandonedAcknowledgements.Select(ack => ack.SequenceNumber),
+                Is.EqualTo(new uint[] { 3 }),
+                "A dropped acknowledgement of a live subscription is reported as abandoned.");
+        }
+
+        /// <summary>
+        /// A data response that lists no available sequence numbers means the server has no
+        /// retransmission queue; the client should then not acknowledge (Part 4, 5.14.5.2).
+        /// Other subscriptions are unaffected.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task NoAcknowledgementsAreSentWhenTheServerHasNoRetransmissionQueueAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            var windowRecorded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    response.NotificationMessage = CreateDataMessage(5);
+                }
+                return response;
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription owner = partitions[0];
+            owner.OnPublishReceivedAsyncFunc = (message, _, _) =>
+            {
+                if (message.SequenceNumber == 5)
+                {
+                    windowRecorded.TrySetResult(true);
+                }
+                return default;
+            };
+            manager.Resume();
+            await windowRecorded.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                testCt).ConfigureAwait(false);
+            FakeManagedSubscription control = partitions[1];
+            await manager.QueueAsync(control, control.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 7 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SubscriptionId == 2), testCt).ConfigureAwait(false);
+            Assert.That(sent.Any(ack => ack.SubscriptionId == 1), Is.False);
+            await WaitUntilAsync(() => !context.AbandonedAcknowledgements.IsEmpty, testCt).ConfigureAwait(false);
+            Assert.That(context.AbandonedAcknowledgements.Single().SubscriptionId, Is.EqualTo(1u));
+        }
+
+        /// <summary>
+        /// A response to a request sent before an id was claimed can come from the id's
+        /// previous server subscription; it must not describe the new owner's queue.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ResponsesToRequestsSentBeforeAClaimDoNotPruneAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<uint>();
+            var firstSent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement.SequenceNumber);
+                }
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                if (Interlocked.Increment(ref calls) == 1)
+                {
+                    firstSent.TrySetResult(true);
+                    await releaseFirst.Task.WaitAsync(ct).ConfigureAwait(false);
+                    // A late data response of the id's previous server subscription.
+                    response.NotificationMessage = CreateDataMessage(50000);
+                    return response;
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.Resume();
+            await firstSent.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            manager.OnSubscriptionCreated(owner, 1);
+            releaseFirst.TrySetResult(true);
+            await WaitUntilAsync(() => Volatile.Read(ref calls) >= 2, testCt).ConfigureAwait(false);
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Contains(3u), testCt).ConfigureAwait(false);
+            Assert.That(context.AbandonedAcknowledgements, Is.Empty);
+        }
+
+        /// <summary>
+        /// Completing the most recently created owner of a reused id retires its generation
+        /// even though a stale sibling is still registered with the id; completing a
+        /// subscription a rollback already unregistered still retires what it owned.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task CompletionRetiresOwnedGenerationsAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext
+            {
+                OnGetSubscriptionGeneration = id => id == 1 ? 4 : 0
+            };
+            var reported = new ConcurrentQueue<(uint, long)>();
+            context.OnDiscardAcknowledgementGenerations = (id, generation) => reported.Enqueue((id, generation));
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            partitions[1].Id = 1;
+            manager.OnSubscriptionCreated(partitions[1], 1);
+
+            await manager.CompleteAsync(partitions[1], 1, testCt).ConfigureAwait(false);
+            await manager.CompleteAsync(new FakeManagedSubscription { Id = 9 }, 9, testCt).ConfigureAwait(false);
+
+            Assert.That(reported.ToArray(), Is.EqualTo(new (uint, long)[] { (1, 4), (9, 0) }));
+        }
+
+        /// <summary>
+        /// The deferral policy sees the generation the session assigned when the owning
+        /// subscription was created.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DeferralPolicySeesTheCreatingGenerationAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext
+            {
+                OnGetSubscriptionGeneration = id => id == 1 ? 9 : 0
+            };
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var observed = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                if (acknowledgements.Count != 0)
+                {
+                    observed.TrySetResult(context.LastGenerations!(acknowledgements[0]));
+                }
+                return (acknowledgements, []);
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.OnSubscriptionCreated(owner, 1);
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 },
+                testCt).ConfigureAwait(false);
+
+            Assert.That(await observed.Task.WaitAsync(testCt).ConfigureAwait(false), Is.EqualTo(9));
+        }
+
+        /// <summary>
+        /// While a stale subscription and its replacement share a reused id, Publish
+        /// responses are dispatched to the most recently created one.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task ResponsesForAReusedIdAreDispatchedToTheNewestOwnerAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            int staleDeliveries = 0;
+            var newestDelivered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            partitions[0].OnPublishReceivedAsyncFunc = (_, _, _) =>
+            {
+                Interlocked.Increment(ref staleDeliveries);
+                return default;
+            };
+            partitions[1].OnPublishReceivedAsyncFunc = (_, _, _) =>
+            {
+                newestDelivered.TrySetResult(true);
+                return default;
+            };
+            partitions[1].Id = 1;
+            manager.OnSubscriptionCreated(partitions[1], 1);
+            manager.Resume();
+
+            await newestDelivered.Task.WaitAsync(testCt).ConfigureAwait(false);
+            Assert.That(Volatile.Read(ref staleDeliveries), Is.Zero);
+        }
+
+        /// <summary>
+        /// Acknowledgements the server rejects are logged: invalid subscription ids at
+        /// information level, sequence numbers the server already removed at debug level.
+        /// </summary>
+        /// <param name="invalidSubscription">Whether the server reports an invalid
+        /// subscription id rather than an unknown sequence number.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase(true)]
+        [TestCase(false)]
+        [CancelAfter(10_000)]
+        public async Task RejectedAcknowledgementsAreLoggedAsync(bool invalidSubscription, CancellationToken testCt)
+        {
+            StatusCode code = invalidSubscription
+                ? StatusCodes.BadSubscriptionIdInvalid
+                : StatusCodes.BadSequenceNumberUnknown;
+            LogLevel level = invalidSubscription ? LogLevel.Information : LogLevel.Debug;
+            var provider = new CapturingLoggerProvider();
+            using ILoggerFactory loggerFactory = LoggerFactory.Create(builder => builder
+                .SetMinimumLevel(LogLevel.Trace)
+                .AddProvider(provider));
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(context, loggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                response.Results = acknowledgements.ConvertAll(_ => code);
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.Resume();
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => provider.Count(level, kRejectedText) >= 1, testCt).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task SendPublishRequestsWithSuccessAsync()
         {
@@ -313,7 +1149,7 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Ack received immediately
             ms1.OnPublishReceivedAsyncFunc = (n, _, _) =>
-                sut.QueueAsync(new SubscriptionAcknowledgement
+                sut.QueueAsync(ms1, ms1.MessageGeneration, new SubscriptionAcknowledgement
                 {
                     SubscriptionId = 1,
                     SequenceNumber = n.SequenceNumber
@@ -652,8 +1488,19 @@ namespace Opc.Ua.Client.Subscriptions
         public async Task QueueAsyncQueuesAcknowledgementAsync()
         {
             var ack = new SubscriptionAcknowledgement();
-            await m_subscriptionManager.QueueAsync(ack, CancellationToken.None).ConfigureAwait(false);
+            var owner = new FakeManagedSubscription();
+            await m_subscriptionManager.QueueAsync(owner, owner.MessageGeneration, ack, CancellationToken.None)
+                .ConfigureAwait(false);
             // No exception means success
+        }
+
+        [Test]
+        public void QueueAsyncRejectsMissingOwner()
+        {
+            Assert.That(
+                async () => await m_subscriptionManager.QueueAsync(null!, 0, new SubscriptionAcknowledgement(),
+                    CancellationToken.None).ConfigureAwait(false),
+                Throws.ArgumentNullException);
         }
 
         [Test]
@@ -825,7 +1672,7 @@ namespace Opc.Ua.Client.Subscriptions
                     operationRan = true;
                     // The documented contract: ingress is quiesced here, so
                     // dropping pending acknowledgements is still safe.
-                    dropped = sut.DropPendingForSubscription(1);
+                    dropped = sut.DropPendingForSubscription(subscription, 1);
                     return default;
                 }, testCt).ConfigureAwait(false);
 
@@ -878,7 +1725,7 @@ namespace Opc.Ua.Client.Subscriptions
                 sut.MaxPublishWorkerCount = 1;
                 sut.Add(m_mockNotificationDataHandler.Object,
                     Mock.Of<IOptionsMonitor<SubscriptionOptions>>());
-                await sut.QueueAsync(new SubscriptionAcknowledgement
+                await sut.QueueAsync(subscription, subscription.MessageGeneration, new SubscriptionAcknowledgement
                 {
                     SubscriptionId = 1,
                     SequenceNumber = 7
@@ -888,10 +1735,11 @@ namespace Opc.Ua.Client.Subscriptions
 
                 var actionEntered = new TaskCompletionSource<bool>(
                     TaskCreationOptions.RunContinuationsAsynchronously);
-                int dropped = 0;
+                int queued = 0;
                 Task quiesced = sut.RunWithPublishingQuiescedAsync(_ =>
                 {
-                    dropped = sut.DropPendingForSubscription(1);
+                    // The aborted attempt has rolled its acknowledgement back before this runs.
+                    queued = sut.QueuedAcknowledgementCount;
                     sut.Pause();
                     actionEntered.TrySetResult(true);
                     return default;
@@ -905,7 +1753,7 @@ namespace Opc.Ua.Client.Subscriptions
                 await actionEntered.Task.WaitAsync(testCt).ConfigureAwait(false);
                 await quiesced.WaitAsync(testCt).ConfigureAwait(false);
 
-                Assert.That(dropped, Is.EqualTo(1));
+                Assert.That(queued, Is.EqualTo(1));
             }
             finally
             {
@@ -1032,80 +1880,52 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Regression coverage for the ack-pruning helper added by
-        /// #3540. <see cref="IMessageAckQueue.DropPendingForSubscription"/>
-        /// must remove every queued acknowledgement targeting the
-        /// given subscription id while leaving acks for other
-        /// subscriptions intact. The recovery path relies on this
-        /// before recreating a subscription so stale acks for the
-        /// dead id do not leak <c>BadSubscriptionIdInvalid</c> to
-        /// the server when the server re-uses the id.
+        /// Retiring an id reports the generation the retiring owner held. It is not reported
+        /// while another live subscription owns the id, because the session already retired the
+        /// older generations when that owner was created, and observers that track state by id
+        /// alone would otherwise invalidate the live owner's state. Dropping is idempotent.
         /// </summary>
         [Test]
-        public async Task DropPendingForSubscriptionRemovesOnlyMatchingAcksAsync()
+        public async Task DropPendingForSubscriptionNeverRetiresALiveOwnersIdAsync()
         {
-            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
-            var session = new FakeSubscriptionManagerContext();
-            var sut = new SubscriptionManager(session,
-                loggerFactory, DiagnosticsMasks.None);
+            var session = new FakeSubscriptionManagerContext
+            {
+                OnGetSubscriptionGeneration = id => id == 1 ? 5 : 0
+            };
+            var reported = new List<(uint, long)>();
+            session.OnDiscardAcknowledgementGenerations = (id, generation) => reported.Add((id, generation));
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(session);
+            var sut = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
             await using (sut.ConfigureAwait(false))
             {
-                // Variable typed as the interface on purpose to test the
-                // public contract; the analyzer's perf hint does not
-                // apply to a coverage test.
-#pragma warning disable CA1859
+                for (int i = 0; i < 2; i++)
+                {
+                    sut.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                        new SubscriptionOptions { DisableUnboundedItemMode = true }));
+                }
+#pragma warning disable CA1859 // Typed as the interface to test the contract.
                 IMessageAckQueue queue = sut;
-                await queue.QueueAsync(new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = 1u,
-                    SequenceNumber = 10u
-                }).ConfigureAwait(false);
-                await queue.QueueAsync(new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = 2u,
-                    SequenceNumber = 11u
-                }).ConfigureAwait(false);
-                await queue.QueueAsync(new SubscriptionAcknowledgement
-                {
-                    SubscriptionId = 1u,
-                    SequenceNumber = 12u
-                }).ConfigureAwait(false);
-
-                int dropped = queue.DropPendingForSubscription(1u);
-
-                Assert.That(dropped, Is.EqualTo(2),
-                    "All queued acks for the dead subscription id must be dropped.");
-
-                int droppedAgain = queue.DropPendingForSubscription(1u);
-                Assert.That(droppedAgain, Is.Zero,
-                    "Second call must drop nothing (idempotent).");
-
-                int droppedOther = queue.DropPendingForSubscription(2u);
-                Assert.That(droppedOther, Is.EqualTo(1),
-                    "Ack for the surviving subscription id must still be queued " +
-                    "and drainable on a subsequent call.");
 #pragma warning restore CA1859
-            }
-        }
+                FakeManagedSubscription older = partitions[0];
+                FakeManagedSubscription newer = partitions[1];
+                newer.Id = 1;
+                queue.OnSubscriptionCreated(older, 1);
+                session.OnGetSubscriptionGeneration = id => id == 1 ? 6 : 0;
+                queue.OnSubscriptionCreated(newer, 1);
 
-        /// <summary>
-        /// Calling <see cref="IMessageAckQueue.DropPendingForSubscription"/>
-        /// on an empty queue is a no-op and must not throw.
-        /// </summary>
-        [Test]
-        public async Task DropPendingForSubscriptionOnEmptyQueueReturnsZeroAsync()
-        {
-            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
-            var session = new FakeSubscriptionManagerContext();
-            var sut = new SubscriptionManager(session,
-                loggerFactory, DiagnosticsMasks.None);
-            await using (sut.ConfigureAwait(false))
-            {
-#pragma warning disable CA1859
-                IMessageAckQueue queue = sut;
-                int dropped = queue.DropPendingForSubscription(7u);
-                Assert.That(dropped, Is.Zero);
-#pragma warning restore CA1859
+                Assert.That(queue.DropPendingForSubscription(older, 1), Is.Zero);
+                Assert.That(reported, Is.Empty, "The newer live owner's id must not be retired.");
+
+                queue.DropPendingForSubscription(newer, 1);
+                Assert.That(reported, Is.EqualTo(new (uint, long)[] { (1, 6) }),
+                    "The newest owner retires its own generation even while a stale sibling is registered.");
+
+                queue.DropPendingForSubscription(older, 1);
+                Assert.That(reported, Has.Count.EqualTo(1),
+                    "Without a claim, the creation order is unknown while another live owner uses the id.");
+
+                queue.DropPendingForSubscription(older, 7);
+                Assert.That(reported, Is.EqualTo(new (uint, long)[] { (1, 6), (7, 0) }));
             }
         }
 
@@ -1826,6 +2646,65 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Registers a factory that creates created fake partitions with ids 1, 2, ...
+        /// </summary>
+        private static List<FakeManagedSubscription> AddPartitionFactory(FakeSubscriptionManagerContext context)
+        {
+            var partitions = new List<FakeManagedSubscription>();
+            int next = 0;
+            context.CreateSubscriptionFactory = (_, _, _) =>
+            {
+                var partition = new FakeManagedSubscription
+                {
+                    Id = (uint)Interlocked.Increment(ref next),
+                    Created = true,
+                    CurrentPublishingInterval = TimeSpan.FromMilliseconds(1),
+                    CurrentKeepAliveCount = 1
+                };
+                lock (partitions)
+                {
+                    partitions.Add(partition);
+                }
+                return partition;
+            };
+            return partitions;
+        }
+
+        /// <summary>
+        /// Creates a data notification message with the given sequence number.
+        /// </summary>
+        private static NotificationMessage CreateDataMessage(uint sequenceNumber)
+        {
+            return new NotificationMessage
+            {
+                SequenceNumber = sequenceNumber,
+                NotificationData =
+                [
+                    new ExtensionObject(new DataChangeNotification
+                    {
+                        MonitoredItems = [new MonitoredItemNotification()]
+                    })
+                ]
+            };
+        }
+
+        /// <summary>
+        /// Creates a good keep-alive Publish response acknowledging every request entry.
+        /// </summary>
+        private static PublishResponse CreatePublishResponse(
+            uint subscriptionId, ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+        {
+            return new PublishResponse
+            {
+                SubscriptionId = subscriptionId,
+                NotificationMessage = new NotificationMessage(),
+                AvailableSequenceNumbers = [],
+                Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+            };
+        }
+
+        /// <summary>
         /// Polls <see cref="SubscriptionManager.PublishWorkerCount"/> until it
         /// matches the expected value or the timeout elapses. Replaces fixed
         /// <c>Task.Delay</c>-based waits, which are flaky on slow CI runners.
@@ -1846,6 +2725,70 @@ namespace Opc.Ua.Client.Subscriptions
                 $"got {sut.PublishWorkerCount} after {sw.ElapsedMilliseconds} ms.");
         }
 
+        /// <summary>
+        /// Records log messages from every logger it creates.
+        /// </summary>
+        private sealed class CapturingLoggerProvider : ILoggerProvider, ILogger
+        {
+            /// <summary>
+            /// Counts warnings whose message contains <paramref name="text"/>.
+            /// </summary>
+            public int WarningCount(string text)
+            {
+                return Count(LogLevel.Warning, text);
+            }
+
+            /// <summary>
+            /// Counts messages at <paramref name="level"/> that contain <paramref name="text"/>.
+            /// </summary>
+            public int Count(LogLevel level, string text)
+            {
+                lock (m_lock)
+                {
+                    return m_entries.Count(entry =>
+                        entry.Level == level && entry.Message.Contains(text, StringComparison.Ordinal));
+                }
+            }
+
+            /// <inheritdoc/>
+            public ILogger CreateLogger(string categoryName)
+            {
+                return this;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+            }
+
+            /// <inheritdoc/>
+            public IDisposable? BeginScope<TState>(TState state) where TState : notnull
+            {
+                return null;
+            }
+
+            /// <inheritdoc/>
+            public bool IsEnabled(LogLevel logLevel)
+            {
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+                Exception? exception, Func<TState, Exception?, string> formatter)
+            {
+                lock (m_lock)
+                {
+                    m_entries.Add((logLevel, formatter(state, exception)));
+                }
+            }
+
+            private readonly Lock m_lock = new();
+            private readonly List<(LogLevel Level, string Message)> m_entries = [];
+        }
+
+        private const string kRejectedText = "The server rejected acknowledgements";
+        private const string kDeferredWarningText = "deferred by the acknowledgement policy";
         private static readonly bool[] s_resumedThenPaused = [false, true];
         private FakeSubscriptionManagerContext m_session;
         private ITelemetryContext m_telemetry;

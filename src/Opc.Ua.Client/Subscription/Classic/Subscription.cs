@@ -2992,6 +2992,7 @@ namespace Opc.Ua.Client
         /// </summary>
         private void DeleteSubscription()
         {
+            uint retiredId = Id;
             TransferId = Id = 0;
             CurrentPublishingInterval = 0;
             CurrentKeepAliveCount = 0;
@@ -3002,6 +3003,11 @@ namespace Opc.Ua.Client
             ResetMonitoredItemServerIds();
 
             m_changeMask |= SubscriptionChangeMask.Deleted;
+            if (retiredId != 0 && Session is Session session &&
+                !session.Subscriptions.Any(subscription => subscription.Id == retiredId))
+            {
+                session.OnAcknowledgementsDiscarded(retiredId);
+            }
         }
 
         /// <summary>

@@ -42,17 +42,38 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext : ISubscriptionEngineContext
+        private sealed class SessionEngineContext : ISubscriptionEngineContext, ISubscriptionAcknowledgementLifecycle,
+            ISubscriptionAcknowledgementPolicy
         {
             public SessionEngineContext(Session session)
             {
                 m_session = session
                     ?? throw new ArgumentNullException(
                         nameof(session));
+                m_sessionGenerations = acknowledgement =>
+                    m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId);
             }
 
             /// <inheritdoc/>
             public NodeId SessionId => m_session.SessionId;
+
+            /// <inheritdoc/>
+            public long GetSubscriptionGeneration(uint subscriptionId)
+            {
+                return m_session.GetSubscriptionGeneration(subscriptionId);
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
+            {
+                m_session.OnAcknowledgementsDiscarded(subscriptionId, generation);
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+            {
+                m_session.OnAcknowledgementsAbandoned(acknowledgements);
+            }
 
             /// <inheritdoc/>
             public bool Reconnecting => m_session.Reconnecting;
@@ -260,6 +281,17 @@ namespace Opc.Ua.Client
                     List<SubscriptionAcknowledgement>
                         currentAcknowledgements)
             {
+                return PrepareAcknowledgementsToSend(currentAcknowledgements, m_sessionGenerations);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> toSend,
+                List<SubscriptionAcknowledgement> updatedPending)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement>
+                        currentAcknowledgements,
+                    Func<SubscriptionAcknowledgement, long> generations)
+            {
                 PublishSequenceNumbersToAcknowledgeEventHandler?
                     callback =
                         m_session
@@ -270,6 +302,10 @@ namespace Opc.Ua.Client
 
                 if (callback != null)
                 {
+                    // A handler can move entries and then throw; restore the original set
+                    // so falling back to sending all acknowledgements loses none of them.
+                    var snapshot = new List<SubscriptionAcknowledgement>(
+                        currentAcknowledgements);
                     try
                     {
                         var deferred =
@@ -278,7 +314,8 @@ namespace Opc.Ua.Client
                             m_session,
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
                                 currentAcknowledgements,
-                                deferred));
+                                deferred,
+                                generations));
                         acknowledgementsToSend =
                             currentAcknowledgements;
                         return (acknowledgementsToSend, deferred);
@@ -286,6 +323,8 @@ namespace Opc.Ua.Client
                     catch (Exception e)
                     {
                         m_session.m_logger.PublishSequenceNumbersToAcknowledgeHandlerError(e);
+                        currentAcknowledgements.Clear();
+                        currentAcknowledgements.AddRange(snapshot);
                     }
                 }
 
@@ -356,6 +395,12 @@ namespace Opc.Ua.Client
             }
 
             private readonly Session m_session;
+
+            /// <summary>
+            /// Resolves generations through the session; cached so the classic Publish path does not
+            /// allocate a delegate per request.
+            /// </summary>
+            private readonly Func<SubscriptionAcknowledgement, long> m_sessionGenerations;
         }
     }
 

@@ -186,6 +186,33 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The handler sees the generation supplied by the engine through the internal policy
+        /// capability, or the session's current generation for the id through the public contract.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void PrepareAcknowledgementsExposesSubscriptionGenerations(bool engineResolver)
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
+            long observed = -1;
+            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+                observed = e.GetSubscriptionGeneration(acknowledgement);
+
+            if (engineResolver)
+            {
+                ((ISubscriptionAcknowledgementPolicy)scope.Context).PrepareAcknowledgementsToSend(
+                    [acknowledgement], _ => 42);
+            }
+            else
+            {
+                scope.Context.PrepareAcknowledgementsToSend([acknowledgement]);
+            }
+
+            Assert.That(observed, Is.EqualTo(engineResolver ? 42 : 0));
+        }
+
         [Test]
         public void PrepareAcknowledgementsCallbackFailureFallsBackToSendingAllAcknowledgements()
         {
@@ -207,6 +234,36 @@ namespace Opc.Ua.Client.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(toSend, Is.SameAs(acknowledgements));
+                Assert.That(updatedPending, Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// A handler that moves an acknowledgement to the deferred list and then
+        /// throws must not lose it: every presented acknowledgement is sent.
+        /// </summary>
+        [Test]
+        public void PrepareAcknowledgementsCallbackFailureAfterDeferringRestoresAllAcknowledgements()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var first = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
+            var second = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 3 };
+            var acknowledgements = new List<SubscriptionAcknowledgement> { first, second };
+
+            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+            {
+                e.AcknowledgementsToSend.Remove(first);
+                e.DeferredAcknowledgementsToSend.Add(first);
+                throw new InvalidOperationException();
+            };
+
+            (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending) =
+                scope.Context.PrepareAcknowledgementsToSend(acknowledgements);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(toSend, Is.EqualTo(new[] { first, second }).Using<SubscriptionAcknowledgement>(
+                    (x, y) => ReferenceEquals(x, y)));
                 Assert.That(updatedPending, Is.Empty);
             });
         }

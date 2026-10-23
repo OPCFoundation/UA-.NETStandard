@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -41,8 +42,50 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// via callback fields. Replaces
     /// <c>Mock&lt;ISubscriptionManagerContext&gt;</c>.
     /// </summary>
-    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
+    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
     {
+        /// <summary>
+        /// Optional acknowledgement retirement observer.
+        /// </summary>
+        public Action<uint>? OnDiscardAcknowledgements { get; set; }
+
+        /// <summary>
+        /// Optional acknowledgement retirement observer that also receives the generation.
+        /// </summary>
+        public Action<uint, long>? OnDiscardAcknowledgementGenerations { get; set; }
+
+        /// <summary>
+        /// Optional session generation source; defaults to zero.
+        /// </summary>
+        public Func<uint, long>? OnGetSubscriptionGeneration { get; set; }
+
+        /// <inheritdoc/>
+        public long GetSubscriptionGeneration(uint subscriptionId)
+        {
+            return OnGetSubscriptionGeneration?.Invoke(subscriptionId) ?? 0;
+        }
+
+        /// <inheritdoc/>
+        public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
+        {
+            OnDiscardAcknowledgements?.Invoke(subscriptionId);
+            OnDiscardAcknowledgementGenerations?.Invoke(subscriptionId, generation);
+        }
+
+        /// <summary>
+        /// Acknowledgements reported as abandoned because the server no longer holds them.
+        /// </summary>
+        public ConcurrentQueue<SubscriptionAcknowledgement> AbandonedAcknowledgements { get; } = new();
+
+        /// <inheritdoc/>
+        public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+        {
+            foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+            {
+                AbandonedAcknowledgements.Enqueue(acknowledgement);
+            }
+        }
+
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);
@@ -86,6 +129,14 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         { get; set; }
 
         /// <summary>
+        /// Optional session acknowledgement policy.
+        /// </summary>
+        public Func<List<SubscriptionAcknowledgement>,
+            (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)>?
+            OnPrepareAcknowledgements
+        { get; set; }
+
+        /// <summary>
         /// Optional override for <see cref="PublishAsync"/>. If null,
         /// returns a default <see cref="PublishResponse"/>.
         /// </summary>
@@ -123,6 +174,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             IManagedSubscription subscription = CreateSubscriptionFactory(handler, options, queue);
             initialize?.Invoke(subscription);
             return subscription;
+        }
+
+        /// <summary>
+        /// The generation resolver passed with the latest preparation call.
+        /// </summary>
+        public Func<SubscriptionAcknowledgement, long>? LastGenerations { get; private set; }
+
+        /// <inheritdoc/>
+        public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+            PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements,
+                Func<SubscriptionAcknowledgement, long>? generations)
+        {
+            LastGenerations = generations;
+            return OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
         }
 
         public ValueTask<PublishResponse> PublishAsync(

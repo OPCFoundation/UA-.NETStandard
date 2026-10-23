@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -216,7 +217,7 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext
+        private sealed class EngineContextAdapter : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -260,6 +261,44 @@ namespace Opc.Ua.Client
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
                     options, m_context.Telemetry, loadState, m_timeProvider, initialize);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? generations)
+            {
+                // Third-party engine contexts only implement the public contract and report no generations.
+                return generations != null && m_context is ISubscriptionAcknowledgementPolicy policy
+                    ? policy.PrepareAcknowledgementsToSend(acknowledgements, generations)
+                    : m_context.PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            /// <inheritdoc/>
+            public long GetSubscriptionGeneration(uint subscriptionId)
+            {
+                return m_context is ISubscriptionAcknowledgementLifecycle lifecycle
+                    ? lifecycle.GetSubscriptionGeneration(subscriptionId)
+                    : 0;
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
+            {
+                if (m_context is ISubscriptionAcknowledgementLifecycle lifecycle)
+                {
+                    lifecycle.OnAcknowledgementsDiscarded(subscriptionId, generation);
+                }
+            }
+
+            /// <inheritdoc/>
+            public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
+            {
+                if (m_context is ISubscriptionAcknowledgementLifecycle lifecycle)
+                {
+                    lifecycle.OnAcknowledgementsAbandoned(acknowledgements);
+                }
             }
 
             /// <inheritdoc/>

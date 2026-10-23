@@ -89,11 +89,12 @@ namespace Opc.Ua.Client.Tests
             m_mockContext
                 .Setup(c => c.GoodPublishRequestCount)
                 .Returns(0);
-#if OPCUA_V1_CLIENT
+            m_mockContext
+                .Setup(c => c.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns((List<SubscriptionAcknowledgement> acknowledgements) => (acknowledgements, []));
             m_mockContext
                 .Setup(c => c.Subscriptions)
                 .Returns(new List<Subscription>());
-#endif
         }
 
         [Test]
@@ -109,6 +110,120 @@ namespace Opc.Ua.Client.Tests
                 Is.InstanceOf<DefaultSubscriptionEngine>());
 
             engine.Dispose();
+        }
+
+        /// <summary>
+        /// The V2 engine forwards acknowledgement preparation through the session
+        /// context and reconsiders deferred entries without another notification.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task PublishAcknowledgementsUseSessionDeferralPolicyAsync(CancellationToken testCt)
+        {
+            var services = new Mock<ISubscriptionServiceSetClientMethods>();
+            services.Setup(value => value.CreateSubscriptionAsync(
+                It.IsAny<RequestHeader?>(),
+                It.IsAny<double>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>(),
+                It.IsAny<uint>(),
+                It.IsAny<bool>(),
+                It.IsAny<byte>(),
+                It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CreateSubscriptionResponse
+                {
+                    SubscriptionId = 7,
+                    RevisedPublishingInterval = 10,
+                    RevisedMaxKeepAliveCount = 1,
+                    RevisedLifetimeCount = 100,
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                });
+            services.Setup(value => value.DeleteSubscriptionsAsync(
+                It.IsAny<RequestHeader?>(), It.IsAny<ArrayOf<uint>>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new DeleteSubscriptionsResponse
+                {
+                    Results = [StatusCodes.Good],
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                });
+            m_mockContext.SetupGet(value => value.SubscriptionServiceSet).Returns(services.Object);
+            m_mockContext.SetupGet(value => value.Connected).Returns(true);
+            m_mockContext.SetupGet(value => value.SessionTimeout).Returns(60000);
+            var deferred = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var sent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int release = 0;
+            m_mockContext
+                .Setup(value => value.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()))
+                .Returns((List<SubscriptionAcknowledgement> acknowledgements) =>
+                {
+                    if (Volatile.Read(ref release) == 0)
+                    {
+                        deferred.TrySetResult(true);
+                        return ([], acknowledgements);
+                    }
+                    return (acknowledgements, []);
+                });
+            m_mockContext.Setup(value => value.PublishAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<SubscriptionAcknowledgement>>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(async (RequestHeader _, ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+                    CancellationToken ct) =>
+                {
+                    foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                    {
+                        if (acknowledgement.SubscriptionId == 7 && acknowledgement.SequenceNumber == 42)
+                        {
+                            sent.TrySetResult(true);
+                        }
+                    }
+                    await Task.Delay(20, ct).ConfigureAwait(false);
+                    return new PublishResponse
+                    {
+                        SubscriptionId = 7,
+                        NotificationMessage = new NotificationMessage(),
+                        AvailableSequenceNumbers = [],
+                        Results = acknowledgements.ConvertAll(_ => StatusCodes.Good),
+                        ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                    };
+                });
+            using var engine = new DefaultSubscriptionEngine(m_mockContext.Object);
+            try
+            {
+                engine.MinPublishRequestCount = 1;
+                engine.MaxPublishRequestCount = 1;
+                ISubscription subscription = engine.SubscriptionManager.Add(
+                    Mock.Of<ISubscriptionNotificationHandler>(),
+                    new OptionsMonitor<Subscriptions.SubscriptionOptions>(new Subscriptions.SubscriptionOptions
+                    {
+                        PublishingEnabled = true,
+                        PublishingInterval = TimeSpan.FromMilliseconds(10),
+                        KeepAliveCount = 1,
+                        LifetimeCount = 100,
+                        DisableUnboundedItemMode = true
+                    }));
+                while (!subscription.Created)
+                {
+                    await Task.Delay(10, testCt).ConfigureAwait(false);
+                }
+                var queue = (IMessageAckQueue)engine.SubscriptionManager;
+                IManagedSubscription partition = ((LogicalSubscription)subscription).Partitions[0];
+                await queue.QueueAsync(partition, partition.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 7, SequenceNumber = 42 },
+                    testCt).ConfigureAwait(false);
+                await deferred.Task.WaitAsync(testCt).ConfigureAwait(false);
+                Assert.That(sent.Task.IsCompleted, Is.False);
+
+                Volatile.Write(ref release, 1);
+
+                await sent.Task.WaitAsync(testCt).ConfigureAwait(false);
+                m_mockContext.Verify(
+                    value => value.PrepareAcknowledgementsToSend(It.IsAny<List<SubscriptionAcknowledgement>>()),
+                    Times.AtLeast(2));
+            }
+            finally
+            {
+                await engine.StopPublishingAsync(CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         [Test]

@@ -78,14 +78,61 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public Func<uint, CancellationToken, ValueTask>? OnCompleteAsync { get; set; }
 
+        /// <summary>
+        /// Records an acknowledgement as if a processor had queued it.
+        /// </summary>
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
+        {
+            return QueueAsync(null, 0, ack, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask QueueAsync(IMessageProcessor? owner, long generation,
+            SubscriptionAcknowledgement ack, CancellationToken ct = default)
         {
             lock (m_lock)
             {
                 m_queuedAcks.Add(ack);
+                m_queuedGenerations.Add(generation);
             }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
+        }
+
+        /// <summary>
+        /// The owner generation each entry of <see cref="QueuedAcks"/> was stamped with.
+        /// </summary>
+        public List<long> QueuedAckGenerations
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return [.. m_queuedGenerations];
+                }
+            }
+        }
+
+        /// <summary>
+        /// Removes every queued acknowledgement for <paramref name="subscriptionId"/>.
+        /// </summary>
+        /// <returns>The number of removed acknowledgements.</returns>
+        public int ClearQueuedAcks(uint subscriptionId)
+        {
+            lock (m_lock)
+            {
+                int removed = 0;
+                for (int i = m_queuedAcks.Count - 1; i >= 0; i--)
+                {
+                    if (m_queuedAcks[i].SubscriptionId == subscriptionId)
+                    {
+                        m_queuedAcks.RemoveAt(i);
+                        m_queuedGenerations.RemoveAt(i);
+                        removed++;
+                    }
+                }
+                return removed;
+            }
         }
 
         /// <summary>
@@ -177,14 +224,44 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public List<uint> DroppedSubscriptions { get; } = [];
 
-        public int DropPendingForSubscription(uint subscriptionId)
+        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId,
+            bool deferNotification = false)
         {
+            // Like the manager, queued entries are not scanned: they fail send-time
+            // validation because their owner's generation advanced.
             DroppedSubscriptions.Add(subscriptionId);
-            lock (m_lock)
+            if (deferNotification)
             {
-                return m_queuedAcks.RemoveAll(
-                    ack => ack.SubscriptionId == subscriptionId);
+                DeferredRetirements++;
             }
+            return 0;
+        }
+
+        /// <summary>
+        /// Number of retirements whose notification was deferred.
+        /// </summary>
+        public int DeferredRetirements { get; private set; }
+
+        /// <summary>
+        /// Number of calls to <see cref="ReportRetiredAcknowledgements"/>.
+        /// </summary>
+        public int RetirementReports { get; private set; }
+
+        /// <inheritdoc/>
+        public void ReportRetiredAcknowledgements()
+        {
+            RetirementReports++;
+        }
+
+        /// <summary>
+        /// Ids reported through <see cref="OnSubscriptionCreated"/>.
+        /// </summary>
+        public List<uint> CreatedSubscriptions { get; } = [];
+
+        /// <inheritdoc/>
+        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId)
+        {
+            CreatedSubscriptions.Add(subscriptionId);
         }
 
         /// <summary>
@@ -222,5 +299,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
 
         /// <summary>The queue's mutable storage, accessed only under <see cref="m_lock"/>.</summary>
         private readonly List<SubscriptionAcknowledgement> m_queuedAcks = [];
+        private readonly List<long> m_queuedGenerations = [];
     }
 }
