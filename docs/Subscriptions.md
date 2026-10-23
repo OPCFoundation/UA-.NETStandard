@@ -487,9 +487,75 @@ lifecycle.SubscriptionAcknowledgementsDiscarded += (_, retired) =>
 ```
 
 Because a retirement names the generations it covers, it stays correct even when it is
-observed after a replacement subscription with the same id has started. The generation is
-zero for a subscription that was not created in this session (for example, one that was
-transferred to it).
+observed after a replacement subscription with the same id has started. A subscription
+transferred into the session also gets a generation of its own, and so does one the session
+receives notifications for without having created or transferred it (for example, one restored
+from saved state). The generation is zero only for an id the session does not know.
+
+### Notification lifetimes
+
+Keying approvals by `(id, generation, sequence number)` needs the generation **at delivery
+time**, but the deferral callback only runs later, when the next Publish is prepared. A
+notification lifetime is the supported identity for this: an opaque, process-local value
+stamped when the message is received.
+
+```csharp
+subscription.FastDataChangeCallback = (s, notification, _) =>
+{
+    // Capture synchronously, before handing the work to another task.
+    if (s.TryGetNotificationLifetime(notification.SequenceNumber, out NotificationLifetime lifetime))
+    {
+        pipeline.Enqueue(notification, lifetime);   // later: MarkDelivered(lifetime)
+    }
+};
+
+session.PublishSequenceNumbersToAcknowledge += (_, e) =>
+{
+    foreach (SubscriptionAcknowledgement ack in e.AcknowledgementsToSend.ToList())
+    {
+        if (!e.TryGetLifetime(ack, out NotificationLifetime lifetime) || !IsDelivered(lifetime))
+        {
+            e.AcknowledgementsToSend.Remove(ack);
+            e.DeferredAcknowledgementsToSend.Add(ack);
+        }
+    }
+};
+
+if (session is INotificationLifetimeEvents lifetimes)
+{
+    lifetimes.NotificationsTerminated += (_, e) =>
+    {
+        foreach (NotificationTermination termination in e.Terminations)
+        {
+            ForgetDelivery(termination.Lifetime);   // bounded: every lifetime ends once
+        }
+    };
+}
+```
+
+- A lifetime identifies one message of one subscription lifetime of one session. It survives an
+  in-place recovery (`ManagedSession`, or `Session.ReconnectAsync`), including a recreate that
+  transfers the subscription. It is invalidated when the subscription is deleted or recreated,
+  or the server reuses its id. A session cloned for recreation (`Session.RecreateAsync`,
+  `SessionReconnectHandler`) starts lifetimes of its own; the old session reports its lifetimes
+  as `OwnerRetired` when it is disposed. `Provenance` tells whether the session created the
+  subscription, had it transferred in, or received it without either (`Unknown`).
+- `TryGetLifetime` resolves the acknowledgement objects the engine presented. Acknowledgements
+  are matched by object, so move them between the two lists instead of creating new ones.
+- `NotificationsTerminated` reports the end of every tracked lifetime once, whether or not the
+  application approved it: `Acknowledged` (the server confirmed it), `NotRetained` (the server no
+  longer lists the message, or rejected the acknowledgement), `OwnerRetired` (the subscription
+  ended, the id was reused, or the session ended without transferring it) or `Abandoned` (the
+  policy dropped it). Several acknowledgements of the same message (a re-ack after a transfer)
+  share its lifetime and report it once. An acknowledgement whose request was lost is queued
+  again while its lifetime is current. The event is raised outside the session and engine locks.
+  The existing `PublishAcknowledgementsCompleted` and `SubscriptionAcknowledgementsDiscarded`
+  events are unchanged.
+- An acknowledgement of a retired lifetime is never sent: the classic engine validates pending
+  acknowledgements against the current subscription lifetime before every Publish.
+- Lifetimes are not serializable and are not part of saved session or subscription state.
+  Approvals do not survive a fail-over to another process; at-least-once replay remains valid.
+- Available on the classic engine with an SDK `Session` or `ManagedSession`. The V2 engine follows.
 
 Completion reports matching acknowledgement/result arrays from a successful
 Publish service response, including per-acknowledgement error codes. A failed

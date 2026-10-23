@@ -183,15 +183,140 @@ namespace Opc.Ua.Client
             PrepareAcknowledgementsToSend(
                 List<SubscriptionAcknowledgement> currentAcknowledgements,
                 Func<SubscriptionAcknowledgement, long> generations);
+
+        /// <summary>
+        /// Applies the deferral policy, exposing generations and notification lifetimes to the handler.
+        /// </summary>
+        /// <param name="currentAcknowledgements">The acknowledgements eligible for the next request.</param>
+        /// <param name="generations">Resolves the subscription generation of a presented
+        /// acknowledgement.</param>
+        /// <param name="lifetimes">Resolves the notification lifetime of a presented acknowledgement.</param>
+        /// <returns>The acknowledgements to send and those to retain.</returns>
+        (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> updatedPending)
+            PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> currentAcknowledgements,
+                Func<SubscriptionAcknowledgement, long> generations,
+                NotificationLifetimeResolver? lifetimes);
     }
 
-    public partial class Session : ISubscriptionAcknowledgementEvents
+    /// <summary>
+    /// Resolves the lifetime of an acknowledgement presented to the deferral policy.
+    /// </summary>
+    internal delegate bool NotificationLifetimeResolver(
+        SubscriptionAcknowledgement acknowledgement,
+        out NotificationLifetime lifetime);
+
+    /// <summary>
+    /// Session-owned notification lifetimes for engines and subscriptions.
+    /// </summary>
+    internal interface INotificationLifetimeRegistry
+    {
+        /// <summary>
+        /// Stamps a received notification message with the current lifetime of its subscription,
+        /// assigning one with <see cref="NotificationProvenance.Unknown"/> provenance when the
+        /// session did not create or transfer the subscription.
+        /// </summary>
+        NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber);
+
+        /// <summary>
+        /// Gets whether a lifetime still belongs to the current lifetime of its subscription.
+        /// </summary>
+        bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime);
+
+        /// <summary>
+        /// Reports ended lifetimes. Raised once no session lock is held.
+        /// </summary>
+        void OnNotificationsTerminated(List<NotificationTermination> terminations);
+    }
+
+    public partial class Session : ISubscriptionAcknowledgementEvents, INotificationLifetimeEvents,
+        INotificationLifetimeRegistry
     {
         /// <inheritdoc/>
         public event EventHandler<PublishAcknowledgementsCompletedEventArgs>? PublishAcknowledgementsCompleted;
 
         /// <inheritdoc/>
         public event EventHandler<SubscriptionAcknowledgementsDiscardedEventArgs>? SubscriptionAcknowledgementsDiscarded;
+
+        /// <inheritdoc/>
+        public event EventHandler<NotificationsTerminatedEventArgs>? NotificationsTerminated;
+
+        /// <inheritdoc/>
+        NotificationLifetime INotificationLifetimeRegistry.StampNotificationLifetime(
+            uint subscriptionId,
+            uint sequenceNumber)
+        {
+            return StampNotificationLifetime(subscriptionId, sequenceNumber);
+        }
+
+        /// <inheritdoc/>
+        bool INotificationLifetimeRegistry.IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+        {
+            return IsCurrentNotificationLifetime(lifetime);
+        }
+
+        /// <inheritdoc/>
+        void INotificationLifetimeRegistry.OnNotificationsTerminated(List<NotificationTermination> terminations)
+        {
+            OnNotificationsTerminated(terminations);
+        }
+
+        /// <summary>
+        /// Stamps a received notification message with the current lifetime of its subscription.
+        /// </summary>
+        internal NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber)
+        {
+            if (subscriptionId == 0)
+            {
+                return default;
+            }
+            long generation;
+            NotificationProvenance provenance;
+            lock (m_subscriptionGenerationLock)
+            {
+                if (!m_subscriptionGenerations.TryGetValue(subscriptionId, out generation))
+                {
+                    // Owned before this session knew it (for example restored from saved state):
+                    // still a unique lifetime, until a creation or retirement replaces it.
+                    generation = ++m_subscriptionGenerationEpoch;
+                    m_subscriptionGenerations[subscriptionId] = generation;
+                    m_subscriptionProvenance[subscriptionId] = NotificationProvenance.Unknown;
+                }
+                provenance = m_subscriptionProvenance.TryGetValue(subscriptionId, out NotificationProvenance known)
+                    ? known
+                    : NotificationProvenance.Created;
+            }
+            return new NotificationLifetime(m_lifetimeScope, generation, provenance, subscriptionId, sequenceNumber);
+        }
+
+        /// <summary>
+        /// Gets whether a lifetime still belongs to the current lifetime of its subscription.
+        /// </summary>
+        internal bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+        {
+            if (lifetime.IsNull || lifetime.SessionScope != m_lifetimeScope)
+            {
+                return false;
+            }
+            lock (m_subscriptionGenerationLock)
+            {
+                return m_subscriptionGenerations.TryGetValue(lifetime.SubscriptionId, out long generation) &&
+                    generation == lifetime.SubscriptionLifetime;
+            }
+        }
+
+        /// <summary>
+        /// Queues ended lifetimes and raises them once no session lock is held.
+        /// </summary>
+        internal void OnNotificationsTerminated(List<NotificationTermination> terminations)
+        {
+            if (terminations.Count == 0 || NotificationsTerminated == null)
+            {
+                return;
+            }
+            m_pendingTerminations.Enqueue(new NotificationsTerminatedEventArgs(terminations.ToArrayOf()));
+            RaisePendingLifecycleEvents();
+        }
 
         /// <summary>
         /// Reports a validated acknowledgement response without affecting Publish completion.
@@ -208,6 +333,15 @@ namespace Opc.Ua.Client
                 // is retired, so every assignment starts a new generation and retires the older ones.
                 long generation = AssignSubscriptionGeneration(created.SubscriptionId);
                 OnAcknowledgementsDiscarded(created.SubscriptionId, generation - 1);
+                return;
+            }
+            if (request is TransferSubscriptionsRequest transfer &&
+                response is TransferSubscriptionsResponse transferred &&
+                transferred.ResponseHeader != null &&
+                StatusCode.IsGood(transferred.ResponseHeader.ServiceResult) &&
+                transferred.Results.Count == transfer.SubscriptionIds.Count)
+            {
+                RecordTransferredSubscriptions(transfer.SubscriptionIds, transferred.Results);
                 return;
             }
             if (PublishAcknowledgementsCompleted == null ||
@@ -290,11 +424,13 @@ namespace Opc.Ua.Client
                 if (subscriptionId == 0)
                 {
                     m_subscriptionGenerations.Clear();
+                    m_subscriptionProvenance.Clear();
                 }
                 else if (m_subscriptionGenerations.TryGetValue(subscriptionId, out long current) &&
                     current <= generation)
                 {
                     m_subscriptionGenerations.Remove(subscriptionId);
+                    m_subscriptionProvenance.Remove(subscriptionId);
                 }
             }
             m_pendingAcknowledgementDiscards.Enqueue(
@@ -318,6 +454,10 @@ namespace Opc.Ua.Client
             {
                 RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded, args, this, m_logger);
             }
+            while (m_pendingTerminations.TryDequeue(out NotificationsTerminatedEventArgs? terminated))
+            {
+                RaiseAcknowledgementEvent(NotificationsTerminated, terminated, this, m_logger);
+            }
             RaisePendingSessionGenerationChanges();
         }
 
@@ -330,7 +470,32 @@ namespace Opc.Ua.Client
             {
                 long generation = ++m_subscriptionGenerationEpoch;
                 m_subscriptionGenerations[subscriptionId] = generation;
+                m_subscriptionProvenance.Remove(subscriptionId);
                 return generation;
+            }
+        }
+
+        /// <summary>
+        /// Gives subscriptions transferred into this session a lifetime of their own. A
+        /// subscription the session already owns (an in-process transfer after a session
+        /// recreate) keeps its lifetime.
+        /// </summary>
+        private void RecordTransferredSubscriptions(ArrayOf<uint> subscriptionIds, ArrayOf<TransferResult> results)
+        {
+            lock (m_subscriptionGenerationLock)
+            {
+                for (int i = 0; i < subscriptionIds.Count; i++)
+                {
+                    uint subscriptionId = subscriptionIds[i];
+                    if (subscriptionId != 0 &&
+                        results[i] != null &&
+                        StatusCode.IsGood(results[i].StatusCode) &&
+                        !m_subscriptionGenerations.ContainsKey(subscriptionId))
+                    {
+                        m_subscriptionGenerations[subscriptionId] = ++m_subscriptionGenerationEpoch;
+                        m_subscriptionProvenance[subscriptionId] = NotificationProvenance.Transferred;
+                    }
+                }
             }
         }
 
@@ -397,9 +562,22 @@ namespace Opc.Ua.Client
         private int m_retainAcknowledgementsAcrossSessionChange;
         private readonly Lock m_subscriptionGenerationLock = new();
         private readonly Dictionary<uint, long> m_subscriptionGenerations = [];
+
+        /// <summary>
+        /// Provenance of subscriptions the session did not create; absent means created.
+        /// </summary>
+        private readonly Dictionary<uint, NotificationProvenance> m_subscriptionProvenance = [];
         private long m_subscriptionGenerationEpoch;
+
+        /// <summary>
+        /// Process-local scope of the notification lifetimes of this session. A clone created for
+        /// recreation has a scope of its own.
+        /// </summary>
+        private readonly long m_lifetimeScope = Interlocked.Increment(ref s_nextLifetimeScope);
         private readonly ConcurrentQueue<SubscriptionAcknowledgementsDiscardedEventArgs>
             m_pendingAcknowledgementDiscards = new();
+        private readonly ConcurrentQueue<NotificationsTerminatedEventArgs> m_pendingTerminations = new();
+        private static long s_nextLifetimeScope;
     }
 
     /// <summary>
