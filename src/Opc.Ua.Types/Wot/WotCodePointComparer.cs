@@ -46,8 +46,8 @@ namespace Opc.Ua.Wot
     /// character <em>below</em> U+E000-U+FFFF even though its code point is far
     /// above them. Two consumers that disagree about the order compute
     /// different <c>ViewVersion</c> values for one View membership
-    /// (Section 12.6), resolve one projection document into different views
-    /// (Section 12.4), and pick different endpoints from one
+    /// (OPC 10101-2), resolve one projection document into different views
+    /// (OPC 10101-2), and pick different endpoints from one
     /// <c>GetEndpoints</c> response (Section 5.7.1) - which is exactly the
     /// interoperability those clauses exist to provide.
     /// </para>

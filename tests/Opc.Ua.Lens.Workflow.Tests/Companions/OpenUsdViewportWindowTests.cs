@@ -62,9 +62,6 @@ namespace UaLens.Tests.Companions
         /// <summary>
         /// Exercises native telemetry, picking, resize and retained Vision capture before draining the document.
         /// </summary>
-        // TODO: Re-enable Linux after the OpenUSD Vulkan compositor passes hosted-runner qualification.
-        [Platform(Exclude = "Linux",
-            Reason = "Hosted Linux compositor interop is unavailable; awaiting the OpenUSD compatibility fix.")]
         [TestCase(false)]
         [TestCase(true)]
         public async Task EmbeddedDocumentRendersLiveTelemetryPickingResizeAndSimulatedVisionThenDrainsAsync(

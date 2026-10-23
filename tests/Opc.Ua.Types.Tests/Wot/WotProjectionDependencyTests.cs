@@ -147,7 +147,7 @@ namespace Opc.Ua.Types.Tests.Wot
             outer["id"] = "urn:projection:outer";
             var entry = (JsonObject)outer["uav:projects"]![0]!;
             entry["href"] = innerHref;
-            entry["type"] = WotProjection.ContentType;
+            entry["type"] = "application/td+json";
             if (selectAll)
             {
                 entry["uav:selectAll"] = true;
@@ -678,8 +678,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return new JsonObject
             {
                 ["@context"] = "https://www.w3.org/2022/wot/td/v1.1",
-                ["@type"] = "uav:projection",
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["id"] = "urn:projection:dependencies",
                 ["title"] = "Projection",
                 ["uav:scenario"] = "urn:scenario:dependencies",

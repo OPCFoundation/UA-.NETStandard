@@ -90,8 +90,7 @@ This implementation tracks **WoT Binding revision 1.1**, exposed by
 
 The `uav` prefix binds to `http://opcfoundation.org/UA/WoT-Binding/`. The
 reader matches compact `uav:` names without resolving the prefix's IRI, in
-both permissive and strict mode. Documents using the earlier
-`http://opcfoundation.org/UA/WoT/v1#` draft prefix binding remain readable.
+both permissive and strict mode.
 
 Specification fixtures under `tests/Opc.Ua.Types.Tests/Wot/Assets` record
 their source revisions and hashes in `spec-examples.manifest.json`.
@@ -897,8 +896,9 @@ alias, keeping one relation in one spelling on output.
 
 Two neighbouring subjects are documented elsewhere so they are stated once:
 
-- A **projection document** declares affordances instead of defining them, and
-  Section 12.5 closes the set of members it may annotate beside `tm:ref`. See
+- A **projection document** combines source selections with complete local
+  affordance definitions; OPC 10101-2 closes the set of members it may annotate
+  beside a source-selection `tm:ref`. See
   [Projection documents and the View NodeClass](WotCon.md#124-projection-documents-and-the-view-nodeclass).
 - The **OPC 10100-1 v1.02 asset surface** (`CreateAsset`, `WoTFile` upload, the
   `AssetRegistry` POCO reader) is a separate code path governed by that

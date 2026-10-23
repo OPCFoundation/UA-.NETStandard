@@ -169,7 +169,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 (isEvent ? "/events/" : "/actions/") + name + "/forms/0", operation, token,
                 new WotEndpointDescriptor("test", null, -1, "test://condition-source"),
                 new WotAddressingDescriptor(isEvent ? "i=2253" : name,
-                    ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:source;s=Condition")),
+                    ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:source;s=Condition")),
                 new WotOperationDescriptor(operation, token, isEvent ? "Monitor" : "Call"),
                 new WotPayloadDescriptor("application/json", "json"), [], true,
                 targetMapping: null,

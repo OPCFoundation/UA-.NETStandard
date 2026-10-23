@@ -575,6 +575,40 @@ namespace Opc.Ua.WotCon.Tests
             Assert.That(harness.File.OpenCount.Value, Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that CloseAndUpdate rejects the draft-only projection-kind marker at the TD-only upload gate.
+        /// </summary>
+        [Test]
+        public async Task CloseAndUpdateRejectsDraftProjectionKindSyntaxAtTheTdOnlyGate()
+        {
+            using var harness = new Harness();
+            byte[] payload = Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
+                {
+                  "name": "projection",
+                  "title": "Projection plan",
+                  "@type": ["uav:projection"],
+                  "uav:projectionKind": "ThingDescription",
+                  "uav:scenario": "urn:scenario:projection",
+                  "uav:projects": [{
+                    "uav:sourceName": "source",
+                    "href": "urn:source",
+                    "type": "application/td+json",
+                    "uav:selectAll": true
+                  }]
+                }
+                """);
+            uint handle = 0;
+            Assert.That(ServiceResult.IsGood(harness.Open(ModeWriteErase, ref handle)), Is.True);
+            Assert.That(ServiceResult.IsGood(harness.Write(handle, ByteString.From(payload))), Is.True);
+
+            ServiceResult result = await harness.CloseAndUpdateAsync(handle).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(harness.MaterialiseCallCount, Is.Zero);
+            Assert.That(harness.File.Size!.Value, Is.Zero);
+            Assert.That(harness.File.OpenCount!.Value, Is.Zero);
+        }
+
         private sealed class Harness : IDisposable
         {
             private readonly NodeId _objectId;

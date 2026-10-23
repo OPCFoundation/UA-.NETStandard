@@ -437,7 +437,7 @@ namespace AggregationClient
                         actions.Add(new DemoAction(
                             ResolvePortableId(session, action.GetProperty("uav:id").GetString()!),
                             form.GetProperty("href").GetString()!,
-                            form.GetProperty("uav:componentOf").GetString()!,
+                            form.GetProperty("uav:callObjectId").GetString()!,
                             form.GetProperty("uav:id").GetString()!,
                             action.TryGetProperty("uav:conditionAction", out JsonElement kind)
                                 ? kind.GetString() : null,

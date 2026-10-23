@@ -65,15 +65,51 @@ namespace Opc.Ua.Client
         public TimeSpan PeerDiscoveryTimeout { get; init; } = DefaultTimeout;
 
         /// <summary>
-        /// Validates that both bounds are usable.
+        /// When <see langword="true"/>, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> and
+        /// <c>Server.ServerStatus.State</c> of every other member of a non-transparent redundant Server set
+        /// over a short session with a copy of the identity of the session in use, when a selection or
+        /// failover decision needs them: after the initial connect, for a failover, and during ServiceLevel
+        /// monitoring once the Server in use is no longer Healthy. A member whose resolved endpoint does not
+        /// keep the security mode and policy of the session in use is not probed. The values replace those
+        /// reported by the Server in use, so the initial connect, the
+        /// failover target selection and the failover decision compare the members' current
+        /// <c>ServiceLevel</c> (OPC 10000-4 §6.6.2.4.5). After the initial connect the session switches to
+        /// the member with the highest <c>ServiceLevel</c> when it is higher than the <c>ServiceLevel</c> of
+        /// the Server it connected to. A member that cannot be probed keeps the values reported for it and
+        /// carries the failure in <see cref="RedundantServer.ResolutionError"/>. Each probe is bounded by
+        /// <see cref="PeerDiscoveryTimeout"/>. Default <see langword="false"/>.
+        /// </summary>
+        public bool ProbeMemberServiceLevel { get; init; }
+
+        /// <summary>
+        /// When set, a <see cref="ManagedSession"/> reads <c>Server.ServiceLevel</c> of the Server in use at
+        /// this interval while it is connected to a non-transparent redundant Server set. When the
+        /// <c>ServiceLevel</c> leaves the Healthy subrange (OPC 10000-4 §6.6.2.4.2) the redundancy snapshot is
+        /// refreshed, including the member probe when <see cref="ProbeMemberServiceLevel"/> is set, and a
+        /// failover decision that warrants it starts <see cref="ManagedSession.FailoverAsync"/> to the target
+        /// the redundancy handler selects. Default <see langword="null"/>: the session fails over only when
+        /// the reconnect policy gives up or the application calls <see cref="ManagedSession.FailoverAsync"/>.
+        /// </summary>
+        public TimeSpan? ServiceLevelMonitoringInterval { get; init; }
+
+        /// <summary>
+        /// Validates that both bounds and the monitoring interval are usable.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException">
-        /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>.
+        /// Thrown when a bound is neither positive nor <see cref="Timeout.InfiniteTimeSpan"/>, or when
+        /// <see cref="ServiceLevelMonitoringInterval"/> is set and not positive.
         /// </exception>
         public void Validate()
         {
             ValidateTimeout(RefreshTimeout, nameof(RefreshTimeout));
             ValidateTimeout(PeerDiscoveryTimeout, nameof(PeerDiscoveryTimeout));
+            if (ServiceLevelMonitoringInterval is TimeSpan interval && interval <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(ServiceLevelMonitoringInterval),
+                    interval,
+                    "The ServiceLevel monitoring interval must be positive.");
+            }
         }
 
         private static void ValidateTimeout(TimeSpan value, string name)

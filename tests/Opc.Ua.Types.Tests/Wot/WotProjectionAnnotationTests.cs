@@ -41,7 +41,7 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// The closed set of members a projection may annotate a declared
-    /// affordance with (WoT Binding Section 12.5).
+    /// affordance with (OPC 10101-2).
     /// </summary>
     /// <remarks>
     /// A projection declares affordances; it does not define them. Restating a
@@ -75,7 +75,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
-            WotProjection.Parse(document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
+            WotProjection.Parse(document, diagnostics);
 
             Assert.That(
                 diagnostics.Any(d =>
@@ -103,7 +103,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(annotation)));
             var diagnostics = new List<WotDiagnostic>();
 
-            WotProjection.Parse(document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
+            WotProjection.Parse(document, diagnostics);
 
             Assert.That(
                 diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
@@ -167,7 +167,9 @@ namespace Opc.Ua.Types.Tests.Wot
                 Encoding.UTF8.GetBytes(Projection(
                     "\"title\":\"Condition signal\"," +
                     "\"uav:semanticId\":\"http://example.com/ontology/Signal\"," +
-                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"")));
+                    "\"@type\":\"http://example.com/ontology/ConditionSignal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
 
             WotConversionResult<WotDocument> result =
                 await resolver.ResolveAsync(document).ConfigureAwait(false);
@@ -201,7 +203,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [Test]
         public async Task UnderSourceRoutingAnAnnotatedFormMakesTheDocumentInvalidAsync()
         {
-            // Section 12.5: a member routed to its source carries the source's
+            // OPC 10101-2: a member routed to its source carries the source's
             // own form, so a member that restates one makes the document
             // invalid. Dropping it would leave a form the author wrote and the
             // consumer silently did not use.
@@ -259,7 +261,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         /// <summary>
         /// A <c>uav:namePrefix</c> upper-cases the first character of the
-        /// source name (Section 12.3), so <c>serialNumber</c> and
+        /// source name (OPC 10101-2), so <c>serialNumber</c> and
         /// <c>SerialNumber</c> in one source both become
         /// <c>deviceSerialNumber</c> in the view. Two bulk selections of the
         /// same kind from the same source can therefore take the same view name
@@ -303,10 +305,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static WotProjectionResolver CreateResolver(IWotThingResolver source)
         {
-            return new WotProjectionResolver(source, new WotNodeSetConverterOptions
-            {
-                ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-            });
+            return new WotProjectionResolver(source);
         }
 
         private static string Projection(string annotation, string routing = "projection")
@@ -404,6 +403,63 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             private readonly Dictionary<string, string> m_map;
+        }
+
+        [TestCase("\"title\":\"Speed\"", false)]
+        [TestCase("\"unit\":\"rpm\"", true)]
+        public void CurrentAnnotationFixturesParseWithStrictDefaults(
+            string annotation,
+            bool expectedAnnotationError)
+        {
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(annotation)));
+            var diagnostics = new List<WotDiagnostic>();
+
+            WotProjection? projection = WotProjection.Parse(document, diagnostics);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(projection, Is.Not.Null);
+                Assert.That(
+                    diagnostics.Any(diagnostic =>
+                        diagnostic.Code == WotDiagnosticCode.ProjectionAnnotationNotPermitted &&
+                        diagnostic.Severity == WotDiagnosticSeverity.Error),
+                    Is.EqualTo(expectedAnnotationError),
+                    string.Join("; ", diagnostics));
+            });
+        }
+
+        [Test]
+        public async Task CurrentProjectionAnnotationResolvesWithStrictDefaultsAsync()
+        {
+            var source = new MapResolver(new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["./source.jsonld"] = SourceJson
+            });
+            var resolver = new WotProjectionResolver(source);
+            using var document = WotDocument.Parse(
+                Encoding.UTF8.GetBytes(Projection(
+                    "\"title\":\"Condition signal\"," +
+                    "\"forms\":[{\"href\":\"https://example.com/signal\"," +
+                    "\"op\":[\"readproperty\"]}]")));
+
+            WotConversionResult<WotDocument> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            using WotDocument view = result.Value!;
+            JsonElement speed = view.RootElement
+                .GetProperty("properties")
+                .GetProperty("pumpSpeed");
+            Assert.Multiple(() =>
+            {
+                Assert.That(speed.GetProperty("title").GetString(), Is.EqualTo("Condition signal"));
+                Assert.That(speed.GetProperty("type").GetString(), Is.EqualTo("number"));
+                Assert.That(
+                    speed.GetProperty("forms")[0].GetProperty("href").GetString(),
+                    Is.EqualTo("https://example.com/signal"));
+                Assert.That(WotProjection.IsProjection(view), Is.False);
+            });
         }
     }
 }

@@ -30,12 +30,15 @@
 namespace Opc.Ua.WotCon.Server
 {
     /// <summary>
-    /// Access policy applied to the five management methods exposed by
-    /// the standard <c>WoTAssetConnectionManagement</c> object:
-    /// <c>CreateAsset</c>, <c>DeleteAsset</c>, <c>DiscoverAssets</c>,
-    /// <c>CreateAssetForEndpoint</c> and <c>ConnectionTest</c>.
+    /// Access policy applied to selected remote management operations in
+    /// the WoT Registry and Connectivity address spaces.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// This policy protects the five methods exposed by the standard
+    /// <c>WoTAssetConnectionManagement</c> object and selected WoT Registry
+    /// management methods and dependency-observation property reads.
+    /// </para>
     /// <para>
     /// The defaults are intentionally restrictive: a remote caller
     /// must be using a <see cref="MessageSecurityMode.SignAndEncrypt"/>
@@ -45,11 +48,9 @@ namespace Opc.Ua.WotCon.Server
     /// role by the OPC UA server's role-mapping layer.
     /// </para>
     /// <para>
-    /// Internal callers (those invoking the underlying
-    /// <see cref="Assets.AssetRegistry"/> APIs directly without flowing
-    /// an <c>OperationContext</c>) are not affected by this policy and
-    /// continue to work without authentication; the check is applied
-    /// only to address-space method invocations.
+    /// Calls made without a session <see cref="Opc.Ua.Server.OperationContext"/> are not
+    /// affected by this policy; the check is applied only to protected
+    /// address-space operations.
     /// </para>
     /// </remarks>
     public sealed class WotManagementAccessPolicy
