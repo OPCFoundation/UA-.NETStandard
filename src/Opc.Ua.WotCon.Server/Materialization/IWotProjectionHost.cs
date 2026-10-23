@@ -138,6 +138,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// did not prepare any bindings (for example a dry run).
         /// </summary>
         public ArrayOf<WotBindingPlan> BindingPlans { get; }
+
+        /// <summary>
+        /// Gets the converter-resolved owning namespace for fluent configuration.
+        /// </summary>
+        internal string? DefaultNamespaceUri { get; init; }
     }
 
     /// <summary>

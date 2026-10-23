@@ -1,7 +1,8 @@
 {
   "$comment": [
-    "Clause-level stack-side traceability for the OPC UA WoT Binding: it maps the",
-    "Binding clauses this repository implements onto the tests that hold them, by",
+    "Clause-level stack-side traceability for OPC UA WoT Binding and Projections:",
+    "it maps implemented behavior onto existing tests, with part-qualified",
+    "anchors for OPC 10101-2. It names the tests that hold that behavior, by",
     "test name, so a reviewer can ask 'what proves this clause?' and get an answer",
     "that a test run can check.",
     "",
@@ -16,17 +17,76 @@
     "run - which is what WotBindingTraceabilityTests enforces, and what keeps a",
     "renamed or deleted test from silently emptying a clause.",
     "",
-    "'pinnedTo' records the specification commit the clause numbering was read",
-    "from. Re-pin it, and re-read the clause titles, when the specification lands",
-    "its published revision; the fixture manifest beside this file pins the same",
-    "commit and the two are checked against each other."
+    "This is a stack-side test locator, not an authoritative copy of the current",
+    "specification text or a report of conformance to the official baseline."
   ],
-  "pinnedTo": {
-    "repository": "https://github.com/OPCF-Members/spec-drafts.git",
-    "commit": "db08f850e8801863006208b40f4bd3614febea8b",
-    "bindingRevision": "1.1"
-  },
   "clauses": [
+    {
+      "clause": "OPC10101/sec-static-call-layout",
+      "title": "Current-draft source-Thing receiver selection; not full published v1.00 interoperability",
+      "tests": [
+        "Opc.Ua.WotCon.Bindings.Tests.CallReceiverPlanningTests",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverWithoutMethodOwnershipIsRejectedBeforeCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverAccessDeniedDuringPreflightPreventsCall",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotInvocationStatusTests.DerivedReceiverMayCallMethodOwnedByItsObjectTypeHierarchy",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithOmittedReceiverCallsMethodOnSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.OpcUaWotBindingChannelTests.InvokeAsyncWithExplicitReceiverOverridesSourceObjectAsync",
+        "Opc.Ua.WotCon.Bindings.Tests.WotConditionInvocationTests.DerivedConditionReceiverMustProveObjectTypeMethodOwnership"
+      ],
+      "assembly": "Opc.Ua.WotCon.Bindings.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-the-projection-document",
+      "title": "Ordinary TD/TM projection envelopes and result roles",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests.ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionPlanFormatTests.APlanRequiresExactlyOneOrdinaryRootRole"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-selection",
+      "title": "Selection forms, precedence and local overrides",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsEnumeratedAffordance",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsWholeDocumentWithSelectAll",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SelectsByPredicateAffordanceKind",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.EnumeratedSelectionWinsOverBulkAndReportsDrop",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-resolution",
+      "title": "Provenance and owner-preserving closure; not full result schema validation",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.BulkProvenanceIsHrefPlusPointer",
+        "Opc.Ua.Types.Tests.Wot.WotCallReceiverTests",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionCarriesOriginalSourceObjectReceiver",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutedImportedActionPreservesExplicitCallObjectId",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.ConflictingContextPrefixesRemainInTheirSourceScopes",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-routing",
+      "title": "Source and projection form routing with source-owned security",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.SourceRoutingAbsolutizesFormAndCopiesSecurityClosure",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.ProjectionRoutingKeepsProjectionForms"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
+    {
+      "clause": "OPC10101-2/sec-organizing-projections",
+      "title": "Organizational graph sharing and cycle rejection",
+      "tests": [
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.AGroupReachedByTwoBranchesIsNotACycleAsync",
+        "Opc.Ua.Types.Tests.Wot.WotProjectionResolverTests.AGroupThatOrganizesItsOwnOrganizerIsACycleAsync"
+      ],
+      "assembly": "Opc.Ua.Types.Tests"
+    },
     {
       "clause": "10",
       "title": "Native projection, residue, and exceptional envelope formats",

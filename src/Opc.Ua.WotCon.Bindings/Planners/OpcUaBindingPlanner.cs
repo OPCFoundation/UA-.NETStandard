@@ -55,20 +55,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// </summary>
         public const string BindingUri = "http://opcfoundation.org/UA/WoT-Binding/";
 
-        /// <summary>
-        /// The superseded spelling this implementation minted for an event's
-        /// extra select clauses before WoT Binding Section 6.1 standardized
-        /// <see cref="WotEventSelectClauses.Term"/>.
-        /// </summary>
-        /// <remarks>
-        /// It is authored on a form, carries bare browse paths and adds to the
-        /// implicit BaseEventType default. It is still read so a document already
-        /// authored against this implementation keeps working, and it is never
-        /// written: a document this stack produces states the standardized
-        /// terms.
-        /// </remarks>
-        public const string LegacyEventFieldsTerm = "uav:eventFields";
-
         private static readonly string[] s_schemes = ["opc.tcp", "opc.https", "opc.wss"];
 
         /// <inheritdoc/>
@@ -88,7 +74,11 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 WoTBindingCapabilityEnum.SubscribeEvent,
                 WoTBindingCapabilityEnum.UnsubscribeEvent
             ],
-            ["application/json", "application/opcua+json", "application/octet-stream"],
+            [
+                "application/json",
+                "application/opcua+json",
+                "application/octet-stream"
+            ],
             isExecutable: true);
 
         /// <inheritdoc/>
@@ -208,8 +198,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 }
                 metadata = metadata.Add("pathHrefNodeId", hrefTarget);
             }
-            metadata = AddIfPresent(form, "uav:componentOf", "componentOf", metadata);
-            if (!TryCompileCallReceiver(form, diagnostics, ref metadata))
+            if (!TryCompileCallReceiver(form, endpoint, diagnostics, ref metadata))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
@@ -220,8 +209,15 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
-            if (!ResolveCodec(form, context, diagnostics, out WotPayloadDescriptor payload))
+            if (!ResolveCodec(form, context, diagnostics, "application/octet-stream", out WotPayloadDescriptor payload))
             {
+                return WotBindingCompilation.Unsupported([.. diagnostics]);
+            }
+            if (!context.Codecs.TrySelect(payload.ContentType, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.UnsupportedContentType,
+                    $"No payload codec is registered for '{payload.ContentType}'.", form.Pointer("contentType")));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
             if (!WotConditionInvocation.TryCreate(
@@ -275,13 +271,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         /// states neither takes the implicit <c>BaseEventType</c> default.
         /// Resolving a link follows document references, so it happens before
         /// planning and this method reads the result from
-        /// <see cref="WotBindingPlanContext.EventSelections"/>. The superseded
-        /// <c>uav:eventFields</c> spelling this implementation minted before the
-        /// terms existed adds field names to that default. Where a form carries
-        /// both, the standardized terms win and the contradiction is reported:
-        /// merging the two would produce a list neither spelling states, and
-        /// silently preferring one without saying so would leave the author
-        /// unable to tell which was honoured.
+        /// <see cref="WotBindingPlanContext.EventSelections"/>.
         /// </remarks>
         /// <returns>
         /// The effective selection, or <c>null</c> when the affordance is not
@@ -295,8 +285,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             WotBindingPlanContext context,
             List<WotBindingDiagnostic> diagnostics)
         {
-            bool legacy = form.TryGetStringArray(
-                LegacyEventFieldsTerm, out ImmutableArray<string> legacyFields);
             if (form.Kind != WotAffordanceKind.Event)
             {
                 if (HasSelectClauses(form.FormElement) || HasSelectClauses(form.AffordanceElement))
@@ -324,31 +312,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
 
             if (!WotEventSelectionResolver.StatesSelection(form.AffordanceElement))
             {
-                if (!legacy)
-                {
-                    return WotEventSelection.Default;
-                }
-                diagnostics.Add(WotBindingDiagnostic.Warning(
-                    WotBindingDiagnosticCode.UnknownVocabularyTerm,
-                    $"'{LegacyEventFieldsTerm}' is the spelling this implementation minted " +
-                    $"before WoT Binding Section 6.1 standardized '{WotEventSelectClauses.Term}'. " +
-                    "It is still read, and its fields are added to the implicit default " +
-                    "selection, but a portable document states the standardized terms instead.",
-                    form.Pointer(LegacyEventFieldsTerm),
-                    LegacyEventFieldsTerm));
-                return BuildLegacySelection(legacyFields);
-            }
-
-            if (legacy)
-            {
-                diagnostics.Add(WotBindingDiagnostic.Warning(
-                    WotBindingDiagnosticCode.ConflictingFields,
-                    "The affordance states its selection with the standardized terms of " +
-                    $"WoT Binding Section 6.1 and the form states '{LegacyEventFieldsTerm}'. " +
-                    "The standardized terms are honoured; the superseded spelling is ignored " +
-                    "rather than merged, because a merged list is one neither spelling states.",
-                    form.Pointer(LegacyEventFieldsTerm),
-                    LegacyEventFieldsTerm));
+                return WotEventSelection.Default;
             }
 
             string pointer = form.AffordancePointer(WotEventSelectClauses.Term);
@@ -513,36 +477,6 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 // this stack escapes it (OPC 10000-6 §5.3.1.11).
                 : "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + name;
             return true;
-        }
-
-        private static WotEventSelection BuildLegacySelection(ImmutableArray<string> fields)
-        {
-            var clauses = new List<WotResolvedEventSelectClause>(
-                WotEventSelectClauses.Default.Count + fields.Length);
-            foreach (WotResolvedEventSelectClause clause in WotEventSelectClauses.Default)
-            {
-                clauses.Add(clause);
-            }
-            foreach (string field in fields)
-            {
-                // A superseded field that reaches a data member the default
-                // already fills is not added twice: Section 6.1 lets exactly one
-                // clause materialize a member, and the implicit default is the
-                // list this spelling extends rather than competes with.
-                clauses.Add(new WotResolvedEventSelectClause(
-                    WotEventSelectClauses.BaseEventTypeId,
-                    field,
-                    WotEventSelectClauseSource.Explicit));
-                if (!WotEventSelectClauses.TryFindMaterializedCollision(
-                    new ArrayOf<WotResolvedEventSelectClause>(clauses.ToArray()),
-                    null,
-                    out _,
-                    out _))
-                {
-                    clauses.RemoveAt(clauses.Count - 1);
-                }
-            }
-            return new WotEventSelection(clauses.ToArray(), WotEventSelectionOrigin.Legacy);
         }
 
         private static bool HasSelectClauses(System.Text.Json.JsonElement element)
@@ -918,14 +852,9 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             return null;
         }
 
-        private static ImmutableDictionary<string, string> AddIfPresent(
-            WotAffordanceForm form, string term, string key, ImmutableDictionary<string, string> metadata)
-        {
-            return form.TryGetString(term, out string value) ? metadata.Add(key, value) : metadata;
-        }
-
         private static bool TryCompileCallReceiver(
             WotAffordanceForm form,
+            WotEndpointDescriptor endpoint,
             List<WotBindingDiagnostic> diagnostics,
             ref ImmutableDictionary<string, string> metadata)
         {
@@ -961,21 +890,27 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 return true;
             }
-            if (!metadata.TryGetValue("componentOf", out string? legacy) || string.IsNullOrEmpty(legacy))
+            if (form.SourceCallReceiver is { } sourceReceiver)
             {
-                diagnostics.Add(WotBindingDiagnostic.Error(
-                    WotBindingDiagnosticCode.MissingRequiredField,
-                    "An OPC UA action requires a selected source receiver in uav:callObjectId; " +
-                    "local containment arrays do not identify that receiver.",
-                    form.Pointer(term), term));
-                return false;
+                if (!WotCallReceiver.TryGetEndpoint(endpoint.BaseUri, out string selectedEndpoint) ||
+                    !string.Equals(selectedEndpoint, form.SourceCallEndpoint, StringComparison.Ordinal))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        "The selected Call endpoint differs from the original source Thing endpoint.",
+                        form.Pointer("href"), "href"));
+                    return false;
+                }
+                metadata = metadata.Add("callObjectId", sourceReceiver).Add("sourceCallReceiver", "object");
+                return true;
             }
-            diagnostics.Add(WotBindingDiagnostic.Warning(
-                WotBindingDiagnosticCode.UnknownVocabularyTerm,
-                "The legacy form-scoped uav:componentOf receiver is supported for compatibility. " +
-                "New Call forms use uav:callObjectId; local containment arrays are never receiver authority.",
-                form.Pointer("uav:componentOf"), "uav:componentOf"));
-            return true;
+            diagnostics.Add(WotBindingDiagnostic.Error(
+                WotBindingDiagnosticCode.MissingRequiredField,
+                (form.SourceCallError ??
+                    "An OPC UA action requires a captured original source Thing Object.") +
+                    " Otherwise, author a form-scoped uav:callObjectId; local containment does not identify it.",
+                form.Pointer(term), term));
+            return false;
         }
 
         private static string OpcUaService(WoTBindingCapabilityEnum operation)

@@ -526,13 +526,34 @@ namespace Opc.Ua.WotCon.Bindings
             ICollection<WotBindingDiagnostic> diagnostics,
             out WotPayloadDescriptor payload)
         {
-            string contentType = string.IsNullOrEmpty(form.ContentType) ? "application/json" : form.ContentType!;
+            return ResolveCodec(form, context, diagnostics, "application/json", out payload);
+        }
+
+        /// <summary>
+        /// Selects a codec for a content type, using the binding-specific default when none is declared.
+        /// </summary>
+        protected bool ResolveCodec(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            ICollection<WotBindingDiagnostic> diagnostics,
+            string defaultContentType,
+            out WotPayloadDescriptor payload)
+        {
+            if (string.IsNullOrEmpty(defaultContentType))
+            {
+                throw new ArgumentException("A default content type is required.", nameof(defaultContentType));
+            }
+            string contentType = string.IsNullOrEmpty(form.ContentType) ? defaultContentType : form.ContentType!;
             if (!ValidateContentType(form, contentType, diagnostics))
             {
                 payload = new WotPayloadDescriptor(contentType, string.Empty);
                 return false;
             }
-            context.Codecs.TrySelect(form.ContentType, out IWotPayloadCodec codec);
+            string? codecContentType = string.IsNullOrEmpty(form.ContentType) &&
+                string.Equals(defaultContentType, "application/json", StringComparison.Ordinal)
+                    ? form.ContentType
+                    : contentType;
+            context.Codecs.TrySelect(codecContentType, out IWotPayloadCodec codec);
             payload = new WotPayloadDescriptor(contentType, codec.Id);
             WotProjectedAffordance? local = context.ProjectedAffordances.Find(
                 item => item.Kind == form.Kind && item.JsonPointer == form.AffordancePointer());

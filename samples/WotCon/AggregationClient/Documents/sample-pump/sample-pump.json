@@ -37,7 +37,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
           "uav:id": "i=9111"
         }
       ],
@@ -98,7 +98,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Events.SupervisionProcessFluid.Cavitation.Alarm",
           "uav:id": "i=9113"
         }
       ],
@@ -159,7 +159,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
           "uav:id": "i=9111"
         }
       ],
@@ -220,7 +220,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Events.SupervisionPumpOperation.MotorOverheat.Alarm",
           "uav:id": "i=9113"
         }
       ],
@@ -281,7 +281,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Reset"
         }
       ],
@@ -303,7 +303,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Start"
         }
       ],
@@ -325,7 +325,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceA;s=Pump1.Stop"
         }
       ],
@@ -347,7 +347,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Reset"
         }
       ],
@@ -369,7 +369,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Start"
         }
       ],
@@ -391,7 +391,7 @@
           "op": [
             "invokeaction"
           ],
-          "uav:componentOf": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
+          "uav:callObjectId": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1",
           "uav:id": "nsu=urn:opcfoundation.org:UA:WotAggregation:SourceB;s=Pump1.Stop"
         }
       ],

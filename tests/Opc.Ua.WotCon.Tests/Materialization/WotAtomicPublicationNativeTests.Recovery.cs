@@ -52,11 +52,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Verifies that startup restores the committed source and view without republishing.
         /// </summary>
         /// <param name="pendingSelection">The pending-selection flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public Task StartupRestoresTheCommittedSourceAndViewWithoutRepublishing(bool pendingSelection)
+        /// <param name="localAffordance">Whether the projection owns a locally materialized Variable.</param>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public Task StartupRestoresTheCommittedSourceAndViewWithoutRepublishing(
+            bool pendingSelection, bool localAffordance)
         {
-            return VerifyStartupRecoveryAsync(pendingSelection, false);
+            return VerifyStartupRecoveryAsync(pendingSelection, false, localAffordance);
         }
 
         /// <summary>
@@ -298,16 +302,27 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That((await store.LoadAsync().ConfigureAwait(false)).Generation, Is.EqualTo(expected.Generation));
         }
 
-        private async Task VerifyStartupRecoveryAsync(bool pendingSelection, bool overwriteActive)
+        private async Task VerifyStartupRecoveryAsync(
+            bool pendingSelection, bool overwriteActive, bool localAffordance = false)
         {
             using var views = new LifecycleWotViewProjectionHost(m_server.NodeManagerLifecycle);
             await ConfigureStockViewsAsync(views).ConfigureAwait(false);
             WotResource source = await UpsertStockSourceAsync(false).ConfigureAwait(false);
-            WotResource child = await AddStockViewAsync("child", false).ConfigureAwait(false);
+            WotResource child = await AddStockViewAsync("child", false, localAffordance: localAffordance)
+                .ConfigureAwait(false);
             WotRefreshResult initial = await m_coordinator.RefreshAsync(HandoffRequest("before-restart"))
                 .ConfigureAwait(false);
             Assert.That(initial.NewGeneration, Is.EqualTo(1u));
-            await AssertStockMembershipAsync("child", 1, ["Reading"]).ConfigureAwait(false);
+            if (localAffordance)
+            {
+                Assert.That((await BrowseStockAsync(StockView("child"), Ua.ReferenceTypeIds.Organizes)
+                    .ConfigureAwait(false)).Select(reference => reference.BrowseName.Name),
+                    Is.EquivalentTo(s_localRecoveryMembers));
+            }
+            else
+            {
+                await AssertStockMembershipAsync("child", 1, ["Reading"]).ConfigureAwait(false);
+            }
             if (pendingSelection)
             {
                 await UpsertStockSourceAsync(true).ConfigureAwait(false);
@@ -320,7 +335,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(committed.FindResourceByXid(source.Xid)!.ActiveVersionId, Is.EqualTo("v1"));
             Assert.That(committed.FindResourceByXid(source.Xid)!.DefaultVersionId,
                 Is.EqualTo(pendingSelection ? "v2" : "v1"));
-            WotCanonicalViewState expectedGraph = RestoreStockGraph(committed.CanonicalViewGraphState, false);
+            Assert.That(committed.FindResourceByXid(child.Xid)!.MaterializedNodeCount,
+                Is.EqualTo(localAffordance ? 3 : 1));
+            WotCanonicalViewState expectedGraph = localAffordance
+                ? WotCanonicalViewState.Parse(committed.CanonicalViewGraphState)
+                : RestoreStockGraph(committed.CanonicalViewGraphState, false);
             ByteString expectedDigest = expectedGraph.Views.ToList()
                 .Single(view => view.ResourceXid == child.Xid).MembershipDigest;
 
@@ -349,6 +368,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(restoredRegistry.Current.FindResourceByXid(source.Xid)!.DefaultVersionId,
                 Is.EqualTo(pendingSelection ? "v2" : "v1"));
             Assert.That(restoredCoordinator.CommittedPublication.Views.Count, Is.EqualTo(1));
+            Assert.That(restoredRegistry.Current.FindResourceByXid(child.Xid)!.MaterializedNodeCount,
+                Is.EqualTo(localAffordance ? 3 : 1));
             Assert.That(events, Is.Empty, "Rehydration is not a new materialization decision or repeated intent.");
             ArrayOf<Opc.Ua.Server.NodeManagerRegistration> owners = restarted.Lifecycle.Registrations;
             WotRegistrySnapshot live = restoredRegistry.Current;
@@ -386,8 +407,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         ResultMask = (uint)BrowseResultMask.All
                     }], CancellationToken.None).ConfigureAwait(false);
                 Assert.That(browsed.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                ExpandedNodeId[] expectedMembers = localAffordance
+                    ? [new ExpandedNodeId(reading), new ExpandedNodeId("child/localOnly", view.NamespaceIndex)]
+                    : [new ExpandedNodeId(reading)];
                 Assert.That(browsed.Results[0].References.ToList().Select(reference => reference.NodeId),
-                    Is.EqualTo(new[] { new ExpandedNodeId(reading) }));
+                    Is.EquivalentTo(expectedMembers));
                 WotCanonicalViewState restored = WotCanonicalViewState.Parse(
                     restoredCoordinator.CommittedPublication.RegistrySnapshot.CanonicalViewGraphState);
                 Assert.That(restored.Views.ToList().Single().MembershipDigest, Is.EqualTo(expectedDigest));
@@ -411,5 +435,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 await session.CloseAsync().ConfigureAwait(false);
             }
         }
+
+        /// <summary>The imported and locally materialized affordances restored by startup recovery.</summary>
+        private static readonly string[] s_localRecoveryMembers = ["Reading", "localOnly"];
     }
 }

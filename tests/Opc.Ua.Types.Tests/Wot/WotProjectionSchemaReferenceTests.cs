@@ -534,8 +534,7 @@ namespace Opc.Ua.Types.Tests.Wot
             return new JsonObject
             {
                 ["@context"] = "https://www.w3.org/2022/wot/td/v1.1",
-                ["@type"] = "uav:projection",
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["title"] = "Projection",
                 ["uav:scenario"] = "urn:scenario:schema",
                 ["security"] = "none",
