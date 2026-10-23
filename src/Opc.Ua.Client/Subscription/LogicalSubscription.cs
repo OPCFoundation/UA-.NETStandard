@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// recreate / transfer / save-load fan-out paths.
     /// </para>
     /// </summary>
-    internal sealed class LogicalSubscription : ILogicalSubscription
+    internal sealed class LogicalSubscription : ILogicalSubscription, INotificationLifetimeSource
     {
         /// <summary>
         /// Construct a logical subscription that wraps a single
@@ -441,6 +441,38 @@ namespace Opc.Ua.Client.Subscriptions
                 }
             }
             return result;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Partitions number their messages independently. Inside a notification callback the
+        /// dispatching partition resolves the message; elsewhere a sequence number that several
+        /// partitions are delivering at once is ambiguous and not resolved.
+        /// </remarks>
+        public bool TryGetNotificationLifetime(uint sequenceNumber, out NotificationLifetime lifetime)
+        {
+            IReadOnlyList<IManagedSubscription> partitions = SnapshotPartitions();
+            if (MessageProcessor.TryGetCurrentDispatchLifetime(sequenceNumber, partitions, out lifetime))
+            {
+                return true;
+            }
+            bool found = false;
+            lifetime = default;
+            foreach (IManagedSubscription partition in partitions)
+            {
+                if (partition is INotificationLifetimeSource source &&
+                    source.TryGetNotificationLifetime(sequenceNumber, out NotificationLifetime candidate))
+                {
+                    if (found)
+                    {
+                        lifetime = default;
+                        return false;
+                    }
+                    found = true;
+                    lifetime = candidate;
+                }
+            }
+            return found;
         }
 
         /// <summary>

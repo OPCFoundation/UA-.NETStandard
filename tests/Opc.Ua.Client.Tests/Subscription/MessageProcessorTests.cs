@@ -1655,6 +1655,56 @@ namespace Opc.Ua.Client.Subscriptions
                     });
         }
 
+        [Test]
+        public async Task NotificationCallbacksResolveTheLifetimeStampedOnReceiptAsync()
+        {
+            var queue = new LifetimeAckQueue(m_completion);
+            var sut = new TestMessageProcessor(m_mockServices.Object, queue, m_telemetry);
+            bool found = false;
+            NotificationLifetime inCallback = default;
+            bool otherFound = true;
+            sut.NotificationCallback = sequenceNumber =>
+            {
+                found = sut.TryGetNotificationLifetime(sequenceNumber, out inCallback);
+                otherFound = sut.TryGetNotificationLifetime(sequenceNumber + 1, out _);
+                return default;
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildNotificationMessage("keepalive", 1), null, [])
+                    .ConfigureAwait(false);
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), null, []).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
+
+                Assert.That(found, Is.True);
+                Assert.That(otherFound, Is.False);
+                Assert.That(queue.Stamped, Is.EqualTo(new[] { inCallback }), "Keep-alives are not stamped.");
+                Assert.That(inCallback.SequenceNumber, Is.EqualTo(2u));
+                Assert.That(queue.QueuedLifetimes, Is.EqualTo(new[] { inCallback }));
+                Assert.That(sut.TryGetNotificationLifetime(2, out _), Is.False,
+                    "The lifetime is only resolvable while the message is dispatched.");
+            }
+        }
+
+        [Test]
+        public async Task NotificationCallbacksResolveNoLifetimeWithoutQueueSupportAsync()
+        {
+            var sut = new TestMessageProcessor(m_mockServices.Object, m_completion, m_telemetry);
+            bool found = true;
+            sut.NotificationCallback = sequenceNumber =>
+            {
+                found = sut.TryGetNotificationLifetime(sequenceNumber, out _);
+                return default;
+            };
+            await using (sut.ConfigureAwait(false))
+            {
+                await sut.OnPublishReceivedAsync(BuildDataChangeMessage(2), null, []).ConfigureAwait(false);
+                await m_completion.WaitForQueuedAckAsync(1).ConfigureAwait(false);
+
+                Assert.That(found, Is.False);
+            }
+        }
+
         private static NotificationMessage BuildNotificationMessage(string kind, uint sequenceNumber)
         {
             return new NotificationMessage
@@ -1912,6 +1962,97 @@ namespace Opc.Ua.Client.Subscriptions
             Data,
             Event,
             Status
+        }
+
+        /// <summary>
+        /// Adds lifetime stamping to a <see cref="FakeMessageAckQueue"/>.
+        /// </summary>
+        private sealed class LifetimeAckQueue(FakeMessageAckQueue inner) : INotificationLifetimeAckQueue
+        {
+            public List<NotificationLifetime> Stamped { get; } = [];
+
+            public List<NotificationLifetime> QueuedLifetimes { get; } = [];
+
+            public bool PoolNotifications => inner.PoolNotifications;
+
+            public NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber)
+            {
+                var lifetime = new NotificationLifetime(1, 1, NotificationProvenance.Created, 7, sequenceNumber);
+                lock (Stamped)
+                {
+                    Stamped.Add(lifetime);
+                }
+                return lifetime;
+            }
+
+            public bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+            {
+                return true;
+            }
+
+            public void OnNotificationsTerminated(List<NotificationTermination> terminations)
+            {
+            }
+
+            public ValueTask QueueAsync(IMessageProcessor owner, long generation,
+                SubscriptionAcknowledgement ack, NotificationLifetime lifetime, CancellationToken ct = default)
+            {
+                lock (Stamped)
+                {
+                    QueuedLifetimes.Add(lifetime);
+                }
+                return inner.QueueAsync(owner, generation, ack, ct);
+            }
+
+            public ValueTask QueueAsync(IMessageProcessor owner, long generation,
+                SubscriptionAcknowledgement ack, CancellationToken ct = default)
+            {
+                return inner.QueueAsync(owner, generation, ack, ct);
+            }
+
+            public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId)
+            {
+                inner.OnSubscriptionCreated(owner, subscriptionId);
+            }
+
+            public ValueTask CompleteAsync(IMessageProcessor subscription, uint subscriptionId,
+                CancellationToken ct = default)
+            {
+                return inner.CompleteAsync(subscription, subscriptionId, ct);
+            }
+
+            public ValueTask RunWithPublishingQuiescedAsync(Func<CancellationToken, ValueTask> operation,
+                CancellationToken ct = default)
+            {
+                return inner.RunWithPublishingQuiescedAsync(operation, ct);
+            }
+
+            public ValueTask RunWithSessionAvailableAsync(Func<CancellationToken, ValueTask> operation,
+                CancellationToken ct = default)
+            {
+                return inner.RunWithSessionAvailableAsync(operation, ct);
+            }
+
+            public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId,
+                bool deferNotification = false)
+            {
+                return inner.DropPendingForSubscription(owner, subscriptionId, deferNotification);
+            }
+
+            public void ReportRetiredAcknowledgements()
+            {
+                inner.ReportRetiredAcknowledgements();
+            }
+
+            public bool OwnsSubscriptionId(IMessageProcessor subscription, uint subscriptionId)
+            {
+                return inner.OwnsSubscriptionId(subscription, subscriptionId);
+            }
+
+            public void Update()
+            {
+                inner.Update();
+            }
         }
 
         private FakeMessageAckQueue m_completion;

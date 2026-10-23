@@ -552,10 +552,30 @@ if (session is INotificationLifetimeEvents lifetimes)
   The existing `PublishAcknowledgementsCompleted` and `SubscriptionAcknowledgementsDiscarded`
   events are unchanged.
 - An acknowledgement of a retired lifetime is never sent: the classic engine validates pending
-  acknowledgements against the current subscription lifetime before every Publish.
+  acknowledgements against the current subscription lifetime before every Publish; the V2 engine
+  validates each acknowledgement against its owning subscription instance and generation.
 - Lifetimes are not serializable and are not part of saved session or subscription state.
   Approvals do not survive a fail-over to another process; at-least-once replay remains valid.
-- Available on the classic engine with an SDK `Session` or `ManagedSession`. The V2 engine follows.
+- Available with an SDK `Session` or `ManagedSession` on both engines. With the V2 engine the
+  `ISubscription` passed to a notification handler implements `INotificationLifetimeSource`;
+  resolve the lifetime synchronously inside the handler, before handing the work to another task:
+
+```csharp
+public ValueTask OnDataChangeNotificationAsync(ISubscription subscription, uint sequenceNumber,
+    DateTime publishTime, ReadOnlyMemory<DataValueChange> notification, PublishState publishStateMask,
+    IReadOnlyList<string> stringTable)
+{
+    if (subscription is INotificationLifetimeSource source &&
+        source.TryGetNotificationLifetime(sequenceNumber, out NotificationLifetime lifetime))
+    {
+        pipeline.Enqueue(notification, lifetime);
+    }
+    return default;
+}
+```
+
+  A partitioned logical subscription resolves the lifetime of the partition that is dispatching
+  the callback; partitions number their messages independently.
 
 Completion reports matching acknowledgement/result arrays from a successful
 Publish service response, including per-acknowledgement error codes. A failed

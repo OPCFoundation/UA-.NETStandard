@@ -231,16 +231,7 @@ namespace Opc.Ua.Client
                 List<NotificationTermination>? terminations = null;
                 lock (m_acknowledgementsToSendLock)
                 {
-                    foreach (LifetimeEntry entry in m_entries.Values)
-                    {
-                        if (!entry.Reported)
-                        {
-                            (terminations ??= []).Add(
-                                new NotificationTermination(entry.Lifetime, NotificationDisposition.OwnerRetired));
-                        }
-                    }
-                    m_tracked.Clear();
-                    m_entries.Clear();
+                    m_tracked.RetireAll(ref terminations);
                     m_inFlightCount = 0;
                 }
                 ReportTerminations(terminations);
@@ -1122,27 +1113,8 @@ namespace Opc.Ua.Client
             acknowledgementsToSend.Add(acknowledgement);
             if (m_registry != null)
             {
-                Track(acknowledgement, m_registry.StampNotificationLifetime(subscriptionId, sequenceNumber));
+                m_tracked.Track(acknowledgement, m_registry.StampNotificationLifetime(subscriptionId, sequenceNumber));
             }
-        }
-
-        /// <summary>
-        /// Tracks an acknowledgement object under its lifetime. Caller holds the lock.
-        /// </summary>
-        private void Track(SubscriptionAcknowledgement acknowledgement, NotificationLifetime lifetime)
-        {
-            if (lifetime.IsNull || m_reported.Contains(lifetime))
-            {
-                // Already ended: a late duplicate acknowledgement ends silently.
-                return;
-            }
-            if (!m_entries.TryGetValue(lifetime, out LifetimeEntry? entry))
-            {
-                entry = new LifetimeEntry(lifetime);
-                m_entries.Add(lifetime, entry);
-            }
-            entry.Objects++;
-            m_tracked[acknowledgement] = new TrackedAcknowledgement(entry);
         }
 
         /// <summary>
@@ -1216,7 +1188,7 @@ namespace Opc.Ua.Client
         {
             lock (m_acknowledgementsToSendLock)
             {
-                if (m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked))
+                if (m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked))
                 {
                     lifetime = tracked.Entry.Lifetime;
                     return true;
@@ -1243,7 +1215,7 @@ namespace Opc.Ua.Client
             for (int i = m_acknowledgementsToSend.Count - 1; i >= 0; i--)
             {
                 SubscriptionAcknowledgement acknowledgement = m_acknowledgementsToSend[i];
-                if (!m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked))
+                if (!m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked))
                 {
                     continue;
                 }
@@ -1275,7 +1247,7 @@ namespace Opc.Ua.Client
             int mark = ++m_sweepMark;
             foreach (SubscriptionAcknowledgement acknowledgement in sent)
             {
-                if (m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked) && !tracked.InFlight)
+                if (m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked) && !tracked.InFlight)
                 {
                     tracked.InFlight = true;
                     m_inFlightCount++;
@@ -1284,7 +1256,7 @@ namespace Opc.Ua.Client
             int pendingTracked = 0;
             foreach (SubscriptionAcknowledgement acknowledgement in pending)
             {
-                if (m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked) &&
+                if (m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked) &&
                     !tracked.InFlight &&
                     tracked.Mark != mark)
                 {
@@ -1299,7 +1271,7 @@ namespace Opc.Ua.Client
 
             // The policy dropped acknowledgements: the client will no longer confirm them.
             List<SubscriptionAcknowledgement>? dropped = null;
-            foreach (KeyValuePair<SubscriptionAcknowledgement, TrackedAcknowledgement> entry in m_tracked)
+            foreach (KeyValuePair<SubscriptionAcknowledgement, TrackedAcknowledgement> entry in m_tracked.Objects)
             {
                 if (!entry.Value.InFlight && entry.Value.Mark != mark)
                 {
@@ -1360,7 +1332,7 @@ namespace Opc.Ua.Client
             }
             foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
             {
-                if (m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked) && tracked.InFlight)
+                if (m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked) && tracked.InFlight)
                 {
                     tracked.InFlight = false;
                     m_inFlightCount--;
@@ -1388,7 +1360,7 @@ namespace Opc.Ua.Client
                 }
                 foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
                 {
-                    if (!m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked))
+                    if (!m_tracked.TryGet(acknowledgement, out TrackedAcknowledgement? tracked))
                     {
                         continue;
                     }
@@ -1411,8 +1383,8 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Ends the tracking of an acknowledgement object and reports its lifetime once: on the
-        /// first confirmation, or when its last object ends. Caller holds the lock.
+        /// Ends the tracking of an acknowledgement object; its lifetime is reported once. Caller
+        /// holds the lock.
         /// </summary>
         private void Terminate(
             SubscriptionAcknowledgement acknowledgement,
@@ -1420,43 +1392,9 @@ namespace Opc.Ua.Client
             ref List<NotificationTermination>? terminations)
         {
             Debug.Assert(m_acknowledgementsToSendLock.IsHeldByCurrentThread);
-            if (m_tracked.Count == 0 ||
-                !m_tracked.TryGetValue(acknowledgement, out TrackedAcknowledgement? tracked))
-            {
-                return;
-            }
-            m_tracked.Remove(acknowledgement);
-            if (tracked.InFlight)
+            if (m_tracked.Terminate(acknowledgement, disposition, ref terminations))
             {
                 m_inFlightCount--;
-            }
-            LifetimeEntry entry = tracked.Entry;
-            entry.Objects--;
-            if (!entry.Reported && (disposition == NotificationDisposition.Acknowledged || entry.Objects == 0))
-            {
-                entry.Reported = true;
-                (terminations ??= []).Add(new NotificationTermination(entry.Lifetime, disposition));
-                RememberReported(entry.Lifetime);
-            }
-            if (entry.Objects == 0)
-            {
-                m_entries.Remove(entry.Lifetime);
-            }
-        }
-
-        /// <summary>
-        /// Remembers a reported lifetime for a bounded time. Caller holds the lock.
-        /// </summary>
-        private void RememberReported(NotificationLifetime lifetime)
-        {
-            if (!m_reported.Add(lifetime))
-            {
-                return;
-            }
-            m_reportedOrder.Enqueue(lifetime);
-            if (m_reportedOrder.Count > kReportedLifetimeHistory)
-            {
-                m_reported.Remove(m_reportedOrder.Dequeue());
             }
         }
 
@@ -1599,73 +1537,16 @@ namespace Opc.Ua.Client
         private List<SubscriptionAcknowledgement> m_acknowledgementsToSend = [];
 
         /// <summary>
-        /// Lifetimes of the acknowledgements this engine created, by object identity, until each
-        /// reaches a terminal disposition. Several objects can confirm the same message (a re-ack
-        /// after a transfer or for an outdated message); they share one lifetime entry, which is
-        /// reported once. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
+        /// Lifetimes of the acknowledgements this engine created, until each reaches a terminal
+        /// disposition. Guarded by <see cref="m_acknowledgementsToSendLock"/>.
         /// </summary>
-        private readonly Dictionary<SubscriptionAcknowledgement, TrackedAcknowledgement> m_tracked =
-            new(RefEqualityComparer.Default);
-        private readonly Dictionary<NotificationLifetime, LifetimeEntry> m_entries = [];
-
-        /// <summary>
-        /// Recently reported lifetimes, so a late duplicate acknowledgement does not report again.
-        /// </summary>
-        private readonly HashSet<NotificationLifetime> m_reported = [];
-        private readonly Queue<NotificationLifetime> m_reportedOrder = new();
+        private readonly NotificationLifetimeTracker m_tracked = new();
         private int m_inFlightCount;
         private int m_sweepMark;
         private readonly INotificationLifetimeRegistry? m_registry;
         private readonly ISubscriptionAcknowledgementPolicy? m_policy;
         private readonly Func<SubscriptionAcknowledgement, long>? m_generations;
         private readonly NotificationLifetimeResolver? m_lifetimes;
-
-        /// <summary>
-        /// The send state of one acknowledgement object this engine created.
-        /// </summary>
-        private sealed class TrackedAcknowledgement(LifetimeEntry entry)
-        {
-            /// <summary>
-            /// Gets the lifetime entry of the acknowledged message.
-            /// </summary>
-            public LifetimeEntry Entry { get; } = entry;
-
-            /// <summary>
-            /// Gets or sets whether a Publish request carries the acknowledgement.
-            /// </summary>
-            public bool InFlight { get; set; }
-
-            /// <summary>
-            /// Gets or sets the last sweep that found the acknowledgement pending.
-            /// </summary>
-            public int Mark { get; set; }
-        }
-
-        /// <summary>
-        /// One tracked notification lifetime and the acknowledgement objects that confirm it.
-        /// </summary>
-        private sealed class LifetimeEntry(NotificationLifetime lifetime)
-        {
-            /// <summary>
-            /// Gets the lifetime.
-            /// </summary>
-            public NotificationLifetime Lifetime { get; } = lifetime;
-
-            /// <summary>
-            /// Gets or sets the number of tracked acknowledgement objects.
-            /// </summary>
-            public int Objects { get; set; }
-
-            /// <summary>
-            /// Gets or sets whether the end of the lifetime was reported.
-            /// </summary>
-            public bool Reported { get; set; }
-        }
-
-        /// <summary>
-        /// The number of reported lifetimes remembered to suppress late duplicates.
-        /// </summary>
-        private const int kReportedLifetimeHistory = 1024;
         private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
         private int m_unrecordedPublishRequests;
         private int m_tooManyPublishRequests;

@@ -217,7 +217,8 @@ namespace Opc.Ua.Client
         /// <see cref="SubscriptionManager"/> can operate against
         /// a classic session.
         /// </summary>
-        private sealed class EngineContextAdapter : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
+        private sealed class EngineContextAdapter : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle,
+            INotificationLifetimeManagerContext
         {
             public EngineContextAdapter(
                 ISubscriptionEngineContext context,
@@ -226,6 +227,9 @@ namespace Opc.Ua.Client
                 m_context = context;
                 m_timeProvider = timeProvider;
             }
+
+            /// <inheritdoc/>
+            public bool ProvidesNotificationLifetimes => m_context is INotificationLifetimeRegistry;
 
             /// <inheritdoc/>
             public int SessionSubscriptionCount
@@ -273,6 +277,42 @@ namespace Opc.Ua.Client
                 return generations != null && m_context is ISubscriptionAcknowledgementPolicy policy
                     ? policy.PrepareAcknowledgementsToSend(acknowledgements, generations)
                     : m_context.PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement> acknowledgements,
+                    Func<SubscriptionAcknowledgement, long>? generations,
+                    NotificationLifetimeResolver lifetimes)
+            {
+                return generations != null && m_context is ISubscriptionAcknowledgementPolicy policy
+                    ? policy.PrepareAcknowledgementsToSend(acknowledgements, generations, lifetimes)
+                    : m_context.PrepareAcknowledgementsToSend(acknowledgements);
+            }
+
+            /// <inheritdoc/>
+            public NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber)
+            {
+                return m_context is INotificationLifetimeRegistry registry
+                    ? registry.StampNotificationLifetime(subscriptionId, sequenceNumber)
+                    : default;
+            }
+
+            /// <inheritdoc/>
+            public bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+            {
+                return m_context is INotificationLifetimeRegistry registry &&
+                    registry.IsCurrentNotificationLifetime(lifetime);
+            }
+
+            /// <inheritdoc/>
+            public void OnNotificationsTerminated(List<NotificationTermination> terminations)
+            {
+                if (m_context is INotificationLifetimeRegistry registry)
+                {
+                    registry.OnNotificationsTerminated(terminations);
+                }
             }
 
             /// <inheritdoc/>

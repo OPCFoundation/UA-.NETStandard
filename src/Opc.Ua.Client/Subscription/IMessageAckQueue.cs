@@ -156,4 +156,23 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         bool PoolNotifications { get; }
     }
+
+    /// <summary>
+    /// Optional acknowledgement-queue capability that tracks notification lifetimes. Kept separate
+    /// so <see cref="IMessageAckQueue"/> implementations need not change.
+    /// </summary>
+    internal interface INotificationLifetimeAckQueue : IMessageAckQueue, INotificationLifetimeRegistry
+    {
+        /// <summary>
+        /// Queues an acknowledgement under the lifetime stamped when its message was received.
+        /// </summary>
+        /// <param name="owner">The processor that produced the acknowledgement.</param>
+        /// <param name="generation">The owner's message generation when the acknowledged message
+        /// was processed.</param>
+        /// <param name="ack">The acknowledgement.</param>
+        /// <param name="lifetime">The lifetime of the acknowledged message.</param>
+        /// <param name="ct">Cancellation token.</param>
+        ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, NotificationLifetime lifetime, CancellationToken ct = default);
+    }
 }
