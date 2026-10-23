@@ -1133,7 +1133,10 @@ reverse-authority construction algorithm for `GroupId` and `ResourceId` (§ 11.4
 `SignAndEncrypt` on every mutating operation, and optional generic event semantics.
 OPC 10101-2 (WoT Projections) defines the projection-plan conformance unit used
 alongside the separate Connectivity projection-materialization unit; it adds no
-NodeSet model.
+NodeSet model. The
+[Part 2 implementation and evidence map](WotBindings.md#opc-10101-2-wot-projections)
+records the resolver/View behavior and the mandatory result-validation blocker.
+It does not claim full `WoT-Projection` conformance.
 
 Draft iterations are identified by the specification release label, for example
 `1.1-draft8`; they do not increment the information model version.

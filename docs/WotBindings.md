@@ -46,7 +46,9 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
-- [Conformance to OPC 10101-1 (WoT Binding)](#conformance-to-opc-10101-1-wot-binding)
+- [Conformance to OPC 10101 (Binding and Projections)](#conformance-to-opc-10101-binding-and-projections)
+  - [OPC 10101-1 (WoT Binding)](#opc-10101-1-wot-binding)
+  - [OPC 10101-2 (WoT Projections)](#opc-10101-2-wot-projections)
   - [Conversion entry points](#conversion-entry-points)
   - [Independent readable models](#independent-readable-models)
   - [Identity and preservation](#identity-and-preservation)
@@ -464,6 +466,23 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
 A compiled form's NodeId (`uav:id`, and `uav:callObjectId` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+
+**Published Binding v1.00 interoperability.** The published
+[OPC 10101 Section 6.5.3](https://reference.opcfoundation.org/specs/OPC-10101/6.5.3)
+defines no mandatory UA-specific form terms and no form-scoped scalar
+`uav:componentOf` receiver. `uav:callObjectId` is an additive Binding 1.1 term,
+not a replacement spelling for a published form term. The aggregation sample
+uses this explicit receiver contract.
+
+The stack's OPC UA action planner and executor require a portable, non-null
+form-scoped `uav:callObjectId`. They do not implement the current draft's optional
+derivation from an explicitly identified source Thing Object at the selected
+endpoint. A published v1.00 action form without that added receiver is therefore
+not executable through this runtime as authored; its published status alone does
+not make receiver selection unambiguous. This is an interoperability limitation,
+not full Binding v1.00 action-execution support. It is separate from the
+[published Connectivity 1.02 asset surface](WotCon.md#wot-con-102-compatibility).
+Local `uav:componentOf` containment does not authorize an upstream Call.
 
 <a id="event-field-selection"></a>
 
@@ -1363,7 +1382,11 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 <a id="conformance-and-authoring-validation"></a>
 
-## Conformance to OPC 10101-1 (WoT Binding)
+<a id="conformance-to-opc-10101-1-wot-binding"></a>
+
+## Conformance to OPC 10101 (Binding and Projections)
+
+### OPC 10101-1 (WoT Binding)
 
 The specification defines eleven conformance units and four recommended profiles
 (Section 11). This is where the implementation stands against them.
@@ -1388,12 +1411,8 @@ in **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
 remain separate unfinished work; successful conversion does not close those gaps.
 
 The three profiles beyond **WoT-Reader** include the part-qualified
-`2:WoT-Projection` dependency from OPC 10101-2. The Projections conformance unit is
-implemented by `WotProjection`, `WotProjectionResolver` and, for OPC UA View
-materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost`.
-It is not a WoT Binding conformance unit; the separate Connectivity
-`WOTC-ProjectionMaterialization` unit covers the server-side materialization
-contract.
+`2:WoT-Projection` dependency from OPC 10101-2. Their projection dependency is
+subject to the mandatory validation gap described below.
 
 The WoT Binding unit and profile names are stated once in
 `Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
@@ -1411,6 +1430,44 @@ unknown claims/revisions with warnings; malformed claims fail in every mode.
 Opaque metadata/configuration objects retain their own 65,536 compact-received
 UTF-8-byte, depth-32, and 256-top-level-key bounds. The `uav:nodes` record grammar
 has a separate namespace and is not readable Binding vocabulary.
+
+### OPC 10101-2 (WoT Projections)
+
+The current official draft defines one conformance unit, **WoT-Projection**.
+It is qualified as `2:WoT-Projection` in Binding profile closures, not counted
+among Part 1's eleven units. The stack has the following implementation and
+regression-test paths; these are partial evidence, not a complete requirement
+audit or executable CTT result.
+
+| Contract | Implementation | Existing evidence |
+| --- | --- | --- |
+| Ordinary TD/TM plan envelopes and result roles | `WotProjection`, registry admission | `WotProjectionPlanFormatTests.ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl` |
+| Ordered selection, enumerated-over-bulk precedence and local overrides | `WotProjectionResolver` | `WotProjectionResolverTests.EnumeratedSelectionWinsOverBulkAndReportsDrop`, `LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync` |
+| Source routing, provenance, effective context and security ownership | `WotProjectionResolver` and its dependency closure | `WotProjectionResolverTests.SourceRoutingAbsolutizesFormAndCopiesSecurityClosure`, `BulkProvenanceIsHrefPlusPointer`, `WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync` |
+| Canonical Views over existing local/imported Nodes, stable identities and owned-node counts | `WotProjectionViewBuilder`, `LifecycleWotViewProjectionHost`, materialization coordinator | `WotProjectionViewCanonicalLiveTests.ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync`, `ProjectionGeneratedLocalIdentitiesAndCountsRemainResourceScopedAsync` |
+| Distinct organizational occurrences, shared canonical roots and cycle rejection | View host and projection dependency resolver | `WotProjectionViewCanonicalLiveTests.CanonicalCandidateRendersSharedChildAndTypedWrappersOverTransportAsync`, `WotProjectionResolverTests.AGroupThatOrganizesItsOwnOrganizerIsACycleAsync` |
+| Complete base TD/TM and Binding validation of the resolved result | **Missing mandatory behavior** | No complete validator is integrated; parsing, conversion and projection regression tests do not satisfy this requirement |
+
+The resolver-side test names are also recorded under part-qualified clause
+anchors in the stack-side
+[traceability locator](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json).
+The View tests are in
+[`WotProjectionViewCanonicalLiveTests`](../tests/Opc.Ua.WotCon.Tests/Materialization/WotProjectionViewCanonicalLiveTests.cs).
+The locator checks that named tests exist and run; it does not establish that
+every requirement or conformance-unit assertion is covered.
+
+Full **WoT-Projection** conformance is **not established**. Complete result
+validation remains a mandatory implementation blocker pending runtime dependency
+approval, license/distribution review and NativeAOT-compatible integration.
+This also prevents claiming the Part 1 **WoT-Modeller**, **WoT-Converter** and
+**WoT-ArchivalConverter** profile closures that require `2:WoT-Projection`.
+View and recovery tests do not close that validation gap.
+
+The separate Connectivity **WOTC-ProjectionMaterialization** unit adds the
+registry/server lifecycle contract. Neither that unit nor the **WoT-Con Full**
+profile is established by the Part 2 resolver and View evidence alone; see
+[Connectivity conformance](WotCon.md#12-conformance-to-wot-connectivity-11)
+for its independent gaps and claim boundaries.
 
 ### Conversion entry points
 
