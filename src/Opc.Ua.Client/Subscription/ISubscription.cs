@@ -144,6 +144,40 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Mark this subscription as durable on the server (OPC UA Part 4
+        /// §5.13.9 <c>SetSubscriptionDurable</c>) with a lifetime that is
+        /// evaluated by <paramref name="lifetime"/> now and again each time
+        /// the subscription is created on the server later (recreate after
+        /// the server dropped it, recreate after a failed transfer, a new
+        /// partition). Each later evaluation runs after
+        /// <c>CreateSubscription</c> and before the first
+        /// <c>CreateMonitoredItems</c> of that create, so an application
+        /// whose lifetime bound changes over time can request the bound
+        /// that is current when the server-side subscription is created.
+        /// </summary>
+        /// <param name="lifetime">Returns the requested lifetime, or
+        /// <c>null</c> to request no durability for that create. The server
+        /// may revise the lifetime downwards. Whole hours are sent on the
+        /// wire; sub-hour components round up to the next whole hour.
+        /// Exceptions thrown during a later create are logged and reported
+        /// as <see cref="SubscriptionState.Modified"/>, like a rejected
+        /// <c>SetSubscriptionDurable</c> call, and the subscription
+        /// continues as a regular subscription.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The server-revised lifetime of the call made now as a
+        /// <see cref="TimeSpan"/> (whole-hour precision), or
+        /// <see cref="TimeSpan.Zero"/> when <paramref name="lifetime"/>
+        /// returns <c>null</c> now and no call is made.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="lifetime"/>
+        /// is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException">Raised when the
+        /// server rejects the call made now (e.g. it has monitored items
+        /// already).</exception>
+        ValueTask<TimeSpan> SetAsDurableAsync(
+            Func<TimeSpan?> lifetime,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Configure triggering relationships between monitored items
         /// in this subscription (OPC UA Part 4 §5.13.5 SetTriggering).
         /// Adds and/or removes triggering links from the given

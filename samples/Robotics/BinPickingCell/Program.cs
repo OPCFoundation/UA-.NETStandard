@@ -92,6 +92,8 @@ builder.Services.AddSingleton(_ => new BinPickingPalletizerKinematics
     Collisions = BinPickingCellGeometry.CreateCollisionModel()
 });
 builder.Services.AddSingleton<BinPickingRobotCell>();
+builder.Services.TryAddEnumerable(
+    ServiceDescriptor.Singleton<IRobotIntentModelProvider, Robotics.IntentEnabledRobot.OpenUsdIntentModelProvider>());
 builder.Services.AddSingleton<BinPickingWorldState>();
 builder.Services.AddSingleton<IBinPickingTargetProvider, BinPickingTargetProvider>();
 builder.Services.AddSingleton<BinPickingGroundTruthInferenceProvider>();

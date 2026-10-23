@@ -578,6 +578,8 @@ namespace Opc.Ua.Client
                     m_logger.ErrorClosingSessionDuringDispose(ex);
                 }
 
+                await RetirePendingServerSessionAsync().ConfigureAwait(false);
+
                 m_defaultSubscription?.Dispose();
                 m_nodeCache?.Dispose();
 
@@ -3428,11 +3430,26 @@ namespace Opc.Ua.Client
             return RecreateInPlaceAsync(endpoint, budget, connection: null, ct);
         }
 
+        /// <summary>
+        /// Recreate the server-side session in place, optionally over a
+        /// waiting reverse connection.
+        /// </summary>
+        /// <param name="endpoint">Optional replacement endpoint.</param>
+        /// <param name="budget">The outer reconnect retry budget.</param>
+        /// <param name="connection">Optional waiting reverse connection.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <param name="retirePreviousSession">
+        /// When <see langword="true"/> and a new session is created, the previous session is closed on the
+        /// previous channel once the subscriptions are restored. Used when the previous Server is still
+        /// reachable, so its session is not left allocated until it times out.
+        /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="budget"/> is <c>null</c>.</exception>
         internal Task RecreateInPlaceAsync(
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
             ITransportWaitingConnection? connection,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool retirePreviousSession = false)
         {
             if (budget == null)
             {
@@ -3444,7 +3461,8 @@ namespace Opc.Ua.Client
                 connection,
                 channel: null,
                 budget,
-                ct);
+                ct,
+                retirePreviousSession: retirePreviousSession);
         }
 
         internal Task ReactivateOnNetworkEndpointAsync(
@@ -3515,12 +3533,16 @@ namespace Opc.Ua.Client
             bool requireTokenReuse = false,
             SessionClient? recoveryClient = null,
             bool networkRecovery = false,
-            bool bindSuppliedChannel = false)
+            bool bindSuppliedChannel = false,
+            bool retirePreviousSession = false)
         {
             ThrowIfDisposed();
             using Activity? activity = CachedActivitySource.StartActivity();
 
             NodeId previousSessionId = SessionId;
+            NodeId previousAuthenticationToken = AuthenticationToken;
+            ITransportChannel? retainedChannel = null;
+            RetiredServerSession? retired = null;
             IManagedTransportChannel? oldManagedLease = ManagedChannel;
             IClientChannelManager? manager = oldManagedLease?.Manager ?? ChannelManager;
             IManagedTransportChannel? newManagedLease = null;
@@ -3690,7 +3712,16 @@ namespace Opc.Ua.Client
                                 .ConfigureAwait(false);
                     }
 
-                    TransportChannel = newChannel;
+                    if (retirePreviousSession)
+                    {
+                        // The previous channel stays open to close the previous session on it.
+                        retainedChannel = NullableTransportChannel;
+                        InitializeChannel(newChannel);
+                    }
+                    else
+                    {
+                        TransportChannel = newChannel;
+                    }
                 }
 
                 // Token-reuse fast reconnect: re-activate the
@@ -3759,6 +3790,21 @@ namespace Opc.Ua.Client
                     lock (m_lock)
                     {
                         SessionCreated(default, default);
+                    }
+
+                    if (retirePreviousSession && !previousAuthenticationToken.IsNull)
+                    {
+                        ITransportChannel? previousChannel = manager == null
+                            ? retainedChannel
+                            : ReferenceEquals(oldManagedLease, newManagedLease) ? null : oldManagedLease;
+                        if (previousChannel != null)
+                        {
+                            retired = new RetiredServerSession(
+                                previousSessionId,
+                                previousAuthenticationToken,
+                                previousChannel);
+                            retainedChannel = null;
+                        }
                     }
 
                     UserIdentity? tempIdentity = m_identity == null
@@ -3830,7 +3876,8 @@ namespace Opc.Ua.Client
                 managedLeaseActivated = true;
                 if (newManagedLease != null &&
                     oldManagedLease != null &&
-                    !ReferenceEquals(oldManagedLease, newManagedLease))
+                    !ReferenceEquals(oldManagedLease, newManagedLease) &&
+                    !ReferenceEquals(retired?.Channel, oldManagedLease))
                 {
                     oldManagedLease.Dispose();
                 }
@@ -3861,6 +3908,13 @@ namespace Opc.Ua.Client
                 m_logger.SessionRECREATEPLACESessionIdFailed(
                     ex,
                     previousSessionId);
+                if (retired != null)
+                {
+                    // The client no longer holds the previous session, so it is closed now.
+                    await RetireServerSessionAsync(
+                        retired,
+                        disposeChannel: !ReferenceEquals(retired.Channel, m_managedChannel)).ConfigureAwait(false);
+                }
                 throw;
             }
             finally
@@ -3882,7 +3936,16 @@ namespace Opc.Ua.Client
                         Reconnecting = false;
                         m_reconnectLock.Release();
                     }
+                    if (retainedChannel != null)
+                    {
+                        await CloseRetainedChannelAsync(retainedChannel).ConfigureAwait(false);
+                    }
                 }
+            }
+
+            if (retired != null)
+            {
+                await RetireAfterSubscriptionRecoveryAsync(retired).ConfigureAwait(false);
             }
 
             if (reused)
@@ -3940,6 +4003,7 @@ namespace Opc.Ua.Client
                 remaining == TimeSpan.MaxValue ? Timeout.InfiniteTimeSpan : remaining);
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
             CancellationToken recoveryToken = linked.Token;
+            bool recovered = false;
             try
             {
                 if (remaining == TimeSpan.Zero)
@@ -3964,6 +4028,7 @@ namespace Opc.Ua.Client
                         StatusCodes.BadSecureChannelClosed, "The subscription recovery deadline expired.");
                 }
                 m_pendingSubscriptionRecovery = null;
+                recovered = true;
             }
             catch (OperationCanceledException) when (timeout.IsCancellationRequested &&
                 !ct.IsCancellationRequested)
@@ -3974,6 +4039,11 @@ namespace Opc.Ua.Client
             finally
             {
                 await ResumePublishingAfterRecoveryAsync().ConfigureAwait(false);
+            }
+
+            if (recovered)
+            {
+                await RetirePendingServerSessionAsync().ConfigureAwait(false);
             }
         }
 
@@ -7603,5 +7673,9 @@ namespace Opc.Ua.Client
         public static partial void RecreationDiscoveryUnavailableUsingStoredSnapshot(
             this ILogger logger,
             Exception exception);
+
+        [LoggerMessage(EventId = ClientEventIds.Session + 72, Level = LogLevel.Information,
+            Message = "Closed the replaced session {SessionId} on the Server it was created on.")]
+        public static partial void SessionRetiredPreviousSession(this ILogger logger, NodeId? sessionId);
     }
 }

@@ -98,6 +98,7 @@ namespace Generators
                 m_powerhouseStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages,
                     new QualifiedName("PowerhouseStage", ns));
+                m_powerhouseStage.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 stages.AddChild(m_powerhouseStage);
                 m_powerhouseStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = PowerhouseRootLayerIdentifier;
@@ -125,7 +126,7 @@ namespace Generators
                 // matching forward reference is added through externalReferences.
                 root.AddReference(ReferenceTypeIds.HasComponent, true, Opc.Ua.ObjectIds.Server);
 
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_powerhouseStage, ns, servedAssets);
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_powerhouseStage, ns, servedAssets, "generators");
 
                 SystemContext.AssignInstanceChildNodeIds(root);
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)
