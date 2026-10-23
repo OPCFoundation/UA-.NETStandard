@@ -585,7 +585,10 @@ namespace Opc.Ua.Server.Tests
                         }
                     ]
                 };
-                m_channel = new SecureChannelContext("role-regression", endpoint, RequestEncoding.Binary);
+                m_channel = new SecureChannelContext("role-regression", endpoint, RequestEncoding.Binary)
+                {
+                    HasTransportSecurity = true
+                };
             }
 
             /// <summary>
@@ -813,7 +816,10 @@ namespace Opc.Ua.Server.Tests
                 SecureChannelContext channel = sameChannel
                     ? m_channel
                     : new SecureChannelContext("independent-destination", endpoint, RequestEncoding.Binary,
-                        m_destinationCertificate.RawData);
+                        m_destinationCertificate.RawData)
+                    {
+                        HasTransportSecurity = encrypted
+                    };
                 using var context = new OperationContext(new RequestHeader(), channel,
                     RequestType.ActivateSession, RequestLifetime.None);
                 ByteString clientNonce = Nonce.CreateRandomNonceData(32).ToByteString();
