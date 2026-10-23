@@ -509,6 +509,33 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
+        /// While a replica coordinator adopts a mirrored session, the parked session rejects a
+        /// recovery that could create another server session; ending the adoption reports it
+        /// connected again. A session that is not connected is not parked.
+        /// </summary>
+        [Test]
+        public async Task MirroredSessionAdoptionParksRecoveryAsync()
+        {
+            await using var harness = new ManagedSessionReconnectHarness(System.TimeSpan.Zero);
+            await harness.ConnectAsync(false).ConfigureAwait(false);
+            int mark = harness.Requests.Count;
+
+            Assert.That(harness.Session.TryBeginMirroredSessionAdoption(), Is.True);
+            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Disconnected));
+            ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(
+                () => harness.Session.ReconnectAsync(null, null, harness.CancellationToken).WaitAsync(PhaseTimeout));
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(harness.Requests.ToList().Skip(mark), Has.None.InstanceOf<CreateSessionRequest>());
+
+            harness.Session.EndMirroredSessionAdoption(connected: true);
+            Assert.That(harness.Session.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
+            DataValue value = await harness.Session.ReadValueAsync(
+                VariableIds.Server_ServerStatus_State, harness.CancellationToken)
+                .WaitAsync(PhaseTimeout).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
         /// Creates the saved state of another owner's server session on the harness endpoint.
         /// </summary>
         private static SessionConfiguration CreateSavedSession(ManagedSessionReconnectHarness harness)

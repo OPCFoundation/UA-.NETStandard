@@ -131,6 +131,28 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Parks a connected session while a replica coordinator adopts a mirrored session into it,
+        /// so a keep-alive or channel failure in between cannot start a recovery that creates
+        /// another server session. A session that is not connected is not parked and keeps its
+        /// current behavior.
+        /// </summary>
+        /// <returns><c>true</c> when the session was parked; end it with
+        /// <see cref="EndMirroredSessionAdoption"/>.</returns>
+        internal bool TryBeginMirroredSessionAdoption()
+        {
+            return StateMachine.TryPark(s_adoptingMirroredSession);
+        }
+
+        /// <summary>
+        /// Ends a park started by <see cref="TryBeginMirroredSessionAdoption"/>.
+        /// </summary>
+        /// <param name="connected">Whether the session is usable, which reports it connected again.</param>
+        internal void EndMirroredSessionAdoption(bool connected)
+        {
+            StateMachine.Unpark(connected);
+        }
+
+        /// <summary>
         /// Activates a prepared takeover and resumes normal operation and recovery.
         /// </summary>
         /// <exception cref="ServiceResultException">The activation failed; the session stays
@@ -309,6 +331,13 @@ namespace Opc.Ua.Client
         private static readonly ServiceResult s_preparedForTakeover = new(
             StatusCodes.BadSessionNotActivated,
             new LocalizedText("The session is prepared for a takeover; activate it with ReconnectAsync first."));
+
+        /// <summary>
+        /// Reported to service calls while a replica coordinator adopts a mirrored session.
+        /// </summary>
+        private static readonly ServiceResult s_adoptingMirroredSession = new(
+            StatusCodes.BadSessionNotActivated,
+            new LocalizedText("The session is adopting a mirrored session."));
 
         private readonly Lock m_sessionGenerationLock = new();
         private readonly SemaphoreSlim m_takeoverGate = new(1, 1);
