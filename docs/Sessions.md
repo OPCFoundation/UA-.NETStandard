@@ -47,7 +47,7 @@ Everything below explains how these pieces fit together.
   - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
   - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
-  - [Retiring a session for another owner (`ISessionTakeover`)](#retiring-a-session-for-another-owner-isessiontakeover)
+  - [Taking over a session (`ISessionTakeover`)](#taking-over-a-session-isessiontakeover)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
   - [Session factory choices](#session-factory-choices)
@@ -628,7 +628,7 @@ the wait unbounded (other than by `ct`). Passing `closeChannel: false`
 tears down the session but leaves the transport channel open and owned by
 the caller, so it can be reused for another session.
 
-### Retiring a session for another owner (`ISessionTakeover`)
+### Taking over a session (`ISessionTakeover`)
 
 `Session` and `ManagedSession` implement the optional `ISessionTakeover`
 capability. It supports hand-overs where another process (for example a
@@ -636,37 +636,81 @@ promoted replica) continues the same server session with the saved
 `SessionConfiguration` and subscription state:
 
 - `SessionGeneration` starts at 1 and increments each time the session binds
-  a different server session (a create, or a recreate after the old server
-  session was lost). Reactivating the same server session, or replacing only
-  the channel, does not change it. On `ManagedSession` the value stays
-  monotonic across inner session replacements. `SessionGenerationChanged`
-  reports the new generation together with the previous and current
-  `SessionId`. Handlers must not block or call session services
-  synchronously.
-- `RetireAndPreserveAsync` releases the session locally but keeps the server
-  session and its subscriptions alive. No further request reaches the server
-  from this object: no Publish, `DeleteSubscriptions` or `CloseSession`.
-  Reconnect, failover and connect attempts are rejected with
+  a different server session: a create, a recreate after the old server
+  session was lost, or loading saved state of another server session.
+  Reactivating the same server session, or replacing only the channel, does
+  not change it. On `ManagedSession` the value stays monotonic across inner
+  session replacements. `SessionGenerationChanged` reports the new generation
+  together with the previous and current `SessionId`. Handlers must not block
+  or call session services synchronously.
+- `RetireAndPreserveAsync` (previous owner) releases the session locally but
+  keeps the server session and its subscriptions alive. No further request
+  reaches the server from this object: no Publish, `DeleteSubscriptions` or
+  `CloseSession`. Reconnect, failover and connect attempts are rejected with
   `BadSessionClosed`, including attempts already in progress. The session is
   disposed afterwards.
+- `PrepareTakeoverAsync` and then `ReconnectAsync` (new owner) take the saved
+  session over in two stages, see below.
 
-Capture the state **before** retiring:
+The previous owner captures the state **before** retiring:
 
 ```csharp
 if (session is ISessionTakeover takeover)
 {
     SessionConfiguration saved = session.SaveSessionConfiguration();
-    long generation = takeover.SessionGeneration;
     // ... persist saved state and subscriptions for the new owner ...
     await takeover.RetireAndPreserveAsync(ct);
 }
 ```
 
-Retaining and closing exclude each other on `ManagedSession`. If a
-`CloseAsync` or `DisposeAsync` started first, `RetireAndPreserveAsync` throws a
-`ServiceResultException` with `BadInvalidState`, because the server session may
-already be closed. A later `DisposeAsync` on a retired session completes
-without contacting the server.
+Retaining and closing exclude each other. If a `CloseAsync` or `DisposeAsync`
+started first, `RetireAndPreserveAsync` throws a `ServiceResultException` with
+`BadInvalidState`, because the server session may already be closed. A later
+`DisposeAsync` on a retired session completes without contacting the server.
+
+The new owner connects a helper session to the **same** endpoint (URL,
+security mode and policy, server certificate) and takes the saved session over:
+
+```csharp
+// Stage 1: validate, quiesce, close the helper's own server session on the
+// kept channel and load the saved state. Nothing is activated yet.
+var takeover = (ISessionTakeover)helper;
+await takeover.PrepareTakeoverAsync(
+    saved,
+    new SessionTakeoverOptions { Identity = credentials },
+    ct);
+
+// ... restore the client-side subscription objects, for example with
+// ISession.Load(stream, transferSubscriptions: true) ...
+
+// Stage 2: activate exactly the saved session by reusing its token.
+await helper.ReconnectAsync(connection: null, channel: null, ct);
+```
+
+- **Validation first.** Saved state without a session id or authentication
+  token, for another endpoint URL, security mode, policy or server
+  certificate, or without a server nonce on a secure endpoint is rejected
+  with a `ServiceResultException` before anything changes.
+- **Prepared state.** Keep-alive, publishing and recovery stop. A
+  `ManagedSession` reports `ConnectionState.Disconnected`, `Connected == false`
+  and `IsPrepared == true`; service calls fail fast with
+  `BadSessionNotActivated` instead of waiting. A raw `Session` keeps
+  `Connected == true` (as after `ApplySessionConfiguration`) but rejects every
+  request except the activation. The helper's server-revised session timeout
+  is kept, because the snapshot does not carry it.
+- **Activation.** `ReconnectAsync` sends only `ActivateSession` with the saved
+  token, on the kept channel or on a supplied channel or reverse connection.
+  It never sends `CreateSession`. A failed or cancelled activation throws and
+  leaves the session prepared, so it can be retried. After success the managed
+  session is `Connected`, and keep-alive, publishing and the configured
+  recovery policy resume.
+- **Release without commit.** Closing, disposing or retiring a prepared
+  session leaves the saved server session alive, because its ownership never
+  committed. Disposing a managed session cancels a preparation or activation
+  in flight and waits for it.
+- If closing the helper's server session fails, the preparation throws and
+  the helper stays usable. `DeleteHelperSubscriptions` controls whether the
+  helper's server-side subscriptions are deleted with it (default `true`).
 
 ### Server retry-after backpressure
 

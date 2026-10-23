@@ -800,7 +800,7 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public bool Connected
-            => m_session?.Connected ?? false;
+            => !IsPrepared && (m_session?.Connected ?? false);
 
         /// <inheritdoc/>
         public ClientTraceFlags ActivityTraceFlags
@@ -940,6 +940,11 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            if (IsPrepared)
+            {
+                await ActivatePreparedSessionAsync(connection, channel, ct).ConfigureAwait(false);
+                return;
+            }
             if (channel != null && m_session?.ChannelRecoveryInProgress == true)
             {
                 throw new ServiceResultException(
@@ -2039,7 +2044,7 @@ namespace Opc.Ua.Client
         /// Creates an error when a candidate endpoint changes an explicitly
         /// configured mode or policy.
         /// </summary>
-        private static ServiceResultException? GetSecurityConfigurationMismatch(
+        internal static ServiceResultException? GetSecurityConfigurationMismatch(
             EndpointDescription required,
             EndpointDescription candidate)
         {
@@ -2104,6 +2109,12 @@ namespace Opc.Ua.Client
             using (await m_serviceLock.WriterLockAsync(ct)
                 .ConfigureAwait(false))
             {
+                if (IsPrepared)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadInvalidState,
+                        "A session prepared for a takeover is activated with ReconnectAsync.");
+                }
                 Session session = InnerSession;
                 await SwitchEndpointAsync(
                     session,
@@ -2655,10 +2666,10 @@ namespace Opc.Ua.Client
                 SetBindingSession(null);
                 UnwireSessionEvents(session);
 
-                if (Interlocked.CompareExchange(
-                    ref m_serverSessionFate, kServerSessionClosing, kServerSessionOpen) == kServerSessionRetained)
+                if (ClaimServerSessionCloseOrRetain(session))
                 {
-                    // A retired facade keeps the server session alive for its new owner.
+                    // A retired facade, or a takeover that never committed its ownership, keeps
+                    // the server session alive for its owner.
                     session.AbandonServerSession();
                     m_closeResult = StatusCodes.Good;
                 }
@@ -3508,9 +3519,16 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            // Retention and a close the worker already committed to exclude each other.
-            bool retentionLost = retainServerSession && Interlocked.CompareExchange(
+            // Let a takeover step in flight end first, so whether the session is prepared is final.
+            await AbortTakeoverAsync().ConfigureAwait(false);
+
+            // A prepared takeover never committed its ownership, so its server session survives
+            // a dispose as well. Retention and a close the worker already committed exclude each other.
+            bool retain = retainServerSession || m_session?.IsPrepared == true;
+            bool retentionLost = retain && Interlocked.CompareExchange(
                 ref m_serverSessionFate, kServerSessionRetained, kServerSessionOpen) == kServerSessionClosing;
+            retain &= !retentionLost;
+            retentionLost &= retainServerSession;
             try
             {
                 Interlocked.Exchange(ref m_disposed, 1);
@@ -3520,9 +3538,9 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (retainServerSession && !retentionLost)
+                    if (retain)
                     {
-                        // Stop all teardown paths from reaching the demoted replica's server session.
+                        // Stop all teardown paths from reaching the retained server session.
                         m_session?.AbandonServerSession();
                     }
 
@@ -3540,7 +3558,7 @@ namespace Opc.Ua.Client
 
                     if (session != null)
                     {
-                        if (retainServerSession && !retentionLost)
+                        if (retain)
                         {
                             // The worker may have bound another session object meanwhile.
                             session.AbandonServerSession();
@@ -3558,6 +3576,8 @@ namespace Opc.Ua.Client
 
                     // Dispose the lock only after every task that could still hold it has stopped.
                     m_serviceLock.Dispose();
+                    m_takeoverAbort.Dispose();
+                    m_takeoverGate.Dispose();
                 }
                 finally
                 {
