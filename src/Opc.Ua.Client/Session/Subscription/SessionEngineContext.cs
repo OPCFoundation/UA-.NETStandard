@@ -59,7 +59,10 @@ namespace Opc.Ua.Client
             public bool Reconnecting => m_session.Reconnecting;
 
             /// <inheritdoc/>
-            public bool Connected => m_session.Connected;
+            /// <remarks>
+            /// A staged takeover reports not connected, so no engine publishes until it is activated.
+            /// </remarks>
+            public bool Connected => m_session.Connected && !m_session.IsTakeoverStaged;
 
             /// <inheritdoc/>
             public bool Closing => m_session.Closing;

@@ -565,7 +565,7 @@ namespace Opc.Ua.Client
 
                 try
                 {
-                    if (Connected && CanReceiveResponses())
+                    if (Connected && CanReceiveResponses() && TryClaimServerSessionClose())
                     {
                         var request = new CloseSessionRequest
                         {
@@ -2363,6 +2363,7 @@ namespace Opc.Ua.Client
                         StatusCodes.BadInvalidState,
                         "Not connected to server.");
                 }
+                ThrowIfPreparedForTakeover();
 
                 // get current nonce.
                 serverNonce = m_serverNonce;
@@ -2404,6 +2405,8 @@ namespace Opc.Ua.Client
             SessionClient? recoveryClient = null,
             string? ephemeralKeyPolicyUri = null)
         {
+            ThrowIfPreparedForTakeover();
+
             // get the identity token.
             string securityPolicyUri =
                 m_endpoint.Description.SecurityPolicyUri ?? SecurityPolicies.None;
@@ -2568,6 +2571,7 @@ namespace Opc.Ua.Client
                 m_systemContext.UserIdentity = identity;
             }
 
+            CommitTakeoverActivation();
             IndicateSessionConfigurationChanged();
         }
 
@@ -3533,7 +3537,7 @@ namespace Opc.Ua.Client
         internal void AbandonServerSession()
         {
             // Fence first: no teardown path may reach the server session from here on.
-            m_serverSessionRetained = true;
+            Volatile.Write(ref m_serverSessionFate, kServerSessionRetained);
             DeleteSubscriptionsOnClose = false;
             lock (m_lock)
             {
@@ -3583,6 +3587,9 @@ namespace Opc.Ua.Client
             bool retirePreviousSession = false)
         {
             ThrowIfDisposed();
+
+            // A prepared takeover may only be activated by its own activation, never replaced.
+            ThrowIfPreparedForTakeover();
             using Activity? activity = CachedActivitySource.StartActivity();
 
             NodeId previousSessionId = SessionId;
@@ -4169,12 +4176,13 @@ namespace Opc.Ua.Client
                     }
                 }
 
-                // close the session with the server.
+                // close the session with the server, unless it is retained for another owner or
+                // prepared for a takeover that never committed its ownership.
                 if (connected)
                 {
                     try
                     {
-                        if (CanReceiveResponses())
+                        if (CanReceiveResponses() && TryClaimServerSessionClose())
                         {
                             using CancellationTokenSource timeoutCts =
                                 CreateCloseRequestCancellationTokenSource(timeout, ct);
@@ -4226,6 +4234,9 @@ namespace Opc.Ua.Client
                             SessionCreated(default, default);
                         }
                         RaisePendingLifecycleEvents();
+
+                        // A prepared takeover is released locally; its server session stays alive.
+                        ReleaseTakeoverStage();
                     }
                 }
 
@@ -4277,11 +4288,19 @@ namespace Opc.Ua.Client
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// On a session prepared with <see cref="PrepareTakeoverAsync"/> this activates the saved
+        /// session, see <see cref="ISessionTakeover"/>.
+        /// </remarks>
         public Task ReconnectAsync(
             ITransportWaitingConnection? connection,
             ITransportChannel? channel,
             CancellationToken ct)
         {
+            if (IsPrepared)
+            {
+                return ActivatePreparedSessionAsync(connection, channel, ct);
+            }
             return ReconnectCoreAsync(
                 connection,
                 channel,
@@ -4328,6 +4347,7 @@ namespace Opc.Ua.Client
             bool bindSuppliedChannel = false)
         {
             ThrowIfDisposed();
+            ThrowIfPreparedForTakeover();
 
             // When a channel manager is wired and the caller did not
             // explicitly supply a channel, delegate the
@@ -5008,11 +5028,17 @@ namespace Opc.Ua.Client
         /// </remarks>
         protected override void UpdateRequestHeader(IServiceRequest request, bool useDefaults)
         {
-            if (m_serverSessionRetained)
+            if (IsServerSessionRetained)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSessionClosed,
                     "The server session was retained for another owner.");
+            }
+            if (IsPrepared && (request is not ActivateSessionRequest || !Volatile.Read(ref m_activatingTakeover)))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSessionNotActivated,
+                    "The session is prepared for a takeover; activate it with ReconnectAsync first.");
             }
 
             base.UpdateRequestHeader(request, useDefaults);

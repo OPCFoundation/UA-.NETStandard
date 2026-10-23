@@ -30,6 +30,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -155,9 +157,118 @@ namespace Opc.Ua.Client.Tests
         }
 
         /// <summary>
-        /// Creates an unconnected session with a mocked transport.
+        /// A retirement after a close was sent reports that the server session was not retained; once a
+        /// new server session is bound it can be retained again.
         /// </summary>
-        private static TakeoverSession CreateSession()
+        [Test]
+        public async Task RetireAfterCloseReportsTheServerSessionWasNotRetainedAsync()
+        {
+            var requests = new List<IServiceRequest>();
+            using TakeoverSession session = CreateSession(requests);
+            session.SessionCreated(new NodeId(1u), new NodeId(11u));
+            session.MarkServerAlive();
+            await session.CloseAsync(1000, closeChannel: false).ConfigureAwait(false);
+            Assert.That(requests, Has.Some.InstanceOf<CloseSessionRequest>());
+
+            ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.RetireAndPreserveAsync().ConfigureAwait(false));
+            Assert.That(failure!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+            session.SessionCreated(new NodeId(2u), new NodeId(12u));
+            await session.RetireAndPreserveAsync().ConfigureAwait(false);
+            Assert.That(session.Disposed, Is.True);
+        }
+
+        /// <summary>
+        /// Preparing a raw session closes its own server session on the kept channel, loads the saved
+        /// state and keeps the server-revised timeout. Until its activation only ActivateSession passes the
+        /// request fence, and a close releases it locally without CloseSession.
+        /// </summary>
+        [Test]
+        public async Task PrepareClosesTheHelperAndFencesAllButActivationAsync()
+        {
+            var requests = new List<IServiceRequest>();
+            using TakeoverSession session = CreateSession(requests);
+            session.SessionCreated(new NodeId(1u), new NodeId(11u));
+            double timeout = session.SessionTimeout;
+            var saved = new SessionConfiguration
+            {
+                SessionId = new NodeId(2u),
+                AuthenticationToken = new NodeId(12u),
+                ConfiguredEndpoint = session.ConfiguredEndpoint
+            };
+
+            await session.PrepareTakeoverAsync(saved, new SessionTakeoverOptions { DeleteHelperSubscriptions = false })
+                .ConfigureAwait(false);
+
+            CloseSessionRequest close = requests.OfType<CloseSessionRequest>().Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(close.RequestHeader.AuthenticationToken, Is.EqualTo(new NodeId(11u)));
+                Assert.That(close.DeleteSubscriptions, Is.False);
+                Assert.That(session.IsPrepared, Is.True);
+                Assert.That(session.SessionId, Is.EqualTo(new NodeId(2u)));
+                Assert.That(session.SessionTimeout, Is.EqualTo(timeout));
+                Assert.That(session.SessionGeneration, Is.EqualTo(2));
+            });
+            ServiceResultException? fenced = Assert.Throws<ServiceResultException>(
+                () => session.PrepareRequest(new ReadRequest()));
+            Assert.That(fenced!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated));
+            ServiceResultException? activation = Assert.Throws<ServiceResultException>(
+                () => session.PrepareRequest(new ActivateSessionRequest()));
+            Assert.That(activation!.StatusCode, Is.EqualTo(StatusCodes.BadSessionNotActivated),
+                "Only the takeover activation itself may activate the saved session.");
+            Assert.That(
+                async () => await session.UpdateSessionAsync(null, default).ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSessionNotActivated));
+
+            requests.Clear();
+            session.MarkServerAlive();
+            await session.CloseAsync(1000, closeChannel: false).ConfigureAwait(false);
+            Assert.That(requests, Has.None.InstanceOf<CloseSessionRequest>());
+            Assert.That(session.IsPrepared, Is.False);
+        }
+
+        /// <summary>
+        /// Saved state without a session id or authentication token, or for another endpoint, is
+        /// rejected before anything is sent or changed.
+        /// </summary>
+        /// <param name="defect">The defect of the saved state.</param>
+        [TestCase("token")]
+        [TestCase("endpoint")]
+        [TestCase("url")]
+        public void PrepareRejectsInvalidSavedStateBeforeAnyChange(string defect)
+        {
+            var requests = new List<IServiceRequest>();
+            using TakeoverSession session = CreateSession(requests);
+            session.SessionCreated(new NodeId(1u), new NodeId(11u));
+            var saved = new SessionConfiguration
+            {
+                SessionId = new NodeId(2u),
+                AuthenticationToken = defect == "token" ? NodeId.Null : new NodeId(12u),
+                ConfiguredEndpoint = defect switch
+                {
+                    "endpoint" => null,
+                    "url" => new ConfiguredEndpoint(
+                        null, new EndpointDescription("opc.tcp://otherhost:4840"), session.ConfiguredEndpoint.Configuration),
+                    _ => session.ConfiguredEndpoint
+                }
+            };
+
+            Assert.That(
+                async () => await session.PrepareTakeoverAsync(saved).ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>());
+            Assert.That(requests, Is.Empty);
+            Assert.That(session.IsPrepared, Is.False);
+            Assert.That(session.SessionId, Is.EqualTo(new NodeId(1u)));
+        }
+
+        /// <summary>
+        /// Creates an unconnected session with a mocked transport that records the requests it sends.
+        /// </summary>
+        private static TakeoverSession CreateSession(List<IServiceRequest>? requests = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var configuration = new ApplicationConfiguration(telemetry)
@@ -167,6 +278,19 @@ namespace Opc.Ua.Client.Tests
             };
             var channel = new Mock<ITransportChannel>();
             channel.SetupGet(value => value.MessageContext).Returns(configuration.CreateMessageContext());
+            channel.Setup(value => value.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                .Returns<IServiceRequest, CancellationToken>((request, _) =>
+                {
+                    requests?.Add(request);
+                    return new ValueTask<IServiceResponse>(new CloseSessionResponse
+                    {
+                        ResponseHeader = new ResponseHeader
+                        {
+                            RequestHandle = request.RequestHeader.RequestHandle,
+                            ServiceResult = StatusCodes.Good
+                        }
+                    });
+                });
             var endpoint = new ConfiguredEndpoint(null, new EndpointDescription("opc.tcp://localhost:4840"),
                 EndpointConfiguration.Create(configuration));
             return new TakeoverSession(channel.Object, configuration, endpoint);
@@ -187,6 +311,17 @@ namespace Opc.Ua.Client.Tests
             {
                 request.RequestHeader ??= new RequestHeader();
                 UpdateRequestHeader(request, true);
+            }
+
+            /// <summary>
+            /// Records a good response, which proves the server alive as a keep-alive does.
+            /// </summary>
+            public void MarkServerAlive()
+            {
+                RequestCompleted(
+                    new ReadRequest { RequestHeader = new RequestHeader() },
+                    new ReadResponse { ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good } },
+                    "Read");
             }
         }
     }
