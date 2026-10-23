@@ -57,6 +57,7 @@ namespace Opc.Ua.Mcp
         internal RequestReservation ReserveRequest(GdsEndpoint endpoint, McpCallerIdentity owner, string resource)
         {
             GdsAccess.Text(resource);
+            string issuer = endpoint.SecretResource;
             lock (m_state)
             {
                 var expired = new List<RequestKey>();
@@ -78,7 +79,7 @@ namespace Opc.Ua.Mcp
                     throw new ServiceResultException(StatusCodes.BadTooManyOperations);
                 }
                 m_reservations++;
-                return new RequestReservation(this, endpoint, owner, resource);
+                return new RequestReservation(this, endpoint, owner, resource, issuer);
             }
         }
 
@@ -88,15 +89,17 @@ namespace Opc.Ua.Mcp
         /// <exception cref="ServiceResultException"></exception>
         internal string RequireRequest(GdsEndpoint endpoint, McpCallerIdentity owner, string requestId)
         {
+            string issuer = endpoint.SecretResource;
             lock (m_state)
             {
                 var key = new RequestKey(endpoint.Info, endpoint.SessionId, endpoint.Proxy.ObjectId, requestId);
                 if (!m_requests.TryGetValue(key, out Request? request) ||
                     request.Owner != owner ||
+                    !string.Equals(request.Issuer, issuer, StringComparison.Ordinal) ||
                     request.ExpiresAt <= m_time.GetUtcNow())
                 {
                     throw new ServiceResultException(StatusCodes.BadUserAccessDenied,
-                        "The request is unavailable to this caller, root and session generation.");
+                        "The request is unavailable to this caller, issuer, root and session generation.");
                 }
                 return request.Resource;
             }
@@ -182,7 +185,8 @@ namespace Opc.Ua.Mcp
                 }
                 m_requests.Add(new RequestKey(reservation.Endpoint.Info, reservation.Endpoint.SessionId,
                     reservation.Endpoint.Proxy.ObjectId, requestId),
-                    new Request(reservation.Owner, reservation.Resource, m_time.GetUtcNow() + m_requestLifetime));
+                    new Request(reservation.Owner, reservation.Resource, reservation.Issuer,
+                        m_time.GetUtcNow() + m_requestLifetime));
                 m_reservations--;
                 reservation.Released = true;
             }
@@ -192,7 +196,8 @@ namespace Opc.Ua.Mcp
         /// A finite admission reservation; disposal performs no remote cancellation.
         /// </summary>
         internal sealed class RequestReservation(
-            GdsOperationState state, GdsEndpoint endpoint, McpCallerIdentity owner, string resource) : IDisposable
+            GdsOperationState state, GdsEndpoint endpoint, McpCallerIdentity owner, string resource, string issuer)
+            : IDisposable
         {
             /// <summary>
             /// Gets the captured endpoint.
@@ -208,6 +213,11 @@ namespace Opc.Ua.Mcp
             /// Gets the original requested resource.
             /// </summary>
             internal string Resource { get; } = resource;
+
+            /// <summary>
+            /// Gets the issuing registration/certificate authority captured before starting the request.
+            /// </summary>
+            internal string Issuer { get; } = issuer;
 
             /// <summary>
             /// Gets or sets the admitted slot's completion state.
@@ -283,7 +293,8 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Non-sensitive pending token-request metadata.
         /// </summary>
-        private sealed record Request(McpCallerIdentity Owner, string Resource, DateTimeOffset ExpiresAt);
+        private sealed record Request(
+            McpCallerIdentity Owner, string Resource, string Issuer, DateTimeOffset ExpiresAt);
 
         /// <summary>
         /// Server push transactions belong to one root on one Session generation.

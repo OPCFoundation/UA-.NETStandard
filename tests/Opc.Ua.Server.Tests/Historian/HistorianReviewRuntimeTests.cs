@@ -309,6 +309,8 @@ namespace Opc.Ua.Server.Tests.Historian
             using var provider = new InMemoryHistorianProvider();
             ServerSystemContext systemContext = CreateSystemContext();
             var notifier = new BaseObjectState(null) { NodeId = new NodeId("conditions", 1) };
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                systemContext, [ObjectTypeIds.AlarmConditionType, notifier.NodeId]);
             provider.Register(notifier.NodeId, HistorianNodeCapabilities.EventReadWrite);
             var conditionId = new NodeId("actual-condition", 1);
             var operand = new SimpleAttributeOperand

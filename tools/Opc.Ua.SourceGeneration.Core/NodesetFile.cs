@@ -33,10 +33,12 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Export;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
+using SystemXmlElement = System.Xml.XmlElement;
 
 namespace Opc.Ua.SourceGeneration
 {
@@ -419,6 +421,10 @@ namespace Opc.Ua.SourceGeneration
 
                 if (!m_nodesets.TryGetValue(ns, out NodesetFile? nodeset))
                 {
+                    if (IsRuntimeRoleNamespace(target.NodeSet, ns))
+                    {
+                        continue;
+                    }
                     if (referencedModels != null && referencedModels.ContainsKey(ns))
                     {
                         // Dependency is supplied by a referenced assembly's
@@ -465,6 +471,93 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return true;
+        }
+
+        /// <summary>
+        /// A namespace used only for runtime-supplied role identities does not require generated model types.
+        /// Namespaces used by other node metadata retain ordinary dependency validation.
+        /// </summary>
+        private static bool IsRuntimeRoleNamespace(UANodeSet nodeSet, string namespaceUri)
+        {
+            int index = Array.IndexOf(nodeSet.NamespaceUris ?? [], namespaceUri) + 1;
+            if (index == 0)
+            {
+                return false;
+            }
+            bool hasRole = false;
+            string browsePrefix = index.ToString(CultureInfo.InvariantCulture) + ":";
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                hasRole |= (node.RolePermissions ?? []).Any(permission => UsesNamespace(permission.Value));
+                if (UsesNamespace(node.NodeId) ||
+                    node.BrowseName?.StartsWith(browsePrefix, StringComparison.Ordinal) == true ||
+                    (node.References ?? []).Any(reference =>
+                        UsesNamespace(reference.ReferenceType) || UsesNamespace(reference.Value)) ||
+                    (node.Extensions ?? []).Any(XmlUsesNamespace))
+                {
+                    return false;
+                }
+                if (node is UAInstance instance && UsesNamespace(instance.ParentNodeId))
+                {
+                    return false;
+                }
+                if (node is UAMethod method && UsesNamespace(method.MethodDeclarationId))
+                {
+                    return false;
+                }
+                if (node is UAVariable variable &&
+                    (UsesNamespace(variable.DataType) || XmlUsesNamespace(variable.Value)))
+                {
+                    return false;
+                }
+                if (node is UAVariableType variableType &&
+                    (UsesNamespace(variableType.DataType) || XmlUsesNamespace(variableType.Value)))
+                {
+                    return false;
+                }
+                if (node is UADataType { Definition: { } definition } &&
+                    (UsesNamespace(definition.BaseType) ||
+                        definition.Name?.StartsWith(browsePrefix, StringComparison.Ordinal) == true ||
+                        (definition.Field ?? []).Any(field => UsesNamespace(field.DataType))))
+                {
+                    return false;
+                }
+            }
+            return hasRole;
+
+            bool UsesNamespace(string? text)
+            {
+                if (string.IsNullOrEmpty(text))
+                {
+                    return false;
+                }
+                text = nodeSet.Aliases?.FirstOrDefault(alias => alias.Alias == text)?.Value ?? text;
+                return ExpandedNodeId.TryParse(text, out ExpandedNodeId nodeId) &&
+                    (nodeId.NamespaceUri == namespaceUri ||
+                        (string.IsNullOrEmpty(nodeId.NamespaceUri) && nodeId.NamespaceIndex == index));
+            }
+
+            bool XmlUsesNamespace(SystemXmlElement? element)
+            {
+                if (element == null)
+                {
+                    return false;
+                }
+                if (UsesNamespace(element.InnerText) ||
+                    (element.LocalName == "NamespaceIndex" &&
+                        element.InnerText == index.ToString(CultureInfo.InvariantCulture)))
+                {
+                    return true;
+                }
+                foreach (XmlNode child in element.ChildNodes)
+                {
+                    if (child is SystemXmlElement childElement && XmlUsesNamespace(childElement))
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
         }
 
         /// <summary>

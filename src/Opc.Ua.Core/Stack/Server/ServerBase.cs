@@ -40,6 +40,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -2215,7 +2216,7 @@ namespace Opc.Ua
             Message = "Omitting {TokenType} token policy {SecurityPolicy} on None endpoint {EndpointUrl}: " +
                 "a compatible RSA application certificate and non-key-agreement token policy are required.")]
         public static partial void IncompatibleNoneEndpointTokenPolicy(
-            this ILogger logger, UserTokenType tokenType, string? securityPolicy, string? endpointUrl);
+            this ILogger logger, UserTokenType tokenType, string? securityPolicy, [NetworkAddress] string? endpointUrl);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]
@@ -2226,7 +2227,7 @@ namespace Opc.Ua
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 1, Level = LogLevel.Information,
             Message = "Create Reverse Connection to Client at {Url}.")]
-        public static partial void ServerBaseLogMessage1(this ILogger logger, Uri url);
+        public static partial void ServerBaseLogMessage1(this ILogger logger, [NetworkAddress] Uri url);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 2, Level = LogLevel.Error,
             Message = "Unexpected error closing a listener {Name}.")]
@@ -2261,21 +2262,21 @@ namespace Opc.Ua
         public static partial void ServerBaseLogMessage6(
             this ILogger logger,
             Exception? exception,
-            string name);
+            [NetworkAddress] string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 7, Level = LogLevel.Error,
             Message = "Unable to get host addresses for DNS hostname {Name}.")]
         public static partial void ServerBaseLogMessage7(
             this ILogger logger,
             Exception? exception,
-            string name);
+            [NetworkAddress] string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 8, Level = LogLevel.Error,
             Message = "Unable to check aliases for hostname {Name}.")]
         public static partial void ServerBaseLogMessage8(
             this ILogger logger,
             Exception? exception,
-            string name);
+            [NetworkAddress] string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]

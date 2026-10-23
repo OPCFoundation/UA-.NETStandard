@@ -210,10 +210,40 @@ same `HasAddIn` contract. `CreateRepresentation` is the supported authoring path
 `CreateInstanceOfOpenUsdRepresentationType` and a manually assigned reference type. The sample servers assert the
 reference type in their E2E suites.
 
-`UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets)` serves artist-authored USD layers through the
-address space as read-only Part 5 files with SHA-256 digests, so a generic connector can fetch, verify, cache, and
-render the twin with no external asset resolver. `assets` is an `ArrayOf<ServedAsset>` and the method returns the
-created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
+The binding model tracks the OPC 12001-1 version 0.9.0 draft from `OPC12000-Metaverse` and now depends on the
+stack's xRegistry companion model. The local `IOpenUsdRepresentedType` placeholder retains its `HasAddIn`
+correction. Load `nodes.AddOpcUaXRegistry(context)` before `nodes.AddOpcUaOpenUsd(context)` and include both
+model namespace URIs in the node manager.
+
+`UsdAssetDelivery.AttachStageAssets(context, stage, openUsdNs, assets, "pumps")` bootstraps an asset container in
+`Server/OpenUSD/Artifacts`. The registry organizes typed asset groups; each group organizes stable logical
+`OpenUsdAssetType` Resources. Each Resource owns a typed `Versions` folder organizing its first exact Version,
+`1`. Both logical and exact files expose the same immutable bytes through read-only Part 5 streaming, with
+SHA-256 digests and xRegistry identity metadata. The registry also exposes `SpecVersion` and a read-only
+`Capabilities` document declaring `available.entities.mutable` as `false` and an empty `mutable` list.
+Runtime registration, deletion, and default-Version switching are not implemented by
+this bootstrap helper.
+
+The stage's `Assets` folder contains only explicit `Organizes` references to the logical Resources, never
+duplicate or owned file instances. Stages using the same container and normalized `AssetIdentifier` share the
+same Resource NodeId. Leading `./` segments are removed; resource BrowseNames use `XRegistryIdentifier`, including
+collision disambiguation, rather than the previous underscore substitution. Conflicting bytes, asset kinds,
+or content types for an existing Resource are rejected. Empty asset identifiers are rejected.
+
+`assets` is an `ArrayOf<ServedAsset>`; the return value is an `ArrayOf<OpenUsdAssetState>` containing the logical
+Resources in input order. The four-argument overload allocates a container identifier from the stage's name,
+disambiguates collisions with existing groups, and reuses the allocation for that stage instance. Use the
+explicit-container overload for intentional sharing. Call either overload before the facility's final
+NodeId assignment and registration.
+Supply the stage's complete layer closure, with exactly one `RootLayer` whose `AssetIdentifier` equals
+`RootLayerIdentifier`. The sample servers now publish their served `.usda` identifiers rather than unrelated
+`asset-repo/*.usd` paths.
+
+Mount each Part 1 stage under `Server/OpenUSD/Stages` with `ReferenceTypeId = ReferenceTypeIds.Organizes`
+before calling `AddChild`. The instance factory leaves the reference type unset; `AddChild` alone registers
+the child but does not make it browsable. A representation's NodeId-valued `Stage` property does not replace
+this hierarchy link. The registry hierarchy and the stage's non-owning `Assets` view let a hierarchy-only
+address-space snapshot discover the stage and its shared asset closure.
 
 ## Samples
 
@@ -226,7 +256,7 @@ created `OpenUsdAssetState` nodes as an `ArrayOf<OpenUsdAssetState>`.
   that the MCP tools command, and a viewport prim pick can become a robot command through
   `UsdViewOptions.PrimPicked`. See [Robot Intent](Robotics.md#robot-intent) and the
   [Robotics samples](../samples/Robotics/README.md).
-* [`PumpDeviceIntegrationServer`](../samples/DI/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
+* [`PumpDeviceIntegrationServer`](../samples/Di/PumpDeviceIntegrationServer) — a DI pump line bound to OpenUSD, including
   component composition and served-asset delivery.
 * [`GeneratorServer`](../samples/OpenUsd/GeneratorServer) — the Generators companion
   specification with a datasheet-driven simulation and one independent twin per
@@ -280,6 +310,12 @@ renderer needs geometry it can resolve. Closing the window stops the session; `-
 For fetched stages, the connector resolves and writes structural component composition before the viewport opens.
 Live streaming then updates values in the rendered stage while continuing to persist later structural changes in
 `live.usda`; reload the viewport to apply a structural model change that occurs after startup.
+The viewer session callback and both Robotics sample viewport connectors enforce a shared
+`UsdViewportValueSink` boundary: remote structural updates never reach native composition, regardless of the
+asset's spelling or command enablement. Values, history samples and batch scopes continue to flow.
+This prevents live metadata from initiating external asset resolution with the viewer's ambient credentials.
+Host-controlled initial stages and file sinks retain composition support. Operators must still trust initial-stage
+content and its resolver: delivered-file digest verification does not authorize external dependencies.
 
 The renderer itself lives in a separate, optional assembly, `Opc.Ua.OpenUsd.Connector.Viewer`
 (`OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer`), which the connector loads on demand from its own
@@ -299,7 +335,8 @@ the command-prim watcher only when renderer picking is unavailable, `Renderer` r
 relationship, string attribute, or token attribute on `UsdViewOptions.CommandPrimPath` (default `/World/IntentCommand`)
 and the callback fires when that target changes.
 
-> The viewport requires .NET 10 and the OpenUSD packages (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
+> The viewport requires .NET 8 or later, a matching optional viewer assembly, and the OpenUSD packages
+> (`OpenUsd`, `OpenUsd.Viewer`, `OpenUsd.Runtime.Imaging`),
 > which are published on nuget.org, so a plain restore is enough. The RID-agnostic runtime metapackages resolve the
 > correct native payload per RID; `win-x64`, `linux-x64` and `osx-arm64` are all supported. With `0.8.0-alpha`, a
 > RID-less build or publish on a supported host copies that host's OpenUSD native payload. Use an explicit RID when
@@ -307,9 +344,9 @@ and the callback fires when that target changes.
 > own RID:
 > ```
 > dotnet publish tools/Opc.Ua.OpenUsd.Connector -c Release -f net10.0 -r win-x64 --self-contained false -o out
-> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -r win-x64 --self-contained false -o out
+> dotnet publish tools/Opc.Ua.OpenUsd.Connector.Viewer -c Release -f net10.0 -r win-x64 --self-contained false -o out
 > ```
-> Publishing both into the same directory is what puts the optional assembly, its dependencies, and the native
+> Publishing both into the same directory puts the optional assembly, its dependencies, and the native
 > plugin tree where the connector looks for them.
 
 #### Viewport colour, materials and cameras
@@ -365,6 +402,13 @@ The specification is emphatic that an importer must not discard what it does not
 - an **unknown value type** is carried opaquely as `BaseDataType`, with the exact
   `SdfValueTypeName` preserved in `UsdTypeName`.
 
+Opaque materialized Values remain remotely read-only even when their authored attribute is live:
+their UA String transport is not a validated USD value schema. Server-side value maintenance,
+subscriptions and configured history remain available. Known typed live Values remain writable.
+On export, complete supported opaque scalar/tuple/array literals retain their spelling; incomplete or
+trailing syntax is encoded as quoted data rather than emitted as layer structure. Exported liveness,
+which is inferred from write access, is not retained for these read-only opaque Values.
+
 ### Types carry USD roles
 
 USD's `color3f`, `normal3f`, `point3f` and `vector3f` all decompose to three floats and differ
@@ -412,8 +456,9 @@ A partial anchor is never published: a wrong position is worse than no position.
 `UsdaReader` and `UsdaWriter` convert between `.usda` and the scene document model, and
 `UsdSceneExporter` reads a materialized address space back out, so the full round trip is
 
-```text
-.usda → UsdStage → address space → UsdStage → .usda
+```mermaid
+flowchart LR
+    source[".usda"] --> first["UsdStage"] --> address["Address space"] --> second["UsdStage"] --> output[".usda"]
 ```
 
 The contract (§7.4) is **composed-scene lossless**: the exported stage is prim-for-prim,
@@ -421,6 +466,12 @@ attribute-for-attribute (name, `SdfValueTypeName`, resolved value and array shap
 relationship-for-relationship (ordered targets), metadata-, variant-selection-, kind- and
 specifier-equivalent to the input's *composed* result, and the recorded composition arc list is
 preserved.
+
+Textual, token and asset array elements, including nested composite values, are
+encoded as data in their USDA context. Quotes, delimiters and newlines in a
+writable attribute cannot introduce prims or composition arcs during export.
+The reader likewise keeps escaped strings and metadata literals separate from
+USDA structure, while retaining explicitly authored composition.
 
 It is deliberately **not** authoring-layer lossless: the input's per-layer opinion stack, sublayer
 structure and value clips are summarised as provenance under `Composition/` and

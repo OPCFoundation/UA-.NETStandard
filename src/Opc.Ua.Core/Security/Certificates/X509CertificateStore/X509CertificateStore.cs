@@ -35,6 +35,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.X509StoreExtensions;
 
@@ -538,7 +539,7 @@ namespace Opc.Ua
             Message = "Added certificate with thumbprint {Thumbprint} to X509Store {Name}.")]
         public static partial void X509CertificateStoreLogMessage0(
             this ILogger logger,
-            string? thumbprint,
+            [ApplicationIdentity] string? thumbprint,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.X509CertificateStore + 1, Level = LogLevel.Error,

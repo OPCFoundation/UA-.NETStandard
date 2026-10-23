@@ -894,7 +894,7 @@ namespace Opc.Ua.Machinery.Tests
 
             var outputs = new List<Variant>();
             ServiceResult generated = await management.ResultTransfer!.GenerateFileForRead!.CallAsync(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[]
                 {
@@ -915,7 +915,7 @@ namespace Opc.Ua.Machinery.Tests
             var file = (FileState)m_fixture.Manager.FindPredefinedNode(fileNodeId)!;
             var readOutputs = new List<Variant>();
             ServiceResult read = file.Read!.Call(
-                m_fixture.Manager.SystemContext,
+                m_fixture.SessionContext,
                 file.NodeId,
                 new Variant[] { Variant.From(readHandle), Variant.From(64) }.ToArrayOf(),
                 new List<ServiceResult>(),
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Machinery.Tests
         private ServiceResult CallCloseAndCommit(ResultManagementState management, uint handle)
         {
             return management.ResultTransfer!.CloseAndCommit!.Call(
-                m_fixture!.Manager.SystemContext,
+                m_fixture!.SessionContext,
                 management.ResultTransfer.NodeId,
                 new[] { Variant.From(handle) }.ToArrayOf(),
                 new List<ServiceResult>(),

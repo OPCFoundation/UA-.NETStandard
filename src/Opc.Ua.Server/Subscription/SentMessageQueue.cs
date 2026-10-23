@@ -562,6 +562,35 @@ namespace Opc.Ua.Server
                 m_sent[ii].Release();
             }
             m_sent.Clear();
+            m_lastSentMessage = 0;
+        }
+
+        /// <summary>
+        /// Retires notifications from a previous authorization epoch locally and in the retransmission mirror.
+        /// Outstanding responses retain their own lease references; sequence numbering is not restarted.
+        /// </summary>
+        public void InvalidateAuthorization()
+        {
+            uint[] removedSequenceNumbers = new uint[m_sent.Count];
+            for (int ii = 0; ii < m_sent.Count; ii++)
+            {
+                removedSequenceNumbers[ii] = m_sent[ii].Message.SequenceNumber;
+            }
+            if (m_retransmissionStore is ISubscriptionRetransmissionDeltaStore deltaStore)
+            {
+                deltaStore.StoreRetransmissionStateDelta(
+                    Id, m_sequenceNumber, [], removedSequenceNumbers);
+            }
+            else
+            {
+                m_retransmissionStore?.StoreRetransmissionState(Id, m_sequenceNumber, []);
+            }
+            if (m_retransmissionStore is ISubscriptionRetransmissionSendStateStore sendStateStore)
+            {
+                sendStateStore.StoreFirstUnsentSequenceNumber(Id, m_sequenceNumber, 0);
+            }
+            Clear();
+            m_mirroredFirstUnsentSequenceNumber = 0;
         }
 
         /// <summary>

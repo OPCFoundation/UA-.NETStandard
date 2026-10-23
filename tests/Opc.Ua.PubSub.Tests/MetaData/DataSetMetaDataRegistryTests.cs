@@ -45,6 +45,34 @@ namespace Opc.Ua.PubSub.Tests.MetaData
     [TestSpec("7.2.4.6.4", Summary = "DataSetMetaData NetworkMessage processing")]
     public class DataSetMetaDataRegistryTests
     {
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityF42ConnectionScopePreservesHostTrustAndLocalAuthenticatedUpdates()
+        {
+            var host = new DataSetMetaDataRegistry();
+            var scope = new DataSetMetaDataRegistry(host, null);
+            DataSetMetaDataKey key = NewKey();
+            DataSetMetaDataType forged = NewMeta(name: "Untrusted");
+            Assert.That(scope.RegisterReceived(in key, forged, authenticated: false), Is.True);
+            DataSetMetaDataType configured = NewMeta(name: "Configured");
+            host.Register(in key, configured);
+
+            Assert.That(scope.TryGet(in key, out DataSetMetaDataType? stored),
+                Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(configured),
+                "A later host configuration must take precedence over a learned unauthenticated entry.");
+            Assert.That(scope.RegisterReceived(in key, forged, authenticated: false), Is.False);
+            Assert.That(scope.Keys, Has.Count.EqualTo(1));
+
+            DataSetMetaDataType connectionAnnouncement = NewMeta(name: "ConnectionAnnouncement");
+            Assert.That(scope.RegisterReceived(in key, connectionAnnouncement, authenticated: true), Is.True);
+            Assert.That(scope.TryGet(in key, out stored), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(connectionAnnouncement));
+            Assert.That(host.TryGet(in key, out stored), Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(configured),
+                "Even an authenticated connection announcement must not mutate the host or sibling scopes.");
+        }
+
         private static DataSetMetaDataKey NewKey(
             ushort writerGroupId = 100,
             ushort dataSetWriterId = 200,

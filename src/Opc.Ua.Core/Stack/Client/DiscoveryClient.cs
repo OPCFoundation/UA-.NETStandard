@@ -31,6 +31,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -807,7 +808,9 @@ namespace Opc.Ua
     {
         [LoggerMessage(EventId = CoreEventIds.DiscoveryClient + 0, Level = LogLevel.Warning,
             Message = "Discovery endpoint contains invalid Url: {EndpointUrl}")]
-        public static partial void DiscoveryClientLogMessage0(this ILogger logger, string? endpointUrl);
+        public static partial void DiscoveryClientLogMessage0(
+            this ILogger logger,
+            [NetworkAddress] string? endpointUrl);
     }
 
 }

@@ -189,9 +189,7 @@ is overridden internally per node.
 ### Subscribing to events
 
 ```csharp
-EventFilter filter = new AlarmEventFilterBuilder()
-    .ForAlarms()
-    .Build();
+EventFilter filter = AlarmConditionTypeRecord.EventFilters.Build();
 
 await foreach (EventNotification evt in streaming
     .SubscribeEventsAsync(ObjectIds.Server, filter, ct: ct)
@@ -202,9 +200,11 @@ await foreach (EventNotification evt in streaming
 }
 ```
 
-`SubscribeEventsAsync` does *not* validate the filter. Use
-`AlarmEventFilterBuilder` for Part 9 events and any custom
-`SimpleAttributeOperand`-based filter for other event types.
+`SubscribeEventsAsync` does *not* validate the filter. Use the
+generated `{Type}Record.EventFilters.Build()` factories for Part 9 and
+other modelled event types, or any custom
+`SimpleAttributeOperand`-based filter; see
+[Alarms and Conditions](AlarmsAndConditions.md).
 
 ### Composing streams
 
@@ -344,6 +344,19 @@ deep notification snapshots. Acknowledgement, eviction, or queue disposal
 can recycle the retained pooled graph without changing a response still
 waiting for encoding or a captured retransmission/durable snapshot.
 Pooling remains enabled for the retained notifications.
+
+Retained notifications belong to the session's authenticated and effective
+identity and role grants. Activating a different identity or changing those
+grants retires queued values, events, aggregate state, and retransmission
+messages before the new identity can publish them. Renewing a token without
+changing the principal or grants preserves the queue. A response already
+admitted under the previous identity can finish encoding its leased snapshot;
+it does not grant the new identity access to retained messages.
+
+Event subscription transfer checks the destination session's notifier
+permissions and channel restrictions before preparing node-manager transfer
+work. An incompatible destination cannot acquire the subscription. Delivery
+also rechecks current notifier restrictions, including namespace defaults.
 
 The server retains notification messages for acknowledgement and Republish
 (Part 4 §5.14). When a new batch exceeds the configured retransmission capacity,
@@ -645,9 +658,12 @@ When the per-subscription cap (`MaxMonitoredItemsPerSubscription` from
 the server's capabilities, OPC UA Part 4 §5.13.2) would be exceeded,
 the engine transparently splits monitored items across additional
 server-side **partition** subscriptions and presents one logical
-collection to the caller. Single-partition workloads (the common
-case) keep their pre-existing fast path; partitioning kicks in only
-when needed.
+collection to the caller. With unbounded item mode enabled, the composite
+collection uses partition-placement and indexing logic even while only
+one partition exists. Setting
+`SubscriptionOptions.DisableUnboundedItemMode = true` selects the
+primary-partition delegation path, avoiding the composite collection's
+placement logic and global indexes.
 
 ### How it works
 
@@ -688,10 +704,9 @@ when needed.
 
 * `ISubscriptionNotificationHandler` callbacks always receive the
   logical wrapper as the `ISubscription subscription` parameter.
-  When more than one partition is active the engine serialises calls
-  through a per-wrapper semaphore so consumers observe one handler
-  invocation at a time, matching the single-partition behaviour they
-  came to rely on under V2.
+  With unbounded item mode enabled, the engine serialises calls through
+  a per-wrapper semaphore even while only one partition exists, so
+  consumers observe one handler invocation at a time.
 
 * Notifications include the source partition's server-side id via
   the `PartitionServerId` field on `DataValueChange` and
@@ -843,24 +858,37 @@ state machine awaits the hook exactly once between
 `CreateSubscription` and the first `CreateMonitoredItems`,
 satisfying the OPC UA Part 4 §5.13.9 ordering rule that
 `SetSubscriptionDurable` must precede any monitored-item creation.
-The hook is cleared after invocation; the wrapper re-installs it on
-each `SetAsDurableAsync` call so it survives reconnect / recreate
-cycles. Hook failures are logged as a warning and surfaced via
-`SubscriptionState.Modified` rather than tearing the partition
-down.
+The hook stays installed, so it runs again on every later physical
+create (recreate after `BadSubscriptionIdInvalid`, recreate after a
+failed transfer, a new partition). Hook failures are logged as a
+warning and surfaced via `SubscriptionState.Modified` rather than
+tearing the partition down.
+
+`SetAsDurableAsync(Func<TimeSpan?> lifetime)` takes a provider
+instead of a fixed lifetime. The provider is evaluated once for the
+call itself and again by the hook before each later physical create,
+so an application whose lifetime bound changes over time (for
+example, a bound that ends at a known instant) requests the value
+that is current when the server-side subscription is created. A
+`null` result requests no durability for that create (and makes the
+call itself return `TimeSpan.Zero` without contacting the server);
+an exception thrown by the provider during a later create is handled
+like a rejected `SetSubscriptionDurable` call. The `TimeSpan`
+overload is equivalent to a provider that always returns the same
+lifetime.
 
 ### Performance
 
-Single-partition workloads observe **no overhead** from the wrapper
-— the composite collection short-circuits to the primary's own
-collection without taking any extra locks or building indexes.
-Multi-partition workloads pay:
+With `SubscriptionOptions.DisableUnboundedItemMode = true`, the composite
+delegates collection operations to the primary partition, avoiding its
+own placement logic and global indexes. With unbounded mode enabled,
+coordination and indexing apply even before a second partition is created:
 
-* One semaphore acquire/release per notification callback (small).
+* One semaphore acquire/release per notification callback.
 * O(P) partition scans for `TryGetMonitoredItemByName` /
   `TryGetMonitoredItemByClientHandle` misses against the composite
-  index (P is typically single-digit).
-* One extra `Subscription` instance per partition (each holds its
+  index, where P is the number of partitions.
+* One extra `Subscription` instance per secondary partition (each holds its
   own state machine, ack queue position, and notification pipeline).
 
 ### Limitations and roadmap
@@ -872,10 +900,6 @@ delete + recreate (losing per-item server ids and briefly stopping
 publishing). Plan `Affinity` up-front for items that need to
 participate in a triggering relationship; the engine will keep the
 group co-located for the lifetime of the wrapper.
-
-This is the only multi-partition feature gap — single-partition
-workloads cover the vast majority of OPC UA client use cases
-unchanged.
 
 ## Classic → V2 surface mapping
 
@@ -921,7 +945,7 @@ reconciliation, etc.) along with the recommended V2 alternative.
 | `s.ConditionRefresh2Async(monitoredItemId, ct)` | `item.ConditionRefreshAsync(ct)` on `IMonitoredItem` (per-item; no `monitoredItemId` arg needed). |
 | `s.SetTriggeringAsync(triggering, links, removes, ct)` returning `SetTriggeringResponse` | `ISubscription.SetTriggeringAsync(IMonitoredItem triggeringItem, IReadOnlyCollection<IMonitoredItem>? linksToAdd, IReadOnlyCollection<IMonitoredItem>? linksToRemove, CancellationToken ct)` returning `SetTriggeringResult` with per-link statuses; plus name-based fluent overloads; plus the declarative `MonitoredItemOptions.TriggeredByNames` option (see [Triggering](#triggering-settriggering)). Supports N:M via `IMonitoredItem.TriggeringItems` plural; batches per-triggering-item requests; replays automatically on recreate/reconnect. |
 | `s.TransferAsync(target, sendInitialValues, ct)` | Configure transfer-on-recreate via `ManagedSessionBuilder.WithTransferSubscriptionsOnRecreate(true)`. The per-call `sendInitialValues` toggle lives on `SubscriptionOptions.SendInitialValuesOnTransfer` (default `false`). |
-| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours. |
+| `s.SetSubscriptionDurableAsync(...)` | `ISubscription.SetAsDurableAsync(TimeSpan lifetime, CancellationToken ct = default)` → revised lifetime hours; `SetAsDurableAsync(Func<TimeSpan?> lifetime, CancellationToken ct = default)` evaluates the lifetime again on every later physical create (see [Durable subscriptions](#durable-subscriptions)). |
 | `s.SaveMessageInCache(...)` | Not on V2 (classic internal). The V2 message pipeline is channel-based with no replay cache. |
 
 ### Monitored-item management

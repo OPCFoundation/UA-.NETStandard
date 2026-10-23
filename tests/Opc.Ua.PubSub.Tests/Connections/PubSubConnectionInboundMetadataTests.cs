@@ -201,6 +201,46 @@ namespace Opc.Ua.PubSub.Tests.Connections
             Assert.That(stored, Is.SameAs(genuine));
         }
 
+        [TestCase(5U)]
+        [TestCase(uint.MaxValue)]
+        [Category("SecurityRegression")]
+        public void SecurityF42AuthenticatedMetadataRejectsUnauthenticatedReplacement(uint forgedVersion)
+        {
+            var registry = new DataSetMetaDataRegistry();
+            DataSetMetaDataType genuine = NewMeta(major: 5, name: "Genuine");
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(genuine), NullLogger.Instance, authenticated: true);
+            int changes = 0;
+            registry.MetaDataChanged += (_, _) => changes++;
+
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(NewMeta(major: forgedVersion, name: "Forged")), NullLogger.Instance);
+
+            var key = new DataSetMetaDataKey(PublisherId.FromString("Plant1"), 0, 4, Uuid.Empty, 5);
+            Assert.That(registry.TryGet(in key, out DataSetMetaDataType? stored),
+                Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(genuine));
+            Assert.That(changes, Is.Zero, "Unauthenticated updates must not downgrade authenticated metadata.");
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public void SecurityF42AuthenticatedMetadataReplacesUnauthenticatedFutureVersion()
+        {
+            var registry = new DataSetMetaDataRegistry();
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(NewMeta(major: uint.MaxValue, name: "Forged")), NullLogger.Instance);
+            DataSetMetaDataType genuine = NewMeta(major: 5, name: "Genuine");
+
+            _ = PubSubConnection.TryRouteInboundMetaData(
+                registry, NewJsonMeta(genuine), NullLogger.Instance, authenticated: true);
+
+            var key = new DataSetMetaDataKey(PublisherId.FromString("Plant1"), 0, 4, Uuid.Empty, 5);
+            Assert.That(registry.TryGet(in key, out DataSetMetaDataType? stored),
+                Is.EqualTo(MetaDataMatchResult.Match));
+            Assert.That(stored, Is.SameAs(genuine));
+        }
+
         [Test]
         public void OnInboundRejectedIdentityIsNotRegistered()
         {
@@ -210,7 +250,7 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 registry,
                 NewJsonMeta(NewMeta(major: 1)),
                 NullLogger.Instance,
-                admit: static (in DataSetMetaDataKey _) => false);
+                admit: static (in _) => false);
 
             Assert.That(routed, Is.True);
             Assert.That(registry.Keys, Has.Count.Zero);

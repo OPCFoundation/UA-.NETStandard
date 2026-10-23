@@ -1,0 +1,76 @@
+<!--
+Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+Licensed under the OPC Foundation MIT License 1.00.
+See http://opcfoundation.org/License/MIT/1.00/
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:c="using:UaLens.Diagnostics.Capture"
+        x:Class="UaLens.Views.DiagnosticCaptureWindow"
+        Title="Packet capture and offline replay"
+        Width="760" Height="600" MinWidth="640" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+    <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,12"
+               Text="Capture only workspace-owned UA-TCP or a selected UDP/UADP runtime. Packet payloads may contain secrets. No decryption keys are collected; encrypted payloads remain opaque. Replay only reads a local PCAP and never sends traffic." />
+    <Grid Grid.Row="1" ColumnDefinitions="*,90,100,150" RowDefinitions="Auto,Auto" Margin="0,0,0,10">
+      <TextBlock Grid.Row="0" Grid.Column="0" Text="Source" />
+      <TextBlock Grid.Row="0" Grid.Column="1" Text="Seconds" Margin="8,0,0,0" />
+      <TextBlock Grid.Row="0" Grid.Column="2" Text="Frame limit" Margin="8,0,0,0" />
+      <TextBlock Grid.Row="0" Grid.Column="3" Text="Live payload bytes" Margin="8,0,0,0" />
+      <ComboBox Grid.Row="1" Grid.Column="0" x:Name="SourceCombo" HorizontalAlignment="Stretch"
+                AutomationProperties.Name="Capture source">
+        <ComboBox.ItemTemplate>
+          <DataTemplate DataType="c:DiagnosticCaptureSource">
+            <TextBlock Text="{CompiledBinding Name}" TextTrimming="CharacterEllipsis" />
+          </DataTemplate>
+        </ComboBox.ItemTemplate>
+      </ComboBox>
+      <NumericUpDown Grid.Row="1" Grid.Column="1" x:Name="DurationInput" Minimum="1" Maximum="60" Value="10"
+                     Margin="8,0,0,0" AutomationProperties.Name="Capture or replay timeout in seconds" />
+      <NumericUpDown Grid.Row="1" Grid.Column="2" x:Name="FramesInput" Minimum="1" Maximum="2048" Value="256"
+                     Margin="8,0,0,0" AutomationProperties.Name="Capture or replay frame limit" />
+      <NumericUpDown Grid.Row="1" Grid.Column="3" x:Name="BytesInput" Minimum="1" Maximum="8388608" Value="1048576"
+                     Margin="8,0,0,0" AutomationProperties.Name="Live capture payload byte limit" />
+    </Grid>
+    <CheckBox Grid.Row="2" x:Name="PacketConsent" Margin="0,0,0,8"
+              Content="Allow sensitive packet data in this bounded local recording or replay"
+              AutomationProperties.Name="Allow packet-data capture or replay" />
+    <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,0,0,10">
+      <Button x:Name="StartCaptureButton" Content="Start capture" AutomationProperties.Name="Start packet capture" />
+      <Button x:Name="StopCaptureButton" Content="Stop" AutomationProperties.Name="Stop packet capture or replay" />
+      <Button x:Name="ReplayButton" Content="Open PCAP..." AutomationProperties.Name="Replay local PCAP offline" />
+      <Button x:Name="ClearCaptureButton" Content="Clear" AutomationProperties.Name="Clear private capture" />
+    </StackPanel>
+    <StackPanel Grid.Row="4" Spacing="4" Margin="0,0,0,10">
+      <TextBlock x:Name="CaptureStatus" TextWrapping="Wrap" />
+      <TextBlock x:Name="CaptureCounts" TextWrapping="Wrap" FontSize="12" />
+      <TextBlock x:Name="CaptureError" TextWrapping="Wrap" FontSize="12" />
+    </StackPanel>
+    <ListBox Grid.Row="5" x:Name="PacketList" AutomationProperties.Name="Captured packet metadata">
+      <ListBox.ItemTemplate>
+        <DataTemplate DataType="c:DiagnosticPacketRow">
+          <StackPanel Margin="4" Spacing="2">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <TextBlock Text="{CompiledBinding Ordinal}" />
+              <TextBlock Text="{CompiledBinding Timestamp, StringFormat={}{0:O}}" />
+              <TextBlock Text="{CompiledBinding Bytes, StringFormat={}{0} bytes}" />
+            </StackPanel>
+            <TextBlock Text="{CompiledBinding Sha256}" FontSize="11"
+                       FontFamily="Cascadia Mono, Consolas, monospace" TextWrapping="Wrap" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </ListBox>
+    <StackPanel Grid.Row="6" Spacing="8" Margin="0,10,0,0">
+      <TextBlock FontSize="11" TextWrapping="Wrap"
+                 Text="PCAP framing may use synthetic addresses; capture and server clocks are not synchronized. Replay files are limited to 12 MiB. Closing stops recording; private files are deleted by Clear or application shutdown. NIC and other transport captures require separately configured tooling." />
+      <DockPanel>
+        <Button x:Name="ExportCaptureButton" DockPanel.Dock="Right" Content="Export PCAP..."
+                AutomationProperties.Name="Export completed raw packet capture" />
+        <CheckBox x:Name="ExportConsent" Content="Allow raw packet export to the selected new file"
+                  AutomationProperties.Name="Allow raw packet-data export" />
+      </DockPanel>
+    </StackPanel>
+  </Grid>
+</Window>

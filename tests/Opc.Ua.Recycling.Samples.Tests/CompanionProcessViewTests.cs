@@ -56,6 +56,76 @@ namespace Opc.Ua.Recycling.Samples.Tests
     public sealed partial class CompanionProcessViewTests
     {
         /// <summary>
+        /// Every circulation and drain pump exposes readable mandatory two-state status labels.
+        /// </summary>
+        [TestCase(RecyclingProcess.Washing, 8)]
+        [TestCase(RecyclingProcess.DensitySeparation, 1)]
+        public async Task PumpStatusExposesMandatoryStateLabels(RecyclingProcess process, int expectedPumps)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+            CancellationToken ct = timeout.Token;
+            await using RecyclingUaEnvironment environment = await RecyclingUaEnvironment.StartAsync(ct)
+                .ConfigureAwait(false);
+            IHost host = await environment.StartViewAsync(process, null, ct).ConfigureAwait(false);
+            await host.Services.GetRequiredService<RecyclingRuntime>().AddressSpaceReady.WaitAsync(ct)
+                .ConfigureAwait(false);
+            await WaitForInitializationAsync(environment, process, ct).ConfigureAwait(false);
+            string endpoint = host.Services.GetRequiredService<RecyclingHostOptions>().EndpointUrl;
+            RecyclingCoordinatorClient connection = await environment.ConnectAsync("observer", ct, endpoint)
+                .ConfigureAwait(false);
+            ManagedSession session = connection.Session;
+            ushort sample = checked((ushort)session.NamespaceUris.GetIndex(RecyclingModelMapping.NamespaceUri));
+            ArrayOf<ReferenceDescription> stages = await ChildrenAsync(
+                session, new NodeId(Model.Objects.ProcessView, sample), ct).ConfigureAwait(false);
+            string[] stateNames = [BrowseNames.FalseState, BrowseNames.TrueState];
+            int pumps = 0;
+            foreach (StageRecipe recipe in host.Services.GetRequiredService<RecyclingHostOptions>()
+                .Simulation.Stages.Span.ToArray().Where(recipe => recipe.Process == process))
+            {
+                ReferenceDescription stage = stages.Span.ToArray().Single(item => item.BrowseName.Name == recipe.Name);
+                NodeId equipment = await ChildAsync(session,
+                    ExpandedNodeId.ToNodeId(stage.NodeId, session.NamespaceUris),
+                    "Equipment", RecyclingModelMapping.NamespaceUri, ct).ConfigureAwait(false);
+                ArrayOf<ReferenceDescription> instruments = await ChildrenAsync(session, equipment, ct)
+                    .ConfigureAwait(false);
+                foreach (ReferenceDescription pump in instruments.Span.ToArray())
+                {
+                    NodeId operational = await ChildAsync(session,
+                        ExpandedNodeId.ToNodeId(pump.NodeId, session.NamespaceUris),
+                        "Operational", Di.Namespaces.OpcUaDi, ct).ConfigureAwait(false);
+                    NodeId actuation = await ChildAsync(
+                        session, operational, "PumpActuation", Pumps.Namespaces.Pumps, ct).ConfigureAwait(false);
+                    NodeId status = await ChildAsync(
+                        session, actuation, "Status", Pumps.Namespaces.Pumps, ct).ConfigureAwait(false);
+                    ReadResponse attributes = await session.ReadAsync(null, 0, TimestampsToReturn.Neither,
+                        [new ReadValueId { NodeId = status, AttributeId = Attributes.ValueRank }], ct)
+                        .ConfigureAwait(false);
+                    Assert.That(attributes.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(attributes.Results[0].WrappedValue.TryGetValue(out int valueRank), Is.True);
+                    Assert.That(valueRank, Is.EqualTo(ValueRanks.Scalar), pump.BrowseName.ToString());
+                    ArrayOf<ReferenceDescription> children = await ChildrenAsync(session, status, ct)
+                        .ConfigureAwait(false);
+                    foreach (string name in stateNames)
+                    {
+                        ReferenceDescription? property = children.Span.ToArray().SingleOrDefault(
+                            child => child.BrowseName == new QualifiedName(name, 0));
+                        Assert.That(property, Is.Not.Null, $"{pump.BrowseName}/Status/{name}");
+                        Assert.That(property!.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasProperty));
+                        Assert.That(property.TypeDefinition,
+                            Is.EqualTo(new ExpandedNodeId(VariableTypeIds.PropertyType)));
+                        DataValue value = await session.ReadValueAsync(
+                            ExpandedNodeId.ToNodeId(property.NodeId, session.NamespaceUris), ct).ConfigureAwait(false);
+                        Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                        Assert.That(value.WrappedValue.TryGetValue(out LocalizedText label), Is.True);
+                        Assert.That(label.Text, Is.EqualTo(name == BrowseNames.FalseState ? "Stopped" : "Running"));
+                    }
+                    pumps++;
+                }
+            }
+            Assert.That(pumps, Is.EqualTo(expectedPumps));
+        }
+
+        /// <summary>
         /// Every process publishes declared sample types, real appropriate instruments and discoverable assets.
         /// A repeated snapshot cannot change production, and a real coordinator outage retains source data.
         /// </summary>

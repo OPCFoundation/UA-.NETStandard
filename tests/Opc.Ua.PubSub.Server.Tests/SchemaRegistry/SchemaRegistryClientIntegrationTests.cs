@@ -148,7 +148,6 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// The client resolves the schema registry namespace exposed by the server.
         /// </summary>
         [Test]
-        [Order(100)]
         public void ClientResolvesSchemaRegistryNamespace()
         {
             var client = new SchemaRegistryClient(m_session, m_telemetry);
@@ -164,7 +163,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// back the exact schema document.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(ClientResolvesSchemaRegistryNamespace), AllowFailure = true)]
         public async Task ClientResolvesSeedSchemaByOpaqueSchemaIdAsync()
         {
             var client = new SchemaRegistryClient(m_session, m_telemetry);
@@ -182,7 +181,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// reports a null document (the consumer then falls back to Browse/GetSchema).
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(ClientResolvesSeedSchemaByOpaqueSchemaIdAsync), AllowFailure = true)]
         public async Task ClientReportsNullForUnregisteredSchemaIdAsync()
         {
             var client = new SchemaRegistryClient(m_session, m_telemetry);
@@ -200,7 +199,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// registered document over the wire by the server-computed SchemaId.
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(ClientReportsNullForUnregisteredSchemaIdAsync), AllowFailure = true)]
         public async Task ClientResolvesRuntimeRegisteredSchemaAsync()
         {
             byte[] document = System.Text.Encoding.UTF8.GetBytes(

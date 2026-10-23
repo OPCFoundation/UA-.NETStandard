@@ -45,6 +45,7 @@ string[] normalizedArgs = NormalizeArgs(args);
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(normalizedArgs);
 
 builder.Logging.ClearProviders();
+builder.Logging.EnableOpcUaRedaction();
 builder.Logging.AddConsole();
 
 int port = int.TryParse(

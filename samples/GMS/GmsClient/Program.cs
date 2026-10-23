@@ -98,6 +98,7 @@ namespace GmsSample.Client
             CancellationToken ct = running.Token;
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("GmsSample", LogLevel.Information);

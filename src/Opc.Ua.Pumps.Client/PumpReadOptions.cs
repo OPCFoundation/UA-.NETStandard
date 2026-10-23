@@ -37,9 +37,9 @@ namespace Opc.Ua.Pumps.Client
     /// OPC 40223 reading without its unit is not interpretable - most of the
     /// analog variables are <c>AnalogUnitType</c> or
     /// <c>AnalogUnitRangeType</c> and the specification fixes no unit for
-    /// them. The metadata is static, so a caller that polls a group on a cycle
-    /// should read it once with the defaults and then poll with
-    /// <see cref="ValuesOnly"/>, which saves one round trip per read.
+    /// them. Read once with the defaults, retain the metadata, then poll with
+    /// <see cref="ValuesOnly"/> to skip the metadata round trip. Re-read
+    /// metadata after a device or server configuration change.
     /// </remarks>
     public sealed record PumpReadOptions
     {

@@ -428,7 +428,10 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
             public string? LastTarget;
         }
 
-        private static async Task RunSessionAsync(
+        /// <summary>
+        /// Runs a remote session against the viewport's value-only boundary.
+        /// </summary>
+        internal static async Task RunSessionAsync(
             Func<IUsdSink, CancellationToken, Task> sessionAsync,
             IUsdSink sink,
             CancellationToken hostToken,
@@ -438,7 +441,7 @@ namespace Opc.Ua.OpenUsd.Connector.Viewer
                 hostToken, stageToken);
             try
             {
-                await sessionAsync(sink, linked.Token).ConfigureAwait(false);
+                await sessionAsync(new UsdViewportValueSink(sink), linked.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

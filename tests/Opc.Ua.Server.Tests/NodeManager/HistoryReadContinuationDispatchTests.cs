@@ -162,7 +162,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             harness.RestoreSaveAssignThenThrow();
 
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
+                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false))
+                .ConfigureAwait(false);
 
             Assert.That(continued.Disposed, Is.False);
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));

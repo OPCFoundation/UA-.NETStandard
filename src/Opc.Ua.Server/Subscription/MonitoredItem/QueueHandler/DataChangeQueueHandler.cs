@@ -162,6 +162,7 @@ namespace Opc.Ua.Server
             bool queueErrors = (diagnosticsMasks & DiagnosticsMasks.OperationAll) != 0;
 
             m_discardOldest = discardOldest;
+            m_queueErrors = queueErrors;
 
             // copy existing values.
             List<DataValue>? existingValues = null;
@@ -255,6 +256,19 @@ namespace Opc.Ua.Server
         /// Number of DataValues in the queue
         /// </summary>
         public int ItemsInQueue => m_dataValueQueue.ItemsInQueue;
+
+        /// <summary>
+        /// Removes every pending value while preserving the queue's configured capacity.
+        /// </summary>
+        internal void Clear()
+        {
+            m_dataValueQueue.ResetQueue(m_dataValueQueue.QueueSize, m_queueErrors);
+            m_overflowIndex = -1;
+            m_required = default;
+            m_requiredError = null;
+            m_requiredIndex = -1;
+            m_nextSampleTime = 0;
+        }
 
         /// <summary>
         /// Queues a value
@@ -736,6 +750,7 @@ namespace Opc.Ua.Server
         private bool m_discardOldest;
         private long m_nextSampleTime;
         private long m_samplingInterval;
+        private bool m_queueErrors;
         private readonly Action m_discardedValueHandler;
 
         /// <summary>The FIFO position carrying pending overflow, or -1 when none is pending.</summary>

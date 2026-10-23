@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server;
 
 namespace Opc.Ua.Di.Server.Locking
@@ -334,8 +335,8 @@ namespace Opc.Ua.Di.Server.Locking
             this ILogger logger,
             NodeId elementId,
             NodeId sessionId,
-            string? user,
-            string? context);
+            [UserIdentity] string? user,
+            [SensitiveText] string? context);
 
         [LoggerMessage(EventId = DiServerEventIds.DefaultLockService + 1, Level = LogLevel.Information,
             Message = "Lock on {ElementId} forcibly broken; previous owner {SessionId}.")]

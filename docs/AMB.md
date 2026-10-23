@@ -20,6 +20,10 @@ them and reads them back into records.
 - [Quick start - server](#quick-start---server)
 - [Quick start - client](#quick-start---client)
 - [Server hosting](#server-hosting)
+  - [`AddAssetManagement` and `ConfigureAssetManagement`](#addassetmanagement-and-configureassetmanagement)
+  - [Options](#options)
+  - [Persistence](#persistence)
+  - [When to register](#when-to-register)
 - [Builder reference](#builder-reference)
 - [Discovery](#discovery)
 - [Health](#health)
@@ -27,6 +31,8 @@ them and reads them back into records.
 - [Documentation links](#documentation-links)
 - [Locations, version information, classification and structure](#locations-version-information-classification-and-structure)
 - [Conformance matrix](#conformance-matrix)
+  - [Server](#server)
+  - [Client](#client)
 - [Client reference](#client-reference)
 - [Samples](#samples)
 - [Testing](#testing)
@@ -85,11 +91,11 @@ conditions, the DocumentationLinks AddIn, properties - is created in that
 owner. The owner registers each asset with the shared `IAssetManagement`
 registry from its setup; the registry is the meeting point of the managers.
 
-```
-DI / Machinery / Pumps / Scales node manager       AMB node manager (sidecar)
-  DeviceSet/Pump  ---- registered with ---->        Aliases/Assets/AssetsBy...
-    2:DeviceHealth, 2:DeviceHealthAlarms             Locations/HierarchicalLocations
-    AMB:DocumentationLinks, AssetId, ...             server-specific alarm types
+```mermaid
+flowchart LR
+    source["DI / Machinery / Pumps / Scales node manager<br/>DeviceSet/Pump<br/>2:DeviceHealth, 2:DeviceHealthAlarms<br/>AMB:DocumentationLinks, AssetId, ..."]
+    sidecar["AMB node manager (sidecar)<br/>Aliases/Assets/AssetsBy...<br/>Locations/HierarchicalLocations<br/>Server-specific alarm types"]
+    source -->|registered with| sidecar
 ```
 
 ## Quick start - server
@@ -546,7 +552,8 @@ so a later strict address-space read retries discovery and reports its failure.
 Category `NodeVersion` describes alias-set changes, not an asset-wide metadata
 ETag. A caller preparing an edit must also revalidate current alias membership,
 the exact edit target, permissions and relevant old value. The client does not
-provide atomic compare-and-swap.
+provide atomic compare-and-swap. See [UaLens Asset Management](UaLens.md#asset-management)
+for the prepared, owned-simulation workflow.
 
 | Area | Calls |
 | --- | --- |
@@ -583,7 +590,9 @@ See [samples/AMB](../samples/AMB/README.md) for how to run them.
 
 `AmbServer` accepts `--host`, `--port`, an absolute `--pki-root`,
 `--autoaccept true|false` and an optional `--run-seconds` from 1 through 3600.
-Ordinary standalone defaults and persistent state behavior are unchanged.
+UaLens uses private PKI, disables certificate auto-accept, limits the runtime
+and places `--state` inside the owned run directory. Ordinary standalone
+defaults and persistent state behavior are unchanged.
 
 ## Testing
 

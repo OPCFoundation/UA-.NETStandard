@@ -56,7 +56,7 @@ The Perception DataTypes follow §5.12 of their specification:
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | MCP tools for perception agents, including `vision_get_frame` returning an MCP `ImageContentBlock` |
 
 See the [Vision developer guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/main/docs/Vision.md)
-for the full end-to-end story, code examples and the bin-picking sample.
+for usage instructions, code examples and the bin-picking sample.
 
 > The namespace `http://opcfoundation.org/UA/Vision/` and every NodeId in it are
 > **provisional**. The model is a working-group draft.

@@ -51,11 +51,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Captures one identity consistently, including when recovery recreates this object in place.
         /// </summary>
-        internal SessionRequestContext CreateRequestContext(ManagedSession owner)
+        internal SessionRequestContext CreateRequestContext(
+            ManagedSession? owner, bool requireConfidentiality = false)
         {
             lock (m_requestContextIdentity)
             {
-                return new SessionRequestContext(owner, this, m_requestContextGeneration);
+                return new SessionRequestContext(owner, this, m_requestContextGeneration, requireConfidentiality);
             }
         }
 

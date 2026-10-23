@@ -1110,7 +1110,14 @@ async def check_wrong_password(c: Context) -> None:
     raise AssertionError("a session with a wrong password was activated")
 
 
-def _user_certificate():
+def _user_certificate(options: dict[str, str]):
+    # The user certificate the harness trusts on the server (DER + PKCS#8 PEM);
+    # without those options a new self-signed one.
+    cert_path, key_path = options.get("x509-user-cert-der"), options.get("x509-user-key-pem")
+    if cert_path and key_path:
+        cert = x509.load_der_x509_certificate(Path(cert_path).read_bytes())
+        key = serialization.load_pem_private_key(Path(key_path).read_bytes(), password=None)
+        return cert, key
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.primitives.asymmetric import rsa
     from cryptography.x509.oid import NameOID
@@ -1133,7 +1140,7 @@ def _user_certificate():
 
 
 async def check_x509_user_token(c: Context) -> None:
-    cert, key = _user_certificate()
+    cert, key = _user_certificate(c.options)
     session = await c.new_client(None, None)
     session.user_certificate = cert
     session.user_private_key = key

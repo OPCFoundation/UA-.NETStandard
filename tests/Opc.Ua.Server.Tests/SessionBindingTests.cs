@@ -347,8 +347,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Between Session.Activate and the binding commit the session already carries the
-        /// new activation, so the previous binding must not be handed out for dispatch.
+        /// Once activation admission begins committing, the previous binding must not be handed out for dispatch.
         /// </summary>
         [Test]
         public async Task LookupDuringActivationCommitReturnsNoBindingAsync()
@@ -358,7 +357,7 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, channel).ConfigureAwait(false);
             SessionBindingContext original = GetBinding(created, channel);
             bool? classifiedDuringCommit = null;
-            m_manager.OnNextSessionActivated = () => classifiedDuringCommit = m_manager.TryGetSessionContext(
+            m_manager.OnNextActivationCommit = () => classifiedDuringCommit = m_manager.TryGetSessionContext(
                 created.AuthenticationToken, channel.ChannelContext!, out _);
 
             await ActivateAsync(created, channel).ConfigureAwait(false);
@@ -544,7 +543,7 @@ namespace Opc.Ua.Server.Tests
             await ActivateAsync(created, channel).ConfigureAwait(false);
             SessionBindingContext original = GetBinding(created, channel);
             bool? liveDuringCommit = null;
-            m_manager.OnNextSessionActivated = () =>
+            m_manager.OnNextActivationCommit = () =>
                 liveDuringCommit = original.Liveness!.IsCurrent(channel.ChannelContext!);
 
             await ActivateAsync(created, channel).ConfigureAwait(false);
@@ -1217,10 +1216,27 @@ namespace Opc.Ua.Server.Tests
             }
 
             /// <summary>
-            /// Runs once on the activating thread after Session.Activate returned and
-            /// before the activation commits its binding.
+            /// Runs once while activation admission holds the binding in its committing state.
             /// </summary>
-            public Action? OnNextSessionActivated { get; set; }
+            public Action? OnNextActivationCommit { get; set; }
+
+            /// <summary>
+            /// Observes the production commit barrier before admitting activation.
+            /// </summary>
+            protected override async ValueTask<bool> AdmitActivationAsync(
+                NodeId authenticationToken, ISession session, OperationContext context,
+                bool isRestoredSession, CancellationToken cancellationToken)
+            {
+                bool admitted = await base.AdmitActivationAsync(
+                    authenticationToken, session, context, isRestoredSession, cancellationToken).ConfigureAwait(false);
+                if (admitted)
+                {
+                    Action? hook = OnNextActivationCommit;
+                    OnNextActivationCommit = null;
+                    hook?.Invoke();
+                }
+                return admitted;
+            }
 
             protected override ISession CreateSession(
                 OperationContext context, IServerInternal server, Certificate serverCertificate,
@@ -1229,41 +1245,10 @@ namespace Opc.Ua.Server.Tests
                 CertificateCollection clientCertificateChain, double sessionTimeout,
                 uint maxResponseMessageSize, int maxRequestAge, int maxContinuationPoints)
             {
-                return new HookSession(
-                    this, context, server, serverCertificate, sessionCookie, clientNonce, serverNonce,
+                return new Opc.Ua.Server.Session(
+                    context, server, serverCertificate, sessionCookie, clientNonce, serverNonce,
                     sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
-                    sessionTimeout, m_clock);
-            }
-
-            private sealed class HookSession : Opc.Ua.Server.Session, ISession
-            {
-                public HookSession(
-                    BindingSessionManager manager, OperationContext context, IServerInternal server,
-                    Certificate serverCertificate, NodeId authenticationToken, ByteString clientNonce,
-                    Nonce serverNonce, string sessionName, ApplicationDescription clientDescription,
-                    string endpointUrl, Certificate clientCertificate, CertificateCollection clientCertificateChain,
-                    double sessionTimeout, TimeProvider clock)
-                    : base(
-                        context, server, serverCertificate, authenticationToken, clientNonce, serverNonce,
-                        sessionName, clientDescription, endpointUrl, clientCertificate, clientCertificateChain,
-                        sessionTimeout, 10, 10, clock)
-                {
-                    m_manager = manager;
-                }
-
-                bool ISession.Activate(
-                    OperationContext context, IUserIdentityTokenHandler identityToken, IUserIdentity identity,
-                    IUserIdentity effectiveIdentity, ArrayOf<string> localeIds, Nonce serverNonce)
-                {
-                    bool changed = Activate(
-                        context, identityToken, identity, effectiveIdentity, localeIds, serverNonce);
-                    Action? hook = m_manager.OnNextSessionActivated;
-                    m_manager.OnNextSessionActivated = null;
-                    hook?.Invoke();
-                    return changed;
-                }
-
-                private readonly BindingSessionManager m_manager;
+                    sessionTimeout, 10, 10, m_clock);
             }
 
             private readonly IServerInternal m_server;

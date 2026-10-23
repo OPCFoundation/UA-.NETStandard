@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(Path.GetTempPath(), "fs-access-" + Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(AppContext.BaseDirectory, "fs-access-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(m_root, "a", "b"));
             Directory.CreateDirectory(Path.Combine(m_root, "c"));
             File.WriteAllText(Path.Combine(m_root, "a", "x.txt"), "x");

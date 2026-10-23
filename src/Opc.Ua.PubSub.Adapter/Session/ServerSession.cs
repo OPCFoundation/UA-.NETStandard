@@ -40,6 +40,7 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Client;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Redaction;
 using MonitoredItemOptions = Opc.Ua.Client.Subscriptions.MonitoredItems.MonitoredItemOptions;
 using SubscriptionOptions = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 
@@ -128,6 +129,23 @@ namespace Opc.Ua.PubSub.Adapter.Session
             : this(options, telemetry)
         {
             m_session = session ?? throw new ArgumentNullException(nameof(session));
+        }
+
+        /// <summary>
+        /// Creates a session with offline bootstrap and connection boundaries for deterministic validation tests.
+        /// </summary>
+        internal ServerSession(
+            ServerConnectionOptions options,
+            ITelemetryContext telemetry,
+            Func<ApplicationConfiguration, CancellationToken, ValueTask> initializeConfiguration,
+            Func<ApplicationConfiguration, CancellationToken, ValueTask<EndpointDescription>> selectEndpoint,
+            Func<ManagedSessionBuilder, CancellationToken, Task<ISession>> connectSession)
+            : this(options, telemetry)
+        {
+            m_initializeConfiguration = initializeConfiguration
+                ?? throw new ArgumentNullException(nameof(initializeConfiguration));
+            m_selectEndpoint = selectEndpoint ?? throw new ArgumentNullException(nameof(selectEndpoint));
+            m_connectSession = connectSession ?? throw new ArgumentNullException(nameof(connectSession));
         }
 
         /// <inheritdoc/>
@@ -506,8 +524,9 @@ namespace Opc.Ua.PubSub.Adapter.Session
             ApplicationConfiguration configuration = m_options.ApplicationConfiguration
                 ?? await BuildApplicationConfigurationAsync(ct).ConfigureAwait(false);
 
-            EndpointDescription selectedEndpoint =
-                await SelectEndpointAsync(configuration, ct).ConfigureAwait(false);
+            EndpointDescription selectedEndpoint = m_selectEndpoint is null
+                ? await SelectEndpointAsync(configuration, ct).ConfigureAwait(false)
+                : await m_selectEndpoint(configuration, ct).ConfigureAwait(false);
 
             var endpoint = new ConfiguredEndpoint(
                 null,
@@ -518,6 +537,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             ManagedSessionBuilder builder = new ManagedSessionBuilder(configuration, m_telemetry)
                 .UseEndpoint(endpoint)
+                .WithCheckDomain()
                 .WithSessionName(m_options.SessionName)
                 .WithSessionTimeout(TimeSpan.FromMilliseconds(m_options.SessionTimeout));
             if (m_securityPolicies != null)
@@ -531,7 +551,9 @@ namespace Opc.Ua.PubSub.Adapter.Session
 
             m_logger.ConnectingExternalServerSession(selectedEndpoint.EndpointUrl, selectedEndpoint.SecurityMode);
 
-            return await builder.ConnectAsync(ct).ConfigureAwait(false);
+            return m_connectSession is null
+                ? await builder.ConnectAsync(ct).ConfigureAwait(false)
+                : await m_connectSession(builder, ct).ConfigureAwait(false);
         }
 
         private IUserIdentity? ResolveUserIdentity()
@@ -653,7 +675,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                         StoreType = CertificateStoreType.Directory,
                         StorePath = Path.Combine(pkiRoot, "rejected")
                     },
-                    AutoAcceptUntrustedCertificates = true
+                    AutoAcceptUntrustedCertificates = false
                 },
                 TransportQuotas = new TransportQuotas
                 {
@@ -662,9 +684,32 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 ClientConfiguration = new ClientConfiguration()
             };
 
-            await configuration.ValidateAsync(ApplicationType.Client, ct).ConfigureAwait(false);
+            if (m_initializeConfiguration is null)
+            {
+                await configuration.ValidateAsync(ApplicationType.Client, ct).ConfigureAwait(false);
+            }
+            else
+            {
+                await m_initializeConfiguration(configuration, ct).ConfigureAwait(false);
+            }
             return configuration;
         }
+
+        /// <summary>
+        /// Optional offline initialization boundary; production validates the complete fallback configuration.
+        /// </summary>
+        private readonly Func<ApplicationConfiguration, CancellationToken, ValueTask>? m_initializeConfiguration;
+
+        /// <summary>
+        /// Optional offline discovery boundary.
+        /// </summary>
+        private readonly Func<ApplicationConfiguration, CancellationToken, ValueTask<EndpointDescription>>?
+            m_selectEndpoint;
+
+        /// <summary>
+        /// Optional offline connection boundary receiving the production managed-session settings.
+        /// </summary>
+        private readonly Func<ManagedSessionBuilder, CancellationToken, Task<ISession>>? m_connectSession;
 
         private sealed class ModelChangeNotifier : ISubscriptionNotificationHandler
         {
@@ -755,7 +800,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
                 "engine / DefaultSubscriptionEngineFactory). Monitoring is optional; continuing without it.")]
         public static partial void ModelChangeMonitoringSubscriptionManagerNotAvailable(
             this ILogger logger,
-            string? endpointUrl);
+            [NetworkAddress] string? endpointUrl);
 
         [LoggerMessage(EventId = PubSubAdapterEventIds.ServerSession + 1, Level = LogLevel.Information,
             Message = "ServerSession: model-change event monitoring is not available.")]
@@ -789,7 +834,7 @@ namespace Opc.Ua.PubSub.Adapter.Session
             Message = "Connecting external server session to {EndpointUrl} ({SecurityMode}).")]
         public static partial void ConnectingExternalServerSession(
             this ILogger logger,
-            string? endpointUrl,
+            [NetworkAddress] string? endpointUrl,
             MessageSecurityMode securityMode);
     }
 

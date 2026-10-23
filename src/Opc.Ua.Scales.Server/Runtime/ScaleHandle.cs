@@ -447,18 +447,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public ServiceResult SetZero()
         {
-            return Execute(ScaleCommand.SetZero, () =>
-            {
-                ServiceResult result = m_engine.SetZero();
-                if (ServiceResult.IsBad(result))
-                {
-                    Notifications.RaiseEvent(
-                        ScaleNotificationId.ZeroSettingFault,
-                        new LocalizedText(result.LocalizedText.Text ?? "Zero setting failed."),
-                        EventSeverity.MediumHigh);
-                }
-                return result;
-            });
+            return SetZero(callContext: null);
         }
 
         /// <summary>
@@ -466,18 +455,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public ServiceResult SetTare()
         {
-            return Execute(ScaleCommand.SetTare, () =>
-            {
-                ServiceResult result = m_engine.SetTare();
-                if (ServiceResult.IsBad(result))
-                {
-                    Notifications.RaiseEvent(
-                        ScaleNotificationId.TareSettingFault,
-                        new LocalizedText(result.LocalizedText.Text ?? "Tare setting failed."),
-                        EventSeverity.MediumHigh);
-                }
-                return result;
-            });
+            return SetTare(callContext: null);
         }
 
         /// <summary>
@@ -485,11 +463,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public ServiceResult ClearTare()
         {
-            return Execute(ScaleCommand.ClearTare, () =>
-            {
-                m_engine.ClearTare();
-                return ServiceResult.Good;
-            });
+            return ClearTare(callContext: null);
         }
 
         /// <summary>
@@ -502,35 +476,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </param>
         public ServiceResult SetPresetTare(double presetTare, EUInformation? engineeringUnits = null)
         {
-            EUInformation unit = engineeringUnits ?? Unit;
-            ServiceResult check = ScaleValues.CheckUnit(
-                unit,
-                AllowedEngineeringUnits,
-                m_services.Options.RequireSiUnits);
-            if (ServiceResult.IsBad(check))
-            {
-                return check;
-            }
-            if (!ScaleUnits.TryConvertMass(presetTare, unit, Unit, out double converted))
-            {
-                return ServiceResult.Create(
-                    StatusCodes.BadInvalidArgument,
-                    "The unit '{0}' cannot be converted to the scale's unit '{1}'.",
-                    unit.DisplayName.Text ?? string.Empty,
-                    Unit.DisplayName.Text ?? string.Empty);
-            }
-            return Execute(ScaleCommand.SetPresetTare, () =>
-            {
-                ServiceResult result = m_engine.SetPresetTare(converted);
-                if (ServiceResult.IsBad(result))
-                {
-                    Notifications.RaiseEvent(
-                        ScaleNotificationId.TareSettingFault,
-                        new LocalizedText(result.LocalizedText.Text ?? "Preset tare setting failed."),
-                        EventSeverity.MediumHigh);
-                }
-                return result;
-            });
+            return SetPresetTare(presetTare, engineeringUnits, callContext: null);
         }
 
         /// <summary>
@@ -538,31 +484,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public ServiceResult RegisterWeight()
         {
-            ScaleReading? registered = null;
-            ServiceResult result = Execute(ScaleCommand.RegisterWeight, () =>
-            {
-                ServiceResult check = m_engine.CanRegister();
-                if (ServiceResult.IsBad(check))
-                {
-                    return check;
-                }
-                m_weightCounter++;
-                m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
-                WeighingResult current = m_engine.Evaluate();
-                registered = ToReading(current, m_weightId);
-                m_registered = registered;
-                if (Scale.RegisteredWeight != null)
-                {
-                    PublishWeight(Scale.RegisteredWeight, current, m_weightId);
-                }
-                ProductionOutput?.Record(current.Net, m_weightId);
-                return ServiceResult.Good;
-            });
-            if (registered != null)
-            {
-                WeightRegistered?.Invoke(this, registered);
-            }
-            return result;
+            return RegisterWeight(callContext: null);
         }
 
         /// <summary>
@@ -682,10 +604,13 @@ namespace Opc.Ua.Scales.Server.Runtime
         }
 
         /// <summary>
-        /// Runs a command through the interceptor and republishes the weight
-        /// when it succeeded.
+        /// Runs a command through the interceptor and republishes the weight when it succeeded.
+        /// Remote counting commands retain the authorized product as their publication target.
         /// </summary>
-        internal ServiceResult Execute(ScaleCommand command, Func<ServiceResult> action)
+        internal ServiceResult Execute(
+            ScaleCommand command,
+            Func<ServiceResult> action,
+            ISystemContext? callContext = null)
         {
             if (CommandInterceptor != null)
             {
@@ -697,10 +622,28 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             lock (m_lock)
             {
+                PieceCountingProductState? product = callContext != null
+                    ? ProductionPreset?.ActiveProduct as PieceCountingProductState
+                    : null;
+                if (callContext != null && product != null)
+                {
+                    ServiceResult access = ScaleValues.CheckLock(m_services, callContext, product.NodeId);
+                    if (ServiceResult.IsBad(access))
+                    {
+                        return access;
+                    }
+                }
                 ServiceResult result = action();
                 if (ServiceResult.IsGood(result))
                 {
-                    PublishCore();
+                    if (callContext != null)
+                    {
+                        PublishCore(product);
+                    }
+                    else
+                    {
+                        PublishCore();
+                    }
                 }
                 return result;
             }
@@ -708,31 +651,148 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private void BindBaseMethods()
         {
-            if (Scale.SetZero != null)
-            {
-                Scale.SetZero.OnCallMethod2 = (context, method, objectId, inputs, outputs) => SetZero();
-            }
-            if (Scale.SetTare != null)
-            {
-                Scale.SetTare.OnCallMethod2 = (context, method, objectId, inputs, outputs) => SetTare();
-            }
-            if (Scale.ClearTare != null)
-            {
-                Scale.ClearTare.OnCallMethod2 = (context, method, objectId, inputs, outputs) => ClearTare();
-            }
-            if (Scale.SetPresetTare != null)
-            {
-                Scale.SetPresetTare.OnCall = (context, method, objectId, presetTare, engineeringUnits) =>
-                    SetPresetTare(presetTare, engineeringUnits);
-            }
-            if (Scale.RegisterWeight != null)
-            {
-                Scale.RegisterWeight.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
-                    RegisterWeight();
-            }
+            Scale.SetZero?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => SetZero(context);
+            Scale.SetTare?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => SetTare(context);
+            Scale.ClearTare?.OnCallMethod2 = (context, method, objectId, inputs, outputs) => ClearTare(context);
+            Scale.SetPresetTare?.OnCall = (context, method, objectId, presetTare, engineeringUnits) =>
+                    SetPresetTare(presetTare, engineeringUnits, context);
+            Scale.RegisterWeight?.OnCallMethod2 = (context, method, objectId, inputs, outputs) =>
+                    RegisterWeight(context);
         }
 
+        /// <summary>
+        /// Executes zero setting with the remote context, or as trusted equipment when absent.
+        /// </summary>
+        private ServiceResult SetZero(ISystemContext? callContext)
+        {
+            return Execute(ScaleCommand.SetZero, () =>
+            {
+                ServiceResult result = m_engine.SetZero();
+                if (ServiceResult.IsBad(result))
+                {
+                    Notifications.RaiseEvent(
+                        ScaleNotificationId.ZeroSettingFault,
+                        new LocalizedText(result.LocalizedText.Text ?? "Zero setting failed."),
+                        EventSeverity.MediumHigh);
+                }
+                return result;
+            }, callContext);
+        }
+
+        /// <summary>
+        /// Executes tare setting with the remote context, or as trusted equipment when absent.
+        /// </summary>
+        private ServiceResult SetTare(ISystemContext? callContext)
+        {
+            return Execute(ScaleCommand.SetTare, () =>
+            {
+                ServiceResult result = m_engine.SetTare();
+                if (ServiceResult.IsBad(result))
+                {
+                    Notifications.RaiseEvent(
+                        ScaleNotificationId.TareSettingFault,
+                        new LocalizedText(result.LocalizedText.Text ?? "Tare setting failed."),
+                        EventSeverity.MediumHigh);
+                }
+                return result;
+            }, callContext);
+        }
+
+        /// <summary>
+        /// Clears tare with the remote context, or as trusted equipment when absent.
+        /// </summary>
+        private ServiceResult ClearTare(ISystemContext? callContext)
+        {
+            return Execute(ScaleCommand.ClearTare, () =>
+            {
+                m_engine.ClearTare();
+                return ServiceResult.Good;
+            }, callContext);
+        }
+
+        /// <summary>
+        /// Sets preset tare with the remote context, or as trusted equipment when absent.
+        /// </summary>
+        private ServiceResult SetPresetTare(
+            double presetTare,
+            EUInformation? engineeringUnits,
+            ISystemContext? callContext)
+        {
+            EUInformation unit = engineeringUnits ?? Unit;
+            ServiceResult check = ScaleValues.CheckUnit(
+                unit,
+                AllowedEngineeringUnits,
+                m_services.Options.RequireSiUnits);
+            if (ServiceResult.IsBad(check))
+            {
+                return check;
+            }
+            if (!ScaleUnits.TryConvertMass(presetTare, unit, Unit, out double converted))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadInvalidArgument,
+                    "The unit '{0}' cannot be converted to the scale's unit '{1}'.",
+                    unit.DisplayName.Text ?? string.Empty,
+                    Unit.DisplayName.Text ?? string.Empty);
+            }
+            return Execute(ScaleCommand.SetPresetTare, () =>
+            {
+                ServiceResult result = m_engine.SetPresetTare(converted);
+                if (ServiceResult.IsBad(result))
+                {
+                    Notifications.RaiseEvent(
+                        ScaleNotificationId.TareSettingFault,
+                        new LocalizedText(result.LocalizedText.Text ?? "Preset tare setting failed."),
+                        EventSeverity.MediumHigh);
+                }
+                return result;
+            }, callContext);
+        }
+
+        /// <summary>
+        /// Registers a weight with the remote context, or as trusted equipment when absent.
+        /// </summary>
+        private ServiceResult RegisterWeight(ISystemContext? callContext)
+        {
+            ScaleReading? registered = null;
+            ServiceResult result = Execute(ScaleCommand.RegisterWeight, () =>
+            {
+                ServiceResult check = m_engine.CanRegister();
+                if (ServiceResult.IsBad(check))
+                {
+                    return check;
+                }
+                m_weightCounter++;
+                m_weightId = m_weightCounter.ToString(CultureInfo.InvariantCulture);
+                WeighingResult current = m_engine.Evaluate();
+                registered = ToReading(current, m_weightId);
+                m_registered = registered;
+                if (Scale.RegisteredWeight != null)
+                {
+                    PublishWeight(Scale.RegisteredWeight, current, m_weightId);
+                }
+                ProductionOutput?.Record(current.Net, m_weightId);
+                return ServiceResult.Good;
+            }, callContext);
+            if (registered != null)
+            {
+                WeightRegistered?.Invoke(this, registered);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Publishes equipment values against the product currently selected by the application.
+        /// </summary>
         private void PublishCore()
+        {
+            PublishCore(ProductionPreset?.ActiveProduct as PieceCountingProductState);
+        }
+
+        /// <summary>
+        /// Publishes counting values against the same product that the remote operation authorized.
+        /// </summary>
+        private void PublishCore(PieceCountingProductState? product)
         {
             WeighingResult current = m_engine.Evaluate();
             if (Scale.CurrentWeight != null)
@@ -751,7 +811,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 new LocalizedText(current.Underload
                     ? "The weight is below the minimum of the scale."
                     : "The weight is back above the minimum of the scale."));
-            PieceCounting?.OnWeight(current);
+            PieceCounting?.OnWeight(current, product);
         }
 
         private void PublishWeight(WeightItemState item, WeighingResult result, string? weightId)
@@ -763,10 +823,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
             SetFlag(item.Overload, result.Overload);
             SetFlag(item.Underload, result.Underload);
-            if (item.TareMode != null)
-            {
-                item.TareMode.Value = m_engine.TareMode;
-            }
+            item.TareMode?.Value = m_engine.TareMode;
             SetNumber(item.Gross, result.Gross);
             SetNumber(item.Net, result.Net);
             SetNumber(item.Tare, result.Tare);
@@ -778,23 +835,17 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 item.WeightStable.Value = m_engine.Stable.Value;
             }
-            if (item.CurrentRangeId != null)
-            {
-                item.CurrentRangeId.Value = (ushort)(result.RangeIndex + 1);
-            }
+            item.CurrentRangeId?.Value = (ushort)(result.RangeIndex + 1);
             if (item.WeightId != null && weightId != null)
             {
                 item.WeightId.Value = weightId;
             }
-            if (item.HighResolutionValue != null)
-            {
-                item.HighResolutionValue.Value = new WeightType
+            item.HighResolutionValue?.Value = new WeightType
                 {
                     Gross = result.HighResolutionGross,
                     Net = result.HighResolutionNet,
                     Tare = result.HighResolutionTare
                 };
-            }
             if (item.PrintableValue != null)
             {
                 string format = "F" + DecimalsOf(result.Interval).ToString(CultureInfo.InvariantCulture);
@@ -810,23 +861,17 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         private static void SetFlag(PropertyState<bool>? property, bool value)
         {
-            if (property != null)
-            {
-                property.Value = value;
-            }
+            property?.Value = value;
         }
 
         private static void SetNumber(PropertyState<double>? property, double value)
         {
-            if (property != null)
-            {
-                property.Value = value;
-            }
+            property?.Value = value;
         }
 
         private static int DecimalsOf(double interval)
         {
-            if (!(interval > 0) || interval >= 1)
+            if (interval is <= 0 or >= 1)
             {
                 return 0;
             }
@@ -889,7 +934,7 @@ namespace Opc.Ua.Scales.Server.Runtime
     {
         public static void SetItemState(
             ScaleRuntimeServices services,
-            Opc.Ua.Machinery.MachineryItemState_StateMachineState? machine,
+            Machinery.MachineryItemState_StateMachineState? machine,
             ScaleItemState state)
         {
             if (machine == null)
@@ -898,10 +943,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             uint id = state switch
             {
-                ScaleItemState.NotAvailable => Opc.Ua.Machinery.Objects.MachineryItemState_StateMachineType_NotAvailable,
-                ScaleItemState.OutOfService => Opc.Ua.Machinery.Objects.MachineryItemState_StateMachineType_OutOfService,
-                ScaleItemState.Executing => Opc.Ua.Machinery.Objects.MachineryItemState_StateMachineType_Executing,
-                _ => Opc.Ua.Machinery.Objects.MachineryItemState_StateMachineType_NotExecuting
+                ScaleItemState.NotAvailable => Machinery.Objects.MachineryItemState_StateMachineType_NotAvailable,
+                ScaleItemState.OutOfService => Machinery.Objects.MachineryItemState_StateMachineType_OutOfService,
+                ScaleItemState.Executing => Machinery.Objects.MachineryItemState_StateMachineType_Executing,
+                _ => Machinery.Objects.MachineryItemState_StateMachineType_NotExecuting
             };
             ScaleValues.SetCurrentState(
                 services.Context,
@@ -912,7 +957,7 @@ namespace Opc.Ua.Scales.Server.Runtime
 
         public static void SetOperationMode(
             ScaleRuntimeServices services,
-            Opc.Ua.Machinery.MachineryOperationModeStateMachineState? machine,
+            Machinery.MachineryOperationModeStateMachineState? machine,
             ScaleOperationMode mode)
         {
             if (machine == null)
@@ -921,10 +966,10 @@ namespace Opc.Ua.Scales.Server.Runtime
             }
             uint id = mode switch
             {
-                ScaleOperationMode.Maintenance => Opc.Ua.Machinery.Objects.MachineryOperationModeStateMachineType_Maintenance,
-                ScaleOperationMode.Setup => Opc.Ua.Machinery.Objects.MachineryOperationModeStateMachineType_Setup,
-                ScaleOperationMode.Processing => Opc.Ua.Machinery.Objects.MachineryOperationModeStateMachineType_Processing,
-                _ => Opc.Ua.Machinery.Objects.MachineryOperationModeStateMachineType_None
+                ScaleOperationMode.Maintenance => Machinery.Objects.MachineryOperationModeStateMachineType_Maintenance,
+                ScaleOperationMode.Setup => Machinery.Objects.MachineryOperationModeStateMachineType_Setup,
+                ScaleOperationMode.Processing => Machinery.Objects.MachineryOperationModeStateMachineType_Processing,
+                _ => Machinery.Objects.MachineryOperationModeStateMachineType_None
             };
             ScaleValues.SetCurrentState(
                 services.Context,

@@ -58,7 +58,11 @@ namespace Opc.Ua.Scales.Server.Runtime
             Context = context;
             Namespaces = namespaces;
             Options = options;
-            Register = register;
+            Register = node =>
+            {
+                BindProductWriteGuards(node);
+                register(node);
+            };
             Delete = delete;
             IsTypeOf = isTypeOf;
             LockService = lockService;
@@ -135,7 +139,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                     return;
                 }
                 m_disposed = true;
-                resources = m_resources.ToArray();
+                resources = [.. m_resources];
                 m_resources.Clear();
             }
             foreach (IDisposable resource in resources)
@@ -158,6 +162,17 @@ namespace Opc.Ua.Scales.Server.Runtime
         public QualifiedName InstanceName(string name)
         {
             return new QualifiedName(name, Namespaces.Scales);
+        }
+
+        /// <summary>
+        /// Protects product values before publishing an initial or dynamically created subtree.
+        /// </summary>
+        internal void BindProductWriteGuards(NodeState node)
+        {
+            lock (m_resourceGate)
+            {
+                ScaleProductWriteGuard.Bind(this, node);
+            }
         }
 
         /// <summary>Protects resource adoption and disposal.</summary>
@@ -226,7 +241,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return;
             }
-            if (variable.FindChild(context, new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits))
+            if (variable.FindChild(context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
                 is BaseVariableState property)
             {
                 property.WrappedValue = Variant.From(new ExtensionObject(units));
@@ -244,7 +259,7 @@ namespace Opc.Ua.Scales.Server.Runtime
             {
                 return;
             }
-            if (variable.FindChild(context, new QualifiedName(Opc.Ua.BrowseNames.EURange))
+            if (variable.FindChild(context, new QualifiedName(Ua.BrowseNames.EURange))
                 is BaseVariableState property)
             {
                 property.WrappedValue = Variant.From(new ExtensionObject(range));
@@ -297,7 +312,7 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// </summary>
         public static EUInformation? UnitsOf(ISystemContext context, BaseVariableState? variable)
         {
-            if (variable?.FindChild(context, new QualifiedName(Opc.Ua.BrowseNames.EngineeringUnits))
+            if (variable?.FindChild(context, new QualifiedName(Ua.BrowseNames.EngineeringUnits))
                 is BaseVariableState property &&
                 property.WrappedValue.TryGetValue(out ExtensionObject extension) &&
                 extension.TryGetValue(out EUInformation? units))
@@ -324,10 +339,7 @@ namespace Opc.Ua.Scales.Server.Runtime
                 return;
             }
             machine.CurrentState.Value = new LocalizedText(stateName);
-            if (machine.CurrentState.Id != null)
-            {
-                machine.CurrentState.Id.Value = stateId;
-            }
+            machine.CurrentState.Id?.Value = stateId;
             machine.CurrentState.StatusCode = StatusCodes.Good;
             machine.CurrentState.Timestamp = DateTimeUtc.Now;
             machine.ClearChangeMasks(context, includeChildren: true);
@@ -337,13 +349,14 @@ namespace Opc.Ua.Scales.Server.Runtime
         /// Rejects a call on behalf of a client that does not hold the lock of
         /// a lockable element another client holds (DI LockingServices, used
         /// by OPC 40200 §7.8.3 as the product access restriction).
+        /// The runtime's own context is trusted; distinct request contexts must satisfy session ownership.
         /// </summary>
         public static ServiceResult CheckLock(
             ScaleRuntimeServices services,
             ISystemContext callContext,
             NodeId elementId)
         {
-            if (services.LockService is not { } lockService)
+            if (ReferenceEquals(callContext, services.Context) || services.LockService is not { } lockService)
             {
                 return ServiceResult.Good;
             }

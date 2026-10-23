@@ -27,6 +27,9 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
+using System.Threading.Tasks;
+using Moq;
 using Opc.Ua.PubSub.Server.SchemaRegistry;
 using Opc.Ua.PubSub.SchemaRegistry;
 using Opc.Ua.Server.RuntimeNodeSet;
@@ -74,7 +77,32 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         public SchemaRegistryTestServer(ITelemetryContext telemetry)
             : base(telemetry)
         {
-            var options = new SchemaRegistryOptions();
+            string remoteServerUri = "urn:example:remote-schema-registry";
+            var target = new XRegistryFederationTarget(
+                new RegistryOriginDataType
+                {
+                    OriginUri = string.Empty,
+                    ServerUri = remoteServerUri,
+                    RegistryNodeId = new ExpandedNodeId("remote-registry", SchemaRegistryNamespaceUri)
+                },
+                remoteServerUri,
+                new ExpandedNodeId(
+                    new NodeId(SchemaContentIdProvider.Instance.ComputeContentId(
+                        "avro",
+                        SchemaRegistryOptions.FederatedSchemaDocument.Span)),
+                    SchemaRegistryNamespaceUri),
+                "/groups/federated/resources/federated-resource");
+            var federationProvider = new Mock<IXRegistryFederationProvider>(MockBehavior.Strict);
+            federationProvider.Setup(provider => provider.VerifyLogicalResourceAsync(
+                target,
+                SchemaRegistryOptions.RemoteEndpointUrl,
+                It.IsAny<CancellationToken>())).Returns(default(ValueTask));
+            var options = new SchemaRegistryOptions
+            {
+                PublishFederationProxy = true,
+                FederationTarget = target,
+                FederationProvider = federationProvider.Object
+            };
 
             var nodeSetOptions = new RuntimeNodeSetOptions
             {

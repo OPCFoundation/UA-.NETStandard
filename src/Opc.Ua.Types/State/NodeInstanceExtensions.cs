@@ -45,12 +45,13 @@ namespace Opc.Ua
     {
         /// <summary>
         /// Returns the context's <see cref="ISystemContext.NodeIdFactory"/>,
-        /// throwing when the context suppresses NodeId assignment.
+        /// throwing when the context does not supply a factory.
         /// </summary>
         /// <remarks>
-        /// <see cref="ISystemContext.NodeIdFactory"/> is nullable because a
-        /// node copy deliberately hides the factory from the children it
-        /// materialises. Builders that mint a fresh instance NodeId cannot
+        /// <see cref="ISystemContext.NodeIdFactory"/> is nullable to allow
+        /// automatic assignment to be disabled. Node copying instead passes
+        /// <c>assignInstanceNodeIds: false</c> while retaining the context and
+        /// its factory. Builders that mint a fresh instance NodeId cannot
         /// work without one, so they state that requirement here and fail with
         /// a diagnosable error rather than a <see cref="NullReferenceException"/>.
         /// </remarks>

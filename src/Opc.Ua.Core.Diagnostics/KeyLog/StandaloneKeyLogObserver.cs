@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Bindings;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Pcap.KeyLog
 {
@@ -259,7 +260,7 @@ namespace Opc.Ua.Pcap.KeyLog
         public static partial void PersistKeyMaterialFailed(
             this ILogger logger,
             Exception exception,
-            string path);
+            [FilePath] string path);
 
         [LoggerMessage(EventId = CoreDiagnosticsEventIds.StandaloneKeyLogObserver + 3, Level = LogLevel.Error,
             Message = "Stand-alone keylog observer worker terminated unexpectedly.")]

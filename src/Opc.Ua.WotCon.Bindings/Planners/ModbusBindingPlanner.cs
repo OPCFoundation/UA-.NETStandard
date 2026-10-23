@@ -102,12 +102,13 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
             if (!TryParseUri(href, out Uri uri) ||
+                string.IsNullOrWhiteSpace(uri.Host) ||
                 (!string.Equals(uri.Scheme, "modbus+tcp", StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(uri.Scheme, "modbus", StringComparison.OrdinalIgnoreCase)))
             {
                 diagnostics.Add(WotBindingDiagnostic.Error(
                     WotBindingDiagnosticCode.InvalidHref,
-                    "The href is not a valid absolute modbus+tcp URI.", form.Pointer("href")));
+                    "The href must be an absolute Modbus TCP URI with a device host.", form.Pointer("href")));
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
 
@@ -267,7 +268,8 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 pollInterval = TimeSpan.FromMilliseconds(pollingTime);
             }
 
-            bool bitArrayPayload = bitEntity && quantity > 1;            string dataType = bitEntity
+            bool bitArrayPayload = bitEntity && quantity > 1;
+            string dataType = bitEntity
                 ? (bitArrayPayload ? "boolean[]" : "boolean")
                 : (form.TryGetString("modv:type", out string type) ? type : "uint16");
             int encodedRegisterCount = bitEntity ? 0 : ModbusDataTypes.RegisterCount(dataType);

@@ -9,9 +9,8 @@ fluent `builder.AddServer(...)` DI surface.
 
 ## Overview
 
-Reference this package from every OPC UA server executable. It
-provides everything you need to implement a custom server on top of
-the UASC channel pipeline shipped by
+Reference this package from every OPC UA server executable. Use it
+to implement a custom server on top of the UASC channel pipeline shipped by
 `OPCFoundation.NetStandard.Opc.Ua.Core`.
 
 ## Getting started

@@ -465,6 +465,28 @@ namespace Opc.Ua.PubSub.Application
                 return null;
             }
 
+            bool requiresSecurity = PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(
+                connectionConfig,
+                out MessageSecurityMode requiredSecurityMode,
+                out _);
+            PubSubSecurityContext? securityContext =
+                m_securityWrapperResolver?.Resolve(connectionConfig);
+            if (requiresSecurity && securityContext is null)
+            {
+                throw new PubSubConfigurationException(
+                    [
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            "PSC1401",
+                            $"Connection '{connectionConfig.Name}' is configured for " +
+                            $"SecurityMode {requiredSecurityMode} but no security wrapper " +
+                            "could be resolved (missing key provider, policy or resolver). " +
+                            "Refusing to start in the clear.",
+                            $"Connections[{connectionConfig.Name}]",
+                            "8.3")
+                    ]);
+            }
+
             var writerGroups = new List<WriterGroup>();
             if (!connectionConfig.WriterGroups.IsNull)
             {
@@ -549,27 +571,6 @@ namespace Opc.Ua.PubSub.Application
                 }
             }
 
-            PubSubSecurityContext? securityContext =
-                m_securityWrapperResolver?.Resolve(connectionConfig);
-            bool requiresSecurity = PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(
-                connectionConfig,
-                out MessageSecurityMode requiredSecurityMode,
-                out _);
-            if (requiresSecurity && securityContext is null)
-            {
-                throw new PubSubConfigurationException(
-                    [
-                        new PubSubConfigurationIssue(
-                            PubSubConfigurationIssueSeverity.Error,
-                            "PSC1401",
-                            $"Connection '{connectionConfig.Name}' is configured for " +
-                            $"SecurityMode {requiredSecurityMode} but no security wrapper " +
-                            "could be resolved (missing key provider, policy or resolver). " +
-                            "Refusing to start in the clear.",
-                            $"Connections[{connectionConfig.Name}]",
-                            "8.3")
-                    ]);
-            }
             int maxMessageSize =
                 m_maxNetworkMessageSizeResolver?.Invoke(connectionConfig) ?? 0;
             PubSubConnection connection = new(
@@ -595,11 +596,16 @@ namespace Opc.Ua.PubSub.Application
             {
                 for (int i = 0; i < m_actionHandlers.Count; i++)
                 {
-                    connection.RegisterActionHandler(
-                        m_actionHandlers[i].Target,
-                        m_actionHandlers[i].Handler,
-                        m_actionHandlers[i].AllowUnsecured,
-                        m_actionHandlers[i].ResponseAddressPolicy);
+                    PubSubActionTarget target = m_actionHandlers[i].Target;
+                    if (string.IsNullOrEmpty(target.ConnectionName) ||
+                        string.Equals(connection.Name, target.ConnectionName, StringComparison.Ordinal))
+                    {
+                        connection.RegisterActionHandler(
+                            target,
+                            m_actionHandlers[i].Handler,
+                            m_actionHandlers[i].AllowUnsecured,
+                            m_actionHandlers[i].ResponseAddressPolicy);
+                    }
                 }
             }
             return connection;

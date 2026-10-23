@@ -154,7 +154,13 @@ namespace Opc.Ua.Gds.Client
                 string currentRefreshToken,
                 CancellationToken ct = default)
         {
-            ArrayOf<Variant> outputArguments = await CallInstanceMethodAsync(
+            SessionRequestContext context = await SessionRequestContext
+                .CaptureConfidentialAsync(m_session, ct).ConfigureAwait(false);
+            await using var contextLifetime = context.ConfigureAwait(false);
+            // Method ids and namespaces are resolved within this captured generation,
+            // rather than reusing the mutable owner's method cache.
+            var capturedClient = new AuthorizationServiceClient(context.Session, m_serviceNodeId);
+            ArrayOf<Variant> outputArguments = await capturedClient.CallInstanceMethodAsync(
                 "RefreshToken",
                 4,
                 ct,

@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(Path.GetTempPath(), "fos-" + Guid.NewGuid().ToString("N"));
+            m_root = Path.Combine(AppContext.BaseDirectory, "fos-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(m_root);
             m_telemetry = NUnitTelemetryContext.Create();
 

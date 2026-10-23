@@ -98,6 +98,7 @@ namespace GmsSample.Server
             string endpoint = FormattableString.Invariant($"opc.tcp://127.0.0.1:{port}/GmsServer");
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Logging.SetMinimumLevel(LogLevel.Warning);
             builder.Logging.AddFilter("GmsSample", LogLevel.Information);

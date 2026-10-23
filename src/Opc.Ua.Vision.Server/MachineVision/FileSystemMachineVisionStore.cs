@@ -35,6 +35,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server.FileSystem;
 
 namespace Opc.Ua.Vision.Server
@@ -477,6 +478,6 @@ namespace Opc.Ua.Vision.Server
             EventId = VisionServerEventIds.MachineVisionRuntime + 2,
             Level = LogLevel.Warning,
             Message = "Machine Vision document cleanup failed for {Path}; committed content is unchanged.")]
-        public static partial void CleanupFailed(this ILogger logger, string path, Exception exception);
+        public static partial void CleanupFailed(this ILogger logger, [FilePath] string path, Exception exception);
     }
 }

@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -78,6 +79,46 @@ namespace Opc.Ua.Pcap.Formats
             }
 
             m_logger.FormattingCaptureAsPcapng();
+            string? path = source.GetRawPcapFilePath();
+            if (path is not null)
+            {
+                CaptureFileValidator.RejectKeyLogPath(path, source.GetKeyLogFilePath());
+                (FormatKind kind, _) = await CaptureFileValidator.ValidateFileAsync(path, ct)
+                    .ConfigureAwait(false);
+                if (kind == FormatKind.PcapNg)
+                {
+                    byte[] bytes = await File.ReadAllBytesAsync(path, ct).ConfigureAwait(false);
+                    using MemoryStream rawStream = new(bytes, writable: false);
+                    (FormatKind snapshotKind, long frameCount) = await CaptureFileValidator.ValidateAsync(rawStream, ct)
+                        .ConfigureAwait(false);
+                    if (snapshotKind != FormatKind.PcapNg)
+                    {
+                        throw new PcapDiagnosticsException("The capture format changed during export.");
+                    }
+                    if (maxFrames is long frameLimit && frameCount > Math.Max(0, frameLimit))
+                    {
+                        bytes = LimitFrames(bytes, frameLimit);
+                        using MemoryStream limitedStream = new(bytes, writable: false);
+                        (FormatKind limitedKind, long limitedFrameCount) = await CaptureFileValidator.ValidateAsync(
+                            limitedStream, ct).ConfigureAwait(false);
+                        if (limitedKind != FormatKind.PcapNg)
+                        {
+                            throw new PcapDiagnosticsException("The limited capture is not valid PCAPNG.");
+                        }
+                        frameCount = limitedFrameCount;
+                    }
+
+                    return new FormatResult
+                    {
+                        Kind = Kind,
+                        MimeType = MimeType,
+                        Bytes = bytes,
+                        FramesFormatted = frameCount
+                    };
+                }
+
+            }
+
             MemoryStream stream = new();
             PcapNgFileWriter writer = new(stream, PcapFileWriter.LinkTypeNull);
             long count = 0;
@@ -104,6 +145,56 @@ namespace Opc.Ua.Pcap.Formats
                 Bytes = stream.ToArray(),
                 FramesFormatted = count
             };
+        }
+
+        private static byte[] LimitFrames(byte[] bytes, long maxFrames)
+        {
+            long limit = Math.Max(0, maxFrames);
+            long frameCount = 0;
+            int sectionStart = -1;
+            int offset = 0;
+            bool littleEndian = true;
+            while (offset < bytes.Length)
+            {
+                ReadOnlySpan<byte> block = bytes.AsSpan(offset);
+                bool sectionHeader = BinaryPrimitives.ReadUInt32LittleEndian(block) == 0x0A0D0D0A;
+                if (sectionHeader)
+                {
+                    uint byteOrderMagic = BinaryPrimitives.ReadUInt32LittleEndian(block.Slice(8, 4));
+                    littleEndian = byteOrderMagic switch
+                    {
+                        0x1A2B3C4D => true,
+                        0x4D3C2B1A => false,
+                        _ => throw new PcapDiagnosticsException("Invalid PCAPNG byte-order magic.")
+                    };
+                    sectionStart = offset;
+                }
+
+                uint blockType = littleEndian
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(block)
+                    : BinaryPrimitives.ReadUInt32BigEndian(block);
+                uint blockLength = littleEndian
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(block.Slice(4, 4))
+                    : BinaryPrimitives.ReadUInt32BigEndian(block.Slice(4, 4));
+                bool packetBlock = blockType is 2 or 3 or 6;
+                if (packetBlock && frameCount >= limit)
+                {
+                    if (sectionStart < 0)
+                    {
+                        throw new PcapDiagnosticsException("The PCAPNG section header is missing.");
+                    }
+                    byte[] limitedBytes = bytes.AsSpan(0, offset).ToArray();
+                    limitedBytes.AsSpan(sectionStart + 16, 8).Fill(byte.MaxValue);
+                    return limitedBytes;
+                }
+                if (packetBlock)
+                {
+                    frameCount++;
+                }
+                offset += checked((int)blockLength);
+            }
+
+            return bytes;
         }
     }
 

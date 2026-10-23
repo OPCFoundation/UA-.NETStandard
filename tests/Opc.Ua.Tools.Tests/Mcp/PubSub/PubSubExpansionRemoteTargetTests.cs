@@ -87,10 +87,15 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
                 Operations = [operation],
                 Resources = ["data", "metadata"]
             };
-            var allowed = new McpNetworkPolicy(policy, [rule], io, io);
-            var missingMetadata = new McpNetworkPolicy(policy, [rule with { Resources = ["data"] }], io, io);
+            McpNetworkRule activation = rule with { Operations = ["configure-connect"], Resources = [] };
+            var allowed = new McpNetworkPolicy(policy, [activation, rule], io, io);
+            var missingMetadata = new McpNetworkPolicy(policy,
+                [activation, rule with { Resources = ["data"] }], io, io);
             var wrongDirection = new McpNetworkPolicy(policy,
-                [rule with { Operations = [mode == "Publisher" ? "configure-subscribe" : "configure-publish"] }],
+                [
+                    activation,
+                    rule with { Operations = [mode == "Publisher" ? "configure-subscribe" : "configure-publish"] }
+                ],
                 io, io);
 
             Assert.That(() => McpPubSubRemoteTargets.Require(configuration, new McpPubSubOptions(), allowed),
@@ -136,13 +141,27 @@ namespace Opc.Ua.Tools.Tests.McpPubSub
             {
                 configuration.Connections[0].ReaderGroups[0].DataSetReaders[0].TransportSettings = ExtensionObject.Null;
             }
+            var io = new ForbiddenNetwork();
+            var network = new McpNetworkPolicy(fixture.Services.GetRequiredService<IMcpOperationPolicy>(),
+                [
+                    new McpNetworkRule
+                    {
+                        Scheme = "mqtt",
+                        Host = "broker.test",
+                        Port = 1883,
+                        Networks = ["127.0.0.0/8"],
+                        Capability = McpCapability.PubSubConfiguration,
+                        Operations = ["configure-connect", "configure-publish", "configure-subscribe"],
+                        Resources = [string.Empty, "data", "metadata"]
+                    }
+                ], io, io);
 
             ServiceResultException? error = Assert.Throws<ServiceResultException>(() =>
-                McpPubSubRemoteTargets.Require(configuration, new McpPubSubOptions(),
-                    fixture.Services.GetRequiredService<McpNetworkPolicy>()));
+                McpPubSubRemoteTargets.Require(configuration, new McpPubSubOptions(), network));
 
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             Assert.That(fixture.Remote.Calls, Is.Empty);
+            Assert.That(io.Attempts, Is.Zero);
         }
 
         [Test]

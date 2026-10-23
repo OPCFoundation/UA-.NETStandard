@@ -171,7 +171,12 @@ namespace Opc.Ua.Mcp
                 }
             }
             builder.Services.AddSingleton<McpCallerFilterMarker>();
-            builder.WithRequestFilters(filters => filters.AddCallToolFilter(McpExecutionFilters.CaptureCaller));
+            builder.WithRequestFilters(filters =>
+            {
+                filters.AddCallToolFilter(McpExecutionFilters.CaptureCaller);
+                filters.AddListResourcesFilter(McpExecutionFilters.CaptureCallerForResourceList);
+                filters.AddReadResourceFilter(McpExecutionFilters.CaptureCallerForResourceRead);
+            });
             return builder;
         }
 

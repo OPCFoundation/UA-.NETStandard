@@ -53,10 +53,9 @@ should publish those, not 3000 mostly empty variables.
 `IPumpGroupBuilder` addresses everything below them by browse name — `Add`,
 `Set`, `SetAnalog`, `SetDiscrete`, `With`, `Nested`. Children are created
 through the model's own `CreateChild`, so each one gets the type, data type,
-access level and default value the specification declares; a name the group
-does not declare is rejected rather than quietly creating a non-conforming
-node. Pass the generated `Opc.Ua.Pumps.BrowseNames` constants and a rename in
-the model breaks the build.
+access level and default value the specification declares. Names the group
+does not declare are rejected. Pass the generated `Opc.Ua.Pumps.BrowseNames`
+constants and a rename in the model breaks the build.
 
 `SetDiscrete` handles both shapes OPC 40223 uses for a boolean: the
 `TwoStateDiscreteType` variables of the supervision groups, and the

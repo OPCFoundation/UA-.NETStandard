@@ -121,7 +121,6 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// dependency order.
         /// </summary>
         [Test]
-        [Order(100)]
         public void CompanionNamespacesRegisteredAfterServerStart()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -144,7 +143,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// startup, proving the Schema Registry type model imported.
         /// </summary>
         [Test]
-        [Order(200)]
+        [DependsOnTest(nameof(CompanionNamespacesRegisteredAfterServerStart), AllowFailure = true)]
         public async Task SchemaRegistryTypeIsInAddressSpaceAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -163,7 +162,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// after startup, proving the well-known instance imported.
         /// </summary>
         [Test]
-        [Order(300)]
+        [DependsOnTest(nameof(SchemaRegistryTypeIsInAddressSpaceAsync), AllowFailure = true)]
         public async Task WellKnownSchemaRegistryObjectIsInAddressSpaceAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -183,7 +182,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// that the registry attaches under the Server object (independent of PubSub).
         /// </summary>
         [Test]
-        [Order(400)]
+        [DependsOnTest(nameof(WellKnownSchemaRegistryObjectIsInAddressSpaceAsync), AllowFailure = true)]
         public async Task SchemaRegistryObjectIsComponentOfServerAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -221,7 +220,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// download fast path (spec §5.1) is present on the well-known instance.
         /// </summary>
         [Test]
-        [Order(500)]
+        [DependsOnTest(nameof(SchemaRegistryObjectIsComponentOfServerAsync), AllowFailure = true)]
         public async Task WellKnownSchemaRegistryObjectMaterializesGetSchemaMethodAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -263,7 +262,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// the concrete Method node exactly as a server node manager would bind it to its store.
         /// </summary>
         [Test]
-        [Order(600)]
+        [DependsOnTest(nameof(WellKnownSchemaRegistryObjectMaterializesGetSchemaMethodAsync), AllowFailure = true)]
         public async Task GetSchemaMethodResolvesRegisteredSchemaAndReportsNotFoundAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -344,7 +343,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// Value Attribute — no Browse. An unknown SchemaId resolves to no node (cache miss).
         /// </summary>
         [Test]
-        [Order(700)]
+        [DependsOnTest(nameof(GetSchemaMethodResolvesRegisteredSchemaAndReportsNotFoundAsync), AllowFailure = true)]
         public async Task OpaqueSchemaIdNodeIdResolvesSchemaDocumentInOneReadAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -395,7 +394,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// the fast-path node's Opaque identifier bytes, and the document is reachable by it.
         /// </summary>
         [Test]
-        [Order(800)]
+        [DependsOnTest(nameof(OpaqueSchemaIdNodeIdResolvesSchemaDocumentInOneReadAsync), AllowFailure = true)]
         public async Task RegisteredSchemaIsAddressableByItsProviderComputedSchemaIdAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -439,7 +438,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// registered document is downloadable by its Opaque SchemaId NodeId (§6.4) in one Read.
         /// </summary>
         [Test]
-        [Order(900)]
+        [DependsOnTest(nameof(RegisteredSchemaIsAddressableByItsProviderComputedSchemaIdAsync), AllowFailure = true)]
         public async Task RegisterSchemaCreateWriteCloseBootstrapsDownloadableSchemaAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -482,7 +481,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// longer resolves.
         /// </summary>
         [Test]
-        [Order(1000)]
+        [DependsOnTest(nameof(RegisterSchemaCreateWriteCloseBootstrapsDownloadableSchemaAsync), AllowFailure = true)]
         public async Task DeleteResourceRejectsStaleEpochAndRemovesRegisteredSchemaAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
@@ -523,7 +522,7 @@ namespace Opc.Ua.PubSub.Server.Tests.SchemaRegistry
         /// same document, so the federated schema de-duplicates to one identity.
         /// </summary>
         [Test]
-        [Order(1100)]
+        [DependsOnTest(nameof(DeleteResourceRejectsStaleEpochAndRemovesRegisteredSchemaAsync), AllowFailure = true)]
         public async Task FederatedProxyCarriesExternalReferenceAndDedupsBySchemaIdAsync()
         {
             IServerInternal server = m_server.CurrentInstance;

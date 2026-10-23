@@ -37,7 +37,7 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
     /// <summary>
     /// Options for the optional, dependency-injectable in-server PubSub Schema Registry feature. The
     /// defaults reproduce the well-known Schema Registry companion namespace and seed a demonstration
-    /// schema and federation proxy; a host may override the namespace or disable the seeds.
+    /// schema. Federation proxy publication is opt-in and requires an explicit trusted target/provider.
     /// </summary>
     public sealed class SchemaRegistryOptions
     {
@@ -72,10 +72,25 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
         public bool PublishSeedSchema { get; set; } = true;
 
         /// <summary>
-        /// When <c>true</c> (default) the federation node manager publishes a proxy for a schema
-        /// hosted by a remote registry, proving the federation model.
+        /// When <c>true</c>, the federation node manager publishes a proxy for a schema hosted by a
+        /// remote registry. Federation is disabled by default and requires a trusted target and provider.
         /// </summary>
-        public bool PublishFederationProxy { get; set; } = true;
+        public bool PublishFederationProxy { get; set; }
+
+        /// <summary>
+        /// The trusted binding for the remote logical schema Resource. Required when federation is enabled.
+        /// </summary>
+        public XRegistryFederationTarget? FederationTarget { get; set; }
+
+        /// <summary>
+        /// The provider that verifies the trusted logical Resource before a federation proxy is published.
+        /// </summary>
+        public IXRegistryFederationProvider? FederationProvider { get; set; }
+
+        /// <summary>
+        /// The authorized remote registry endpoint carried by the federation proxy's <c>ResourceUrl</c>.
+        /// </summary>
+        public string FederationEndpointUrl { get; set; } = RemoteEndpointUrl;
 
         /// <summary>
         /// The BrowseName of the Schema Registry root Object materialized from the compiled model.
@@ -113,10 +128,12 @@ namespace Opc.Ua.PubSub.Server.SchemaRegistry
                 SeedFormat = "avro",
                 SeedBrowseName = "FastPathSchema",
                 PublishFederationProxy = PublishFederationProxy,
+                FederationTarget = FederationTarget,
+                FederationProvider = FederationProvider,
                 FederatedDocument = FederatedSchemaDocument,
                 FederatedFormat = "avro",
                 RemoteRegistryNamespaceUri = SchemaRegistryNamespaceUri,
-                RemoteEndpointUrl = RemoteEndpointUrl,
+                RemoteEndpointUrl = FederationEndpointUrl,
                 RemoteServerIndex = RemoteServerIndex,
                 FederationProxyBrowseName = "FederatedSchemaProxy"
             };

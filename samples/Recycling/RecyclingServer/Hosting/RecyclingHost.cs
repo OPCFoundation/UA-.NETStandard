@@ -62,6 +62,7 @@ namespace Opc.Ua.Recycling
             options.Validate();
             HostApplicationBuilder builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
+            builder.Logging.EnableOpcUaRedaction();
             builder.Logging.AddConsole();
             builder.Services.AddSingleton(options);
             configureServices?.Invoke(builder.Services);

@@ -385,8 +385,8 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         /// <param name="relativePath">The relative path used by this test case.</param>
         [TestCase("tests\\Opc.Ua.SourceGeneration.Core.Tests\\Resources\\Opc.Ua.Di.NodeSet2.xml")]
-        [TestCase("samples\\DI\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Machinery.NodeSet2.xml")]
-        [TestCase("samples\\DI\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Pumps.NodeSet2.xml")]
+        [TestCase("samples\\Di\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Machinery.NodeSet2.xml")]
+        [TestCase("samples\\Di\\PumpDeviceIntegrationServer\\Model\\Opc.Ua.Pumps.NodeSet2.xml")]
         [TestCase("samples\\WotCon\\AggregationClient\\Documents\\SamplePump.NodeSet2.xml")]
         public async Task RepositorySourceSurvivesSerializedLinkedPartitionsAsync(string relativePath)
         {

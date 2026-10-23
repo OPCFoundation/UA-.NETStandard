@@ -16,15 +16,16 @@ override the four `StandardServer` service methods themselves.
 
 ## Contents
 
-- [Architecture](#architecture)
-- [Opting in: `INodeManagementAsyncNodeManager`](#opting-in-inodemanagementasyncnodemanager)
-- [Dispatch and routing rules](#dispatch-and-routing-rules)
-- [Request handling on `AsyncCustomNodeManager`](#request-handling-on-asynccustomnodemanager)
-- [Error codes returned](#error-codes-returned)
-- [Audit events](#audit-events)
-- [Client-side example](#client-side-example)
-- [Custom behavior](#custom-behavior)
-- [See also](#see-also)
+- [NodeManagement service set](#nodemanagement-service-set)
+  - [Architecture](#architecture)
+  - [Opting in: `INodeManagementAsyncNodeManager`](#opting-in-inodemanagementasyncnodemanager)
+  - [Dispatch and routing rules](#dispatch-and-routing-rules)
+  - [Request handling on `AsyncCustomNodeManager`](#request-handling-on-asynccustomnodemanager)
+  - [Error codes returned](#error-codes-returned)
+  - [Audit events](#audit-events)
+  - [Client-side example](#client-side-example)
+  - [Custom behavior](#custom-behavior)
+  - [See also](#see-also)
 
 ## Architecture
 
@@ -35,7 +36,8 @@ override the four `StandardServer` service methods themselves.
    `IMasterNodeManager.AddNodesAsync` etc. dispatcher.
 3. For each item, `MasterNodeManager` selects the owning NodeManager:
    - `AddNodes`: the requested NodeId namespace, or the BrowseName
-     namespace if the server assigns the NodeId.
+     namespace if the server assigns the NodeId; select the first opted-in
+     NodeManager registered for that namespace.
    - `DeleteNodes`: the node's owning NodeManager.
    - Reference changes: the source node's owning NodeManager.
 
@@ -115,11 +117,11 @@ lifetime policy. The type's Create method is the primary client creation path.
 ## Dispatch and routing rules
 
 - **AddNodes**: routed by the namespace of `RequestedNewNodeId` when
-  the caller supplies one. When `RequestedNewNodeId` is null, routed
-  to the parent's owning NodeManager. As a pragmatic fallback for the
-  common case where the parent is `ObjectsFolder` (owned by the
-  read-only `CoreNodeManager`), the dispatcher routes to the first
-  NodeManager that has opted in to NodeManagement.
+  the caller supplies one; otherwise it uses `BrowseName.NamespaceIndex`.
+  The dispatcher selects the first opted-in NodeManager registered for that
+  namespace. Parent ownership is checked separately for validation and
+  attachment; it does not determine the target manager. There is no fallback
+  to an opted-in manager in another namespace.
 - **DeleteNodes**: routed to the owning NodeManager of the target node.
 - **AddReferences / DeleteReferences**: routed to the source node's
   owning NodeManager. Target-side validation and inverse mutation occur
@@ -159,12 +161,13 @@ with the same NodeId.
 | AddNodes | `BadParentNodeIdInvalid` | `ParentNodeId` is null or unknown. |
 | AddNodes | `BadReferenceTypeIdInvalid` | `ReferenceTypeId` is null or unknown. |
 | AddNodes | `BadReferenceNotAllowed` | `ReferenceTypeId` is not a hierarchical reference. |
-| AddNodes | `BadNodeIdRejected` | The requested or BrowseName namespace has no owning NodeManager, or `RequestedNewNodeId` is outside the selected NodeManager's namespace. |
+| AddNodes | `BadNodeIdRejected` | The requested NodeId cannot be resolved locally, the target namespace has no registered NodeManager, or a supplied `RequestedNewNodeId` has no opted-in manager in its namespace. The selected manager can also reject an invalid requested ID. |
 | AddNodes | `BadNodeIdExists` | `RequestedNewNodeId` already exists. |
 | AddNodes | `BadBrowseNameDuplicated` | A sibling beneath the same local parent already uses the browse name. |
 | AddNodes | `BadNodeClassInvalid` | Only `Object` and `Variable` are supported by the default implementation. |
 | AddNodes | `BadNodeAttributesInvalid` | The supplied attributes extension object does not match the node class. |
-| AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadUserAccessDenied` | The owning NodeManager has not opted in to NodeManagement or the Session lacks `AddNode`, `DeleteNode`, `AddReference`, or `RemoveReference` permission. |
+| AddNodes | `BadUserAccessDenied` | When no NodeId is requested, the BrowseName namespace has registered managers but none has opted in; or the Session lacks the required `AddNode` or parent `AddReference` permission. |
+| DeleteNodes / AddReferences / DeleteReferences | `BadUserAccessDenied` | The owning NodeManager has not opted in to NodeManagement or the Session lacks the required `DeleteNode`, `AddReference`, or `RemoveReference` permission. |
 | AddNodes / DeleteNodes / AddReferences / DeleteReferences | `BadSecurityModeInsufficient` | An applicable namespace, parent, source, or local target `AccessRestrictions` policy requires a stronger SecureChannel. |
 | DeleteNodes | `BadNodeIdInvalid` / `BadNodeIdUnknown` | The node to delete is null or unknown. |
 | AddReferences | `BadSourceNodeIdInvalid` | Source is null or unknown to this NodeManager. |

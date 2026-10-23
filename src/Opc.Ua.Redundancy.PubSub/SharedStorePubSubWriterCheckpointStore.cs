@@ -39,12 +39,13 @@ namespace Opc.Ua.PubSub.Redundancy
     /// <summary>
     /// Distributed <see cref="IPubSubWriterCheckpointStore"/> backed by an
     /// <see cref="ISharedKeyValueStore"/>, sharing live DataSetWriter SequenceNumbers across a
-    /// redundant PubSub set so a promoted Hot standby continues them (Part 14 §9.1.6 / §7.2.5.4.1).
+    /// redundant PubSub set for restoration by a promoted Hot standby (Part 14 §9.1.6 / §7.2.5.4.1).
     /// </summary>
     /// <remarks>
     /// SequenceNumbers are a high-water mark rather than a secret, so they are stored without
-    /// record protection and may use an eventually-consistent store; the take-over safety margin
-    /// applied by the publisher covers any gossip lag. When the caller provides a fencing token
+    /// record protection and may use an eventually-consistent store. The publisher's fixed restore
+    /// offset does not bound gossip lag or uncheckpointed sequence advances. A strongly consistent
+    /// store does not recover advances never written to it. When the caller provides a fencing token
     /// the write is additionally guarded against stale-active overwrite; callers that do not yet
     /// flow a token keep the previous unconditional behavior.
     /// </remarks>
