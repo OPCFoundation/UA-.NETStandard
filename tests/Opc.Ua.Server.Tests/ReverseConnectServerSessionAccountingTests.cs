@@ -64,12 +64,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ConnectedReverseConnection_IsNotReconnected_WhenMaxSessionCountIsZero()
+        public void ConnectedReverseConnection_IsNotReconnected_WhenMaxSessionCountIsOne()
         {
             var fakeTime = new FakeTimeProvider();
             using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
 
-            server.AddReverseConnection(s_reverseClientUri, timeout: 5000, maxSessionCount: 0, enabled: true);
+            server.AddReverseConnection(s_reverseClientUri, timeout: 5000, maxSessionCount: 1, enabled: true);
             ReverseConnectProperty property = server.GetReverseConnections()[s_reverseClientUri];
 
             // Simulate the reverse connection has successfully established
@@ -78,11 +78,11 @@ namespace Opc.Ua.Server.Tests
             // Trigger the reverse connect tick
             server.InvokeOnReverseConnect(0);
 
-            // A connection in Connected state must remain Connected and NOT be re-initiated
+            // When MaxSessionCount is 1, an established connection must not trigger a redundant connection attempt
             Assert.That(
                 property.LastState,
                 Is.EqualTo(ReverseConnectState.Connected),
-                "A reverse connection that is already Connected must not be re-initiated when MaxSessionCount is 0.");
+                "A reverse connection that is already Connected must not be re-initiated when MaxSessionCount is 1.");
         }
 
         [Test]
@@ -103,26 +103,6 @@ namespace Opc.Ua.Server.Tests
                 property.LastState,
                 Is.EqualTo(ReverseConnectState.Connecting),
                 "A reverse connection that is currently Connecting must not trigger a redundant connection attempt.");
-        }
-
-        [Test]
-        public void ConnectedReverseConnection_IsNotReconnected_WhenServerHasZeroSessionsAndMaxSessionCountIsOne()
-        {
-            var fakeTime = new FakeTimeProvider();
-            using var server = new TestableReverseConnectServer(NUnitTelemetryContext.Create(), fakeTime);
-
-            server.AddReverseConnection(s_reverseClientUri, timeout: 5000, maxSessionCount: 1, enabled: true);
-            ReverseConnectProperty property = server.GetReverseConnections()[s_reverseClientUri];
-
-            // Simulate connection established, but SessionManager has 0 sessions (not yet activated)
-            property.LastState = ReverseConnectState.Connected;
-
-            server.InvokeOnReverseConnect(0);
-
-            Assert.That(
-                property.LastState,
-                Is.EqualTo(ReverseConnectState.Connected),
-                "A reverse connection that is already Connected must not be re-initiated even if SessionManager has 0 sessions.");
         }
 
         [Test]

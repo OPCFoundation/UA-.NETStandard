@@ -329,8 +329,12 @@ namespace Opc.Ua.Server
 
                         // try the reverse connect
                         if (reverseConnection.Enabled &&
-                            (reverseConnection.LastState == ReverseConnectState.Closed ||
-                             reverseConnection.LastState == ReverseConnectState.Errored))
+                            (
+                                (reverseConnection.MaxSessionCount == 0 &&
+                                 reverseConnection.LastState != ReverseConnectState.Connecting &&
+                                 reverseConnection.LastState != ReverseConnectState.Rejected) ||
+                                reverseConnection.LastState == ReverseConnectState.Closed ||
+                                reverseConnection.LastState == ReverseConnectState.Errored))
                         {
                             try
                             {
