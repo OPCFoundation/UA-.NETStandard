@@ -102,6 +102,8 @@ namespace Opc.Ua.Client
             ServerRedundancyOptions redundancyOptions = serverRedundancy ?? new ServerRedundancyOptions();
             redundancyOptions.Validate();
             m_redundancyRefreshTimeout = redundancyOptions.RefreshTimeout;
+            m_peerProbeTimeout = redundancyOptions.PeerDiscoveryTimeout;
+            m_probeMemberServiceLevel = redundancyOptions.ProbeMemberServiceLevel;
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_identity = identity;
@@ -135,6 +137,13 @@ namespace Opc.Ua.Client
 
             WireStateMachineCallbacks();
             SubscribeCertificateChanges();
+            if (redundancyHandler != null &&
+                redundancyOptions.ServiceLevelMonitoringInterval is TimeSpan monitoringInterval)
+            {
+                m_backgroundWork.Run(
+                    "MonitorServiceLevel",
+                    shutdown => MonitorServiceLevelAsync(monitoringInterval, shutdown));
+            }
         }
 
         /// <summary>
@@ -582,6 +591,9 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public RedundancySupport RedundancySupport => m_redundancyInfo?.Mode ?? RedundancySupport.None;
+
+        /// <inheritdoc/>
+        public ServerRedundancyInfo? RedundancyInfo => Volatile.Read(ref m_redundancyInfo);
 
         /// <inheritdoc/>
         public string SessionName
@@ -1616,6 +1628,10 @@ namespace Opc.Ua.Client
                     }
 
                     await RefreshRedundancyInfoBestEffortAsync(ct).ConfigureAwait(false);
+                    if (m_probeMemberServiceLevel)
+                    {
+                        await SelectInitialRedundantServerAsync(ct).ConfigureAwait(false);
+                    }
                 }
                 catch
                 {
@@ -2338,35 +2354,13 @@ namespace Opc.Ua.Client
 
                 m_logger.ManagedSessionFailingOverEndpoint(failoverEndpoint.EndpointUrl);
 
-                using (await RecoveryWriterLockAsync(ct)
-                    .ConfigureAwait(false))
+                ServiceResult switched = await SwitchToRedundantServerAsync(
+                        failoverEndpoint, budget, retirePreviousSession: false, ct)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(switched))
                 {
-                    Session? session = m_session;
-                    if (session == null)
-                    {
-                        return new ServiceResult(
-                            StatusCodes.BadInvalidState);
-                    }
-
-                    // Recreate in place: the inner Session reference is
-                    // preserved across failover so that the V2
-                    // SubscriptionEngine, SubscriptionManager, and any
-                    // external holders of InnerSession all continue to
-                    // operate on the same Session object. Session
-                    // internals re-run CreateSession+ActivateSession
-                    // against the new endpoint and drive subscription
-                    // recreate/transfer for both unamanged templates and
-                    // the new engine.
-                    using IDisposable recovery = session.DeferSubscriptionRecovery();
-                    await RecreateInPlaceAndRebindAsync(
-                            session,
-                            failoverEndpoint,
-                            budget,
-                            ct)
-                        .ConfigureAwait(false);
+                    return switched;
                 }
-
-                m_reconnectPolicy.Reset();
 
                 m_logger.ManagedSessionFailoverComplete();
 
@@ -2400,6 +2394,12 @@ namespace Opc.Ua.Client
                 ServerRedundancyInfo? snapshot = m_redundancyInfo;
                 if (handler is not IServerRedundancyEndpointCache cache || snapshot == null)
                 {
+                    if (m_probeMemberServiceLevel && snapshot != null)
+                    {
+                        ServerRedundancyInfo probed = await ProbeMemberServiceLevelsAsync(
+                            snapshot, ConfiguredEndpoint, ct).ConfigureAwait(false);
+                        Interlocked.CompareExchange(ref m_redundancyInfo, probed, snapshot);
+                    }
                     return;
                 }
                 if (m_redundancyEndpointRefreshTask is { IsCompleted: false } pending)
@@ -2414,7 +2414,8 @@ namespace Opc.Ua.Client
                     }
                 }
                 snapshot = Volatile.Read(ref m_redundancyInfo) ?? snapshot;
-                await StartRedundancyEndpointRefresh(cache, snapshot, ct).WaitAsync(ct).ConfigureAwait(false);
+                await StartRedundancyEndpointRefresh(cache, snapshot, m_probeMemberServiceLevel, ct)
+                    .WaitAsync(ct).ConfigureAwait(false);
                 return;
             }
 
@@ -2438,7 +2439,7 @@ namespace Opc.Ua.Client
                 if (handler is IServerRedundancyEndpointCache cache &&
                     m_redundancyInfo.Mode is not (RedundancySupport.None or RedundancySupport.Transparent))
                 {
-                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, ct);
+                    _ = StartRedundancyEndpointRefresh(cache, m_redundancyInfo, probeMembers: false, ct);
                 }
             }
             catch (Exception exception) when (exception is OperationCanceledException or TimeoutException)
@@ -2456,9 +2457,16 @@ namespace Opc.Ua.Client
             }
         }
 
+        /// <summary>
+        /// Resolves the endpoints of the members in the background and, with
+        /// <paramref name="probeMembers"/>, reads their ServiceLevel. Probing
+        /// only runs for a selection or failover decision, never for a
+        /// routine refresh.
+        /// </summary>
         private Task<ServerRedundancyInfo> StartRedundancyEndpointRefresh(
             IServerRedundancyEndpointCache cache,
             ServerRedundancyInfo snapshot,
+            bool probeMembers,
             CancellationToken ct)
         {
             if (m_redundancyEndpointRefreshTask is { IsCompleted: false } previous)
@@ -2476,6 +2484,11 @@ namespace Opc.Ua.Client
                 {
                     ServerRedundancyInfo resolved = await cache.ResolveCachedEndpointsAsync(
                         snapshot, current, linked.Token).ConfigureAwait(false);
+                    if (probeMembers)
+                    {
+                        resolved = await ProbeMemberServiceLevelsAsync(resolved, current, linked.Token)
+                            .ConfigureAwait(false);
+                    }
                     linked.Token.ThrowIfCancellationRequested();
                     Interlocked.CompareExchange(ref m_redundancyInfo, resolved, snapshot);
                     completion.TrySetResult(resolved);
@@ -2587,13 +2600,16 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Recreates the session in place, against a copy of
         /// <paramref name="endpoint"/> when set, which must keep the security
-        /// mode and policy of the endpoint the session works on.
+        /// mode and policy of the endpoint the session works on. With
+        /// <paramref name="retirePreviousSession"/>, a newly created session
+        /// closes the session it replaces on the previous Server.
         /// </summary>
         private async Task RecreateInPlaceAndRebindAsync(
             Session session,
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool retirePreviousSession = false)
         {
             if (endpoint == null)
             {
@@ -2605,7 +2621,7 @@ namespace Opc.Ua.Client
             await SwitchEndpointAsync(
                 session,
                 endpoint,
-                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct),
+                target => RecreateInPlaceCoreAndRebindAsync(session, target, budget, ct, retirePreviousSession),
                 ct).ConfigureAwait(false);
         }
 
@@ -2619,14 +2635,15 @@ namespace Opc.Ua.Client
             Session session,
             ConfiguredEndpoint? endpoint,
             IRetryBudget budget,
-            CancellationToken ct)
+            CancellationToken ct,
+            bool retirePreviousSession = false)
         {
             IManagedTransportChannel? previousChannel = session.ManagedChannel;
             try
             {
                 ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
                     endpoint ?? session.ConfiguredEndpoint, ct).ConfigureAwait(false);
-                await session.RecreateInPlaceAsync(endpoint, budget, connection, ct)
+                await session.RecreateInPlaceAsync(endpoint, budget, connection, ct, retirePreviousSession)
                     .ConfigureAwait(false);
             }
             finally
@@ -3459,6 +3476,8 @@ namespace Opc.Ua.Client
         private Task<ServerRedundancyInfo>? m_redundancyRefreshTask;
         private Task<ServerRedundancyInfo>? m_redundancyEndpointRefreshTask;
         private readonly TimeSpan m_redundancyRefreshTimeout;
+        private readonly TimeSpan m_peerProbeTimeout;
+        private readonly bool m_probeMemberServiceLevel;
         private readonly Lock m_identityRefreshLock = new();
 #pragma warning disable CA2213
         // Owned and disposed by StopIdentityRefreshLoopAsync.
@@ -3607,5 +3626,34 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             [NetworkAddress] Uri? endpointUrl);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 32, Level = LogLevel.Information,
+            Message = "ManagedSession: Switching to redundant Server {Endpoint} with ServiceLevel {ServiceLevel}; " +
+                      "the Server in use reports ServiceLevel {CurrentServiceLevel}.")]
+        public static partial void ManagedSessionSelectingRedundantServer(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpoint,
+            byte serviceLevel,
+            byte currentServiceLevel);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 33, Level = LogLevel.Warning,
+            Message = "ManagedSession: Reading the ServiceLevel of redundant Server {Endpoint} failed.")]
+        public static partial void ManagedSessionMemberServiceLevelProbeFailed(
+            this ILogger logger,
+            Exception? exception,
+            [NetworkAddress] Uri? endpoint);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 34, Level = LogLevel.Information,
+            Message = "ManagedSession: The Server in use reports ServiceLevel {ServiceLevel}; failing over: {Reason}")]
+        public static partial void ManagedSessionServiceLevelFailover(
+            this ILogger logger,
+            byte serviceLevel,
+            string reason);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Warning,
+            Message = "ManagedSession: ServiceLevel monitoring could not complete a failover.")]
+        public static partial void ManagedSessionServiceLevelMonitoringFailed(
+            this ILogger logger,
+            Exception? exception);
     }
 }
