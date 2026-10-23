@@ -123,7 +123,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 document.RootElement.TryGetProperty("uav:isEvent", out _),
                 Is.False,
-                "WoT Binding 1.1 defines no uav:isEvent term.");
+                "OPC 10101-1 defines no uav:isEvent term.");
         }
 
         [Test]

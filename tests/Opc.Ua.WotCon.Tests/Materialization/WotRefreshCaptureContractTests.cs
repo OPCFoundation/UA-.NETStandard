@@ -38,8 +38,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using WotNodeSetConverterOptions = Opc.Ua.Wot.WotNodeSetConverterOptions;
-using WotProjectionCompatibilityMode = Opc.Ua.Wot.WotProjectionCompatibilityMode;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -217,41 +215,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Throws.TypeOf<ArgumentException>());
             Assert.That(() => first.CreateRefreshPlan((WoTAtomicityEnum)(-1), 1),
                 Throws.TypeOf<ArgumentOutOfRangeException>());
-        }
-
-        /// <summary>
-        /// Verifies that capture keeps projection compatibility in its immutable input digest.
-        /// </summary>
-        /// <param name="initial">The WoT projection compatibility mode.</param>
-        /// <param name="changed">The WoT projection compatibility mode.</param>
-        [TestCase(WotProjectionCompatibilityMode.None, WotProjectionCompatibilityMode.DraftProjection11)]
-        [TestCase(WotProjectionCompatibilityMode.DraftProjection11, WotProjectionCompatibilityMode.None)]
-        public async Task CaptureKeepsProjectionCompatibilityInItsImmutableInputDigest(
-            WotProjectionCompatibilityMode initial,
-            WotProjectionCompatibilityMode changed)
-        {
-            using var registry = new WotRegistryService();
-            WotResource resource = await RegisterAsync(registry, "selected");
-            var options = new WotNodeSetConverterOptions { ProjectionCompatibilityMode = initial };
-            var host = new FakeWotProjectionHost();
-            using var coordinator = new WotMaterializationCoordinator(
-                registry, host, converterOptions: options, documentConverter: new FakeWotDocumentConverter());
-            var request = new WotRefreshRequest { Selection = [Selector(resource)] };
-            using WotRefreshCapture first = await coordinator.CaptureAsync(request);
-            ByteString firstDigest = first.GetRegistryInputDigest(first.Inputs.Closures[0]);
-
-            options.ProjectionCompatibilityMode = changed;
-            using WotRefreshCapture second = await coordinator.CaptureAsync(request);
-            ByteString secondDigest = second.GetRegistryInputDigest(second.Inputs.Closures[0]);
-
-            Assert.That(first.GetRegistryInputDigest(first.Inputs.Closures[0]), Is.EqualTo(firstDigest));
-            Assert.That(secondDigest, Is.Not.EqualTo(firstDigest));
-            options.ProjectionCompatibilityMode = initial;
-            using WotRefreshCapture restored = await coordinator.CaptureAsync(request);
-            Assert.That(restored.GetRegistryInputDigest(restored.Inputs.Closures[0]), Is.EqualTo(firstDigest));
-            Assert.That(second.GetRegistryInputDigest(second.Inputs.Closures[0]), Is.EqualTo(secondDigest));
-            Assert.That(coordinator.Generation, Is.Zero);
-            Assert.That(host.AddCount, Is.Zero);
         }
 
         /// <summary>

@@ -80,7 +80,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 root = Projection();
                 root["uav:projects"]![0]!["href"] = "urn:review:nested";
-                root["uav:projects"]![0]!["type"] = WotProjection.ContentType;
+                root["uav:projects"]![0]!["type"] = "application/td+json";
                 documents.Setup(value => value.ResolveThingAsync(
                         "urn:review:nested", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
                     .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(invalid.ToJsonString())));
@@ -361,8 +361,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             return new JsonObject
             {
-                ["@type"] = new JsonArray("uav:projection"),
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["uav:scenario"] = "urn:scenario:controls",
                 ["uav:projects"] = new JsonArray(new JsonObject
                 {

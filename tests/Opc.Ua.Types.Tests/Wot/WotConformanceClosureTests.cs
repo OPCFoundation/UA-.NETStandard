@@ -37,11 +37,10 @@ namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
     /// WoT Binding Section 11 makes a profile a name for a set of conformance
-    /// units, and makes the profiles nest. A claim is therefore only as good as
-    /// the closure it expands to, so these pin every closure exactly rather
-    /// than spot-checking membership: a unit quietly added to a profile, or
-    /// quietly dropped from one, changes what every document claiming it
-    /// promises.
+    /// units, including the part-qualified WoT Projections dependency, and
+    /// makes the profiles nest. A claim is therefore only as good as the
+    /// closure it expands to, so these pin every closure exactly rather than
+    /// spot-checking membership.
     /// </summary>
     [TestFixture]
     [Category("WoT")]
@@ -134,9 +133,37 @@ namespace Opc.Ua.Types.Tests.Wot
                     WotBindingConformance.IsConformanceName("WoT-Wizard"), Is.False);
                 Assert.That(
                     WotBindingConformance.IsConformanceName("Reader"), Is.False);
+                Assert.That(
+                    WotBindingConformance.IsConformanceName(WotProjection.ConformanceUnitName),
+                    Is.False,
+                    "WoT-Projection is defined by OPC 10101-2, not the Binding part.");
+                Assert.That(WotBindingConformance.Expand(WotProjection.ConformanceUnitName), Is.Empty);
                 Assert.That(WotBindingConformance.IsConformanceName(null), Is.False);
                 Assert.That(
                     WotBindingConformance.IsConformanceName(string.Empty), Is.False);
+            });
+        }
+
+        [Test]
+        public void BindingProfilesCarryThePartQualifiedProjectionUnit()
+        {
+            string projectionUnit = "2:" + WotProjection.ConformanceUnitName;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Closure("WoT-Reader"), Does.Not.Contain(projectionUnit));
+                foreach (string profile in s_projectionProfiles)
+                {
+                    Assert.That(Closure(profile), Does.Contain(projectionUnit), profile);
+                    Assert.That(
+                        WotBindingConformance.ClaimsSatisfy([profile], projectionUnit),
+                        Is.True,
+                        profile);
+                }
+                Assert.That(
+                    WotBindingConformance.ClaimsSatisfy(s_modellerClaim, WotProjection.ConformanceUnitName),
+                    Is.False,
+                    "The unqualified CU name belongs to OPC 10101-2, not the Binding profile closure.");
             });
         }
 
@@ -155,7 +182,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 {
                     List<string> closure = Closure(profile);
                     string[] claim = [profile];
-                    foreach (string unit in s_units.Concat(s_profiles))
+                    foreach (string unit in s_units.Concat(s_profiles).Concat(s_profileExternalUnits))
                     {
                         Assert.That(
                             WotBindingConformance.ClaimsSatisfy(claim, unit),
@@ -199,15 +226,28 @@ namespace Opc.Ua.Types.Tests.Wot
         private static readonly string[] s_units =
         [
             "WoT-DataTypeDefinition",
+            "WoT-ConditionMapping",
             "WoT-EventMapping",
+            "WoT-ExternalResolver",
             "WoT-ExactRoundtrip",
             "WoT-JsonResidue",
             "WoT-ModelVocabulary",
             "WoT-NativeMapping",
             "WoT-NodeSetPreservation",
-            "WoT-Projection",
             "WoT-ProtocolBinding",
             "WoT-StructuredFallback"
+        ];
+
+        private static readonly string[] s_profileExternalUnits =
+        [
+            "2:WoT-Projection"
+        ];
+
+        private static readonly string[] s_projectionProfiles =
+        [
+            "WoT-Modeller",
+            "WoT-Converter",
+            "WoT-ArchivalConverter"
         ];
 
         /// <summary>
@@ -239,12 +279,12 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private static readonly string[] s_modellerClosure =
         [
+            "2:WoT-Projection",
             "WoT-DataTypeDefinition",
             "WoT-EventMapping",
             "WoT-ModelVocabulary",
             "WoT-Modeller",
             "WoT-NativeMapping",
-            "WoT-Projection",
             "WoT-ProtocolBinding",
             "WoT-Reader"
         ];
@@ -255,6 +295,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private static readonly string[] s_converterClosure =
         [
+            "2:WoT-Projection",
             "WoT-Converter",
             "WoT-DataTypeDefinition",
             "WoT-EventMapping",
@@ -263,7 +304,6 @@ namespace Opc.Ua.Types.Tests.Wot
             "WoT-ModelVocabulary",
             "WoT-Modeller",
             "WoT-NativeMapping",
-            "WoT-Projection",
             "WoT-ProtocolBinding",
             "WoT-Reader",
             "WoT-StructuredFallback"
@@ -275,6 +315,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private static readonly string[] s_archivalConverterClosure =
         [
+            "2:WoT-Projection",
             "WoT-ArchivalConverter",
             "WoT-Converter",
             "WoT-DataTypeDefinition",
@@ -285,10 +326,11 @@ namespace Opc.Ua.Types.Tests.Wot
             "WoT-Modeller",
             "WoT-NativeMapping",
             "WoT-NodeSetPreservation",
-            "WoT-Projection",
             "WoT-ProtocolBinding",
             "WoT-Reader",
             "WoT-StructuredFallback"
         ];
+
+        private static readonly string[] s_modellerClaim = ["WoT-Modeller"];
     }
 }

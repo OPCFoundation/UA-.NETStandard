@@ -1763,11 +1763,11 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryResourceAllocation allocation = await group
                 .CreateDocumentResourceAsync("urn:uploaded:plan", "v1").ConfigureAwait(false);
             WotRegistryResourceClient resource = allocation.Version;
-            string resultKind = kind == WoTDocumentKindEnum.ThingModel ? "ThingModel" : "ThingDescription";
-            string json = "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"uav:projection\",\"uav:projectionKind\":\"" +
-                resultKind +
-                "\"," +
+            string rootType = kind == WoTDocumentKindEnum.ThingModel ? "tm:ThingModel" : "Thing";
+            string json = "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"," +
+                "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
+                "\"@type\":[\"" + rootType + "\",\"uav:projection\"]," +
                 "\"id\":\"urn:uploaded:plan\",\"title\":\"Plan\",\"uav:scenario\":\"urn:scenario\"," +
                 "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
                 "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
@@ -1779,8 +1779,12 @@ namespace Opc.Ua.WotCon.Tests
             WotResourceVersion version = stored.FindVersion("v1")!;
             Assert.That(stored.SourceId, Is.EqualTo("urn:uploaded:plan"));
             Assert.That(stored.Kind, Is.EqualTo(kind));
-            Assert.That(version.Format, Is.EqualTo(Wot.WotProjection.Format));
-            Assert.That(version.ContentType, Is.EqualTo(Wot.WotProjection.ContentType));
+            Assert.That(version.Format, Is.EqualTo(kind == WoTDocumentKindEnum.ThingModel
+                ? "WoT-TM/1.1"
+                : "WoT-TD/1.1"));
+            Assert.That(version.ContentType, Is.EqualTo(kind == WoTDocumentKindEnum.ThingModel
+                ? "application/tm+json"
+                : "application/td+json"));
             ByteString downloaded = await resource.DownloadAsync().ConfigureAwait(false);
             Assert.That(downloaded, Is.EqualTo(content));
             WoTValidationOutcomeDataType validation = await resource.ValidateAsync().ConfigureAwait(false);
@@ -1800,7 +1804,8 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryResourceClient resource = allocation.Version;
             var content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
                 {
-                  "@context":"https://www.w3.org/2022/wot/td/v1.1","@type":["Thing","uav:projection"],
+                  "@context":"https://www.w3.org/2022/wot/td/v1.1","@type":"uav:projection",
+                  "uav:projectionKind":"ThingDescription",
                   "id":"urn:draft-plan","title":"Plan","uav:scenario":"urn:scenario",
                   "uav:projects":[
                     {"uav:sourceName":"source","href":"urn:source","type":"application/td+json","uav:selectAll":true}

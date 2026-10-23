@@ -129,7 +129,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                             {
                                 ["href"] = SourceEndpoint(source),
                                 ["op"] = new JsonArray("invokeaction"),
-                                ["uav:componentOf"] =
+                                ["uav:callObjectId"] =
                                     $"nsu={SourceNamespace(source)};s={pumpName}.{AlarmConditionPath(alarm)}",
                                 ["uav:id"] = operation == "Acknowledge" ? "i=9111" : "i=9113"
                             }
@@ -261,7 +261,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
             {
                 ["href"] = SourceEndpoint(source),
                 ["op"] = new JsonArray("invokeaction"),
-                ["uav:componentOf"] = $"nsu={SourceNamespace(source)};s={pumpName}",
+                ["uav:callObjectId"] = $"nsu={SourceNamespace(source)};s={pumpName}",
                 ["uav:id"] = $"nsu={SourceNamespace(source)};s={pumpName}.{operation}"
             };
         }
