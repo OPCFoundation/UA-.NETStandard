@@ -138,13 +138,17 @@ failover to a member waits for that member's next connection, for at least
 the endpoint url the member's connections announced, which can differ from the
 url of the endpoint `GetEndpoints` returned. A failover to a member other than
 the Server first connected to, and the later recovery on that member, take the
-member's connections from `MemberConnections` also when the first Server is
-reached over another `ReverseConnectionSource` or a `ReverseConnectManager`; the
-first Server keeps that source or manager. A member for
+member's connections from `MemberConnections`, including when a custom resolver
+or an explicit `FailoverAsync` target supplies an endpoint without
+`ReverseConnect.Enabled`. The first Server retains its original
+`ReverseConnectionSource`, `ReverseConnectManager`, or outbound connection path.
+Failing back to that Server reuses its authenticated endpoint and original path
+for probing and recovery, without requiring it to advertise a connection through
+`MemberConnections`. A member other than the first Server for
 which the source reports no available connection carries `BadNotConnected` in
 `RedundantServer.ResolutionError`, has no `Endpoint` and is never selected.
 `ReverseConnectManager` implements `IReverseConnectionAvailability` and reports
-the connections it holds while no registration matches them, so its
+the unaccepted connections it holds while no registration matches them, so its
 `HoldTime` must be shorter than the time a Server waits for the handshake.
 
 ``` csharp
