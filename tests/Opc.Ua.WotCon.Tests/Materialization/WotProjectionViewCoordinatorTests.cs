@@ -44,7 +44,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 {
     /// <summary>
     /// Exercises how the materialization coordinator wires a projection document
-    /// (WoT Binding Section 12, WoT Connectivity Section 7.13) into the
+    /// (OPC 10101-2, WoT Connectivity Section 7.13) into the
     /// address-space pipeline: it is stored and refreshed as an ordinary
     /// resource, its <c>uav:projects</c> sources are registry dependencies, it
     /// is deferred past its sources and materialized as a View through the view
@@ -65,17 +65,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             bool initialized = false;
             try
             {
-                m_registry = await m_runtime.CreateRegistryAsync(
-                    compatibilityMode: WotProjectionCompatibilityMode.DraftProjection11).ConfigureAwait(false);
+                m_registry = await m_runtime.CreateRegistryAsync().ConfigureAwait(false);
                 m_host = new FakeWotProjectionHost();
                 m_converter = new ViewSourceConverter();
                 m_viewHost = new LifecycleWotViewProjectionHost(m_runtime.Lifecycle);
                 m_coordinator = new WotMaterializationCoordinator(
                     m_registry, m_runtime.Observe(m_host.RecordCommitted),
-                    converterOptions: new WotNodeSetConverterOptions
-                    {
-                        ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11
-                    },
                     documentConverter: m_converter,
                     viewProjectionHost: m_viewHost)
                 {
@@ -324,14 +319,20 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         }
 
         /// <summary>
-        /// Verifies that generated fallback outside the captured source is omitted.
+        /// Verifies that generated identities require converter evidence when the root-derived fallback is absent.
         /// </summary>
-        [Test]
-        public async Task GeneratedFallbackOutsideTheCapturedSourceIsOmitted()
+        /// <param name="converterEvidence">Whether conversion supplies the actual generated affordance identity.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task GeneratedSourceIdentityRequiresCapturedConverterEvidence(bool converterEvidence)
         {
             await RegisterMappedTd(
                 "src-fallback", "urn:src-fallback", "FallbackSource", "value", explicitAffordanceId: false)
                 .ConfigureAwait(false);
+            if (!converterEvidence)
+            {
+                m_converter.OmitAffordanceIdentities("src-fallback");
+            }
             await RegisterTd("view-fallback",
                 Projection("urn:view:fallback", "urn:scenario:fallback", "urn:src-fallback")).ConfigureAwait(false);
 
@@ -340,9 +341,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotCanonicalViewPublication view = ViewFor("view-fallback");
             WoTResourceLoadResultDataType row = result.Results.Single(value => value.ResourceId == "view-fallback");
             Assert.That(view.Active, Is.True);
-            Assert.That(view.Membership.Count, Is.Zero);
-            Assert.That(view.Omissions.Count, Is.EqualTo(1));
-            Assert.That(row.Outcome, Is.EqualTo(WoTOutcomeEnum.Warning));
+            Assert.That(view.Membership.Count, Is.EqualTo(converterEvidence ? 1 : 0));
+            Assert.That(view.Omissions.Count, Is.EqualTo(converterEvidence ? 0 : 1));
+            Assert.That(row.Outcome, Is.EqualTo(
+                converterEvidence ? WoTOutcomeEnum.Success : WoTOutcomeEnum.Warning));
+            if (converterEvidence)
+            {
+                Assert.That(view.Membership[0], Is.EqualTo(ExpandedNodeId.Parse(
+                    WotPortableIdentity.GenerateNodeId(
+                        $"urn:wot:{WotRegistryGroups.ThingDescriptions}/src-fallback",
+                        [
+                            new WotBrowsePathElement(
+                                $"urn:wot:{WotRegistryGroups.ThingDescriptions}/src-fallback", "FallbackSource"),
+                            new WotBrowsePathElement(
+                                $"urn:wot:{WotRegistryGroups.ThingDescriptions}/src-fallback", "value")
+                        ]))));
+            }
             Assert.That(row.LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             Assert.That(row.RootNodeId, Is.EqualTo(m_coordinator.CommittedPublication.Views[0].ViewNodeId));
             Assert.That(m_registry.Current.FindResource(
@@ -468,15 +482,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private async Task<WotRegistryMutationResult> RegisterTd(string resourceId, byte[] content)
         {
-            using var document = WotDocument.Parse(content);
-            bool projection = WotProjection.IsProjection(document);
             WotRegistryMutationResult result = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
                 ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingDescription,
-                Format = projection ? WotProjection.Format : "WoT-TD/1.1",
-                ContentType = projection ? WotProjection.ContentType : "application/td+json",
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(content)
             }).ConfigureAwait(false);
             Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
@@ -577,6 +589,15 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
 
             /// <summary>
+            /// Simulates a converter that cannot supply authoritative generated affordance identities.
+            /// </summary>
+            /// <param name="resourceId">The resource ID.</param>
+            public void OmitAffordanceIdentities(string resourceId)
+            {
+                m_withoutIdentities.Add(resourceId);
+            }
+
+            /// <summary>
             /// Converts a resource with the real converter when its source is mapped, otherwise with the unmapped
             /// converter.
             /// </summary>
@@ -585,18 +606,21 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="snapshot">The WoT registry snapshot.</param>
             /// <param name="contents">The related resource contents keyed by resource identifier.</param>
             /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-            public ValueTask<WotConversionOutput> ConvertAsync(
+            public async ValueTask<WotConversionOutput> ConvertAsync(
                 WotResource resource,
                 ByteString content,
                 WotRegistrySnapshot snapshot,
                 IReadOnlyDictionary<string, ByteString> contents,
                 CancellationToken cancellationToken)
             {
-                return (m_mapped.Contains(resource.ResourceId) ? m_real : m_unmapped).ConvertAsync(
-                    resource, content, snapshot, contents, cancellationToken);
+                WotConversionOutput converted = await (m_mapped.Contains(resource.ResourceId) ? m_real : m_unmapped)
+                    .ConvertAsync(resource, content, snapshot, contents, cancellationToken).ConfigureAwait(false);
+                return m_withoutIdentities.Contains(resource.ResourceId)
+                    ? converted.WithProjectedAffordances([]) : converted;
             }
 
             private readonly HashSet<string> m_mapped = new(StringComparer.Ordinal);
+            private readonly HashSet<string> m_withoutIdentities = new(StringComparer.Ordinal);
             private readonly IWotDocumentConverter m_real = new WotNodeSetDocumentConverter();
             private readonly IWotDocumentConverter m_unmapped = new FakeWotDocumentConverter();
         }

@@ -52,9 +52,8 @@ namespace Opc.Ua.Types.Tests.Wot
     /// <para>
     /// The whole-ledger invariants are checked here because this is the
     /// assembly the ledger lives in: the entry count, the uniqueness of the
-    /// requirement identifiers, and the pinned specification commit, which is
-    /// checked against the fixture manifest so a revision bump cannot update
-    /// one and forget the other.
+    /// requirement identifiers, and consistency between the statement
+    /// inventory and the ledger's own specification pin.
     /// </para>
     /// </remarks>
     [TestFixture]
@@ -372,9 +371,9 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The inventory, the ledger and the vendored examples were read from
-        /// one revision of the specification. If any two disagree, one was
-        /// updated and another was forgotten. The inventory also names the
+        /// The inventory and the ledger were read from one revision of the
+        /// specification. If they disagree, one was updated and the other
+        /// was forgotten. The inventory also names the
         /// sources it was read out of, by both the identity git stores them
         /// under and the digest of their bytes, so a re-vendor from another
         /// revision cannot look like this one.
@@ -447,29 +446,6 @@ namespace Opc.Ua.Types.Tests.Wot
             "source/wot-specs/WoT-Binding/tools/requirements.json",
             "source/wot-specs/WoT-Connectivity/tools/requirements.json"
         ];
-
-        /// <summary>
-        /// The ledger and the vendored examples were read from one revision of
-        /// the specification. If the two pins disagree, one was updated and the
-        /// other was forgotten.
-        /// </summary>
-        [Test]
-        public void TheLedgerAndTheFixturesArePinnedToTheSameRevision()
-        {
-            (string commit, string repository, string revision, _) =
-                WotSpecRequirementLedger.ReadHeader(
-                    typeof(WotSpecRequirementTests).Assembly);
-            WotSpecFixtureManifest manifest = WotSpecFixtureManifest.Load();
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(commit, Is.EqualTo(manifest.Commit));
-                Assert.That(repository, Is.EqualTo(manifest.Repository));
-                Assert.That(
-                    revision,
-                    Is.EqualTo(Opc.Ua.Wot.WotBindingConformance.CurrentRevision));
-            });
-        }
 
         /// <summary>
         /// What is not proved is countable. The number is asserted so that

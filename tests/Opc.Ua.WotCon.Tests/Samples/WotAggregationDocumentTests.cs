@@ -182,11 +182,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Assert.That(plan, Is.Not.Null, sample.Path);
                 Assert.That(diagnostics, Is.Empty, sample.Path);
                 Assert.That(plan.ResultKind, Is.EqualTo(WotDocumentKind.ThingDescription), sample.Path);
-                Assert.That(document.TypeTokens, Does.Not.Contain("Thing").And.Not.Contain("tm:ThingModel"), sample.Path);
+                Assert.That(document.TypeTokens, Does.Contain("Thing").And.Contain("uav:projection"), sample.Path);
                 if (!sample.Path.Contains(".Members.", StringComparison.Ordinal))
                 {
                     Assert.That(plan.Sources.ToList().Select(source => source.MediaType),
-                        Is.All.EqualTo(WotProjection.ContentType), sample.Path);
+                        Is.All.EqualTo("application/td+json"), sample.Path);
                 }
             }
         }
@@ -1587,7 +1587,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     JsonElement form = AssertSingleForm(action.Value, name);
                     Assert.That(form.GetProperty("href").GetString(), Is.EqualTo(SourceEndpoint(source)), name);
                     Assert.That(
-                        form.GetProperty("uav:componentOf").GetString(),
+                        form.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(SourceNodeId(source, pumpName, string.Empty)),
                         name);
                     Assert.That(form.GetProperty("uav:id").GetString(),
@@ -1633,7 +1633,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     JsonElement form = AssertSingleForm(action.Value, name);
                     Assert.That(form.GetProperty("href").GetString(), Is.EqualTo(SourceEndpoint(source)), name);
                     Assert.That(form.GetProperty("uav:id").GetString(), Is.EqualTo(methodId), name);
-                    Assert.That(form.GetProperty("uav:componentOf").GetString(),
+                    Assert.That(form.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(SourceNodeId(source, pumpName, path)), name);
                     Assert.That(StringValues(form.GetProperty("op")), Is.EqualTo(s_invokeOperations), name);
                 }
@@ -2019,9 +2019,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     Is.EqualTo(sourceForm.GetProperty("href").GetString()), member.Name);
                 Assert.That(StringValues(actualForm.GetProperty("op")),
                     Is.EqualTo(StringValues(sourceForm.GetProperty("op"))), member.Name);
-                if (sourceForm.TryGetProperty("uav:componentOf", out JsonElement sourceOwner))
+                if (sourceForm.TryGetProperty("uav:callObjectId", out JsonElement sourceOwner))
                 {
-                    Assert.That(actualForm.GetProperty("uav:componentOf").GetString(),
+                    Assert.That(actualForm.GetProperty("uav:callObjectId").GetString(),
                         Is.EqualTo(sourceOwner.GetString()), member.Name);
                 }
                 if (mapName == "properties")

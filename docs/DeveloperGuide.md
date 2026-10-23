@@ -291,11 +291,6 @@ process; the test project does not reference the application. Tests retain TRX,
 stdout/stderr, image digests and timeout/exit evidence. A failed native check
 remains a failure; no debugger replay supplies acceptance.
 
-The Linux live-viewport and native-rendering smoke cases are temporarily excluded
-pending the OpenUSD compositor compatibility fix. Linux startup and ordinary tests
-remain enabled; passing artifact jobs do not currently qualify Linux rendering.
-See the [exclusion scope and re-enablement criteria](../tools/Opc.Ua.Lens/README.md#native-renderer-artifact-check).
-
 Artifact builds use the public nuget.org dependency versions pinned in
 `Directory.Packages.props` and the checked-in `NuGet.config`. Installation checks
 use only the UaLens packages built by that workflow, not an older published tool.
@@ -305,13 +300,13 @@ successful frame so queued camera captures and live stage edits also render on
 backends that otherwise return a one-shot presentation result.
 Required backend probe exceptions are also reported to the viewport owner
 immediately; cancellation remains cancellation rather than a device failure.
-Linux native artifact checks explicitly pass `--x11-vulkan` to use the Vulkan
-compositor without falling back to a software framebuffer or relying on OpenGL
-FD-import support. Ordinary application defaults remain unchanged. The separate
-`--allow-software-gl` opt-in permits Mesa llvmpipe for OpenGL diagnosis but does
-not supply missing interop capabilities. Neither option bypasses pixel-change
-or allocation-drain checks; software-driver results are not physical-GPU
-qualification.
+Linux native artifact checks explicitly pass `--x11-vulkan` to select Avalonia's
+Vulkan compositor. OpenUSD 0.16.6-alpha prefers shared GPU surfaces, but can present
+completed Vulkan frames through host-memory readback when the compositor lacks
+external-image or semaphore import support. Ordinary application defaults remain
+unchanged. The separate `--allow-software-gl` opt-in permits Mesa llvmpipe for
+OpenGL diagnosis. Both presentation paths retain the pixel-change and
+allocation-drain checks; software-driver results are not physical-GPU qualification.
 
 Theme checks require 4.5:1 source-text contrast and 3:1 chart-series contrast on
 their defined surfaces. The native lane attaches bounded PNG captures and CSV

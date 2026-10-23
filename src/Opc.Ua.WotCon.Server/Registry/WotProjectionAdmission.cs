@@ -35,7 +35,7 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.WotCon.Server.Registry
 {
     /// <summary>
-    /// Checks projection-specific metadata and plan shape without resolving sources
+    /// Checks official projection metadata and plan shape without resolving sources
     /// or claiming ordinary TD/TM or native compatibility validation.
     /// </summary>
     internal static class WotProjectionAdmission
@@ -47,33 +47,45 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="kind">The wo t document kind enum.</param>
         /// <param name="format">The stored format.</param>
         /// <param name="contentType">The content type.</param>
-        /// <param name="compatibilityMode">The compatibility mode.</param>
         public static string? GetError(
             WotDocument document,
             WoTDocumentKindEnum kind,
             string format,
-            string contentType,
-            WotProjectionCompatibilityMode compatibilityMode)
+            string contentType)
         {
             bool projection = WotProjection.IsProjection(document);
-            bool projectionContentType = string.Equals(contentType, WotProjection.ContentType, StringComparison.Ordinal);
-            if (!projection && !UsesProjectionFormat(format, contentType))
+            bool hasProjectionManifest = document.TryGetUav("projects", out _);
+            if (!projection && !hasProjectionManifest)
             {
                 return null;
             }
 
             if (!projection)
             {
-                return "The projection format requires an unresolved plan carrying the uav:projection role.";
+                return "A projection manifest requires the uav:projection role in @type.";
             }
-            if (!string.Equals(format, WotProjection.Format, StringComparison.Ordinal) || !projectionContentType)
+
+            string expectedFormat = kind switch
             {
-                return $"An unresolved projection requires Format '{WotProjection.Format}' and " +
-                    $"ContentType '{WotProjection.ContentType}', not ordinary TD/TM admission.";
+                WoTDocumentKindEnum.ThingDescription => "WoT-TD/1.1",
+                WoTDocumentKindEnum.ThingModel => "WoT-TM/1.1",
+                _ => string.Empty
+            };
+            string expectedContentType = kind switch
+            {
+                WoTDocumentKindEnum.ThingDescription => "application/td+json",
+                WoTDocumentKindEnum.ThingModel => "application/tm+json",
+                _ => string.Empty
+            };
+            if (!string.Equals(format, expectedFormat, StringComparison.Ordinal) ||
+                !string.Equals(contentType, expectedContentType, StringComparison.Ordinal))
+            {
+                return $"A projection plan is stored as its ordinary TD/TM format and media type: " +
+                    $"'{expectedFormat}' and '{expectedContentType}'.";
             }
 
             var diagnostics = new List<WotDiagnostic>();
-            var parsed = WotProjection.Parse(document, diagnostics, compatibilityMode);
+            var parsed = WotProjection.Parse(document, diagnostics);
             if (diagnostics.Any(diagnostic => diagnostic.Severity == WotDiagnosticSeverity.Error))
             {
                 return string.Join("; ", diagnostics);
@@ -89,17 +101,6 @@ namespace Opc.Ua.WotCon.Server.Registry
                 return "The projection result kind must match the resource's stored TD/TM kind.";
             }
             return null;
-        }
-
-        /// <summary>
-        /// Determines whether the format or content type identifies an unresolved projection.
-        /// </summary>
-        /// <param name="format">The stored format.</param>
-        /// <param name="contentType">The content type.</param>
-        public static bool UsesProjectionFormat(string format, string contentType)
-        {
-            return format.StartsWith("WoT-Projection/", StringComparison.Ordinal) ||
-                string.Equals(contentType, WotProjection.ContentType, StringComparison.Ordinal);
         }
     }
 }

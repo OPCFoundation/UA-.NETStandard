@@ -3872,13 +3872,7 @@ namespace Opc.Ua.Client
             Exception? exception,
             [NetworkAddress] Uri? endpointUrl);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 32, Level = LogLevel.Debug,
-            Message = "ManagedSession: Closing an unused reverse connection from {EndpointUrl}.")]
-        public static partial void ManagedSessionUnusedReverseConnectionClosed(
-            this ILogger logger,
-            [NetworkAddress] Uri? endpointUrl);
-
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 33, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 32, Level = LogLevel.Information,
             Message = "ManagedSession: Switching to redundant Server {Endpoint} with ServiceLevel {ServiceLevel}; " +
                       "the Server in use reports ServiceLevel {CurrentServiceLevel}.")]
         public static partial void ManagedSessionSelectingRedundantServer(
@@ -3887,24 +3881,30 @@ namespace Opc.Ua.Client
             byte serviceLevel,
             byte currentServiceLevel);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 34, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 33, Level = LogLevel.Warning,
             Message = "ManagedSession: Reading the ServiceLevel of redundant Server {Endpoint} failed.")]
         public static partial void ManagedSessionMemberServiceLevelProbeFailed(
             this ILogger logger,
             Exception? exception,
             [NetworkAddress] Uri? endpoint);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Information,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 34, Level = LogLevel.Information,
             Message = "ManagedSession: The Server in use reports ServiceLevel {ServiceLevel}; failing over: {Reason}")]
         public static partial void ManagedSessionServiceLevelFailover(
             this ILogger logger,
             byte serviceLevel,
             string reason);
 
-        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Warning,
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 35, Level = LogLevel.Warning,
             Message = "ManagedSession: ServiceLevel monitoring could not complete a failover.")]
         public static partial void ManagedSessionServiceLevelMonitoringFailed(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Debug,
+            Message = "ManagedSession: Closing an unused reverse connection from {EndpointUrl}.")]
+        public static partial void ManagedSessionUnusedReverseConnectionClosed(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

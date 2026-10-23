@@ -201,7 +201,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 "run", "/actions/run/forms/0", WoTBindingCapabilityEnum.InvokeAction, "invokeaction",
                 new WotEndpointDescriptor("opc.tcp", "source.invalid", 4840, "opc.tcp://source.invalid:4840"),
                 new WotAddressingDescriptor("nsu=urn:call-source;s=Run",
-                    ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:call-source;s=Device")),
+                    ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:call-source;s=Device")),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.InvokeAction, "invokeaction", "Call"),
                 new WotPayloadDescriptor("application/octet-stream", "binary"), [], true);
             var contextual = new Mock<IWotContextualBindingChannel>();
