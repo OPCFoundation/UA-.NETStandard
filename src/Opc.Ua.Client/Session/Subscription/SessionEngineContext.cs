@@ -50,6 +50,8 @@ namespace Opc.Ua.Client
                 m_session = session
                     ?? throw new ArgumentNullException(
                         nameof(session));
+                m_sessionGenerations = acknowledgement =>
+                    m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId);
             }
 
             /// <inheritdoc/>
@@ -279,9 +281,7 @@ namespace Opc.Ua.Client
                     List<SubscriptionAcknowledgement>
                         currentAcknowledgements)
             {
-                return PrepareAcknowledgementsToSend(
-                    currentAcknowledgements,
-                    acknowledgement => m_session.GetSubscriptionGeneration(acknowledgement.SubscriptionId));
+                return PrepareAcknowledgementsToSend(currentAcknowledgements, m_sessionGenerations);
             }
 
             /// <inheritdoc/>
@@ -395,6 +395,12 @@ namespace Opc.Ua.Client
             }
 
             private readonly Session m_session;
+
+            /// <summary>
+            /// Resolves generations through the session; cached so the classic Publish path does not
+            /// allocate a delegate per request.
+            /// </summary>
+            private readonly Func<SubscriptionAcknowledgement, long> m_sessionGenerations;
         }
     }
 
