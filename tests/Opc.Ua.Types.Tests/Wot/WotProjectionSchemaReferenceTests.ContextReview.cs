@@ -203,11 +203,11 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string encoded = name switch
             {
-                "@context" => "QGNvbnRleHQ",
-                "@base" => "QGJhc2U",
-                _ => "Y29udGV4dA"
+                "@context" => "%40context",
+                "@base" => "%40base",
+                _ => "context"
             };
-            string qualified = (host ? "q:p:" : "q:s:cA:") + encoded;
+            string qualified = (host ? "q:p:" : "q:s:p:") + encoded;
             JsonElement definition = view.RootElement.GetProperty("securityDefinitions").GetProperty(qualified);
             Assert.That(definition.GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
             Assert.That(definition.TryGetProperty("@context", out _), Is.True);
@@ -346,7 +346,7 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument view = result.Value.Required();
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            string key = name == "@context" ? "q:p:QGNvbnRleHQ" : "q:p:QGJhc2U";
+            string key = name == "@context" ? "q:p:%40context" : "q:p:%40base";
             Assert.That(view.RootElement.GetProperty("securityDefinitions").GetProperty(key)
                 .GetProperty("scheme").GetString(), Is.EqualTo("nosec"));
         }

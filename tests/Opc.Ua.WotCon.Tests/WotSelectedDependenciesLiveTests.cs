@@ -336,9 +336,17 @@ namespace Opc.Ua.WotCon.Tests
                 "https://example.test/models/Pump", "v3");
             await third.Version.Proxy.UploadAsync(model.Content);
             await fixture.Registry.InitializeAsync();
-            WoTDependencySnapshotDataType retained = await fixture.SnapshotAsync(source.Version);
+            DataValue unavailableTarget = await fixture.ReadAsync(source.Version, "DependencySnapshot");
+            WotResource retainedSource = fixture.Registry.Current.FindResource(
+                source.Group.GroupId, source.Allocation.Version.ResourceId)!;
+            WoTDependencySnapshotDataType retained =
+                retainedSource.FindVersion(source.Selector.VersionId)!.DependencySnapshot!.ToDataType();
             Assert.Multiple(() =>
             {
+                Assert.That(unavailableTarget.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied),
+                    "A pruned target has no current exact-Version authorization evidence.");
+                Assert.That(unavailableTarget.WrappedValue.IsNull, Is.True,
+                    "Retaining a committed observation must not disclose an unauthorizable target.");
                 Assert.That(retained.Targets[0].VersionXid, Is.EqualTo(captured.Targets[0].VersionXid));
                 Assert.That(retained.Targets[0].ContentDigest, Is.EqualTo(captured.Targets[0].ContentDigest));
                 Assert.That(retained.EffectiveInputDigest, Is.EqualTo(captured.EffectiveInputDigest));
@@ -421,6 +429,144 @@ namespace Opc.Ua.WotCon.Tests
                 RequiredRoleId = Ua.ObjectIds.WellKnownRole_Anonymous
             };
             Assert.That((await fixture.SnapshotAsync(source.Version)).RequestId, Is.EqualTo("authorized"));
+        }
+
+        /// <summary>
+        /// Verifies that target node permissions deny the whole dependency observation without diagnostic leaks.
+        /// </summary>
+        /// <param name="deniedScope">The source or target authorization boundary denied to the caller.</param>
+        /// <param name="property">The committed or attempted dependency observation.</param>
+        [TestCase("version", "DependencySnapshot")]
+        [TestCase("group", "DependencySnapshot")]
+        [TestCase("origin", "DependencySnapshot")]
+        [TestCase("sourceVersion", "DependencySnapshot")]
+        [TestCase("sourceGroup", "DependencySnapshot")]
+        [TestCase("channel", "DependencySnapshot")]
+        [TestCase("version", "LastDependencyAttempt")]
+        [TestCase("group", "LastDependencyAttempt")]
+        [TestCase("origin", "LastDependencyAttempt")]
+        [TestCase("sourceVersion", "LastDependencyAttempt")]
+        [TestCase("sourceGroup", "LastDependencyAttempt")]
+        [TestCase("channel", "LastDependencyAttempt")]
+        public async Task DependencyObservationRequiresReadAccessToEveryCapturedTarget(
+            string deniedScope,
+            string property)
+        {
+            await using LiveFixture fixture = await LiveFixture.CreateAsync();
+            Registered pump = await fixture.RegisterAsync(
+                "https://example.test/models/Pump", model: true);
+            Registered valve = await fixture.RegisterAsync(
+                "https://example.test/models/Valve", model: true);
+            Registered source = await fixture.RegisterAsync(
+                "urn:b2:source",
+                links: """[{"rel":"tm:extends","href":"model:Pump"},{"rel":"tm:extends","href":"model:Valve"}]""");
+            var refresh = await fixture.RefreshAsync([source.Selector], "global-disclosure");
+            WoTDependencySnapshotDataType authorized = await fixture.SnapshotAsync(source.Version);
+            string pumpXid = await fixture.StringAsync(pump.Version, "Xid", XRegistryNamespace);
+            string valveXid = await fixture.StringAsync(valve.Version, "Xid", XRegistryNamespace);
+            NodeId targetNodeId = deniedScope switch
+            {
+                "version" or "channel" => valve.Version,
+                "group" => valve.Group.GroupNodeId,
+                "sourceVersion" => source.Version,
+                "sourceGroup" => source.Group.GroupNodeId,
+                "origin" => ExpandedNodeId.ToNodeId(
+                    authorized.Targets[0].OriginRegistry.RegistryNodeId,
+                    fixture.Client.Session.NamespaceUris),
+                _ => throw new ArgumentOutOfRangeException(nameof(deniedScope))
+            };
+            Assert.Multiple(() =>
+            {
+                Assert.That(refresh.Results.Count, Is.EqualTo(3));
+                Assert.That(
+                    refresh.Results.ToList().All(result => result.LoadState == WoTLoadStateEnum.Active),
+                    Is.True);
+                Assert.That(authorized.Edges, Has.Count.EqualTo(2));
+                Assert.That(authorized.Targets, Has.Count.EqualTo(2));
+                Assert.That(authorized.Targets.ToList().Select(target => target.VersionXid),
+                    Is.EquivalentTo([pumpXid, valveXid]));
+                Assert.That(authorized.Targets[0].OriginRegistry.RegistryNodeId,
+                    Is.EqualTo(ObjectIds.WoTRegistry));
+            });
+
+            NodeId snapshotProperty = await fixture.PropertyAsync(source.Version, property);
+            await fixture.SetNodeRolePermissionsAsync(
+                snapshotProperty,
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = Ua.ObjectIds.WellKnownRole_Anonymous,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Read)
+                    }
+                ]);
+            DataValue directSourceRead = await fixture.ReadAttributeAsync(snapshotProperty, Attributes.Value);
+
+            bool denyChannel = deniedScope == "channel";
+            if (denyChannel)
+            {
+                await fixture.SetNodeAccessRestrictionsAsync(
+                    targetNodeId, AccessRestrictionType.EncryptionRequired);
+            }
+            else
+            {
+                await fixture.SetNodeRolePermissionsAsync(
+                    targetNodeId,
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = Ua.ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ]);
+            }
+            DataValue directRead = await fixture.ReadAttributeAsync(targetNodeId, Attributes.Value);
+            ReadResponse deniedResponse = await fixture.ReadResponseAsync(
+                snapshotProperty, Attributes.Value, DiagnosticsMasks.All);
+            string diagnosticText = string.Join(
+                " ",
+                deniedResponse.ResponseHeader.StringTable.ToList().Concat(
+                    deniedResponse.DiagnosticInfos.ToList().Select(info => info.AdditionalInfo ?? string.Empty)));
+            string[] targetIdentifiers = authorized.Targets.ToList()
+                .SelectMany(target => new[]
+                {
+                    target.VersionXid,
+                    target.VersionNodeId.ToString() ?? string.Empty,
+                    target.OriginRegistry?.OriginUri ?? string.Empty,
+                    target.OriginRegistry?.ServerUri ?? string.Empty,
+                    target.OriginRegistry?.RegistryNodeId.ToString() ?? string.Empty
+                })
+                .Where(identifier => !string.IsNullOrEmpty(identifier))
+                .Select(identifier => identifier ?? string.Empty)
+                .ToArray();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(directSourceRead.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(directRead.StatusCode, Is.EqualTo(denyChannel
+                    ? StatusCodes.BadSecurityModeInsufficient
+                    : StatusCodes.BadUserAccessDenied));
+                Assert.That(deniedResponse.Results.Count, Is.EqualTo(1));
+                Assert.That(deniedResponse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(deniedResponse.Results[0].WrappedValue.IsNull, Is.True);
+                Assert.That(deniedResponse.ResponseHeader.ServiceDiagnostics, Is.Null);
+                foreach (string targetIdentifier in targetIdentifiers)
+                {
+                    Assert.That(diagnosticText, Does.Not.Contain(targetIdentifier));
+                }
+                Assert.That(diagnosticText, Does.Not.Contain(targetNodeId.ToString()));
+            });
+
+            await fixture.SetNodeRolePermissionsAsync(targetNodeId, default);
+            await fixture.SetNodeAccessRestrictionsAsync(targetNodeId, null);
+            await fixture.SetNodeRolePermissionsAsync(snapshotProperty, default);
+            WoTDependencySnapshotDataType restored = await fixture.SnapshotAsync(source.Version);
+            Assert.Multiple(() =>
+            {
+                Assert.That(restored.Edges, Has.Count.EqualTo(2));
+                Assert.That(restored.Targets, Has.Count.EqualTo(2));
+                Assert.That(restored.Targets.ToList().Select(target => target.VersionXid),
+                    Is.EquivalentTo([pumpXid, valveXid]));
+            });
         }
 
         private sealed class Registered
@@ -611,6 +757,69 @@ namespace Opc.Ua.WotCon.Tests
                     [new ReadValueId { NodeId = nodeId, AttributeId = Attributes.Value }], default);
                 Assert.That(result.Results.Count, Is.EqualTo(1));
                 return result.Results[0];
+            }
+
+            /// <summary>
+            /// Reads an attribute and returns the complete service response.
+            /// </summary>
+            /// <param name="nodeId">The node identifier.</param>
+            /// <param name="attributeId">The attribute identifier.</param>
+            /// <param name="returnDiagnostics">The requested diagnostic mask.</param>
+            public ValueTask<ReadResponse> ReadResponseAsync(
+                NodeId nodeId,
+                uint attributeId,
+                DiagnosticsMasks returnDiagnostics = DiagnosticsMasks.None)
+            {
+                var header = new RequestHeader { ReturnDiagnostics = (uint)returnDiagnostics };
+                return Client.Session.ReadAsync(
+                    header, 0, TimestampsToReturn.Neither,
+                    [new ReadValueId { NodeId = nodeId, AttributeId = attributeId }], default);
+            }
+
+            /// <summary>
+            /// Reads an attribute from the live server.
+            /// </summary>
+            /// <param name="nodeId">The node identifier.</param>
+            /// <param name="attributeId">The attribute identifier.</param>
+            public async Task<DataValue> ReadAttributeAsync(NodeId nodeId, uint attributeId)
+            {
+                ReadResponse response = await ReadResponseAsync(nodeId, attributeId);
+                Assert.That(response.Results.Count, Is.EqualTo(1));
+                return response.Results[0];
+            }
+
+            /// <summary>
+            /// Changes the role permissions on a live server node.
+            /// </summary>
+            /// <param name="nodeId">The node identifier.</param>
+            /// <param name="rolePermissions">The role permissions.</param>
+            public async Task SetNodeRolePermissionsAsync(
+                NodeId nodeId,
+                ArrayOf<RolePermissionType> rolePermissions)
+            {
+                ReferenceServer server = m_serverFixture!.Server;
+                NodeState? node = await server.CurrentInstance.NodeManager
+                    .FindNodeInAddressSpaceAsync(nodeId).ConfigureAwait(false);
+                Assert.That(node, Is.Not.Null, nodeId.ToString());
+                node!.RolePermissions = rolePermissions;
+                await node.ClearChangeMasksAsync(
+                    server.CurrentInstance.DefaultSystemContext, false).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Changes the access restrictions on a live target node.
+            /// </summary>
+            /// <param name="nodeId">The node identifier.</param>
+            /// <param name="restrictions">The required channel restrictions.</param>
+            public async Task SetNodeAccessRestrictionsAsync(NodeId nodeId, AccessRestrictionType? restrictions)
+            {
+                ReferenceServer server = m_serverFixture!.Server;
+                NodeState? node = await server.CurrentInstance.NodeManager
+                    .FindNodeInAddressSpaceAsync(nodeId).ConfigureAwait(false);
+                Assert.That(node, Is.Not.Null, nodeId.ToString());
+                node!.AccessRestrictions = restrictions;
+                await node.ClearChangeMasksAsync(
+                    server.CurrentInstance.DefaultSystemContext, false).ConfigureAwait(false);
             }
 
             /// <summary>

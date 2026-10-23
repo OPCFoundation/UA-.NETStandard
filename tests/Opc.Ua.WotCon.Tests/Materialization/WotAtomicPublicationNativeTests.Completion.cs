@@ -302,13 +302,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = source.GroupId,
                 ResourceId = "view",
                 VersionId = "v1",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
                       "@context":["https://www.w3.org/2022/wot/td/v1.1",
                         {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                      "@type":["uav:projection"],"uav:projectionKind":"ThingDescription",
+                      "@type":["Thing","uav:projection"],
                       "id":"urn:unit:view","title":"Invalid dependent View","uav:scenario":"urn:unit:scenario",
                       "uav:id":"nsu=urn:unit:unregistered-view;s=View",
                       "securityDefinitions":{"none":{"scheme":"nosec"}},"security":"none",
@@ -377,13 +377,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistryMutationResult created = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = source.GroupId, ResourceId = "view", VersionId = "v1",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes("""
                     {
                       "@context":["https://www.w3.org/2022/wot/td/v1.1",
                         {"uav":"http://opcfoundation.org/UA/WoT-Binding/"}],
-                      "@type":["uav:projection"],"uav:projectionKind":"ThingDescription",
+                      "@type":["Thing","uav:projection"],
                       "id":"urn:unit:prepared-view","title":"Prepared View","uav:scenario":"urn:unit:scenario",
                       "uav:id":"nsu=urn:unit:prepared-view;s=View",
                       "securityDefinitions":{"none":{"scheme":"nosec"}},"security":"none",

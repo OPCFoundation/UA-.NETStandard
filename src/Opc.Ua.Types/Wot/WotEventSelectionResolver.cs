@@ -950,7 +950,7 @@ namespace Opc.Ua.Wot
                 }
 
                 // A nearer definition's own members override the ones it
-                // references, as in Section 12.4, so the first declaration the
+                // references, as in OPC 10101-2, so the first declaration the
                 // chain reaches is the one that counts.
                 if (!sawAnnotation && definition.TryGetProperty("@type", out _))
                 {

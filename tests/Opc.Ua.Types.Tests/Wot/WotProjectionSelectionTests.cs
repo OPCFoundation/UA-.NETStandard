@@ -48,12 +48,13 @@ namespace Opc.Ua.Types.Tests.Wot
     public sealed class WotProjectionSelectionTests
     {
         /// <summary>
-        /// Verifies that enumerated references select only an affordance of the declared kind.
+        /// Verifies that only a direct same-kind affordance pointer is a projection selection.
         /// </summary>
-        /// <param name="accepted">The accepted flag for this test case.</param>
+        /// <param name="isProjectionSelection">Whether the reference is a projection selection.</param>
         [TestCase("properties", "/properties/value", true)]
         [TestCase("actions", "/actions/reset", true)]
         [TestCase("events", "/events/alarm", true)]
+        [TestCase("properties", "/properties/a~1b~0c", true)]
         [TestCase("properties", "/actions/reset", false)]
         [TestCase("properties", "/events/alarm", false)]
         [TestCase("actions", "/properties/value", false)]
@@ -65,16 +66,14 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("properties", "/properties/structure/properties/inner", false)]
         [TestCase("actions", "/actions/reset/input", false)]
         [TestCase("events", "/events/alarm/data", false)]
-        [TestCase("properties", "/properties/a~1b~0c", true)]
-        public async Task EnumeratedReferencesSelectOnlyAnAffordanceOfTheDeclaredKind(
-            string collection, string pointer, bool accepted)
+        public void EnumeratedReferenceClassificationFollowsAffordanceMapAndKind(
+            string collection, string pointer, bool isProjectionSelection)
         {
             const string sourceId = "urn:source:selection";
             string reference = sourceId + "#" + pointer;
             var projection = new JsonObject
             {
-                ["@type"] = new JsonArray("uav:projection"),
-                ["uav:projectionKind"] = "ThingDescription",
+                ["@type"] = new JsonArray("Thing", "uav:projection"),
                 ["title"] = "Selection view",
                 ["uav:scenario"] = "urn:scenario:selection",
                 ["uav:projects"] = new JsonArray(new JsonObject
@@ -85,35 +84,128 @@ namespace Opc.Ua.Types.Tests.Wot
                 }),
                 [collection] = new JsonObject
                 {
-                    ["selected"] = new JsonObject { ["tm:ref"] = reference }
+                    ["selected"] = new JsonObject
+                    {
+                        ["tm:ref"] = reference,
+                        ["forms"] = new JsonArray(new JsonObject
+                        {
+                            ["href"] = "opc.tcp://example.test/?id=i%3D1",
+                            ["op"] = "readproperty"
+                        })
+                    }
                 }
             };
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection.ToJsonString()));
+            var diagnostics = new System.Collections.Generic.List<WotDiagnostic>();
+
+            WotProjection parsed = WotProjection.Parse(document, diagnostics)!;
+
+            Assert.That(diagnostics, Is.Empty, string.Join("; ", diagnostics));
+            if (isProjectionSelection)
+            {
+                Assert.That(parsed.References.Count, Is.EqualTo(1));
+                Assert.That(parsed.References[0].AffordanceKind.ToString(), Is.EqualTo(
+                    collection switch
+                    {
+                        "actions" => "Action",
+                        "events" => "Event",
+                        _ => "Property"
+                    }));
+                Assert.That(parsed.References[0].Reference, Is.EqualTo(reference));
+                Assert.That(parsed.LocalAffordances, Is.Empty);
+            }
+            else
+            {
+                Assert.That(parsed.References, Is.Empty);
+                Assert.That(parsed.LocalAffordances.Count, Is.EqualTo(1));
+                Assert.That(parsed.LocalAffordances[0].Definition.GetProperty("tm:ref").GetString(),
+                    Is.EqualTo(reference));
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a selector cannot silently become a local definition when its source is undeclared.
+        /// </summary>
+        [Test]
+        public async Task ProjectionSelectionWithUndeclaredSourceFailsResolution()
+        {
+            const string sourceId = "urn:source:undeclared";
+            const string projectionId = "urn:projection:undeclared";
+            string projectionJson = $$"""
+                {
+                  "@type":["Thing","uav:projection"],
+                  "base":"{{projectionId}}",
+                  "title":"Selection view",
+                  "uav:scenario":"urn:scenario:selection",
+                  "uav:projects":[
+                    {"uav:sourceName":"source","href":"urn:source:declared","type":"application/td+json"}
+                  ],
+                  "properties":{
+                    "selected":{
+                      "tm:ref":"{{sourceId}}#/properties/value"
+                    }
+                  }
+                }
+                """;
             var source = new Mock<IWotThingResolver>();
             source.Setup(resolver => resolver.ResolveThingAsync(
-                    sourceId, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                    It.IsAny<string>(), It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(SourceJson)));
-            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projection.ToJsonString()));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projectionJson));
             var resolver = new WotProjectionResolver(source.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
             using WotDocument? resolved = result.Value;
 
-            Assert.That(result.Success, Is.EqualTo(accepted), string.Join("; ", result.Diagnostics));
-            if (accepted)
-            {
-                Assert.That(resolved, Is.Not.Null);
-                JsonElement selected = resolved.RootElement.GetProperty(collection).GetProperty("selected");
-                Assert.That(selected.GetProperty("uav:resolvedFrom").GetString(), Is.EqualTo(reference));
-                Assert.That(selected.GetProperty("forms").GetArrayLength(), Is.EqualTo(1));
-            }
-            else
-            {
-                Assert.That(resolved, Is.Null);
-                Assert.That(result.Diagnostics.Any(diagnostic =>
-                    diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved &&
-                    diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
-            }
-            Assert.That(projection[collection]!["selected"]!["tm:ref"]!.GetValue<string>(), Is.EqualTo(reference));
+            Assert.That(resolved, Is.Null);
+            Assert.That(result.Diagnostics.Any(diagnostic =>
+                diagnostic.Code == WotDiagnosticCode.ProjectionSourceUnresolved &&
+                diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that equivalent relative and absolute source URIs identify the same declared source.
+        /// </summary>
+        [Test]
+        public async Task ProjectionSelectionMatchesResolvedSourceUri()
+        {
+            const string sourceUri = "https://example.test/sources/pump.json";
+            const string projectionJson = """
+                {
+                  "@type":["Thing","uav:projection"],
+                  "base":"https://example.test/plans/view.json",
+                  "title":"Selection view",
+                  "uav:scenario":"urn:scenario:selection",
+                  "uav:projects":[
+                    {
+                      "uav:sourceName":"source",
+                      "href":"../sources/./pump.json",
+                      "type":"application/td+json"
+                    }
+                  ],
+                  "properties":{
+                    "selected":{
+                      "tm:ref":"https://example.test/sources/pump.json#/properties/value"
+                    }
+                  }
+                }
+                """;
+            var source = new Mock<IWotThingResolver>();
+            source.Setup(resolver => resolver.ResolveThingAsync(
+                    sourceUri, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(SourceJson)));
+            using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(projectionJson));
+            var resolver = new WotProjectionResolver(source.Object);
+
+            WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
+            using WotDocument? resolved = result.Value;
+
+            Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
+            Assert.That(resolved!.RootElement.GetProperty("properties").GetProperty("selected")
+                .GetProperty("uav:resolvedFrom").GetString(),
+                Is.EqualTo("https://example.test/sources/pump.json#/properties/value"));
+            source.Verify(resolverService => resolverService.ResolveThingAsync(
+                sourceUri, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
 
         private const string SourceJson = /*lang=json,strict*/ """

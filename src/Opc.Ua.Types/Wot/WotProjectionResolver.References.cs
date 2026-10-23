@@ -38,7 +38,7 @@ using System.Threading;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// Resolves a projection document (OPC 10101-2) into a resolved
     /// view: an ordinary Thing Description or Thing Model that carries no
     /// <c>uav:projection</c> marker, so a consumer needs no projection support
     /// to use it.
@@ -132,10 +132,9 @@ namespace Opc.Ua.Wot
                 RegisterRootUriVariables();
                 foreach (ResolvedAffordance member in m_selection.Members)
                 {
-                    var owner = new ReferenceOwner(
-                        member.Source.Document, member.Source.DocumentHref, member.Source.Source.SourceName);
+                    ReferenceOwner owner = GetReferenceOwner(member.Source);
                     string destination = "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name);
-                    m_locations.TryAdd((false, owner.Href, member.Pointer), destination);
+                    m_locations.TryAdd((owner.SourceName is null, owner.Href, member.Pointer), destination);
                     RegisterAffordanceUriVariables(member, owner, destination);
                     m_pending.Enqueue(new ReferenceCarriage(member.Value, owner, member.Pointer, destination));
                     if (member.Kind == WotAffordanceKind.Event &&
@@ -278,6 +277,17 @@ namespace Opc.Ua.Wot
                 return expanded;
             }
 
+            /// <summary>
+            /// Retains host ownership for definitions authored in the projection itself.
+            /// </summary>
+            /// <param name="source">The affordance's owning document.</param>
+            private ReferenceOwner GetReferenceOwner(ResolvedSource source)
+            {
+                return ReferenceEquals(source.Document, m_host.Document)
+                    ? m_host
+                    : new ReferenceOwner(source.Document, source.DocumentHref, source.Source.SourceName);
+            }
+
             private string? CarrySchema(ReferenceOwner owner, string pointer)
             {
                 if (!IsCanonicalPointer(pointer) ||
@@ -341,8 +351,8 @@ namespace Opc.Ua.Wot
                 if (m_definitions.ContainsKey(name))
                 {
                     string stem = owner.SourceName is null
-                        ? "q:p:" + EncodeSecurityName(rootPointer)
-                        : "q:d:" + EncodeSecurityName(owner.SourceName) + ":" + EncodeSecurityName(rootPointer);
+                        ? "q:p:" + EncodeDependencyName(rootPointer)
+                        : "q:d:" + EncodeDependencyName(owner.SourceName) + ":" + EncodeDependencyName(rootPointer);
                     name = stem;
                     for (int suffix = 1; m_definitions.ContainsKey(name); suffix++)
                     {

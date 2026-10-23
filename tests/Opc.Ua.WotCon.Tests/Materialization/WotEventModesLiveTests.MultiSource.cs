@@ -256,7 +256,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 binding, Opc.Ua.WotCon.Bindings.WotAffordanceKind.Action, "ackB", "/actions/ackB/forms/0",
                 WoTBindingCapabilityEnum.InvokeAction, "invokeaction", endpoint,
                 new WotAddressingDescriptor(secondMethod, ImmutableDictionary<string, string>.Empty.Add(
-                    "componentOf", "nsu=" + SourceNamespace + ";s=ConditionB")),
+                    "callObjectId", "nsu=" + SourceNamespace + ";s=ConditionB")),
                 new WotOperationDescriptor(WoTBindingCapabilityEnum.InvokeAction, "invokeaction", "Call"),
                 new WotPayloadDescriptor("application/opcua+uabinary", "opcua"), [], true);
             WotProjectedAffordance condition = new WotProjectedAffordance(
