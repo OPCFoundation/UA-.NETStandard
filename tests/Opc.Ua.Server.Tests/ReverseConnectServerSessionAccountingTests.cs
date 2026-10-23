@@ -29,8 +29,10 @@
 
 using System;
 using System.Reflection;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
+using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests
@@ -49,6 +51,11 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class TestableReverseConnectServer : ReverseConnectServer
         {
+            public TestableReverseConnectServer(ITelemetryContext telemetry)
+                : this(telemetry, new FakeTimeProvider())
+            {
+            }
+
             public TestableReverseConnectServer(ITelemetryContext telemetry, TimeProvider timeProvider)
                 : base(telemetry, timeProvider)
             {
@@ -83,6 +90,45 @@ namespace Opc.Ua.Server.Tests
                 property.LastState,
                 Is.EqualTo(ReverseConnectState.Connected),
                 "A reverse connection that is already Connected must not be re-initiated when MaxSessionCount is 1.");
+        }
+
+        /// <summary>
+        /// Addresses Copilot review comment on PR #4889: verifies that on an initialized and started server
+        /// with an active SessionManager that has 0 sessions, an already Connected reverse connection with
+        /// MaxSessionCount = 1 is NOT re-initiated (under the buggy logic, 1 > 0 evaluated to true and
+        /// triggered an unauthorized re-connect attempt).
+        /// </summary>
+        [Test]
+        public async Task ConnectedReverseConnection_IsNotReconnected_WhenStartedServerHasZeroSessionsAndMaxSessionCountIsOneAsync()
+        {
+            var fixture = new ServerFixture<TestableReverseConnectServer>(
+                telemetry => new TestableReverseConnectServer(telemetry));
+            try
+            {
+                await fixture.LoadConfigurationAsync().ConfigureAwait(false);
+                fixture.Config.ServerConfiguration!.ReverseConnect = new ReverseConnectServerConfiguration
+                {
+                    Clients = []
+                };
+                TestableReverseConnectServer server = await fixture.StartAsync().ConfigureAwait(false);
+
+                server.AddReverseConnection(s_reverseClientUri, timeout: 5000, maxSessionCount: 1, enabled: true);
+                ReverseConnectProperty property = server.GetReverseConnections()[s_reverseClientUri];
+
+                // Connection is already established, but server has 0 active sessions
+                property.LastState = ReverseConnectState.Connected;
+
+                server.InvokeOnReverseConnect(0);
+
+                Assert.That(
+                    property.LastState,
+                    Is.EqualTo(ReverseConnectState.Connected),
+                    "A reverse connection that is already Connected must not be re-initiated on a started server with 0 sessions.");
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
         }
 
         [Test]
