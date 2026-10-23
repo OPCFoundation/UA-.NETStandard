@@ -776,13 +776,14 @@ namespace Opc.Ua.Mcp.Tools
                         RelativePathFormatter.ElementType.AnyComponent => "Aggregates",
                         _ => step.ReferenceName.Name
                     };
-                    steps.Add(new JsonArray(
+                    JsonNode canonicalStep = new JsonArray(
                         JsonValue.Create(step.TargetName.NamespaceUri ?? Namespaces.OpcUa),
                         JsonValue.Create(step.TargetName.Name),
                         JsonValue.Create(referenceNamespace),
                         JsonValue.Create(referenceName),
                         JsonValue.Create(step.ReferenceKind == RelativePathFormatter.ElementType.InverseReference),
-                        JsonValue.Create(step.IncludeSubtypes)));
+                        JsonValue.Create(step.IncludeSubtypes));
+                    steps.Add(canonicalStep);
                 }
                 string resource = "object=" + receiverId +
                     ";browsePath=" + Uri.EscapeDataString(path.AnchorId) +
