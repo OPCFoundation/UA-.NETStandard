@@ -250,9 +250,10 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         public ArrayOf<IServiceRequest> Requests => m_requests.ToArrayOf();
 
         /// <summary>
-        /// Gets the most recently started inner channel-recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// Gets or sets the most recently started recovery task, or null before <see cref="StartRecoveryAsync"/>.
+        /// A test that already observed the outcome clears it so disposal does not await it again.
         /// </summary>
-        public Task? Recovery { get; private set; }
+        public Task? Recovery { get; set; }
 
         /// <summary>
         /// Connects the real managed session over scripted channels and starts observing outer recovery
@@ -407,7 +408,7 @@ namespace Opc.Ua.Client.Tests.Stack.Client.Fakes
         /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (Session != null)
+            if (Session != null && !Session.Disposed)
             {
                 EngineFactory.Engine.PausePublishing();
             }

@@ -47,6 +47,7 @@ Everything below explains how these pieces fit together.
   - [Validating a rediscovered endpoint](#validating-a-rediscovered-endpoint)
   - [Generation-bound client requests](#generation-bound-client-requests)
   - [Closing a `ManagedSession`](#closing-a-managedsession)
+  - [Retiring a session for another owner (`ISessionTakeover`)](#retiring-a-session-for-another-owner-isessiontakeover)
   - [Server retry-after backpressure](#server-retry-after-backpressure)
 - [4. `IClientChannelManager` — centralised channel sharing and reconnect](#4-iclientchannelmanager--centralised-channel-sharing-and-reconnect)
   - [Session factory choices](#session-factory-choices)
@@ -626,6 +627,46 @@ the inner `CloseSession` call; `CloseAsync(ct)` is equivalent to
 the wait unbounded (other than by `ct`). Passing `closeChannel: false`
 tears down the session but leaves the transport channel open and owned by
 the caller, so it can be reused for another session.
+
+### Retiring a session for another owner (`ISessionTakeover`)
+
+`Session` and `ManagedSession` implement the optional `ISessionTakeover`
+capability. It supports hand-overs where another process (for example a
+promoted replica) continues the same server session with the saved
+`SessionConfiguration` and subscription state:
+
+- `SessionGeneration` starts at 1 and increments each time the session binds
+  a different server session (a create, or a recreate after the old server
+  session was lost). Reactivating the same server session, or replacing only
+  the channel, does not change it. On `ManagedSession` the value stays
+  monotonic across inner session replacements. `SessionGenerationChanged`
+  reports the new generation together with the previous and current
+  `SessionId`. Handlers must not block or call session services
+  synchronously.
+- `RetireAndPreserveAsync` releases the session locally but keeps the server
+  session and its subscriptions alive. No further request reaches the server
+  from this object: no Publish, `DeleteSubscriptions` or `CloseSession`.
+  Reconnect, failover and connect attempts are rejected with
+  `BadSessionClosed`, including attempts already in progress. The session is
+  disposed afterwards.
+
+Capture the state **before** retiring:
+
+```csharp
+if (session is ISessionTakeover takeover)
+{
+    SessionConfiguration saved = session.SaveSessionConfiguration();
+    long generation = takeover.SessionGeneration;
+    // ... persist saved state and subscriptions for the new owner ...
+    await takeover.RetireAndPreserveAsync(ct);
+}
+```
+
+Retaining and closing exclude each other on `ManagedSession`. If a
+`CloseAsync` or `DisposeAsync` started first, `RetireAndPreserveAsync` throws a
+`ServiceResultException` with `BadInvalidState`, because the server session may
+already be closed. A later `DisposeAsync` on a retired session completes
+without contacting the server.
 
 ### Server retry-after backpressure
 
