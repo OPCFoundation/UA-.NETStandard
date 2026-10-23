@@ -82,6 +82,11 @@ namespace Opc.Ua.XRegistry.Server
         /// Gets the surviving node through which this event is reported.
         /// </summary>
         public NodeState? Notifier { get; init; }
+
+        /// <summary>
+        /// Optional correlation returned by the binding for this same interaction.
+        /// </summary>
+        public string? CorrelationId { get; init; }
     }
 
     /// <summary>
@@ -164,18 +169,18 @@ namespace Opc.Ua.XRegistry.Server
         {
             return kind switch
             {
-                XRegistryEventKind.RegistryCreated or
-                XRegistryEventKind.RegistryUpdated or
-                XRegistryEventKind.RegistryDeleted => "registry",
-                XRegistryEventKind.GroupCreated or
-                XRegistryEventKind.GroupUpdated or
-                XRegistryEventKind.GroupDeleted => "group",
-                XRegistryEventKind.ResourceCreated or
-                XRegistryEventKind.ResourceUpdated or
-                XRegistryEventKind.ResourceDeleted => "resource",
-                XRegistryEventKind.VersionCreated or
-                XRegistryEventKind.VersionUpdated or
-                XRegistryEventKind.VersionDeleted => "version",
+                XRegistryEventKind.RegistryCreated
+                    or XRegistryEventKind.RegistryUpdated
+                    or XRegistryEventKind.RegistryDeleted => "registry",
+                XRegistryEventKind.GroupCreated
+                    or XRegistryEventKind.GroupUpdated
+                    or XRegistryEventKind.GroupDeleted => "group",
+                XRegistryEventKind.ResourceCreated
+                    or XRegistryEventKind.ResourceUpdated
+                    or XRegistryEventKind.ResourceDeleted => "resource",
+                XRegistryEventKind.VersionCreated
+                    or XRegistryEventKind.VersionUpdated
+                    or XRegistryEventKind.VersionDeleted => "version",
                 _ => kind.ToString()
             };
         }
@@ -184,14 +189,14 @@ namespace Opc.Ua.XRegistry.Server
         {
             return kind switch
             {
-                XRegistryEventKind.RegistryDeleted or
-                XRegistryEventKind.GroupDeleted or
-                XRegistryEventKind.ResourceDeleted or
-                XRegistryEventKind.VersionDeleted => 3,
-                XRegistryEventKind.RegistryCreated or
-                XRegistryEventKind.GroupCreated or
-                XRegistryEventKind.ResourceCreated or
-                XRegistryEventKind.VersionCreated => 2,
+                XRegistryEventKind.RegistryDeleted
+                    or XRegistryEventKind.GroupDeleted
+                    or XRegistryEventKind.ResourceDeleted
+                    or XRegistryEventKind.VersionDeleted => 3,
+                XRegistryEventKind.RegistryCreated
+                    or XRegistryEventKind.GroupCreated
+                    or XRegistryEventKind.ResourceCreated
+                    or XRegistryEventKind.VersionCreated => 2,
                 _ => 1
             };
         }
@@ -221,7 +226,7 @@ namespace Opc.Ua.XRegistry.Server
         /// <summary>
         /// Initializes an emitter.
         /// </summary>
-        public XRegistryEventEmitter(ISystemContext context, string eventSourceUrl)
+        public XRegistryEventEmitter(ISystemContext context, string eventSourceUrl, TimeProvider? timeProvider = null)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
             if (!Uri.TryCreate(eventSourceUrl, UriKind.Absolute, out _))
@@ -231,6 +236,7 @@ namespace Opc.Ua.XRegistry.Server
                     nameof(eventSourceUrl));
             }
             m_eventSourceUrl = eventSourceUrl;
+            m_timeProvider = timeProvider ?? TimeProvider.System;
         }
 
         /// <summary>
@@ -247,16 +253,22 @@ namespace Opc.Ua.XRegistry.Server
                 throw new ArgumentNullException(nameof(notifier));
             }
 
+            using XRegistryPreparedEventBatch batch = Prepare(notifier, changes);
+            await batch.ReportAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        public XRegistryPreparedEventBatch Prepare(NodeState notifier, IEnumerable<XRegistryEventChange> changes)
+        {
+            notifier.ThrowIfNull(nameof(notifier));
             ImmutableArray<XRegistryEventChange> batch = XRegistryEventCoalescer.Coalesce(changes);
-            DateTimeUtc commonTime = DateTimeUtc.Now;
+            var prepared = new List<XRegistryPreparedEventBatch.Entry>(batch.Length);
+            var time = (DateTimeUtc)m_timeProvider.GetUtcNow().UtcDateTime;
             foreach (XRegistryEventChange change in batch)
             {
                 NodeState reporter = change.Notifier ?? notifier;
-                await reporter.ReportEventAsync(
-                    m_context,
-                    BuildEvent(reporter, change, commonTime),
-                    cancellationToken).ConfigureAwait(false);
+                prepared.Add(new XRegistryPreparedEventBatch.Entry(reporter, BuildEvent(reporter, change, time)));
             }
+            return new XRegistryPreparedEventBatch(m_context, [.. prepared]);
         }
 
         internal BaseEventState BuildEvent(
@@ -320,6 +332,10 @@ namespace Opc.Ua.XRegistry.Server
             var xregistry = (XRegistryEventState)evt;
             xregistry.SourceUrl!.Value = m_eventSourceUrl;
             xregistry.Subject!.Value = change.Subject;
+            if (change.CorrelationId is { } correlationId)
+            {
+                xregistry.AddCorrelationId(m_context).CorrelationId!.Value = correlationId;
+            }
             PopulateTypedFields(evt, change);
             return evt;
         }
@@ -366,8 +382,8 @@ namespace Opc.Ua.XRegistry.Server
 
         private static uint Required(uint? value, XRegistryEventKind kind)
         {
-            return value ??
-                throw new InvalidOperationException(
+            return value
+                ?? throw new InvalidOperationException(
                     $"{kind} requires an epoch value.");
         }
 
@@ -383,5 +399,6 @@ namespace Opc.Ua.XRegistry.Server
 
         private readonly ISystemContext m_context;
         private readonly string m_eventSourceUrl;
+        private readonly TimeProvider m_timeProvider;
     }
 }

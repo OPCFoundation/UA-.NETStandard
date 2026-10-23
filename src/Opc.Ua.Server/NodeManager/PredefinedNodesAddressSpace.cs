@@ -43,7 +43,7 @@ namespace Opc.Ua.Server
     /// adapter can drive either the synchronous or the asynchronous predefined
     /// node pipeline without duplicating the boilerplate.
     /// </summary>
-    internal sealed class PredefinedNodesAddressSpace : ILocalAddressSpace
+    internal sealed class PredefinedNodesAddressSpace : ILocalAddressSpace, ILocalAddressSpaceNotifications
     {
         /// <summary>
         /// Creates the adapter.
@@ -93,10 +93,23 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public event Action<NodeState>? NodeAdded;
-
-        /// <inheritdoc/>
-        public event Action<NodeId>? NodeRemoved;
+        public LocalAddressSpaceNotificationBatch BeginNotificationBatch()
+        {
+            if (m_notifications.Value is not null)
+            {
+                throw new InvalidOperationException("A local notification batch is already active in this context.");
+            }
+            var batch = new LocalAddressSpaceNotificationBatch(completed =>
+            {
+                if (!ReferenceEquals(m_notifications.Value, completed))
+                {
+                    throw new InvalidOperationException("The local notification batch belongs to another context.");
+                }
+                m_notifications.Value = null;
+            });
+            m_notifications.Value = batch;
+            return batch;
+        }
 
         /// <inheritdoc/>
         public bool TryGetNode(NodeId nodeId, [NotNullWhen(true)] out NodeState? node)
@@ -127,7 +140,7 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException(
                     $"The add pipeline completed without registering node '{node.NodeId}'.");
             }
-            NodeAdded?.Invoke(activeNode);
+            RaiseAdded(activeNode);
         }
 
         /// <inheritdoc/>
@@ -172,7 +185,7 @@ namespace Opc.Ua.Server
             }
             if (removed)
             {
-                NodeRemoved?.Invoke(nodeId);
+                RaiseRemoved(nodeId);
             }
 
             return removed;
@@ -182,7 +195,7 @@ namespace Opc.Ua.Server
         {
             if (m_drivingOperation.Value == 0)
             {
-                NodeAdded?.Invoke(node);
+                RaiseAdded(node);
             }
         }
 
@@ -190,13 +203,44 @@ namespace Opc.Ua.Server
         {
             if (m_drivingOperation.Value == 0)
             {
+                RaiseRemoved(nodeId);
+            }
+        }
+
+        private void RaiseAdded(NodeState node)
+        {
+            if (m_notifications.Value is { } batch)
+            {
+                batch.Add(() => NodeAdded?.Invoke(node));
+            }
+            else
+            {
+                NodeAdded?.Invoke(node);
+            }
+        }
+
+        private void RaiseRemoved(NodeId nodeId)
+        {
+            if (m_notifications.Value is { } batch)
+            {
+                batch.Add(() => NodeRemoved?.Invoke(nodeId));
+            }
+            else
+            {
                 NodeRemoved?.Invoke(nodeId);
             }
         }
+
+        /// <inheritdoc/>
+        public event Action<NodeState>? NodeAdded;
+
+        /// <inheritdoc/>
+        public event Action<NodeId>? NodeRemoved;
 
         private readonly NodeIdDictionary<NodeState> m_predefinedNodes;
         private readonly Func<NodeState, CancellationToken, ValueTask> m_addAsync;
         private readonly Func<NodeId, CancellationToken, ValueTask<bool>> m_removeAsync;
         private readonly AsyncLocal<int> m_drivingOperation = new();
+        private readonly AsyncLocal<LocalAddressSpaceNotificationBatch?> m_notifications = new();
     }
 }

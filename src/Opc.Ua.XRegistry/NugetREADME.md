@@ -21,6 +21,9 @@ This package contains:
 - `IResourceContentIdProvider` — the seam that maps a resource document + format to its
   opaque content key. The key makes document bytes addressable by an Opaque NodeId but never
   replaces the entity's structural `Xid`, `ResourceId`, or `VersionId`.
+- `Protocol.IXRegistryEndpoint` — lossless, caller-contextual registry requests and outcomes,
+  collection-aware escaped addressing, and bounded reflection-free envelopes for bridge
+  transactions and state. The envelopes are not the xRegistry HTTP wire format.
 - `XRegistryFederationTarget` and `IXRegistryFederationProvider` — an immutable trusted logical
   Resource binding and optional verification seam, independent of content lookup. The binding
   pins origin, application, portable NodeId and remote logical Xid; endpoint locators do not

@@ -52,6 +52,35 @@ namespace Opc.Ua.XRegistry.Tests
     [SetUICulture("en-us")]
     public sealed class XRegistryProjectionEngineTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedNodeRegistrationDoesNotLeaveAnUntrackedChildAsync(bool resourceFailure)
+        {
+            bool failed = false;
+            ProjectionHarness harness = ProjectionHarness.Create(rejectRegistration: node =>
+            {
+                if (!failed && (resourceFailure ? node is ResourceState : node is GroupState))
+                {
+                    failed = true;
+                    return true;
+                }
+                return false;
+            });
+            harness.Strategy.Snapshot = new TestSnapshot(
+                [new TestGroup("schemas", [new TestResource("schemas", "pump")])]);
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await harness.Engine.AttachAsync(harness.Registry, CancellationToken.None).ConfigureAwait(false));
+            Assert.That(failed, Is.True);
+            harness.Strategy.Snapshot = new TestSnapshot([]);
+            await harness.Engine.ReconcileProjectionAsync(CancellationToken.None).ConfigureAwait(false);
+            var children = new List<BaseInstanceState>();
+            harness.Registry.GetChildren(harness.Context, children);
+            Assert.That(children.OfType<GroupState>(), Is.Empty);
+            Assert.That(harness.Deleted, Does.Contain(resourceFailure
+                ? new NodeId("TestRegistry/groups/schemas/resources/pump", 1)
+                : new NodeId("TestRegistry/groups/schemas", 1)));
+        }
+
         /// <summary>
         /// Records the process and runtime identities used by XRegistry projection tests.
         /// </summary>
@@ -1864,49 +1893,6 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
-        private delegate ServiceResult ForwardOpenCallback(
-            ISystemContext context,
-            MethodState method,
-            NodeId objectId,
-            byte mode,
-            ref uint fileHandle);
-
-        private const byte TestReadMode = 1;
-        private const byte TestWriteEraseMode = 6;
-
-        private static Mock<IXRegistryProjectedResourceFileHandleForwarder> CreateForwarderMock(
-            uint underlyingOpenHandle)
-        {
-            var file = new Mock<IXRegistryProjectedResourceFile>();
-            Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
-                file.As<IXRegistryProjectedResourceFileHandleForwarder>();
-            forwarder
-                .Setup(
-                    f => f.ForwardOpen(
-                        It.IsAny<ISystemContext>(),
-                        It.IsAny<MethodState>(),
-                        It.IsAny<NodeId>(),
-                        It.IsAny<byte>(),
-                        ref It.Ref<uint>.IsAny))
-                .Returns(
-                    new ForwardOpenCallback(
-                        (ISystemContext c, MethodState m, NodeId o, byte mode, ref uint h) =>
-                        {
-                            h = underlyingOpenHandle;
-                            return ServiceResult.Good;
-                        }));
-            forwarder
-                .Setup(
-                    f => f.ForwardCloseAsync(
-                        It.IsAny<ISystemContext>(),
-                        It.IsAny<MethodState>(),
-                        It.IsAny<NodeId>(),
-                        It.IsAny<uint>(),
-                        It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
-            return forwarder;
-        }
-
         /// <summary>
         /// Reviewer issue #2 regression: <c>LogicalResourceEntry.PinnedHandles</c>
         /// was previously keyed only by the raw <c>uint</c> handle returned by
@@ -2121,7 +2107,7 @@ namespace Opc.Ua.XRegistry.Tests
                     })).ToArray();
 
             await Task.Delay(300).ConfigureAwait(false);
-            cts.Cancel();
+            await cts.CancelAsync().ConfigureAwait(false);
             await Task.WhenAll(openLoops.Append(reconcileLoop)).ConfigureAwait(false);
 
             Assert.That(
@@ -2469,6 +2455,51 @@ namespace Opc.Ua.XRegistry.Tests
                 });
         }
 
+        /// <summary>
+        /// Scenario 10 (Gap 2): <c>IsVersionAtLeast</c> correctly detects 0.6.0+ versions.
+        /// </summary>
+        [TestCase("0.6.0", true)]
+        [TestCase("0.5.0", false)]
+        [TestCase("1.0.0", true)]
+        [TestCase("0.6.0-preview.1", true)]
+        [TestCase("", false)]
+        public void ModelVersionDetectionReturnsCorrectResult(
+            string version, bool expected)
+        {
+            bool result = Client.XRegistryClient.IsVersionAtLeast(version, 0, 6, 0);
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
+        private static Mock<IXRegistryProjectedResourceFileHandleForwarder> CreateForwarderMock(
+            uint underlyingOpenHandle)
+        {
+            var file = new Mock<IXRegistryProjectedResourceFile>();
+            Mock<IXRegistryProjectedResourceFileHandleForwarder> forwarder =
+                file.As<IXRegistryProjectedResourceFileHandleForwarder>();
+            forwarder
+                .Setup(f => f.ForwardOpen(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<byte>(),
+                    ref It.Ref<uint>.IsAny))
+                .Returns(new ForwardOpenCallback(
+                    (ISystemContext c, MethodState m, NodeId o, byte mode, ref uint h) =>
+                    {
+                        h = underlyingOpenHandle;
+                        return ServiceResult.Good;
+                    }));
+            forwarder
+                .Setup(f => f.ForwardCloseAsync(
+                    It.IsAny<ISystemContext>(),
+                    It.IsAny<MethodState>(),
+                    It.IsAny<NodeId>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+            return forwarder;
+        }
+
         private static ValueTask<ServiceResult> AddAttributeAsync(
             ProjectionHarness harness,
             ResourceState logicalNode,
@@ -2495,22 +2526,6 @@ namespace Opc.Ua.XRegistry.Tests
                 .OfType<PropertyState<string>>()
                 .FirstOrDefault(p => string.Equals(p.BrowseName.Name, key, StringComparison.Ordinal))?
                 .Value;
-        }
-
-        /// <summary>
-        /// Scenario 10 (Gap 2): <c>IsVersionAtLeast</c> correctly detects 0.6.0+ versions.
-        /// </summary>
-        [TestCase("0.6.0", true)]
-        [TestCase("0.5.0", false)]
-        [TestCase("1.0.0", true)]
-        [TestCase("0.6.0-preview.1", true)]
-        [TestCase("", false)]
-        public void ModelVersionDetectionReturnsCorrectResult(
-            string version,
-            bool expected)
-        {
-            bool result = Client.XRegistryClient.IsVersionAtLeast(version, 0, 6, 0);
-            Assert.That(result, Is.EqualTo(expected));
         }
 
         private static TestSnapshot VersionedProjectionSnapshotTwoVersions(
@@ -2949,13 +2964,13 @@ namespace Opc.Ua.XRegistry.Tests
             XRegistryProjectionEventVersion V(string id, uint epoch, NodeId source)
             {
                 ImmutableSortedDictionary<string, string> attributes = id == "v1"
-                    ? v1Attributes ??
-                        ImmutableSortedDictionary<string, string>.Empty.Add(
+                    ? v1Attributes
+                        ?? ImmutableSortedDictionary<string, string>.Empty.Add(
                             "resource",
                             epoch.ToString(
                                 System.Globalization.CultureInfo.InvariantCulture))
-                    : v2Attributes ??
-                        ImmutableSortedDictionary<string, string>.Empty.Add(
+                    : v2Attributes
+                        ?? ImmutableSortedDictionary<string, string>.Empty.Add(
                             "resource",
                             epoch.ToString(
                                 System.Globalization.CultureInfo.InvariantCulture));
@@ -3068,6 +3083,13 @@ namespace Opc.Ua.XRegistry.Tests
                 ]);
         }
 
+        private delegate ServiceResult ForwardOpenCallback(
+            ISystemContext context,
+            MethodState method,
+            NodeId objectId,
+            byte mode,
+            ref uint fileHandle);
+
         private sealed class ProjectionHarness
         {
             private ProjectionHarness(
@@ -3099,6 +3121,7 @@ namespace Opc.Ua.XRegistry.Tests
             public static ProjectionHarness Create(
                 bool eventsEnabled = false,
                 TestStrategy? suppliedStrategy = null,
+                Func<NodeState, bool>? rejectRegistration = null,
                 Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>? projectionDispatcher = null,
                 Func<NodeState, CancellationToken, ValueTask>? onAdd = null)
             {
@@ -3132,6 +3155,10 @@ namespace Opc.Ua.XRegistry.Tests
                     1,
                     (node, ct) =>
                     {
+                        if (rejectRegistration?.Invoke(node) == true)
+                        {
+                            throw new InvalidOperationException("Injected registration failure.");
+                        }
                         added.Add(node);
                         return onAdd?.Invoke(node, ct) ?? default;
                     },
@@ -3174,7 +3201,10 @@ namespace Opc.Ua.XRegistry.Tests
 
             public virtual IXRegistryProjectionSnapshot Current => Snapshot;
 
-            public XRegistryProjectionEventSnapshot CaptureEventSnapshot() => EventSnapshot;
+            public XRegistryProjectionEventSnapshot CaptureEventSnapshot()
+            {
+                return EventSnapshot;
+            }
 
             public virtual XRegistryProjectionGeneration CaptureProjectionGeneration()
             {
@@ -3680,8 +3710,6 @@ namespace Opc.Ua.XRegistry.Tests
                 return new ValueTask<ServiceResult>(result);
             }
 
-            private bool m_projectedDeleteInvoked;
-
             public override ValueTask<ServiceResult> AddVersionLabelAsync(
                 string groupId,
                 string resourceId,
@@ -3706,6 +3734,8 @@ namespace Opc.Ua.XRegistry.Tests
                 RemoveVersionLabelCalls.Add((groupId, resourceId, versionId, key, epoch));
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
+
+            private bool m_projectedDeleteInvoked;
         }
 
         private enum ProjectedDeleteTarget
@@ -4033,6 +4063,9 @@ namespace Opc.Ua.XRegistry.Tests
             public DateTime MetaModifiedAt => s_unixEpoch;
             public bool IsDefaultVersion { get; }
         }
+
+        private const byte TestReadMode = 1;
+        private const byte TestWriteEraseMode = 6;
 
         private static readonly string[] s_defaultSwitchChanged =
         [
