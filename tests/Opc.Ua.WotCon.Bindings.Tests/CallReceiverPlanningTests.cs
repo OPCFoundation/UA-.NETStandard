@@ -856,6 +856,185 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
         }
 
+        /// <summary>
+        /// Verifies that session changes during receiver inspection prevent the first ownership Browse.
+        /// </summary>
+        [TestCase("session", false)]
+        [TestCase("namespace", false)]
+        [TestCase("configuration", false)]
+        [TestCase("session", true)]
+        [TestCase("namespace", true)]
+        [TestCase("configuration", true)]
+        public async Task ReceiverInspectionStateChangePreventsOwnershipBrowse(string change, bool published)
+        {
+            const string owner = "nsu=urn:source;s=NestedObject";
+            WotCompiledForm form = (published
+                ? PreparePublishedAction("\"uav:componentOf\":[\"" + owner + "\"]")
+                : Prepare(SourceThing())).CompiledForms.Single();
+            Mock<ISession> session = CreatePublishedReceiverSession([owner]);
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (change == "session")
+                    {
+                        session.SetupGet(value => value.SessionId).Returns(new NodeId("replacement", 0));
+                    }
+                    else if (change == "namespace")
+                    {
+                        var reordered = new NamespaceTable();
+                        reordered.Append("urn:other");
+                        reordered.Append("urn:source");
+                        session.SetupGet(value => value.NamespaceUris).Returns(reordered);
+                    }
+                    else
+                    {
+                        session.Raise(value => value.SessionConfigurationChanged += null, EventArgs.Empty);
+                    }
+                    return new ValueTask<ReadResponse>(new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results =
+                        [
+                            new DataValue(new Variant((int)NodeClass.Object)),
+                            new DataValue(new Variant((int)NodeClass.Method))
+                        ]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable ownerChannel = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidState), result.Error);
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.IsAny<ArrayOf<ReadValueId>>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that an empty ownership browse cannot start a type browse after session invalidation.
+        /// </summary>
+        [Test]
+        public async Task EmptyOwnershipBrowseStateChangePreventsTypeBrowse()
+        {
+            const string owner = "nsu=urn:source;s=NestedObject";
+            WotCompiledForm form = PreparePublishedAction(
+                "\"uav:componentOf\":[\"" + owner + "\"]").CompiledForms.Single();
+            Mock<ISession> session = CreatePublishedReceiverSession([]);
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    session.SetupGet(value => value.SessionId).Returns(new NodeId("replacement", 0));
+                    return new ValueTask<BrowseResponse>(new BrowseResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new BrowseResult { References = [] }]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable ownerChannel = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidState), result.Error);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that empty argument pages cannot start the next metadata request after invalidation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ArgumentBrowseCompletionStateChangePreventsNextMetadataRequest(bool finalEmptyPage)
+        {
+            const string owner = "nsu=urn:source;s=NestedObject";
+            WotCompiledForm form = PreparePublishedAction(
+                "\"uav:componentOf\":[\"" + owner + "\"]").CompiledForms.Single();
+            Mock<ISession> session = CreatePublishedReceiverSession([owner]);
+            session.Setup(value => value.BrowseAsync(
+                    It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                    It.Is<ArrayOf<BrowseDescription>>(requests =>
+                        requests[0].ReferenceTypeId == Types.ReferenceTypeIds.HasProperty),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (!finalEmptyPage)
+                    {
+                        session.SetupGet(value => value.SessionId).Returns(new NodeId("replacement", 0));
+                    }
+                    return new ValueTask<BrowseResponse>(new BrowseResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results =
+                        [
+                            new BrowseResult
+                            {
+                                ContinuationPoint = finalEmptyPage ? ByteString.From([1]) : default,
+                                References = finalEmptyPage
+                                    ? [new ReferenceDescription
+                                    {
+                                        NodeId = new NodeId("Inputs", 1),
+                                        BrowseName = new QualifiedName("InputArguments"),
+                                        NodeClass = NodeClass.Variable
+                                    }]
+                                    : []
+                            }
+                        ]
+                    });
+                });
+            session.Setup(value => value.BrowseNextAsync(
+                    It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    session.SetupGet(value => value.SessionId).Returns(new NodeId("replacement", 0));
+                    return new ValueTask<BrowseNextResponse>(new BrowseNextResponse
+                    {
+                        ResponseHeader = new ResponseHeader(),
+                        Results = [new BrowseResult { References = [] }]
+                    });
+                });
+            var channel = new OpcUaWotBindingChannel(
+                session.Object, false, form, new WotExecutorContext(), new OpcUaWotBindingOptions());
+            await using ConfiguredAsyncDisposable ownerChannel = channel.ConfigureAwait(false);
+
+            WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
+
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadInvalidState), result.Error);
+            session.Verify(value => value.BrowseAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ViewDescription>(), It.IsAny<uint>(),
+                It.Is<ArrayOf<BrowseDescription>>(requests =>
+                    requests[0].ReferenceTypeId == Types.ReferenceTypeIds.HasProperty),
+                It.IsAny<CancellationToken>()), Times.Once);
+            session.Verify(value => value.BrowseNextAsync(
+                It.IsAny<RequestHeader>(), false, It.IsAny<ArrayOf<ByteString>>(),
+                It.IsAny<CancellationToken>()), finalEmptyPage ? Times.Once() : Times.Never());
+            session.Verify(value => value.ReadAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<double>(), It.IsAny<TimestampsToReturn>(),
+                It.Is<ArrayOf<ReadValueId>>(requests => requests[0].AttributeId == Attributes.Value),
+                It.IsAny<CancellationToken>()), Times.Never);
+            session.Verify(value => value.CallAsync(
+                It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
         private static WotBindingPlan PreparePublishedAction(
             string? componentDeclaration,
             string formMembers = "",

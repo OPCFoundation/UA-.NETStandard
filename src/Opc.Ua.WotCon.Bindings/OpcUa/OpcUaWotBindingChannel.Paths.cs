@@ -55,7 +55,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             NamespaceTable namespaceUris = target.State?.NamespaceUris ?? m_session.NamespaceUris;
             ValidatePathSessionState(target.State);
             NodeId receiver = await OpcUaWotCallReceiverResolver.ResolveAsync(
-                m_session, Form, target.NodeId, namespaceUris, cancellationToken).ConfigureAwait(false);
+                m_session, Form, target.NodeId, namespaceUris,
+                () => ValidatePathSessionState(target.State), cancellationToken).ConfigureAwait(false);
             ValidatePathSessionState(target.State);
             return receiver;
         }
@@ -125,6 +126,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 }
                 property = candidate;
             }
+            ValidatePathSessionState(state);
             if (property.IsNull)
             {
                 return [];
@@ -155,7 +157,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 throw new ServiceResultException(StatusCodes.BadInvalidState, "The Call source context is missing.");
             ValidatePathSessionState(state);
             NodeId resolved = await OpcUaWotCallReceiverResolver.ResolveAsync(
-                m_session, Form, target.NodeId, state.NamespaceUris, cancellationToken).ConfigureAwait(false);
+                m_session, Form, target.NodeId, state.NamespaceUris,
+                () => ValidatePathSessionState(state), cancellationToken).ConfigureAwait(false);
             ValidatePathSessionState(state);
             if (resolved != receiver)
             {

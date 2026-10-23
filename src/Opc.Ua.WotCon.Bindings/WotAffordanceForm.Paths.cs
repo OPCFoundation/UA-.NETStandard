@@ -220,10 +220,11 @@ namespace Opc.Ua.WotCon.Bindings
                     callObjectIdError ??= "The form uav:callObjectId must be a resolvable published NodeId.";
                 }
             }
-            if (!IsOpcUaAddress(document, href))
+            if (!TryResolveOpcUaAddress(document, href, out string? effectiveHref))
             {
                 return true;
             }
+            href = effectiveHref;
             if (sourceForm.TryGetProperty("uav:id", out JsonElement identity))
             {
                 if (identity.ValueKind != JsonValueKind.String ||
@@ -274,26 +275,33 @@ namespace Opc.Ua.WotCon.Bindings
             return true;
         }
 
-        private static bool IsOpcUaAddress(WotDocument document, string? href)
+        private static bool TryResolveOpcUaAddress(WotDocument document, string? href, out string? effectiveHref)
         {
+            effectiveHref = null;
             string? baseAddress = document.RootElement.ValueKind == JsonValueKind.Object &&
                 document.RootElement.TryGetProperty("base", out JsonElement baseElement) &&
                 baseElement.ValueKind == JsonValueKind.String
                 ? baseElement.GetString()
                 : null;
-            if (string.IsNullOrEmpty(href))
+            if (href is null)
             {
                 return Uri.TryCreate(baseAddress, UriKind.Absolute, out Uri? baseUri) &&
                     IsOpcUaScheme(baseUri.Scheme);
             }
             if (Uri.TryCreate(href, UriKind.Absolute, out Uri? absolute))
             {
+                effectiveHref = absolute.AbsoluteUri;
                 return IsOpcUaScheme(absolute.Scheme);
             }
-            return Uri.TryCreate(baseAddress, UriKind.Absolute, out Uri? source) &&
+            if (Uri.TryCreate(baseAddress, UriKind.Absolute, out Uri? source) &&
                 Uri.TryCreate(href, UriKind.Relative, out Uri? relative) &&
                 Uri.TryCreate(source, relative, out Uri? resolved) &&
-                IsOpcUaScheme(resolved.Scheme);
+                IsOpcUaScheme(resolved.Scheme))
+            {
+                effectiveHref = resolved.AbsoluteUri;
+                return true;
+            }
+            return false;
         }
 
         private static bool IsOpcUaScheme(string scheme)

@@ -313,7 +313,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             string methodText = NodeId.ToExpandedNodeId(method, remote.Context.NamespaceUris).ToString();
             string resource = "object=" + ownerText + ";method=" + methodText;
             string preflightResource = "object=" + ownerText +
-                ";browsePath=" + Uri.EscapeDataString("i=84") + "|" + Uri.EscapeDataString("/Method");
+                ";browsePath=" + Uri.EscapeDataString("i=84") + "|" + Uri.EscapeDataString(
+                    "[[\"http://opcfoundation.org/UA/\",\"Method\",\"http://opcfoundation.org/UA/\"," +
+                    "\"HierarchicalReferences\",false,true]]");
             await using var fixture = new WotRuntimeTestContext(options => options.NetworkRules =
                 [WotRuntimeTestContext.Rule(McpCapability.WotInvoke, ["Call"], [resource, preflightResource],
                     endpoint.Scheme, endpoint.IdnHost, endpoint.Port)], realExecutors: true);
@@ -341,6 +343,116 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             Assert.That(connection.Requests.OfType<CallRequest>().Count(), Is.EqualTo(1));
             Assert.That(Selection(document).BindingId, Is.EqualTo("opc.opcua"));
             Assert.That(Selection(document).BindingVersion, Is.EqualTo("10101"));
+        }
+
+        /// <summary>
+        /// Verifies that path grants identify captured namespaces and reference semantics before preflight requests.
+        /// </summary>
+        [TestCase("same", false)]
+        [TestCase("same", true)]
+        [TestCase("prefixAlias", false)]
+        [TestCase("targetNamespace", false)]
+        [TestCase("targetNamespace", true)]
+        [TestCase("referenceNamespace", false)]
+        [TestCase("inverse", false)]
+        [TestCase("subtypes", false)]
+        public async Task PublishedBrowsePathGrantPinsCapturedStepsAsync(string change, bool directMethod)
+        {
+            await using RemoteModelTestSession remote = await RemoteModelTestSession.CreateAsync(
+                includeWot: false, includeRegistry: false).ConfigureAwait(false);
+            ushort grantedNamespace = remote.Context.NamespaceUris.GetIndexOrAppend("urn:granted");
+            remote.Context.NamespaceUris.GetIndexOrAppend("urn:rebound");
+            remote.Context.NamespaceUris.GetIndexOrAppend("urn:references");
+            remote.Context.NamespaceUris.GetIndexOrAppend("urn:other-references");
+            NodeId owner = remote.Id("owner");
+            NodeId method = remote.Id("method");
+            remote.Values[(method, Attributes.NodeClass)] = new DataValue(Variant.From((int)NodeClass.Method));
+            remote.Browse(owner, ReferenceTypeIds.HasComponent,
+                [new ReferenceDescription { NodeId = method, NodeClass = NodeClass.Method }]);
+            remote.Translations[(ObjectIds.RootFolder, new QualifiedName("Run", grantedNamespace))] =
+                new BrowsePathResult
+                {
+                    StatusCode = StatusCodes.Good,
+                    Targets = [new BrowsePathTarget { TargetId = method, RemainingPathIndex = uint.MaxValue }]
+                };
+            remote.OnCall = _ => new CallMethodResult { StatusCode = StatusCodes.Good };
+            Uri endpoint = remote.Session.Object.ConfiguredEndpoint.EndpointUrl ??
+                throw new InvalidOperationException("The test session must have an endpoint.");
+            string ownerText = NodeId.ToExpandedNodeId(owner, remote.Context.NamespaceUris).ToString();
+            string methodText = NodeId.ToExpandedNodeId(method, remote.Context.NamespaceUris).ToString();
+            string callResource = "object=" + ownerText + ";method=" + methodText;
+            bool explicitReference = change is "referenceNamespace" or "inverse" or "subtypes";
+            string grantedSteps = explicitReference
+                ? """[["urn:granted","Run","urn:references","Related",false,true]]"""
+                : """[["urn:granted","Run","http://opcfoundation.org/UA/","HierarchicalReferences",false,true]]""";
+            string pathResource = "object=" + ownerText + ";browsePath=" +
+                Uri.EscapeDataString("i=84") + "|" + Uri.EscapeDataString(grantedSteps);
+            await using var fixture = new WotRuntimeTestContext(options => options.NetworkRules =
+                [WotRuntimeTestContext.Rule(McpCapability.WotInvoke, ["Call"], [callResource, pathResource],
+                    endpoint.Scheme, endpoint.IdnHost, endpoint.Port)], realExecutors: true);
+            await using GdsManagedSession connection = await GdsManagedSession.CreateAsync(remote, fixture.Clock)
+                .ConfigureAwait(false);
+            await fixture.Services.GetRequiredService<OpcUaSessionManager>()
+                .RegisterExistingSessionAsync("selected", connection.Managed, "Anonymous").ConfigureAwait(false);
+            using IDisposable caller = fixture.Enter();
+            JsonObject source = JsonNode.Parse(PublishedActionDocument(endpoint, ownerText, methodText, true))!
+                .AsObject();
+            source["uav:browsePathAnchor"] = "i=84";
+            source["@context"] = new JsonObject
+            {
+                [change == "prefixAlias" ? "alias" : "p"] =
+                    change == "targetNamespace" ? "urn:rebound" : "urn:granted",
+                ["r"] = change == "referenceNamespace" ? "urn:other-references" : "urn:references"
+            };
+            JsonObject form = source["actions"]!["run"]!["forms"]![0]!.AsObject();
+            form["uav:browsePath"] = change switch
+            {
+                "prefixAlias" => "/alias:Run",
+                "referenceNamespace" => "<r:Related>p:Run",
+                "inverse" => "<!r:Related>p:Run",
+                "subtypes" => "<#r:Related>p:Run",
+                _ => "/p:Run"
+            };
+            if (directMethod)
+            {
+                form["uav:id"] = methodText;
+            }
+            string document = source.ToJsonString();
+            bool denied = change is not ("same" or "prefixAlias");
+
+            JsonObject result = WotRuntimeTestContext.Payload(await fixture.Tools.OpenAsync("captured-steps",
+                new WotDocumentSource { Text = document },
+                Selection(document) with { Affordance = "run", Kind = WotAffordanceKind.Action },
+                ["invokeaction"], options: new WotRuntimeOpenOptions
+                {
+                    SessionName = "selected",
+                    BindingProcessingMode = WotBindingProcessingMode.PublishedOneZero
+                }).ConfigureAwait(false), error: denied);
+
+            if (denied)
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result["statusCodeValue"]!.GetValue<uint>(),
+                        Is.EqualTo(StatusCodes.BadUserAccessDenied.Code), result.ToJsonString());
+                    Assert.That(connection.Requests, Is.Empty);
+                    Assert.That(remote.Reads, Is.Empty);
+                    Assert.That(remote.Paths, Is.Empty);
+                    Assert.That(remote.Browses, Is.Empty);
+                    Assert.That(remote.Calls, Is.Empty);
+                });
+            }
+            else
+            {
+                _ = WotRuntimeTestContext.Payload(await fixture.Tools.InvokeActionAsync(
+                    result["runtime"]!["handle"]!.GetValue<string>()).ConfigureAwait(false));
+                Assert.That(remote.Paths, Is.Not.Empty);
+                Assert.That(remote.Paths[0].RelativePath.Elements[0].TargetName,
+                    Is.EqualTo(new QualifiedName("Run", grantedNamespace)));
+                Assert.That(remote.Calls, Has.Count.EqualTo(1));
+                Assert.That(remote.Calls[0].ObjectId, Is.EqualTo(owner));
+                Assert.That(remote.Calls[0].MethodId, Is.EqualTo(method));
+            }
         }
 
         /// <summary>

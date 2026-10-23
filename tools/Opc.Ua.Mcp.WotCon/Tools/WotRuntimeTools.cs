@@ -760,6 +760,36 @@ namespace Opc.Ua.Mcp.Tools
             WotCompiledForm form, NodeId receiver, NamespaceTable namespaceUris)
         {
             string receiverId = NodeId.ToExpandedNodeId(receiver, namespaceUris).ToString();
+            if (form.Addressing.BrowsePathTarget is { } path)
+            {
+                var steps = new JsonArray();
+                foreach (WotBrowsePathStep step in path.Elements)
+                {
+                    string referenceNamespace = step.ReferenceKind is
+                        RelativePathFormatter.ElementType.AnyHierarchical or
+                        RelativePathFormatter.ElementType.AnyComponent
+                            ? Namespaces.OpcUa
+                            : step.ReferenceName.NamespaceUri ?? Namespaces.OpcUa;
+                    string referenceName = step.ReferenceKind switch
+                    {
+                        RelativePathFormatter.ElementType.AnyHierarchical => "HierarchicalReferences",
+                        RelativePathFormatter.ElementType.AnyComponent => "Aggregates",
+                        _ => step.ReferenceName.Name
+                    };
+                    steps.Add(new JsonArray(
+                        JsonValue.Create(step.TargetName.NamespaceUri ?? Namespaces.OpcUa),
+                        JsonValue.Create(step.TargetName.Name),
+                        JsonValue.Create(referenceNamespace),
+                        JsonValue.Create(referenceName),
+                        JsonValue.Create(step.ReferenceKind == RelativePathFormatter.ElementType.InverseReference),
+                        JsonValue.Create(step.IncludeSubtypes)));
+                }
+                string resource = "object=" + receiverId +
+                    ";browsePath=" + Uri.EscapeDataString(path.AnchorId) +
+                    "|" + Uri.EscapeDataString(steps.ToJsonString());
+                WotRuntimeJson.Text(resource, 2048);
+                return resource;
+            }
             string methodAddress = form.Addressing.Target;
             if (string.IsNullOrEmpty(methodAddress) &&
                 form.Addressing.Metadata.TryGetValue("pathHrefNodeId", out string? pathHrefNodeId))
@@ -779,14 +809,6 @@ namespace Opc.Ua.Mcp.Tools
                 }
                 string methodId = NodeId.ToExpandedNodeId(method, namespaceUris).ToString();
                 string resource = "object=" + receiverId + ";method=" + methodId;
-                WotRuntimeJson.Text(resource, 2048);
-                return resource;
-            }
-            if (form.Addressing.BrowsePathTarget is { } path)
-            {
-                string resource = "object=" + receiverId +
-                    ";browsePath=" + Uri.EscapeDataString(path.AnchorId) +
-                    "|" + Uri.EscapeDataString(path.Path);
                 WotRuntimeJson.Text(resource, 2048);
                 return resource;
             }

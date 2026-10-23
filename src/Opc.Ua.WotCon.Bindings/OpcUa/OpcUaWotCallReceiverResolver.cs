@@ -194,16 +194,31 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         /// <param name="namespaceUris">The namespace snapshot captured for this operation.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The exact Object NodeId that owns the Method.</returns>
-        public static async ValueTask<NodeId> ResolveAsync(
+        public static ValueTask<NodeId> ResolveAsync(
             ISession session,
             WotCompiledForm form,
             NodeId method,
             NamespaceTable namespaceUris,
             CancellationToken cancellationToken = default)
         {
+            return ResolveAsync(session, form, method, namespaceUris, null, cancellationToken);
+        }
+
+        /// <summary>
+        /// Resolves ownership while checking the caller's captured state between metadata requests.
+        /// </summary>
+        internal static async ValueTask<NodeId> ResolveAsync(
+            ISession session,
+            WotCompiledForm form,
+            NodeId method,
+            NamespaceTable namespaceUris,
+            Action? validateSessionState,
+            CancellationToken cancellationToken)
+        {
             ArgumentNullException.ThrowIfNull(session);
             ArgumentNullException.ThrowIfNull(form);
             ArgumentNullException.ThrowIfNull(namespaceUris);
+            validateSessionState?.Invoke();
             if (form.Addressing.Metadata.TryGetValue("callObjectId", out string? explicitReceiver))
             {
                 if (!TryResolveNodeId(explicitReceiver, namespaceUris, out NodeId receiver))
@@ -220,7 +235,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         "The explicit Call receiver conflicts with the action componentOf candidates.");
                 }
                 await ValidateIfRequiredAsync(
-                    session, form, receiver, method, namespaceUris, cancellationToken).ConfigureAwait(false);
+                    session, form, receiver, method, namespaceUris, validateSessionState, cancellationToken)
+                    .ConfigureAwait(false);
+                validateSessionState?.Invoke();
                 return receiver;
             }
             if (!form.Addressing.Metadata.TryGetValue(
@@ -259,7 +276,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 try
                 {
                     await ValidateIfRequiredAsync(
-                        session, form, receiver, method, namespaceUris, cancellationToken).ConfigureAwait(false);
+                        session, form, receiver, method, namespaceUris, validateSessionState, cancellationToken)
+                        .ConfigureAwait(false);
+                    validateSessionState?.Invoke();
                     valid.Add(receiver);
                 }
                 catch (ServiceResultException exception) when (
@@ -294,6 +313,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             NodeId receiver,
             NodeId method,
             NamespaceTable namespaceUris,
+            Action? validateSessionState,
             CancellationToken cancellationToken)
         {
             if (!form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
@@ -316,6 +336,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             ];
             ReadResponse response = await session.ReadAsync(
                 null, 0, TimestampsToReturn.Neither, attributes, cancellationToken).ConfigureAwait(false);
+            validateSessionState?.Invoke();
             ClientBase.ValidateResponse(response.Results, attributes);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, attributes);
             for (int index = 0; index < attributes.Count; index++)
@@ -381,6 +402,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
 
             async ValueTask<bool> HasMethodAsync(NodeId owner)
             {
+                validateSessionState?.Invoke();
                 await foreach (ReferenceDescription reference in session.EnumerateReferencesAsync(
                     owner, Types.ReferenceTypeIds.HasComponent, nodeClassMask: (uint)NodeClass.Method,
                     ct: cancellationToken).ConfigureAwait(false))
@@ -392,11 +414,13 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         return true;
                     }
                 }
+                validateSessionState?.Invoke();
                 return false;
             }
 
             async ValueTask<NodeId> SingleTargetAsync(NodeId owner, NodeId referenceType, BrowseDirection direction)
             {
+                validateSessionState?.Invoke();
                 NodeId result = default;
                 await foreach (ReferenceDescription reference in session.EnumerateReferencesAsync(
                     owner, referenceType, direction, false, (uint)NodeClass.ObjectType,
@@ -412,11 +436,13 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                     }
                     result = candidate;
                 }
+                validateSessionState?.Invoke();
                 return result;
             }
 
             void CheckReference(ReferenceDescription reference)
             {
+                validateSessionState?.Invoke();
                 if (--remainingReferences < 0)
                 {
                     throw new ServiceResultException(

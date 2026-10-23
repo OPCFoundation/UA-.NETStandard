@@ -169,6 +169,49 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Verifies that published target capture resolves the original base before inspecting the href.
+        /// </summary>
+        [TestCase("opc.tcp://server.example:4840/UA/Plant?id=i=2258", "",
+            "opc.tcp://server.example:4840/UA/Plant")]
+        [TestCase("opc.tcp://server.example:4840/i=2258", "?tenant=west",
+            "opc.tcp://server.example:4840")]
+        [TestCase("opc.tcp://server.example:4840/UA/Plant?id=ns=1;s=Value", "",
+            "opc.tcp://server.example:4840/UA/Plant")]
+        public void PublishedTargetCaptureUsesInheritedBaseIdentity(string baseUri, string href, string endpoint)
+        {
+            string document = $$"""
+                {
+                  "@context": {"1": "urn:wrong-root"},
+                  "base": "{{baseUri}}",
+                  "properties": {
+                    "value": {
+                      "type": "integer",
+                      "forms": [{
+                        "@context": {"1": "urn:device"},
+                        "href": "{{href}}",
+                        "op": "readproperty"
+                      }]
+                    }
+                  }
+                }
+                """;
+            WotBindingPlan plan = Registry(new Mock<ISession>()).Prepare(
+                WotBindingPlanRequest.FromDocument(
+                    "inherited-target", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document),
+                    selection: new WotBindingSelectionContext([], [], WotBindingProcessingMode.PublishedOneZero)));
+
+            Assert.That(plan.CompiledForms, Has.Length.EqualTo(1), string.Join("; ", plan.Diagnostics));
+            WotCompiledForm form = plan.CompiledForms[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(form.Endpoint.BaseUri, Is.EqualTo(endpoint));
+                Assert.That(form.Addressing.Target,
+                    Is.EqualTo(baseUri.Contains("ns=1", System.StringComparison.Ordinal)
+                        ? "nsu=urn:device;s=Value" : "i=2258"));
+            });
+        }
+
+        /// <summary>
         /// Verifies that direct form construction uses the same scoped capture as document extraction.
         /// </summary>
         [Test]
