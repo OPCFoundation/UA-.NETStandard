@@ -221,7 +221,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                }).ConfigureAwait(false)).ConfigureAwait(false);
+                }).ConfigureAwait(false))
+                .ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
             Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
@@ -699,7 +700,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         decisions++;
                         return default;
-                    });
+                    }).ConfigureAwait(false);
                 }).ConfigureAwait(false);
 
                 Assert.That(decisions, Is.Zero);
@@ -754,7 +755,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                });
+                }).ConfigureAwait(false);
             }).ConfigureAwait(false);
 
             Assert.That(decisions, Is.Zero);
@@ -828,7 +829,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     decisions++;
                     return default;
-                });
+                }).ConfigureAwait(false);
             }).ConfigureAwait(false);
 
             Assert.That(decisions, Is.Zero);

@@ -369,6 +369,10 @@ guide describes its current limitations.
 
 - [xRegistry](XRegistry.md) (draft model; preview package) — the generic
   registry base model, resource storage, and federation.
+- [Native Endpoint, Message and Schema registries](EndpointRegistry.md)
+  (draft models; preview packages) — typed metadata and exact schema documents,
+  durable CAS stores, bounded snapshots, explicit trusted federation, Part 14
+  binding, reusable clients, and standalone registry samples. Builds on xRegistry.
 - [AI model management](AI.md) (draft model; preview package) — model
   catalogues, deployments, inference, and learning jobs. Builds on xRegistry.
 - [Perception model](Vision.md#perception-model) (draft model; optional OpenUSD renderer is preview-only) — capture, media,
