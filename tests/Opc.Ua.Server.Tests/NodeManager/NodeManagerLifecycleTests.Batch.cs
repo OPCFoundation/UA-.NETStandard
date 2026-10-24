@@ -914,6 +914,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
             }
+            await result!.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
         }
 

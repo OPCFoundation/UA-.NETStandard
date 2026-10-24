@@ -191,14 +191,17 @@ namespace Opc.Ua.Server
         /// <param name="registrations">The committed additions and replacements.</param>
         /// <param name="retired">The number of old generations whose cleanup completed.</param>
         /// <param name="cleanupFailure">The post-commit failure, if any.</param>
+        /// <param name="retirement">The task that completes after every retired generation is cleaned up.</param>
         internal NodeManagerBatchResult(
             ArrayOf<NodeManagerRegistration> registrations,
             uint retired,
-            Exception? cleanupFailure)
+            Exception? cleanupFailure,
+            Task retirement)
         {
             Registrations = registrations;
             Retired = retired;
             CleanupFailure = cleanupFailure;
+            Retirement = retirement ?? throw new ArgumentNullException(nameof(retirement));
         }
 
         /// <summary>
@@ -215,5 +218,11 @@ namespace Opc.Ua.Server
         /// Gets a post-commit failure, if any. It never denotes an aborted publication.
         /// </summary>
         public Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Gets a task that completes when every generation retired by this batch has been fully cleaned up,
+        /// or faults if asynchronous cleanup fails.
+        /// </summary>
+        public Task Retirement { get; }
     }
 }

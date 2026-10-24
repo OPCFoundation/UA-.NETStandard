@@ -232,6 +232,31 @@ namespace Opc.Ua.Server
         internal NodeManagerGenerationReference Reference { get; }
 
         /// <summary>
+        /// Gets whether all view pins and generation-gated operations have drained.
+        /// </summary>
+        internal bool IsQuiescent
+        {
+            get
+            {
+                if (Gate.ActiveCount != 0)
+                {
+                    return false;
+                }
+                lock (m_epochLock)
+                {
+                    foreach (AddressSpaceEpoch epoch in m_viewEpochs)
+                    {
+                        if (!epoch.IsDrained)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
         /// Registers a view epoch whose dispatch routes include this generation.
         /// </summary>
         /// <param name="epoch">The view epoch.</param>

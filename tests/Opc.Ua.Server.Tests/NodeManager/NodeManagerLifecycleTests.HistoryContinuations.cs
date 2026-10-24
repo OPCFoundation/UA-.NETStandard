@@ -260,6 +260,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return;
                 }
                 Task<NodeManagerBatchResult>? retirement = null;
+                NodeManagerBatchResult? retirementResult = null;
                 Task<HistoryReadResponse> pending = session.HistoryReadAsync(
                     new RequestHeader { TimeoutHint = 60_000 },
                     new ExtensionObject(CreateHistoryDetails(1)), TimestampsToReturn.Both, false,
@@ -270,6 +271,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                     retirement = RetireBrowseDependenciesAsync(
                         [owner.Registration, target.Registration], false, timeout.Token);
+                    retirementResult = await retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                     BrowseResult current = default!;
                     for (int attempt = 0; attempt < 30; attempt++)
                     {
@@ -282,7 +284,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
                     }
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(retirement.IsCompleted, Is.False);
+                    Assert.That(retirementResult.Retirement.IsCompleted, Is.False);
                     var holder = (SessionContinuationPoints)m_server.CurrentInstance.SessionManager
                         .GetSessions().Single(candidate => candidate.Id == session.SessionId).ContinuationPoints;
                     Assert.That(holder.HasHistoryForManager(source), Is.True);
@@ -304,8 +306,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertHistorySample(response.Results[0], 102, 1, StatusCodes.UncertainDataSubNormal);
                 Assert.That(capturedSource, Is.True);
                 Assert.That(capturedTarget, Is.True);
-                NodeManagerBatchResult retired = await retirement!.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(2u));
+                Assert.That(retirementResult!.Retired, Is.Zero);
+                await retirementResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(retirementResult.Retirement.IsCompleted, Is.True);
                 await source.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.DisposeCount, Is.EqualTo(1));

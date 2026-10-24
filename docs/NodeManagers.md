@@ -1057,6 +1057,11 @@ waits for its own request.
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to
   discard its candidates.
+- `CommitAsync` returns after publication and reconciliation without waiting for requests already
+  pinned to a retired generation. `result.Retirement` completes when all generations retired by
+  that batch have been cleaned up, or faults if asynchronous cleanup fails; use it when the caller
+  must await teardown. `result.Retired` counts generations already cleaned up when the result was
+  created.
 - Before the durable decision callback runs, the batch reserves the serving routing revision. All
   routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
   Retry after it releases. A noncommit or cancellation releases only that batch's reservation.

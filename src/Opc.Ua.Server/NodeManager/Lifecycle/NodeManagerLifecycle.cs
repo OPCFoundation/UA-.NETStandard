@@ -3517,6 +3517,7 @@ namespace Opc.Ua.Server
             }
             if (removed)
             {
+                retired.CompleteRetirement();
                 RecordShutdownCleanupProgress();
             }
         }
@@ -3952,6 +3953,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Runs retired-generation cleanup and publishes asynchronous failures to its retirement task.
+        /// </summary>
+        /// <param name="server">The server that owns the retired generation.</param>
+        /// <param name="host">The dynamic NodeManager host.</param>
+        /// <param name="retired">The generation to clean up.</param>
+        /// <param name="allowShuttingDown">Whether cleanup may continue during shutdown.</param>
+        /// <returns>Whether cleanup completed.</returns>
+        private async ValueTask<bool> CleanupRetiredNodeManagerAsync(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            RetiredNodeManager retired,
+            bool allowShuttingDown = false)
+        {
+            try
+            {
+                return await CleanupRetiredNodeManagerCoreAsync(
+                    server, host, retired, allowShuttingDown).ConfigureAwait(false);
+            }
+            catch (Exception failure) when (failure is not OutOfMemoryException)
+            {
+                retired.FailRetirement(failure);
+                throw;
+            }
+        }
+
+        /// <summary>
         /// Detaches and destroys a retired NodeManager generation, returning <c>true</c>
         /// once fully cleaned up. A shadow-reloaded generation that still owns active
         /// monitored items or Browse continuations is left untouched (requests, continuation points, and
@@ -3963,7 +3990,7 @@ namespace Opc.Ua.Server
         /// <exception cref="InvalidOperationException">
         /// The retired generation still has undrained requests or active monitored items when detachment is attempted.
         /// </exception>
-        private async ValueTask<bool> CleanupRetiredNodeManagerAsync(
+        private async ValueTask<bool> CleanupRetiredNodeManagerCoreAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
             RetiredNodeManager retired,
@@ -4529,6 +4556,21 @@ namespace Opc.Ua.Server
 
             public ShutdownCleanupState ShutdownCleanup { get; } = new();
 
+            public Task Retirement => m_retirementCompletion.Task;
+
+            public void CompleteRetirement()
+            {
+                m_retirementCompletion.TrySetResult(true);
+            }
+
+            public void FailRetirement(Exception failure)
+            {
+                m_retirementCompletion.TrySetException(failure);
+            }
+
+            private readonly TaskCompletionSource<bool> m_retirementCompletion =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
             /// <summary>Publishes drain ownership across lifecycle semaphore release/reacquisition.</summary>
             private bool m_drainPending;
         }
@@ -4985,7 +5027,24 @@ namespace Opc.Ua.Server
                 batch.Host.SetRetiredGenerationDrainObserver(ScheduleRetiredGenerationDrainCleanup);
                 try
                 {
-                    await CleanupRetiredNodeManagersAsync(batch.Server, batch.Host).ConfigureAwait(false);
+                    RetiredNodeManager[] pendingRetirements;
+                    lock (m_registrationLock)
+                    {
+                        pendingRetirements = [.. m_retiredNodeManagers];
+                    }
+                    bool retirementCanCompleteInline = pendingRetirements.All(retiredNodeManager =>
+                        !retiredNodeManager.DrainPending &&
+                        retiredNodeManager.Generation.IsQuiescent &&
+                        (!retiredNodeManager.AllowActiveMonitoredItems ||
+                            !HasRetainedUses(batch.Server, retiredNodeManager.NodeManager)));
+                    if (retirementCanCompleteInline)
+                    {
+                        await CleanupRetiredNodeManagersAsync(batch.Server, batch.Host).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        ScheduleRetiredGenerationDrainCleanup();
+                    }
                     if (batch.Entries.Count != 0)
                     {
                         await NotifyCommittedChangeAsync(
@@ -5005,7 +5064,8 @@ namespace Opc.Ua.Server
                 return new NodeManagerBatchResult(
                     batch.Registrations, completed,
                     failures.Count == 0 ? null : new AggregateException(
-                        "The batch committed; generation reconciliation remains pending.", failures));
+                        "The batch committed; generation reconciliation remains pending.", failures),
+                    Task.WhenAll(retired.Select(item => item.Retirement)));
             }
             finally
             {
