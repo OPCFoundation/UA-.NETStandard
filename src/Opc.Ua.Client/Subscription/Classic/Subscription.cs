@@ -42,7 +42,8 @@ namespace Opc.Ua.Client
     /// <summary>
     /// A subscription.
     /// </summary>
-    public class Subscription : ISnapshotRestore<SubscriptionState>, IDisposable, ICloneable
+    public class Subscription : ISnapshotRestore<SubscriptionState>, IDisposable, ICloneable,
+        INotificationLifetimeSource
     {
         private const int kKeepAliveTimerMargin = 1000;
         private const int kRepublishMessageExpiredTimeout = 10000;
@@ -2164,6 +2165,12 @@ namespace Opc.Ua.Client
                         newEntry.Message = message;
                         newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
                         newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
+
+                        // Stamp the lifetime on receipt, so a later recreation cannot change it.
+                        if (newEntry.Lifetime.IsNull && Session is INotificationLifetimeRegistry registry)
+                        {
+                            newEntry.Lifetime = registry.StampNotificationLifetime(Id, message.SequenceNumber);
+                        }
                     }
                 }
 
@@ -2449,6 +2456,36 @@ namespace Opc.Ua.Client
 
                 return null;
             }
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Call it from <see cref="FastDataChangeCallback"/>, <see cref="FastEventCallback"/> or the
+        /// session <see cref="ISession.Notification"/> event, with the sequence number of the
+        /// delivered message. Lifetimes are available when the subscription belongs to an SDK
+        /// <see cref="Client.Session"/>.
+        /// </remarks>
+        public bool TryGetNotificationLifetime(uint sequenceNumber, out NotificationLifetime lifetime)
+        {
+            lock (m_dispatchLock)
+            {
+                if (!m_dispatchLifetime.IsNull && m_dispatchLifetime.SequenceNumber == sequenceNumber)
+                {
+                    lifetime = m_dispatchLifetime;
+                    return true;
+                }
+            }
+            lock (m_cache)
+            {
+                IncomingMessage? entry = FindEntry(sequenceNumber);
+                if (entry != null && !entry.Lifetime.IsNull)
+                {
+                    lifetime = entry.Lifetime;
+                    return true;
+                }
+            }
+            lifetime = default;
+            return false;
         }
 
         /// <summary>
@@ -3127,8 +3164,8 @@ namespace Opc.Ua.Client
                 PublishStateChangedEventHandler? callback = null;
 
                 // list of new messages to process.
-                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration)>?
-                    messagesToProcess = null;
+                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration,
+                    NotificationLifetime Lifetime)>? messagesToProcess = null;
 
                 // list of keep alive messages to process.
                 List<IncomingMessage>? keepAliveToProcess = null;
@@ -3155,7 +3192,8 @@ namespace Opc.Ua.Client
                             (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
                             (messagesToProcess ??= []).Add(
-                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration));
+                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration,
+                                    ii.Value.Lifetime));
 
                             // remove the oldest items. The emptiness check keeps a
                             // negative MaxMessageCount from throwing on RemoveFirst.
@@ -3262,10 +3300,11 @@ namespace Opc.Ua.Client
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
 
-                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
-                        in messagesToProcess)
+                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration,
+                        NotificationLifetime lifetime) in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
+                        BeginDispatch(message.SequenceNumber, lifetime);
                         try
                         {
                             foreach (ExtensionObject notificationData in message.NotificationData)
@@ -3363,6 +3402,10 @@ namespace Opc.Ua.Client
                                 message.SequenceNumber,
                                 Id,
                                 Session?.SessionId);
+                        }
+                        finally
+                        {
+                            EndDispatch(lifetime);
                         }
 
                         if (MaxNotificationsPerPublish != 0 &&
@@ -3844,6 +3887,40 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Publishes the lifetime of the message whose callbacks run now.
+        /// </summary>
+        private void BeginDispatch(uint sequenceNumber, NotificationLifetime lifetime)
+        {
+            if (lifetime.IsNull)
+            {
+                return;
+            }
+            Debug.Assert(lifetime.SequenceNumber == sequenceNumber);
+            lock (m_dispatchLock)
+            {
+                m_dispatchLifetime = lifetime;
+            }
+        }
+
+        /// <summary>
+        /// Withdraws the lifetime published by <see cref="BeginDispatch"/>.
+        /// </summary>
+        private void EndDispatch(NotificationLifetime lifetime)
+        {
+            if (lifetime.IsNull)
+            {
+                return;
+            }
+            lock (m_dispatchLock)
+            {
+                if (m_dispatchLifetime == lifetime)
+                {
+                    m_dispatchLifetime = default;
+                }
+            }
+        }
+
+        /// <summary>
         /// Find or create an entry for the incoming sequence number.
         /// </summary>
         /// <param name="utcNow">The current Utc time.</param>
@@ -3953,6 +4030,12 @@ namespace Opc.Ua.Client
         private int m_transfersInProgress;
         private int m_transferGeneration;
         private readonly Lock m_cache = new();
+
+        /// <summary>
+        /// Guards the lifetime of the message whose callbacks run now.
+        /// </summary>
+        private readonly Lock m_dispatchLock = new();
+        private NotificationLifetime m_dispatchLifetime;
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private ArrayOf<uint> m_availableSequenceNumbers;
         private ConcurrentDictionary<uint, MonitoredItem> m_monitoredItems = new();
@@ -4004,6 +4087,7 @@ namespace Opc.Ua.Client
             public StatusCode RepublishStatus;
             public bool SavedDuringTransfer;
             public int TransferGeneration;
+            public NotificationLifetime Lifetime;
         }
     }
 

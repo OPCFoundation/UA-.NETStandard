@@ -56,7 +56,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// next publish cycle.
     /// </summary>
     internal sealed class SubscriptionManager : ISubscriptionManager,
-        IMessageAckQueue, IAsyncDisposable
+        INotificationLifetimeAckQueue, IAsyncDisposable
     {
         /// <summary>
         /// Create subscription manager
@@ -73,6 +73,11 @@ namespace Opc.Ua.Client.Subscriptions
         {
             m_timeProvider = timeProvider ?? TimeProvider.System;
             m_session = session;
+            m_lifetimes =
+                session is INotificationLifetimeManagerContext { ProvidesNotificationLifetimes: true } lifetimes
+                    ? lifetimes
+                    : null;
+            m_lifetimeResolver = ResolveLifetime;
             m_loggerFactory = loggerFactory;
             m_logger = loggerFactory.CreateLogger<SubscriptionManager>();
             ReturnDiagnostics = returnDiagnostics;
@@ -336,6 +341,14 @@ namespace Opc.Ua.Client.Subscriptions
                 while (m_retirementsToReport.TryDequeue(out _))
                 {
                 }
+                if (m_lifetimes != null)
+                {
+                    lock (m_lifetimeLock)
+                    {
+                        m_lifetimeTracker.RetireAll(ref m_terminations);
+                    }
+                    ReportTerminations();
+                }
                 if (m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
                 {
                     // Zero resolves to the latest generation the session assigned.
@@ -366,7 +379,83 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            return m_acks.Writer.WriteAsync(new PendingAcknowledgement(ack, owner, generation), ct);
+            TrackAcknowledgement(ack);
+            return WriteAcknowledgementAsync(new PendingAcknowledgement(ack, owner, generation), ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask QueueAsync(IMessageProcessor owner, long generation,
+            SubscriptionAcknowledgement ack, NotificationLifetime lifetime, CancellationToken ct)
+        {
+            if (owner == null)
+            {
+                throw new ArgumentNullException(nameof(owner));
+            }
+            TrackAcknowledgement(ack, lifetime);
+            return WriteAcknowledgementAsync(new PendingAcknowledgement(ack, owner, generation), ct);
+        }
+
+        /// <summary>
+        /// Writes a tracked acknowledgement to the queue. An acknowledgement that cannot be queued
+        /// (its owner was disposed while dispatching) is never sent, so its lifetime ends here.
+        /// </summary>
+        private ValueTask WriteAcknowledgementAsync(PendingAcknowledgement pending, CancellationToken ct)
+        {
+            ValueTask write;
+            try
+            {
+                write = m_acks.Writer.WriteAsync(pending, ct);
+            }
+            catch
+            {
+                EndUnqueuedAcknowledgement(pending.Acknowledgement);
+                throw;
+            }
+            return m_lifetimes == null || write.IsCompletedSuccessfully
+                ? write
+                : AwaitWriteAsync(write, pending.Acknowledgement);
+
+            async ValueTask AwaitWriteAsync(ValueTask pendingWrite, SubscriptionAcknowledgement acknowledgement)
+            {
+                try
+                {
+                    await pendingWrite.ConfigureAwait(false);
+                }
+                catch
+                {
+                    EndUnqueuedAcknowledgement(acknowledgement);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends the lifetime of an acknowledgement that could not be queued.
+        /// </summary>
+        private void EndUnqueuedAcknowledgement(SubscriptionAcknowledgement acknowledgement)
+        {
+            TerminateAcknowledgement(acknowledgement, NotificationDisposition.OwnerRetired);
+            ReportTerminations();
+        }
+
+        /// <inheritdoc/>
+        NotificationLifetime INotificationLifetimeRegistry.StampNotificationLifetime(
+            uint subscriptionId,
+            uint sequenceNumber)
+        {
+            return m_lifetimes?.StampNotificationLifetime(subscriptionId, sequenceNumber) ?? default;
+        }
+
+        /// <inheritdoc/>
+        bool INotificationLifetimeRegistry.IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+        {
+            return m_lifetimes?.IsCurrentNotificationLifetime(lifetime) ?? false;
+        }
+
+        /// <inheritdoc/>
+        void INotificationLifetimeRegistry.OnNotificationsTerminated(List<NotificationTermination> terminations)
+        {
+            m_lifetimes?.OnNotificationsTerminated(terminations);
         }
 
         /// <inheritdoc/>
@@ -532,25 +621,77 @@ namespace Opc.Ua.Client.Subscriptions
                 sharedId = HasOtherLiveOwnerLocked(owner, subscriptionId);
             }
             int dropped;
+            List<SubscriptionAcknowledgement>? retiredAcknowledgements = null;
             lock (m_acknowledgementPolicyLock)
             {
                 // Unowned entries (created by a deferral handler) only carry the id; keep
                 // them when another live subscription still uses it.
                 dropped = m_deferredAcknowledgements.RemoveAll(pending =>
-                    ReferenceEquals(pending.Owner, owner) ||
-                    (!sharedId && pending.Owner == null &&
-                        pending.Acknowledgement.SubscriptionId == subscriptionId));
+                {
+                    bool remove = ReferenceEquals(pending.Owner, owner) ||
+                        (!sharedId && pending.Owner == null &&
+                            pending.Acknowledgement.SubscriptionId == subscriptionId);
+                    if (remove && m_lifetimes != null)
+                    {
+                        (retiredAcknowledgements ??= []).Add(pending.Acknowledgement);
+                    }
+                    return remove;
+                });
                 UpdateDeferredWarning();
+            }
+            if (retiredAcknowledgements != null)
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in retiredAcknowledgements)
+                {
+                    TerminateAcknowledgement(acknowledgement, NotificationDisposition.OwnerRetired);
+                }
+            }
+            if (m_lifetimes != null)
+            {
+                EndQueuedAcknowledgementsOf(owner, subscriptionId, sharedId);
             }
             if (subscriptionId != 0 && report)
             {
                 m_retirementsToReport.Enqueue((subscriptionId, generation));
-                if (!deferNotification)
-                {
-                    ReportRetiredAcknowledgements();
-                }
+            }
+            if (!deferNotification)
+            {
+                ReportRetiredAcknowledgements();
             }
             return dropped;
+        }
+
+        /// <summary>
+        /// Removes the queued acknowledgements a retired owner holds under an id and ends their
+        /// lifetimes, as the classic engine does: without them no worker may drain them soon, for
+        /// example after the last subscription was deleted. Acknowledgements already taken by a
+        /// worker end when their request completes or is requeued.
+        /// </summary>
+        private void EndQueuedAcknowledgementsOf(IMessageProcessor owner, uint subscriptionId, bool sharedId)
+        {
+            int available = m_acks.Reader.Count;
+            if (available == 0)
+            {
+                return;
+            }
+            var keep = new List<PendingAcknowledgement>(available);
+            for (int i = 0; i < available && m_acks.Reader.TryRead(out PendingAcknowledgement pending); i++)
+            {
+                bool retired = pending.Acknowledgement.SubscriptionId == subscriptionId &&
+                    (ReferenceEquals(pending.Owner, owner) || (!sharedId && pending.Owner == null));
+                if (retired)
+                {
+                    TerminateAcknowledgement(pending.Acknowledgement, NotificationDisposition.OwnerRetired);
+                }
+                else
+                {
+                    keep.Add(pending);
+                }
+            }
+            foreach (PendingAcknowledgement pending in keep)
+            {
+                m_acks.Writer.TryWrite(pending);
+            }
         }
 
         /// <inheritdoc/>
@@ -561,6 +702,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // Raised when the quiesced operation completes.
                 return;
             }
+            ReportTerminations();
             if (m_session is not ISubscriptionAcknowledgementLifecycle lifecycle)
             {
                 while (m_retirementsToReport.TryDequeue(out _))
@@ -2078,7 +2220,9 @@ namespace Opc.Ua.Client.Subscriptions
                 List<SubscriptionAcknowledgement> retained;
                 try
                 {
-                    (toSend, retained) = m_session.PrepareAcknowledgementsToSend(presented, GetGeneration);
+                    (toSend, retained) = m_lifetimes != null
+                        ? m_lifetimes.PrepareAcknowledgementsToSend(presented, GetGeneration, m_lifetimeResolver)
+                        : m_session.PrepareAcknowledgementsToSend(presented, GetGeneration);
                 }
                 catch
                 {
@@ -2095,6 +2239,10 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     UpdateDeferredWarning();
                     return candidates;
+                }
+                if (m_lifetimes != null)
+                {
+                    TerminateDroppedAcknowledgements(presented, toSend, retained);
                 }
                 foreach (SubscriptionAcknowledgement acknowledgement in retained)
                 {
@@ -2188,6 +2336,138 @@ namespace Opc.Ua.Client.Subscriptions
                 m_acks.Writer.TryWrite(pending);
             }
             ReportAbandonedAcknowledgements();
+            ReportTerminations();
+        }
+
+        /// <summary>
+        /// Tracks a queued acknowledgement under the current lifetime of its subscription.
+        /// </summary>
+        private void TrackAcknowledgement(SubscriptionAcknowledgement acknowledgement)
+        {
+            if (m_lifetimes == null)
+            {
+                return;
+            }
+            TrackAcknowledgement(
+                acknowledgement,
+                m_lifetimes.StampNotificationLifetime(acknowledgement.SubscriptionId, acknowledgement.SequenceNumber));
+        }
+
+        /// <summary>
+        /// Tracks a queued acknowledgement under the lifetime stamped when its message was received.
+        /// </summary>
+        private void TrackAcknowledgement(SubscriptionAcknowledgement acknowledgement, NotificationLifetime lifetime)
+        {
+            if (m_lifetimes == null || lifetime.IsNull)
+            {
+                return;
+            }
+            lock (m_lifetimeLock)
+            {
+                m_lifetimeTracker.Track(acknowledgement, lifetime);
+            }
+        }
+
+        /// <summary>
+        /// Ends the lifetime of an acknowledgement. The end is reported by <see cref="ReportTerminations"/>.
+        /// </summary>
+        private void TerminateAcknowledgement(
+            SubscriptionAcknowledgement acknowledgement,
+            NotificationDisposition disposition)
+        {
+            if (m_lifetimes == null)
+            {
+                return;
+            }
+            lock (m_lifetimeLock)
+            {
+                m_lifetimeTracker.Terminate(acknowledgement, disposition, ref m_terminations);
+            }
+        }
+
+        /// <summary>
+        /// Ends, as abandoned, the lifetimes of presented acknowledgements the deferral policy
+        /// neither sent nor retained.
+        /// </summary>
+        private void TerminateDroppedAcknowledgements(
+            List<SubscriptionAcknowledgement> presented,
+            List<SubscriptionAcknowledgement> toSend,
+            List<SubscriptionAcknowledgement> retained)
+        {
+            var kept = new HashSet<SubscriptionAcknowledgement>(
+                toSend.Count + retained.Count,
+                IdentityComparer<SubscriptionAcknowledgement>.Instance);
+            kept.UnionWith(toSend);
+            kept.UnionWith(retained);
+            foreach (SubscriptionAcknowledgement acknowledgement in presented)
+            {
+                if (!kept.Contains(acknowledgement))
+                {
+                    TerminateAcknowledgement(acknowledgement, NotificationDisposition.Abandoned);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Ends the lifetimes of the acknowledgements a Publish response answered.
+        /// </summary>
+        private void CompleteAcknowledgements(
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements,
+            ArrayOf<StatusCode> results)
+        {
+            if (m_lifetimes == null || acknowledgements.Count == 0)
+            {
+                return;
+            }
+            lock (m_lifetimeLock)
+            {
+                if (m_lifetimeTracker.Count == 0)
+                {
+                    return;
+                }
+                for (int i = 0; i < acknowledgements.Count; i++)
+                {
+                    StatusCode result = i < results.Count ? results[i] : StatusCodes.Good;
+                    NotificationDisposition disposition =
+                        StatusCode.IsGood(result) ? NotificationDisposition.Acknowledged :
+                        result == StatusCodes.BadSubscriptionIdInvalid ? NotificationDisposition.OwnerRetired :
+                        NotificationDisposition.NotRetained;
+                    m_lifetimeTracker.Terminate(acknowledgements[i], disposition, ref m_terminations);
+                }
+            }
+            ReportTerminations();
+        }
+
+        /// <summary>
+        /// Resolves the lifetime of an acknowledgement presented to the deferral policy.
+        /// </summary>
+        private bool ResolveLifetime(SubscriptionAcknowledgement acknowledgement, out NotificationLifetime lifetime)
+        {
+            lock (m_lifetimeLock)
+            {
+                return m_lifetimeTracker.TryGetLifetime(acknowledgement, out lifetime);
+            }
+        }
+
+        /// <summary>
+        /// Reports the ended lifetimes to the session. Called without locks.
+        /// </summary>
+        private void ReportTerminations()
+        {
+            if (m_lifetimes == null)
+            {
+                return;
+            }
+            List<NotificationTermination>? terminations;
+            lock (m_lifetimeLock)
+            {
+                terminations = m_terminations;
+                m_terminations = null;
+            }
+            if (terminations != null)
+            {
+                m_lifetimes.OnNotificationsTerminated(terminations);
+            }
         }
 
         /// <summary>
@@ -2211,6 +2491,11 @@ namespace Opc.Ua.Client.Subscriptions
                             // The subscription is alive, so no retirement covers this entry:
                             // report it as the server would have answered it.
                             m_abandonedAcknowledgements.Enqueue(pending.Acknowledgement);
+                            TerminateAcknowledgement(pending.Acknowledgement, NotificationDisposition.NotRetained);
+                        }
+                        else if (state == AcknowledgementState.Stale)
+                        {
+                            TerminateAcknowledgement(pending.Acknowledgement, NotificationDisposition.OwnerRetired);
                         }
                         if (state != AcknowledgementState.Valid)
                         {
@@ -2770,6 +3055,7 @@ namespace Opc.Ua.Client.Subscriptions
                         }
                         batch = m_outer.PrepareAcknowledgementsToSend(batch);
                         m_outer.ReportAbandonedAcknowledgements();
+                        m_outer.ReportTerminations();
                         acks = batch.ConvertAll(pending => pending.Acknowledgement);
                         long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
@@ -2794,6 +3080,7 @@ namespace Opc.Ua.Client.Subscriptions
                         ClientBase.ValidateResponse(acknowledgeResults, acks);
                         ClientBase.ValidateDiagnosticInfos(acknowledgeDiagnosticInfos, acks);
                         m_outer.LogAcknowledgementResults(acknowledgeResults);
+                        m_outer.CompleteAcknowledgements(acks, acknowledgeResults);
 
                         // A publish completed, so the channel is healthy:
                         // clear the consecutive-error backoff state.
@@ -3349,6 +3636,20 @@ namespace Opc.Ua.Client.Subscriptions
         /// <see cref="m_deferredAcknowledgements"/> and <see cref="m_deferredWarningRaised"/>.
         /// </summary>
         private readonly Lock m_acknowledgementPolicyLock = new();
+
+        /// <summary>
+        /// The session's notification lifetimes, or <c>null</c> when it provides none.
+        /// </summary>
+        private readonly INotificationLifetimeManagerContext? m_lifetimes;
+        private readonly NotificationLifetimeResolver m_lifetimeResolver;
+
+        /// <summary>
+        /// Lifetimes of the queued, deferred and in-flight acknowledgements, and the ended
+        /// lifetimes waiting to be reported. Guarded by <see cref="m_lifetimeLock"/>, a leaf lock.
+        /// </summary>
+        private readonly Lock m_lifetimeLock = new();
+        private readonly NotificationLifetimeTracker m_lifetimeTracker = new();
+        private List<NotificationTermination>? m_terminations;
         /// <summary>
         /// Application-deferred acknowledgements, reconsidered on subsequent Publish attempts.
         /// </summary>

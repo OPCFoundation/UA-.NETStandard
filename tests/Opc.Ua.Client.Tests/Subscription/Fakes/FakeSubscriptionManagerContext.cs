@@ -42,7 +42,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// via callback fields. Replaces
     /// <c>Mock&lt;ISubscriptionManagerContext&gt;</c>.
     /// </summary>
-    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
+    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext,
+        ISubscriptionAcknowledgementLifecycle, INotificationLifetimeManagerContext
     {
         /// <summary>
         /// Optional acknowledgement retirement observer.
@@ -254,6 +255,70 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         private int m_sessionDispatchCount;
+
+        /// <summary>
+        /// Whether the fake provides notification lifetimes. Off by default. Set it before
+        /// creating the manager, which reads it once.
+        /// </summary>
+        public bool ProvidesNotificationLifetimes { get; set; }
+
+        /// <summary>
+        /// Ended lifetimes reported by the manager.
+        /// </summary>
+        public ConcurrentQueue<NotificationTermination> Terminations { get; } = new();
+
+        /// <summary>
+        /// The lifetime resolver passed with the latest preparation call.
+        /// </summary>
+        public NotificationLifetimeResolver? LastLifetimes { get; private set; }
+
+        /// <inheritdoc/>
+        public NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber)
+        {
+            return subscriptionId == 0
+                ? default
+                : new NotificationLifetime(
+                    1,
+                    CurrentLifetime(subscriptionId),
+                    NotificationProvenance.Created,
+                    subscriptionId,
+                    sequenceNumber);
+        }
+
+        /// <inheritdoc/>
+        public bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+        {
+            return !lifetime.IsNull && lifetime.SubscriptionLifetime == CurrentLifetime(lifetime.SubscriptionId);
+        }
+
+        /// <inheritdoc/>
+        public void OnNotificationsTerminated(List<NotificationTermination> terminations)
+        {
+            foreach (NotificationTermination termination in terminations)
+            {
+                Terminations.Enqueue(termination);
+            }
+        }
+
+        /// <inheritdoc/>
+        public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+            PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements,
+                Func<SubscriptionAcknowledgement, long>? generations,
+                NotificationLifetimeResolver lifetimes)
+        {
+            LastLifetimes = lifetimes;
+            return PrepareAcknowledgementsToSend(acknowledgements, generations);
+        }
+
+        /// <summary>
+        /// The lifetime of a subscription follows its session generation, starting at one.
+        /// </summary>
+        private long CurrentLifetime(uint subscriptionId)
+        {
+            long generation = GetSubscriptionGeneration(subscriptionId);
+            return generation == 0 ? 1 : generation;
+        }
 
         /// <summary>
         /// Appends a recorded call. Publish workers run on background

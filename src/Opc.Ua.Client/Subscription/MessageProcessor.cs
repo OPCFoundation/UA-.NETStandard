@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// Processes messages inside a subscription, it is the base class for all
     /// subscription objects but basis to support better testing in isolation.
     /// </summary>
-    internal abstract class MessageProcessor : IMessageProcessor, IAsyncDisposable
+    internal abstract class MessageProcessor : IMessageProcessor, IAsyncDisposable, INotificationLifetimeSource
     {
         /// <inheritdoc/>
         public uint Id
@@ -895,6 +895,18 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct)
         {
             bool shouldAcknowledge = message.NotificationData.Count != 0;
+            NotificationLifetime lifetime = default;
+            if (shouldAcknowledge && AckQueue is INotificationLifetimeAckQueue lifetimes)
+            {
+                lifetime = lifetimes.StampNotificationLifetime(Id, message.SequenceNumber);
+            }
+            if (!lifetime.IsNull)
+            {
+                lock (m_dispatchLifetimeLock)
+                {
+                    m_dispatchLifetime = lifetime;
+                }
+            }
             try
             {
                 if (!shouldAcknowledge)
@@ -904,7 +916,8 @@ namespace Opc.Ua.Client.Subscriptions
                         () => OnKeepAliveNotificationAsync(
                             message.SequenceNumber,
                             (DateTime)message.PublishTime,
-                            publishStateMask)).ConfigureAwait(false);
+                            publishStateMask),
+                        default).ConfigureAwait(false);
                 }
                 else
                 {
@@ -914,7 +927,8 @@ namespace Opc.Ua.Client.Subscriptions
                             message,
                             publishStateMask,
                             message.NotificationData[i],
-                            stringTable).ConfigureAwait(false);
+                            stringTable,
+                            lifetime).ConfigureAwait(false);
                     }
                 }
             }
@@ -923,6 +937,16 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionErrorDispatchingNotificationData(
                     ex,
                     Id);
+            }
+            finally
+            {
+                if (!lifetime.IsNull)
+                {
+                    lock (m_dispatchLifetimeLock)
+                    {
+                        m_dispatchLifetime = default;
+                    }
+                }
             }
 
             // Acknowledge even when a handler threw. The acknowledgement only
@@ -936,11 +960,20 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 try
                 {
-                    await AckQueue.QueueAsync(this, MessageGeneration, new SubscriptionAcknowledgement
+                    var ack = new SubscriptionAcknowledgement
                     {
                         SequenceNumber = message.SequenceNumber,
                         SubscriptionId = Id
-                    }, ct).ConfigureAwait(false);
+                    };
+                    if (!lifetime.IsNull && AckQueue is INotificationLifetimeAckQueue lifetimeQueue)
+                    {
+                        await lifetimeQueue.QueueAsync(this, MessageGeneration, ack, lifetime, ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await AckQueue.QueueAsync(this, MessageGeneration, ack, ct).ConfigureAwait(false);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -959,10 +992,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="notificationData"></param>
         /// <param name="stringTable">The string table of the publish or
         /// republish response the notification arrived in.</param>
+        /// <param name="lifetime">The lifetime stamped when the message was received.</param>
         /// <returns></returns>
         private async ValueTask DispatchAsync(NotificationMessage message,
             PublishState publishStateMask, ExtensionObject? notificationData,
-            IReadOnlyList<string> stringTable)
+            IReadOnlyList<string> stringTable, NotificationLifetime lifetime)
         {
             if (notificationData == null)
             {
@@ -977,7 +1011,8 @@ namespace Opc.Ua.Client.Subscriptions
                         (DateTime)message.PublishTime,
                         datachange,
                         publishStateMask,
-                        stringTable)).ConfigureAwait(false);
+                        stringTable),
+                    lifetime).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out EventNotificationList? events))
@@ -988,7 +1023,8 @@ namespace Opc.Ua.Client.Subscriptions
                         (DateTime)message.PublishTime,
                         events,
                         publishStateMask,
-                        stringTable)).ConfigureAwait(false);
+                        stringTable),
+                    lifetime).ConfigureAwait(false);
             }
             else if (notificationData.Value.TryGetValue(
                 out StatusChangeNotification? statusChanged))
@@ -1012,14 +1048,15 @@ namespace Opc.Ua.Client.Subscriptions
                         (DateTime)message.PublishTime,
                         statusChanged,
                         mask,
-                        stringTable)).ConfigureAwait(false);
+                        stringTable),
+                    lifetime).ConfigureAwait(false);
             }
         }
 
-        private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback)
+        private async ValueTask DispatchCallbackAsync(Func<ValueTask> callback, NotificationLifetime lifetime)
         {
             DispatchScope? previous = s_dispatchScope.Value;
-            var scope = new DispatchScope(this);
+            var scope = new DispatchScope(this, lifetime);
             s_dispatchScope.Value = scope;
             try
             {
@@ -1032,9 +1069,64 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
-        private sealed class DispatchScope(MessageProcessor processor)
+        /// <summary>
+        /// Gets the lifetime of the message whose notification callback runs in the current
+        /// asynchronous flow when one of <paramref name="processors"/> dispatches it.
+        /// </summary>
+        internal static bool TryGetCurrentDispatchLifetime(
+            uint sequenceNumber,
+            IReadOnlyList<IManagedSubscription> processors,
+            out NotificationLifetime lifetime)
+        {
+            DispatchScope? scope = s_dispatchScope.Value;
+            if (scope != null &&
+                Volatile.Read(ref scope.Active) != 0 &&
+                !scope.Lifetime.IsNull &&
+                scope.Lifetime.SequenceNumber == sequenceNumber)
+            {
+                foreach (IManagedSubscription processor in processors)
+                {
+                    if (ReferenceEquals(processor, scope.Processor))
+                    {
+                        lifetime = scope.Lifetime;
+                        return true;
+                    }
+                }
+            }
+            lifetime = default;
+            return false;
+        }
+
+        /// <inheritdoc/>
+        public bool TryGetNotificationLifetime(uint sequenceNumber, out NotificationLifetime lifetime)
+        {
+            DispatchScope? scope = s_dispatchScope.Value;
+            if (scope != null &&
+                ReferenceEquals(scope.Processor, this) &&
+                Volatile.Read(ref scope.Active) != 0 &&
+                !scope.Lifetime.IsNull &&
+                scope.Lifetime.SequenceNumber == sequenceNumber)
+            {
+                lifetime = scope.Lifetime;
+                return true;
+            }
+            lock (m_dispatchLifetimeLock)
+            {
+                if (!m_dispatchLifetime.IsNull && m_dispatchLifetime.SequenceNumber == sequenceNumber)
+                {
+                    lifetime = m_dispatchLifetime;
+                    return true;
+                }
+            }
+            lifetime = default;
+            return false;
+        }
+
+        private sealed class DispatchScope(MessageProcessor processor, NotificationLifetime lifetime)
         {
             public MessageProcessor Processor { get; } = processor;
+
+            public NotificationLifetime Lifetime { get; } = lifetime;
 
             public int Active = 1;
         }
@@ -1108,6 +1200,8 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly SemaphoreSlim m_messageCapacity;
 #pragma warning restore CA2213
         private long m_generation;
+        private readonly Lock m_dispatchLifetimeLock = new();
+        private NotificationLifetime m_dispatchLifetime;
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;

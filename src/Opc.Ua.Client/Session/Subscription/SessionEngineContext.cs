@@ -43,7 +43,7 @@ namespace Opc.Ua.Client
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
         private sealed class SessionEngineContext : ISubscriptionEngineContext, ISubscriptionAcknowledgementLifecycle,
-            ISubscriptionAcknowledgementPolicy
+            ISubscriptionAcknowledgementPolicy, INotificationLifetimeRegistry
         {
             public SessionEngineContext(Session session)
             {
@@ -61,6 +61,24 @@ namespace Opc.Ua.Client
             public long GetSubscriptionGeneration(uint subscriptionId)
             {
                 return m_session.GetSubscriptionGeneration(subscriptionId);
+            }
+
+            /// <inheritdoc/>
+            public NotificationLifetime StampNotificationLifetime(uint subscriptionId, uint sequenceNumber)
+            {
+                return m_session.StampNotificationLifetime(subscriptionId, sequenceNumber);
+            }
+
+            /// <inheritdoc/>
+            public bool IsCurrentNotificationLifetime(in NotificationLifetime lifetime)
+            {
+                return m_session.IsCurrentNotificationLifetime(lifetime);
+            }
+
+            /// <inheritdoc/>
+            public void OnNotificationsTerminated(List<NotificationTermination> terminations)
+            {
+                m_session.OnNotificationsTerminated(terminations);
             }
 
             /// <inheritdoc/>
@@ -295,6 +313,17 @@ namespace Opc.Ua.Client
                         currentAcknowledgements,
                     Func<SubscriptionAcknowledgement, long> generations)
             {
+                return PrepareAcknowledgementsToSend(currentAcknowledgements, generations, null);
+            }
+
+            /// <inheritdoc/>
+            public (List<SubscriptionAcknowledgement> toSend,
+                List<SubscriptionAcknowledgement> updatedPending)
+                PrepareAcknowledgementsToSend(
+                    List<SubscriptionAcknowledgement> currentAcknowledgements,
+                    Func<SubscriptionAcknowledgement, long> generations,
+                    NotificationLifetimeResolver? lifetimes)
+            {
                 PublishSequenceNumbersToAcknowledgeEventHandler?
                     callback =
                         m_session
@@ -318,7 +347,8 @@ namespace Opc.Ua.Client
                             new PublishSequenceNumbersToAcknowledgeEventArgs(
                                 currentAcknowledgements,
                                 deferred,
-                                generations));
+                                generations,
+                                lifetimes));
                         acknowledgementsToSend =
                             currentAcknowledgements;
                         return (acknowledgementsToSend, deferred);

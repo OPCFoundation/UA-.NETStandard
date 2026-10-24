@@ -2611,6 +2611,289 @@ namespace Opc.Ua.Client.Subscriptions
             }
         }
 
+        /// <summary>
+        /// Each Publish result ends the lifetime of its acknowledgement with the matching
+        /// disposition, and the deferral policy can resolve the lifetime it is presented.
+        /// </summary>
+        /// <param name="disposition">The disposition the server answer maps to.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase(NotificationDisposition.Acknowledged)]
+        [TestCase(NotificationDisposition.NotRetained)]
+        [TestCase(NotificationDisposition.OwnerRetired)]
+        [CancelAfter(10_000)]
+        public async Task PublishResultsEndNotificationLifetimesAsync(
+            NotificationDisposition disposition,
+            CancellationToken testCt)
+        {
+            StatusCode result = disposition switch
+            {
+                NotificationDisposition.Acknowledged => StatusCodes.Good,
+                NotificationDisposition.NotRetained => StatusCodes.BadSequenceNumberUnknown,
+                _ => StatusCodes.BadSubscriptionIdInvalid
+            };
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            var resolved = new ConcurrentQueue<NotificationLifetime>();
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    if (context.LastLifetimes!(acknowledgement, out NotificationLifetime lifetime))
+                    {
+                        resolved.Enqueue(lifetime);
+                    }
+                }
+                return (acknowledgements, []);
+            };
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, result);
+            await using (manager.ConfigureAwait(false))
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    testCt).ConfigureAwait(false);
+
+                await WaitUntilAsync(() => !context.Terminations.IsEmpty, testCt).ConfigureAwait(false);
+                NotificationTermination termination = context.Terminations.Single();
+                Assert.That(termination.Disposition, Is.EqualTo(disposition));
+                Assert.That(termination.Lifetime.SubscriptionId, Is.EqualTo(1u));
+                Assert.That(termination.Lifetime.SequenceNumber, Is.EqualTo(5u));
+                Assert.That(resolved, Is.EqualTo(new[] { termination.Lifetime }));
+            }
+            Assert.That(context.Terminations, Has.Count.EqualTo(1), "Dispose must not report it again.");
+        }
+
+        /// <summary>
+        /// The lifetime stamped when the message was received is kept even when the queue
+        /// would stamp a different one later.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task QueuedAcknowledgementsKeepTheirReceivedLifetimeAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, StatusCodes.Good);
+            await using (manager.ConfigureAwait(false))
+            {
+                NotificationLifetime received = context.StampNotificationLifetime(1, 5);
+                context.OnGetSubscriptionGeneration = _ => 9;
+
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    received, testCt).ConfigureAwait(false);
+
+                await WaitUntilAsync(() => !context.Terminations.IsEmpty, testCt).ConfigureAwait(false);
+                Assert.That(context.Terminations.Single().Lifetime, Is.EqualTo(received));
+            }
+        }
+
+        /// <summary>
+        /// An acknowledgement the deferral policy neither sends nor retains is abandoned.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementsDroppedByThePolicyEndAbandonedAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext
+            {
+                ProvidesNotificationLifetimes = true,
+                OnPrepareAcknowledgements = _ => ([], [])
+            };
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, StatusCodes.Good);
+            await using (manager.ConfigureAwait(false))
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    testCt).ConfigureAwait(false);
+
+                await WaitUntilAsync(() => !context.Terminations.IsEmpty, testCt).ConfigureAwait(false);
+                Assert.That(context.Terminations.Single().Disposition, Is.EqualTo(NotificationDisposition.Abandoned));
+            }
+        }
+
+        /// <summary>
+        /// Deferred acknowledgements of a retired subscription end as owner retired, once.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DeferredAcknowledgementsOfRetiredSubscriptionsEndOwnerRetiredAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            int presented = 0;
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                Interlocked.Add(ref presented, acknowledgements.Count);
+                return ([], acknowledgements);
+            };
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, StatusCodes.Good);
+            await using (manager.ConfigureAwait(false))
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    testCt).ConfigureAwait(false);
+                await WaitUntilAsync(() => Volatile.Read(ref presented) != 0, testCt).ConfigureAwait(false);
+
+                Assert.That(manager.DropPendingForSubscription(owner, 1), Is.EqualTo(1));
+
+                Assert.That(context.Terminations.Single().Disposition,
+                    Is.EqualTo(NotificationDisposition.OwnerRetired));
+            }
+            Assert.That(context.Terminations, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Disposing the manager retires every lifetime it still tracks.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task DisposeRetiresTrackedNotificationLifetimesAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            int presented = 0;
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                Interlocked.Add(ref presented, acknowledgements.Count);
+                return ([], acknowledgements);
+            };
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, StatusCodes.Good);
+            await using (manager.ConfigureAwait(false))
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    testCt).ConfigureAwait(false);
+                await WaitUntilAsync(() => Volatile.Read(ref presented) != 0, testCt).ConfigureAwait(false);
+                Assert.That(context.Terminations, Is.Empty);
+            }
+
+            Assert.That(context.Terminations.Select(termination => termination.Disposition),
+                Is.EqualTo(new[] { NotificationDisposition.OwnerRetired }));
+        }
+
+        /// <summary>
+        /// Without session support no lifetime is tracked or exposed.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task NotificationLifetimesAreNotTrackedWithoutSessionSupportAsync(CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            int sent = 0;
+            (SubscriptionManager manager, FakeManagedSubscription owner) =
+                StartLifetimeManager(context, StatusCodes.Good, () => Interlocked.Increment(ref sent));
+            await using (manager.ConfigureAwait(false))
+            {
+                await manager.QueueAsync(owner, owner.MessageGeneration,
+                    new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                    testCt).ConfigureAwait(false);
+                await WaitUntilAsync(() => Volatile.Read(ref sent) != 0, testCt).ConfigureAwait(false);
+
+                Assert.That(((INotificationLifetimeRegistry)manager).StampNotificationLifetime(1, 5).IsNull, Is.True);
+                Assert.That(context.LastLifetimes, Is.Null);
+            }
+            Assert.That(context.Terminations, Is.Empty);
+        }
+
+        /// <summary>
+        /// Queued acknowledgements of a retired subscription end as owner retired immediately,
+        /// even when no publish worker drains them.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task QueuedAcknowledgementsOfRetiredSubscriptionsEndWithoutPublishingAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            FakeManagedSubscription other = partitions[1];
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                testCt).ConfigureAwait(false);
+            await manager.QueueAsync(other, other.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 6 },
+                testCt).ConfigureAwait(false);
+
+            manager.DropPendingForSubscription(owner, 1);
+
+            NotificationTermination termination = context.Terminations.Single();
+            Assert.That(termination.Disposition, Is.EqualTo(NotificationDisposition.OwnerRetired));
+            Assert.That(termination.Lifetime.SubscriptionId, Is.EqualTo(1u));
+            Assert.That(manager.QueuedAcknowledgementCount, Is.EqualTo(1), "Other subscriptions keep theirs.");
+        }
+
+        /// <summary>
+        /// An acknowledgement that cannot be queued is never sent, so its lifetime ends.
+        /// </summary>
+        [Test]
+        public async Task AcknowledgementsThatCannotBeQueuedEndOwnerRetiredAsync()
+        {
+            var context = new FakeSubscriptionManagerContext { ProvidesNotificationLifetimes = true };
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync().ConfigureAwait(false);
+
+            Assert.That(async () => await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                context.StampNotificationLifetime(1, 5), cancelled.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.That(context.Terminations.Single().Disposition, Is.EqualTo(NotificationDisposition.OwnerRetired));
+            Assert.That(manager.QueuedAcknowledgementCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Creates a running manager with one created partition (id 1) whose Publish responses
+        /// answer every acknowledgement with <paramref name="result"/>.
+        /// </summary>
+        private (SubscriptionManager Manager, FakeManagedSubscription Owner) StartLifetimeManager(
+            FakeSubscriptionManagerContext context,
+            StatusCode result,
+            Action? onAcknowledgementSent = null)
+        {
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            var manager = new SubscriptionManager(context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                if (acknowledgements.Count != 0)
+                {
+                    onAcknowledgementSent?.Invoke();
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                response.Results = acknowledgements.ConvertAll(_ => result);
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            manager.Resume();
+            return (manager, partitions[0]);
+        }
+
         private static PublishResponse CreatePublishResponse(
             uint subscriptionId, uint sequenceNumber)
         {

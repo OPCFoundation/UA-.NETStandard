@@ -156,4 +156,31 @@ namespace Opc.Ua.Client.Subscriptions
             ArrayOf<string> stringTable,
             bool moreNotifications);
     }
+
+    /// <summary>
+    /// Optional manager-context capability that provides notification lifetimes. Kept separate so
+    /// <see cref="ISubscriptionManagerContext"/> implementations need not change.
+    /// </summary>
+    internal interface INotificationLifetimeManagerContext : INotificationLifetimeRegistry
+    {
+        /// <summary>
+        /// Gets whether the session provides notification lifetimes.
+        /// </summary>
+        bool ProvidesNotificationLifetimes { get; }
+
+        /// <summary>
+        /// Applies the session's acknowledgement-deferral callback, exposing generations and
+        /// notification lifetimes to the handler.
+        /// </summary>
+        /// <param name="acknowledgements">Acknowledgements eligible for the next request.</param>
+        /// <param name="generations">Resolves the subscription generation of a presented
+        /// acknowledgement.</param>
+        /// <param name="lifetimes">Resolves the notification lifetime of a presented acknowledgement.</param>
+        /// <returns>The acknowledgements to send and those to retain for a later request.</returns>
+        (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
+            PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements,
+                Func<SubscriptionAcknowledgement, long>? generations,
+                NotificationLifetimeResolver lifetimes);
+    }
 }

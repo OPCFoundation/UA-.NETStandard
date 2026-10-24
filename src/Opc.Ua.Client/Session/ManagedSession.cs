@@ -61,7 +61,7 @@ namespace Opc.Ua.Client
     /// </para>
     /// </remarks>
     public partial class ManagedSession : IManagedSession,
-        ModelChange.INamespaceTableRefresher, ISubscriptionAcknowledgementEvents
+        ModelChange.INamespaceTableRefresher, ISubscriptionAcknowledgementEvents, INotificationLifetimeEvents
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedSession"/>
@@ -889,6 +889,13 @@ namespace Opc.Ua.Client
 
         /// <inheritdoc/>
         public event EventHandler<SubscriptionAcknowledgementsDiscardedEventArgs>? SubscriptionAcknowledgementsDiscarded;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Forwarded from every inner session, including one that is being replaced: its
+        /// remaining lifetimes end when it is disposed.
+        /// </remarks>
+        public event EventHandler<NotificationsTerminatedEventArgs>? NotificationsTerminated;
 
         /// <inheritdoc/>
         public event EventHandler SubscriptionsChanged
@@ -2987,6 +2994,10 @@ namespace Opc.Ua.Client
             session.PublishAcknowledgementsCompleted += OnInnerAcknowledgementsCompleted;
             session.SubscriptionAcknowledgementsDiscarded += OnInnerAcknowledgementsDiscarded;
             session.SessionGenerationChanged += OnInnerSessionGenerationChanged;
+
+            // Never unwired: the session clears it when disposed, after reporting its last lifetimes.
+            session.NotificationsTerminated -= OnInnerNotificationsTerminated;
+            session.NotificationsTerminated += OnInnerNotificationsTerminated;
             session.SubscriptionsChanged +=
                 OnInnerSubscriptionsChanged;
             session.SessionClosing += OnInnerSessionClosing;
@@ -3216,6 +3227,14 @@ namespace Opc.Ua.Client
             {
                 Session.RaiseAcknowledgementEvent(SubscriptionAcknowledgementsDiscarded, e, this, m_logger);
             }
+        }
+
+        /// <summary>
+        /// Forwards ended notification lifetimes of any inner session; lifetimes identify their session.
+        /// </summary>
+        private void OnInnerNotificationsTerminated(object? sender, NotificationsTerminatedEventArgs e)
+        {
+            Session.RaiseAcknowledgementEvent(NotificationsTerminated, e, this, m_logger);
         }
 
         private void OnInnerSessionClosing(object? sender, EventArgs e)

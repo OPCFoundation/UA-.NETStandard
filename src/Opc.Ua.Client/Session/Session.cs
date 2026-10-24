@@ -233,6 +233,7 @@ namespace Opc.Ua.Client
                 PublishAcknowledgementsCompleted = template.PublishAcknowledgementsCompleted;
                 SubscriptionAcknowledgementsDiscarded = template.SubscriptionAcknowledgementsDiscarded;
                 SessionGenerationChanged = template.SessionGenerationChanged;
+                NotificationsTerminated = template.NotificationsTerminated;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -630,6 +631,7 @@ namespace Opc.Ua.Client
                 PublishAcknowledgementsCompleted = null;
                 SubscriptionAcknowledgementsDiscarded = null;
                 SessionGenerationChanged = null;
+                NotificationsTerminated = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -7335,10 +7337,12 @@ namespace Opc.Ua.Client
         internal PublishSequenceNumbersToAcknowledgeEventArgs(
             List<SubscriptionAcknowledgement> acknowledgementsToSend,
             List<SubscriptionAcknowledgement> deferredAcknowledgementsToSend,
-            Func<SubscriptionAcknowledgement, long>? generations)
+            Func<SubscriptionAcknowledgement, long>? generations,
+            NotificationLifetimeResolver? lifetimes = null)
             : this(acknowledgementsToSend, deferredAcknowledgementsToSend)
         {
             m_generations = generations;
+            m_lifetimes = lifetimes;
         }
 
         /// <summary>
@@ -7368,9 +7372,9 @@ namespace Opc.Ua.Client
         /// identify a message. Track pending approvals by (subscription id, generation,
         /// sequence number) and drop them when
         /// <see cref="ISubscriptionAcknowledgementEvents.SubscriptionAcknowledgementsDiscarded"/>
-        /// reports a generation greater than or equal to theirs. Returns zero when the
-        /// subscription was not created in this session (for example, after a transfer) or
-        /// the generation is unknown.
+        /// reports a generation greater than or equal to theirs. Returns zero when the session
+        /// does not know the subscription id or the engine does not report generations. Prefer
+        /// <see cref="TryGetLifetime"/>, which identifies the message as it was delivered.
         /// </remarks>
         /// <param name="acknowledgement">An acknowledgement presented in this callback.</param>
         public long GetSubscriptionGeneration(SubscriptionAcknowledgement acknowledgement)
@@ -7382,7 +7386,31 @@ namespace Opc.Ua.Client
             return m_generations?.Invoke(acknowledgement) ?? 0;
         }
 
+        /// <summary>
+        /// Gets the lifetime of the notification message an acknowledgement presented in this
+        /// callback confirms: the same value
+        /// <see cref="INotificationLifetimeSource.TryGetNotificationLifetime"/> returned when the
+        /// message was delivered. Match pending approvals by lifetime instead of by subscription id
+        /// and sequence number.
+        /// </summary>
+        /// <param name="acknowledgement">An acknowledgement presented in this callback. An
+        /// acknowledgement object created by the handler has no lifetime.</param>
+        /// <param name="lifetime">The lifetime, when known.</param>
+        /// <returns><c>false</c> when the engine does not track lifetimes or the acknowledgement
+        /// was not presented by it.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="acknowledgement"/> is <c>null</c>.</exception>
+        public bool TryGetLifetime(SubscriptionAcknowledgement acknowledgement, out NotificationLifetime lifetime)
+        {
+            if (acknowledgement == null)
+            {
+                throw new ArgumentNullException(nameof(acknowledgement));
+            }
+            lifetime = default;
+            return m_lifetimes != null && m_lifetimes(acknowledgement, out lifetime);
+        }
+
         private readonly Func<SubscriptionAcknowledgement, long>? m_generations;
+        private readonly NotificationLifetimeResolver? m_lifetimes;
     }
 
     /// <summary>
