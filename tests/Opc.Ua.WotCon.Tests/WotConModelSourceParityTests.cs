@@ -73,7 +73,7 @@ namespace Opc.Ua.WotCon.Tests
             {
                 Assert.That(
                     model.Attribute("Version")?.Value,
-                    Is.EqualTo("1.1.1"));
+                    Is.EqualTo("1.1"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
                     Is.EqualTo("2026-10-24T00:00:00Z"));
@@ -87,9 +87,9 @@ namespace Opc.Ua.WotCon.Tests
         /// <param name="browseName">The browse name used by this test case.</param>
         /// <param name="dataType">The data type used by this test case.</param>
         /// <param name="expectedValue">The expected value asserted by the test.</param>
-        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.1")]
+        [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
         [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
-        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1.1")]
+        [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
         [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-10-24T00:00:00Z")]
         public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
             string nodeId,

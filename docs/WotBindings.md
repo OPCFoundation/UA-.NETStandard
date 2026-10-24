@@ -1677,19 +1677,79 @@ round-trip guarantees.
 
 ### How this is checked
 
-The `.jsonld` examples under `tests/Opc.Ua.Types.Tests/Wot/Assets` are mirrored byte-for-byte from the official [OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT) Binding specification at commit `0b06c3e3b5d6a427193a17321abb6d1da4a2bae0`. UA-only regression assets are retained alongside them. `spec-examples.manifest.json` records the upstream coordinates and the SHA-256 and length of every numbered example; tests verify those bytes offline. `.gitattributes` preserves LF on checkout. To synchronize, copy every `*.jsonld` recursively from `source/WoT-Binding` by filename without transforming it, update the baseline and hashes in the manifest, and run the WoT tests.
+The numbered `.jsonld` examples under `tests/Opc.Ua.Types.Tests/Wot/Assets` are
+byte-for-byte copies of the examples in the
+[OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
+Binding specification at commit `0b06c3e3b5d6a427193a17321abb6d1da4a2bae0`.
+UA-only regression assets sit beside them. `spec-examples.manifest.json`
+records the upstream commit and the SHA-256 and length of every numbered
+example, and the tests verify those bytes offline. `.gitattributes` keeps LF
+on checkout, because a CRLF checkout would change every hash. To synchronize,
+copy every `*.jsonld` from `source/WoT-Binding` recursively by file name
+without transforming it, update the commit and hashes in the manifest, and
+run the WoT tests.
 
-The shared reference-resolution corpus at xRegistry spec commit `cc2d4c4137a2745dc91beb416578ee60a8b1d555` is mirrored without changes into `tests/Opc.Ua.Types.Tests/Wot/Resolution`. Its `MANIFEST.sha256` covers the vectors, schema, README and Python reference checker. `WotVersionResolverTests.CanonicalManifestMatchesEveryFile` verifies complete manifest coverage, hashes and LF, and `CanonicalVectorMatches` executes every vector through the C# resolver and publisher.
+`tests/Opc.Ua.Types.Tests/Wot/Resolution` is an unmodified copy of the shared
+reference-resolution corpus at xRegistry spec commit
+`9864057fe8d39ae69d8e178d7240f8f88b4c4b34`. The same corpus is mirrored in the
+xRegistry .NET implementation, so both resolvers are tested against one set of
+expected results. Its `MANIFEST.sha256` covers the vectors, the schema, the
+README and the Python reference checker.
+`WotVersionResolverTests.CanonicalManifestMatchesEveryFile` checks that the
+manifest covers every file, that each hash matches and that each file uses LF.
+`CanonicalVectorMatches` runs every vector through the C# resolver and
+publisher.
 
 ### Versioned document references
 
-`WotVersionResolver` selects a Thing Model version from caller-supplied resource snapshots. A digest or version-id pin overrides floors and default selection. Without a pin, an operator's sticky default is authoritative; otherwise the highest eligible SemVer wins. Prereleases (including generated `0.0.0-N` ids) require opt-in or a prerelease floor. A selected version below the floor fails as `unsatisfied`; resolution never downgrades. The returned identity includes the registry origin and content digest.
+A WoT reference names a Thing Model, but a registry can hold several versions
+of it. `WotVersionResolver` decides which version a reference resolves to,
+using resource snapshots the caller supplies. The order of precedence is:
 
-A single TD `rel:type` link uses the greater of its explicit `tm:minVersion` and the TD's implicit `version.model` by SemVer precedence, or the only floor present. With several type links and `version.model`, every link requires an explicit floor or unpinned resolution fails as `ambiguous-floor`; when all links have floors, each uses the greater of its own floor and `version.model`. Without `version.model`, each link uses only its own explicit floor if present, and otherwise has no floor without error.
+1. A pin by content digest or version id selects that version and overrides
+   floors and defaults.
+2. Without a pin, an operator's sticky default is authoritative.
+3. Otherwise the highest eligible SemVer version is selected.
 
-`AssignPublishedVersion` derives authored ids from `version.model`, rejects build metadata and mismatches, and assigns the lowest free `0.0.0-N` for absent or non-SemVer model versions. TD instance revision ids remain manual. Native FileType writers allocate an authored TM Version using its `version.model` before opening the file; content-less unversioned TM Versions use generated ids. Callers can explicitly select a generated Version as the sticky default with `SetDefaultVersionAsync` when deploying unversioned models.
+A prerelease, including a generated `0.0.0-N` id, is eligible only when the
+caller opts in or the floor is itself a prerelease. If the selected version is
+below the floor, resolution fails as `unsatisfied`; it never falls back to an
+older version. The result identifies the version by registry origin and
+content digest, so a consumer can tell which bytes it received.
 
-`IWotVersionedThingResolver` extends `IWotThingResolver` additively for stores holding multiple versions. The converter passes `tm:minVersion` on extends/submodel links and beside `tm:ref`, and derives the implicit TD type-link floor from `version.model`. `WotVersionedReference` checks floors on legacy providers' returned documents; those providers cannot silently satisfy a newer floor with older bytes. Registry dependency metadata retains each floor and projects it to `WoTDependencyDataType.RequiredVersion`. The model source is OPC 10100 WoT Connectivity 1.1.1 (2026-10-24), consumed by the existing Roslyn model source generator during build.
+The floor of a TD `rel:type` link comes from two places: the link's explicit
+`tm:minVersion` and the TD's own `version.model`, which states the model
+version the TD was written against. A single type link uses the greater of
+the two by SemVer precedence, or whichever one is present. With several type
+links, `version.model` cannot say which link it belongs to. When the TD has
+`version.model`, every link therefore needs an explicit floor; otherwise
+unpinned resolution fails as `ambiguous-floor`. When every link has a floor,
+each uses the greater of its own floor and `version.model`. Without
+`version.model`, each link uses its explicit floor if it has one and is
+otherwise unconstrained.
+
+`AssignPublishedVersion` assigns the version id on publication. An authored
+Thing Model takes its id from `version.model`; build metadata and a mismatch
+between the requested id and `version.model` are rejected. A Thing Model with
+no `version.model`, or one that is not SemVer, gets the lowest free
+`0.0.0-N`. TD instance revision ids stay manual. A native FileType writer
+allocates the Version of an authored Thing Model from its `version.model`
+before opening the file, while a TM Version without content gets a generated
+id. Because generated ids are prereleases, a deployment of unversioned models
+can select one explicitly as the sticky default with `SetDefaultVersionAsync`.
+
+`IWotVersionedThingResolver` extends `IWotThingResolver` for stores that hold
+several versions; existing implementations of `IWotThingResolver` are
+unaffected. The converter passes `tm:minVersion` from `extends` and submodel
+links and from beside `tm:ref`, and derives the implicit floor of a TD type
+link from `version.model`. A provider that implements only
+`IWotThingResolver` returns one document regardless of floor.
+`WotVersionedReference` checks that document against the floor, so an older
+document cannot satisfy a newer floor unnoticed. Registry dependency metadata
+keeps each floor and projects it to `WoTDependencyDataType.RequiredVersion`.
+
+The model source is OPC 10100 WoT Connectivity 1.1 (1.1-draft9, 2026-10-24).
+The existing Roslyn model source generator consumes it during the build.
 
 ### Resolving a type binding: the local context
 

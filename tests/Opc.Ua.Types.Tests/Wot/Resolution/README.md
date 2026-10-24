@@ -2,7 +2,14 @@
 
 <!-- words: allowprerelease bytewise contentdigest gitattributes hashlib hexdigest iterdir minversion pathlib prereleases py submodel typelinks versionorigin workingdrafts wotid -->
 
-These canonical fixtures exercise [specification Section 1.3](../../spec.md#13-versioning) and [Section 5.4](../../spec.md#54-versioned-reference-resolution). Each numbered JSON file is one independent case. Fixtures contain fake, syntactically valid `sha256:` digests followed by 64 lowercase hexadecimal characters; they identify fixture bytes symbolically and are not computed from a WoT document. `MANIFEST.sha256`, in contrast, hashes the actual committed bytes of every file in this directory except itself, including this README, the schema and the checker.
+These fixtures cover
+[specification Section 1.3](../../spec.md#13-versioning) and
+[Section 5.4](../../spec.md#54-versioned-reference-resolution). Each numbered
+JSON file describes one case. The `sha256:` values are syntactically valid
+placeholders followed by 64 lowercase hexadecimal characters; they identify
+fixture values symbolically and are not computed from a WoT document.
+`MANIFEST.sha256` hashes the committed bytes of every file in this directory
+except itself, including this README, the schema and the checker.
 
 ## Running the checker
 
@@ -12,11 +19,18 @@ From the repository root:
 python workingdrafts/models/wot/tests/resolution/check_vectors.py
 ```
 
-The checker verifies manifest coverage and hashes, requires LF and a final newline for every file, validates the schema and all vectors if `jsonschema` is installed, and executes the reference implementation against every expectation. Without `jsonschema` it explicitly reports the skipped shape check; semantic execution and manifest verification still run. Any failed check returns nonzero. The implementation uses only the Python standard library otherwise, and does not fetch schemas or documents.
+The checker verifies manifest coverage and hashes, requires LF and a final
+newline for each file, validates the schema and vectors when `jsonschema` is
+installed, and runs the reference implementation against every expected
+result. If `jsonschema` is absent, it reports the skipped shape check;
+manifest verification and semantic execution still run. A failed check
+returns a nonzero exit status. The remaining checks use only Python's standard library, and the checker
+fetches no schemas or documents.
 
 ## Format
 
-The format is defined by [schema.json](schema.json), using JSON Schema draft 2020-12. Unknown fields are rejected. The top-level fields are:
+The format is defined by [schema.json](schema.json), using JSON Schema draft
+2020-12. Unknown fields are rejected. The top-level fields are:
 
 | Field | Meaning |
 |---|---|
@@ -29,11 +43,34 @@ The format is defined by [schema.json](schema.json), using JSON Schema draft 202
 | `allowPrerelease` | OPTIONAL caller boolean, default `false`. Only for resolution cases. |
 | `expect` | Exactly one resolution `result`, publication `assigned`, or `error`, as defined below. |
 
-A Version in `registry[].versions` has `versionid`, `versionorigin` (`authored` or `generated`), `contentdigest`, and OPTIONAL `version.model`. A Resource MAY additionally have `deprecated: { "alternative": "https://..." }`. Version ids in stored snapshots are valid SemVer without build metadata. `defaultversionid` MAY be null for an empty Resource awaiting publication. A missing sticky Version can be represented to test an unavailable selection; a conforming Core write would not create that state.
+A Version in `registry[].versions` has `versionid`, `versionorigin`
+(`authored` or `generated`), `contentdigest`, and OPTIONAL `version.model`. A
+Resource MAY additionally have `deprecated: { "alternative": "https://..." }`.
+Version ids in stored snapshots are valid SemVer without build metadata.
+`defaultversionid` MAY be null for an empty Resource awaiting publication. A
+missing sticky Version can be represented to test an unavailable selection; a
+conforming Core write would not create that state.
 
-The dotted field name `version.model` is a literal JSON key in these normalized fixtures, corresponding to the nested WoT document member `version.model`. The fixture's `minVersion` is the normalized spelling of authored `tm:minVersion`. For `ref`, `target` is the document identifier after URI resolution and removal of the fragment; fragment traversal is outside these version-selection cases. No fixture transformation changes a stored document.
+The dotted field name `version.model` is a literal JSON key in these
+normalized fixtures, corresponding to the nested WoT document member
+`version.model`. The fixture's `minVersion` is the normalized spelling of
+authored `tm:minVersion`. For `ref`, `target` is the document identifier after
+URI resolution and removal of the fragment; fragment traversal is outside
+these version-selection cases. No fixture transformation changes a stored
+document.
 
-For a `type` reference, `document.typeLinks` lists all TD type links, and the request MUST project exactly one link by `target`, including its explicit `minVersion` if any. The list does not enumerate other link relations. A single link uses the greater of its explicit floor and `document["version.model"]` when both are present. When a TD has several type links and `version.model`, every link requires its own explicit floor; an omitted floor is `ambiguous-floor`. If all links have explicit floors, each link uses the greater of its own floor and `version.model` by SemVer precedence. Without `version.model`, each link uses only its own explicit floor if present, and otherwise has no floor; missing floors are not an error. Multiple Resource matches are disambiguated by registry and Group before this fixture interface; a `wotid` occurs at most once in `registry`.
+For a `type` reference, `document.typeLinks` lists all TD type links, and the
+request MUST project exactly one link by `target`, including its explicit
+`minVersion` if any. The list does not enumerate other link relations. A
+single link uses the greater of its explicit floor and
+`document["version.model"]` when both are present. When a TD has several type
+links and `version.model`, every link requires its own explicit floor; an
+omitted floor is `ambiguous-floor`. If all links have explicit floors, each
+link uses the greater of its own floor and `version.model` by SemVer
+precedence. Without `version.model`, each link uses only its own explicit
+floor if present, and otherwise has no floor; missing floors are not an error.
+Multiple Resource matches are disambiguated by registry and Group before this
+fixture interface; a `wotid` occurs at most once in `registry`.
 
 A successful resolution expects exactly:
 
@@ -47,7 +84,11 @@ A successful resolution expects exactly:
 }
 ```
 
-The production resolver also returns `origin`. It is resolver context, not authored document data or a Resource attribute. This checker uses the fixed origin `https://registry.example` and checks it separately before comparing the portable three-field result above. Consumers of the vectors MUST also retain their actual registry origin in production resolution output.
+The production resolver also returns `origin`. It is resolver context, not
+authored document data or a Resource attribute. This checker uses the fixed
+origin `https://registry.example` and checks it separately before comparing
+the portable three-field result above. Consumers of the vectors MUST also
+retain their actual registry origin in production resolution output.
 
 A successful publication expects exactly:
 
@@ -61,15 +102,34 @@ A successful publication expects exactly:
 }
 ```
 
-`assigned.defaultversionid` is the Core default after publication, not the resolver's prerelease-filtered choice. Publication requests address an existing Resource snapshot; an empty snapshot represents creation. They test TM version assignment and default selection, not document compatibility validation or Core HTTP envelopes. Supplied invalid syntax is intentionally permitted by the input schema so the resolver or publisher, rather than schema validation, produces the expected domain error.
+`assigned.defaultversionid` is the Core default after publication, not the
+resolver's prerelease-filtered choice. Publication requests address an
+existing Resource snapshot; an empty snapshot represents creation. They test
+TM version assignment and default selection, not document compatibility
+validation or Core HTTP envelopes. Supplied invalid syntax is intentionally
+permitted by the input schema so the resolver or publisher, rather than schema
+validation, produces the expected domain error.
 
-An error expectation is `{ "error": "<name>" }`. The exact names are `not-found`, `pin-mismatch`, `unsatisfied`, `ambiguous-floor`, `version-mismatch` and `invalid-version`. Pins bypass floors, sticky selection and prerelease filtering. Otherwise a sticky default is authoritative; without a sticky default the highest eligible SemVer wins. A selected Version below the floor fails without a downgrade. Generated `0.0.0-N` ids are never valid floors and are prereleases, so a generated-only Resource without opt-in, pin or sticky default is unsatisfied.
+An error expectation is `{ "error": "<name>" }`. The exact names are
+`not-found`, `pin-mismatch`, `unsatisfied`, `ambiguous-floor`,
+`version-mismatch` and `invalid-version`. Pins bypass floors, sticky selection
+and prerelease filtering. Otherwise a sticky default is authoritative; without
+a sticky default the highest eligible SemVer wins. A selected Version below
+the floor fails without a downgrade. Generated `0.0.0-N` ids are never valid
+floors and are prereleases, so a generated-only Resource without opt-in, pin
+or sticky default is unsatisfied.
 
 ## Canonical bytes and maintenance
 
-All files are UTF-8 without a byte-order mark, use LF and end in a newline. JSON files use two-space indentation. Vector filenames are stable and are listed in bytewise filename order in `MANIFEST.sha256`, whose lines are `<lowercase-sha256>  <filename>`. The repository's `.gitattributes` enforces LF for this directory. No timestamps or absolute local paths enter the fixtures or manifest.
+All files are UTF-8 without a byte-order mark, use LF and end in a newline.
+JSON files use two-space indentation. Vector filenames are stable and are
+listed in bytewise filename order in `MANIFEST.sha256`, whose lines are
+`<lowercase-sha256> <filename>`. The repository's `.gitattributes` enforces LF
+for this directory. No timestamps or absolute local paths enter the fixtures
+or manifest.
 
-After an intentional edit, regenerate the manifest from the repository root, then run the checker:
+After an intentional edit, regenerate the manifest from the repository root,
+then run the checker:
 
 ```python
 from hashlib import sha256
@@ -81,4 +141,8 @@ text = "".join(f"{sha256(p.read_bytes()).hexdigest()}  {p.name}\n" for p in file
 (folder / "MANIFEST.sha256").write_text(text, encoding="ascii", newline="\n")
 ```
 
-A semantic mutation test changes an expectation to another schema-valid value, regenerates the manifest so the semantic check is reached, and requires the checker to fail. Both the vector and manifest MUST then be restored byte-for-byte and the checker rerun. A separate byte mutation without rehashing MUST fail manifest verification.
+A semantic mutation test changes an expectation to another schema-valid value,
+regenerates the manifest so the semantic check is reached, and requires the
+checker to fail. Both the vector and manifest MUST then be restored
+byte-for-byte and the checker rerun. A separate byte mutation without
+rehashing MUST fail manifest verification.
