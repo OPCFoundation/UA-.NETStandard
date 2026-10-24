@@ -318,6 +318,112 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(reassembler.TryAddChunk(pid, 0, 11, BuildChunk(1, 4, 8, 4), out _), Is.True);
         }
 
+        /// <summary>
+        /// Keeps colliding chunk sequence numbers isolated by every configured source identifier.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(5)]
+        public void ReassemblyKeepsSourceKeysIndependent(int differingKey)
+        {
+            var publisher = PublisherId.FromByte(1);
+            PublisherId otherPublisher = differingKey switch
+            {
+                0 => PublisherId.FromByte(2),
+                1 => PublisherId.FromUInt16(1),
+                2 => PublisherId.FromUInt32(1),
+                3 => PublisherId.FromUInt64(1),
+                _ => publisher
+            };
+            ushort otherGroup = differingKey == 4 ? (ushort)2 : (ushort)1;
+            ushort? otherWriter = differingKey == 5 ? null : (ushort)0;
+            byte[] firstPayload = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] otherPayload = [11, 12, 13, 14, 15, 16, 17, 18];
+            var chunker = new UadpChunker();
+            IReadOnlyList<byte[]> first = chunker.Split(firstPayload, ushort.MaxValue, 18);
+            IReadOnlyList<byte[]> other = chunker.Split(otherPayload, ushort.MaxValue, 18);
+            using var reassembler = new UadpReassembler();
+
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 0, first[0], out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(otherPublisher, otherGroup, otherWriter, other[0], out _), Is.False);
+            Assert.That(reassembler.PendingCount, Is.EqualTo(2));
+            Assert.That(reassembler.TryAddChunk(
+                otherPublisher, otherGroup, otherWriter, other[1], out ReadOnlyMemory<byte>? otherResult), Is.True);
+            Assert.That(otherResult!.Value.ToArray(), Is.EqualTo(otherPayload));
+            Assert.That(reassembler.PendingCount, Is.EqualTo(1));
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 0, first[1], out ReadOnlyMemory<byte>? firstResult), Is.True);
+            Assert.That(firstResult!.Value.ToArray(), Is.EqualTo(firstPayload));
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Preserves incomplete messages across the UInt16 sequence boundary and releases completed identities.
+        /// </summary>
+        [Test]
+        public void ReassemblySequenceRolloverDoesNotMixPendingMessages()
+        {
+            byte[] beforePayload = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] afterPayload = [21, 22, 23, 24, 25, 26, 27, 28];
+            var chunker = new UadpChunker();
+            IReadOnlyList<byte[]> before = chunker.Split(beforePayload, ushort.MaxValue, 18);
+            IReadOnlyList<byte[]> after = chunker.Split(afterPayload, 0, 18);
+            var publisher = PublisherId.FromByte(1);
+            using var reassembler = new UadpReassembler();
+
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 2, before[0], out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 2, after[0], out _), Is.False);
+            Assert.That(reassembler.PendingCount, Is.EqualTo(2));
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 2, after[1], out ReadOnlyMemory<byte>? afterResult), Is.True);
+            Assert.That(afterResult!.Value.ToArray(), Is.EqualTo(afterPayload));
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 2, before[1], out ReadOnlyMemory<byte>? beforeResult), Is.True);
+            Assert.That(beforeResult!.Value.ToArray(), Is.EqualTo(beforePayload));
+            Assert.That(reassembler.PendingCount, Is.Zero);
+
+            IReadOnlyList<byte[]> reused = chunker.Split(afterPayload, ushort.MaxValue, 18);
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 2, reused[0], out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 2, reused[1], out ReadOnlyMemory<byte>? reusedResult), Is.True);
+            Assert.That(reusedResult!.Value.ToArray(), Is.EqualTo(afterPayload));
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Expiry releases a reused sequence identity without disturbing a newer pending source.
+        /// </summary>
+        [Test]
+        public void ReassemblySequenceReuseAfterExpiryKeepsNewerSourceIntact()
+        {
+            var clock = new FakeTimeProvider();
+            using var reassembler = new UadpReassembler(clock, TimeSpan.FromSeconds(1));
+            byte[] expiredPayload = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] newPayload = [21, 22, 23, 24, 25, 26, 27, 28];
+            var chunker = new UadpChunker();
+            IReadOnlyList<byte[]> expired = chunker.Split(expiredPayload, 0, 18);
+            IReadOnlyList<byte[]> newer = chunker.Split(newPayload, 0, 18);
+            var publisher = PublisherId.FromByte(1);
+
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 2, expired[0], out _), Is.False);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 3, newer[0], out _), Is.False);
+            clock.Advance(TimeSpan.FromMilliseconds(501));
+            Assert.That(reassembler.Sweep(), Is.EqualTo(1));
+            Assert.That(reassembler.PendingCount, Is.EqualTo(1));
+            Assert.That(reassembler.TryAddChunk(publisher, 1, 2, newer[0], out _), Is.False);
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 2, newer[1], out ReadOnlyMemory<byte>? reusedResult), Is.True);
+            Assert.That(reusedResult!.Value.ToArray(), Is.EqualTo(newPayload));
+            Assert.That(reassembler.TryAddChunk(
+                publisher, 1, 3, newer[1], out ReadOnlyMemory<byte>? otherResult), Is.True);
+            Assert.That(otherResult!.Value.ToArray(), Is.EqualTo(newPayload));
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
         [Test]
         public void ReassembleManySmallChunksIsLinear()
         {

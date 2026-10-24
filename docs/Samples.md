@@ -48,7 +48,7 @@ Minimal Client together.
   one executable with `publisher`, `subscriber`, and `external`
   external-server-adapter modes across the supported transport profiles.
 - [SecureChannel PubSub](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
-  (experimental) - brokerless UADP/JSON over dedicated or shared UASC, in one
+  (experimental) - brokerless UADP over dedicated or shared UASC, in one
   or two processes, with byte/value validation, live revision and optional
   Session authorization.
 

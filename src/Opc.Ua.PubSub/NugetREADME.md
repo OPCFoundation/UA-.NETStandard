@@ -62,7 +62,7 @@ DataChannelPubSubConfiguration.Configure(
     new DataChannelParametersDataType
     {
         ResourceUri = "urn:example:pubsub:telemetry",
-        Protocol = DataChannelProfiles.UadpPayload, // or JsonPayload
+        Protocol = DataChannelProfiles.UadpPayload,
         ContentType = "application/opcua+uadp",
         Direction = DataChannelDirection.OpenerToAcceptor,
         Delivery = DataChannelDeliveryMode.Ordered,
@@ -124,8 +124,8 @@ available. Authorization and protocol faults still take effect immediately.
 
 Carrier confidentiality needs neither a broker nor an SKS. Existing
 UADP signing/encryption remains available when explicitly configured
-with its normal key provider; JSON cannot silently satisfy a configured
-UADP message-security requirement.
+with its normal key provider. JSON PubSub is not supported over Data Channels;
+carrier confidentiality does not replace UADP message security.
 
 For live revisions, directional end, and flow diagnostics, a transport
 observer can retain the concrete `DataChannelPubSubTransport` created by

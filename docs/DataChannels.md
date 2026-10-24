@@ -57,8 +57,8 @@ It creates no Session or optional Data Channel model and needs no broker, native
 library, pre-existing server or certificate-validation bypass.
 
 ```powershell
-# JSON, with ordinary Read/Publish on the same shared SecureChannel.
-dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --encoding json
+# UADP, with ordinary Read/Publish on the same shared SecureChannel.
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared
 
 # Add X.509 Session authorization and reverse the Publisher role.
 dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --authorization session --reverse --count 12
@@ -123,9 +123,8 @@ and `AcceptTransport`. The adapter itself is not a QUIC, HTTP/3 or browser
 implementation, and stream establishment alone does not authenticate a UASC
 application.
 
-The following table describes the current experimental API and endpoint
-behavior. Its native profile and ALPN values are not the current Part 31/32
-baseline profiles.
+The following table distinguishes the current baseline profiles from the
+separately selectable legacy native flow profiles.
 
 Use `Opc.Ua.DataChannels.DataChannelProfiles`, rather than duplicating URI strings.
 Profile matching is exact; an unavailable profile is not substituted with another.
@@ -146,8 +145,10 @@ carriers.
 
 UASC flow endpoints reject `SecurityMode.None`. Confidential protection is the
 default. Integrity-only requires explicit binding permission **and** resource
-policy approval. Native endpoints use TLS/mTLS without an outer UASC layer;
-their discovery `None` fields do not mean unprotected data.
+policy approval. Legacy native flow endpoints use TLS/mTLS without an outer
+UASC layer; their discovery `None` fields do not mean unprotected data.
+The Part 31/32 native baselines independently authenticate applications through
+SignAndEncrypt UASC; transport TLS identity does not replace that authentication.
 
 The payload constants are independent of the carrier:
 

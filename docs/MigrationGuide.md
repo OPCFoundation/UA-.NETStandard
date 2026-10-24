@@ -74,21 +74,24 @@ awaited `SendAsync` outcomes and disposed receive-message leases.
 
 Regenerate model-dependent code and use the new constants and
 `DataChannelResult`; old provisional NodeIds and custom StatusCodes are not
-preserved. Native `opc.quic` now uses mutually authenticated TLS and
-`opcua-flow/1`, without an implicit UASC control connection. Select the
-optional Client/Server lane explicitly when it is required. Reconnection
-needs fresh context identity, flow IDs and authorization.
+preserved. Reconnection needs fresh context identity, flow IDs and authorization.
 
 The later split OPC 10000-30, -31 and -32 drafts `0.3.0` supersede that native
 transport design. Parts 31 and 32 require UACP/UASC Services and PubSub on a
-reliable baseline stream; the current branch's `opcua-flow/1` management
-exchange and separately selected Client/Server lane do not implement that
-baseline. Do not treat the legacy endpoint/profile values described above as
-the current draft profiles or as conformance evidence. The coordinated Part 14
+reliable baseline stream. Select `QuicUascTransport` or
+`NativeQuicUascTransport` with `DataChannelProfiles.UascQuic` for Part 31, or
+`WebTransportUascTransport` with `DataChannelProfiles.UascWebTransport` for
+the native Part 32 baseline. These reuse ordinary UACP/UASC and require
+SignAndEncrypt application authentication independently of transport TLS.
+The separately selectable `opcua-flow/1` protocol and nested Client/Server
+lane are legacy compositions, not those baselines. Browser WebTransport is
+not implemented, and full draft conformance remains unqualified.
+The coordinated Part 14
 application-payload amendment assigns NetworkMessageType 3 to the explicitly
 selected A/V and opaque formats; unamended type 3 and reserved types 4 through
-7 remain invalid. Full migration guidance will be updated as the new baseline
-and direct-delivery capabilities are implemented.
+7 remain invalid. PubSub over Data Channels requires ordinary UADP; replace
+experimental JSON-over-flow configurations rather than expecting a payload
+fallback.
 
 See [the migration table and carrier guide](DataChannels.md#migrating-from-the-earlier-experiment)
 and the [updated sample catalogue](Samples.md#experimental-data-channel-samples).
