@@ -423,6 +423,134 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
         }
 
+        /// <summary>
+        /// Transport-specific network services at every nested scope require explicit support, not silent omission.
+        /// </summary>
+        [TestCase(0, true)]
+        [TestCase(0, false)]
+        [TestCase(1, true)]
+        [TestCase(1, false)]
+        [TestCase(2, true)]
+        [TestCase(2, false)]
+        [TestCase(3, true)]
+        [TestCase(3, false)]
+        public void UafxConfigurationRejectsNestedTransportSettingsBeforeChangingProfile(int scope, bool enabled)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnectionWithGroups(enabled);
+            SetUafxTransportSettings(connection, scope);
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>().With.Message.Contains("TransportSettings"));
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+
+            connection.TransportProfileUri = DataChannelPubSubConfiguration.UafxTransportProfile;
+            var provider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                provider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ => CreateUafxParameters());
+
+            Assert.That(
+                () => factory.Create(connection, NUnitTelemetryContext.Create(), TimeProvider.System),
+                Throws.TypeOf<NotSupportedException>().With.Message.Contains("TransportSettings"));
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Caching local policy must not skip validation of the current PubSub configuration.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        public async Task UafxCachedPolicyStillRejectsChangedTransportSettings(int scope)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnectionWithGroups(true);
+            DataChannelParametersDataType parameters = CreateUafxParameters();
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, parameters);
+            var provider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            int resolverCalls = 0;
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                provider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ =>
+                {
+                    resolverCalls++;
+                    return parameters;
+                });
+            await using IPubSubTransport original = factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+            SetUafxTransportSettings(connection, scope);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => factory.Create(connection, NUnitTelemetryContext.Create(), TimeProvider.System),
+                    Throws.TypeOf<NotSupportedException>().With.Message.Contains("TransportSettings"));
+                Assert.That(
+                    () => new DataChannelPubSubFlowRequest(connection, parameters),
+                    Throws.TypeOf<NotSupportedException>().With.Message.Contains("TransportSettings"));
+                Assert.That(
+                    () => ((IDataChannelPubSubConfigurationProvider)factory).GetParameters(connection),
+                    Throws.TypeOf<NotSupportedException>().With.Message.Contains("TransportSettings"));
+                Assert.That(resolverCalls, Is.EqualTo(1));
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// Current group bounds remain authoritative even after the local policy has been cached.
+        /// </summary>
+        [TestCase(0u, true)]
+        [TestCase(0u, false)]
+        [TestCase(65537u, true)]
+        [TestCase(65537u, false)]
+        public async Task UafxCachedPolicyRevalidatesCurrentNetworkMessageBounds(uint maxMessageSize, bool writer)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnectionWithGroups(true);
+            DataChannelParametersDataType parameters = CreateUafxParameters();
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, parameters);
+            var provider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            int resolverCalls = 0;
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                provider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ =>
+                {
+                    resolverCalls++;
+                    return parameters;
+                });
+            await using IPubSubTransport original = factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+            if (writer)
+            {
+                connection.WriterGroups[0].MaxNetworkMessageSize = maxMessageSize;
+            }
+            else
+            {
+                connection.ReaderGroups[0].MaxNetworkMessageSize = maxMessageSize;
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => factory.Create(connection, NUnitTelemetryContext.Create(), TimeProvider.System),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => new DataChannelPubSubFlowRequest(connection, parameters),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(
+                    () => ((IDataChannelPubSubConfigurationProvider)factory).GetParameters(connection),
+                    Throws.TypeOf<ArgumentOutOfRangeException>());
+                Assert.That(resolverCalls, Is.EqualTo(1));
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
         [TestCase(0u, true)]
         [TestCase(0u, false)]
         [TestCase(65537u, true)]
@@ -1133,6 +1261,63 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 MaxMessageSize = 65536,
                 MaxReceiveBytes = 262144
             };
+        }
+
+        /// <summary>
+        /// Creates ordinary finite UADP groups with initially null transport settings.
+        /// </summary>
+        private static PubSubConnectionDataType CreateUafxConnectionWithGroups(bool enabled)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType
+                {
+                    Name = "writerGroup",
+                    Enabled = enabled,
+                    MaxNetworkMessageSize = 65536,
+                    DataSetWriters = [new DataSetWriterDataType { Name = "writer", Enabled = enabled }]
+                }
+            ];
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    Name = "readerGroup",
+                    Enabled = enabled,
+                    MaxNetworkMessageSize = 65536,
+                    DataSetReaders = [new DataSetReaderDataType { Name = "reader", Enabled = enabled }]
+                }
+            ];
+            return connection;
+        }
+
+        /// <summary>
+        /// Installs a concrete transport request at one configuration scope.
+        /// </summary>
+        private static void SetUafxTransportSettings(PubSubConnectionDataType connection, int scope)
+        {
+            var settings = new ExtensionObject(new DatagramWriterGroupTransportDataType());
+            switch (scope)
+            {
+                case 0:
+                    connection.WriterGroups[0].TransportSettings = settings;
+                    break;
+                case 1:
+                    connection.WriterGroups[0].DataSetWriters[0].TransportSettings = settings;
+                    break;
+                case 2:
+                    connection.ReaderGroups[0].TransportSettings = settings;
+                    break;
+                case 3:
+                    connection.ReaderGroups[0].DataSetReaders[0].TransportSettings = settings;
+                    break;
+                case 4:
+                    connection.TransportSettings = settings;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(scope));
+            }
         }
 
         private static PubSubConnectionDataType CreateUafxConnection(

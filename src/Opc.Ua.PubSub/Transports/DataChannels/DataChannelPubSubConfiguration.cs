@@ -337,13 +337,16 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
         }
 
-        private static void ValidateUafxBinding(
+        /// <summary>
+        /// Checks the current PubSub configuration against its stable local UAFX flow policy.
+        /// </summary>
+        internal static void ValidateUafxBinding(
             PubSubConnectionDataType connection,
             DataChannelParametersDataType parameters)
         {
             ValidateParameters(parameters, DataChannelCarrierKind.SharedUasc);
             ValidateMessageSettings(connection);
-            ValidateUafxMessageSettings(connection);
+            ValidateUafxGroupSettings(connection);
             if (parameters.Protocol != DataChannelProfiles.UadpPayload ||
                 parameters.ContentType != UafxContentType ||
                 parameters.Delivery != DataChannelDeliveryMode.Ordered ||
@@ -354,11 +357,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     "The UAFX binding requires ordered confidential UADP with application/octet-stream content.");
             }
             ValidateUafxMessageBounds(connection, parameters.MaxMessageSize);
-            if (!connection.TransportSettings.IsNull)
-            {
-                throw new NotSupportedException(
-                    "The UAFX PubSub-over-UASC mapping requires null connection TransportSettings.");
-            }
+            ValidateUafxTransportSettings(connection.TransportSettings, "connection");
             if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? address) ||
                 address is null ||
                 !Uri.TryCreate(address.Url, UriKind.Absolute, out Uri? endpoint) ||
@@ -396,10 +395,14 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
         }
 
-        private static void ValidateUafxMessageSettings(PubSubConnectionDataType connection)
+        /// <summary>
+        /// Rejects unsupported message and transport settings before a UAFX connection can be enabled.
+        /// </summary>
+        private static void ValidateUafxGroupSettings(PubSubConnectionDataType connection)
         {
             foreach (WriterGroupDataType group in connection.WriterGroups)
             {
+                ValidateUafxTransportSettings(group.TransportSettings, $"WriterGroup '{group.Name}'");
                 if (!group.MessageSettings.IsNull &&
                     !group.MessageSettings.TryGetValue(out UadpWriterGroupMessageDataType? _))
                 {
@@ -408,6 +411,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 }
                 foreach (DataSetWriterDataType writer in group.DataSetWriters)
                 {
+                    ValidateUafxTransportSettings(writer.TransportSettings, $"DataSetWriter '{writer.Name}'");
                     if (!writer.MessageSettings.IsNull &&
                         !writer.MessageSettings.TryGetValue(out UadpDataSetWriterMessageDataType? _))
                     {
@@ -418,6 +422,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
             foreach (ReaderGroupDataType group in connection.ReaderGroups)
             {
+                ValidateUafxTransportSettings(group.TransportSettings, $"ReaderGroup '{group.Name}'");
                 if (!group.MessageSettings.IsNull &&
                     !group.MessageSettings.TryGetValue(out ReaderGroupMessageDataType? _))
                 {
@@ -426,6 +431,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 }
                 foreach (DataSetReaderDataType reader in group.DataSetReaders)
                 {
+                    ValidateUafxTransportSettings(reader.TransportSettings, $"DataSetReader '{reader.Name}'");
                     if (!reader.MessageSettings.IsNull &&
                         !reader.MessageSettings.TryGetValue(out UadpDataSetReaderMessageDataType? _))
                     {
@@ -433,6 +439,18 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                             $"DataSetReader '{reader.Name}' must use UADP DataSetReader message settings.");
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Refuses transport-specific network service requests that the UAFX mapping cannot supply.
+        /// </summary>
+        private static void ValidateUafxTransportSettings(ExtensionObject settings, string scope)
+        {
+            if (!settings.IsNull)
+            {
+                throw new NotSupportedException(
+                    $"The UAFX PubSub-over-UASC mapping requires null {scope} TransportSettings.");
             }
         }
 

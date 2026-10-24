@@ -148,6 +148,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     key => new Lazy<DataChannelParametersDataType>(
                         () => DataChannelPubSubConfiguration.GetUafxParameters(key, resolver),
                         System.Threading.LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+                DataChannelPubSubConfiguration.ValidateUafxBinding(connection, parameters);
                 return DataChannelPubSubConfiguration.CopyParameters(parameters);
             }
             return DataChannelPubSubConfiguration.GetParameters(connection);

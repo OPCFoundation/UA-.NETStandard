@@ -65,6 +65,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
             if (connection.TransportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile)
             {
+                DataChannelPubSubConfiguration.ValidateUafxBinding(connection, parameters);
                 CarrierKind = DataChannelCarrierKind.SharedUasc;
             }
             else if (DataChannelPubSubConfiguration.TryGetCarrierKind(

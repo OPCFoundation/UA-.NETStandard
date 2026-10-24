@@ -425,7 +425,8 @@ delivery contracts or lifetimes need separate flows.
 
 The optional UAFX configuration bridge uses the standard
 `DataChannelProfiles.PubSubUasc` profile. `ConfigureUafx` validates an
-`opc.tcp` or `opc.wss` address, null transport-specific settings, and a local
+`opc.tcp` or `opc.wss` address, null transport-specific settings at the connection,
+group and DataSetWriter/DataSetReader scopes, and a local
 ordered/confidential UADP policy with `application/octet-stream`; it does not
 serialize that policy into PubSub `ConnectionProperties`. Register the shared
 UASC flow provider and a local policy resolver with
@@ -433,11 +434,15 @@ UASC flow provider and a local policy resolver with
 project the same local policy with `PubSubDataChannelSource.CreateUafx`. The
 resolver must return the stable preprovisioned policy snapshot for the
 selected connection; runtime changes require a newly configured connection.
+Caching that policy does not skip revalidation of the current PubSub
+configuration when resolving parameters or creating a flow request.
 Every configured writer and reader group must have a finite
 `MaxNetworkMessageSize` no greater than the local flow limit. That policy is
 validated before the flow is opened. The bridge rejects type-3 application
 payloads and message-settings objects from non-UADP models rather than
-substituting an encoding or ignoring incompatible settings. This is only the
+substituting an encoding or ignoring incompatible settings. Transport-specific
+network service requests are rejected even on disabled components, before
+changing the profile or creating a runtime transport. This is only the
 transport/config bridge: Part 81 ConnectionManager procedures,
 endpoint ownership, role claims, authorization, status, persistence and
 recovery remain unimplemented, so this API does not establish UAFX conformance.
