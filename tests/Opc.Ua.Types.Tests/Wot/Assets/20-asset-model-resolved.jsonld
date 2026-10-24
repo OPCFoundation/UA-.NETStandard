@@ -18,25 +18,25 @@
       "rel": "ua:Organizes",
       "href": "./16-model-group-process-data.jsonld",
       "uav:refName": "ProcessData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./17-model-group-condition-data.jsonld",
       "uav:refName": "ConditionData",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./18-model-group-alarms.jsonld",
       "uav:refName": "Alarms",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     },
     {
       "rel": "ua:Organizes",
       "href": "./19-model-group-management.jsonld",
       "uav:refName": "Management",
-      "type": "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\""
+      "type": "application/tm+json"
     }
   ],
   "properties": {

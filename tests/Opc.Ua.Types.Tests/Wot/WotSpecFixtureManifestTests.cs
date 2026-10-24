@@ -47,9 +47,8 @@ namespace Opc.Ua.Types.Tests.Wot
     /// specification baseline separately from their provenance.
     /// </summary>
     /// <remarks>
-    /// The embedded documents are retained as regression inputs. They are not
-    /// authoritative copies of the current specification examples and do not
-    /// establish conformance to the official baseline.
+    /// The specification examples are mirrored byte-for-byte from the pinned
+    /// upstream baseline. UA-only regression inputs are retained separately.
     /// </remarks>
     [TestFixture]
     [Category("WoT")]
@@ -100,7 +99,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo("https://github.com/OPCF-Members/OPC10100-WoT.git"));
                 Assert.That(
                     manifest.Commit,
-                    Is.EqualTo("40125acd1b65cdf291a92a67a5c6565656358e6e"));
+                    Is.EqualTo("0b06c3e3b5d6a427193a17321abb6d1da4a2bae0"));
                 Assert.That(
                     manifest.BindingRevision,
                     Is.EqualTo(WotBindingConformance.CurrentRevision));
@@ -122,6 +121,19 @@ namespace Opc.Ua.Types.Tests.Wot
                         name,
                         Does.StartWith((ii + 1).ToString("00", CultureInfo.InvariantCulture) + "-"));
                 }
+            });
+        }
+
+        [Test]
+        public void BindingContextMatchesItsCanonicalHash()
+        {
+            using JsonDocument manifest = JsonDocument.Parse(ReadEmbeddedExample(ManifestFileName));
+            JsonElement entry = manifest.RootElement.GetProperty("context");
+            byte[] bytes = ReadEmbeddedExample(entry.GetProperty("name").GetString()!);
+            Assert.Multiple(() =>
+            {
+                Assert.That(bytes, Has.Length.EqualTo(entry.GetProperty("bytes").GetInt32()));
+                Assert.That(Sha256Hex(bytes), Is.EqualTo(entry.GetProperty("sha256").GetString()));
             });
         }
 

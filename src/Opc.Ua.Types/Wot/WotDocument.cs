@@ -130,8 +130,31 @@ namespace Opc.Ua.Wot
                         return WotDocumentKind.ThingDescription;
                     }
                 }
+                if (RootElement.TryGetProperty("title", out _) &&
+                    RootElement.TryGetProperty("@context", out JsonElement context) &&
+                    HasThingDescriptionContext(context))
+                {
+                    return WotDocumentKind.ThingDescription;
+                }
                 return WotDocumentKind.Unknown;
             }
+        }
+
+        private static bool HasThingDescriptionContext(JsonElement context)
+        {
+            if (context.ValueKind == JsonValueKind.String)
+            {
+                return context.GetString() == WotVocabulary.WotContext;
+            }
+            bool found = false;
+            if (context.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement entry in context.EnumerateArray())
+                {
+                    found = entry.ValueKind == JsonValueKind.Null ? false : found || HasThingDescriptionContext(entry);
+                }
+            }
+            return found;
         }
 
         /// <summary>

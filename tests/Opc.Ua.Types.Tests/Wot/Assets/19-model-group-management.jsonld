@@ -7,8 +7,7 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingModel",
+  "@type": ["tm:ThingModel", "uav:projection"],
   "id": "urn:example:model:pump-asset:management",
   "title": "Management",
   "description": "A type-level action group selecting three existing Method declarations. One canonical View retains its identity, and each parent reaches its members through a separate organizational occurrence with a ProjectionRoot Property.",
