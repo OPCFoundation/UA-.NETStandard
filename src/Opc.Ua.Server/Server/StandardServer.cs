@@ -53,7 +53,8 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
+    public class StandardServer :
+        SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -232,6 +233,17 @@ namespace Opc.Ua.Server
         /// Optional trusted ingress/owner mapper. Set before startup.
         /// </summary>
         public IResourceIsolationClassifier? ResourceIsolationClassifier { get; set; }
+
+        /// <summary>
+        /// Gets or sets the default-off experimental feature options before startup.
+        /// </summary>
+        public AsyncServiceExecutionOptions AsyncServices { get; set; } = new();
+
+        /// <summary>
+        /// Gets or sets the injectable factory used when experimental execution is enabled.
+        /// </summary>
+        public IAsyncServiceExecutionProviderFactory AsyncServiceExecutionProviderFactory { get; set; } =
+            DefaultAsyncServiceExecutionProviderFactory.Instance;
 
         /// <summary>
         /// Optional complex type load options applied when
@@ -925,7 +937,7 @@ namespace Opc.Ua.Server
                 // report audit for successful create session
                 ServerInternal.ReportAuditCreateSessionEvent(
                     context.AuditEntryId!,
-                    session!,
+                    session,
                     context.ChannelContext.SecureChannelId,
                     clientCertificate,
                     clientCertificateThumbprint,
@@ -1230,6 +1242,7 @@ namespace Opc.Ua.Server
         /// Looks up a session whose activation committed; a session that was removed
         /// or started closing since then fails with Bad_SessionClosed.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private ISession GetActivatedSessionOrThrowClosed(NodeId authenticationToken)
         {
             ISession? session = ServerInternal.SessionManager.GetSession(authenticationToken);
@@ -1588,6 +1601,17 @@ namespace Opc.Ua.Server
                 RequestType.Browse,
                 requestLifetime).ConfigureAwait(false);
 
+            return await BrowseServiceAsync(
+                context, requestHeader, view, requestedMaxReferencesPerNode, nodesToBrowse).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary Browse validation and dispatch with the supplied invocation lifetime.
+        /// </summary>
+        private async ValueTask<BrowseResponse> BrowseServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ViewDescription? view,
+            uint requestedMaxReferencesPerNode, ArrayOf<BrowseDescription> nodesToBrowse)
+        {
             try
             {
                 ValidateOperationLimits(nodesToBrowse, OperationLimits.MaxNodesPerBrowse);
@@ -1598,7 +1622,7 @@ namespace Opc.Ua.Server
                         view!,
                         requestedMaxReferencesPerNode,
                         nodesToBrowse,
-                        requestLifetime.CancellationToken)
+                        context.CancellationToken)
                     .ConfigureAwait(false);
 
                 var response = new BrowseResponse
@@ -1635,6 +1659,17 @@ namespace Opc.Ua.Server
                 RequestType.BrowseNext,
                 requestLifetime).ConfigureAwait(false);
 
+            return await BrowseNextServiceAsync(
+                context, requestHeader, releaseContinuationPoints, continuationPoints).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary BrowseNext validation and dispatch without transferring continuation ownership.
+        /// </summary>
+        private async ValueTask<BrowseNextResponse> BrowseNextServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, bool releaseContinuationPoints,
+            ArrayOf<ByteString> continuationPoints)
+        {
             try
             {
                 ValidateOperationLimits(continuationPoints, OperationLimits.MaxNodesPerBrowse);
@@ -1644,13 +1679,13 @@ namespace Opc.Ua.Server
                         context,
                         releaseContinuationPoints,
                         continuationPoints,
-                        requestLifetime.CancellationToken)
+                        context.CancellationToken)
                     .ConfigureAwait(false);
 
                 var response = new BrowseNextResponse
                 {
-                    Results = results,
-                    DiagnosticInfos = diagnosticInfos
+                    Results = releaseContinuationPoints ? [] : results,
+                    DiagnosticInfos = releaseContinuationPoints ? [] : diagnosticInfos
                 };
                 response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
                 return response;
@@ -1680,6 +1715,15 @@ namespace Opc.Ua.Server
                 RequestType.AddNodes,
                 requestLifetime).ConfigureAwait(false);
 
+            return await AddNodesServiceAsync(context, requestHeader, nodesToAdd).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary AddNodes validation, dispatch and auditing with an owned or exchange context.
+        /// </summary>
+        private async ValueTask<AddNodesResponse> AddNodesServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<AddNodesItem> nodesToAdd)
+        {
             try
             {
                 ValidateOperationLimits(nodesToAdd, OperationLimits.MaxNodesPerNodeManagement);
@@ -1688,7 +1732,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.AddNodesAsync(
                         context,
                         nodesToAdd,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 StatusCode auditStatus = AggregateStatusCode(results);
                 ServerInternal.ReportAuditAddNodesEvent(
@@ -1738,6 +1782,15 @@ namespace Opc.Ua.Server
                 RequestType.DeleteNodes,
                 requestLifetime).ConfigureAwait(false);
 
+            return await DeleteNodesServiceAsync(context, requestHeader, nodesToDelete).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary DeleteNodes validation, dispatch and auditing with an owned or exchange context.
+        /// </summary>
+        private async ValueTask<DeleteNodesResponse> DeleteNodesServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<DeleteNodesItem> nodesToDelete)
+        {
             try
             {
                 ValidateOperationLimits(nodesToDelete, OperationLimits.MaxNodesPerNodeManagement);
@@ -1746,7 +1799,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.DeleteNodesAsync(
                         context,
                         nodesToDelete,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 StatusCode auditStatus = AggregateStatusCode(results);
                 ServerInternal.ReportAuditDeleteNodesEvent(
@@ -1796,6 +1849,15 @@ namespace Opc.Ua.Server
                 RequestType.AddReferences,
                 requestLifetime).ConfigureAwait(false);
 
+            return await AddReferencesServiceAsync(context, requestHeader, referencesToAdd).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary AddReferences validation, dispatch and auditing with an owned or exchange context.
+        /// </summary>
+        private async ValueTask<AddReferencesResponse> AddReferencesServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<AddReferencesItem> referencesToAdd)
+        {
             try
             {
                 ValidateOperationLimits(referencesToAdd, OperationLimits.MaxNodesPerNodeManagement);
@@ -1804,7 +1866,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.AddReferencesAsync(
                         context,
                         referencesToAdd,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 StatusCode auditStatus = AggregateStatusCode(results);
                 ServerInternal.ReportAuditAddReferencesEvent(
@@ -1854,6 +1916,15 @@ namespace Opc.Ua.Server
                 RequestType.DeleteReferences,
                 requestLifetime).ConfigureAwait(false);
 
+            return await DeleteReferencesServiceAsync(context, requestHeader, referencesToDelete).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary DeleteReferences validation, dispatch and auditing with an owned or exchange context.
+        /// </summary>
+        private async ValueTask<DeleteReferencesResponse> DeleteReferencesServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<DeleteReferencesItem> referencesToDelete)
+        {
             try
             {
                 ValidateOperationLimits(referencesToDelete, OperationLimits.MaxNodesPerNodeManagement);
@@ -1862,7 +1933,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.DeleteReferencesAsync(
                         context,
                         referencesToDelete,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 StatusCode auditStatus = AggregateStatusCode(results);
                 ServerInternal.ReportAuditDeleteReferencesEvent(
@@ -1949,6 +2020,15 @@ namespace Opc.Ua.Server
                 requestHeader,
                 RequestType.RegisterNodes,
                 requestLifetime).ConfigureAwait(false);
+            return RegisterNodesService(context, requestHeader, nodesToRegister);
+        }
+
+        /// <summary>
+        /// Runs the existing in-memory registration handler without changing its alias semantics.
+        /// </summary>
+        private RegisterNodesResponse RegisterNodesService(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<NodeId> nodesToRegister)
+        {
             RegisterNodesResponse response;
             try
             {
@@ -1989,6 +2069,15 @@ namespace Opc.Ua.Server
                 RequestType.UnregisterNodes,
                 requestLifetime).ConfigureAwait(false);
 
+            return UnregisterNodesService(context, requestHeader, nodesToUnregister);
+        }
+
+        /// <summary>
+        /// Runs the existing in-memory unregistration handler without transferring aliases.
+        /// </summary>
+        private UnregisterNodesResponse UnregisterNodesService(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<NodeId> nodesToUnregister)
+        {
             UnregisterNodesResponse response;
             try
             {
@@ -2027,6 +2116,15 @@ namespace Opc.Ua.Server
                 RequestType.TranslateBrowsePathsToNodeIds,
                 requestLifetime).ConfigureAwait(false);
 
+            return await TranslateBrowsePathsServiceAsync(context, requestHeader, browsePaths).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary path translation and its existing per-item validation.
+        /// </summary>
+        private async ValueTask<TranslateBrowsePathsToNodeIdsResponse> TranslateBrowsePathsServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<BrowsePath> browsePaths)
+        {
             try
             {
                 // The limit bounds the browsePaths array only (Part 5 6.3.11); the number of
@@ -2039,7 +2137,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.TranslateBrowsePathsToNodeIdsAsync(
                         context,
                         browsePaths,
-                        requestLifetime.CancellationToken)
+                        context.CancellationToken)
                     .ConfigureAwait(false);
 
                 var response = new TranslateBrowsePathsToNodeIdsResponse
@@ -2077,6 +2175,20 @@ namespace Opc.Ua.Server
                 RequestType.Read,
                 requestLifetime).ConfigureAwait(false);
 
+            return await ReadServiceAsync(context, requestHeader, maxAge, timestampsToReturn, nodesToRead)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Read handler with either an exchange-owned or independently owned validated context.
+        /// </summary>
+        private async ValueTask<ReadResponse> ReadServiceAsync(
+            OperationContext context,
+            RequestHeader? requestHeader,
+            double maxAge,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<ReadValueId> nodesToRead)
+        {
             try
             {
                 ValidateOperationLimits(nodesToRead, OperationLimits.MaxNodesPerRead);
@@ -2087,7 +2199,7 @@ namespace Opc.Ua.Server
                         maxAge,
                         timestampsToReturn,
                         nodesToRead,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 var response = new ReadResponse
                 {
@@ -2127,6 +2239,21 @@ namespace Opc.Ua.Server
                 RequestType.HistoryRead,
                 requestLifetime).ConfigureAwait(false);
 
+            return await HistoryReadServiceAsync(context, requestHeader, historyReadDetails, timestampsToReturn,
+                releaseContinuationPoints, nodesToRead).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary historical reads without extending the lifetime of their continuation points.
+        /// </summary>
+        private async ValueTask<HistoryReadResponse> HistoryReadServiceAsync(
+            OperationContext context,
+            RequestHeader? requestHeader,
+            ExtensionObject historyReadDetails,
+            TimestampsToReturn timestampsToReturn,
+            bool releaseContinuationPoints,
+            ArrayOf<HistoryReadValueId> nodesToRead)
+        {
             try
             {
                 if (historyReadDetails.TryGetValue(out ReadEventDetails? _))
@@ -2149,7 +2276,7 @@ namespace Opc.Ua.Server
                         timestampsToReturn,
                         releaseContinuationPoints,
                         nodesToRead,
-                        requestLifetime.CancellationToken)
+                        context.CancellationToken)
                     .ConfigureAwait(false);
 
                 var response = new HistoryReadResponse
@@ -2187,13 +2314,22 @@ namespace Opc.Ua.Server
                 RequestType.Write,
                 requestLifetime).ConfigureAwait(false);
 
+            return await WriteServiceAsync(context, requestHeader, nodesToWrite).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Write handler without changing its per-item validation or mutation semantics.
+        /// </summary>
+        private async ValueTask<WriteResponse> WriteServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<WriteValue> nodesToWrite)
+        {
             try
             {
                 ValidateOperationLimits(nodesToWrite, OperationLimits.MaxNodesPerWrite);
 
                 (ArrayOf<StatusCode> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
                     await ServerInternal.NodeManager
-                        .WriteAsync(context, nodesToWrite, requestLifetime.CancellationToken)
+                        .WriteAsync(context, nodesToWrite, context.CancellationToken)
                         .ConfigureAwait(false);
 
                 var response = new WriteResponse
@@ -2229,6 +2365,15 @@ namespace Opc.Ua.Server
                 RequestType.HistoryUpdate,
                 requestLifetime).ConfigureAwait(false);
 
+            return await HistoryUpdateServiceAsync(context, requestHeader, historyUpdateDetails).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs ordinary historical updates with the existing permissions and operation limits.
+        /// </summary>
+        private async ValueTask<HistoryUpdateResponse> HistoryUpdateServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<ExtensionObject> historyUpdateDetails)
+        {
             try
             {
                 ValidateOperationLimits(historyUpdateDetails);
@@ -2238,7 +2383,7 @@ namespace Opc.Ua.Server
                     await ServerInternal.NodeManager.HistoryUpdateAsync(
                         context,
                         historyUpdateDetails,
-                        requestLifetime.CancellationToken).ConfigureAwait(false);
+                        context.CancellationToken).ConfigureAwait(false);
 
                 var response = new HistoryUpdateResponse
                 {
@@ -2868,13 +3013,28 @@ namespace Opc.Ua.Server
                 RequestType.Call,
                 requestLifetime).ConfigureAwait(false);
 
+            return await CallServiceAsync(context, requestHeader, methodsToCall).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs the ordinary Call handler, preserving method authorization, results and application timeouts.
+        /// </summary>
+        private async ValueTask<CallResponse> CallServiceAsync(
+            OperationContext context, RequestHeader? requestHeader, ArrayOf<CallMethodRequest> methodsToCall)
+        {
             try
             {
                 ValidateOperationLimits(methodsToCall, OperationLimits.MaxNodesPerMethodCall);
 
                 (ArrayOf<CallMethodResult> results, ArrayOf<DiagnosticInfo> diagnosticInfos) =
-                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, requestLifetime.CancellationToken)
+                    await ServerInternal.NodeManager.CallAsync(context, methodsToCall, context.CancellationToken)
                         .ConfigureAwait(false);
+
+                if (StatusCode.IsBad(context.OperationStatus))
+                {
+                    throw new ServiceResultException(context.OperationStatus);
+                }
+                context.CancellationToken.ThrowIfCancellationRequested();
 
                 var response = new CallResponse
                 {
@@ -2882,6 +3042,25 @@ namespace Opc.Ua.Server
                     DiagnosticInfos = diagnosticInfos
                 };
                 response.ResponseHeader = CreateResponse(requestHeader, context, response.ResponseHeader);
+                IAsyncServiceExecutionProvider? provider = m_asyncServiceProvider;
+                bool managerCall = false;
+                if (provider != null)
+                {
+                    foreach (CallMethodRequest item in methodsToCall)
+                    {
+                        managerCall |= provider.IsManagerCall(item);
+                    }
+                }
+                if (managerCall)
+                {
+                    provider!.ValidateCallResponse(context, response);
+                    response = new RetainedCallResponse(context.TakeResponseResources())
+                    {
+                        Results = response.Results,
+                        DiagnosticInfos = response.DiagnosticInfos,
+                        ResponseHeader = response.ResponseHeader
+                    };
+                }
                 return response;
             }
             catch (ServiceResultException e)
@@ -3193,6 +3372,76 @@ namespace Opc.Ua.Server
             m_serverInternal ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
 
         /// <summary>
+        /// Runs the ordinary handler with a separately tracked admission identity and cancellation lifetime.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal async ValueTask<IServiceResponse> ExecuteOwnedServiceAsync(
+            OperationContext context, IServiceRequest request)
+        {
+            RequestManager requests = CurrentInstance.RequestManager;
+            using IDisposable dispatch = requests.EnterServiceDispatchScope();
+            using (requests.EnterValidationScope())
+            {
+                context.AttachRequestScope(requests.EnterRequestScope(context));
+                if (!context.IsSessionIndependent && SessionTermination.IsClosingOrClaimed(context.Session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+            }
+            context.CancellationToken.ThrowIfCancellationRequested();
+            await OnRequestValidatedAsync(context).ConfigureAwait(false);
+            context.CancellationToken.ThrowIfCancellationRequested();
+            return request switch
+            {
+                ReadRequest read => await ReadServiceAsync(
+                    context, read.RequestHeader, read.MaxAge, read.TimestampsToReturn, read.NodesToRead)
+                    .ConfigureAwait(false),
+                WriteRequest write => await WriteServiceAsync(context, write.RequestHeader, write.NodesToWrite)
+                    .ConfigureAwait(false),
+                CallRequest call => await CallServiceAsync(context, call.RequestHeader, call.MethodsToCall)
+                    .ConfigureAwait(false),
+                BrowseRequest browse => await BrowseServiceAsync(context, browse.RequestHeader, browse.View,
+                    browse.RequestedMaxReferencesPerNode, browse.NodesToBrowse).ConfigureAwait(false),
+                BrowseNextRequest browse => await BrowseNextServiceAsync(context, browse.RequestHeader,
+                    browse.ReleaseContinuationPoints, browse.ContinuationPoints).ConfigureAwait(false),
+                TranslateBrowsePathsToNodeIdsRequest translate => await TranslateBrowsePathsServiceAsync(
+                    context, translate.RequestHeader, translate.BrowsePaths).ConfigureAwait(false),
+                RegisterNodesRequest register => RegisterNodesService(
+                    context, register.RequestHeader, register.NodesToRegister),
+                UnregisterNodesRequest unregister => UnregisterNodesService(
+                    context, unregister.RequestHeader, unregister.NodesToUnregister),
+                HistoryReadRequest history => await HistoryReadServiceAsync(
+                    context, history.RequestHeader, history.HistoryReadDetails, history.TimestampsToReturn,
+                    history.ReleaseContinuationPoints, history.NodesToRead).ConfigureAwait(false),
+                HistoryUpdateRequest history => await HistoryUpdateServiceAsync(
+                    context, history.RequestHeader, history.HistoryUpdateDetails).ConfigureAwait(false),
+                AddNodesRequest add => await AddNodesServiceAsync(context, add.RequestHeader, add.NodesToAdd)
+                    .ConfigureAwait(false),
+                AddReferencesRequest add => await AddReferencesServiceAsync(
+                    context, add.RequestHeader, add.ReferencesToAdd).ConfigureAwait(false),
+                DeleteNodesRequest delete => await DeleteNodesServiceAsync(
+                    context, delete.RequestHeader, delete.NodesToDelete).ConfigureAwait(false),
+                DeleteReferencesRequest delete => await DeleteReferencesServiceAsync(
+                    context, delete.RequestHeader, delete.ReferencesToDelete).ConfigureAwait(false),
+                _ => throw new ServiceResultException(StatusCodes.BadServiceUnsupported)
+            };
+        }
+
+        /// <summary>
+        /// Revalidates the current Session and identity after a wait without registering another exchange handle.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal ValueTask<OperationContext> RevalidateAsyncServiceContextAsync(
+            OperationContext context, RequestHeader header)
+        {
+            if (CurrentInstance.SessionManager is not SessionManager manager)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported);
+            }
+            return manager.RevalidateRetainedResultContextAsync(context, header);
+        }
+
+        /// <summary>
         /// Creates the response header with the diagnostic strings of the request.
         /// </summary>
         /// <remarks>
@@ -3443,7 +3692,8 @@ namespace Opc.Ua.Server
             if (requestType == RequestType.ActivateSession && context.Session == null)
             {
                 context.ActivationTargetSessionId = serverInternal.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken)?.Id ?? default;
+                    .GetSession(requestHeader.AuthenticationToken)?.Id ??
+                    default;
             }
 
             // Hand the validated request over to its execution scope. The context owns the scope
@@ -3853,7 +4103,7 @@ namespace Opc.Ua.Server
             bool ownsBudget = ChunkReassemblyBudget == null ||
                 ReferenceEquals(ChunkReassemblyBudget, m_ownedChunkReassemblyBudget);
             ChunkReassemblyBudget budget = ownsBudget
-                ? global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(
+                ? ChunkReassemblyBudget.CreateDefault(
                     EndpointConfiguration.Create(configuration))
                 : ChunkReassemblyBudget!;
             ServerResourceIsolationPlan plan = ResourceIsolationOptions.CreateRuntimePlan(
@@ -3953,18 +4203,20 @@ namespace Opc.Ua.Server
             try
             {
                 IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
-                if (isolation != null && !isolation.TryAcquire(
-                    ResourceIsolationStage.SessionEstablishment,
-                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
-                    1,
-                    out isolationLease,
-                    out ResourceIsolationFailure failure))
+                if (isolation != null &&
+                    !isolation.TryAcquire(
+                        ResourceIsolationStage.SessionEstablishment,
+                        isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                        1,
+                        out isolationLease,
+                        out ResourceIsolationFailure failure))
                 {
                     throw CreateServerTooBusyException(failure.RetryAfter);
                 }
                 IServerRateLimiterProvider? provider = m_rateLimiterProvider;
-                if (provider != null && !provider.TryAcquireSessionEstablishment(
-                    out rateLimitLease, out TimeSpan? retryAfter))
+                if (provider != null &&
+                    !provider.TryAcquireSessionEstablishment(
+                        out rateLimitLease, out TimeSpan? retryAfter))
                 {
                     throw CreateServerTooBusyException(retryAfter);
                 }
@@ -4042,12 +4294,13 @@ namespace Opc.Ua.Server
             {
                 IServerResourceIsolationProvider? isolation = ResourceIsolationProvider;
 #pragma warning disable CA2000 // disposed in the catch below or owned by the returned lease
-                if (isolation != null && !isolation.TryAcquire(
-                    ResourceIsolationStage.SessionEstablishment,
-                    isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
-                    1,
-                    out isolationLease,
-                    out ResourceIsolationFailure failure))
+                if (isolation != null &&
+                    !isolation.TryAcquire(
+                        ResourceIsolationStage.SessionEstablishment,
+                        isolation.Classify(channelContext, authenticationToken, sessionEstablishment: true),
+                        1,
+                        out isolationLease,
+                        out ResourceIsolationFailure failure))
 #pragma warning restore CA2000
                 {
                     throw CreateServerTooBusyException(failure.RetryAfter);
@@ -4786,6 +5039,7 @@ namespace Opc.Ua.Server
                         cancellationToken)
                     .ConfigureAwait(false);
             }
+            await StartAsyncServicesAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -4859,6 +5113,7 @@ namespace Opc.Ua.Server
 
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
+            await StopAsyncServicesAsync().ConfigureAwait(false);
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
 
             // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
@@ -5733,6 +5988,62 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Installs one provider only after the ordinary Server Session and resource infrastructure is ready.
+        /// </summary>
+        private async ValueTask StartAsyncServicesAsync(CancellationToken ct)
+        {
+            if (!AsyncServices.Enabled)
+            {
+                return;
+            }
+            AsyncServiceExecutionOptions options = AsyncServices.Snapshot();
+            MessageContext.NamespaceUris.GetIndexOrAppend(RseNamespaces.Rse);
+            MessageContext.NamespaceUris.GetIndexOrAppend(Configuration!.ApplicationUri!);
+            MessageContext.Factory.Builder.AddOpcUaRse().Commit();
+            IAsyncServiceExecutionProvider provider = AsyncServiceExecutionProviderFactory.Create(
+                this, Configuration!, options, TimeProvider);
+            try
+            {
+                await provider.InitializeAsync(ct).ConfigureAwait(false);
+                if (CurrentInstance.DiagnosticsNodeManager is not DiagnosticsNodeManager diagnostics)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The installed diagnostics manager cannot install the optional model.");
+                }
+                await diagnostics.InstallAsyncServiceModelAsync(
+                    options, provider, Configuration!.ApplicationUri!, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+            m_asyncServiceProvider = provider;
+            m_previousAsyncParkingPolicy = RequestParkingPolicy;
+            m_asyncParkingPolicy = new RecoverableRequestPolicy(provider, m_previousAsyncParkingPolicy);
+            RequestParkingPolicy = m_asyncParkingPolicy;
+        }
+
+        /// <summary>
+        /// Stops admission and drains independently owned work before retiring the normal handlers.
+        /// </summary>
+        private async ValueTask StopAsyncServicesAsync()
+        {
+            IAsyncServiceExecutionProvider? provider = Interlocked.Exchange(ref m_asyncServiceProvider, null);
+            if (ReferenceEquals(RequestParkingPolicy, m_asyncParkingPolicy))
+            {
+                RequestParkingPolicy = m_previousAsyncParkingPolicy;
+            }
+            m_asyncParkingPolicy = null;
+            m_previousAsyncParkingPolicy = null;
+            if (provider != null)
+            {
+                await provider.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Reacts to a session channel keep alive event to signal
         /// a listener channel that a session is still active.
         /// </summary>
@@ -5829,6 +6140,15 @@ namespace Opc.Ua.Server
         private bool m_ownsRateLimiterProvider;
         private DefaultServerResourceIsolationProvider? m_ownedResourceIsolationProvider;
         private ChunkReassemblyBudget? m_ownedChunkReassemblyBudget;
+
+        // TODO: Teach disposal analysis about the Interlocked.Exchange ownership transfer in StopAsyncServicesAsync.
+        [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+            Justification = "StopAsyncServicesAsync owns and awaits provider disposal during Server shutdown. " +
+                "TODO: make ownership analysis follow the asynchronous shutdown helper.")]
+        private IAsyncServiceExecutionProvider? m_asyncServiceProvider;
+
+        private IRequestParkingPolicy? m_previousAsyncParkingPolicy;
+        private IRequestParkingPolicy? m_asyncParkingPolicy;
         private readonly ILogger m_eventLogger;
 
         private readonly record struct HistorianProviderRegistration(

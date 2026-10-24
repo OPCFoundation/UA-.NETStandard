@@ -373,7 +373,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Certificate certificate = CertificateBuilder.Create("CN=F29 Transport Evidence")
                 .SetRSAKeySize(2048).CreateForRSA();
             EndpointDescription originalEndpoint = Endpoint(Profiles.HttpsBinaryTransport);
-            var originalChannel = new SecureChannelContext("https-original", originalEndpoint, RequestEncoding.Binary);
+            var originalChannel = new SecureChannelContext("https-original", originalEndpoint, RequestEncoding.Binary)
+            {
+                HasTransportSecurity = true
+            };
             using var creation = new OperationContext(
                 new RequestHeader(), originalChannel, RequestType.CreateSession, RequestLifetime.None);
             CreateSessionResult created = await sessions.CreateSessionAsync(
@@ -403,7 +406,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Bind(item);
 
                 EndpointDescription reboundEndpoint = Endpoint(profile);
-                var reboundChannel = new SecureChannelContext("rebound", reboundEndpoint, RequestEncoding.Binary);
+                var reboundChannel = new SecureChannelContext("rebound", reboundEndpoint, RequestEncoding.Binary)
+                {
+                    HasTransportSecurity = !plaintext
+                };
                 if (plaintext)
                 {
                     ServiceResultException rejected = await Assert.ThrowsAsync<ServiceResultException>(async () =>

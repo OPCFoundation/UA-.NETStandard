@@ -156,6 +156,71 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Access restrictions recognize trusted TLS evidence, never the endpoint profile alone.
+        /// </summary>
+        [TestCase(Profiles.HttpsBinaryTransport, false)]
+        [TestCase(Profiles.HttpsJsonTransport, false)]
+        [TestCase(Profiles.HttpsBinaryTransport, true)]
+        [TestCase(Profiles.HttpsJsonTransport, true)]
+        public void TransportProtectionRequiresServerEstablishedEvidence(string profile, bool protectedTransport)
+        {
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = profile
+            };
+            var channel = new SecureChannelContext("tls-evidence", endpoint, RequestEncoding.Json)
+            {
+                HasTransportSecurity = protectedTransport
+            };
+            using var context = new OperationContext(
+                new RequestHeader(), channel, RequestType.Call, RequestLifetime.None, new UserIdentity());
+            var metadata = new NodeMetadata(null!, new NodeId(1234, 1))
+            {
+                AccessRestrictions = AccessRestrictionType.EncryptionRequired | AccessRestrictionType.SigningRequired
+            };
+            ServiceResult result = MasterNodeManager.ValidateAccessRestrictions(context, metadata, PermissionType.Call);
+            Assert.That(result.StatusCode, Is.EqualTo(protectedTransport
+                ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(channel.EndpointDescription!.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
+            Assert.That(channel.EndpointDescription.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
+        }
+
+        /// <summary>
+        /// Subscriber-only contexts retain accepted TLS protection without trusting an incoming request's profile.
+        /// </summary>
+        [TestCase(Profiles.HttpsBinaryTransport, true)]
+        [TestCase(Profiles.HttpsJsonTransport, true)]
+        [TestCase(Profiles.UaTcpTransport, false)]
+        public void SubscriberContextPreservesAcceptedTransportProtection(string profile, bool protectedTransport)
+        {
+            var identity = new UserIdentity();
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.Identity).Returns(identity);
+            session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+            session.SetupGet(value => value.EndpointDescription).Returns(new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                TransportProfileUri = profile
+            });
+            using OperationContext context = MonitoredReadAuthorization.CreateContext(session.Object);
+            var metadata = new NodeMetadata(null!, new NodeId(1234, 1))
+            {
+                AccessRestrictions = AccessRestrictionType.EncryptionRequired | AccessRestrictionType.SigningRequired
+            };
+
+            ServiceResult result = MasterNodeManager.ValidateAccessRestrictions(context, metadata, PermissionType.Read);
+
+            Assert.That(result.StatusCode, Is.EqualTo(protectedTransport
+                ? StatusCodes.Good : StatusCodes.BadSecurityModeInsufficient));
+            Assert.That(context.ChannelContext, Is.Not.Null);
+            Assert.That(context.ChannelContext!.HasTransportSecurity, Is.EqualTo(protectedTransport));
+            Assert.That(context.Session, Is.SameAs(session.Object));
+        }
+
+        /// <summary>
         /// The normative ns0 NodeSet grants Anonymous only Browse and Read on
         /// AuditEventType and its subtypes (SecurityAdmin gets all permissions).
         /// An Anonymous subscriber must therefore not receive audit events while

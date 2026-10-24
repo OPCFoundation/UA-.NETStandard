@@ -112,7 +112,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString IdEntry = TemplateString.Parse(
             $$"""
-            public {{Tokens.IdModifier}} {{Tokens.IdType}} {{Tokens.Name}} = global::{{Tokens.NamespacePrefix}}.Objects.{{Tokens.Identifier}};
+            public {{Tokens.IdModifier}} {{Tokens.IdType}} {{Tokens.Name}} = {{Tokens.Identifier}};
 
             """);
 

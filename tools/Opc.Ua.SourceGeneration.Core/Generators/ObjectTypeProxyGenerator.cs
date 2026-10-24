@@ -83,7 +83,7 @@ namespace Opc.Ua.SourceGeneration
                 m_context.OutputFolder,
                 CoreUtils.Format(
                     "{0}.TypeProxies.g.cs",
-                    m_context.ModelDesign.TargetNamespace.Prefix));
+                    m_context.ModelDesign.TargetNamespace.GetGeneratedFilePrefix()));
 
             using TextWriter writer = m_context.FileSystem.CreateTextWriter(fileName);
             using var templateWriter = new TemplateWriter(writer);
@@ -649,8 +649,9 @@ namespace Opc.Ua.SourceGeneration
                 s_methodArgumentCodeNameScope);
 
             string methodIdConstant = CoreUtils.Format(
-                "global::{0}.MethodIds.{1}",
+                "global::{0}.{1}MethodIds.{2}",
                 m_context.ModelDesign.TargetNamespace.Prefix,
+                m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix(),
                 method.SymbolicId.Name);
 
             // The instance-method browse name + namespace are emitted as
@@ -693,7 +694,7 @@ namespace Opc.Ua.SourceGeneration
                 "/// <param name=\"ct\">Token used to cancel the invocation.</param>");
 
             context.Out.Write(
-                "public {0}async global::System.Threading.Tasks.ValueTask{1} {2}Async(",
+                "public {0}global::System.Threading.Tasks.ValueTask{1} {2}Async(",
                 isShadow ? "new " : string.Empty,
                 returnTypeAnnotation,
                 methodName);
@@ -715,6 +716,12 @@ namespace Opc.Ua.SourceGeneration
                 "    global::System.Threading.CancellationToken ct = default)");
             context.Out.WriteLine("{");
 
+            context.Out.WriteLine(
+                "    return global::Opc.Ua.ClientOperationContext.ExecuteAsync(Session, async _operationCt =>");
+            context.Out.WriteLine("    {");
+            var body = new IndentedTemplateWriter(context.Out);
+            body.WriteLine("    ct = _operationCt;");
+
             // Argument null checks for non-nullable reference inputs.
             // String inputs are intentionally NOT null-checked here so
             // that callers can pass a null subjectName / privateKeyFormat
@@ -724,7 +731,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 if (RequiresNullCheck(input))
                 {
-                    context.Out.WriteLine(
+                    body.WriteLine(
                         "    if ({0} is null) throw new global::System.ArgumentNullException(nameof({0}));",
                         GetMethodArgumentIdentifier(input));
                 }
@@ -733,38 +740,38 @@ namespace Opc.Ua.SourceGeneration
             // Invoke the inherited CallMethodAsync helper with boxed inputs.
             if (outputs.Length > 0)
             {
-                context.Out.WriteLine(
+                body.WriteLine(
                     "    global::Opc.Ua.ArrayOf<global::Opc.Ua.Variant> _outputArguments = await CallMethodAsync(");
             }
             else
             {
-                context.Out.WriteLine(
+                body.WriteLine(
                     "    _ = await CallMethodAsync(");
             }
-            context.Out.WriteLine(
+            body.WriteLine(
                 "        global::Opc.Ua.ExpandedNodeId.ToNodeId({0}, Session.MessageContext.NamespaceUris),",
                 methodIdConstant);
-            context.Out.WriteLine("        \"{0}\",", methodBrowseNamespaceLiteral);
-            context.Out.WriteLine("        \"{0}\",", methodBrowseNameLiteral);
-            context.Out.Write("        ct");
+            body.WriteLine("        \"{0}\",", methodBrowseNamespaceLiteral);
+            body.WriteLine("        \"{0}\",", methodBrowseNameLiteral);
+            body.Write("        ct");
             for (int ii = 0; ii < inputs.Length; ii++)
             {
-                context.Out.WriteLine(",");
-                context.Out.Write(
+                body.WriteLine(",");
+                body.Write(
                     "        {0}",
                     BoxInputArgument(inputs[ii], targetNamespace, namespaces));
             }
-            context.Out.WriteLine(").ConfigureAwait(false);");
+            body.WriteLine(").ConfigureAwait(false);");
 
             // Unpack the output arguments and produce the typed return value.
             EmitOutputUnpacking(
-                context,
+                body,
                 outputs,
                 methodName,
-                methodIdConstant,
                 targetNamespace,
                 namespaces);
 
+            context.Out.WriteLine("    }, ct);");
             context.Out.WriteLine("}");
             return null;
         }
@@ -819,10 +826,9 @@ namespace Opc.Ua.SourceGeneration
         /// Writes the result-unpacking section of a method body.
         /// </summary>
         private static void EmitOutputUnpacking(
-            ILoadContext context,
+            IndentedTemplateWriter output,
             Parameter[] outputs,
             string methodName,
-            string methodIdConstant,
             string targetNamespace,
             Namespace[] namespaces)
         {
@@ -830,23 +836,23 @@ namespace Opc.Ua.SourceGeneration
             {
                 return;
             }
-            context.Out.WriteLine(
+            output.WriteLine(
                 "    if (_outputArguments.Count < {0})",
                 outputs.Length);
-            context.Out.WriteLine("    {");
-            context.Out.WriteLine(
+            output.WriteLine("    {");
+            output.WriteLine(
                 "        throw new global::Opc.Ua.ServiceResultException(");
-            context.Out.WriteLine(
+            output.WriteLine(
                 "            global::Opc.Ua.StatusCodes.BadUnexpectedError,");
-            context.Out.WriteLine(
+            output.WriteLine(
                 "            \"Method '{0}' returned fewer output arguments than expected.\");",
                 methodName);
-            context.Out.WriteLine("    }");
+            output.WriteLine("    }");
 
             for (int ii = 0; ii < outputs.Length; ii++)
             {
                 EmitOutputDeclaration(
-                    context,
+                    output,
                     outputs[ii],
                     ii,
                     methodName,
@@ -857,22 +863,22 @@ namespace Opc.Ua.SourceGeneration
             // Build the return expression.
             if (outputs.Length == 1)
             {
-                context.Out.WriteLine(
+                output.WriteLine(
                     "    return {0};",
                     GetLocalVariableName(outputs[0]));
                 return;
             }
 
-            context.Out.Write("    return (");
+            output.Write("    return (");
             for (int ii = 0; ii < outputs.Length; ii++)
             {
                 if (ii > 0)
                 {
-                    context.Out.Write(", ");
+                    output.Write(", ");
                 }
-                context.Out.Write(GetLocalVariableName(outputs[ii]));
+                output.Write(GetLocalVariableName(outputs[ii]));
             }
-            context.Out.WriteLine(");");
+            output.WriteLine(");");
         }
 
         /// <summary>
@@ -881,7 +887,7 @@ namespace Opc.Ua.SourceGeneration
         /// to <c>BadUnexpectedError</c> when conversion fails.
         /// </summary>
         private static void EmitOutputDeclaration(
-            ILoadContext context,
+            IndentedTemplateWriter output,
             Parameter parameter,
             int index,
             string methodName,
@@ -897,7 +903,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (typeName == "global::Opc.Ua.Variant")
             {
-                context.Out.WriteLine(
+                output.WriteLine(
                     "    {0} {1} = _outputArguments[{2}];",
                     typeName,
                     localName,
@@ -908,44 +914,44 @@ namespace Opc.Ua.SourceGeneration
             switch (parameter.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
-                    context.Out.WriteLine(
+                    output.WriteLine(
                         "    {0} {1};",
                         typeName,
                         localName);
-                    context.Out.WriteLine(
+                    output.WriteLine(
                         "    if (_outputArguments[{0}].IsNull)",
                         index);
-                    context.Out.WriteLine("    {");
-                    context.Out.WriteLine(
+                    output.WriteLine("    {");
+                    output.WriteLine(
                         "        {0} = default!;",
                         localName);
-                    context.Out.WriteLine("    }");
-                    context.Out.WriteLine(
+                    output.WriteLine("    }");
+                    output.WriteLine(
                         "    else if (!_outputArguments[{0}].TryGetValue(" +
                         "out {1}, base.Session.MessageContext))",
                         index,
                         localName);
-                    EmitConversionFailure(context, methodName, parameter.Name);
+                    EmitConversionFailure(output, methodName, parameter.Name);
                     break;
                 default:
-                    context.Out.WriteLine(
+                    output.WriteLine(
                         "    {0} {1};",
                         typeName,
                         localName);
-                    context.Out.WriteLine(
+                    output.WriteLine(
                         "    if (_outputArguments[{0}].IsNull)",
                         index,
                         localName);
-                    context.Out.WriteLine("    {");
-                    context.Out.WriteLine(
+                    output.WriteLine("    {");
+                    output.WriteLine(
                         "        {0} = default!;",
                         localName);
-                    context.Out.WriteLine("    }");
-                    context.Out.WriteLine(
+                    output.WriteLine("    }");
+                    output.WriteLine(
                         "    else if (!_outputArguments[{0}].TryGetValue(out {1}))",
                         index,
                         localName);
-                    EmitConversionFailure(context, methodName, parameter.Name);
+                    EmitConversionFailure(output, methodName, parameter.Name);
                     break;
             }
         }
@@ -955,21 +961,21 @@ namespace Opc.Ua.SourceGeneration
         /// argument cannot be converted to the declared CLR type.
         /// </summary>
         private static void EmitConversionFailure(
-            ILoadContext context,
+            IndentedTemplateWriter output,
             string methodName,
             string parameterName)
         {
-            context.Out.WriteLine("    {");
-            context.Out.WriteLine(
+            output.WriteLine("    {");
+            output.WriteLine(
                 "        throw new global::Opc.Ua.ServiceResultException(");
-            context.Out.WriteLine(
+            output.WriteLine(
                 "            global::Opc.Ua.StatusCodes.BadUnexpectedError,");
             string message = CoreUtils.Format(
                 "Method '{0}' returned an unexpected value for output '{1}'.",
                 methodName,
                 parameterName);
-            context.Out.WriteLine("            {0});", message.AsStringLiteral());
-            context.Out.WriteLine("    }");
+            output.WriteLine("            {0});", message.AsStringLiteral());
+            output.WriteLine("    }");
         }
 
         /// <summary>
@@ -1079,6 +1085,7 @@ namespace Opc.Ua.SourceGeneration
             "objectId",
             "outputArguments",
             "_outputArguments",
+            "_operationCt",
             "results",
             "serviceResult",
             "ServiceResult");

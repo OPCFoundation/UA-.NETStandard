@@ -429,7 +429,7 @@ function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
     Returns exhaustive, non-overlapping filters for projects whose full test
     suite exceeds the per-project execution budget.
 #>
-function Get-TestProjectShards([string] $project, [string] $framework)
+function Get-TestProjectShards([string] $project, [string] $framework, [string] $os)
 {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
     switch ($stem) {
@@ -519,7 +519,7 @@ function Get-TestProjectShards([string] $project, [string] $framework)
             )
         }
         'Opc.Ua.Server.Tests' {
-            if ($framework -ne 'net48') {
+            if ($framework -ne 'net48' -and $os -ne 'macos') {
                 return @(
                     @{
                         id = 'all'
@@ -623,7 +623,7 @@ function Measure-TestEntries([string] $scope, [int] $targetMinutes)
         }
         foreach ($batch in @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)) {
             if ($batch.Count -eq 1) {
-                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework).Count
+                $total += @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os).Count
             }
             else {
                 $total++
@@ -686,7 +686,7 @@ function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includ
                     hangTimeout = ''
                 })
             if ($batch.Count -eq 1) {
-                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework)
+                $shards = @(Get-TestProjectShards $batch[0] $testProfile.framework $testProfile.os)
             }
             foreach ($shard in $shards) {
                 $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))-$($shard.id)"

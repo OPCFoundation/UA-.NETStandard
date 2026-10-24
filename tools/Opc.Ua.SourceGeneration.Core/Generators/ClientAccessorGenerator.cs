@@ -58,7 +58,8 @@ namespace Opc.Ua.SourceGeneration
                 ? target.Prefix + ".Client" : m_context.Options!.ClientAccessorNamespace!;
             string className = string.IsNullOrWhiteSpace(m_context.Options?.ClientAccessorClassName)
                 ? target.Name + "ClientMembers" : m_context.Options!.ClientAccessorClassName!;
-            string fileName = Path.Combine(m_context.OutputFolder, target.Prefix + ".ClientMembers.g.cs");
+            string fileName = Path.Combine(m_context.OutputFolder,
+                target.GetGeneratedFilePrefix() + ".ClientMembers.g.cs");
             ObjectTypeDesign[] types = [.. m_context.ModelDesign.GetNodeDesigns()
                 .OfType<ObjectTypeDesign>()
                 .Where(type => !m_context.ModelDesign.IsExcluded(type))
@@ -177,8 +178,8 @@ namespace Opc.Ua.SourceGeneration
         {
             string proxy = ProxyName(type);
             string typeNamespace = type.SymbolicName.Namespace;
-            string identifierNamespace = m_context.ModelDesign.Namespaces
-                .First(ns => ns.Value == typeNamespace).Prefix;
+            Namespace identifierNamespace = m_context.ModelDesign.Namespaces
+                .First(ns => ns.Value == typeNamespace);
             writer.WriteLine("/// <summary>");
             writer.WriteLine("/// Enumerates concrete instances of the declared placeholder type.");
             writer.WriteLine("/// </summary>");
@@ -188,8 +189,8 @@ namespace Opc.Ua.SourceGeneration
             writer.WriteLine("    global::System.Threading.CancellationToken cancellationToken = default)");
             writer.WriteLine("{");
             writer.WriteLine("    return global::Opc.Ua.Client.ClientModelAccess.EnumerateAsync(");
-            writer.WriteLine("        parent, global::{0}.ObjectTypeIds.{1},",
-                identifierNamespace, type.SymbolicName.Name);
+            writer.WriteLine("        parent, global::{0}.{1}ObjectTypeIds.{2},",
+                identifierNamespace.Prefix, identifierNamespace.GetModelHelperPrefix(), type.SymbolicName.Name);
             writer.WriteLine("        static (session, id, telemetry) => new {0}(session, id, telemetry),", proxy);
             writer.WriteLine("        cancellationToken);");
             writer.WriteLine("}");

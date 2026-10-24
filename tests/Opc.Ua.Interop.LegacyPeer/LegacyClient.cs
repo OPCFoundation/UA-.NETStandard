@@ -695,11 +695,14 @@ namespace Opc.Ua.Interop.LegacyPeer
             BrowseNextResponse released = await c.Session
                 .BrowseNextAsync(null, true, new ByteStringCollection { first.Results[0].ContinuationPoint }, c.Ct)
                 .ConfigureAwait(false);
-            Require(StatusCode.IsGood(released.Results[0].StatusCode),
-                "releasing the continuation point returned " + released.Results[0].StatusCode);
+            Require(StatusCode.IsGood(released.ResponseHeader.ServiceResult),
+                "releasing the continuation point returned " + released.ResponseHeader.ServiceResult);
+            Require(released.Results.Count == 0, "releasing the continuation point returned results");
+            Require(released.DiagnosticInfos.Count == 0, "releasing the continuation point returned diagnostics");
             BrowseNextResponse reused = await c.Session
                 .BrowseNextAsync(null, false, new ByteStringCollection { first.Results[0].ContinuationPoint }, c.Ct)
                 .ConfigureAwait(false);
+            Require(reused.Results.Count == 1, "reusing the continuation point did not return one result");
             Require(reused.Results[0].StatusCode == StatusCodes.BadContinuationPointInvalid,
                 "a released continuation point returned " + reused.Results[0].StatusCode);
         }

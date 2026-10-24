@@ -258,7 +258,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         [Test]
-        public void Emit_VoidMethod_EmitsAsyncWithoutReturnType()
+        public void EmitVoidMethodPreservesValueTaskAndTypedCompletion()
         {
             MethodDesign method = CreateMethod("Reset");
             ObjectTypeDesign objectType = CreateObjectType("FooType", method);
@@ -274,7 +274,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             Assert.That(
                 content,
-                Does.Contain("public async global::System.Threading.Tasks.ValueTask ResetAsync("));
+                Does.Contain("public global::System.Threading.Tasks.ValueTask ResetAsync("));
+            Assert.That(content, Does.Contain(
+                "return global::Opc.Ua.ClientOperationContext.ExecuteAsync(Session, async _operationCt =>"));
             Assert.That(content, Does.Contain("_ = await CallMethodAsync"));
             Assert.That(content, Does.Not.Contain("return _"));
         }
@@ -445,7 +447,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string content = Encoding.UTF8.GetString(stream.ToArray());
 
             Assert.That(
-                content.Contains("public new async", StringComparison.Ordinal),
+                content.Contains("public new global::System.Threading.Tasks.ValueTask", StringComparison.Ordinal),
                 Is.EqualTo(matchingSignature));
         }
 
@@ -474,7 +476,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(content, Does.Contain(
-                    "public async global::System.Threading.Tasks.ValueTask AdjustAsync("));
+                    "public global::System.Threading.Tasks.ValueTask AdjustAsync("));
+                Assert.That(content, Does.Contain("ClientOperationContext.ExecuteAsync"));
                 Assert.That(content, Does.Contain("float setpoint"));
                 Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(setpoint)"));
             });

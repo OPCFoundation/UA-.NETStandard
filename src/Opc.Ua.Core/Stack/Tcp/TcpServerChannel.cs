@@ -120,6 +120,7 @@ namespace Opc.Ua.Bindings
             if (disposing)
             {
                 Volatile.Write(ref m_disposed, 1);
+                ReleaseQueuedResponses(TakeQueuedResponses());
 
                 ClientCertificate?.Dispose();
                 ClientCertificate = null;
@@ -553,12 +554,10 @@ namespace Opc.Ua.Bindings
 
             foreach (KeyValuePair<uint, IServiceResponse> response in responses)
             {
+                bool retained = false;
                 try
                 {
-                    if (!SendResponse(response.Key, response.Value))
-                    {
-                        (response.Value as IPooledEncodeable)?.Reuse();
-                    }
+                    retained = SendResponse(response.Key, response.Value);
                 }
                 catch (Exception e)
                 {
@@ -567,7 +566,15 @@ namespace Opc.Ua.Bindings
                         m_logger.TcpServerLog4(e, response.Key);
                     }
                 }
+                finally
+                {
+                    if (!retained)
+                    {
+                        ReleaseResponse(response.Key, response.Value);
+                    }
+                }
             }
+            responses.Clear();
         }
 
         /// <summary>
@@ -1946,7 +1953,7 @@ namespace Opc.Ua.Bindings
                 // must queue the response if the channel is in the faulted state.
                 if (State == TcpChannelState.Faulted)
                 {
-                    m_queuedResponses[requestId] = response;
+                    QueueResponse(requestId, response);
                     return true;
                 }
 
@@ -1994,7 +2001,7 @@ namespace Opc.Ua.Bindings
                 {
                     encoded.Chunks.Release(BufferManager, "SendResponse");
 
-                    m_queuedResponses[requestId] = response;
+                    QueueResponse(requestId, response);
                     return true;
                 }
 
@@ -2008,15 +2015,79 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private void ResetQueuedResponses(Action<object?> action)
         {
-            SortedDictionary<uint, IServiceResponse> queued = m_queuedResponses;
-            BackgroundWork.Run(
+            SortedDictionary<uint, IServiceResponse> queued = TakeQueuedResponses();
+            if (!BackgroundWork.Run(
                 nameof(ResetQueuedResponses),
                 _ =>
                 {
                     action(queued);
                     return default;
-                });
-            m_queuedResponses = [];
+                }))
+            {
+                ReleaseQueuedResponses(queued);
+            }
+        }
+
+        /// <summary>
+        /// Transfers a response only while the channel can still own deferred delivery.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void QueueResponse(uint requestId, IServiceResponse response)
+        {
+            IServiceResponse? previous;
+            lock (m_queuedResponsesLock)
+            {
+                if (Volatile.Read(ref m_disposed) != 0)
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+                }
+                m_queuedResponses.TryGetValue(requestId, out previous);
+                m_queuedResponses[requestId] = response;
+            }
+            if (previous != null && !ReferenceEquals(previous, response))
+            {
+                ReleaseResponse(requestId, previous);
+            }
+        }
+
+        /// <summary>
+        /// Detaches deferred ownership without taking the channel gate during terminal disposal.
+        /// </summary>
+        private SortedDictionary<uint, IServiceResponse> TakeQueuedResponses()
+        {
+            lock (m_queuedResponsesLock)
+            {
+                SortedDictionary<uint, IServiceResponse> queued = m_queuedResponses;
+                m_queuedResponses = [];
+                return queued;
+            }
+        }
+
+        /// <summary>
+        /// Attempts every detached cleanup even when one response's owned resource fails to release.
+        /// </summary>
+        private void ReleaseQueuedResponses(SortedDictionary<uint, IServiceResponse> responses)
+        {
+            foreach (KeyValuePair<uint, IServiceResponse> response in responses)
+            {
+                ReleaseResponse(response.Key, response.Value);
+            }
+            responses.Clear();
+        }
+
+        /// <summary>
+        /// Reports a cleanup failure without losing ownership of the other deferred responses.
+        /// </summary>
+        private void ReleaseResponse(uint requestId, IServiceResponse response)
+        {
+            try
+            {
+                (response as IPooledEncodeable)?.Reuse();
+            }
+            catch (Exception exception)
+            {
+                m_logger.ResponseCleanupFailed(exception, requestId);
+            }
         }
 
         /// <summary>
@@ -2114,6 +2185,7 @@ namespace Opc.Ua.Bindings
 
         private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
+        private readonly Lock m_queuedResponsesLock = new();
         private SortedDictionary<uint, IServiceResponse> m_queuedResponses;
         private ReverseConnectAsyncResult? m_pendingReverseHello;
         private byte[]? m_oscRequestSignature;
@@ -2128,6 +2200,10 @@ namespace Opc.Ua.Bindings
     /// </summary>
     internal static partial class TcpServerChannelLog
     {
+        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 20, Level = LogLevel.Error,
+            Message = "Failed to release resources owned by response (ID={Id}).")]
+        internal static partial void ResponseCleanupFailed(this ILogger logger, Exception exception, uint id);
+
 #pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 0, Level = LogLevel.Information,
             Message = "{Channel} TRANSPORT RECONNECTED: {RemoteEndpoint}, ChannelId={ChannelId}")]

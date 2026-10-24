@@ -57,6 +57,22 @@ The runtime loader supports grouped file and stream sources, orders included mod
 
 To add or reload a NodeSet after the server is running, inject `INodeManagerLifecycle` (or use `StandardServer.NodeManagerLifecycle`) and call `AddRuntimeNodeSetAsync` / `ReloadRuntimeNodeSetAsync`. The returned generation-aware registration can later be removed with `RemoveAsync`. Active monitored items retain their identity when compatible nodes remain, publish one `BadNodeIdUnknown` when their node disappears, and automatically recover when a compatible Node with the same NodeId returns. Namespace indexes and compatible runtime DataType registrations remain stable for the server lifetime.
 
+## Experimental recoverable execution
+
+`WithExperimentalAsyncServices` explicitly installs the RSE 0.4 manager and its
+Submit, GetResult, Acknowledge, Cancel and Abandon Methods over ordinary Call.
+Normal Servers expose none of these experimental runtime nodes.
+
+Session is the default recovery mode. Owner and Durable require explicit
+selection and qualified providers for identity, eligibility and resource
+accounting. Durable also requires protected stable storage, a custom qualified
+clock, persisted interpretation compatibility and recovery fencing. No mode
+authorizes replay of the original request.
+
+See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/rse.md)
+for direct construction, DI, exact lifetimes, qualification requirements and
+the distinction between implementation tests and complete conformance evidence.
+
 ## Programs
 
 For provider-backed Part 10 execution, register `AddPrograms` or construct a

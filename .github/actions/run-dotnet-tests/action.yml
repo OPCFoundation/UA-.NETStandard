@@ -33,7 +33,7 @@ inputs:
     required: false
     default: 10m
   per-project-timeout:
-    description: Wall-clock ceiling in minutes for one project's build or test run.
+    description: Combined wall-clock ceiling in minutes for one project's build and test run.
     required: false
     default: '30'
   coverage:

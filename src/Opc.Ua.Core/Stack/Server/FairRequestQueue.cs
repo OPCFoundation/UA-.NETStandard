@@ -71,7 +71,8 @@ namespace Opc.Ua
             int maxQueuedRequests,
             long requestCost,
             bool decoupleHeldPublishRequests,
-            Action<IEndpointIncomingRequest, StatusCode> complete)
+            Action<IEndpointIncomingRequest, StatusCode> complete,
+            Func<IServiceRequest, bool>? isControlRequest = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
             m_reservations = provider as IResourceIsolationReservations;
@@ -91,6 +92,7 @@ namespace Opc.Ua
             m_useFairScheduling = provider.UseFairScheduling;
             m_decoupleHeldPublishRequests = decoupleHeldPublishRequests;
             m_complete = complete ?? throw new ArgumentNullException(nameof(complete));
+            m_isControlRequest = isControlRequest;
             m_hot.SpinScore = kMaxSpinScore;
             m_provider.CapacityAvailable += OnCapacityAvailable;
         }
@@ -108,14 +110,9 @@ namespace Opc.Ua
         /// Gets the number of scheduling FIFOs with queued requests: one per owner in weighted
         /// mode, or one shared FIFO regardless of owner in global FIFO mode.
         /// </summary>
-        internal int OwnerCount
-        {
-            get
-            {
-                // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
-                return m_owners.Count;
-            }
-        }
+        internal int OwnerCount =>
+            // Diagnostic snapshot: an owner FIFO is retired as soon as it empties.
+            m_owners.Count;
 
         /// <summary>
         /// Gets the number of turn tokens in the ready queue, including stale tokens of retired
@@ -133,6 +130,7 @@ namespace Opc.Ua
         /// encoded-message footprint, retained through execution/parking until completion.
         /// This is a conservative admission cost, not an estimate of managed heap bytes.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="request"/> is <c>null</c>.</exception>
         public bool TryEnqueue(
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken,
@@ -355,6 +353,7 @@ namespace Opc.Ua
         /// looking: that reader sees the change. It takes the next request itself and wakes a
         /// parked reader only if more are queued.
         /// </remarks>
+        /// <exception cref="OperationCanceledException"></exception>
 #if NET6_0_OR_GREATER
         [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
 #endif
@@ -513,9 +512,9 @@ namespace Opc.Ua
         /// <summary>
         /// Identifies recovery and cancellation control services.
         /// </summary>
-        private static bool IsControlRequest(IServiceRequest request)
+        private bool IsControlRequest(IServiceRequest request)
         {
-            return request is CancelRequest or CloseSessionRequest;
+            return request is CancelRequest or CloseSessionRequest || m_isControlRequest?.Invoke(request) == true;
         }
 
         /// <summary>
@@ -957,7 +956,8 @@ namespace Opc.Ua
         /// </remarks>
         private void Pulse()
         {
-            if (Volatile.Read(ref m_hot.Count) > 0 && Volatile.Read(ref m_stopped) == 0 &&
+            if (Volatile.Read(ref m_hot.Count) > 0 &&
+                Volatile.Read(ref m_stopped) == 0 &&
                 Volatile.Read(ref m_hot.Spinning) == 0 &&
                 m_wake.TryIssue())
             {
@@ -1216,6 +1216,15 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Moves the existing retained-cost lease to a response that outlives handler dispatch.
+            /// </summary>
+            internal IDisposable? TransferResponseCost()
+            {
+                return CostHold.Transfer(
+                    m_queue, ResourceIsolationStage.RequestQueueBytes, Owner, m_queue.m_requestCost);
+            }
+
+            /// <summary>
             /// Unregisters cancellation and returns all remaining admission leases.
             /// </summary>
             public void Dispose()
@@ -1341,6 +1350,30 @@ namespace Opc.Ua
             }
 
             /// <summary>
+            /// Moves a hold into a response-owned lease without reserving the same capacity again.
+            /// </summary>
+            public IDisposable? Transfer(
+                FairRequestQueue queue,
+                ResourceIsolationStage stage,
+                ResourceIsolationOwner owner,
+                long amount)
+            {
+                if (queue.m_reservations == null)
+                {
+                    return (IDisposable?)Interlocked.Exchange(ref m_state, null);
+                }
+                var transferred = new TransferredHold(queue, stage, owner, amount);
+                object? state = Interlocked.Exchange(ref m_state, null);
+                if (state == null)
+                {
+                    transferred.Dispose();
+                    return null;
+                }
+                transferred.Hold.Set(new ResourceIsolationReservation(state, m_accountingClass, m_reserved));
+                return transferred;
+            }
+
+            /// <summary>
             /// Returns the stage if it is still held; only the first call releases it.
             /// </summary>
             public void Release(
@@ -1369,6 +1402,23 @@ namespace Opc.Ua
             private object? m_state;
             private long m_reserved;
             private ResourceIsolationClass m_accountingClass;
+        }
+
+        /// <summary>
+        /// Owns the moved value reservation only for responses whose lifetime exceeds queue dispatch.
+        /// </summary>
+        private sealed class TransferredHold(
+            FairRequestQueue queue, ResourceIsolationStage stage, ResourceIsolationOwner owner, long amount)
+            : IDisposable
+        {
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Hold.Release(queue, stage, owner, amount);
+            }
+
+            /// <summary>The hold is published only after ownership was removed from the queue entry.</summary>
+            internal StageHold Hold;
         }
 
         /// <summary>
@@ -1612,6 +1662,7 @@ namespace Opc.Ua
         /// Reports terminal outcomes outside queue and provider gates.
         /// </summary>
         private readonly Action<IEndpointIncomingRequest, StatusCode> m_complete;
+        private readonly Func<IServiceRequest, bool>? m_isControlRequest;
 
         /// <summary>
         /// Scheduling FIFOs retained while nonempty, keyed by owner in weighted mode

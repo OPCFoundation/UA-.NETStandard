@@ -67,6 +67,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             nameSpaceUris.GetIndexOrAppend(Namespaces.OpcUaGds);
             nameSpaceUris.GetIndexOrAppend(OpcUaOnboarding);
             nameSpaceUris.GetIndexOrAppend(global::Opc.Ua.Programs.Namespaces.OpcUaPrograms);
+            nameSpaceUris.GetIndexOrAppend(RseNamespaces.Rse);
         }
 
         [OneTimeTearDown]

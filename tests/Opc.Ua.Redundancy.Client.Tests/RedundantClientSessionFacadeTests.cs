@@ -209,6 +209,24 @@ namespace Opc.Ua.Client.Redundancy.Tests
             session.VerifyGet(s => s.EndpointConfiguration, Times.Once());
         }
 
+        /// <summary>
+        /// Experimental operation ownership cannot follow a transparent facade to whichever Session becomes leader.
+        /// </summary>
+        [Test]
+        public async Task RecoverableServicesAreNotDelegatedToARetargetableSession()
+        {
+            var session = new Mock<ISession>();
+            RedundantClientSession facade = CreateLeaderFacade(session);
+            session.Invocations.Clear();
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                _ = await new AsyncServiceClient().CreateReadAsync(
+                    facade, new ReadRequest(), CancellationToken.None).ConfigureAwait(false);
+            }).ConfigureAwait(false))!;
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            session.VerifyNoOtherCalls();
+        }
+
         [Test]
         public void LeaderPropertySettersDelegateToCurrentSession()
         {

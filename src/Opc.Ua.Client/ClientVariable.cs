@@ -94,7 +94,52 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Reads the value without throwing away bad quality or the authoritative source timestamp.
         /// </summary>
-        public async ValueTask<ClientRead<T>> ReadAsync(CancellationToken cancellationToken = default)
+        public ValueTask<ClientRead<T>> ReadAsync(CancellationToken cancellationToken = default)
+        {
+            return ClientOperationContext.ExecuteAsync(m_owner.Session, ReadCoreAsync, cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes a model-permitted typed value through the caller's existing session.
+        /// </summary>
+        public ValueTask WriteAsync(T value, CancellationToken cancellationToken = default)
+        {
+            return ClientOperationContext.ExecuteAsync(
+                m_owner.Session, token => WriteCoreAsync(value, token), cancellationToken);
+        }
+
+        /// <summary>
+        /// Reads the native EUInformation property of an analog member.
+        /// </summary>
+        public ValueTask<EUInformation> ReadEngineeringUnitsAsync(CancellationToken cancellationToken = default)
+        {
+            return ClientOperationContext.ExecuteAsync(m_owner.Session, ReadEngineeringUnitsCoreAsync, cancellationToken);
+        }
+
+        /// <summary>
+        /// Observes typed values through the existing bounded streaming subscription.
+        /// Disposing the enumerator removes its monitored item, not the shared session.
+        /// </summary>
+        public async IAsyncEnumerable<ClientRead<T>> ObserveAsync(
+            IStreamingSubscription? streaming = null,
+            StreamingMonitoredItemOptions? options = null,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
+            IStreamingSubscription effective = streaming ??
+                (m_owner.Session as ManagedSession)?.DefaultStreaming ??
+                throw new InvalidOperationException("Supply a streaming subscription or use a ManagedSession.");
+            await foreach (DataValueChange change in effective.SubscribeDataChangesAsync(
+                node, options, cancellationToken).ConfigureAwait(false))
+            {
+                yield return Decode(change.Value);
+            }
+        }
+
+        /// <summary>
+        /// Validates the model-derived value before accepting the final observation.
+        /// </summary>
+        private async ValueTask<ClientRead<T>> ReadCoreAsync(CancellationToken cancellationToken)
         {
             NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
             (ArrayOf<DataValue> values, ArrayOf<ServiceResult> _) = await m_owner.Session
@@ -108,9 +153,9 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Writes a model-permitted typed value through the caller's existing session.
+        /// Accepts a model-derived Write only after the ordinary status validation.
         /// </summary>
-        public async ValueTask WriteAsync(T value, CancellationToken cancellationToken = default)
+        private async ValueTask WriteCoreAsync(T value, CancellationToken cancellationToken)
         {
             if (!Writable)
             {
@@ -133,19 +178,21 @@ namespace Opc.Ua.Client
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, writes);
             if (StatusCode.IsBad(response.Results[0]))
             {
-                throw new ServiceResultException(response.Results[0]);
+                throw ClientOperationContext.OriginalFailure(
+                    m_owner.Session, new ServiceResultException(response.Results[0]));
             }
         }
 
         /// <summary>
-        /// Reads the native EUInformation property of an analog member.
+        /// Validates the engineering unit structure within the caller's completion context.
         /// </summary>
-        public async ValueTask<EUInformation> ReadEngineeringUnitsAsync(CancellationToken cancellationToken = default)
+        private async ValueTask<EUInformation> ReadEngineeringUnitsCoreAsync(CancellationToken cancellationToken)
         {
             NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
             ISession session = ClientModelAccess.RequireSession(m_owner);
-            NodeId units = await ClientModelAccess.ResolveAsync(session, node,
-                Opc.Ua.Namespaces.OpcUa, Opc.Ua.BrowseNames.EngineeringUnits, cancellationToken).ConfigureAwait(false);
+            NodeId units = await PrepareAsync(token => ClientModelAccess.ResolveAsync(session, node,
+                Opc.Ua.Namespaces.OpcUa, Opc.Ua.BrowseNames.EngineeringUnits, token), cancellationToken)
+                .ConfigureAwait(false);
             if (units.IsNull)
             {
                 throw ServiceResultException.Create(StatusCodes.BadNotFound, "The variable has no EngineeringUnits.");
@@ -153,7 +200,7 @@ namespace Opc.Ua.Client
             DataValue value = await session.ReadValueAsync(units, cancellationToken).ConfigureAwait(false);
             if (StatusCode.IsBad(value.StatusCode))
             {
-                throw new ServiceResultException(value.StatusCode);
+                throw ClientOperationContext.OriginalFailure(session, new ServiceResultException(value.StatusCode));
             }
             if (!value.WrappedValue.TryGetValue<EUInformation>(out EUInformation? result, session.MessageContext) ||
                 result == null)
@@ -162,26 +209,6 @@ namespace Opc.Ua.Client
                     "EngineeringUnits is not EUInformation.");
             }
             return result;
-        }
-
-        /// <summary>
-        /// Observes typed values through the existing bounded streaming subscription.
-        /// Disposing the enumerator removes its monitored item, not the shared session.
-        /// </summary>
-        public async IAsyncEnumerable<ClientRead<T>> ObserveAsync(
-            IStreamingSubscription? streaming = null,
-            StreamingMonitoredItemOptions? options = null,
-            [EnumeratorCancellation] CancellationToken cancellationToken = default)
-        {
-            NodeId node = await RequireNodeAsync(cancellationToken).ConfigureAwait(false);
-            IStreamingSubscription effective = streaming ??
-                (m_owner.Session as ManagedSession)?.DefaultStreaming ??
-                throw new InvalidOperationException("Supply a streaming subscription or use a ManagedSession.");
-            await foreach (DataValueChange change in effective.SubscribeDataChangesAsync(
-                node, options, cancellationToken).ConfigureAwait(false))
-            {
-                yield return Decode(change.Value);
-            }
         }
 
         /// <summary>
@@ -210,9 +237,20 @@ namespace Opc.Ua.Client
         /// </summary>
         private async ValueTask<NodeId> RequireNodeAsync(CancellationToken cancellationToken)
         {
-            NodeId node = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+            NodeId node = await PrepareAsync(ResolveAsync, cancellationToken).ConfigureAwait(false);
             return !node.IsNull ? node : throw ServiceResultException.Create(
                 StatusCodes.BadNotFound, "The server does not expose optional member '{0}'.", m_browseName);
+        }
+
+        /// <summary>
+        /// Resolves metadata through the normal session without creating a separate application receipt.
+        /// </summary>
+        private ValueTask<NodeId> PrepareAsync(
+            Func<CancellationToken, ValueTask<NodeId>> prepare, CancellationToken ct)
+        {
+            return m_owner.Session is ManagedSession managed
+                ? managed.PrepareClientOperationAsync(prepare, ct)
+                : prepare(ct);
         }
 
         /// <summary>The model-generated parent proxy.</summary>

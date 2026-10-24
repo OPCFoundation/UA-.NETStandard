@@ -29,7 +29,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -166,11 +165,21 @@ namespace Opc.Ua.Server.Hosting
             ServerResourceIsolationOptions? isolation = services.GetService<ServerResourceIsolationOptions>();
             if (isolation == null &&
                 (services.GetServices<IConfigureOptions<ServerResourceIsolationOptions>>().Any() ||
-                 services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
+                    services.GetServices<IPostConfigureOptions<ServerResourceIsolationOptions>>().Any()))
             {
                 isolation = services.GetRequiredService<IOptions<ServerResourceIsolationOptions>>().Value;
             }
             server.ResourceIsolationOptions = isolation ?? options.ResourceIsolation;
+            server.AsyncServices = options.AsyncServices;
+            if (services.GetService<IAsyncServiceExecutionProviderFactory>() is { } executionFactory)
+            {
+                server.AsyncServiceExecutionProviderFactory = executionFactory;
+            }
+            else if (services.GetService<IAsyncServiceAuthorizationPolicy>() is { } authorizationPolicy)
+            {
+                server.AsyncServiceExecutionProviderFactory =
+                    new DefaultAsyncServiceExecutionProviderFactory(authorizationPolicy);
+            }
             server.ResourceIsolationClassifier = services.GetService<IResourceIsolationClassifier>();
             if (services.GetService<IServerResourceIsolationProvider>() is { } provider)
             {
@@ -192,6 +201,7 @@ namespace Opc.Ua.Server.Hosting
         /// <summary>
         /// Applies host configuration and injected features before startup, then waits for host shutdown.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private async Task RunServerAsync(CancellationToken stoppingToken)
         {
             ICertificateManager? certificateManager =
@@ -660,7 +670,7 @@ namespace Opc.Ua.Server.Hosting
                 result.Add(policy);
             }
 
-            return new ArrayOf<UserTokenPolicy>(result.ToArray());
+            return new ArrayOf<UserTokenPolicy>([.. result]);
         }
 
         private void RegisterIdentityAugmenters()

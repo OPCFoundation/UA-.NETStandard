@@ -209,6 +209,39 @@ namespace Opc.Ua.Client.Tests
             Assert.That(references[0].BrowseName, Is.EqualTo(QualifiedName.From("Child")));
         }
 
+        /// <summary>
+        /// Both convenience overloads accept the empty original output of a successful continuation release.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BrowseNextReleaseExtensionsReturnEmptyOutput(bool single)
+        {
+            var point = ByteString.From("cursor"u8);
+            using ISession session = CreateSession(browseNextResponseFactory: _ => new BrowseNextResponse());
+            if (single)
+            {
+                (ResponseHeader header, ByteString revised, ArrayOf<ReferenceDescription> references) =
+                    await session.BrowseNextAsync(null, true, point).ConfigureAwait(false);
+                Assert.That(header.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(revised.IsNull, Is.True);
+                Assert.That(references, Is.Empty);
+            }
+            else
+            {
+                (ResponseHeader header, ArrayOf<ByteString> revised,
+                    ArrayOf<ArrayOf<ReferenceDescription>> references, ArrayOf<ServiceResult> errors) =
+                    await session.BrowseNextAsync(null, [point], true).ConfigureAwait(false);
+                Assert.That(header.ServiceResult, Is.EqualTo(StatusCodes.Good));
+                Assert.That(revised, Is.Empty);
+                Assert.That(references, Is.Empty);
+                Assert.That(errors, Is.Empty);
+            }
+            Mock.Get(session).Verify(value => value.BrowseNextAsync(
+                It.IsAny<RequestHeader>(), true,
+                It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == point),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
         [Test]
         public async Task BrowseNextWithBadResultThrowsServiceResultException()
         {

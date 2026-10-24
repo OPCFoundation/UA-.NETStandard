@@ -1368,7 +1368,7 @@ namespace Opc.Ua.SourceGeneration
             var schemaResources = new ResourceGenerator(context);
             schemaResources.Embed(
                 context.ModelDesign.TargetNamespace.Prefix,
-                "XmlSchemas",
+                context.ModelDesign.TargetNamespace.GetModelHelperPrefix() + "XmlSchemas",
                 false,
                 [.. binarySchemaResource, .. xmlSchemaResource]);
             ct.ThrowIfCancellationRequested();

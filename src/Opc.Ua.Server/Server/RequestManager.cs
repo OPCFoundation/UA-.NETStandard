@@ -621,7 +621,7 @@ namespace Opc.Ua.Server
         {
             DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
             DateTime abandoned = now - RequestDrainTimeout;
-            var longest = TimeSpan.Zero;
+            TimeSpan longest = TimeSpan.Zero;
             List<OperationContext> requests = m_requests.GetEntries();
             var awaited = new List<uint>(requests.Count);
 
@@ -719,7 +719,8 @@ namespace Opc.Ua.Server
                 {
                     // an in-flight ActivateSession has no Session context yet, but it is
                     // aborted with the Session it is activating.
-                    if (request.RequestId != excludedRequestId &&
+                    if (!request.IsSessionIndependent &&
+                        request.RequestId != excludedRequestId &&
                         (request.SessionId == sessionId ||
                             request.ActivationTargetSessionId == sessionId))
                     {
@@ -810,7 +811,8 @@ namespace Opc.Ua.Server
 
                 foreach (OperationContext request in m_requests.GetEntries())
                 {
-                    if (request.SessionId == sessionId &&
+                    if (!request.IsOwnedInvocation &&
+                        request.SessionId == sessionId &&
                         request.ClientHandle == requestHandle)
                     {
                         matchingRequests.Add(request);
@@ -854,6 +856,7 @@ namespace Opc.Ua.Server
             // a timestamp a later request reusing the handle (e.g. a client that always sends
             // 0) cannot be told apart.
             if (context == null ||
+                context.IsOwnedInvocation ||
                 context.RequestType == RequestType.Cancel ||
                 context.SessionId.IsNull ||
                 context.ClientTimestamp == DateTime.MinValue)

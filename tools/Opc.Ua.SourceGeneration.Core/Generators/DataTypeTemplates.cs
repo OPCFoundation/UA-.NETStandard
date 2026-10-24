@@ -58,7 +58,7 @@ namespace Opc.Ua.SourceGeneration
                 #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
                 #endif
-                public static partial class DataTypeDefinitions
+                public static partial class {{Tokens.HelperPrefix}}DataTypeDefinitions
                 {
                     {{Tokens.ListOfDataTypeDefinitions}}
                 }
@@ -405,7 +405,8 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             // Add encodeable activator for {{Tokens.BrowseName}}
             builder = builder
-                .AddEncodeableType(DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
+                .AddEncodeableType(
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEncodeableType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
@@ -465,7 +466,7 @@ namespace Opc.Ua.SourceGeneration
                 public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
-                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                    return {{Tokens.HelperPrefix}}DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
                 }
             }
             """);
@@ -501,7 +502,7 @@ namespace Opc.Ua.SourceGeneration
                 public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
-                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                    return {{Tokens.HelperPrefix}}DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
                 }
             }
             """);
@@ -531,7 +532,7 @@ namespace Opc.Ua.SourceGeneration
                 public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(
                     global::Opc.Ua.NamespaceTable namespaceUris)
                 {
-                    return DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
+                    return {{Tokens.HelperPrefix}}DataTypeDefinitions.Create{{Tokens.ClassName}}(namespaceUris);
                 }
             }
             """);
@@ -543,7 +544,8 @@ namespace Opc.Ua.SourceGeneration
             $$"""
             // Add enumerated type activator for {{Tokens.BrowseName}}
             builder = builder
-                .AddEnumeratedType(DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
+                .AddEnumeratedType(
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEnumeratedType({{Tokens.BinaryEncodingId}}, {{Tokens.ClassName}}Activator.Instance)
                 .AddEnumeratedType({{Tokens.XmlEncodingId}}, {{Tokens.ClassName}}Activator.Instance);
             """);
@@ -607,7 +609,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfProperties}}
 
                 /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+                public virtual global::Opc.Ua.ExpandedNodeId TypeId =>
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}};
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};
@@ -827,7 +830,8 @@ namespace Opc.Ua.SourceGeneration
                     => m_FieldNames;
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+                public override global::Opc.Ua.ExpandedNodeId TypeId =>
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}};
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};
@@ -1019,7 +1023,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfProperties}}
 
                 /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+                public virtual global::Opc.Ua.ExpandedNodeId TypeId =>
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}};
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};
@@ -1181,7 +1186,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfProperties}}
 
                 /// <inheritdoc/>
-                public virtual global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+                public virtual global::Opc.Ua.ExpandedNodeId TypeId =>
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}};
 
                 /// <inheritdoc/>
                 public virtual global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};
@@ -1331,7 +1337,8 @@ namespace Opc.Ua.SourceGeneration
                 {{Tokens.ListOfProperties}}
 
                 /// <inheritdoc/>
-                public override global::Opc.Ua.ExpandedNodeId TypeId => DataTypeIds.{{Tokens.BrowseName}};
+                public override global::Opc.Ua.ExpandedNodeId TypeId =>
+                    {{Tokens.HelperPrefix}}DataTypeIds.{{Tokens.BrowseName}};
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.ExpandedNodeId BinaryEncodingId => {{Tokens.BinaryEncodingId}};

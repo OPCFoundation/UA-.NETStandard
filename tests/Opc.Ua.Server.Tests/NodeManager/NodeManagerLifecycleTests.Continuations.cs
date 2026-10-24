@@ -418,8 +418,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ];
             BrowseNextResponse denied = await session.BrowseNextAsync(
                 null, releasePoint, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
-            Assert.That(denied.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(denied.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            if (releasePoint)
+            {
+                Assert.That(denied.Results, Is.Empty);
+                Assert.That(denied.DiagnosticInfos, Is.Empty);
+            }
+            else
+            {
+                Assert.That(denied.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+                Assert.That(denied.Results[0].ContinuationPoint.IsEmpty, Is.True);
+            }
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
@@ -557,10 +565,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             BrowseNextResponse response = await session.BrowseNextAsync(
                 null, true, [continuationPoint], cancellationToken).ConfigureAwait(false);
-            Assert.That(response.Results.Count, Is.EqualTo(1));
-            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(response.Results[0].ContinuationPoint.IsEmpty, Is.True);
-            Assert.That(response.Results[0].References.IsEmpty, Is.True);
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results, Is.Empty);
+            Assert.That(response.DiagnosticInfos, Is.Empty);
         }
 
         private static async Task<BrowseResult> BrowseContinuationRootAsync(

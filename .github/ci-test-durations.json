@@ -1,5 +1,5 @@
 {
-  "source": "Run 37520359929 (master, 2026-10-06): slowest of the four pull-request profiles, test minutes rounded up, plus one minute of incremental build. Opc.Ua.Server.Tests (net48), Opc.Ua.WotCon.Samples.Tests (macOS) and Opc.Ua.Subscriptions.Durable.Tests (nightly) were set from their known run times. Regenerate with .github/scripts/update-test-durations.ps1.",
+  "source": "Run 37520359929 (master, 2026-10-06): slowest of the four pull-request profiles, test minutes rounded up, plus one minute of incremental build. Opc.Ua.Server.Tests refreshed from run 39213825094 (2026-10-19, net48): 1908 seconds of tests rounded to 32 minutes plus one minute of incremental build. Opc.Ua.WotCon.Samples.Tests (macOS) and Opc.Ua.Subscriptions.Durable.Tests (nightly) were set from their known run times. Regenerate with .github/scripts/update-test-durations.ps1.",
   "defaultMinutes": 5,
   "projects": {
     "Opc.Ua.AI.Tests": 3,
@@ -51,7 +51,7 @@
     "Opc.Ua.Scales.Tests": 6,
     "Opc.Ua.Security.Certificates.Tests": 3,
     "Opc.Ua.Security.Pkcs11.Tests": 2,
-    "Opc.Ua.Server.Tests": 21,
+    "Opc.Ua.Server.Tests": 33,
     "Opc.Ua.Sessions.Tests": 17,
     "Opc.Ua.SourceGeneration.Core.Tests": 13,
     "Opc.Ua.SourceGeneration.Stack.Tests": 4,

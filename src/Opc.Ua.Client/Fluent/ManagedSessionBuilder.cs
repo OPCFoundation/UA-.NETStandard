@@ -102,6 +102,17 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Selects recoverable execution behind eligible ordinary asynchronous Services.
+        /// Session is the default preference and permits fallback only after unsupported discovery before Submit.
+        /// Explicit Owner and Durable selections never downgrade.
+        /// </summary>
+        public ManagedSessionBuilder PreferRecoverableExecution(RecoverableSessionOptions? options = null)
+        {
+            m_options = m_options with { RecoverableExecution = options ?? new RecoverableSessionOptions() };
+            return this;
+        }
+
+        /// <summary>
         /// Use a discovery endpoint URL with optional security mode/policy.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="url"/> is <c>null</c>.</exception>

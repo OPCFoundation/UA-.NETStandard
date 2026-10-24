@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+     OPC Foundation MIT License 1.00. See LICENSE.txt. -->
+<opc:ModelDesign xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns="urn:opcfoundation:tests:async-services"
+  TargetNamespace="urn:opcfoundation:tests:async-services"
+  TargetXmlNamespace="urn:opcfoundation:tests:async-services:Types"
+  TargetVersion="1.0.0" TargetPublicationDate="2026-10-16T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace Name="AsyncExecution" Prefix="Opc.Ua.TestModels.AsyncExecution"
+      XmlNamespace="urn:opcfoundation:tests:async-services:Types"
+      XmlPrefix="AsyncExecution">urn:opcfoundation:tests:async-services</opc:Namespace>
+    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      XmlPrefix="OpcUa">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+  <opc:ObjectType SymbolicName="ProbeType" BaseType="ua:BaseObjectType">
+    <opc:Children>
+      <opc:Variable SymbolicName="Counter" DataType="ua:Int32" AccessLevel="ReadWrite" ModellingRule="Mandatory" />
+      <opc:Variable SymbolicName="Blob" DataType="ua:ByteString" ModellingRule="Mandatory" />
+      <opc:Method SymbolicName="DelayedAdd" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="Amount" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="Counter" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+      <opc:Method SymbolicName="DeclaredAdd" ModellingRule="Mandatory">
+        <opc:InputArguments>
+          <opc:Argument Name="Amount" DataType="ua:Int32" />
+        </opc:InputArguments>
+        <opc:OutputArguments>
+          <opc:Argument Name="Counter" DataType="ua:Int32" />
+        </opc:OutputArguments>
+      </opc:Method>
+    </opc:Children>
+  </opc:ObjectType>
+  <opc:Object SymbolicName="Probe" TypeDefinition="ProbeType">
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+  <opc:Object SymbolicName="DeviceManagement" TypeDefinition="ua:ServerConfigurationType">
+    <opc:Children>
+      <opc:Method SymbolicName="ua:GetCertificates" ModellingRule="Mandatory" />
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:Organizes</opc:ReferenceType>
+        <opc:TargetId>ua:ObjectsFolder</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>

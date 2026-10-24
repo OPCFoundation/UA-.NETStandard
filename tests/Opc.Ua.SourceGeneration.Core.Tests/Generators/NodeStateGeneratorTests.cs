@@ -1750,14 +1750,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 telemetry);
 
             string code = string.Join("\n", files.Values);
+            string identifiers = string.Concat(code.Where(character => !char.IsWhiteSpace(character)));
             Assert.Multiple(() =>
             {
                 Assert.That(code, Does.Contain("namespace Acme.Opc.Ua.Pumps"));
-                Assert.That(code, Does.Contain("global::Opc.Ua.DataTypes.Double,"));
-                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.VariableTypes.FlowVariableType,"));
-                Assert.That(code, Does.Contain("global::Acme.Opc.Ua.Pumps.ObjectTypes.PumpType,"));
+                Assert.That(identifiers, Does.Contain("global::Opc.Ua.DataTypes.Double,"));
+                Assert.That(identifiers, Does.Contain("global::Acme.Opc.Ua.Pumps.VariableTypes.FlowVariableType,"));
+                Assert.That(identifiers, Does.Contain("global::Acme.Opc.Ua.Pumps.ObjectTypes.PumpType,"));
                 Assert.That(
-                    code,
+                    identifiers,
                     Does.Contain("global::Acme.Opc.Ua.Pumps.DataTypeDefinitions.CreatePumpSettings("));
             });
             Assert.That(CompileGeneratedAssembly(files), Is.Not.Null);

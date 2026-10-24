@@ -32,6 +32,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
@@ -154,6 +155,132 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.SendResponse(1u, Mock.Of<IServiceResponse>()))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadSecureChannelClosed));
+        }
+
+        /// <summary>
+        /// A faulted channel owns deferred responses until delivery or terminal disposal, never indefinitely.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DisposingFaultedChannelReleasesEveryQueuedResponse(bool asynchronous)
+        {
+            using TestServerChannel channel = BuildChannel(CreateListenerMock());
+            channel.CurrentState = TcpChannelState.Faulted;
+            int first = 0;
+            int second = 0;
+            IServiceResponse one = RetainedResponse(() => first++);
+            IServiceResponse two = RetainedResponse(() => second++);
+            if (asynchronous)
+            {
+                Assert.That(await channel.SendResponseAsync(1, one).ConfigureAwait(false), Is.True);
+                Assert.That(await channel.SendResponseAsync(2, two).ConfigureAwait(false), Is.True);
+            }
+            else
+            {
+                // Exercise the separate synchronous public entry point, not its asynchronous replacement.
+                // TODO: remove when CA1849 recognizes intentional synchronous API contract tests.
+#pragma warning disable CA1849
+                Assert.That(channel.SendResponse(1, one), Is.True);
+                Assert.That(channel.SendResponse(2, two), Is.True);
+#pragma warning restore CA1849
+            }
+            Assert.That(first, Is.Zero);
+            Assert.That(second, Is.Zero);
+            channel.Dispose();
+            channel.Dispose();
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(second, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Replacing a deferred response releases only the old owner before retaining the new response.
+        /// </summary>
+        [Test]
+        public void ReplacingQueuedResponseReleasesThePreviousOwner()
+        {
+            using TestServerChannel channel = BuildChannel(CreateListenerMock());
+            channel.CurrentState = TcpChannelState.Faulted;
+            int first = 0;
+            int second = 0;
+            Assert.That(channel.SendResponse(1, RetainedResponse(() => first++)), Is.True);
+            Assert.That(channel.SendResponse(1, RetainedResponse(() => second++)), Is.True);
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(second, Is.Zero);
+            channel.Dispose();
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(second, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A failed resend releases its detached response; requeue transfers ownership until disposal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ReconnectResponseCleanupHonorsRequeueOwnership(bool requeue)
+        {
+            using TestServerChannel channel = BuildChannel(CreateListenerMock());
+            channel.CurrentState = requeue ? TcpChannelState.Faulted : TcpChannelState.Closed;
+            int released = 0;
+            var responses = new SortedDictionary<uint, IServiceResponse>
+            {
+                [1] = RetainedResponse(() => released++)
+            };
+            typeof(TcpServerChannel).GetMethod("OnChannelReconnected", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(channel, [responses]);
+            Assert.That(released, Is.EqualTo(requeue ? 0 : 1));
+            channel.Dispose();
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A rejected background handoff cannot lose the detached deferred-response owner.
+        /// </summary>
+        [Test]
+        public void RejectedReconnectSchedulingReleasesDetachedResponses()
+        {
+            using TestServerChannel channel = BuildChannel(CreateListenerMock());
+            channel.CurrentState = TcpChannelState.Faulted;
+            int released = 0;
+            int invoked = 0;
+            Assert.That(channel.SendResponse(1, RetainedResponse(() => released++)), Is.True);
+            channel.StopBackgroundWork();
+            typeof(TcpServerChannel).GetMethod("ResetQueuedResponses", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(channel, [new Action<object?>(_ => invoked++)]);
+            Assert.That(invoked, Is.Zero);
+            Assert.That(released, Is.EqualTo(1));
+            channel.Dispose();
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// A faulty response cleanup cannot strand later reservations or the channel certificate.
+        /// </summary>
+        [Test]
+        public void QueuedResponseCleanupFailureStillReleasesOtherOwners()
+        {
+            using TestServerChannel channel = BuildChannel(CreateListenerMock());
+            channel.CurrentState = TcpChannelState.Faulted;
+            int first = 0;
+            int second = 0;
+            Assert.That(channel.SendResponse(1, RetainedResponse(() =>
+            {
+                first++;
+                throw new InvalidOperationException("Synthetic response cleanup failure.");
+            })), Is.True);
+            Assert.That(channel.SendResponse(2, RetainedResponse(() => second++)), Is.True);
+            channel.Dispose();
+            Assert.That(first, Is.EqualTo(1));
+            Assert.That(second, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Counts every cleanup attempt rather than relying on an idempotent payload to hide duplicate release.
+        /// </summary>
+        private static IServiceResponse RetainedResponse(Action release)
+        {
+            var response = new Mock<IServiceResponse>();
+            response.As<IPooledEncodeable>().Setup(value => value.Reuse()).Callback(release);
+            return response.Object;
         }
 
         [Test]
@@ -824,6 +951,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 get => ClientCertificate;
                 set => ClientCertificate = value;
+            }
+
+            public void StopBackgroundWork()
+            {
+                BackgroundWork.Dispose();
             }
 
             public void PresetEndpointDescription(EndpointDescription endpoint)

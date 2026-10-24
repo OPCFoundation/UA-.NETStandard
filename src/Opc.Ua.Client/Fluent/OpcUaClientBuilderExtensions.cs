@@ -1381,6 +1381,10 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithModelChangeTracking();
             }
+            if (sessionOptions.RecoverableExecution != null)
+            {
+                builder.PreferRecoverableExecution(sessionOptions.RecoverableExecution);
+            }
             if (sessionOptions.ReverseConnectionSource != null)
             {
                 builder.UseReverseConnectionSource(sessionOptions.ReverseConnectionSource);

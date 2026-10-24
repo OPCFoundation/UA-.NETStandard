@@ -807,7 +807,9 @@ namespace Opc.Ua.SourceGeneration
                         => default;
                 }
             }
-            """;
+            """ +
+            "\n" +
+            kClientOperationContextStub;
 
         /// <summary>
         /// All stubs needed to compile models against Opc.Ua models.
@@ -1535,6 +1537,38 @@ namespace Opc.Ua.SourceGeneration
                     public AcknowledgeableConditionTypeClient(
                         ISessionClient session, NodeId objectId, ITelemetryContext telemetry)
                         : base(session, objectId, telemetry) { }
+                }
+            }
+            """ +
+            "\n" +
+            kClientOperationContextStub;
+
+        /// <summary>
+        /// Shared completion boundary used by generated typed Method proxies in both compilation environments.
+        /// </summary>
+        private const string kClientOperationContextStub =
+            """
+            namespace Opc.Ua
+            {
+                public static class ClientOperationContext
+                {
+                    public static System.Threading.Tasks.ValueTask<TResult> ExecuteAsync<TResult>(
+                        ISessionClient session,
+                        System.Func<System.Threading.CancellationToken,
+                            System.Threading.Tasks.ValueTask<TResult>> operation,
+                        System.Threading.CancellationToken ct = default)
+                    {
+                        return operation(ct);
+                    }
+
+                    public static System.Threading.Tasks.ValueTask ExecuteAsync(
+                        ISessionClient session,
+                        System.Func<System.Threading.CancellationToken,
+                            System.Threading.Tasks.ValueTask> operation,
+                        System.Threading.CancellationToken ct = default)
+                    {
+                        return operation(ct);
+                    }
                 }
             }
             """;

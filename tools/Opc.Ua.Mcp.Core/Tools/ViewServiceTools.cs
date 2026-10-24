@@ -124,7 +124,8 @@ namespace Opc.Ua.Mcp.Tools
         [McpServerTool(Name = "BrowseNext")]
         [Description("Continue a previously started browse operation using the continuation point returned from " +
             "Browse (when more references remain than fit in one response). Returns JSON with responseHeader, " +
-            "statusCode, continuationPoint (non-null if more results remain), and references; on failure returns " +
+            "statusCode, continuationPoint (non-null if more results remain), and references. Releasing returns " +
+            "the service status, a null continuationPoint, and empty references; on failure returns " +
             "{error:true, statusCode, message}.")]
         public static async Task<string> BrowseNextAsync(
             OpcUaSessionManager sessionManager,
@@ -147,6 +148,17 @@ namespace Opc.Ua.Mcp.Tools
                     releaseContinuationPoint,
                     continuationPoints,
                     ct).ConfigureAwait(false);
+
+                if (releaseContinuationPoint)
+                {
+                    return OpcUaJsonHelper.Serialize(new Dictionary<string, object?>
+                    {
+                        ["responseHeader"] = OpcUaJsonHelper.ResponseHeaderToDict(response.ResponseHeader),
+                        ["statusCode"] = OpcUaJsonHelper.StatusCodeToString(response.ResponseHeader.ServiceResult),
+                        ["continuationPoint"] = null,
+                        ["references"] = Array.Empty<Dictionary<string, object?>>()
+                    });
+                }
 
                 BrowseResult result = response.Results[0];
                 List<Dictionary<string, object?>> references = result.References.IsNull
