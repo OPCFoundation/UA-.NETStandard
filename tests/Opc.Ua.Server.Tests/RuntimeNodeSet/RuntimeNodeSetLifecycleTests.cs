@@ -747,13 +747,26 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Is.EqualTo(new QualifiedName("PointValue", ns)));
         }
 
-        [Test]
-        public async Task AddRuntimeNodeSetAsyncWithDuplicateNodeIdsRollsBackWithoutPublishingAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddRuntimeNodeSetAsyncWithDuplicateNodeIdsRollsBackWithoutPublishingAsync(
+            bool existingGeneration)
         {
             const uint DuplicateNodeId = 9100;
+            if (existingGeneration)
+            {
+                await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(CreateOptions(generation: 1), null)
+                    .ConfigureAwait(false);
+            }
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             int managerCountBefore = master.AsyncNodeManagers.Count;
+            ArrayOf<NodeManagerRegistration> registrationsBefore = GetNonStartupRegistrations();
+            string[] namespaceUrisBefore = await ReadNamespaceArrayAsync().ConfigureAwait(false);
+            uint urisVersionBefore = await ReadUrisVersionAsync().ConfigureAwait(false);
+            ushort stagedNamespaceIndex = existingGeneration
+                ? (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri)
+                : (ushort)server.NamespaceUris.Count;
             string xml = BuildDuplicateNodeSetXml(DuplicateNodeId);
 
             InvalidOperationException exception =
@@ -767,27 +780,47 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("Duplicate NodeId"));
-            Assert.That(GetNonStartupRegistrations(), Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.EqualTo(registrationsBefore));
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
-            int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
-            Assert.That(namespaceIndex, Is.GreaterThan(0));
+            Assert.That(
+                server.NamespaceUris.GetIndex(kModelNamespaceUri),
+                Is.EqualTo(existingGeneration ? stagedNamespaceIndex : -1));
+            var duplicateNodeId = new NodeId(DuplicateNodeId, stagedNamespaceIndex);
             NodeState duplicateNode = (await server.NodeManager
-                .FindNodeInAddressSpaceAsync(
-                    new NodeId(DuplicateNodeId, (ushort)namespaceIndex))
+                .FindNodeInAddressSpaceAsync(duplicateNodeId)
                 .ConfigureAwait(false))!;
             Assert.That(duplicateNode, Is.Null);
+            DataValue duplicateValue = await ReadValueAsync(duplicateNodeId, Attributes.BrowseName)
+                .ConfigureAwait(false);
+            Assert.That(duplicateValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            BrowseResponse duplicateBrowse = await BrowseAsync(duplicateNodeId).ConfigureAwait(false);
+            Assert.That(duplicateBrowse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            await AssertAbortedRuntimeNodeSetIsolationAsync(
+                namespaceUrisBefore, urisVersionBefore, existingGeneration).ConfigureAwait(false);
         }
 
-        [Test]
-        public async Task AddRuntimeNodeSetAsyncWithNodeInUnownedNamespaceRollsBackWithoutPublishingAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AddRuntimeNodeSetAsyncWithNodeInUnownedNamespaceRollsBackWithoutPublishingAsync(
+            bool existingGeneration)
         {
             const string ExternalNamespaceUri =
                 "urn:opcfoundation.org:Tests:RuntimeNodeSetLifecycle:External";
             const uint ExternalNodeId = 9200;
+            if (existingGeneration)
+            {
+                await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(CreateOptions(generation: 1), null)
+                    .ConfigureAwait(false);
+            }
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             int managerCountBefore = master.AsyncNodeManagers.Count;
+            ArrayOf<NodeManagerRegistration> registrationsBefore = GetNonStartupRegistrations();
+            string[] namespaceUrisBefore = await ReadNamespaceArrayAsync().ConfigureAwait(false);
+            uint urisVersionBefore = await ReadUrisVersionAsync().ConfigureAwait(false);
+            int modelNamespaceIndexBefore = server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            ushort stagedExternalNamespaceIndex = (ushort)(server.NamespaceUris.Count + (existingGeneration ? 0 : 1));
             string xml = BuildUnownedNamespaceNodeSetXml(
                 ExternalNamespaceUri,
                 ExternalNodeId);
@@ -803,17 +836,27 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("not owned"));
-            Assert.That(GetNonStartupRegistrations(), Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.EqualTo(registrationsBefore));
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int externalNamespaceIndex =
                 server.NamespaceUris.GetIndex(ExternalNamespaceUri);
-            Assert.That(externalNamespaceIndex, Is.GreaterThan(0));
+            Assert.That(externalNamespaceIndex, Is.EqualTo(-1));
+            Assert.That(
+                server.NamespaceUris.GetIndex(kModelNamespaceUri),
+                Is.EqualTo(modelNamespaceIndexBefore));
+            var externalNodeId = new NodeId(ExternalNodeId, stagedExternalNamespaceIndex);
             NodeState externalNode = (await server.NodeManager
-                .FindNodeInAddressSpaceAsync(
-                    new NodeId(ExternalNodeId, (ushort)externalNamespaceIndex))
+                .FindNodeInAddressSpaceAsync(externalNodeId)
                 .ConfigureAwait(false))!;
             Assert.That(externalNode, Is.Null);
+            DataValue externalValue = await ReadValueAsync(externalNodeId, Attributes.BrowseName)
+                .ConfigureAwait(false);
+            Assert.That(externalValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            BrowseResponse externalBrowse = await BrowseAsync(externalNodeId).ConfigureAwait(false);
+            Assert.That(externalBrowse.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            await AssertAbortedRuntimeNodeSetIsolationAsync(
+                namespaceUrisBefore, urisVersionBefore, existingGeneration).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1619,6 +1662,42 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                   </UAVariable>
                 </UANodeSet>
                 """;
+        }
+
+        /// <summary>
+        /// Verifies failed staging leaves namespace metadata unchanged and preserves an existing
+        /// generation or permits a subsequent successful publication using the same namespace.
+        /// </summary>
+        private async Task AssertAbortedRuntimeNodeSetIsolationAsync(
+            string[] namespaceUrisBefore,
+            uint urisVersionBefore,
+            bool existingGeneration)
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            Assert.That(server.NamespaceUris.ToArray(), Is.EqualTo(namespaceUrisBefore));
+            Assert.That(await ReadNamespaceArrayAsync().ConfigureAwait(false), Is.EqualTo(namespaceUrisBefore));
+            Assert.That(await ReadUrisVersionAsync().ConfigureAwait(false), Is.EqualTo(urisVersionBefore));
+
+            if (!existingGeneration)
+            {
+                await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(CreateOptions(generation: 1), null)
+                    .ConfigureAwait(false);
+                Assert.That(server.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(namespaceUrisBefore.Length));
+                Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceUrisBefore.Length + 1));
+                Assert.That(await ReadUrisVersionAsync().ConfigureAwait(false), Is.EqualTo(urisVersionBefore + 1));
+            }
+
+            ushort namespaceIndex = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
+            DataValue value = await ReadValueAsync(new NodeId(kValueNodeId, namespaceIndex)).ConfigureAwait(false);
+            Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration1Value));
+            BrowseResponse rootBrowse = await BrowseAsync(new NodeId(kRootNodeId, namespaceIndex))
+                .ConfigureAwait(false);
+            Assert.That(rootBrowse.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(
+                rootBrowse.Results[0].References.Contains(
+                    reference => reference.BrowseName.Equals(new QualifiedName(kValueBrowseName, namespaceIndex))),
+                Is.True);
         }
 
         /// <summary>

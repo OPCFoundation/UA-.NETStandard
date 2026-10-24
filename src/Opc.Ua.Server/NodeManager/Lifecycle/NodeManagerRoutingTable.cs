@@ -36,7 +36,7 @@ using System.Threading;
 
 namespace Opc.Ua.Server
 {
-            /// <summary>
+    /// <summary>
     /// Routes Nodes to the NodeManagers that own them and lets NodeManagers be added, replaced,
     /// and removed while the server is running.
     /// <para>
@@ -107,7 +107,6 @@ namespace Opc.Ua.Server
                     snapshot.HiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -140,7 +139,6 @@ namespace Opc.Ua.Server
                     m_snapshot.HiddenNodeManagers,
                     typeTree ?? m_snapshot.TypeTree,
                     factory ?? m_snapshot.Factory,
-                    m_snapshot.References,
                     m_snapshot.ReadImages);
             }
         }
@@ -216,7 +214,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -364,7 +361,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
                 return currentPosition;
             }
@@ -474,7 +470,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -544,7 +539,6 @@ namespace Opc.Ua.Server
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
                 return position;
             }
@@ -647,7 +641,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -706,7 +699,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -762,7 +754,6 @@ namespace Opc.Ua.Server
                     snapshot.HiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
                 return true;
             }
@@ -810,7 +801,6 @@ namespace Opc.Ua.Server
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -897,7 +887,6 @@ namespace Opc.Ua.Server
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.References,
                     snapshot.ReadImages);
             }
         }
@@ -910,12 +899,6 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureMutable();
-                foreach (NodeState node in m_referenceOwners.Keys)
-                {
-                    m_snapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image);
-                    node.ReleaseReferenceView(SelectReferences, image);
-                }
-                m_referenceOwners.Clear();
                 m_snapshot = RoutingSnapshot.Empty;
             }
         }
@@ -1066,7 +1049,6 @@ namespace Opc.Ua.Server
             /// <param name="hiddenNodeManagers">The NodeManagers not yet reachable by Clients.</param>
             /// <param name="typeTree">The type image published with these routes, if supplied.</param>
             /// <param name="factory">The factory image published with these routes, if supplied.</param>
-            /// <param name="references">The reference images published with these routes, if supplied.</param>
             /// <param name="readImages">Immutable application state belonging to the registered owners.</param>
             public RoutingSnapshot(
                 IAsyncNodeManager[] nodeManagers,
@@ -1074,7 +1056,6 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager[] hiddenNodeManagers,
                 TypeTable? typeTree = null,
                 EncodeableFactory? factory = null,
-                IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null,
                 IReadOnlyDictionary<IAsyncNodeManager, INodeManagerReadImage>? readImages = null)
             {
                 NodeManagers = nodeManagers;
@@ -1082,7 +1063,6 @@ namespace Opc.Ua.Server
                 HiddenNodeManagers = hiddenNodeManagers;
                 TypeTree = typeTree;
                 Factory = factory;
-                References = references ?? new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
                 ReadImages = readImages is null
                     ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
@@ -1120,7 +1100,6 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the in-memory reference images owned by this routing generation.
             /// </summary>
-            public IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot> References { get; }
 
             /// <summary>
             /// Gets the immutable application state owned by this routing generation.
@@ -1184,7 +1163,7 @@ namespace Opc.Ua.Server
                     managers, routes,
                     [.. HiddenNodeManagers.Where(manager => Array.Exists(
                         managers, owner => ReferenceEquals(owner, manager)))],
-                    TypeTree, Factory, References, ReadImages);
+                    TypeTree, Factory, ReadImages);
             }
 
             /// <summary>
@@ -1297,30 +1276,19 @@ namespace Opc.Ua.Server
         internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
 
         /// <summary>
-        /// Gets the metadata image revision captured by the current flow, or the live revision.
-        /// This does not select dispatch routes.
+        /// Gets the shared canonical type table.
         /// </summary>
-        internal RoutingSnapshot CapturedRevision => ImageSnapshot;
+        internal TypeTable? TypeTree => Revision.TypeTree;
 
         /// <summary>
-        /// Gets the type tree of the prepared image in use, or the one captured with the routing revision.
+        /// Gets the shared canonical encodeable registrations.
         /// </summary>
-        internal TypeTable? TypeTree => m_preparedTypes.Value ?? ImageSnapshot.TypeTree;
-
-        /// <summary>
-        /// Gets the encodeable factory of the prepared image in use, or the one captured with the routing revision.
-        /// </summary>
-        internal EncodeableFactory? Factory => m_preparedFactory.Value ?? ImageSnapshot.Factory;
+        internal EncodeableFactory? Factory => Revision.Factory;
 
         /// <summary>
         /// Gets live routes. Metadata image scopes never select dispatch routes.
         /// </summary>
         private RoutingSnapshot ReadSnapshot => Volatile.Read(ref m_snapshot);
-
-        /// <summary>
-        /// Gets the transitional contextless metadata image, never a dispatch route.
-        /// </summary>
-        private RoutingSnapshot ImageSnapshot => m_imageSnapshot.Value ?? ReadSnapshot;
 
         /// <summary>
         /// Gets the live published application state for a node manager.
@@ -1333,66 +1301,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Captures metadata images, but not dispatch routes, until the scope is disposed.
-        /// </summary>
-        /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
-        /// <returns>The scope that restores the previous snapshot when disposed.</returns>
-        internal ReadScope Capture(RoutingSnapshot? snapshot = null)
-        {
-            RoutingSnapshot? previous = m_imageSnapshot.Value;
-            m_imageSnapshot.Value = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
-            return new ReadScope(this, previous);
-        }
-
-        /// <summary>
-        /// Captures metadata images for the rest of the calling async method, like
-        /// <see cref="Capture"/> without the scope.
-        /// </summary>
-        /// <remarks>
-        /// An async method's changes to the execution context end when it returns: its builder
-        /// restores the caller's context, also when it completes synchronously. A capture that
-        /// lasts until the method returns therefore needs no restore, which would change the
-        /// execution context a second time per service call. Only for async methods; a capture
-        /// that must end earlier uses <see cref="Capture"/>.
-        /// </remarks>
-        /// <param name="snapshot">The snapshot to capture, or null to capture the active or live one.</param>
-        internal void CaptureUntilReturn(RoutingSnapshot? snapshot = null)
-        {
-            RoutingSnapshot? previous = m_imageSnapshot.Value;
-            RoutingSnapshot captured = snapshot ?? previous ?? Volatile.Read(ref m_snapshot);
-            if (!ReferenceEquals(captured, previous))
-            {
-                m_imageSnapshot.Value = captured;
-            }
-        }
-
-        /// <summary>
-        /// Clears the transitional metadata image scope for lifecycle work until disposed.
-        /// </summary>
-        /// <returns>The scope that restores the previous snapshot when disposed.</returns>
-        internal ReadScope UseLiveRouting()
-        {
-            RoutingSnapshot? previous = m_imageSnapshot.Value;
-            m_imageSnapshot.Value = null;
-            return new ReadScope(this, previous);
-        }
-
-        /// <summary>
-        /// Uses privately prepared type tree and factory images in the current asynchronous flow until disposed.
-        /// </summary>
-        /// <param name="typeTree">The prepared type tree.</param>
-        /// <param name="factory">The prepared encodeable factory.</param>
-        /// <returns>The scope that restores the previous images when disposed.</returns>
-        internal IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
-        {
-            TypeTable? previous = m_preparedTypes.Value;
-            EncodeableFactory? previousFactory = m_preparedFactory.Value;
-            m_preparedTypes.Value = typeTree;
-            m_preparedFactory.Value = factory;
-            return new TypeScope(this, previous, previousFactory);
-        }
-
-        /// <summary>
         /// Builds the routing image that results from adding, replacing and removing node managers.
         /// </summary>
         /// <param name="candidates">The prepared node managers to add or replace.</param>
@@ -1401,7 +1309,6 @@ namespace Opc.Ua.Server
         /// <param name="resolveNamespaces">Resolves the namespace indexes served by a node manager.</param>
         /// <param name="typeTree">The type tree to publish.</param>
         /// <param name="factory">The encodeable factory to publish.</param>
-        /// <param name="references">The reference images to publish, or null to keep the current ones.</param>
         /// <param name="readImages">The read images to publish.</param>
         /// <returns>The prepared routes that can be reserved and published.</returns>
         internal PreparedRoutes PrepareBatch(
@@ -1411,7 +1318,6 @@ namespace Opc.Ua.Server
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
             TypeTable typeTree,
             EncodeableFactory factory,
-            IReadOnlyDictionary<NodeState, NodeState.ReferenceSnapshot>? references = null,
             ArrayOf<INodeManagerReadImage> readImages = default)
         {
             lock (m_lock)
@@ -1519,87 +1425,9 @@ namespace Opc.Ua.Server
                     ],
                     typeTree,
                     factory,
-                    references ?? current.References,
                     images);
                 return new PreparedRoutes(this, current, next);
             }
-        }
-
-        /// <summary>
-        /// Prepares the reference image of a node that receives external references from a node manager.
-        /// </summary>
-        /// <param name="owner">The node manager that owns the references.</param>
-        /// <param name="node">The node that receives the references.</param>
-        /// <param name="additions">The references to add.</param>
-        /// <param name="removals">The references to remove.</param>
-        /// <param name="next">Receives the prepared reference snapshot of the node.</param>
-        /// <returns>The reference update to reserve, complete or dispose.</returns>
-        internal NodeState.ReferenceUpdate PrepareReferences(
-            IAsyncNodeManager owner,
-            NodeState node,
-            ArrayOf<IReference> additions,
-            ArrayOf<IReference> removals,
-            Dictionary<NodeState, NodeState.ReferenceSnapshot> next)
-        {
-            lock (m_lock)
-            {
-                EnsureMutable();
-                if (m_referenceOwners.TryGetValue(node, out IAsyncNodeManager? existing) &&
-                    !AreSameManager(existing, owner))
-                {
-                    throw new NotSupportedException("A reference image cannot have multiple NodeManager owners.");
-                }
-                NodeState.ReferenceUpdate update = node.PrepareReferences(SelectReferences, additions, removals);
-                m_referenceOwners[node] = owner;
-                next[node] = update.Next;
-                return update;
-            }
-        }
-
-        /// <summary>
-        /// Releases the reference images of all nodes whose references are owned by a node manager.
-        /// </summary>
-        /// <param name="owner">The node manager that owned the references.</param>
-        internal void ReleaseReferences(IAsyncNodeManager owner)
-        {
-            lock (m_lock)
-            {
-                EnsureMutable();
-                NodeState[] nodes =
-                [
-                    .. m_referenceOwners.Where(entry => AreSameManager(entry.Value, owner)).Select(entry => entry.Key)
-                ];
-                if (nodes.Length == 0)
-                {
-                    return;
-                }
-                Dictionary<NodeState, NodeState.ReferenceSnapshot> references =
-                    m_snapshot.References.ToDictionary(entry => entry.Key, entry => entry.Value);
-                bool changed = false;
-                foreach (NodeState node in nodes)
-                {
-                    references.TryGetValue(node, out NodeState.ReferenceSnapshot? image);
-                    node.ReleaseReferenceView(SelectReferences, image);
-                    changed |= references.Remove(node);
-                    m_referenceOwners.Remove(node);
-                }
-                if (changed)
-                {
-                    m_snapshot = new RoutingSnapshot(
-                        m_snapshot.NodeManagers, m_snapshot.NamespaceManagers, m_snapshot.HiddenNodeManagers,
-                        m_snapshot.TypeTree, m_snapshot.Factory, references, m_snapshot.ReadImages);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Selects the reference image of a node in the active snapshot.
-        /// </summary>
-        /// <param name="node">The node.</param>
-        /// <returns>The reference snapshot, or null if there is none.</returns>
-        private NodeState.ReferenceSnapshot? SelectReferences(NodeState node)
-        {
-            return ImageSnapshot.References.TryGetValue(node, out NodeState.ReferenceSnapshot? image) ? image : null;
         }
 
         /// <summary>
@@ -1614,10 +1442,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private readonly AsyncLocal<RoutingSnapshot?> m_imageSnapshot = new();
-        private readonly AsyncLocal<TypeTable?> m_preparedTypes = new();
-        private readonly AsyncLocal<EncodeableFactory?> m_preparedFactory = new();
-        private readonly Dictionary<NodeState, IAsyncNodeManager> m_referenceOwners = [];
         private PreparedRoutes? m_reservedRoutes;
 
         /// <summary>
@@ -1650,61 +1474,6 @@ namespace Opc.Ua.Server
             {
                 return RuntimeHelpers.GetHashCode(owner);
             }
-        }
-
-        /// <summary>
-        /// Restores the previous prepared type tree and factory when disposed.
-        /// </summary>
-        /// <param name="owner">The routing table.</param>
-        /// <param name="previous">The previously prepared type tree.</param>
-        /// <param name="previousFactory">The previously prepared factory.</param>
-        private sealed class TypeScope(
-            NodeManagerRoutingTable owner,
-            TypeTable? previous,
-            EncodeableFactory? previousFactory) : IDisposable
-        {
-            /// <inheritdoc/>
-            public void Dispose()
-            {
-                NodeManagerRoutingTable? current = Interlocked.Exchange(ref m_owner, null);
-                if (current is not null)
-                {
-                    current.m_preparedTypes.Value = previous;
-                    current.m_preparedFactory.Value = previousFactory;
-                }
-            }
-
-            private NodeManagerRoutingTable? m_owner = owner;
-        }
-
-        /// <summary>
-        /// Restores the previously captured routing snapshot when disposed.
-        /// </summary>
-        internal sealed class ReadScope : IDisposable
-        {
-            /// <summary>
-            /// Creates a read scope.
-            /// </summary>
-            /// <param name="owner">The routing table.</param>
-            /// <param name="previous">The snapshot to restore on disposal.</param>
-            internal ReadScope(NodeManagerRoutingTable owner, RoutingSnapshot? previous)
-            {
-                m_owner = owner;
-                m_previous = previous;
-            }
-
-            /// <inheritdoc/>
-            public void Dispose()
-            {
-                NodeManagerRoutingTable? owner = Interlocked.Exchange(ref m_owner, null);
-                if (owner is not null)
-                {
-                    owner.m_imageSnapshot.Value = m_previous;
-                }
-            }
-
-            private NodeManagerRoutingTable? m_owner;
-            private readonly RoutingSnapshot? m_previous;
         }
 
         /// <summary>

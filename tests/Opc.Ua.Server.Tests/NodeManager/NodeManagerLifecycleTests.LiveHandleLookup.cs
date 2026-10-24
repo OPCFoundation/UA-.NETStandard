@@ -55,9 +55,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration? registration = null;
             try
             {
-                using (table.Capture())
+                using (var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
                 {
-                    NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                    context.PinRouting(table.Revision);
+                    NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                     registration = await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null, timeout.Token)
                         .ConfigureAwait(false);
@@ -70,7 +72,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(materialized, Is.True);
-                        Assert.That(table.CapturedRevision, Is.SameAs(captured));
+                        Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                         Assert.That(table.Revision, Is.Not.SameAs(captured));
                     }
                 }
@@ -95,9 +97,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
             NodeManagerRoutingTable table = GetRoutingTable(master);
 
-            using (table.Capture())
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
             {
-                NodeManagerRoutingTable.RoutingSnapshot captured = table.CapturedRevision;
+                context.PinRouting(table.Revision);
+                NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 bool known = await master.IsNodeMaterializedAsync(ObjectIds.ObjectsFolder, timeout.Token)
                     .ConfigureAwait(false);
                 bool unknown = await master.IsNodeMaterializedAsync(
@@ -107,7 +111,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(known, Is.True);
                     Assert.That(unknown, Is.False);
-                    Assert.That(table.CapturedRevision, Is.SameAs(captured));
+                    Assert.That(context.RoutingSnapshot, Is.SameAs(captured));
                 }
             }
         }

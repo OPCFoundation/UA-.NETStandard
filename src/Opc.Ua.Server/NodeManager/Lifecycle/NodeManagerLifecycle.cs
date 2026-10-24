@@ -72,7 +72,7 @@ namespace Opc.Ua.Server
             m_server = server ?? throw new ArgumentNullException(nameof(server));
         }
 
-                /// <inheritdoc/>
+        /// <inheritdoc/>
         public ArrayOf<NodeManagerRegistration> Registrations
         {
             get
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server
             }
         }
 
-                /// <inheritdoc/>
+        /// <inheritdoc/>
         public bool IsShuttingDown => m_shuttingDown;
 
         internal long ShutdownCleanupProgress =>
@@ -657,7 +657,6 @@ namespace Opc.Ua.Server
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
-            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
@@ -919,7 +918,6 @@ namespace Opc.Ua.Server
                     }
                     if (!cleanup.Disposed)
                     {
-                        RebuildActiveTypeTree(server);
                         await DisposeNodeManagerAsync(state.Prepared.NodeManager)
                             .ConfigureAwait(false);
                         cleanup.Disposed = true;
@@ -963,7 +961,6 @@ namespace Opc.Ua.Server
             using OperationLifetime operation = EnterLifecycleOperation();
             (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
-            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
@@ -986,8 +983,10 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 (server, host) = GetRunningServer(allowRequestCallback);
                 namespaceCountBefore = server.NamespaceUris.Count;
+                var preparation = new ChangePreparer(server);
+                using ChangePreparer.StagingServer stagingServer = preparation.CreateServer();
                 nodeManager = await createNodeManager(
-                    server,
+                    stagingServer,
                     m_server.CurrentConfiguration,
                     ct).ConfigureAwait(false) ??
                     throw new InvalidOperationException(
@@ -996,12 +995,15 @@ namespace Opc.Ua.Server
                 {
                     throw new NodeManagerAlreadyRegisteredException();
                 }
+                ChangePreparer.Attach(nodeManager, stagingServer);
                 prepared = await host.PrepareAsync(nodeManager, ct).ConfigureAwait(false);
+                prepared.Preparation = preparation;
 
-                await ValidateDataTypeCompatibilityAsync(server, nodeManager, ct)
+                await ValidateDataTypeCompatibilityAsync(stagingServer, nodeManager, ct)
                     .ConfigureAwait(false);
-                await m_server
-                    .RefreshComplexTypesAsync(server, nodeManager, cancellationToken: ct)
+                IDataTypeDefinitionResolver? resolver = await m_server
+                    .RefreshComplexTypesAsync(
+                        stagingServer, nodeManager, publishResolver: false, cancellationToken: ct)
                     .ConfigureAwait(false);
                 ServerBindings bindings = await BindToServerAsync(
                     server,
@@ -1022,7 +1024,10 @@ namespace Opc.Ua.Server
                         server,
                         nodeManager,
                         ct)).ConfigureAwait(false);
-                RebuildTypeTree(nodeManager);
+                if (resolver is not null)
+                {
+                    m_server.ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
 
                 var registration = new NodeManagerRegistration(
                     Guid.NewGuid(),
@@ -1154,10 +1159,6 @@ namespace Opc.Ua.Server
 
                 if (server is not null && !m_disposed && !m_shuttingDown)
                 {
-                    if (nodeManager is not null)
-                    {
-                        RebuildActiveTypeTree(server);
-                    }
                     await NotifyNamespaceTableChangedAsync(
                         server,
                         namespaceCountBefore,
@@ -1234,7 +1235,6 @@ namespace Opc.Ua.Server
                 permissionState.AllowLifecycleFromRequestCallback;
             (IServerInternal entryServer, IDynamicNodeManagerHost entryHost) =
                 GetRunningServer(allowRequestCallback, callerContext);
-            using IDisposable? routing = (entryHost as IDynamicNodeManagerBatchHost)?.UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter =
                 EnterRequestLifecycleWaiter(entryServer, callerContext);
             await using var bindingAdmission =
@@ -1268,8 +1268,10 @@ namespace Opc.Ua.Server
                 EnsureRequestCallbackAllowed(allowRequestCallback, callerContext);
                 (server, host) = GetRunningServer(allowRequestCallback);
                 namespaceCountBefore = server.NamespaceUris.Count;
+                var preparation = new ChangePreparer(server);
+                using ChangePreparer.StagingServer stagingServer = preparation.CreateServer();
                 replacementManager = await createNodeManager(
-                    server,
+                    stagingServer,
                     m_server.CurrentConfiguration,
                     ct).ConfigureAwait(false) ??
                     throw new InvalidOperationException(
@@ -1278,11 +1280,13 @@ namespace Opc.Ua.Server
                 {
                     throw new NodeManagerAlreadyRegisteredException();
                 }
+                ChangePreparer.Attach(replacementManager, stagingServer);
                 replacement = await host
                     .PrepareAsync(replacementManager, ct)
                     .ConfigureAwait(false);
+                replacement.Preparation = preparation;
                 await ValidateDataTypeCompatibilityAsync(
-                    server,
+                    stagingServer,
                     replacementManager,
                     ct).ConfigureAwait(false);
                 Func<ValueTask>? beforeTransitionCommit = null;
@@ -1360,8 +1364,9 @@ namespace Opc.Ua.Server
                         .PrepareReloadAsync(replacementManager, ct)
                         .ConfigureAwait(false);
                 droppedInboundReferences = [.. droppedReferences];
-                await m_server
-                    .RefreshComplexTypesAsync(server, replacementManager, cancellationToken: ct)
+                IDataTypeDefinitionResolver? resolver = await m_server
+                    .RefreshComplexTypesAsync(
+                        stagingServer, replacementManager, publishResolver: false, cancellationToken: ct)
                     .ConfigureAwait(false);
                 ServerBindings bindings = await BindToServerAsync(
                     server,
@@ -1389,7 +1394,10 @@ namespace Opc.Ua.Server
                     beforeCommit: beforeReloadCommit,
                     afterCommit: afterTransitionCommit,
                     rollbackCommit: rollbackTransitionCommit).ConfigureAwait(false);
-                RebuildTypeTree(replacementManager);
+                if (resolver is not null)
+                {
+                    m_server.ComplexTypeResolverHolder?.SetResolver(resolver);
+                }
                 current.Prepared.Published = false;
                 var nextRegistration = new NodeManagerRegistration(
                     current.Registration.Id,
@@ -1727,10 +1735,6 @@ namespace Opc.Ua.Server
 
                 if (server is not null && !m_disposed && !m_shuttingDown)
                 {
-                    if (replacementManager is not null)
-                    {
-                        RebuildActiveTypeTree(server);
-                    }
                     await NotifyNamespaceTableChangedAsync(
                         server,
                         namespaceCountBefore,
@@ -3165,7 +3169,7 @@ namespace Opc.Ua.Server
         }
 
         private static async ValueTask ValidateDataTypeCompatibilityAsync(
-            IServerInternal server,
+            ChangePreparer.StagingServer server,
             IAsyncNodeManager nodeManager,
             CancellationToken ct)
         {
@@ -3227,7 +3231,7 @@ namespace Opc.Ua.Server
         }
 
         private static void RegisterCompatibleEncodingAliases(
-            IServerInternal server,
+            ChangePreparer.StagingServer server,
             RuntimeNodeSetNodeManager runtimeNodeManager)
         {
             IEncodeableFactoryBuilder? builder = null;
@@ -3269,26 +3273,6 @@ namespace Opc.Ua.Server
                 }
             }
             builder?.Commit();
-        }
-
-        private static void RebuildActiveTypeTree(IServerInternal server)
-        {
-            foreach (IAsyncNodeManager nodeManager in server.NodeManager.AsyncNodeManagers)
-            {
-                RebuildTypeTree(nodeManager);
-            }
-        }
-
-        private static void RebuildTypeTree(IAsyncNodeManager nodeManager)
-        {
-            if (nodeManager is AsyncCustomNodeManager asyncCustomNodeManager)
-            {
-                asyncCustomNodeManager.RebuildTypeTree();
-            }
-            else if (nodeManager.SyncNodeManager is CustomNodeManager2 customNodeManager)
-            {
-                customNodeManager.RebuildTypeTree();
-            }
         }
 
         private static ArrayOf<SemanticChangeStructureDataType> GetSemanticChanges(
@@ -3467,6 +3451,7 @@ namespace Opc.Ua.Server
         private static async ValueTask DisposeNodeManagerAsync(
             IAsyncNodeManager nodeManager)
         {
+            ChangePreparer.Detach(nodeManager);
             if (nodeManager is IAsyncDisposable asyncDisposable)
             {
                 await asyncDisposable.DisposeAsync().ConfigureAwait(false);
@@ -3524,6 +3509,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
+                    ChangePreparer.Detach(nodeManager);
                     await nodeManager.DeleteAddressSpaceAsync(ct).ConfigureAwait(false);
                 }
                 cleanup.Destroyed = true;
@@ -4139,7 +4125,6 @@ namespace Opc.Ua.Server
 
             if (!cleanup.Disposed)
             {
-                RebuildActiveTypeTree(server);
                 await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
                 cleanup.Disposed = true;
                 RecordShutdownCleanupProgress();
@@ -4728,21 +4713,16 @@ namespace Opc.Ua.Server
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
                 }
-                using IDisposable routing = batchHost.UseLiveRouting();
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server, callerContext);
                 await using var bindingAdmission =
                     batchHost.SuspendBindingAdmission(callerContext).ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
-                TypeTable? preparedTypes = null;
-                EncodeableFactory? preparedFactory = null;
+                ChangePreparer? preparation = null;
                 try
                 {
                     EnsureSameRunningServer(server, host, allowRequestCallback);
-                    preparedTypes = server.TypeTree.CaptureSnapshot(out TypeTable originalTypes, out long typeRevision);
-                    preparedFactory = servingFactory.CaptureSnapshot(
-                        out EncodeableFactory originalFactory, out long factoryRevision);
-                    using IDisposable types = batchHost.UseTypeImage(preparedTypes, preparedFactory);
+                    preparation = new ChangePreparer(server);
                     IDataTypeDefinitionResolver? resolver = null;
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
@@ -4758,52 +4738,62 @@ namespace Opc.Ua.Server
                         {
                             continue;
                         }
-                        entry.Manager = await change.Factory.CreateAsync(
-                            server, m_server.CurrentConfiguration, cancellationToken).ConfigureAwait(false) ??
-                            throw new InvalidOperationException("A batch factory returned no NodeManager.");
-                        entry.Prepared = await host.PrepareAsync(entry.Manager, cancellationToken)
-                            .ConfigureAwait(false);
-                        await ValidateDataTypeCompatibilityAsync(server, entry.Manager, cancellationToken)
-                            .ConfigureAwait(false);
-                        if (current is not null)
+                        entry.Manager = await preparation.CreateNodeManagerAsync(
+                            change.Factory, m_server.CurrentConfiguration, cancellationToken).ConfigureAwait(false);
+                        ChangePreparer.StagingServer stagingServer = ChangePreparer.GetServer(entry.Manager)!;
+                        try
                         {
-                            if (current.Prepared.NodeManager is not INodeManagerReloadParticipant participant)
+                            stagingServer.Attach(entry.Manager);
+                            entry.Prepared = await host.PrepareAsync(entry.Manager, cancellationToken)
+                                .ConfigureAwait(false);
+                            entry.Prepared.Preparation = preparation;
+                            await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
+                                .ConfigureAwait(false);
+                            if (current is not null)
                             {
-                                throw new NotSupportedException("A batch replacement does not support safe reload.");
+                                if (current.Prepared.NodeManager is not INodeManagerReloadParticipant participant)
+                                {
+                                    throw new NotSupportedException("A batch replacement does not support safe reload.");
+                                }
+                                entry.DroppedReferences =
+                                [
+                                    .. await participant.PrepareReloadAsync(entry.Manager, cancellationToken)
+                                        .ConfigureAwait(false)
+                                ];
+                                await host.ReplaceAsync(
+                                    current.Prepared.NodeManager, entry.Prepared,
+                                    allowActiveMonitoredItems: true,
+                                    retainReplacedNotifications: !change.Immediate,
+                                    ct: cancellationToken).ConfigureAwait(false);
                             }
-                            entry.DroppedReferences =
-                            [
-                                .. await participant.PrepareReloadAsync(entry.Manager, cancellationToken)
-                                    .ConfigureAwait(false)
-                            ];
-                            await host.ReplaceAsync(
-                                current.Prepared.NodeManager, entry.Prepared,
-                                allowActiveMonitoredItems: true,
-                                retainReplacedNotifications: !change.Immediate,
-                                ct: cancellationToken).ConfigureAwait(false);
+                            else
+                            {
+                                await host.PublishAsync(entry.Prepared, cancellationToken).ConfigureAwait(false);
+                            }
+                            resolver = await m_server.RefreshComplexTypesAsync(
+                                stagingServer, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
+                                .ConfigureAwait(false) ??
+                                resolver;
+                            var registration = new NodeManagerRegistration(
+                                current?.Registration.Id ?? Guid.NewGuid(),
+                                (current?.Registration.Generation ?? 0) + 1,
+                                entry.Manager);
+                            entry.Next = new RegistrationState(registration, entry.Prepared, allowRequestCallback)
+                            {
+                                ReadinessPending = entry.Manager is INodeManagerReadinessNotification
+                            };
                         }
-                        else
+                        finally
                         {
-                            await host.PublishAsync(entry.Prepared, cancellationToken).ConfigureAwait(false);
+                            stagingServer?.Dispose();
                         }
-                        resolver = await m_server.RefreshComplexTypesAsync(
-                            server, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
-                            .ConfigureAwait(false) ??
-                            resolver;
-                        var registration = new NodeManagerRegistration(
-                            current?.Registration.Id ?? Guid.NewGuid(),
-                            (current?.Registration.Generation ?? 0) + 1,
-                            entry.Manager);
-                        entry.Next = new RegistrationState(registration, entry.Prepared, allowRequestCallback)
-                        {
-                            ReadinessPending = entry.Manager is INodeManagerReadinessNotification
-                        };
                     }
                     // Staging can register hidden namespace routes; freeze its completed routing image.
                     var prepared = new PreparedBatch(
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
-                        batchHost.RoutingRevision, preparedTypes, originalTypes, typeRevision,
-                        preparedFactory, originalFactory, factoryRevision, resolver, validationOnly, callerContext);
+                        batchHost.RoutingRevision, preparation.TypeTree, preparation.OriginalTypes,
+                        preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
+                        preparation.FactoryRevision, resolver, validationOnly, callerContext, preparation);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -4813,9 +4803,6 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
-                    using IDisposable? types = preparedTypes is null || preparedFactory is null
-                        ? null
-                        : batchHost.UseTypeImage(preparedTypes, preparedFactory);
                     Exception? cleanup = await AbortBatchEntriesAsync(host, entries, allowRequestCallback)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
@@ -4851,7 +4838,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken,
             Action? publishCommittedState = null)
         {
-            using IDisposable routing = ((IDynamicNodeManagerBatchHost)batch.Host).UseLiveRouting();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 EnterRequestLifecycleWaiter(batch.Server);
             await using var bindingAdmission =
@@ -4982,7 +4968,8 @@ namespace Opc.Ua.Server
                             }
                         },
                         ReportCleanupFailure: failures.Add,
-                        CancellationToken: cancellationToken)).ConfigureAwait(false);
+                        CancellationToken: cancellationToken,
+                        Preparation: batch.Preparation)).ConfigureAwait(false);
                 if (decideAsync is null)
                 {
                     return null;
@@ -5213,6 +5200,7 @@ namespace Opc.Ua.Server
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <param name="callerContext">The operation the batch was prepared under, or null for an ordinary
             /// external caller.</param>
+            /// <param name="preparation">The explicit private staging metadata.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
@@ -5230,10 +5218,12 @@ namespace Opc.Ua.Server
                 long factoryRevision,
                 IDataTypeDefinitionResolver? resolver,
                 bool validationOnly,
-                IOperationContext? callerContext)
+                IOperationContext? callerContext,
+                ChangePreparer preparation)
             {
                 m_owner = owner;
                 CallerContext = callerContext;
+                Preparation = preparation;
                 Server = server;
                 Host = host;
                 Entries = entries;
@@ -5257,6 +5247,11 @@ namespace Opc.Ua.Server
             /// Gets the operation the batch was prepared under, or null for an ordinary external caller.
             /// </summary>
             public IOperationContext? CallerContext { get; }
+
+            /// <summary>
+            /// Gets the explicit staging metadata owned by this preparation.
+            /// </summary>
+            public ChangePreparer Preparation { get; }
 
             /// <summary>
             /// Gets the registrations the batch publishes.
@@ -5432,8 +5427,6 @@ namespace Opc.Ua.Server
                 {
                     if (!IsCommitted)
                     {
-                        using IDisposable routing = ((IDynamicNodeManagerBatchHost)Host).UseLiveRouting();
-                        using IDisposable types = ((IDynamicNodeManagerBatchHost)Host).UseTypeImage(TypeTree, Factory);
                         await m_owner.m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
                         try
                         {
@@ -5522,7 +5515,6 @@ namespace Opc.Ua.Server
             {
                 throw new NotSupportedException("The server cannot capture publication revisions.");
             }
-            using IDisposable routing = batchHost.UseLiveRouting();
             _ = server.TypeTree.CaptureSnapshot(out TypeTable types, out long typeRevision);
             _ = factory.CaptureSnapshot(out EncodeableFactory originalFactory, out long factoryRevision);
             return new PublicationCapture(
@@ -5562,7 +5554,6 @@ namespace Opc.Ua.Server
                         StatusCodes.BadServerTooBusy, "Another lifecycle operation owns publication admission.");
                 }
                 EnsureSameRunningServer(capture.Server, capture.OwnerHost, allowRequestCallback: true);
-                using IDisposable routing = capture.Host.UseLiveRouting();
                 _ = ((EncodeableFactory)capture.Server.Factory).CaptureSnapshot(
                     out EncodeableFactory factory, out long factoryRevision);
                 bool current = ReferenceEquals(capture.Host.RoutingRevision, capture.RoutingRevision) &&
@@ -5702,8 +5693,6 @@ namespace Opc.Ua.Server
                     throw new ArgumentNullException(nameof(inspectAsync));
                 }
 
-                using IDisposable namespaces = Capture.Server.NamespaceUris.UsePrivateCopy();
-                using IDisposable servers = Capture.Server.ServerUris.UsePrivateCopy();
                 IPreparedNodeManagerBatch batch = await PrepareCoreAsync(
                     changes, default, cancellationToken, validationOnly: true)
                     .ConfigureAwait(false);
@@ -5712,11 +5701,7 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("Validation requires the captured lifecycle batch owner.");
                 }
-                using (((IDynamicNodeManagerBatchHost)candidate.Host).UseTypeImage(
-                    candidate.TypeTree, candidate.Factory))
-                {
-                    await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
-                }
+                await inspectAsync(batch, cancellationToken).ConfigureAwait(false);
                 await candidate.ValidateAsync(cancellationToken).ConfigureAwait(false);
             }
 

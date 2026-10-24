@@ -109,7 +109,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             OperationContext.RoutingScope scope = context.UseRouting(snapshot ?? GetRouting(context));
-            m_nodeManagers.CaptureUntilReturn(context.RoutingSnapshot);
             return scope;
         }
 
@@ -959,8 +958,6 @@ namespace Opc.Ua.Server
                     {
                         NodeManagerRoutingTable.RoutingSnapshot continuationSnapshot =
                             cp?.RoutingSnapshot ?? GetRouting(context);
-                        using NodeManagerRoutingTable.ReadScope continuationImages =
-                            m_nodeManagers.Capture(continuationSnapshot);
                         using OperationContext.RoutingScope continuationRouting =
                             context.UseRouting(continuationSnapshot);
                         if (cp is not null)
@@ -2618,9 +2615,6 @@ namespace Opc.Ua.Server
 
             // The subscription has not accepted ownership yet. Include the failing manager,
             // which may have subscribed some of its root notifiers before reporting failure.
-            using IDisposable? liveBindings = monitoredItem.MonitoringAllEvents
-                ? m_nodeManagers.UseLiveRouting()
-                : null;
             var compensationManagers = new List<IAsyncNodeManager>();
             for (int ii = 0; ii <= lastAttempted; ii++)
             {

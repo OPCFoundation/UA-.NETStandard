@@ -1567,39 +1567,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Repopulates the server type tree with this manager's types and encoding relationships.
-        /// </summary>
-        internal void RebuildTypeTree()
-        {
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node is BaseTypeState type)
-                {
-                    AddTypesToTypeTree(type);
-                }
-            }
-
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                var references = new List<IReference>();
-                node.GetReferences(SystemContext, references);
-                foreach (IReference reference in references)
-                {
-                    if (reference.IsInverse &&
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
-                        !reference.TargetId.IsAbsolute)
-                    {
-                        var dataTypeId = (NodeId)reference.TargetId;
-                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
-                        {
-                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
         /// <returns>Returns null if not found or not of the correct type.</returns>

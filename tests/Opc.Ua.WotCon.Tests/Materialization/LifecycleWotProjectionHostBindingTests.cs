@@ -29,6 +29,7 @@
 
 using System;
 using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -51,6 +52,91 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     [TestFixture]
     public sealed class LifecycleWotProjectionHostBindingTests
     {
+        /// <summary>
+        /// Verifies observed publications retain private source namespace mappings through commit or abort.
+        /// </summary>
+        /// <param name="invocation">Whether preparation uses an explicit publication invocation.</param>
+        /// <param name="commit">Whether the prepared source is committed.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ObservedPublicationPreservesPrivateSourceRootMappingAsync(bool invocation, bool commit)
+        {
+            const string SourceUri = "urn:wot:observed-private-source";
+            byte[] xml = Encoding.UTF8.GetBytes($"""
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris><Uri>{SourceUri}</Uri></NamespaceUris>
+                  <Models>
+                    <Model ModelUri="{SourceUri}" Version="1.0.0" PublicationDate="2026-01-01T00:00:00Z" />
+                  </Models>
+                  <UAObject NodeId="ns=1;i=1" BrowseName="1:SourceRoot">
+                    <DisplayName>SourceRoot</DisplayName>
+                    <References><Reference ReferenceType="i=40">i=58</Reference></References>
+                  </UAObject>
+                </UANodeSet>
+                """);
+            var document = new WotProjectionDocument(
+                "private-source", [new WotProjectionSource("private-source", [SourceUri], xml)]);
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync()
+                .ConfigureAwait(false);
+            int published = 0;
+            IWotInvocationProjectionHost host = runtime.Observe(_ => published++);
+            string[] namespacesBefore = runtime.Namespaces.ToArray();
+            NodeId root = NodeId.Null;
+            IWotProjectionPublication? publication = null;
+            try
+            {
+                if (invocation)
+                {
+                    publication = await host.CapturePublication().BeginAsync(null, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+                await using IWotPreparedProjectionPublication prepared = publication is not null
+                    ? await publication.PrepareAsync([WotProjectionChange.Add(document)]).ConfigureAwait(false)
+                    : await host.PrepareAsync(
+                        [WotProjectionChange.Add(document)], null, null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(prepared, Is.InstanceOf<IWotPreparedProjectionNamespaceSource>());
+                var source = (IWotPreparedProjectionNamespaceSource)prepared;
+                var namespaces = new NamespaceTable(source.CapturedNamespaceUris.ToArray()!);
+                root = ExpandedNodeId.ToNodeId(new ExpandedNodeId(1, SourceUri), namespaces);
+                Assert.That(root.IsNull, Is.False);
+                Assert.That(root.NamespaceIndex, Is.EqualTo(namespacesBefore.Length));
+                Assert.That(
+                    ExpandedNodeId.ToNodeId(new ExpandedNodeId(1, "urn:wot:unprepared-source"), namespaces).IsNull,
+                    Is.True);
+                Assert.That(runtime.Namespaces.ToArray(), Is.EqualTo(namespacesBefore));
+                Assert.That(
+                    await runtime.Server.NodeManager.FindNodeInAddressSpaceAsync(root).ConfigureAwait(false), Is.Null);
+                Assert.That(published, Is.Zero);
+                if (commit)
+                {
+                    await prepared.CommitAsync(_ => default, () => { }).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                if (publication is not null)
+                {
+                    await publication.DisposeAsync().ConfigureAwait(false);
+                }
+            }
+            Assert.That(published, Is.EqualTo(commit ? 1 : 0));
+            NodeState? liveRoot = await runtime.Server.NodeManager.FindNodeInAddressSpaceAsync(root)
+                .ConfigureAwait(false);
+            if (commit)
+            {
+                Assert.That(runtime.Namespaces.GetIndex(SourceUri), Is.EqualTo(root.NamespaceIndex));
+                Assert.That(liveRoot, Is.Not.Null);
+                Assert.That(liveRoot!.BrowseName, Is.EqualTo(new QualifiedName("SourceRoot", root.NamespaceIndex)));
+            }
+            else
+            {
+                Assert.That(runtime.Namespaces.ToArray(), Is.EqualTo(namespacesBefore));
+                Assert.That(liveRoot, Is.Null);
+            }
+        }
+
         [Test]
         public async Task ConfigureAsyncIsInstalledAndForwardsBindingPlansToTheRuntimeFactory()
         {

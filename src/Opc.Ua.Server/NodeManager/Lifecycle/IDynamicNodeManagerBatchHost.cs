@@ -52,6 +52,7 @@ namespace Opc.Ua.Server
     /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
     /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
+    /// <param name="Preparation">The explicit private metadata staging context.</param>
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
@@ -68,6 +69,7 @@ namespace Opc.Ua.Server
         Action Published,
         Func<ValueTask> ReconcileBindingsAsync,
         Action<Exception> ReportCleanupFailure,
+        ChangePreparer Preparation,
         CancellationToken CancellationToken);
 
     /// <summary>
@@ -79,20 +81,6 @@ namespace Opc.Ua.Server
         /// Gets the current live routing image whose identity is the preparation revision.
         /// </summary>
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
-
-        /// <summary>
-        /// Uses live routing during lifecycle work instead of an enclosing Client request's captured image.
-        /// </summary>
-        /// <returns>A scope that restores the previous routing when disposed.</returns>
-        IDisposable UseLiveRouting();
-
-        /// <summary>
-        /// Uses a private type image while preparing or discarding a candidate.
-        /// </summary>
-        /// <param name="typeTree">The private type tree to use.</param>
-        /// <param name="factory">The private encodeable factory to use.</param>
-        /// <returns>A scope that restores the previous type image when disposed.</returns>
-        IDisposable UseTypeImage(TypeTable typeTree, EncodeableFactory factory);
 
         /// <summary>
         /// Releases the binding admission captured for the specified request context while a callback waits for

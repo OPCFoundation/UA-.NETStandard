@@ -46,8 +46,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager owner = CreateManager();
             table.Add(owner, InitialNamespaceIndexes);
             PublishReadImage(table, new TestReadImage(owner, 1));
-            using (table.Capture())
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
+                context.PinRouting(table.Revision);
                 var next = new TestReadImage(owner, 2);
                 using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [], retire ? [owner] : [], table.Revision, _ => InitialNamespaceIndexes,
@@ -85,17 +87,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             Assert.That(table.GetReadImage(owner), retire ? Is.Null : Is.SameAs(next));
-            using (table.Capture(captured))
+            using (Assert.EnterMultipleScope())
             {
                 Assert.That(source.Object.GetReadImage(context, owner), Is.SameAs(previous));
                 Assert.That(table.GetReadImage(owner), retire ? Is.Null : Is.SameAs(next));
                 Assert.That(table.GetDispatchView(captured).NodeManagers, Does.Contain(owner));
                 Assert.That(table.Contains(owner), Is.EqualTo(!retire),
                     "Metadata images must not change the live owner list.");
-                using (table.UseLiveRouting())
-                {
-                    Assert.That(table.GetReadImage(owner), retire ? Is.Null : Is.SameAs(next));
-                }
                 Assert.That(source.Object.GetReadImage(context, owner), Is.SameAs(previous));
             }
         }
@@ -182,8 +180,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var previous = new TestReadImage(owner, 1);
             PublishReadImage(table, previous);
             NodeManagerRoutingTable.RoutingSnapshot captured = table.Revision;
-            using (table.Capture())
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
+                context.PinRouting(table.Revision);
                 using (NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [], [], table.Revision, _ => InitialNamespaceIndexes,
                     new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),

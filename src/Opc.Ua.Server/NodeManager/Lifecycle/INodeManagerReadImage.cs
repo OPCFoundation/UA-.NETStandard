@@ -62,6 +62,25 @@ namespace Opc.Ua.Server
     public static class NodeManagerReadImageExtensions
     {
         /// <summary>
+        /// Gets the visible owners from the request's routing image, or live owners without a request pin.
+        /// </summary>
+        /// <param name="manager">The master node manager providing live owners.</param>
+        /// <param name="context">The operation selecting the view, or null for live work.</param>
+        /// <returns>The owners in the selected routing image, in dispatch order.</returns>
+        public static ArrayOf<IAsyncNodeManager> GetNodeManagers(
+            this IMasterNodeManager manager,
+            OperationContext? context)
+        {
+            if (manager is null)
+            {
+                throw new ArgumentNullException(nameof(manager));
+            }
+            return context?.RoutingSnapshot is { } snapshot
+                ? snapshot.VisibleNodeManagers
+                : manager.AsyncNodeManagers.ToArrayOf();
+        }
+
+        /// <summary>
         /// Gets the request's published application state, or live state for work without a request pin.
         /// </summary>
         /// <param name="source">The provider of live application state.</param>

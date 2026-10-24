@@ -1,4 +1,4 @@
-﻿/* ========================================================================
+/* ========================================================================
  * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
  *
  * OPC Foundation MIT License 1.00
@@ -57,20 +57,19 @@ namespace Opc.Ua.Server.Tests
                 StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 TypeTable types = server.CurrentInstance.TypeTree;
                 var factory = (EncodeableFactory)server.CurrentInstance.Factory;
-                Assert.That(types.HasViewOwner, Is.True);
-                Assert.That(factory.HasViewOwner, Is.True);
+                Assert.That(GetRoutingImage(server.CurrentInstance.NodeManager), Is.SameAs(types));
 
                 using (var secondary = new MasterNodeManager(
                     server.CurrentInstance, fixture.Config, null, Array.Empty<INodeManager>()))
                 {
-                    Assert.That(types.HasViewOwner, Is.True);
-                    Assert.That(factory.HasViewOwner, Is.True);
+                    Assert.That(GetRoutingImage(secondary), Is.SameAs(types));
+                    Assert.That(server.CurrentInstance.Factory, Is.SameAs(factory));
                 }
 
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(types.HasViewOwner, Is.True);
-                    Assert.That(factory.HasViewOwner, Is.True);
+                    Assert.That(server.CurrentInstance.TypeTree, Is.SameAs(types));
+                    Assert.That(server.CurrentInstance.Factory, Is.SameAs(factory));
                     Assert.That(types.FindSuperType(ObjectTypeIds.FolderType),
                         Is.EqualTo(ObjectTypeIds.BaseObjectType));
                 }
@@ -82,10 +81,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that a private type added to a secondary manager image never reaches the shared table.
+        /// Verifies that a secondary manager cannot publish or select another preparation's private metadata.
         /// </summary>
         [Test]
-        public async Task SecondaryManagerPrivateImageDoesNotPublishAsync()
+        public async Task SecondaryManagerDoesNotSelectPrivateStagingMetadataAsync()
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             try
@@ -98,14 +97,19 @@ namespace Opc.Ua.Server.Tests
                 using (var secondary = new MasterNodeManager(
                     server.CurrentInstance, fixture.Config, null, Array.Empty<INodeManager>()))
                 {
-                    TypeTable image = GetRoutingImage(secondary);
+                    var preparation = new ChangePreparer(server.CurrentInstance);
+                    using ChangePreparer.StagingServer staging = preparation.CreateServer();
+                    TypeTable image = staging.TypeTree;
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(image, Is.Not.SameAs(canonicalImage));
                         Assert.That(image, Is.Not.SameAs(server.CurrentInstance.TypeTree));
+                        Assert.That(staging.DefaultSystemContext.Server, Is.SameAs(staging));
+                        Assert.That(staging.DefaultSystemContext.Copy().TypeTable, Is.SameAs(image));
                     }
                     image.AddSubtype(privateType, ObjectTypeIds.BaseObjectType);
                     Assert.That(image.IsKnown(privateType), Is.True);
+                    Assert.That(GetRoutingImage(secondary).IsKnown(privateType), Is.False);
                 }
                 using (Assert.EnterMultipleScope())
                 {
@@ -120,18 +124,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that the canonical manager releases both owners on server stop, that the released table
-        /// equals the final serving image after node manager teardown, and that a later manager can acquire
-        /// the owners again.
+        /// Verifies that server shutdown does not replace canonical metadata handles.
         /// </summary>
         [Test]
-        public async Task CanonicalDisposeReleasesOwnersAndAllowsReacquireAsync()
+        public async Task CanonicalDisposePreservesMetadataHandleIdentityAsync()
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
-            StandardServer? server = null;
+            bool stopped = false;
             try
             {
-                server = await fixture.StartAsync().ConfigureAwait(false);
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
                 TypeTable types = server.CurrentInstance.TypeTree;
                 var factory = (EncodeableFactory)server.CurrentInstance.Factory;
                 TypeTable servingImage = GetRoutingImage(server.CurrentInstance.NodeManager);
@@ -143,26 +145,23 @@ namespace Opc.Ua.Server.Tests
                     DataTypeIds.Int32
                 ];
                 await fixture.StopAsync().ConfigureAwait(false);
-                server = null;
+                stopped = true;
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(types.HasViewOwner, Is.False);
-                    Assert.That(factory.HasViewOwner, Is.False);
-                    // Node manager teardown removes its own types from the serving image before the owner is
-                    // released, so the released table must equal that final image, whatever it contains.
+                    Assert.That(factory.Fork(), Is.Not.SameAs(factory));
                     foreach (NodeId probe in probes)
                     {
                         Assert.That(types.FindSuperType(probe), Is.EqualTo(servingImage.FindSuperType(probe)));
                         Assert.That(types.IsKnown(probe), Is.EqualTo(servingImage.IsKnown(probe)));
                     }
                 }
-                TypeTable.ViewOwner? again = types.TryAcquireViewOwner(() => null);
-                Assert.That(again, Is.Not.Null);
-                again!.Release(types);
+                NodeId added = new(987655, 1);
+                types.AddSubtype(added, NodeId.Null);
+                Assert.That(servingImage.IsKnown(added), Is.True);
             }
             finally
             {
-                if (server != null)
+                if (!stopped)
                 {
                     await fixture.StopAsync().ConfigureAwait(false);
                 }

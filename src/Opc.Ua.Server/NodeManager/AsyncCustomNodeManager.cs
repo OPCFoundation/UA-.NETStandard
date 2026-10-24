@@ -4144,39 +4144,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rebuilds type and encoding registrations from the current predefined nodes.
-        /// </summary>
-        internal void RebuildTypeTree()
-        {
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                if (node is BaseTypeState type)
-                {
-                    AddTypesToTypeTree(type);
-                }
-            }
-
-            foreach (NodeState node in PredefinedNodes.Values)
-            {
-                var references = new List<IReference>();
-                node.GetReferences(SystemContext, references);
-                foreach (IReference reference in references)
-                {
-                    if (reference.IsInverse &&
-                        reference.ReferenceTypeId == ReferenceTypeIds.HasEncoding &&
-                        !reference.TargetId.IsAbsolute)
-                    {
-                        var dataTypeId = (NodeId)reference.TargetId;
-                        if (!Server.TypeTree.IsEncodingOf(node.NodeId, dataTypeId))
-                        {
-                            Server.TypeTree.AddEncoding(dataTypeId, node.NodeId);
-                        }
-                    }
-                }
-            }
-        }
-
-        /// <summary>
         /// Finds the specified and checks if it is of the expected type.
         /// </summary>
         /// <typeparam name="T"></typeparam>

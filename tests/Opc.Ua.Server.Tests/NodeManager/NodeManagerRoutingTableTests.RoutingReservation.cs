@@ -222,26 +222,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public void PreparedReservationRejectsReferencePreparationBeforeOwnershipEffects(bool publish)
+        public void RoutingReservationDoesNotSelectNodeOwnedReferences(bool publish)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
-            NodeManagerRoutingTable other = CreateTable(out _, out _);
-            IAsyncNodeManager owner = CreateManager();
-            IAsyncNodeManager otherOwner = CreateManager();
             var node = new BaseObjectState(null);
             ExpandedNodeId original = new(9101, 2);
             ExpandedNodeId addition = new(9102, 2);
             node.AddReference(ReferenceTypeIds.Organizes, false, original);
             ArrayOf<IReference> additions = [new NodeStateReference(ReferenceTypeIds.Organizes, false, addition)];
-            var next = new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, CreateManager());
             routes.Reserve();
-            Assert.Throws<InvalidOperationException>(() => table.PrepareReferences(owner, node, additions, [], next));
-            Assert.That(next, Is.Empty);
-            using (other.PrepareReferences(otherOwner, node, [], [], []))
-            {
-                other.ReleaseReferences(otherOwner);
-            }
+            using NodeState.ReferenceUpdate accepted = node.PrepareReferences(additions, []);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, original), Is.True);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.False);
             if (publish)
@@ -250,83 +241,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             routes.Dispose();
 
-            using NodeState.ReferenceUpdate accepted = table.PrepareReferences(owner, node, additions, [], next);
-            Assert.That(next[node], Is.SameAs(accepted.Next));
-            NodeState.ReferenceSnapshot acceptedSnapshot = accepted.Next;
-            var acceptedReferences = acceptedSnapshot.References ??
-                throw new AssertionException("The accepted reference snapshot did not contain its required references.");
-            Assert.That(acceptedReferences.Keys.Select(reference => reference.TargetId),
-                Is.EquivalentTo(new[] { original, addition }));
+            accepted.Reserve();
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.False,
-                "Preparing the private image must not install its references.");
-            Assert.Throws<InvalidOperationException>(() => other.PrepareReferences(otherOwner, node, [], [], []));
-            table.ReleaseReferences(owner);
-            using (other.PrepareReferences(otherOwner, node, [], [], []))
-            {
-                other.ReleaseReferences(otherOwner);
-            }
+                "Preparing edits must not install references.");
+            accepted.Remove();
+            accepted.Complete();
+            Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.True);
+            Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, original), Is.True);
         }
 
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public void PreparedReservationRejectsReferenceReleaseBeforeEffects(bool clear, bool publish)
+        public void ClearingRoutesDoesNotDetachNodeOwnedReferenceStorage(bool clear, bool publish)
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
-            NodeManagerRoutingTable other = CreateTable(out _, out _);
-            IAsyncNodeManager owner = CreateManager();
             var node = new BaseObjectState(null);
             ExpandedNodeId target = new(9201, 2);
-            var images = new Dictionary<NodeState, NodeState.ReferenceSnapshot>();
-            using (NodeState.ReferenceUpdate update = table.PrepareReferences(owner, node,
-                [new NodeStateReference(ReferenceTypeIds.Organizes, false, target)], [], images))
-            {
-                using NodeManagerRoutingTable.PreparedRoutes initial = table.PrepareBatch(
-                    [], [], table.Revision, _ => BatchNamespaceIndexes,
-                    new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(), images);
-                update.Reserve();
-                initial.Reserve();
-                initial.Publish();
-                update.Complete();
-            }
+            node.AddReference(ReferenceTypeIds.Organizes, false, target);
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
             using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, CreateManager());
             routes.Reserve();
-            Assert.Throws<InvalidOperationException>(Release);
+            Assert.Throws<InvalidOperationException>(table.Clear);
             Assert.That(table.Revision, Is.SameAs(previous));
-            Assert.That(table.Revision.References[node], Is.SameAs(images[node]));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
-            Assert.Throws<InvalidOperationException>(() => other.PrepareReferences(owner, node, [], [], []),
-                "A rejected release or clear must not detach the node's existing reference-view owner.");
             if (publish)
             {
                 routes.Publish();
             }
             routes.Dispose();
-            Release();
-            Assert.That(table.Revision.References.ContainsKey(node), Is.False);
+            if (clear)
+            {
+                table.Clear();
+            }
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, target), Is.True);
-            using (other.PrepareReferences(owner, node, [], [], []))
-            {
-                table.ReleaseReferences(owner);
-                Assert.Throws<InvalidOperationException>(() => table.PrepareReferences(owner, node, [], [], []),
-                    "Repeated old-owner cleanup must not detach a later reference-view owner.");
-                other.ReleaseReferences(owner);
-            }
-
-            void Release()
-            {
-                if (clear)
-                {
-                    table.Clear();
-                }
-                else
-                {
-                    table.ReleaseReferences(owner);
-                }
-            }
+            Assert.That(node.RemoveReference(ReferenceTypeIds.Organizes, false, target), Is.True);
         }
 
         [TestCase(false)]

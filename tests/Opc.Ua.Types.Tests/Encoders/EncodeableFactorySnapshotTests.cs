@@ -273,18 +273,25 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         /// <summary>
-        /// Verifies that selected factory routes builders lookups and forks.
+        /// Verifies that staging handles observe canonical registrations and future additions after publication.
         /// </summary>
         [Test]
-        public void SelectedFactoryRoutesBuildersLookupsAndForks()
+        public void PublishedFactoryHandlesObserveCanonicalRegistrations()
         {
             var factory = new EncodeableFactory();
             EncodeableFactory selected = factory.Fork();
             IEncodeableType structure = CreateStructure();
             IEnumeratedType enumeration = CreateEnumeration();
-            factory.SetViewSelector(() => selected);
-            factory.Builder.AddEncodeableType(s_structureId, structure)
+            selected.Builder.AddEncodeableType(s_structureId, structure)
                 .AddEnumeratedType(s_enumId, enumeration).Commit();
+            Assert.That(factory.KnownTypeIds, Is.Empty);
+            _ = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            EncodeableFactory merged = factory.PrepareAdditiveMerge(selected, source, revision, new NamespaceTable());
+            using (EncodeableFactory.Publication publication = factory.BeginPublication(source, revision))
+            {
+                publication.Complete(merged);
+                selected.BindTo(factory);
+            }
             EncodeableFactory fork = factory.Fork();
             using (Assert.EnterMultipleScope())
             {
@@ -296,23 +303,26 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(xmlType, Is.SameAs(structure));
                 Assert.That(factory.KnownTypeIds, Is.EquivalentTo(fork.KnownTypeIds));
             }
-            selected = new EncodeableFactory();
-            Assert.That(factory.KnownTypeIds, Is.Empty);
-            Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.False);
+            ExpandedNodeId additional = new(9003, kNamespace);
+            factory.Builder.AddEncodeableType(additional, structure).Commit();
+            Assert.That(selected.TryGetEncodeableType(additional, out _), Is.True);
+            selected.Detach();
+            selected.Builder.AddEncodeableType(new ExpandedNodeId(9004, kNamespace), structure).Commit();
+            Assert.That(factory.TryGetEncodeableType(new ExpandedNodeId(9004, kNamespace), out _), Is.False);
             Assert.That(fork.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(structure));
         }
 
         /// <summary>
-        /// Verifies that publication protects pending and retired factory images.
+        /// Verifies that publication reserves writes only until the decision completes.
         /// </summary>
         /// <param name="publish">The publish flag for this test case.</param>
         [TestCase(false)]
         [TestCase(true)]
-        public void PublicationProtectsPendingAndRetiredFactoryImages(bool publish)
+        public void PublicationProtectsPendingFactoryMutations(bool publish)
         {
             var factory = new EncodeableFactory();
-            _ = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            EncodeableFactory next = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
             IEncodeableType structure = CreateStructure();
             IEncodeableFactoryBuilder builder = factory.Builder.AddEncodeableType(s_structureId, structure);
             using (EncodeableFactory.Publication publication = factory.BeginPublication(source, revision))
@@ -323,20 +333,12 @@ namespace Opc.Ua.Types.Tests.Encoders
                 factory.Builder.Commit();
                 if (publish)
                 {
-                    publication.Complete();
+                    publication.Complete(next);
                 }
             }
-            if (publish)
-            {
-                Assert.Throws<InvalidOperationException>(builder.Commit);
-                Assert.That(factory.KnownTypeIds, Is.Empty);
-            }
-            else
-            {
-                builder.Commit();
-                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? stored), Is.True);
-                Assert.That(stored, Is.SameAs(structure));
-            }
+            builder.Commit();
+            Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? stored), Is.True);
+            Assert.That(stored, Is.SameAs(structure));
         }
 
         /// <summary>
@@ -364,68 +366,68 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Throws<InvalidOperationException>(() => factory.BeginPublication(source, revision));
             publication.Dispose();
             publication.Dispose();
-            Assert.Throws<ObjectDisposedException>(publication.Complete);
+            Assert.Throws<ObjectDisposedException>(() => publication.Complete(factory));
             factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
         }
 
         /// <summary>
-        /// Verifies that builder captured before ownership uses selected factory.
+        /// Verifies that a cached builder follows its explicit handle when publication rebinds the handle.
         /// </summary>
         [Test]
-        public void BuilderCapturedBeforeOwnershipUsesSelectedFactory()
+        public void CachedBuilderFollowsPublishedHandle()
         {
             var factory = new EncodeableFactory();
             IEncodeableFactoryBuilder builder = factory.Builder.AddEncodeableType(s_structureId, CreateStructure());
             EncodeableFactory selected = factory.Fork();
-            factory.SetViewSelector(() => selected);
+            factory.BindTo(selected);
             builder.Commit();
             Assert.That(selected.TryGetEncodeableType(s_structureId, out _), Is.True);
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
         }
 
         /// <summary>
-        /// Verifies that view owner release preserves registrations and allows reuse.
+        /// Verifies that independently cached handles share registrations but detached cleanup cannot erase them.
         /// </summary>
         [Test]
-        public void ViewOwnerReleasePreservesRegistrationsAndAllowsReuse()
+        public void CachedHandlesShareRegistrationsUntilDetached()
         {
             var factory = new EncodeableFactory();
             EncodeableFactory selected = factory.Fork();
-            EncodeableFactory.ViewOwner owner = factory.SetViewSelector(() => selected);
+            selected.BindTo(factory);
             IEncodeableType structure = CreateStructure();
             IEnumeratedType enumeration = CreateEnumeration();
             factory.Builder.AddEncodeableType(s_structureId, structure)
                 .AddEnumeratedType(s_enumId, enumeration).Commit();
-            owner.Release(selected);
-            owner.Release(selected);
             Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(structure));
             Assert.That(factory.TryGetEnumeratedType(s_enumId, out _), Is.True);
             Assert.That(factory.TryGetType(structure.XmlName, out _), Is.True);
-            Assert.Throws<InvalidOperationException>(() =>
-                selected.Builder.AddEncodeableType(s_structureId, structure).Commit());
+            selected.Detach();
+            selected.Builder.AddEncodeableType(s_structureId, structure).Commit();
             EncodeableFactory next = factory.Fork();
-            EncodeableFactory.ViewOwner nextOwner = factory.SetViewSelector(() => next);
+            next.BindTo(factory);
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
-            nextOwner.Release(next);
+            factory.Builder.AddEncodeableType(new ExpandedNodeId(9010, kNamespace), structure).Commit();
+            Assert.That(next.TryGetEncodeableType(new ExpandedNodeId(9010, kNamespace), out _), Is.True);
+            Assert.That(selected.TryGetEncodeableType(new ExpandedNodeId(9010, kNamespace), out _), Is.False);
         }
 
         /// <summary>
-        /// Verifies that view owner release can retry after pending publication.
+        /// Verifies that all cached handles honor the same pending writer reservation.
         /// </summary>
         [Test]
-        public void ViewOwnerReleaseCanRetryAfterPendingPublication()
+        public void CachedHandlesSharePublicationReservation()
         {
             var factory = new EncodeableFactory();
             EncodeableFactory selected = factory.CaptureSnapshot(out _, out _);
-            EncodeableFactory.ViewOwner owner = factory.SetViewSelector(() => selected);
-            _ = selected.CaptureSnapshot(out EncodeableFactory source, out long revision);
-            using (EncodeableFactory.Publication publication = selected.BeginPublication(source, revision))
+            selected.BindTo(factory);
+            _ = factory.CaptureSnapshot(out EncodeableFactory source, out long revision);
+            using (EncodeableFactory.Publication publication = factory.BeginPublication(source, revision))
             {
-                Assert.Throws<InvalidOperationException>(() => owner.Release(selected));
+                Assert.Throws<InvalidOperationException>(() =>
+                    selected.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit());
             }
-            owner.Release(selected);
             factory.Builder.AddEncodeableType(s_structureId, CreateStructure()).Commit();
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.True);
         }

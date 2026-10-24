@@ -1355,13 +1355,13 @@ namespace Opc.Ua.Types.Tests.State
 
         private static ReferenceDictionary<object?>? ReferenceStorage(NodeState node)
         {
-            return (s_referenceSnapshotField.GetValue(node) as NodeState.ReferenceSnapshot)?.References;
+            return s_referenceSnapshotField.GetValue(node) as ReferenceDictionary<object?>;
         }
 
         private static readonly TimeSpan s_timeout = TimeSpan.FromSeconds(30);
 
         private static readonly FieldInfo s_referenceSnapshotField = typeof(NodeState).GetField(
-            "m_referenceSnapshot", BindingFlags.Instance | BindingFlags.NonPublic)
+            "m_references", BindingFlags.Instance | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(typeof(NodeState).FullName, "m_referenceSnapshot");
 
         private static readonly NodeId[] s_referenceTypes =

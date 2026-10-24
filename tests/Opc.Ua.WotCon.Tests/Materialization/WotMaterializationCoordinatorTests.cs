@@ -728,12 +728,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task RootNodeIdIsRecordedFromGeneratedNodeSet()
         {
-            // The fake converter emits a NodeSet whose model namespace is
-            // urn:wot:{group}/{resource}; register it so the coordinator can
-            // resolve the recorded projection root into a server NodeId.
-            var namespaces = new NamespaceTable();
+            NamespaceTable namespaces = m_runtime!.Namespaces;
             string modelUri = $"urn:wot:{WotRegistryGroups.ThingDescriptions}/td-a";
-            namespaces.Append(modelUri);
+            Assert.That(namespaces.GetIndex(modelUri), Is.EqualTo(-1));
             m_coordinator.ServerNamespaceUris = namespaces;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a")).ConfigureAwait(false);
 
@@ -746,7 +743,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Is.EqualTo((ushort)namespaces.GetIndex(modelUri)));
             WotResource resource = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions, "td-a")!;
-            Assert.That(resource.RootNodeId.IsNull, Is.False);
+            Assert.That(resource.RootNodeId, Is.EqualTo(td.RootNodeId));
+            Assert.That(
+                await m_runtime!.Server.NodeManager.FindNodeInAddressSpaceAsync(td.RootNodeId).ConfigureAwait(false),
+                Is.Not.Null);
         }
 
         /// <summary>

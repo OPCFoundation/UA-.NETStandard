@@ -246,25 +246,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RebuildTypeTreeRegistersSubtypeAndEncodingRelationshipsForDirectlyInsertedNodes()
+        public void AddingPredefinedNodesRegistersSubtypeAndEncodingWithoutRepair()
         {
             using Harness h = CreateHarness();
             ushort ns = h.NamespaceIndex;
             BaseObjectTypeState type = h.NewObjectType("RebuiltType");
-            // Insert directly into PredefinedNodes to bypass AddPredefinedNode's own
-            // automatic type-tree wiring, mirroring nodes restored after a reload where
-            // the caller explicitly triggers RebuildTypeTree afterwards.
-            h.Manager.PredefinedNodes.Add(type.NodeId, type);
-            Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.False);
+            h.Manager.AddPredefinedNodePublic(h.Context, type);
 
             var dataTypeId = new NodeId("RebuiltDataType", ns);
             h.MockServer.Object.TypeTree.AddSubtype(dataTypeId, NodeId.Null);
             BaseObjectState encoding = h.NewObject("RebuiltEncoding");
             encoding.AddReference(ReferenceTypeIds.HasEncoding, true, dataTypeId);
-            h.Manager.PredefinedNodes.Add(encoding.NodeId, encoding);
-            Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.False);
-
-            h.Manager.RebuildTypeTree();
+            h.Manager.AddPredefinedNodePublic(h.Context, encoding);
+            h.Manager.AddReverseReferencesPublic(new Dictionary<NodeId, IList<IReference>>());
 
             Assert.That(h.MockServer.Object.TypeTree.IsKnown(type.NodeId), Is.True);
             Assert.That(h.MockServer.Object.TypeTree.IsEncodingOf(encoding.NodeId, dataTypeId), Is.True);

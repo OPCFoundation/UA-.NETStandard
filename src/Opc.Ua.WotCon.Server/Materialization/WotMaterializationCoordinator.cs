@@ -1528,13 +1528,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Returns <c>NodeId.Null</c> when there is no root or the namespace table is
         /// unavailable or does not yet contain the owning namespace.
         /// </summary>
-        private NodeId ResolveRootNodeId(ExpandedNodeId root)
+        private NodeId ResolveRootNodeId(ExpandedNodeId root, NamespaceTable? namespaceUris = null)
         {
             if (root.IsNull)
             {
                 return NodeId.Null;
             }
-            NamespaceTable? namespaces = ServerNamespaceUris;
+            NamespaceTable? namespaces = namespaceUris ?? ServerNamespaceUris;
             if (namespaces is null)
             {
                 return NodeId.Null;

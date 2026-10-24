@@ -256,6 +256,11 @@ namespace Opc.Ua.Server
         public IAsyncNodeManager NodeManager { get; }
 
         /// <summary>
+        /// Gets or sets the explicit metadata preparation, if this is a runtime candidate.
+        /// </summary>
+        public ChangePreparer? Preparation { get; set; }
+
+        /// <summary>
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }

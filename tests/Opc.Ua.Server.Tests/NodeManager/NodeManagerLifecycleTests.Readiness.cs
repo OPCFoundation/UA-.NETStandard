@@ -285,7 +285,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
-            Assert.That(participant.Find(ReadinessNodeId(kModelNamespaceUri, kValueNodeId)), Is.Null);
+            NodeId candidateValueId = new(
+                kValueNodeId, (ushort)participant.Server.NamespaceUris.GetIndex(kModelNamespaceUri));
+            Assert.That(participant.Find(candidateValueId), Is.Null);
             if (reload)
             {
                 AssertLifecycleValue(original);
@@ -299,7 +301,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             else
             {
-                await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
+                Assert.That(m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri), Is.EqualTo(-1));
+                DataValue missing = await ReadValueAsync(candidateValueId).ConfigureAwait(false);
+                Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             }
             Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
         }

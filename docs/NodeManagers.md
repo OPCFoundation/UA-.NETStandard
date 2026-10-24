@@ -216,14 +216,16 @@ An admitted request owns its routing view on `OperationContext`, before applicat
 Dispatch and permission lookups use that explicit view; completing the request releases it. Independent
 background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
 read live routes, and internal subscriber contexts are not permanently pinned. Browse and history continuation
-resumes temporarily select their issuing view and restore the request's view afterward. Contextless metadata
-readers still use an image-only bridge while type, factory, and reference publication is migrated;
-that bridge never selects service-dispatch routes.
+resumes temporarily select their issuing view and restore the request's view afterward. Metadata lookups
+use shared additive type and encodeable registrations, not request-selected metadata images.
 
 Application-state providers implement `INodeManagerReadImageSource` for live reads. Request-aware consumers call
 `source.GetReadImage(operationContext, owner)` explicitly. A pinned view with no state for the owner returns
 `null`, even if a later publication has state; work without a request pin reads the provider's live image.
-Application-state selection never consults the metadata execution-context bridge.
+Application-state images remain request-specific even though metadata is shared.
+Consumers that inspect immutable state on the owners themselves use
+`master.GetNodeManagers(operationContext)` rather than enumerating live `AsyncNodeManagers`.
+This preserves the captured owners across initial publication, replacement, and retirement.
 
 Legacy `MasterNodeManager.GetManagerHandleAsync` overrides remain effective during dispatch. An owner registered
 only in a newer routing view cannot replace the request's pinned owner. Owners outside both the pinned and live
@@ -1020,9 +1022,18 @@ definition is structurally compatible, rejects incompatible changes, and retains
 encodeables so existing Sessions and in-flight values remain decodable.
 
 `INodeManagerBatchLifecycle` stages several lifecycle changes (and their type, reference-type,
-encoding and encodeable-factory registrations) in private images, then publishes them together with
-the routing snapshot. In-flight requests keep the images they captured, and writes to a serving
-image fail with `InvalidOperationException` while the decision callback runs.
+encoding and encodeable-factory registrations) in one explicit staging context. Factories receive a
+server facade with private namespace tables, a type overlay and an encodeable builder. Use that
+supplied server (including contexts copied from it), not a previously captured serving server, when
+registering candidate metadata. Staging never changes the serving namespace indexes or registrations.
+
+Publication merges compatible additions into the shared metadata tables and rebinds the candidate's
+cached handles to their canonical storage. Those handles also observe subsequent compatible additions.
+Metadata is not pinned per request; application-value images and routing generations still are.
+Writes to the reserved serving metadata fail with `InvalidOperationException` during the decision callback.
+Retiring or aborting a staged manager first detaches its metadata handles, so its deletion callbacks
+cannot remove another generation's registrations. Published metadata remains additive for the lifetime
+of the server; removing a manager does not reclaim its type or encodeable identifiers.
 
 Batch metadata publication is additive and compatibility-checked before the durable decision.
 It preserves serving type relationships, reference names, encoding ownership and activators.
@@ -1086,9 +1097,11 @@ a committed decision into an abort or block readiness and retirement.
 
 #### Prepared external references
 
-Prepared batches also stage the external references of surviving and candidate NodeManagers and
-publish them with the other images, so Browse, Translate and reference exports see one consistent
-view. Abort leaves serving references unchanged. This path supports the in-memory `NodeState`
+Prepared batches precompute external reference edits for surviving and candidate NodeManagers.
+References use ordinary node-owned storage, not request-selected snapshots. Publication removes
+dropped references before switching routes and installs additions after their target owners are
+visible. Reference observers run afterward, outside publication; abort leaves serving references
+unchanged. This path supports the in-memory `NodeState`
 ownership model of `AsyncCustomNodeManager` and adapted `CustomNodeManager2`; a custom external
 reference store is rejected before the decision.
 

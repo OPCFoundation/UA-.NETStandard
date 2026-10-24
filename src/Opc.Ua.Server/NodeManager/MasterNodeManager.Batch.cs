@@ -56,18 +56,6 @@ namespace Opc.Ua.Server
             => m_nodeManagers.Revision;
 
         /// <inheritdoc/>
-        IDisposable IDynamicNodeManagerBatchHost.UseLiveRouting()
-        {
-            return m_nodeManagers.UseLiveRouting();
-        }
-
-        /// <inheritdoc/>
-        IDisposable IDynamicNodeManagerBatchHost.UseTypeImage(TypeTable typeTree, EncodeableFactory factory)
-        {
-            return m_nodeManagers.UseTypeImage(typeTree, factory);
-        }
-
-        /// <inheritdoc/>
         IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
         {
             return SuspendBindingAdmission(context);
@@ -88,7 +76,6 @@ namespace Opc.Ua.Server
         {
             await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             using BindingAdmission admission = EnterBindingAdmission(context);
-            using IDisposable routing = m_nodeManagers.UseLiveRouting();
             return await activateAsync().ConfigureAwait(false);
         }
 
@@ -154,7 +141,7 @@ namespace Opc.Ua.Server
 
                         typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
                         factory = originalFactory.PrepareAdditiveMerge(
-                            factory, originalFactory, factoryRevision, Server.NamespaceUris);
+                            factory, originalFactory, factoryRevision, context.Preparation.NamespaceUris);
                         var nextReferences = m_dynamicExternalReferences
                             .Where(entry => !retiring.Contains(entry.Key))
                             .ToDictionary(entry => entry.Key, entry => entry.Value);
@@ -162,27 +149,27 @@ namespace Opc.Ua.Server
                         {
                             nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
                         }
-                        Dictionary<NodeState, NodeState.ReferenceSnapshot> referenceImages =
-                            routingRevision.References.ToDictionary(entry => entry.Key, entry => entry.Value);
-                        using (m_nodeManagers.UseTypeImage(typeTree, factory))
+                        ArrayOf<PreparedReferenceSource> sources = await PrepareReferenceSourcesAsync(
+                            candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
+                        foreach (PreparedReferenceSource source in sources)
                         {
-                            ArrayOf<PreparedReferenceSource> sources = await PrepareReferenceSourcesAsync(
-                                candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
-                            foreach (PreparedReferenceSource source in sources)
-                            {
-                                referenceUpdates.Add(m_nodeManagers.PrepareReferences(
-                                    source.Owner, source.Node, source.Additions, source.Removals, referenceImages));
-                            }
+                            referenceUpdates.Add(source.Node.PrepareReferences(source.Additions, source.Removals));
                         }
 
                         using NodeManagerRoutingTable.PreparedRoutes routes =
                             m_nodeManagers.PrepareBatch(
-                                candidates, removed, routingRevision, ResolveNamespaceIndexes,
-                                typeTree, factory, referenceImages, readImages);
+                                candidates, removed, routingRevision,
+                                manager => manager.NamespaceUris.Select(
+                                    uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
+                                originalTypes, originalFactory, readImages);
                         routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
                         using EncodeableFactory.Publication registrations =
                             originalFactory.BeginPublication(originalFactory, factoryRevision);
+                        using StringTable.Publication namespaces = Server.NamespaceUris.BeginPublication(
+                            context.Preparation.NamespaceUris, context.Preparation.NamespaceRevision);
+                        using StringTable.Publication serverUris = Server.ServerUris.BeginPublication(
+                            context.Preparation.ServerUris, context.Preparation.ServerRevision);
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Reserve();
@@ -203,9 +190,19 @@ namespace Opc.Ua.Server
                         {
                             RetainRetiredGenerationNotifications(manager);
                         }
+                        namespaces.Complete();
+                        serverUris.Complete();
+                        types.Complete(typeTree);
+                        registrations.Complete(factory);
+                        foreach (PreparedNodeManager candidate in candidates)
+                        {
+                            ChangePreparer.Bind(candidate.NodeManager);
+                        }
+                        foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                        {
+                            update.Remove();
+                        }
                         emissions.Publish(routes);
-                        types.Complete();
-                        registrations.Complete();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Complete();
@@ -225,6 +222,14 @@ namespace Opc.Ua.Server
                         }
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         routes.Dispose();
+                        namespaces.Dispose();
+                        serverUris.Dispose();
+                        types.Dispose();
+                        registrations.Dispose();
+                        foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+                        {
+                            update.Dispose();
+                        }
                         published();
                     }
                     finally

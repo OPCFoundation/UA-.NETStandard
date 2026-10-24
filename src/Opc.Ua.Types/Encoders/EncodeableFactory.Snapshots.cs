@@ -56,55 +56,6 @@ namespace Opc.Ua
     /// </summary>
     public sealed partial class EncodeableFactory
     {
-        private EncodeableFactory? CurrentView
-        {
-            get
-            {
-                EncodeableFactory? view = Volatile.Read(ref m_viewSelector)?.Invoke();
-                return ReferenceEquals(view, this) ? null : view;
-            }
-        }
-
-        /// <summary>
-        /// Acquires publication ownership and selects the serving registration image.
-        /// </summary>
-        /// <param name="selector">The current image selector.</param>
-        /// <exception cref="ArgumentNullException"></exception>
-        /// <exception cref="InvalidOperationException"></exception>
-        internal ViewOwner SetViewSelector(Func<EncodeableFactory?> selector)
-        {
-            return TryAcquireViewOwner(selector) ??
-                throw new InvalidOperationException("The encodeable factory already has a publication owner.");
-        }
-
-        /// <summary>
-        /// Atomically acquires publication ownership when no owner exists.
-        /// </summary>
-        /// <param name="selector">The current image selector.</param>
-        /// <returns>The owner token, or <c>null</c> when another owner holds the factory.</returns>
-        /// <exception cref="ArgumentNullException"></exception>
-        internal ViewOwner? TryAcquireViewOwner(Func<EncodeableFactory?> selector)
-        {
-            if (selector is null)
-            {
-                throw new ArgumentNullException(nameof(selector));
-            }
-            lock (m_publicationGate)
-            {
-                if (m_viewSelector is not null)
-                {
-                    return null;
-                }
-                Volatile.Write(ref m_viewSelector, selector);
-                return new ViewOwner(this, selector);
-            }
-        }
-
-        /// <summary>
-        /// Gets whether a publication owner currently selects the serving image.
-        /// </summary>
-        internal bool HasViewOwner => Volatile.Read(ref m_viewSelector) is not null;
-
         /// <summary>
         /// Captures independent registration maps with their source identity and revision.
         /// </summary>
@@ -114,10 +65,6 @@ namespace Opc.Ua
         {
             lock (m_publicationGate)
             {
-                if (CurrentView is { } view)
-                {
-                    return view.CaptureSnapshot(out source, out revision);
-                }
                 source = this;
                 revision = m_revision;
                 return new EncodeableFactory(this)
@@ -231,10 +178,6 @@ namespace Opc.Ua
         {
             lock (m_publicationGate)
             {
-                if (CurrentView is { } view)
-                {
-                    return view.BeginPublication(source, revision);
-                }
                 if (!ReferenceEquals(source, this) || revision != m_revision)
                 {
                     throw new InvalidOperationException("Serving factory registrations changed after preparation.");
@@ -255,10 +198,6 @@ namespace Opc.Ua
         {
             lock (m_publicationGate)
             {
-                if (CurrentView is { } view)
-                {
-                    return view.IsUnchangedCapture(source, revision);
-                }
                 return m_captureSource is { } origin &&
                     origin.TryGetTarget(out EncodeableFactory? captured) &&
                     ReferenceEquals(captured, source) &&
@@ -298,90 +237,97 @@ namespace Opc.Ua
 
         private void EnsureMutable()
         {
-            if (m_publicationPending || m_retired)
+            if (m_publicationPending)
             {
                 throw new InvalidOperationException(
-                    "The factory image belongs to a pending or completed publication and cannot be changed.");
+                    "The factory has a pending publication and cannot be changed.");
             }
         }
 
-        private readonly Lock m_publicationGate = new();
-        private Func<EncodeableFactory?>? m_viewSelector;
+        private Lock m_publicationGate => m_storage.Gate;
 
         /// <summary>Weak provenance avoids retaining earlier serving factories through prepared copies.</summary>
         private WeakReference<EncodeableFactory>? m_captureSource;
 
         /// <summary>The serving revision from which these private maps were copied.</summary>
         private long m_captureRevision;
-        private long m_revision;
-        private bool m_publicationPending;
-        private bool m_retired;
+        private long m_revision
+        {
+            get => m_storage.Revision;
+            set => m_storage.Revision = value;
+        }
+
+        private bool m_publicationPending
+        {
+            get => m_storage.PublicationPending;
+            set => m_storage.PublicationPending = value;
+        }
+
+        private Storage m_storage = new();
 
         /// <summary>
-        /// Retains exclusive ownership of the factory's serving-image selector.
+        /// Shares canonical registrations with a published staging factory, including future additions.
         /// </summary>
-        /// <param name="owner">The encodeable factory.</param>
-        /// <param name="selector">The owned image selector.</param>
-        internal sealed class ViewOwner(EncodeableFactory owner, Func<EncodeableFactory?> selector)
+        /// <param name="canonical">The serving factory.</param>
+        internal void BindTo(EncodeableFactory canonical)
         {
-            /// <summary>
-            /// Releases ownership after transferring the selected registrations back to the factory.
-            /// </summary>
-            /// <param name="image">The encodeable factory.</param>
-            /// <exception cref="InvalidOperationException"></exception>
-            public void Release(EncodeableFactory image)
-            {
-                EncodeableFactory? current = Volatile.Read(ref m_owner);
-                if (current is null)
-                {
-                    return;
-                }
-                lock (current.m_publicationGate)
-                {
-                    lock (image.m_publicationGate)
-                    {
-                        if (m_owner is null)
-                        {
-                            return;
-                        }
-                        if (!ReferenceEquals(current.m_viewSelector, selector))
-                        {
-                            throw new InvalidOperationException("The factory publication owner changed.");
-                        }
-                        if (!ReferenceEquals(image, current))
-                        {
-                            image.EnsureMutable();
-                            current.m_encodeableTypes = image.m_encodeableTypes;
-                            current.m_enumeratedTypes = image.m_enumeratedTypes;
-                            current.m_xmlNameToType = image.m_xmlNameToType;
-                            current.m_revision++;
-                            image.m_retired = true;
-                        }
-                        Volatile.Write(ref current.m_viewSelector, null);
-                        Volatile.Write(ref m_owner, null);
-                    }
-                }
-            }
-
-            private EncodeableFactory? m_owner = owner;
+            m_storage = canonical.m_storage;
         }
 
         /// <summary>
-        /// Reserves factory mutations and retires the source after successful publication.
+        /// Detaches cached staging factories before manager cleanup.
+        /// </summary>
+        internal void Detach()
+        {
+            m_storage = CaptureSnapshot(out _, out _).m_storage;
+        }
+
+        /// <summary>
+        /// Owns shared frozen registration maps and their writer reservation.
+        /// </summary>
+        private sealed class Storage
+        {
+            /// <summary>Serializes registration writers through every bound handle.</summary>
+            internal readonly Lock Gate = new();
+
+            /// <summary>Holds the published encodeable registration map.</summary>
+            internal FrozenDictionary<ExpandedNodeId, IEncodeableType> EncodeableTypes =
+                new Dictionary<ExpandedNodeId, IEncodeableType>().ToFrozenDictionary();
+
+            /// <summary>Holds the published enumeration registration map.</summary>
+            internal FrozenDictionary<ExpandedNodeId, IEnumeratedType> EnumeratedTypes =
+                new Dictionary<ExpandedNodeId, IEnumeratedType>().ToFrozenDictionary();
+
+            /// <summary>Holds the published XML name map.</summary>
+            internal FrozenDictionary<XmlQualifiedName, IType> XmlNames =
+                new Dictionary<XmlQualifiedName, IType>().ToFrozenDictionary();
+
+            /// <summary>Identifies the current canonical registration revision.</summary>
+            internal long Revision;
+
+            /// <summary>Rejects registration writes reserved by an undecided publication.</summary>
+            internal bool PublicationPending;
+        }
+
+        /// <summary>
+        /// Reserves factory mutations until additive publication completes or is abandoned.
         /// </summary>
         /// <param name="owner">The encodeable factory.</param>
         internal sealed class Publication(EncodeableFactory owner) : IDisposable
         {
             /// <summary>
-            /// Permanently retires the reserved source image.
+            /// Installs prevalidated additive registrations in the canonical storage.
             /// </summary>
             /// <exception cref="ObjectDisposedException"></exception>
-            public void Complete()
+            public void Complete(EncodeableFactory merged)
             {
                 EncodeableFactory current = m_owner ?? throw new ObjectDisposedException(nameof(Publication));
                 lock (current.m_publicationGate)
                 {
-                    current.m_retired = true;
+                    current.m_encodeableTypes = merged.m_encodeableTypes;
+                    current.m_enumeratedTypes = merged.m_enumeratedTypes;
+                    current.m_xmlNameToType = merged.m_xmlNameToType;
+                    current.m_revision++;
                 }
             }
 

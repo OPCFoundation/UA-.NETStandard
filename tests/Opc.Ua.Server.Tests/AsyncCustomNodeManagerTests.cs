@@ -12201,6 +12201,14 @@ namespace Opc.Ua.Server.Tests
             AddPredefinedNode(context, node);
         }
 
+        /// <summary>
+        /// Exposes the startup reference-wiring pass for the legacy node manager.
+        /// </summary>
+        public void AddReverseReferencesPublic(IDictionary<NodeId, IList<IReference>> references)
+        {
+            AddReverseReferences(references);
+        }
+
         protected override void OnSubscribeToEvents(
             ServerSystemContext context,
             MonitoredNode2 monitoredNode,

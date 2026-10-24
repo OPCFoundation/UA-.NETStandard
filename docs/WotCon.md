@@ -1607,6 +1607,14 @@ deployments must inject a genuine immutable version/key lease provider.
 Custom source hosts bind registry read images before the deciding commit;
 topology-free observations use `PrepareReadImagesAsync` without source reload.
 Custom View owners expose `IWotCanonicalViewReadImage` for captured native reads.
+Native digest readers enumerate owners with `master.GetNodeManagers(operationContext)`,
+so a retained read cannot combine an old View token with a newer membership digest.
+Native source publication also exposes `IWotPreparedProjectionNamespaceSource.CapturedNamespaceUris`
+for resolving roots before their namespaces become public. Source-host decorators must forward
+this mapping; an empty mapping means that the provider uses only published namespaces. Do not
+append staged namespaces to the serving table during validation or dry runs. Metadata tables are
+shared and additive after publication; native application read images remain explicitly pinned
+through `OperationContext` as described in [Node managers](NodeManagers.md#datatypes).
 
 ### Dependency capture and observations
 

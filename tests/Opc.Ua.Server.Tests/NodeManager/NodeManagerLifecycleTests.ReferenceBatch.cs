@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task PreparedBatchReferenceImageIsRetainedByAnInflightNativeRequestAsync()
+        public async Task PreparedBatchNodeOwnedReferencesBecomeVisibleToAnInflightNativeRequestAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             TrackingLifecycleNodeManager? survivor = null;
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(response.Results[0].WrappedValue, Is.EqualTo(new Variant(kFirstRegistrationValue)));
             Assert.That(before, Is.False);
-            Assert.That(after, Is.False, "The same physical owner must use the request's original reference image.");
+            Assert.That(after, Is.True, "Node-owned references are shared even while application values stay pinned.");
             await AssertNativeReferenceAsync(
                 session, ObjectIds.ObjectsFolder, root, ReferenceTypeIds.Organizes, true, timeout.Token)
                 .ConfigureAwait(false);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(originalManager);
             AssertLifecycleValue(replacement);
             NodeId root = new(kRootNodeId,
-                (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
+                (ushort)replacement.Server.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
             objects.OnReferenceAdded = (_, _, _, target) =>
             {
                 Assert.That(prepared.IsCommitted, Is.True);

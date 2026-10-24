@@ -605,6 +605,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 probe.Changes.Add(changes);
                 probe.Publications.Add(prepared);
                 var publication = new Mock<IWotPreparedProjectionPublication>(MockBehavior.Strict);
+                publication.As<IWotPreparedProjectionNamespaceSource>()
+                    .SetupGet(value => value.CapturedNamespaceUris)
+                    .Returns(() => (prepared as IWotPreparedProjectionNamespaceSource)?.CapturedNamespaceUris ?? []);
                 publication.SetupGet(value => value.Projections).Returns(prepared.Projections);
                 publication.SetupGet(value => value.ViewGraph).Returns(prepared.ViewGraph);
                 publication.SetupGet(value => value.IsCommitted).Returns(() => prepared.IsCommitted);

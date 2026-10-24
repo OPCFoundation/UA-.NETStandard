@@ -255,6 +255,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
     }
 
     /// <summary>
+    /// Supplies an explicit namespace mapping for privately prepared native projections.
+    /// </summary>
+    public interface IWotPreparedProjectionNamespaceSource
+    {
+        /// <summary>
+        /// Gets the explicit candidate namespace mapping, including unpublished additions.
+        /// Empty means that the provider uses only already-published namespaces.
+        /// Decorators must forward this mapping without appending it to the serving table.
+        /// </summary>
+        ArrayOf<string> CapturedNamespaceUris { get; }
+    }
+
+    /// <summary>
     /// The private source/View routing candidate for one coordinator-owned publication decision.
     /// </summary>
     public interface IWotPreparedProjectionPublication : IAsyncDisposable

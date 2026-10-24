@@ -223,8 +223,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(server.Factory, Is.SameAs(originalFactory));
                 Assert.That(originalTypes.FindSuperType(ObjectTypeIds.FolderType),
                     Is.EqualTo(ObjectTypeIds.BaseObjectType));
-                Assert.That(() => originalTypes.SetViewSelector(() => null),
-                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(originalTypes.CaptureSnapshot(out _, out _), Is.Not.SameAs(originalTypes));
             });
         }
 

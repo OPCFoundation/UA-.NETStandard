@@ -150,7 +150,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     new NodeManagerProjectionRegistration(registration), [], 0));
             }
             WotPreparedViewGraphState? graph = BindPreparedViews(candidate, views, batch.Registrations);
-            return new PreparedPublication(batch, handles.ToArrayOf(), graph, candidate.RuntimePublications);
+            return new PreparedPublication(
+                batch, handles.ToArrayOf(), graph, candidate.RuntimePublications, candidate.SourceImage?.NamespaceUris);
         }
 
         private PreparedChanges CreatePreparedChanges(
@@ -159,7 +160,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var lifecycleChanges = new List<NodeManagerBatchChange>();
             var documents = new List<WotProjectionDocument>();
             var runtimePublications = new List<WotProjectionRuntimePublication>();
-            WotPreparedSourceImage? sourceImage = views is IWotPreparedViewSourceConsumer ? new() : null;
+            var sourceImage = new WotPreparedSourceImage();
             foreach (WotProjectionChange change in changes)
             {
                 _ = change ?? throw new ArgumentException("A projection change is null.", nameof(changes));
@@ -171,7 +172,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         throw new ArgumentException("A projection belongs to another host.", nameof(changes));
                     }
                     current = registration.Registration;
-                    sourceImage?.Exclude(current.NodeManager);
+                    sourceImage.Exclude(current.NodeManager);
                 }
                 bool immediate = change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate;
                 if (change.Document is null)
@@ -183,11 +184,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 RuntimeNodeSetOptions options = BuildOptions(change.Document);
                 runtimePublications.Add(new WotProjectionRuntimePublication(options));
-                IAsyncNodeManagerFactory factory = new RuntimeNodeSetNodeManagerFactory(options);
-                if (sourceImage is not null)
-                {
-                    factory = sourceImage.Capture(factory);
-                }
+                IAsyncNodeManagerFactory factory = sourceImage.Capture(new RuntimeNodeSetNodeManagerFactory(options));
                 lifecycleChanges.Add(current is null
                     ? NodeManagerBatchChange.Add(factory)
                     : NodeManagerBatchChange.Replace(current, factory, immediate));
@@ -195,7 +192,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (views is IWotPreparedViewSourceConsumer consumer)
             {
-                consumer.BindSourceImage(sourceImage!);
+                consumer.BindSourceImage(sourceImage);
             }
             if (views is not null)
             {
@@ -319,8 +316,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IPreparedNodeManagerBatch batch,
             ArrayOf<WotProjectionHandle> projections,
             WotPreparedViewGraphState? graph,
-            ArrayOf<WotProjectionRuntimePublication> runtimePublications) : IWotPreparedProjectionPublication
+            ArrayOf<WotProjectionRuntimePublication> runtimePublications,
+            NamespaceTable? namespaceUris = null)
+            : IWotPreparedProjectionPublication, IWotPreparedProjectionNamespaceSource
         {
+            /// <inheritdoc/>
+            public ArrayOf<string> CapturedNamespaceUris => namespaceUris?.ToArrayOf() ?? [];
+
             /// <summary>
             /// Gets the projections for <c>PreparedPublication</c>.
             /// </summary>
