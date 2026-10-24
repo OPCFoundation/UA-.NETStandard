@@ -35,6 +35,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
@@ -74,6 +75,10 @@ namespace Opc.Ua.PubSub.Connections
         private readonly TimeProvider m_timeProvider;
         private readonly IPubSubScheduler m_scheduler;
         private readonly IDataSetMetaDataRegistry m_metaDataRegistry;
+
+        /// <summary>Metadata learned only from this connection, including its authentication provenance.</summary>
+        private readonly DataSetMetaDataRegistry m_inboundMetaDataRegistry;
+
         private readonly IPubSubDiagnostics m_diagnostics;
         private readonly IPubSubActivationCoordinator m_activationCoordinator;
         private readonly IPubSubWriterCheckpointStore m_writerCheckpointStore;
@@ -117,6 +122,9 @@ namespace Opc.Ua.PubSub.Connections
         /// <param name="diagnostics">Diagnostics sink.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Clock.</param>
+        /// <exception cref="PubSubConfigurationException">
+        /// The configuration requires a security wrapper or distinct SecurityGroups.
+        /// </exception>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -170,7 +178,7 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="requiredSecurityMode">
         /// Strictest <see cref="MessageSecurityMode"/> requested by any
-        /// reader group on this connection. When
+        /// writer group, reader group or DataSetReader on this connection. When
         /// <see cref="MessageSecurityMode.Sign"/> or
         /// <see cref="MessageSecurityMode.SignAndEncrypt"/> the receive
         /// path rejects any inbound frame that is not secured to at
@@ -181,6 +189,9 @@ namespace Opc.Ua.PubSub.Connections
         /// </param>
         /// <param name="activationCoordinator">Optional high-availability activation coordinator.</param>
         /// <param name="writerCheckpointStore">Optional writer SequenceNumber checkpoint store.</param>
+        /// <exception cref="PubSubConfigurationException">
+        /// A required security wrapper is missing or the connection requests distinct SecurityGroups.
+        /// </exception>
         public PubSubConnection(
             PubSubConnectionDataType configuration,
             IPubSubTransportFactory transportFactory,
@@ -224,9 +235,33 @@ namespace Opc.Ua.PubSub.Connections
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
+            if (telemetry is null)
+            {
+                throw new ArgumentNullException(nameof(telemetry));
+            }
             if (timeProvider is null)
             {
                 throw new ArgumentNullException(nameof(timeProvider));
+            }
+            bool configuredSecurity = PubSubSecurityWrapperResolver.TryResolveConnectionSecurity(
+                configuration, out MessageSecurityMode configuredMode, out _);
+            if (configuredSecurity && securityWrapper is null)
+            {
+                throw new PubSubConfigurationException(
+                    [
+                        new PubSubConfigurationIssue(
+                            PubSubConfigurationIssueSeverity.Error,
+                            "PSC1401",
+                            $"Connection '{configuration.Name}' requires message security but no wrapper was supplied.",
+                            $"Connections[{configuration.Name}]",
+                            "8.3")
+                    ]);
+            }
+            if (configuredMode == MessageSecurityMode.SignAndEncrypt ||
+                (configuredMode == MessageSecurityMode.Sign &&
+                    requiredSecurityMode != MessageSecurityMode.SignAndEncrypt))
+            {
+                requiredSecurityMode = configuredMode;
             }
             Configuration = configuration;
             m_transportFactory = transportFactory;
@@ -237,6 +272,8 @@ namespace Opc.Ua.PubSub.Connections
             m_readerGroups = readerGroups;
             ReaderGroups = readerGroups.ToArrayOf<ReaderGroup, IReaderGroup>(static group => group);
             m_metaDataRegistry = metaDataRegistry;
+            m_inboundMetaDataRegistry = new DataSetMetaDataRegistry(
+                metaDataRegistry, telemetry.CreateLogger<DataSetMetaDataRegistry>());
             m_diagnostics = diagnostics;
             m_activationCoordinator = activationCoordinator ?? AlwaysActiveCoordinator.Instance;
             m_writerCheckpointStore = writerCheckpointStore ?? NullPubSubWriterCheckpointStore.Instance;
@@ -244,7 +281,13 @@ namespace Opc.Ua.PubSub.Connections
             m_timeProvider = timeProvider;
             m_scheduler = scheduler ?? new PubSubScheduler(telemetry, timeProvider);
             m_securityWrapper = securityWrapper;
-            m_securityWrapOptions = securityWrapOptions;
+            m_securityWrapOptions = requiredSecurityMode switch
+            {
+                MessageSecurityMode.SignAndEncrypt => UadpSecurityWrapOptions.SignAndEncrypt,
+                MessageSecurityMode.Sign when securityWrapOptions != UadpSecurityWrapOptions.SignAndEncrypt =>
+                    UadpSecurityWrapOptions.SignOnly,
+                _ => securityWrapOptions
+            };
             m_requiredSecurityMode = requiredSecurityMode;
             m_maxNetworkMessageSize = maxNetworkMessageSize;
             m_reassembler = new UadpReassembler(timeProvider);
@@ -322,6 +365,11 @@ namespace Opc.Ua.PubSub.Connections
 
         /// <inheritdoc/>
         public PubSubStateMachine State { get; }
+
+        /// <summary>
+        /// Connection-local received metadata over host-trusted configured descriptors.
+        /// </summary>
+        internal IDataSetMetaDataRegistry InboundMetaDataRegistry => m_inboundMetaDataRegistry;
 
         private bool RequiresInboundSecurity =>
             m_requiredSecurityMode is MessageSecurityMode.Sign
@@ -884,6 +932,9 @@ namespace Opc.Ua.PubSub.Connections
         /// while still allowing datagram (UDP) round-trips that ignore the address.
         /// </param>
         /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException">
+        /// The target is scoped to a different connection.
+        /// </exception>
         public void RegisterActionHandler(
             PubSubActionTarget target,
             IPubSubActionHandler handler,
@@ -897,6 +948,12 @@ namespace Opc.Ua.PubSub.Connections
             if (handler is null)
             {
                 throw new ArgumentNullException(nameof(handler));
+            }
+            if (!string.IsNullOrEmpty(target.ConnectionName) &&
+                !string.Equals(Name, target.ConnectionName, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "The Action target is scoped to a different connection.", nameof(target));
             }
             var responder = new ActionResponder(
                 handler,
@@ -1005,7 +1062,7 @@ namespace Opc.Ua.PubSub.Connections
             }
             var context = new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(m_telemetry),
-                m_metaDataRegistry,
+                m_inboundMetaDataRegistry,
                 m_diagnostics,
                 m_timeProvider);
             try
@@ -1239,7 +1296,7 @@ namespace Opc.Ua.PubSub.Connections
             bool authenticated = false)
         {
             return TryRouteInboundMetaData(
-                m_metaDataRegistry,
+                m_inboundMetaDataRegistry,
                 message,
                 m_logger,
                 authenticated,
@@ -1401,7 +1458,8 @@ namespace Opc.Ua.PubSub.Connections
             if (authenticated &&
                 existing == MetaDataMatchResult.MajorVersionMismatch &&
                 current?.ConfigurationVersion is { } currentVersion &&
-                currentVersion.MajorVersion > key.MajorVersion)
+                currentVersion.MajorVersion > key.MajorVersion &&
+                (registry is not DataSetMetaDataRegistry memoryRegistry || memoryRegistry.IsAuthenticated(in key)))
             {
                 logger?.DiscardingStaleInboundMetadata(writerId, key.MajorVersion, currentVersion.MajorVersion);
                 return true;
@@ -1409,7 +1467,17 @@ namespace Opc.Ua.PubSub.Connections
 
             try
             {
-                registry.Register(in key, meta);
+                if (registry is DataSetMetaDataRegistry scopedRegistry)
+                {
+                    if (!scopedRegistry.RegisterReceived(in key, meta, authenticated))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    registry.Register(in key, meta);
+                }
                 logger?.RegisteredInboundMetadata(writerId, key.MajorVersion);
             }
             catch (Exception ex)
@@ -2695,7 +2763,7 @@ namespace Opc.Ua.PubSub.Connections
 
         /// <summary>
         /// Returns true for the NetworkMessages that the UADP security wrapper
-        /// protects: UADP data messages, and the discovery requests and responses
+        /// protects: UADP data messages, and the discovery and Action requests and responses
         /// of a connection that uses the UADP encoding.
         /// </summary>
         private bool IsSecurableUadpMessage(PubSubNetworkMessage networkMessage)
@@ -2704,7 +2772,8 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return true;
             }
-            return networkMessage is UadpDiscoveryRequestMessage or UadpDiscoveryResponseMessage &&
+            return networkMessage is UadpDiscoveryRequestMessage or UadpDiscoveryResponseMessage
+                or UadpActionRequestMessage or UadpActionResponseMessage &&
                 TransportProfileFamily(m_encodingProfileUri) == "Uadp";
         }
 
@@ -2811,6 +2880,13 @@ namespace Opc.Ua.PubSub.Connections
             return 1 + 4 + 1 + wrapper.Policy.NonceLength + wrapper.Policy.SignatureLength;
         }
 
+        /// <summary>
+        /// The security context actually used by this connection, including application overrides.
+        /// </summary>
+        internal PubSubSecurityContext? EffectiveSecurityContext => m_securityWrapper is null
+            ? null
+            : new PubSubSecurityContext(m_securityWrapper, m_securityWrapOptions);
+
         internal ValueTask SendTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,
             string? topic,
@@ -2820,6 +2896,47 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         internal async ValueTask SendTranscodedFrameAsync(
+            ReadOnlyMemory<byte> frame,
+            string? topic,
+            ArrayOf<PubSubMessageProperty> properties,
+            CancellationToken cancellationToken)
+        {
+            await ValidateTranscodedFrameSecurityAsync(frame, cancellationToken).ConfigureAwait(false);
+            await SendValidatedTranscodedFrameAsync(frame, topic, properties, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Validates raw bridge egress against the connection's effective message security.
+        /// </summary>
+        internal async ValueTask ValidateTranscodedFrameSecurityAsync(
+            ReadOnlyMemory<byte> frame, CancellationToken cancellationToken)
+        {
+            MessageSecurityMode requiredMode = m_securityWrapper is null ? m_requiredSecurityMode :
+                m_securityWrapOptions == UadpSecurityWrapOptions.SignAndEncrypt
+                    ? MessageSecurityMode.SignAndEncrypt
+                    : MessageSecurityMode.Sign;
+            if (requiredMode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt)
+            {
+                if (!UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo prefix) ||
+                    !prefix.SecurityEnabled ||
+                    !UadpSecurityHeader.TryRead(frame.Span[prefix.PrefixLength..], out UadpSecurityHeader header,
+                        out _) ||
+                    (header.SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.NetworkMessageSigned) == 0 ||
+                    (requiredMode == MessageSecurityMode.SignAndEncrypt &&
+                        (header.SecurityFlags & (byte)UadpSecurityFlagsEncodingMask.NetworkMessageEncrypted) == 0) ||
+                    m_securityWrapper is null ||
+                    !await m_securityWrapper.VerifyOutboundAsync(frame, prefix.PrefixLength, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSecurityModeInsufficient);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a frame after the complete transcode result has passed security preflight.
+        /// </summary>
+        internal async ValueTask SendValidatedTranscodedFrameAsync(
             ReadOnlyMemory<byte> frame,
             string? topic,
             ArrayOf<PubSubMessageProperty> properties,

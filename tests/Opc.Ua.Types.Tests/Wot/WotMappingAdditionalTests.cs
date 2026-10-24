@@ -846,7 +846,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventAnnotationConflict),
                 Is.False,
-                "WoT Binding 1.1 defines no uav:isEvent term, so it can contradict nothing.");
+                "OPC 10101-1 defines no uav:isEvent term, so it can contradict nothing.");
             Assert.That(result.HasErrors, Is.False);
         }
 
@@ -1309,7 +1309,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventAnnotationConflict),
                 Is.False,
-                "WoT Binding 1.1 defines no uav:isEvent term, so it can contradict nothing.");
+                "OPC 10101-1 defines no uav:isEvent term, so it can contradict nothing.");
         }
 
         [Test]

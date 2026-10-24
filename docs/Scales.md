@@ -21,11 +21,33 @@ Integration and OPC 30050 PackML.
 - [Quick start — server](#quick-start--server)
 - [Quick start — client](#quick-start--client)
 - [Server hosting](#server-hosting)
+  - [`AddScales` and `ConfigureScales`](#addscales-and-configurescales)
+  - [Composing with Machinery and other companions](#composing-with-machinery-and-other-companions)
+  - [Direct composition and lifetime](#direct-composition-and-lifetime)
+  - [Options](#options)
+  - [Creating scales](#creating-scales)
 - [Builder reference](#builder-reference)
+  - [`IScaleBuilder`](#iscalebuilder)
+  - [`IProductionPresetBuilder`](#iproductionpresetbuilder)
+  - [`IScaleSystemBuilder` and `IScaleModuleBuilder`](#iscalesystembuilder-and-iscalemodulebuilder)
 - [Runtime reference](#runtime-reference)
+  - [`ScaleHandle`](#scalehandle)
+  - [`ScaleNotifications`](#scalenotifications)
+  - [`ScaleProductionPreset`](#scaleproductionpreset)
+  - [`ScaleStatistics`](#scalestatistics)
+  - [Type controllers](#type-controllers)
+  - [Recipes](#recipes)
+  - [PackML](#packml)
 - [Client reference](#client-reference)
+  - [Creating the client](#creating-the-client)
+  - [Discovery](#discovery)
+  - [Weighing](#weighing)
+  - [Products, PackML, type methods and recipes](#products-packml-type-methods-and-recipes)
+  - [Notifications and snapshots](#notifications-and-snapshots)
 - [Contracts reference](#contracts-reference)
 - [Conformance matrix](#conformance-matrix)
+  - [Facets](#facets)
+  - [Cross-cutting conformance units and behaviour](#cross-cutting-conformance-units-and-behaviour)
 - [Samples](#samples)
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
@@ -114,15 +136,23 @@ do not include it and stay advertised.
 Everything below a top-level node follows the DI modular-device pattern
 (§6.3):
 
-```text
-DeviceSet
-├── PackingLine1              ScaleSystemType      (notifier)
-│   └── SubDevices
-│       └── Checkweigher1     CheckweigherType     (notifier, HasNotifier from PackingLine1)
-│           └── SubDevices
-│               ├── Infeed    FeederModuleType     (notifier, HasNotifier from Checkweigher1)
-│               └── Labeler   PrinterModuleType    (notifier, HasNotifier from Checkweigher1)
-└── AnalyticalBalance         LaboratoryScaleType  (notifier)
+```mermaid
+flowchart TD
+    devices["DeviceSet"]
+    line["PackingLine1<br/>ScaleSystemType (notifier)"]
+    sub1["SubDevices"]
+    check["Checkweigher1<br/>CheckweigherType (notifier)"]
+    sub2["SubDevices"]
+    infeed["Infeed<br/>FeederModuleType (notifier)"]
+    labeler["Labeler<br/>PrinterModuleType (notifier)"]
+    balance["AnalyticalBalance<br/>LaboratoryScaleType (notifier)"]
+    devices --> line --> sub1 --> check --> sub2
+    sub2 --> infeed
+    sub2 --> labeler
+    devices --> balance
+    line -.->|HasNotifier| check
+    check -.->|HasNotifier| infeed
+    check -.->|HasNotifier| labeler
 ```
 
 - **SupportedTypes.** The NodeSet's `SupportedTypes` folders carry no
@@ -376,7 +406,7 @@ its own asynchronous disposal.
 | --- | --- |
 | `AllowSelection()` | `SelectProduct`, `DeselectProduct`, `SwitchProduct` and `CurrentProducts` (*SelectProduct*) |
 | `AllowManagement()` | `AddProduct` and `RemoveProduct` (*ManageProduct*, *DynamicProductAddressSpace*) |
-| `WithLocking()` | A DI `Lock` on every product. A client changes a product only while holding the lock (§7.8.3) |
+| `WithLocking()` | A DI `Lock` on every product. A held lock excludes other sessions from remote product mutation (§7.8.3) |
 | `AddProduct(id, name, configure)` | A product of the kind's product type. `configure` gets the typed node, for example to set a checkweigher's `NominalWeight` |
 | `Select(id)` | Puts the product into processing |
 
@@ -438,7 +468,7 @@ and synchronous: no I/O, no waiting and no calls into other locks.
   `CompleteCalibration`, `PublishFeeder`, …) take the lock but skip the
   interceptor: the equipment reports what happened, it does not ask.
 - **Node writes** need no node-manager lock. A `NodeState` guards its own
-  attributes, and the scale's lock is what keeps related values consistent.
+  attributes, and the scale's lock keeps related values consistent.
 
 **Weighing arithmetic (§9.3):**
 
@@ -476,9 +506,12 @@ The methods and the local API share the same rules.
 - **Products.** `AddProduct`, `RemoveAsync`, `Select`, `Deselect` and
   `Switch`. `Switch` fails with `BadInvalidState` when more than one product
   is in processing (§7.7.8).
-- **Locking.** On a preset built `WithLocking`, a client changes a product
-  only while holding its DI lock. Otherwise the change fails with
-  `BadUserAccessDenied`.
+- **Locking.** On a preset built `WithLocking`, a held DI product lock rejects
+  other sessions' mutations with `BadUserAccessDenied`, including direct Value
+  writes, nested or later-created descendants and scale-level methods that
+  change the product. The creating/owning session is distinct even when another
+  session has the same username. Unlocked products retain ordinary access
+  checks, and trusted equipment updates remain available through the local API.
 - **Catchweigher zones.** Zones come from `AddZone`.
 - **Vehicle information.** `VehicleInformationProvider` answers
   `GetVehicleInformation` from the application's vehicle database.
@@ -688,6 +721,10 @@ See [the samples README](../samples/Scales/README.md) for how to run them.
 `ScalesServer` accepts `--host`, `--port`, an absolute `--pki-root`,
 `--autoaccept true|false`, and an optional `--run-seconds` from 1 through 3600.
 Without a runtime limit, the server runs until stopped interactively.
+
+UaLens launches its owned simulator with private PKI, certificate auto-accept disabled
+and an explicit finite runtime. Weighing tasks require a separate per-run opt-in
+and fresh confirmation; see [UaLens Weighing](UaLens.md#weighing).
 
 ## Testing
 

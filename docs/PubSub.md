@@ -18,19 +18,70 @@
 - [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
 - [Architecture](#architecture)
 - [Core abstractions](#core-abstractions)
+  - [`IPubSubApplication`](#ipubsubapplication)
+  - [`PubSubConnection` / `WriterGroup` / `ReaderGroup`](#pubsubconnection--writergroup--readergroup)
+  - [`DataSetWriter` / `DataSetReader`](#datasetwriter--datasetreader)
+  - [`IDataSetMetaDataRegistry`](#idatasetmetadataregistry)
+  - [`IPubSubSecurityPolicy` / `IPubSubSecurityKeyProvider`](#ipubsubsecuritypolicy--ipubsubsecuritykeyprovider)
+  - [`IPubSubKeyServiceServer`](#ipubsubkeyserviceserver)
 - [Fluent builder walkthrough](#fluent-builder-walkthrough)
+  - [Publisher — UDP / UADP](#publisher--udp--uadp)
+  - [Subscriber — MQTT / JSON](#subscriber--mqtt--json)
+  - [XML configuration mode](#xml-configuration-mode)
+  - [Inline `PubSubConfigurationDataType`](#inline-pubsubconfigurationdatatype)
 - [Dependency injection / hosting](#dependency-injection--hosting)
 - [Transports](#transports)
+  - [UDP / UADP](#udp--uadp)
+  - [Ethernet / UADP (`opc.eth://`)](#ethernet--uadp-opceth)
+  - [DTLS / UADP (`opc.dtls://`)](#dtls--uadp-opcdtls)
+  - [MQTT (3.1.1 / 5.0)](#mqtt-311--50)
+  - [DTLS transport status](#dtls-transport-status)
+  - [Apache Kafka](#apache-kafka)
 - [Data Channels (experimental)](#data-channels-experimental)
 - [Encodings](#encodings)
+  - [UADP — `Opc.Ua.PubSub.Encoding.Uadp`](#uadp--opcuapubsubencodinguadp)
+  - [JSON — `Opc.Ua.PubSub.Encoding.Json`](#json--opcuapubsubencodingjson)
 - [Transcoding](#transcoding)
+  - [Architecture](#architecture-1)
+  - [Configuration model](#configuration-model)
+  - [Transform pipeline](#transform-pipeline)
+  - [Cross-encoding and field encoding](#cross-encoding-and-field-encoding)
+  - [Identifier, field, value, and metadata rewrites](#identifier-field-value-and-metadata-rewrites)
+  - [Security](#security)
+  - [In-process bridge, receive hook, and egress](#in-process-bridge-receive-hook-and-egress)
+  - [Fluent `AddTranscodingBridge` walkthrough](#fluent-addtranscodingbridge-walkthrough)
+  - [Reloadable configuration](#reloadable-configuration)
+  - [Promoting fields to broker headers](#promoting-fields-to-broker-headers)
+  - [Standalone primitives](#standalone-primitives)
+  - [Transcoding limitations](#transcoding-limitations)
 - [Discovery](#discovery)
 - [Security](#security-1)
+  - [`UadpSecurityWrapper`](#uadpsecuritywrapper)
+  - [Cipher policies](#cipher-policies)
+  - [Key ring](#key-ring)
 - [Security Key Service (SKS)](#security-key-service-sks)
+  - [Pull (client)](#pull-client)
+  - [Push targets and in-memory server](#push-targets-and-in-memory-server)
 - [Actions (request/response)](#actions-requestresponse)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
+  - [Package and namespaces](#package-and-namespaces)
+  - [Architecture](#architecture-2)
+  - [Connection options](#connection-options)
+  - [Configuration and hot reload](#configuration-and-hot-reload)
+  - [Publisher adapter](#publisher-adapter)
+  - [Subscriber adapter](#subscriber-adapter)
+  - [Action responder adapter](#action-responder-adapter)
+  - [Metadata behavior](#metadata-behavior)
+  - [Browse-path node mapping](#browse-path-node-mapping)
+  - [Lifecycle and resilience](#lifecycle-and-resilience)
+  - [Observability](#observability)
+  - [Security notes](#security-notes)
+  - [Sample](#sample)
+  - [See also](#see-also)
 - [High availability and redundancy](#high-availability-and-redundancy)
+  - [State providers](#state-providers)
+  - [Active/standby activation](#activestandby-activation)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
@@ -40,14 +91,18 @@
 
 - Targets **OPC UA Part 14 v1.05.06** conformance for the implemented UDP,
   MQTT, Kafka, UADP, JSON, discovery, Action, SKS, and address-space surfaces.
-- Six library packages
+- Runtime and integration assemblies
   ([NuGet](https://www.nuget.org/packages?q=OPCFoundation.NetStandard.Opc.Ua.PubSub)):
-  `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
-  `Opc.Ua.PubSub.Kafka`,
-  `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
+  `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Eth`,
+  `Opc.Ua.PubSub.Mqtt`, `Opc.Ua.PubSub.Kafka`,
+  `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`. Their NuGet package
+  IDs use the `OPCFoundation.NetStandard.` prefix. Additional packages
+  provide diagnostics (`Opc.Ua.PubSub.Diagnostics`), JSON Schema generation
+  (`Opc.Ua.PubSub.Schema`), and redundancy integration
+  (`Opc.Ua.Redundancy.PubSub`).
 - Multi-TFM: `net48`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
-- Native AOT clean — both reference samples publish with zero
-  `IL2026` / `IL3050` warnings.
+- The combined reference sample publishes as a Native AOT self-contained
+  executable on `net10.0` with its default backends; see [Native AOT](#native-aot).
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), **Kafka** (`kafka://` / `kafkas://`), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
 - Encodings: **UADP** ([§7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4))
   and **JSON** ([§7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5))
@@ -64,7 +119,7 @@
   group, writer, reader.
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
-- High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
+- Transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
 
 ## Run a first publisher and subscriber
 
@@ -133,49 +188,44 @@ reports the `MessageReceiveTimeout` fault.
 
 ## Architecture
 
-The library is laid out as five sibling assemblies — the abstractions
+The library separates the runtime, transports, and integration adapters
+into assemblies — the abstractions
 and runtime live in `Opc.Ua.PubSub`, the transports plug in via
 `IPubSubTransportFactory`, `Opc.Ua.PubSub.Server` optionally exposes the
 runtime through an in-process standard OPC UA address space, and
 `Opc.Ua.PubSub.Adapter` optionally bridges configured DataSets and
 Actions to an external OPC UA server over a managed client session.
 
-```text
-┌──────────────────────────────────┐      ┌──────────────────────────────────┐      ┌──────────────────────┐
-│ Optional in-process server       │      │ Optional external-server adapter │      │ External OPC UA      │
-│ Opc.Ua.PubSub.Server             │      │ Opc.Ua.PubSub.Adapter            │◀───▶│ server endpoint      │
-│ PublishSubscribe Object ·        │      │ Sources · sinks · Action handler │      │ Read / Write / Call  │
-│ methods · diagnostics binding    │      │ over ManagedSession              │      └──────────────────────┘
-└──────────────────────────────────┘      └──────────────────────────────────┘
-                 │ IPubSubApplication                     │ Sources / sinks / Action handler
-                 ▼                                         ▼
-┌────────────────────────────────────────────────────────────────────┐
-│                            Opc.Ua.PubSub                           │
-│                                                                    │
-│  Application/  PubSubApplication · PubSubApplicationBuilder        │
-│                IPubSubApplication · MetaDataPublisher              │
-│  Configuration/ PubSubConfigurationSnapshot · validator · XML      │
-│  Connections/  IPubSubConnection · UaPubSubConnection              │
-│  Groups/       WriterGroup · ReaderGroup                           │
-│  DataSets/     Published / Subscribed / Source / Sink              │
-│  Encoding/     UADP, JSON encoders/decoders, Discovery, Action     │
-│  MetaData/     IDataSetMetaDataRegistry                            │
-│  Scheduling/   IPubSubScheduler · PubSubSchedule                   │
-│  Security/     UadpSecurityWrapper · KeyRing · NonceLayout · KAT   │
-│  Security/Sks/ ISecurityKeyService · OpcUaSecurityKeyServiceClient │
-│                InMemoryPubSubKeyServiceServer · PullSecurityKey    │
-│  StateMachine/ PubSubStateMachine                                  │
-│  Transports/   IPubSubTransportFactory · IPubSubTransport          │
-│  DependencyInjection/ AddPubSub · AddPubSubSecurityKeyService*     │
-└────────────────────────────────────────────────────────────────────┘
-        ▲                                ▲                       ▲
-        │ IPubSubTransportFactory        │                       │
-        │                                │                       │
-┌─────────────────┐  ┌──────────────────────┐  ┌────────────────────┐
-│ Opc.Ua.PubSub.  │  │ Opc.Ua.PubSub.Mqtt   │  │ Opc.Ua.PubSub.Kafka│
-│      Udp        │  │ MQTTnet 4 / 5        │  │ Dekaf / Confluent  │
-└─────────────────┘  └──────────────────────┘  └────────────────────┘
+```mermaid
+flowchart LR
+    server["Optional in-process server<br/>Opc.Ua.PubSub.Server<br/>PublishSubscribe Object, methods and diagnostics binding"]
+    adapter["Optional external-server adapter<br/>Opc.Ua.PubSub.Adapter<br/>Sources, sinks and Action handler over ManagedSession"]
+    endpoint["External OPC UA server endpoint<br/>Read / Write / Call"]
+    runtime["Opc.Ua.PubSub<br/>Application and runtime services"]
+    transports["Transport assemblies<br/>Opc.Ua.PubSub.Udp: UDP<br/>Opc.Ua.PubSub.Eth: Ethernet (Layer 2 UADP)<br/>Opc.Ua.PubSub.Mqtt: MQTTnet 4 / 5<br/>Opc.Ua.PubSub.Kafka: Dekaf / Confluent"]
+    server -->|IPubSubApplication| runtime
+    adapter -->|Sources / sinks / Action handler| runtime
+    endpoint <--> adapter
+    transports -->|IPubSubTransportFactory| runtime
 ```
+
+The runtime assembly contains these areas:
+
+| Area | Types and services |
+| --- | --- |
+| Application | `PubSubApplication`, `PubSubApplicationBuilder`, `IPubSubApplication` |
+| Configuration | `PubSubConfigurationSnapshot`, validator, XML |
+| Connections | `PubSubConnection`, `IPubSubConnection` |
+| Groups | `WriterGroup`, `ReaderGroup` |
+| DataSets | Published, Subscribed, Source, Sink |
+| Encoding | UADP and JSON encoders/decoders, Discovery, Action |
+| MetaData | `IDataSetMetaDataRegistry` |
+| Scheduling | `IPubSubScheduler`, `PubSubSchedule` |
+| Security | `UadpSecurityWrapper`, `PubSubSecurityKeyRing`, `AesCtrNonceLayout`, known-answer tests |
+| Security/Sks | `ISecurityKeyService`, `OpcUaSecurityKeyServiceClient`, `InMemoryPubSubKeyServiceServer`, `PullSecurityKeyProvider` |
+| StateMachine | `PubSubStateMachine` |
+| Transports | `IPubSubTransportFactory`, `IPubSubTransport` |
+| DependencyInjection | `AddPubSub`, `AddPubSubSecurityKeyService*` |
 
 The **state machine** (`PubSubStateMachine`,
 [Part 14 §6.2.1](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.1))
@@ -285,7 +335,7 @@ timestamps even when Part 6 flattens `UaType` alongside `Value`.
 
 ### `IDataSetMetaDataRegistry`
 
-Pub/sub-shared registry keyed by
+The application's host-trusted registry is keyed by
 `(PublisherId, WriterGroupId, DataSetWriterId, DataSetClassId,
 MajorVersion)`
 ([§6.2.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.2.4)).
@@ -297,17 +347,27 @@ KeyFrame arrives. A connection configured for message security applies its
 SecurityMode to the UADP announcement, with the same keys as its
 DataSetMessages: `Sign` lets subscribers verify the announcement, and
 `SignAndEncrypt` also hides the DataSet layout from applications that do not
-hold the keys.
+hold the keys. Received announcements are retained in a connection-local
+registry with their authentication provenance, not written into another
+connection's trusted metadata.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
 DataSetWriterId
 ([§6.2.9.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.9.4)).
 It can therefore decode RawData fields without first receiving an
-announcement; a later announcement replaces the entry. A reader with a
+announcement; an eligible later announcement replaces only that connection's
+received entry. A reader with a
 wildcard filter depends on announcements for RawData. A DataSetMessage that
 omits its ConfigurationVersion is decoded with the registered metadata; one
 that carries a different MajorVersion is rejected.
+
+Target-variable mapping follows actual metadata `DataSetFieldId` values, including
+subsets, reordered fields and delta-frame metadata indices. Compatible reader
+configuration can supply trusted metadata when an announcement is absent.
+Direct sink callers using nonempty target IDs must supply typed
+`DataSetField.DataSetFieldId` values; unresolved IDs never fall back to positions
+or GUID-looking names. Empty-ID legacy mappings retain their index behavior.
 
 Subscribers can also **actively** request discovery information with
 `IPubSubApplication.RequestDiscoveryAsync(...)` (Part 14 §7.2.4.6): it sends a
@@ -365,68 +425,109 @@ returns the builder; `Build()` materialises the
 
 ### Publisher — UDP / UADP
 
+The Part 14 configuration (connections, writer groups, writers,
+published data sets) is built with `PubSubConfigurationBuilder` and
+handed to the application builder with `UseConfiguration(...)`:
+
 ```csharp
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Opc.Ua;
 using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Transports;
+using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.Udp;
 
 ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+
+PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
+    .AddPublishedDataSet("Boiler", ds => ds
+        .AddField("Temperature", (byte)DataTypes.Double, DataTypeIds.Double)
+        .AddField("Pressure", (byte)DataTypes.Double, DataTypeIds.Double))
+    .AddConnection("Connection 1", connection => connection
+        .WithPublisherId(new Variant((ushort)1))
+        .WithTransportProfile(Profiles.PubSubUdpUadpTransport)
+        .WithAddress("opc.udp://239.0.0.1:4840")
+        .AddWriterGroup("WG-1", group => group
+            .WithWriterGroupId(100)
+            .WithPublishingInterval(1000, keepAliveTimeMs: 10_000)
+            .WithTransportSettings(new DatagramWriterGroupTransportDataType())
+            .AddDataSetWriter("Writer-1", writer => writer
+                .WithDataSetWriterId(1)
+                .WithDataSetName("Boiler")
+                .WithKeyFrameCount(1))))
+    .Build();
 
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
-    .AddDataSetSource("Boiler", new SampleBoilerDataSetSource())
-    .AddUdpConnection("urn:Connection-1",
-        publisherId: PublisherId.FromUInt16(1),
-        endpointUrl: "opc.udp://239.0.0.1:4840")
-    .AddWriterGroup("WG-1", writerGroupId: 100,
-        period: TimeSpan.FromMilliseconds(1000),
-        keepAliveTime: TimeSpan.FromSeconds(10))
-    .AddDataSetWriter("Writer-1", dataSetWriterId: 1, dataSetName: "Boiler",
-        contentMask: UadpDataSetMessageContentMask.Status
-                   | UadpDataSetMessageContentMask.SequenceNumber);
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
+    // MyBoilerSource implements IPublishedDataSetSource.
+    .AddDataSetSource("Boiler", new MyBoilerSource())
+    .UseConfiguration(configuration);
 
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
 ```
 
-The `Add*` extension methods in
-`PubSubApplicationBuilderExtensions` translate transport / writer
-configuration into Part 14
-`PubSubConnectionDataType` / `WriterGroupDataType` /
-`DataSetWriterDataType` instances and append them to the inline
-configuration the builder will hand off to the runtime.
+The same builder also offers `WithMessageSettings(...)` and
+`WithSecurity(...)` on writer groups and writers;
+[PublisherConfigurationBuilder.cs](../samples/PubSub/ConsoleReferencePubSubClient/PublisherConfigurationBuilder.cs)
+shows complete UADP and JSON message settings for every transport.
 
 ### Subscriber — MQTT / JSON
 
+For broker transports, use
+[Dependency injection / hosting](#dependency-injection--hosting)
+to register the MQTT client factory:
+
 ```csharp
-using Microsoft.Extensions.Logging;
-using Opc.Ua.PubSub.Application;
-using Opc.Ua.PubSub.DataSets;
-using Opc.Ua.PubSub.Encoding.Json;
-using Opc.Ua.PubSub.Transports;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Opc.Ua;
+using Opc.Ua.PubSub.Configuration;
 
-ITelemetryContext telemetry = DefaultTelemetry.Create(b => b.AddConsole());
+PubSubConfigurationDataType configuration = PubSubConfigurationBuilder.Create()
+    .AddConnection("Connection 1", connection => connection
+        .WithPublisherId(new Variant((ushort)1))
+        .WithTransportProfile(Profiles.PubSubMqttJsonTransport)
+        .WithAddress("mqtt://localhost:1883")
+        .AddReaderGroup("RG-1", group => group
+            .AddDataSetReader("Reader-1", reader => reader
+                .WithFilter(new Variant((ushort)1), writerGroupId: 100, dataSetWriterId: 1)
+                .WithMessageSettings(new JsonDataSetReaderMessageDataType
+                {
+                    NetworkMessageContentMask = (uint)(
+                        JsonNetworkMessageContentMask.NetworkMessageHeader |
+                        JsonNetworkMessageContentMask.DataSetMessageHeader |
+                        JsonNetworkMessageContentMask.PublisherId),
+                    DataSetMessageContentMask = (uint)(
+                        JsonDataSetMessageContentMask.DataSetWriterId |
+                        JsonDataSetMessageContentMask.SequenceNumber)
+                })
+                .WithTransportSettings(new BrokerDataSetReaderTransportDataType
+                {
+                    QueueName = "Quickstarts/Reference/Simple"
+                })
+                .WithDataSetMetaData("Boiler", metaData => metaData
+                    .AddField("Temperature", (byte)DataTypes.Double, DataTypeIds.Double)
+                    .AddField("Pressure", (byte)DataTypes.Double, DataTypeIds.Double)))))
+    .Build();
 
-var pb = new PubSubApplicationBuilder(telemetry)
-    .WithApplicationId("urn:opcfoundation:Sample:Subscriber")
-    .UseAllStandardEncoders()
-    .AddTransportFactory(new MqttPubSubTransportFactory(telemetry))
-    .AddDataSetSink("Boiler", new ConsoleSink())
-    .AddMqttConnection("urn:Connection-1",
-        endpointUrl: "mqtt://localhost:1883",
-        topicFilter: "Quickstarts/Reference/+")
-    .AddReaderGroup("RG-1", readerGroupId: 200)
-    .AddDataSetReader("Reader-1", dataSetReaderId: 1, dataSetName: "Boiler",
-        publisherId: PublisherId.FromUInt16(1),
-        writerGroupId: 100, dataSetWriterId: 1,
-        encoding: JsonEncodingMode.Compact)
-    .WriteToTargetVariables(); // map to address-space variables
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
+builder.Services.AddOpcUa().AddPubSub(pubsub => pubsub
+    .AddSubscriber()
+    .AddMqttTransport()
+    // MyConsoleSink implements ISubscribedDataSetSink.
+    .AddSubscribedDataSetSink("Reader-1", new MyConsoleSink())
+    .ConfigureApplication(app => app
+        .WithApplicationId("urn:opcfoundation:Sample:Subscriber")
+        .UseConfiguration(configuration)));
 
-await using IPubSubApplication application = await pb.BuildAndStartAsync();
+await builder.Build().RunAsync();
 ```
+
+To write received fields into address-space variables instead of a
+sink, configure the reader with `WithMirrorSubscribedDataSet(...)`.
 
 ### XML configuration mode
 
@@ -439,7 +540,8 @@ hot-reload changes:
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
     .UseConfigurationFile("publisher.xml");
 
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
@@ -460,7 +562,8 @@ imperatively, hand a fully-populated
 var pb = new PubSubApplicationBuilder(telemetry)
     .WithApplicationId("urn:opcfoundation:Sample:Publisher")
     .UseAllStandardEncoders()
-    .AddTransportFactory(new UdpPubSubTransportFactory(telemetry))
+    .AddTransportFactory(new UdpPubSubTransportFactory(
+        Options.Create(new UdpTransportOptions())))
     .UseConfiguration(PublisherConfigurationBuilder.Build(/*...*/));
 await using IPubSubApplication application = await pb.BuildAndStartAsync();
 ```
@@ -593,6 +696,12 @@ Server-side address space — see
 | Data Channels / UADP + JSON (experimental) | `Opc.Ua.PubSub` adapter plus selected carrier | `DataChannelProfiles` carrier and independent payload constants | Explicit dedicated/shared UASC, `opc.quic://`, `opc.wt://` |
 
 ### UDP / UADP
+
+Unicast publications remain pinned to the configured destination. Receiving a
+datagram never changes that destination, even on bidirectional connections.
+Discovery and DTLS can send explicit source-specific replies without affecting
+the next general publication. Datagram allow-list and size policies apply to
+the actual destination of each send.
 
 Implemented in `Opc.Ua.PubSub.Udp`. Wire profile
 [`PubSub UDP UADP`](http://opcfoundation.org/UA-Profile/Transport/pubsub-udp-uadp).
@@ -785,8 +894,17 @@ are never substituted or downgraded: the profile is not registered and
 
 Peer authentication reuses the injected stack certificate validator /
 certificate stores. Certificates must be ECC/ECDSA and match the selected profile
-hash strength. DTLS records enforce sequence-number protection and anti-replay
-per RFC 9147.
+hash strength. The publisher also matches the subscriber certificate's DNS or IP
+subject alternative name against the original configured endpoint host, not a
+DNS-resolved replacement address. A trusted certificate for another application
+does not authenticate that endpoint.
+
+DTLS records enforce sequence-number protection and anti-replay per RFC 9147.
+Integrity-only profiles authenticate the full reconstructed record sequence
+number and epoch, not just the truncated wire sequence. Both peers must use this
+record authentication; implementations that authenticate only the truncated
+sequence are not wire-compatible. AEAD profile record authentication is unchanged.
+
 ### MQTT (3.1.1 / 5.0)
 
 Implemented in `Opc.Ua.PubSub.Mqtt` on top of MQTTnet. Wire profiles
@@ -824,7 +942,10 @@ Highlights:
   ([§7.2.5.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5.3)).
 - TLS, Anonymous, Username/Password, X.509-cert authentication.
 - Reconnect with exponential back-off honoured at the connection
-  state-machine level (no message loss on a re-subscribe at QoS ≥ 1).
+  state-machine level. Delivery across disconnects depends on session
+  persistence, broker queue limits and message expiry; QoS ≥ 1 alone
+  does not guarantee lossless reconnection.
+  `MqttConnectionOptions.CleanSession` defaults to `true`.
 
 ```csharp
 writer.WithTransportSettings(
@@ -844,6 +965,12 @@ var options = new MqttConnectionOptions
 
 #### MQTT TLS configuration
 
+Secure endpoint schemes (`mqtts://` and `wss://`) always require TLS. Supplying
+`MqttTlsOptions` only to configure trusted issuers does not turn TLS off when
+`UseTls` is left at its default `false`. `UseTls = true` can additionally enable
+TLS for an otherwise plaintext endpoint. Intentional plaintext `mqtt://` remains
+supported, subject to the separate credentials-over-plaintext policy.
+
 `MqttConnectionOptions.Tls` (`MqttTlsOptions`) controls the TLS handshake for `mqtts://`
 and `wss://` endpoints. The broker certificate chain can be validated against a configured
 set of certificate authorities via `TrustedIssuerCertificateSubjects` — a list of CA
@@ -855,6 +982,10 @@ trust anchor set (the native trust chain on MQTTnet v5; a custom chain validator
 fails closed on MQTTnet v4). The chain is only consulted while `ValidateServerCertificate`
 is `true`; when no subjects are configured the transport falls back to the platform default
 trust store.
+
+Custom CA trust does not disable broker hostname, certificate-presence, validity,
+or server-authentication usage checks, including the MQTTnet v4 path on `net48`.
+Keep `ValidateServerCertificate = true` outside explicit development scenarios.
 
 ```csharp
 var options = new MqttConnectionOptions
@@ -916,6 +1047,11 @@ Subscribers set `GroupId` (consumer group) and `AutoOffsetReset` instead of the 
 **Record headers and delivery guarantees.** Every record carries the normative `content-type` header (Annex B.2): `application/opcua+uadp` for `pubsub-kafka-uadp` and `application/json` for `pubsub-kafka-json`. The record key derives from the PublisherId so a publisher's records keep partition ordering. `KafkaConnectionOptions.DeliveryGuarantee` maps to producer settings: `BestEffort` → `acks=0`; `AtMostOnce` → `acks=1`; `AtLeastOnce` and `ExactlyOnce` → `acks=all` with the idempotent producer enabled. Per-writer `RequestedDeliveryGuarantee` on the broker transport settings overrides the connection default.
 
 **SASL and TLS.** Use `kafkas://` or `KafkaConnectionOptions.Tls.UseTls` for TLS; `KafkaTlsOptions` carries CA / client-certificate / client-key PEM paths. `SecurityProtocol = KafkaSecurityProtocol.SaslSsl` with `SaslMechanism`, `UserName`, and `PasswordSecretId` enables SASL over TLS, and `PasswordSecretId` is resolved through the OPC UA secret store so configuration never carries a plaintext password. Sending SASL credentials over plaintext `kafka://` is rejected unless `AllowCredentialsOverPlaintext` is explicitly set for local development.
+
+For the Confluent backend, explicit TLS enablement upgrades `Plaintext` to `Ssl`
+and `SaslPlaintext` to `SaslSsl` in both producer and consumer configuration.
+Credential validation uses that same effective protocol; a TLS endpoint cannot be
+downgraded by a plaintext protocol setting.
 
 **NativeAOT.** The default pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) backend is validated for NativeAOT/trimming on `net10.0`. The opt-in Confluent.Kafka backend uses native librdkafka and is not NativeAOT or trimming compatible. See [Native AOT](#native-aot).
 
@@ -1014,8 +1150,8 @@ in full:
 ### JSON — `Opc.Ua.PubSub.Encoding.Json`
 
 Implements [Part 14 §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5)
-on top of `System.Text.Json`. The encoder is allocation-friendly
-(no Newtonsoft.Json dependency) and supports the v1.05.06 modes:
+on top of `System.Text.Json`. The encoder uses `Utf8JsonWriter`, has no
+Newtonsoft.Json dependency, and supports the v1.05.06 modes:
 
 | Mode      | Spec                                                  | Wire shape                    |
 | --------- | ----------------------------------------------------- | ----------------------------- |
@@ -1040,7 +1176,7 @@ Additional v1.05.06 flavours:
 
 ## Transcoding
 
-High-performance PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
+PubSub transcoders in `Opc.Ua.PubSub.Transcoding` bridge subscriber-side `PubSubNetworkMessage` traffic to publisher-side output without forcing applications to deserialize into their domain model first. A route can change the NetworkMessage mapping (`Uadp` or `Json`), field encoding (`Variant`, `RawData`, or `DataValue`), identifiers, fields, values, metadata, message types, and target broker topic before the message is re-encoded and sent.
 
 Use transcoders when a deployment needs an in-process PubSub gateway: for example, a UADP UDP subscriber feeding an MQTT JSON publisher, a JSON cloud topic being normalized before it is re-published as UADP, or a relay that preserves UADP frames on an identity route but rewrites selected fields on another route. The implementation is aligned with OPC UA Part 14 NetworkMessage mappings for [UADP §7.2.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4), [JSON §7.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.5), PubSub connection filtering in [§6.2.7](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.7), and Security Key Service (SKS) key distribution in [§8](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8).
 
@@ -1048,28 +1184,20 @@ Use transcoders when a deployment needs an in-process PubSub gateway: for exampl
 
 The transcoding pipeline has four stages:
 
-```text
-received frame + decoded message
-        │
-        ▼
-TranscodeInput(Message, SourceFrame, SourceFrameSecured)
-        │
-        ├─ raw-frame fast path for identity same-encoding routes
-        │
-        ▼
-decoded PubSubNetworkMessage intermediate representation
-        │
-        ▼
-ordered IPubSubMessageTransform pipeline
-        │
-        ▼
-INetworkMessageProfileProjector (UADP ↔ JSON concrete record projection)
-        │
-        ▼
-encoder + TranscodeSecurity (target re-securing where applicable)
-        │
-        ▼
-TranscodeResult(Frames, Messages, FastPath)
+```mermaid
+flowchart TD
+    frame["Received frame + decoded message"]
+    input["TranscodeInput<br/>(Message, SourceFrame, SourceFrameSecured)"]
+    fast["Raw-frame fast path<br/>Identity same-encoding routes"]
+    intermediate["Decoded PubSubNetworkMessage<br/>intermediate representation"]
+    transforms["Ordered IPubSubMessageTransform pipeline"]
+    projector["INetworkMessageProfileProjector<br/>UADP / JSON concrete record projection"]
+    encoder["Encoder + TranscodeSecurity<br/>Target re-securing where applicable"]
+    result["TranscodeResult<br/>(Frames, Messages, FastPath)"]
+    frame --> input
+    input --> fast
+    input --> intermediate --> transforms --> projector --> encoder --> result
+    fast --> result
 ```
 
 `PubSubNetworkMessage` is the seam between the receive path and the target profile. Built-in and custom transforms operate on that decoded message tree, while `NetworkMessageProfileProjector` re-materializes it as the concrete UADP or JSON record requested by `TranscodeSpec.TargetEncoding`. `NetworkMessageTranscoder` is the structured primitive that applies transforms and projection; `PubSubTranscoder` is the frame-level primitive that also encodes output frames, applies target-side UADP security, and exposes the raw-frame fast path.
@@ -1149,7 +1277,14 @@ Use `ValueTransform` for lightweight per-field value conversion. Prefer `Variant
 
 ### Security
 
-`TranscodeSecurity` is the frame-level security policy used by `PubSubTranscoder`. It can hold a target-side `UadpSecurityWrapper` and `UadpSecurityWrapOptions` so transcoded UADP output is re-secured with the target connection's SKS-backed security context. If no target wrapper is configured, target output is emitted without message-layer security.
+`TranscodeSecurity` is the frame-level security policy used by `PubSubTranscoder`. It can hold a target-side `UadpSecurityWrapper` and `UadpSecurityWrapOptions` so transcoded UADP output is re-secured with the target connection's SKS-backed security context. Standalone transcoders without a target wrapper emit output without message-layer security; a secured target connection refuses that output.
+
+Bridge activation uses the target connection's effective security context, including
+application-builder resolver overrides, rather than resolving its configuration again
+through DI. Target egress authenticates the entire result before sending any frame
+or chunk and rejects protection weaker than the target's required mode with
+`BadSecurityModeInsufficient`. `AllowInsecureCrossEncoding` never overrides the
+target connection's security requirement.
 
 OPC UA PubSub message-layer security is defined for UADP only ([§7.2.4.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4)); JSON output cannot carry that UADP security envelope. For this reason, a secured source frame is refused when the target output would be unsecured unless `AllowInsecureCrossEncoding` is set. In the fluent API this is `.AllowInsecureCrossEncoding()`. Use that option only when the deployment intentionally relies on transport-layer protection such as DTLS, TLS, or MQTT TLS for the target hop.
 
@@ -1161,7 +1296,7 @@ A secured UADP source can be re-published as secured UADP when the target connec
 
 `PubSubTranscodingBridge` implements `IReceivedNetworkMessageSink`. It registers on the source connection when `Start()` is called, builds a `TranscodeInput`, invokes `ITranscoder.TranscodeAsync`, and sends non-dropped results to an `IPubSubTranscodeEgress`. `ConnectionTranscodeEgress` sends each output frame through a target `PubSubConnection` transport and applies UADP chunking when needed by the connection.
 
-The DI bridge is started as a hosted service after the PubSub application is available. `PubSubTranscodingBridgeHostedService` resolves source and target connections by `Name` from `IPubSubApplication.Connections`, builds the shared `TranscodeContext`, resolves registered `INetworkMessageEncoder` instances, resolves target security through `IPubSubSecurityWrapperResolver`, and starts the bridge.
+The DI bridge is started as a hosted service after the PubSub application is available. `PubSubTranscodingBridgeHostedService` resolves source and target connections by `Name` from `IPubSubApplication.Connections`, builds the shared `TranscodeContext`, resolves registered `INetworkMessageEncoder` instances, reuses the target connection's security context, and starts the bridge.
 
 ### Fluent `AddTranscodingBridge` walkthrough
 
@@ -1336,6 +1471,13 @@ PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
 
 ## Security
 
+Effective message security includes the settings on individual `DataSetReader`
+instances as well as their groups. The strongest requested mode applies to the
+connection, and secured construction requires a usable security wrapper
+(`PSC1401` otherwise). Distinct secured `SecurityGroupId` values require separate
+connections; a mixed connection is rejected with `PSC1402` before activation
+rather than authenticating every group with one group's keys.
+
 Implemented in `Opc.Ua.PubSub.Security`. Implements
 [Part 14 §7.2.4.4.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.3)
 (send / receive flow) and
@@ -1383,6 +1525,13 @@ past + future keys per `SecurityGroupId`. Replay protection is
 enforced via `SecurityTokenWindow` ([§8.2](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.2));
 nonce reuse is detected by `RandomNonceProvider` /
 `AesCtrNonceLayout` ([§A.2.1.6](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.1.6)).
+
+`RandomNonceProvider` can be shared across publishing connections. It retains
+independent counters for each complete `(SecurityTokenId, KeyNonce)` identity;
+switching to another live identity and back never resets an earlier counter.
+The per-key cap applies independently to each identity. Accounting is not evicted:
+after 65,536 distinct identities the provider refuses new identities. Replace it
+only when provisioning fresh keys, never to restart counters for reused keys.
 
 ## Security Key Service (SKS)
 
@@ -1432,6 +1581,15 @@ Register a `PushSecurityKeyProvider` for each SecurityGroup that should accept
 remote `SetSecurityKeys` calls, and expose `PubSubKeyPushTargets` through the
 server address space when hosting a server-side PubSub configuration.
 
+Each accepted push replaces the current/future schedule rather than accumulating
+historical keys. Future keys become usable only at their scheduled start; keys
+expire at the exact end of their lifetime. At most one previous token is retained,
+and only until its original expiry: there is no additional late-arrival grace.
+`TimeToNextKey = 0` retains the existing convention of a full current-key lifetime.
+Retired material is zeroized. The UADP wrapper acquires an owned snapshot during
+each operation so rotation cannot zeroize keys in use, then clears the snapshot.
+Pushes are limited to 4,095 future keys; token rollover skips reserved token zero.
+
 ```csharp
 builder.Services.AddOpcUa()
     .AddPubSub(pubsub => pubsub.AddSubscriber())
@@ -1469,6 +1627,11 @@ OPC UA Part 14 **Actions** add a request/response interaction over PubSub (the
 PubSub analogue of a Client/Server `Call`). A *requester* publishes an action
 request to an *action target*; one or more *responders* execute it and publish a
 correlated action response.
+
+A nonempty `PubSubActionTarget.ConnectionName` restricts its handler to that
+connection, including after configuration replacement or mutation. Registering a
+scoped target directly on another connection is rejected; an empty name retains
+the explicit application-wide behavior.
 
 The stack implements Actions over both encodings and transports:
 
@@ -1648,15 +1811,26 @@ builder.Services.AddOpcUa()
 
 For secured connections, provide an `ApplicationConfiguration` that uses the stack certificate manager and normal trusted issuer, trusted peer, and rejected certificate stores. The automatic fallback configuration is useful for simple hosting scenarios, but production deployments should manage the client application certificate and trust lists explicitly.
 
+The fallback does not automatically accept untrusted server certificates.
+Provision the client application certificate and the intended peer or issuer
+trust, and use a server certificate matching the original endpoint hostname.
+Supplying an explicit configuration does not weaken a later fallback connection.
+
 ### Configuration and hot reload
 
 Adapter hot reload is coordinated by `ServerAdapterReloadCoordinator`. After the host starts, the coordinator listens to both `IPubSubConfigurationStore.Changed` and named `IOptionsMonitor<ServerPublisherOptions>`, `IOptionsMonitor<ServerSubscriberOptions>`, and `IOptionsMonitor<ServerActionResponderOptions>` changes. Reloads are debounced for about 250 ms and serialized so a burst of configuration-store and options reload tokens is applied as one ordered update.
 
 The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Publisher and subscriber rewires update the mutable data-set provider layer (`MutableDataSetSourceProvider` / `MutableDataSetSinkProvider`) and then call `IPubSubApplication.ReplaceConfigurationAsync` so the core runtime observes the same configuration document. Adapter sessions are pooled by `ServerConnectionOptions` value equality (`EndpointUrl`, `SecurityMode`, `SecurityPolicyUri`, `UserName`, `SessionName`, `SessionTimeout`, `ApplicationName`); unchanged connections keep their managed session, while sessions with no remaining binding references are disposed.
 
+Subscription rewiring compares immutable dataset definitions, not only dataset
+names. Removing, remapping or reordering fields retires the previous source,
+subscription cache and metadata work before replacement. A failed replacement
+can pause publication rather than continue exporting withdrawn fields; a later
+reload can recover. Already completed or queued publications cannot be recalled.
+
 Use `AddServerAsPublisher(string name, IConfiguration configuration)`, `AddServerAsSubscriber(string name, IConfiguration configuration)`, or `AddServerAsActionResponder(string name, IConfiguration configuration)` when adapter options should be bound from reloadable configuration. The existing `Action<TOptions>` overloads still work for code-set options. Object-typed members are intentionally code-set, not `IConfiguration`-bound: `ServerConnectionOptions.ApplicationConfiguration`, `ServerConnectionOptions.UserIdentity`, `ServerActionResponderOptions.MethodMap`, and `ServerActionResponderOptions.Targets`.
 
-The coordinator diffs the previous binding state against the new `PubSubConfigurationDataType` and named options, then rewires only the affected publisher sources, subscriber sinks, or action responders. Adding, removing, and re-mapping action targets are all applied live: on each reload the coordinator rebuilds the action-handler set through `IPubSubApplication.ClearActionHandlers` and re-registers only the currently configured targets, so a removed target stops being served without a host restart.
+Adding, removing, and re-mapping action targets are all applied live: on each reload the coordinator rebuilds the action-handler set through `IPubSubApplication.ClearActionHandlers` and re-registers only the currently configured targets, so a removed target stops being served without a host restart.
 
 #### Pluggable configuration sources (change feed)
 
@@ -1924,6 +2098,14 @@ Any node id in the mapping configuration — published variables (read), target 
 
 The adapter registrations add `ServerAdapterRuntime` and `ServerAdapterHostedService`. The runtime owns sessions and subscription coordinators. On host start, subscription-mode publisher coordinators connect the session, create the client Subscriptions, add monitored items, apply changes, and prime caches. Cyclic publishers, subscribers, and action responders connect lazily on first service call. On host shutdown, coordinators and sessions are disposed.
 
+Subscription-mode `IndexRange` applies to monitored-item creation, priming,
+cache identity and publication, preserving status and timestamps. Different
+ranges of the same source remain independent. Custom subscription providers
+implement `IRangedDataChangeSubscription` to support ranged fields; unsupported
+providers reject those fields before monitoring or reading rather than exporting
+the complete value. Source retirement and `DataSetMetaDataBuilder.DisposeAsync`
+drain admitted metadata work before releasing their resources.
+
 `ManagedSession` handles keep-alive and reconnect for the underlying client session. Adapter read, write, and call components are fail-soft for ordinary service or transport faults: publisher fields become Bad-quality values, subscriber writes return Bad field status, and action failures return Bad action status. Cancellation and disposal still propagate normally. Recoverable, fail-soft faults are logged at `Information` level (not as warnings) so a transient outage does not spam the log.
 
 ### Observability
@@ -1949,7 +2131,7 @@ See `samples\PubSub\ConsoleReferencePubSubClient` (the `external` mode) for a co
 
 ## High availability and redundancy
 
-Part 14 §9.1.6 HA deployments run several publisher / subscriber instances over a shared configuration and elect a single active owner per component. PubSub splits this into two injectable concerns — externalized **state providers** and **active/standby activation** — each with a zero-overhead in-memory default so single-instance deployments are unaffected. These abstractions align with the server-side OPC 10000-4 §6.6 redundancy model documented in [High availability](HighAvailability.md).
+Part 14 §9.1.6 HA deployments run several publisher / subscriber instances over a shared configuration and elect a single active owner per component. PubSub splits this into two injectable concerns — externalized **state providers** and **active/standby activation** — with process-local defaults for single-instance deployments. These abstractions align with the server-side OPC 10000-4 §6.6 redundancy model documented in [High availability](HighAvailability.md).
 
 ### State providers
 
@@ -1989,7 +2171,7 @@ Redundant sets elect one active owner per component so exactly one instance driv
 - `IPubSubActivationCoordinator` answers, per component, whether this instance is `PubSubComponentRole.Active` (drive the transport) or `PubSubComponentRole.Standby` (wait to take over), and raises `RoleChanged` so the runtime pauses or resumes the component. Components are addressed by a deterministic id — for example `pubsub:writergroup:<connection>:<group>` — so every replica agrees on the key.
 - `IPubSubLeaseStore` is the shared coordination primitive: `TryAcquireAsync` / `TryRenewAsync` / `ReleaseAsync` grant a single owner per lease key and stamp a monotonic **fencing token** on each ownership change so a paused owner cannot resume after its lease expired (renewal of an expired lease is rejected and forces reacquisition, which advances the token).
 
-The default coordinator is `AlwaysActiveCoordinator`, which reports every component active — non-redundant deployments incur no overhead. Redundant deployments register `LeaseActivationCoordinator` (a background acquire/renew loop over an `IPubSubLeaseStore`); the built-in `InMemoryPubSubLeaseStore` is single-process, and a distributed store backs true cross-instance failover:
+The default coordinator is `AlwaysActiveCoordinator`, which reports every component active without running a background lease-acquisition or renewal loop. Redundant deployments register `LeaseActivationCoordinator` (a background acquire/renew loop over an `IPubSubLeaseStore`); the built-in `InMemoryPubSubLeaseStore` is single-process, and a distributed store backs true cross-instance failover:
 
 ```csharp
 services.AddOpcUa()
@@ -2021,9 +2203,9 @@ Providers can be registered by type — `WithActivationCoordinator<TCoordinator>
 / `WithLeaseStore<TStore>()` — or by instance via the
 `WithActivationCoordinator(...)` / `WithLeaseStore(...)` builder methods.
 
-`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally tracks live sequence / keep-alive state so take-over introduces no gap.
+`PubSubRedundancyMode` (`None` / `Cold` / `Warm` / `Hot`) selects how much runtime state a standby keeps warm: `Cold` rebuilds from the shared stores on failover, `Warm` keeps the configuration loaded but paused, and `Hot` additionally restores writer sequence checkpoints on promotion. See [sequence-number continuity](PubSubHighAvailability.md#sequence-number-continuity-hot-standby).
 
-**Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. Once the core abstractions ship, the PubSub lease store is intended to converge onto `ISharedKeyValueStore.CompareAndSwapAsync` so a single shared store and leader-election stack serves both the server address space and PubSub components.
+**Alignment with the core redundancy abstractions.** The server-side redundancy work (Part 4 §6.6, see [High availability](HighAvailability.md)) introduces the core primitives `Opc.Ua.Redundancy.ISharedKeyValueStore` (a `CompareAndSwapAsync` "master-write" primitive) and `Opc.Ua.Redundancy.ILeaderElection` (`IsLeader` / `LeadershipChanged` / `TryAcquireOrRenewAsync`), and drives the OPC UA `ServiceLevel` from leadership. The PubSub `IPubSubLeaseStore` / lease model maps directly onto that compare-and-swap primitive (a lease is a fenced CAS on a per-component key), and `IPubSubActivationCoordinator` mirrors per-component leader election. `SharedStorePubSubLeaseStore` in `Opc.Ua.Redundancy.PubSub` implements `IPubSubLeaseStore` over `ISharedKeyValueStore.CompareAndSwapAsync`. This lets server redundancy and PubSub coordination use the same shared-store backend. See [PubSub high availability](PubSubHighAvailability.md) for registration and consistency requirements.
 
 ## Diagnostics
 
@@ -2068,8 +2250,8 @@ The PubSub assemblies (`Opc.Ua.PubSub`, `.Udp`, `.Eth`, `.Mqtt`, and `.Kafka`) a
   exercise UADP encode/decode, JSON encode/decode, key-ring rotation,
   scheduler tick dispatch, and metadata-registry lookup inside an
   AOT-published binary.
-- **Reference sample.** The combined reference application publishes AOT-clean
-  with zero `IL2026` / `IL3050` warnings:
+- **Reference sample.** The combined reference application publishes as a
+  Native AOT self-contained executable on `net10.0` with its default backends:
   - [`samples/PubSub/ConsoleReferencePubSubClient`](../samples/PubSub/ConsoleReferencePubSubClient/README.md) (`publisher` / `subscriber` / `external` modes)
 
 ## Spec coverage
@@ -2087,7 +2269,7 @@ below maps Part 14 sections to the type / file that implements them.
 | §6.2.2.4     | Metadata registration                               | `MetaData/DataSetMetaDataRegistry.cs`                                          |
 | §6.2.2.5     | Metadata publishing                                 | `Application/MetaDataPublisher.cs`                                             |
 | §6.2.5       | Configuration validation                            | `Configuration/PubSubConfigurationValidator.cs`                                |
-| §6.2.6       | Connection / Group model                            | `Connections/UaPubSubConnection.cs`, `Groups/WriterGroup.cs`, `Groups/ReaderGroup.cs` |
+| §6.2.6       | Connection / Group model                            | `Connections/PubSubConnection.cs`, `Groups/WriterGroup.cs`, `Groups/ReaderGroup.cs` |
 | §6.2.7       | DataSetReader                                       | `DataSets/DataSetReader.cs`                                                     |
 | §6.4.1       | Periodic publishing                                 | `Scheduling/IPubSubScheduler.cs`, `Scheduling/PubSubScheduler.cs`              |
 | §6.4.2       | Datagram-v2 fields                                  | `Transports/Udp/UdpDatagramTransport.cs`                                       |

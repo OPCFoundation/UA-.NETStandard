@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.DataChannels;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -2405,7 +2406,7 @@ namespace Opc.Ua.Bindings
                 "{ActionCOunt} actions under {ActionInterval} ms ")]
         public static partial void TcpTransportLog0(
             this ILogger logger,
-            IPAddress ipAddress,
+            [NetworkAddress] IPAddress ipAddress,
             int duration,
             int actionCOunt,
             int actionInterval);
@@ -2415,7 +2416,7 @@ namespace Opc.Ua.Bindings
                 "{BlockDurationMs} ms has been exceeded")]
         public static partial void TcpTransportLog1(
             this ILogger logger,
-            IPAddress ipAddress,
+            [NetworkAddress] IPAddress ipAddress,
             int blockDurationMs);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 2, Level = LogLevel.Debug,
@@ -2423,7 +2424,7 @@ namespace Opc.Ua.Bindings
                 "for more than {ExpirationMs} ms")]
         public static partial void TcpTransportLog2(
             this ILogger logger,
-            IPAddress ipAddress,
+            [NetworkAddress] IPAddress ipAddress,
             int expirationMs);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 3, Level = LogLevel.Information,
@@ -2443,49 +2444,51 @@ namespace Opc.Ua.Bindings
         public static partial void TcpTransportLog6(
             this ILogger logger,
             Exception? exception,
-            int port);
+            [NetworkAddress] int port);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 7, Level = LogLevel.Warning,
             Message = "Failed to create IPv6 listening socket on port {Port}")]
         public static partial void TcpTransportLog7(
             this ILogger logger,
             Exception? exception,
-            int port);
+            [NetworkAddress] int port);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 8, Level = LogLevel.Warning,
             Message = "Failed to close channel for certificate rotation (thumbprint {Thumbprint}).")]
         public static partial void TcpTransportLog8(
             this ILogger logger,
             Exception? exception,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 9, Level = LogLevel.Information,
             Message = "Closed {Count} SecureChannel(s) for certificate rotation (thumbprint {Thumbprint}).")]
         public static partial void TcpTransportLog9(
             this ILogger logger,
             int count,
-            string thumbprint);
+            [ApplicationIdentity] string thumbprint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 10, Level = LogLevel.Debug,
             Message = "MarkClientAsPotentialProblematic address: {RemoteEndpoint} ")]
-        public static partial void TcpTransportLog10(this ILogger logger, IPAddress remoteEndpoint);
+        public static partial void TcpTransportLog10(this ILogger logger, [NetworkAddress] IPAddress remoteEndpoint);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 11, Level = LogLevel.Debug,
             Message = "OnAccept: RemoteEndpoint address: {IpAddress} refused access for behaving as " +
                 "potential problematic ")]
-        public static partial void TcpTransportLog11(this ILogger logger, IPAddress ipAddress);
+        public static partial void TcpTransportLog11(this ILogger logger, [NetworkAddress] IPAddress ipAddress);
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 12, Level = LogLevel.Error,
             Message = "OnAccept: Listensocket was null.")]
         public static partial void TcpTransportLog12(this ILogger logger);
 
+#pragma warning disable LOGGEN036 // EndPoint: the runtime types (IPEndPoint, DnsEndPoint) override ToString()
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 13, Level = LogLevel.Warning,
             Message = "OnAccept: connection from {RemoteEndPoint} rejected by the connection rate " +
                 "limiter; server is too busy (retry after {RetryAfter}).")]
         public static partial void TcpTransportLog13(
             this ILogger logger,
-            EndPoint? remoteEndPoint,
+            [NetworkAddress] EndPoint? remoteEndPoint,
             TimeSpan? retryAfter);
+#pragma warning restore LOGGEN036
 
         [LoggerMessage(EventId = CoreEventIds.TcpTransportListener + 14, Level = LogLevel.Information,
             Message = "TCPLISTENER: Channel Id {Id} scheduled for IdleCleanup - Oldest without established session.")]

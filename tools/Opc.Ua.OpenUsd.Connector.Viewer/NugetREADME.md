@@ -25,7 +25,7 @@ dotnet run --project tools/Opc.Ua.OpenUsd.Connector -- \
   picking is unavailable or unsupported; the fallback watches `/World/IntentCommand` by default and raises the callback
   when its `targetPrim` relationship or attribute changes.
 
-The connector loads this assembly by name from its own directory and never references it, which is what keeps the
+The connector loads this assembly by name from its own directory and never references it, which keeps the
 connector package free of a UI framework and a native payload. Publish both projects into the same directory so the
 assembly, its dependencies, and the USD plugin tree end up where the connector looks for them.
 
@@ -50,7 +50,8 @@ await viewport.DisposeAsync().ConfigureAwait(true);
 ```
 
 The host must validate and retain its private asset closure before calling `StartAsync`; do not pass a server-supplied
-URI or an unvalidated arbitrary stage. The viewport independently checks
+URI or an unvalidated arbitrary stage. UaLens performs bounded digest verification, local dependency/profile checks,
+composition-expansion accounting, and PNG dimension checks before native loading. The viewport independently checks
 physical frame dimensions, two/three-frame rings, at most two resize generations, and retained geometry before their
 allocations. Initial, resized and newly selected-camera targets must contain nonuniform rendered pixels.
 

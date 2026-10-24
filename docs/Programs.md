@@ -11,6 +11,15 @@ states and client proxies, [node management](NodeManagement.md), and
 required: shared contracts/model are in Core, execution/hosting in Server, and
 discovery/observation in Client.
 
+## Contents
+
+- [Programs (OPC UA Part 10)](#programs-opc-ua-part-10)
+  - [Register a Program](#register-a-program)
+  - [Execution and lifetime](#execution-and-lifetime)
+  - [Typed client use](#typed-client-use)
+  - [Results, diagnostics and security](#results-diagnostics-and-security)
+  - [Specification compatibility](#specification-compatibility)
+
 ## Register a Program
 
 Select the lifetime policy and supported controls explicitly:
@@ -79,6 +88,13 @@ outputs. Arguments reach the provider through `ProgramInvocationContext.Creation
 Invalid outputs roll back the new invocation rather than leaking capacity.
 
 ## Execution and lifetime
+
+`ProgramDiagnostic2` and its diagnostic value descendants are readable only by
+the creating session or a SecurityAdmin, over a confidential channel.
+Monitoring applies the same authorization as direct reads. Diagnostic
+value-read authorizers are registered with the owning node manager and released
+with the Program runtime; unrelated subscribers cannot retain access through a
+previously authorized subscription.
 
 | Control | Allowed transition |
 | --- | --- |

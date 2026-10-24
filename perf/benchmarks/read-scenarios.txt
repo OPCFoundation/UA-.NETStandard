@@ -1,0 +1,1 @@
+--scenario native-read --native-client {workers}/client.exe --iterations 300000 --warmup-calls 100000

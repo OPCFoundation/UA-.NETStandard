@@ -217,6 +217,20 @@ namespace Opc.Ua.Server
         public int ItemsInQueue => m_eventQueue.ItemsInQueue;
 
         /// <summary>
+        /// Removes pending events and their associated queue metadata.
+        /// </summary>
+        internal void Clear()
+        {
+            while (m_eventQueue.Dequeue(out _))
+            {
+            }
+
+            m_pendingTransforms.Clear();
+            m_overflowPositions.Clear();
+            m_overflowAtStart = false;
+        }
+
+        /// <summary>
         /// True if the queue is overflowing, i.e. an EventQueueOverflowEventType event is pending.
         /// </summary>
         public bool Overflow => m_overflowAtStart || m_overflowPositions.Count > 0;

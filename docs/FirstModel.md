@@ -37,8 +37,9 @@ This tutorial changes the `GettingStartedServer` and `GettingStartedClient`
 projects from those steps. The applications keep their certificates and already
 trust each other, so you do not repeat the trust steps.
 
-The tutorial was verified with package version `2.0.0`, the version that Route B
-installs.
+The examples use package version `2.0.0`. The unpinned commands install the
+current stable packages; keep the OPC UA package versions aligned with the
+Route B projects.
 
 If you ran only the repository samples, create the Route B projects first. The
 [MinimalCalcServer sample](../samples/MinimalApi/MinimalCalcServer) uses the

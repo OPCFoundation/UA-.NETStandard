@@ -346,6 +346,8 @@ namespace Opc.Ua.Server.Tests.Historian
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId("event-open-ended", 1);
+            HistoricalEventAuthorizationTestHelper.RegisterUnrestrictedEventNodes(
+                h.SystemContext, [ObjectTypeIds.BaseEventType, nodeId]);
             h.Provider.Register(
                 nodeId,
                 HistorianNodeCapabilities.EventReadWrite with

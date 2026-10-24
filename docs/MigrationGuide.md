@@ -22,7 +22,7 @@ covers cross-cutting changes.
 - [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
-- [Migrating code that called IServerInternal.Set* mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
 - [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
@@ -37,6 +37,7 @@ covers cross-cutting changes.
 - [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
 - [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
 - [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
+- [ContentFilter NULL semantics follow OPC 10000-4 1.05.07](#contentfilter-null-semantics-follow-opc-10000-4-10507)
 - [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
 - [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
 - [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
@@ -92,6 +93,30 @@ and direct-delivery capabilities are implemented.
 See [the migration table and carrier guide](DataChannels.md#migrating-from-the-earlier-experiment)
 and the [updated sample catalogue](Samples.md#experimental-data-channel-samples).
 
+## General principles
+
+Compatibility is documented per API and release in the
+[version-specific migration guides](migrate/). Some replaced APIs retain
+`[Obsolete]` forwarders; others are removed and require source changes.
+Resolve obsolete warnings before upgrading, and work through the applicable
+minor-version guides in order; removal timing is specific to the API and release,
+not a universal grace period or SemVer guarantee.
+Consult the [Security Policy](../SECURITY.md) for maintained release lines.
+
+> **Pro TIP.** Point your favourite coding agent at this guide and let
+> it do the migration work for you. The
+> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
+> agent skill knows when to load which sub-doc and runs the
+> migration-analyzer codefixer end-to-end.
+
+Copilot CLI discovers the skill automatically inside a clone. To install it
+for use in any repository:
+
+```bash
+copilot plugin marketplace add OPCFoundation/UA-.NETStandard
+copilot plugin install opcua-v20-migration@opcua-dotnet
+```
+
 ## Program state numbers and managed execution
 
 `ProgramStateMachineState.CurrentState.Number` now agrees with the standard
@@ -124,39 +149,6 @@ empty selected translation remains absent text rather than selecting fallback
 text; its `Text` property returns `null`. Translation-backed values retain
 their metadata and are not necessarily `IsNull`, even when both exposed fields
 are null.
-
-## General principles
-
-1. All API that is replaced with newer API is marked `[Obsolete]` and
-   code should compile and work albeit of the warnings (which can be
-   suppressed). `[Obsolete]` API will be cleaned up in the next *minor*
-   version increment. We therefore recommend upgrading from minor
-   version to minor version and fixing all `[Obsolete]` warnings as you
-   go along.
-2. API that cannot be supported anymore will be removed in a minor
-   version and migration steps documented in the version sub-folder.
-   We try to keep this to an absolute minimum.
-3. Bugs or issues found in obsoleted API are not supported.
-4. We follow semver, but do not use the major version indicator to
-   denote breaking changes like (1) or (2) as we should if we followed
-   related conventions. We are a small team and cannot afford to
-   maintain previous major versions, therefore we try to keep cases of
-   (2) to a minimum and expect you to upgrade to the next minor version
-   within 6 months of release.
-
-> **Pro TIP.** Point your favourite coding agent at this guide and let
-> it do the migration work for you. The
-> [`opcua-v20-migration`](../.agents/skills/opcua-v20-migration/SKILL.md)
-> agent skill knows when to load which sub-doc and runs the
-> migration-analyzer codefixer end-to-end.
-
-Copilot CLI discovers the skill automatically inside a clone. To install it
-for use in any repository:
-
-```bash
-copilot plugin marketplace add OPCFoundation/UA-.NETStandard
-copilot plugin install opcua-v20-migration@opcua-dotnet
-```
 
 ## Per-version migration index
 
@@ -227,8 +219,8 @@ body captures and returns.
 
 ### Why there is no `[Obsolete]` shim
 
-Every other removal in this guide keeps an `[Obsolete]` member for a release.
-These do not, and deliberately so. A lock is only useful if it is *the* lock the
+The exposed diagnostics-lock members are removed without `[Obsolete]` shims.
+A lock is only useful if it is *the* lock the
 owner takes. A shim would have to hand back either a lock nobody else takes -
 silently turning a working critical section into no synchronization at all - or
 the real lock, which is exactly the coupling being removed. A missing member is
@@ -263,7 +255,7 @@ shared node. Analyzer `UA0025` flags the removed member.
 `BaseVariableValue.Lock` was removed, and the constructor now takes a
 `System.Threading.Lock` instead of an `object`.
 
-A derived value class - which is what the source generator emits for every
+A derived value class - as emitted by the source generator for every
 structure variable - synchronizes through the protected `EnterLock()` /
 `ExitLock()` pair:
 
@@ -362,7 +354,7 @@ factory may run more than once; only one result is published and every caller
 receives that same instance, so keep the factory free of side effects that would
 matter if it ran twice.
 
-One behaviour change is worth knowing: enumerating `Properties` while another
+Enumerating `Properties` while another
 thread writes no longer throws `InvalidOperationException`. It yields a
 moment-in-time view instead. Code that relied on the exception to detect
 concurrent modification has to detect it some other way.
@@ -541,7 +533,7 @@ declared parameter type changes and an implementation fails to compile
 (`CS0535`) until its signature is updated.
 
 `IServerContext` is the ambient view of a running server. It carries what
-is genuinely server-wide and nothing else — it deliberately does not hand
+is server-wide and nothing else — it deliberately does not hand
 out the server's subsystems. A startup task that needs a subsystem takes it
 as a constructor dependency, which every implementation in this repository
 already did for its other dependencies.
@@ -1149,8 +1141,8 @@ inventory of removed / `[Obsolete]` `Utils` APIs.
 Configuration-level trace apply APIs were removed as well: `TraceConfiguration.ApplySettings()` and `ApplicationConfigurationBuilder` trace setters (`SetOutputFilePath`, `SetDeleteOnLoad`, `SetTraceMasks`). Configure logging through `ITelemetryContext` instead.
 ## Migrating from 1.04 to 1.05
 
-A few features are still missing to fully comply with 1.05, but
-certification for v1.04 is still possible with the 1.05 release.
+See [OPC UA Profiles and Facets](Profiles.md) for current feature coverage;
+check certification against the specific product version and profiles.
 
 ## Support
 

@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua
 {
@@ -231,7 +232,7 @@ namespace Opc.Ua
                 ILogger logger = telemetry.CreateLogger<ConfiguredEndpointCollection>();
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.ConfiguredEndpointsLogMessage0(Redaction.Redact.Create(e));
+                    logger.ConfiguredEndpointsLogMessage0(e.Message);
                 }
                 throw;
             }
@@ -980,6 +981,7 @@ namespace Opc.Ua
             UpdateBeforeConnect = endpoint.UpdateBeforeConnect;
             SelectedUserTokenPolicyIndex = endpoint.SelectedUserTokenPolicyIndex;
             BinaryEncodingSupport = endpoint.BinaryEncodingSupport;
+            DiscoveryEndpoints = endpoint.DiscoveryEndpoints;
 
             if (endpoint.UserIdentity != null)
             {
@@ -1423,7 +1425,10 @@ namespace Opc.Ua
             }
         }
 
-        private static ArrayOf<EndpointDescription> MatchEndpoints(
+        /// <summary>
+        /// Matches discovery advertisements without weakening the requested transport or message security.
+        /// </summary>
+        internal static ArrayOf<EndpointDescription> MatchEndpoints(
             ArrayOf<EndpointDescription> collection,
             Uri endpointUrl,
             MessageSecurityMode securityMode,
@@ -1439,6 +1444,29 @@ namespace Opc.Ua
 
             // find list of matching endpoints.
             var matches = new List<EndpointDescription>();
+            bool requiresHttps = endpointUrl.IsAbsoluteUri && Utils.IsUriHttpsScheme(endpointUrl.Scheme);
+            if (requiresHttps)
+            {
+                var compatibleEndpoints = new List<EndpointDescription>();
+                foreach (EndpointDescription description in collection)
+                {
+                    if (Uri.TryCreate(description.EndpointUrl, UriKind.Absolute, out Uri? candidate) &&
+                        Utils.IsUriHttpsScheme(candidate.Scheme) &&
+                        (description.TransportProfileUri == Profiles.HttpsBinaryTransport ||
+                            description.TransportProfileUri == Profiles.HttpsJsonTransport ||
+                            Profiles.IsHttpsOpenApi(description.TransportProfileUri)))
+                    {
+                        compatibleEndpoints.Add(description);
+                    }
+                }
+                collection = compatibleEndpoints.ToArrayOf();
+                if (collection.IsEmpty)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Discovery did not return a compatible HTTPS endpoint.");
+                }
+            }
 
             // first pass - match on the requested security parameters AND
             // the requested transport profile. Profile is honoured so a
@@ -1644,6 +1672,6 @@ namespace Opc.Ua
             Message = "Unexpected error loading ConfiguredEndpoints: {Message}")]
         public static partial void ConfiguredEndpointsLogMessage0(
             this ILogger logger,
-            Redaction.RedactionWrapper<Exception> message);
+            [SensitiveText] string message);
     }
 }

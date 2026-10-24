@@ -34,6 +34,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.AliasNames;
+using Opc.Ua.Redaction;
 using Opc.Ua.Server;
 using Opc.Ua.Server.AliasNames;
 
@@ -719,14 +720,17 @@ namespace Opc.Ua.Gds.Server
         [LoggerMessage(EventId = GdsServerCommonEventIds.AliasNameAggregation + 5, Level = LogLevel.Information,
             Message = "AliasName source {ApplicationUri}: aggregated {Categories} categories and {Aliases} alias targets.")]
         public static partial void AliasNameSourceRead(
-            this ILogger logger, string? applicationUri, int categories, int aliases);
+            this ILogger logger, [ApplicationIdentity] string? applicationUri, int categories, int aliases);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.AliasNameAggregation + 6, Level = LogLevel.Warning,
             Message = "AliasName source {ApplicationUri} could not be read: {Error}")]
-        public static partial void AliasNameSourceNotRead(this ILogger logger, string? applicationUri, string error);
+        public static partial void AliasNameSourceNotRead(
+            this ILogger logger,
+            [ApplicationIdentity] string? applicationUri,
+            [SensitiveText] string error);
 
         [LoggerMessage(EventId = GdsServerCommonEventIds.AliasNameAggregation + 7, Level = LogLevel.Error,
             Message = "AliasName refresh stopped: {Error}")]
-        public static partial void AliasNameRefreshFailed(this ILogger logger, string error);
+        public static partial void AliasNameRefreshFailed(this ILogger logger, [SensitiveText] string error);
     }
 }

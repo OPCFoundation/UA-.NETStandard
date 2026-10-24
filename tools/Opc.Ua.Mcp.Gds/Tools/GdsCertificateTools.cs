@@ -396,7 +396,8 @@ namespace Opc.Ua.Mcp
         /// </summary>
         [McpServerTool(Name = "certificate_start_keypair_request", ReadOnly = false, Destructive = true)]
         [Description("Request a new certificate/key pair explicitly using input.passwordReference. " +
-            "Returns requestId and the exact secret resource binding; does not approve, finish or deploy it.")]
+            "Returns requestId and the public directory label; secret use additionally binds the approved " +
+            "registration/certificate. Does not approve, finish or deploy the request.")]
         public Task<CallToolResult> StartKeyPairRequestAsync(
             [Description(GdsToolDescriptions.CertificateDirectoryNodeId)]
             string directoryNodeId,
@@ -422,8 +423,9 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await DirectoryAsync(directoryNodeId, sessionName, token)
                     .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                string secretResource = endpoint.SecretResource;
                 using ISecret password = await m_access.Secrets.ResolveAsync(
-                    input.PasswordReference, endpoint.Resource, McpCapability.CertificateAdministration, token)
+                    input.PasswordReference, secretResource, McpCapability.CertificateAdministration, token)
                     .ConfigureAwait(false);
                 string text = s_utf8.GetString(password.Bytes);
                 CallMethodResult call = await endpoint.CallAsync(
@@ -479,6 +481,7 @@ namespace Opc.Ua.Mcp
                 GdsEndpoint endpoint = await DirectoryAsync(directoryNodeId, sessionName, token)
                     .ConfigureAwait(false);
                 await using ConfiguredAsyncDisposable endpointScope = endpoint.ConfigureAwait(false);
+                string issuer = endpoint.SecretResource;
                 string resource = await ApplicationResourceAsync(endpoint, application, token).ConfigureAwait(false);
                 using McpSecretReservation reservation =
                     m_access.Secrets.ReserveIssuance(McpCapability.CertificateAdministration);
@@ -500,8 +503,8 @@ namespace Opc.Ua.Mcp
                         {
                             using var persistence = new CancellationTokenSource(
                                 TimeSpan.FromSeconds(30), m_access.Time);
-                            result["privateKey"] = GdsJson.Reference(await reservation.StoreAsync(
-                                privateKey, "certificate-private-key", resource,
+                            result["privateKey"] = GdsJson.Reference(await reservation.StoreForIssuerAsync(
+                                privateKey, "certificate-private-key", resource, issuer,
                                 m_access.Time.GetUtcNow() + m_access.Options.ReferenceLifetime,
                                 Convert.ToHexString(SHA256.HashData(certificate.Span)), persistence.Token)
                                 .ConfigureAwait(false));

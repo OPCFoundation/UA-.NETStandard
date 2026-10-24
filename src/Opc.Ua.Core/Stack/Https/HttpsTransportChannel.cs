@@ -38,6 +38,7 @@ using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
@@ -455,6 +456,16 @@ namespace Opc.Ua.Bindings
             if (m_disposed)
             {
                 throw new ObjectDisposedException(nameof(HttpsTransportChannel));
+            }
+            if (!url.IsAbsoluteUri ||
+                (url.Scheme != Uri.UriSchemeHttps && url.Scheme != Utils.UriSchemeOpcHttps) ||
+                (!string.IsNullOrEmpty(settings.Description?.TransportProfileUri) &&
+                    settings.Description.TransportProfileUri != Profiles.HttpsBinaryTransport &&
+                    settings.Description.TransportProfileUri != Profiles.HttpsJsonTransport))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "The HTTPS transport requires an absolute HTTPS endpoint and a compatible transport profile.");
             }
             m_url = new Uri(url.ToString());
             // remove the opc. prefix, the https client can not handle it
@@ -919,7 +930,7 @@ namespace Opc.Ua.Bindings
         public static partial void HttpsChannelLog0(
             this ILogger logger,
             string? channelType,
-            Uri? url);
+            [NetworkAddress] Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 1, Level = LogLevel.Error,
             Message = "Exception sending HTTPS request.")]
@@ -951,7 +962,7 @@ namespace Opc.Ua.Bindings
         public static partial void HttpsChannelLog5(
             this ILogger logger,
             string? channelType,
-            Uri? url);
+            [NetworkAddress] Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 6, Level = LogLevel.Warning,
             Message = "{ChannelType}: Bypassing IOpcUaHttpClientFactory because an OPC UA " +
@@ -982,14 +993,14 @@ namespace Opc.Ua.Bindings
         public static partial void HttpsChannelLog10(
             this ILogger logger,
             int index,
-            string certificate);
+            [ApplicationIdentity] string certificate);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 11, Level = LogLevel.Information,
             Message = "{ChannelType} Validate Server Certificate: {Certificate}")]
         public static partial void HttpsChannelLog11(
             this ILogger logger,
             string? channelType,
-            string certificate);
+            [ApplicationIdentity] string certificate);
 
         [LoggerMessage(EventId = CoreEventIds.HttpsTransportChannel + 12, Level = LogLevel.Error,
             Message = "{ChannelType} Failed to validate certificate.")]

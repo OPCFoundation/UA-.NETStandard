@@ -1,6 +1,6 @@
 # High Availability Server
 
-This sample is a minimal Generic Host based OPC UA server that demonstrates the distributed high-availability server building blocks in `Opc.Ua.Redundancy.Server` and the active/active building blocks in `Opc.Ua.Redundancy.Server`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in replication, and selects its topology with the `HA_MODE` environment variable: **active/passive** (`ap`, the default — leader election so only the active replica writes) or **active/active** (`aa` — every replica writes and converges by CRDT gossip). It drives `Server.ServiceLevel` from the replica state and publishes OPC 10000-4 §6.6 `Server.ServerRedundancy` metadata, including non-transparent discovery and manual failover.
+This sample is a minimal Generic Host based OPC UA server that demonstrates active/passive and active/active server building blocks provided by `Opc.Ua.Redundancy.Server`. It registers an `AsyncCustomNodeManager`-derived node manager so the local address space participates in replication, and selects its topology with the `HA_MODE` environment variable: **active/passive** (`ap`, the default — leader election so only the active replica writes) or **active/active** (`aa` — every replica writes and converges by CRDT gossip). It drives `Server.ServiceLevel` from the replica state and publishes OPC 10000-4 §6.6 `Server.ServerRedundancy` metadata, including non-transparent discovery and manual failover.
 
 The bundled configuration uses the default in-memory shared key/value store. That is useful for understanding the DI wiring and for single-process experimentation, but separate OS processes do not share memory. A real multi-process or multi-host deployment needs a shared backend for `ISharedKeyValueStore` such as Redis; that backend is intentionally deferred from this small sample.
 
@@ -15,7 +15,7 @@ Connect an OPC UA client to `opc.tcp://localhost:62543/RedundantServer` and brow
 Both HA modes call `UseReplicaNodeIdentity` before startup. The sample's shared
 namespace occupies index 2 on every replica, while ApplicationUri and built-in
 diagnostics remain local. `FactoryAssigned/Value` and `FactoryAssigned/Target`
-are genuinely factory-created nodes, not preassigned constants; `Target` contains
+are factory-created nodes, not preassigned constants; `Target` contains
 the exact NodeId of `Value`. Use the client's `--identity` scenario to cache
 their Browse results and reuse those same IDs after terminating the serving
 replica. See [Replica-consistent NodeIds](../../../docs/ReplicaNodeIdentity.md).
@@ -68,7 +68,7 @@ RequestServerStateChange is enabled for administrator-driven Maintenance/NoData 
 
 ## Wire up a shared store for real HA
 
-The single-instance defaults stay in effect until you supply a shared backend. The DI wiring below is what makes additions, removals, references, and values replicate across replicas. Replace the placeholder `RedisSharedKeyValueStore` with any `ISharedKeyValueStore` reachable by every replica (a Redis adapter is intentionally deferred from this sample):
+The single-instance defaults stay in effect until you supply a shared backend. The DI wiring below makes additions, removals, references, and values replicate across replicas. Replace the placeholder `RedisSharedKeyValueStore` with any `ISharedKeyValueStore` reachable by every replica (a Redis adapter is intentionally deferred from this sample):
 
 ```csharp
 builder.Services
@@ -190,7 +190,7 @@ Each replica advertises the *virtual* endpoint URL (`HA_HOST` = the load-balance
 
 ## Active/passive vs active/active
 
-The sample selects its redundancy topology with the `HA_MODE` environment variable — `ap` (active/passive, the default) or `aa` (active/active) — and references both `Opc.Ua.Redundancy.Server` and `Opc.Ua.Redundancy.Server`:
+The sample selects its redundancy topology with the `HA_MODE` environment variable — `ap` (active/passive, the default) or `aa` (active/active). Both modes use `Opc.Ua.Redundancy.Server`:
 
 - **Active/passive (`HA_MODE=ap`)** — `UseDistributedAddressSpace` + `UseDistributedSessions` with leader election. With `HA_CONSISTENCY=strong`, `UseDistributedHistorian` adds one protected, leader-write archive with writer epochs and durable portable HistoryRead continuations. One replica is the active writer; standbys hydrate from the shared store and take over on failover. Redundancy is reported as `RedundancySupport.Hot`, and clients follow `Server.ServiceLevel` / `Server.ServerRedundancy` to find the active replica.
 - **Active/active (`HA_MODE=aa`)** — `UseActiveActiveRedundancy` (which wires `UseReplicatedAddressSpace` + `UseReplicatedSessions` from one set of gossip options; the individual methods remain for advanced setups). Every replica accepts writes and converges without a leader; redundancy is reported as `RedundancySupport.HotAndMirrored`. Replicas gossip over TCP: set `HA_GOSSIP_PORT` (default `4840`; session entries gossip on `port + 1`) and `HA_GOSSIP_PEERS` (a comma/semicolon list of `host:port` for the other replicas' address-space gossip). A session created on one replica can be resumed on another with `ManagedSessionBuilder.WithTokenReuseFailover()` on the client. Distributed Historical Access is not supported in this multi-writer mode and fails closed when requested.
@@ -333,7 +333,7 @@ await valueCache.CacheAsync(counter.NodeId,
 (_, DataValue cached) = await valueCache.TryGetAsync(counter.NodeId, maxAge);
 ```
 
-On the strong-consistency (Raft) topology this makes the `Counter` genuinely shared: standby replicas serve the active replica's value, and after a failover the promoted replica resumes from the last value the former leader wrote (verified end-to-end). Monitored items keep reading through the normal pipeline, so a client that monitors a standby observes the shared value only through the participating read path — consistent with OPC UA monitored-item semantics.
+On the strong-consistency (Raft) topology this makes the `Counter` shared: standby replicas serve the active replica's value, and after a failover the promoted replica resumes from the last value the former leader wrote (verified end-to-end). Monitored items keep reading through the normal pipeline, so a client that monitors a standby observes the shared value only through the participating read path — consistent with OPC UA monitored-item semantics.
 
 Value sharing uses the shared store, which is protected: supply `HA_RECORD_KEY` (secure by default) or set `HA_INSECURE=true` for an isolated non-historian demo — see the settings table above. The distributed historian and its portable continuation records always require `HA_RECORD_KEY`; they never accept the no-op protector.
 

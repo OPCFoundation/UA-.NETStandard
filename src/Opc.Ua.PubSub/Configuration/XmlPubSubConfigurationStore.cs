@@ -32,6 +32,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -557,14 +558,14 @@ namespace Opc.Ua.PubSub.Configuration
         public static partial void PubSubConfigurationFileWatchCouldNotBeStarted(
             this ILogger logger,
             Exception exception,
-            string path);
+            [FilePath] string path);
 
         [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 1, Level = LogLevel.Information,
             Message = "PubSub configuration reload after a file change failed to read '{Path}'.")]
         public static partial void PubSubConfigurationReloadFileChangeFailedToRead(
             this ILogger logger,
             Exception exception,
-            string path);
+            [FilePath] string path);
 
         [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 2, Level = LogLevel.Information,
             Message = "PubSub configuration reload after a file change could not decode '{Path}'; " +
@@ -572,11 +573,13 @@ namespace Opc.Ua.PubSub.Configuration
         public static partial void PubSubConfigurationReloadFileChangeCouldNotDecode(
             this ILogger logger,
             Exception exception,
-            string path);
+            [FilePath] string path);
 
         [LoggerMessage(EventId = PubSubEventIds.XmlPubSubConfigurationStore + 3, Level = LogLevel.Information,
             Message = "PubSub configuration file '{Path}' changed externally; raising Changed.")]
-        public static partial void PubSubConfigurationFileChangedExternally(this ILogger logger, string path);
+        public static partial void PubSubConfigurationFileChangedExternally(
+            this ILogger logger,
+            [FilePath] string path);
     }
 
 }

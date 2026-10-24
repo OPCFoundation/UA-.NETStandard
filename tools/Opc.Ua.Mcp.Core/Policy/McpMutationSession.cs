@@ -35,9 +35,9 @@ using Opc.Ua.Client;
 namespace Opc.Ua.Mcp
 {
     /// <summary>
-    /// Keeps generic mutation classification and dispatch on the same named, non-owning session view.
+    /// Keeps generic and file mutation classification and dispatch on the same named, non-owning session view.
     /// </summary>
-    internal sealed class McpMutationSession : IAsyncDisposable
+    public sealed class McpMutationSession : IAsyncDisposable
     {
         /// <summary>
         /// Retains the original registration and either a guarded SDK context or an explicit fixed-host contract.
@@ -50,15 +50,7 @@ namespace Opc.Ua.Mcp
             m_registration = registration;
             m_context = context;
             m_fixedContract = fixedContract;
-            Access = new OpcUaSessionManager.SessionInfo
-            {
-                Name = registration.Name,
-                Session = context?.Session ?? registration.Session,
-                Endpoint = CoreUtils.Clone(registration.Endpoint)!,
-                AuthType = registration.AuthType,
-                ConnectedAt = registration.ConnectedAt,
-                OwnsSession = false
-            };
+            Access = registration.WithSession(context?.Session ?? registration.Session);
             if (context == null)
             {
                 ISession session = registration.Session;
@@ -74,7 +66,7 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Gets the captured service view with the host's original registered name and metadata.
         /// </summary>
-        internal OpcUaSessionManager.SessionInfo Access { get; }
+        public OpcUaSessionManager.SessionInfo Access { get; }
 
         /// <summary>
         /// Captures an SDK generation before any policy metadata is read.
@@ -82,7 +74,7 @@ namespace Opc.Ua.Mcp
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ServiceResultException"></exception>
-        internal static async ValueTask<McpMutationSession> CaptureAsync(
+        public static async ValueTask<McpMutationSession> CaptureAsync(
             OpcUaSessionManager manager, OpcUaSessionManager.SessionInfo registration, CancellationToken ct)
         {
             ArgumentNullException.ThrowIfNull(manager);
@@ -125,7 +117,7 @@ namespace Opc.Ua.Mcp
         /// A host opting in must guarantee no unobservable or subsequent identity/model changes during this operation.
         /// </remarks>
         /// <exception cref="ServiceResultException"></exception>
-        internal void VerifyBeforeDispatch(CancellationToken ct)
+        public void VerifyBeforeDispatch(CancellationToken ct)
         {
             ct.ThrowIfCancellationRequested();
             if (!ReferenceEquals(m_manager.GetSessionInfo(m_registration.Name), m_registration))
@@ -191,6 +183,7 @@ namespace Opc.Ua.Mcp
                 string.Equals(current.EndpointUrl, captured.EndpointUrl, StringComparison.Ordinal) &&
                 string.Equals(current.SecurityPolicyUri, captured.SecurityPolicyUri, StringComparison.Ordinal) &&
                 string.Equals(current.TransportProfileUri, captured.TransportProfileUri, StringComparison.Ordinal) &&
+                current.ServerCertificate == captured.ServerCertificate &&
                 string.Equals(
                     current.Server?.ApplicationUri, captured.Server?.ApplicationUri, StringComparison.Ordinal);
         }

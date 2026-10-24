@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.PubSub.Security.Policies;
 
 namespace Opc.Ua.PubSub.Security.Sks
 {
@@ -105,8 +106,48 @@ namespace Opc.Ua.PubSub.Security.Sks
             {
                 throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "KeyLifetime must be positive.");
             }
+            if (timeToNextKey < TimeSpan.Zero || timeToNextKey > keyLifetime)
+            {
+                throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "TimeToNextKey must be within KeyLifetime.");
+            }
+            if (futureKeys.Count > 4095)
+            {
+                throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "Too many future keys.");
+            }
 
             cancellationToken.ThrowIfCancellationRequested();
+            if (timeToNextKey == TimeSpan.Zero)
+            {
+                timeToNextKey = keyLifetime;
+            }
+            IPubSubSecurityPolicy? policy = PubSubSecurityPolicyRegistry.Default.GetByUri(securityPolicyUri);
+            if (policy is null || policy.SigningKeyLength == 0)
+            {
+                throw new OpcUaSksException(StatusCodes.BadSecurityPolicyRejected, "Unsupported pushed key policy.");
+            }
+            int packedLength = policy.SigningKeyLength + policy.EncryptingKeyLength +
+                AesCtrNonceLayout.GetKeyNonceLength(policy);
+            if (currentKey.Length != packedLength)
+            {
+                throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "Invalid packed current key length.");
+            }
+            for (int i = 0; i < futureKeys.Count; i++)
+            {
+                if (futureKeys[i].IsNull || futureKeys[i].Length != packedLength)
+                {
+                    throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "Invalid packed future key.");
+                }
+            }
+            // Validate the entire schedule before allocating keys or changing the live ring.
+            try
+            {
+                _ = m_timeProvider.GetUtcNow().AddTicks(
+                    checked(timeToNextKey.Ticks + (keyLifetime.Ticks * futureKeys.Count)));
+            }
+            catch (Exception ex) when (ex is OverflowException or ArgumentOutOfRangeException)
+            {
+                throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "Pushed key schedule is out of range.");
+            }
             var packed = new List<byte[]>(futureKeys.Count + 1)
             {
                 currentKey.Span.ToArray()
@@ -114,10 +155,11 @@ namespace Opc.Ua.PubSub.Security.Sks
             for (int i = 0; i < futureKeys.Count; i++)
             {
                 ByteString futureKey = futureKeys[i];
-                if (!futureKey.IsNull)
+                if (futureKey.IsNull)
                 {
-                    packed.Add(futureKey.Span.ToArray());
+                    throw new OpcUaSksException(StatusCodes.BadInvalidArgument, "Future keys must not be null.");
                 }
+                packed.Add(futureKey.Span.ToArray());
             }
 
             SksKeyResponse response = new(
@@ -126,7 +168,18 @@ namespace Opc.Ua.PubSub.Security.Sks
                 packed,
                 timeToNextKey,
                 keyLifetime);
-            ArrayOf<PubSubSecurityKey> keys = response.Unpack(m_timeProvider);
+            ArrayOf<PubSubSecurityKey> keys;
+            try
+            {
+                keys = response.Unpack(m_timeProvider);
+            }
+            finally
+            {
+                foreach (byte[] material in packed)
+                {
+                    CryptoUtils.ZeroMemory(material);
+                }
+            }
             if (keys.Count == 0)
             {
                 throw new OpcUaSksException(
@@ -135,25 +188,56 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
 
             uint previousTokenId;
-            lock (m_lock)
+            try
             {
-                ThrowIfDisposed();
-                previousTokenId = m_currentTokenId;
-                if (!m_keys.ContainsKey(currentTokenId))
+                lock (m_lock)
                 {
+                    ThrowIfDisposed();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    previousTokenId = m_currentTokenId;
+                    var scheduled = new List<PubSubSecurityKey>(keys.Count);
+                    for (int i = 0; i < keys.Count; i++)
+                    {
+                        PubSubSecurityKey key = keys[i];
+                        DateTimeUtc startsAt = key.IssuedAt +
+                            (i == 0 ? timeToNextKey - keyLifetime :
+                                timeToNextKey + TimeSpan.FromTicks(checked(keyLifetime.Ticks * (i - 1))));
+                        uint tokenId = unchecked(currentTokenId + (uint)i);
+                        if (tokenId < currentTokenId)
+                        {
+                            tokenId = unchecked(tokenId + 1);
+                        }
+                        scheduled.Add(new PubSubSecurityKey(
+                            tokenId, key.SigningKey, key.EncryptingKey, key.KeyNonce, startsAt, keyLifetime));
+                    }
+                    PubSubSecurityKey? previous = null;
+                    if (currentTokenId != m_currentTokenId &&
+                        m_keys.TryGetValue(m_currentTokenId, out PubSubSecurityKey? candidate) &&
+                        IsValid(candidate) && !scheduled.Exists(key => key.TokenId == candidate.TokenId))
+                    {
+                        previous = candidate;
+                        m_keys.Remove(candidate.TokenId);
+                    }
+                    // Retain at most one previous token, only until its original expiry.
                     DisposeKeysLocked();
+                    if (previous is not null)
+                    {
+                        m_keys[previous.TokenId] = previous;
+                    }
+                    foreach (PubSubSecurityKey key in scheduled)
+                    {
+                        m_keys[key.TokenId] = key;
+                    }
+                    m_currentTokenId = currentTokenId;
                 }
-                else
+            }
+            catch
+            {
+                foreach (PubSubSecurityKey key in keys)
                 {
-                    RemoveDuplicateAndNewerLocked(currentTokenId);
+                    key.Dispose();
                 }
-
-                for (int i = 0; i < keys.Count; i++)
-                {
-                    PubSubSecurityKey key = keys[i];
-                    m_keys[key.TokenId] = key;
-                }
-                m_currentTokenId = currentTokenId;
+                throw;
             }
 
             m_logger.ReceivedPushedSksKeys(keys.Count, SecurityGroupId);
@@ -173,7 +257,17 @@ namespace Opc.Ua.PubSub.Security.Sks
             lock (m_lock)
             {
                 ThrowIfDisposed();
-                if (m_currentTokenId != 0 && m_keys.TryGetValue(m_currentTokenId, out PubSubSecurityKey? key))
+                PruneExpiredLocked();
+                PubSubSecurityKey? key = null;
+                foreach (PubSubSecurityKey candidate in m_keys.Values)
+                {
+                    if (IsValid(candidate) && (key is null || candidate.IssuedAt > key.IssuedAt ||
+                        (candidate.IssuedAt == key.IssuedAt && candidate.TokenId == m_currentTokenId)))
+                    {
+                        key = candidate;
+                    }
+                }
+                if (key is not null)
                 {
                     return new ValueTask<PubSubSecurityKey>(key);
                 }
@@ -192,8 +286,9 @@ namespace Opc.Ua.PubSub.Security.Sks
             lock (m_lock)
             {
                 ThrowIfDisposed();
+                PruneExpiredLocked();
                 return new ValueTask<PubSubSecurityKey?>(
-                    m_keys.TryGetValue(tokenId, out PubSubSecurityKey? key) ? key : null);
+                    m_keys.TryGetValue(tokenId, out PubSubSecurityKey? key) && IsValid(key) ? key : null);
             }
         }
 
@@ -213,6 +308,37 @@ namespace Opc.Ua.PubSub.Security.Sks
             return default;
         }
 
+        /// <summary>
+        /// Acquires an owned copy so rotation cannot zeroize an in-flight cryptographic operation.
+        /// </summary>
+        internal PubSubSecurityKey? GetSnapshot(uint? tokenId, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_lock)
+            {
+                ThrowIfDisposed();
+                PruneExpiredLocked();
+                PubSubSecurityKey? key = null;
+                foreach (PubSubSecurityKey candidate in m_keys.Values)
+                {
+                    if (IsValid(candidate) &&
+                        (tokenId.HasValue ? candidate.TokenId == tokenId.Value :
+                            key is null || candidate.IssuedAt > key.IssuedAt ||
+                                (candidate.IssuedAt == key.IssuedAt && candidate.TokenId == m_currentTokenId)))
+                    {
+                        key = candidate;
+                    }
+                }
+                return key is null ? null : new PubSubSecurityKey(
+                    key.TokenId,
+                    ByteString.Create(key.SigningKey.Span),
+                    ByteString.Create(key.EncryptingKey.Span),
+                    ByteString.Create(key.KeyNonce.Span),
+                    key.IssuedAt,
+                    key.Lifetime);
+            }
+        }
+
         private void DisposeKeysLocked()
         {
             foreach (PubSubSecurityKey key in m_keys.Values)
@@ -222,14 +348,20 @@ namespace Opc.Ua.PubSub.Security.Sks
             m_keys.Clear();
         }
 
-        private void RemoveDuplicateAndNewerLocked(uint currentTokenId)
+        private bool IsValid(PubSubSecurityKey key)
+        {
+            return DateTimeUtc.From(m_timeProvider.GetUtcNow().UtcDateTime) >= key.IssuedAt &&
+                !key.IsExpired(m_timeProvider);
+        }
+
+        private void PruneExpiredLocked()
         {
             var remove = new List<uint>();
-            foreach (uint tokenId in m_keys.Keys)
+            foreach (KeyValuePair<uint, PubSubSecurityKey> entry in m_keys)
             {
-                if (tokenId >= currentTokenId)
+                if (entry.Value.IsExpired(m_timeProvider))
                 {
-                    remove.Add(tokenId);
+                    remove.Add(entry.Key);
                 }
             }
             for (int i = 0; i < remove.Count; i++)

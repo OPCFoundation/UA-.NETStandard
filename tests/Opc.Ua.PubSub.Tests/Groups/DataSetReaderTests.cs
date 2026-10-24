@@ -37,6 +37,7 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Groups;
 using Opc.Ua.Tests;
+using JsonDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
 using UadpDataSetMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpNetworkMessageV2 = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
 
@@ -52,6 +53,92 @@ namespace Opc.Ua.PubSub.Tests.Groups
     [TestSpec("6.2.9", Summary = "DataSetReader construction, filtering and dispatch")]
     public class DataSetReaderTests
     {
+        [TestCase(false, 2U, false, true)]
+        [TestCase(false, 3U, false, false)]
+        [TestCase(true, 2U, false, true)]
+        [TestCase(true, 3U, false, false)]
+        [TestCase(true, 1U, true, false)]
+        [TestCase(true, 2U, true, true)]
+        [TestCase(true, 3U, true, true)]
+        [Category("SecurityRegression")]
+        [TestSpec("6.2.10.2.3")]
+        public async Task SecurityF42ConfiguredMetadataBindsFieldIdsOnlyForCompatibleVersionsAsync(
+            bool json,
+            uint declaredVersion,
+            bool minorOnly,
+            bool compatible)
+        {
+            var firstId = new Uuid(new Guid("11111111-1111-1111-1111-111111111111"));
+            var secondId = new Uuid(new Guid("22222222-2222-2222-2222-222222222222"));
+            var sink = new CountingSink();
+            var reader = new DataSetReader(
+                new DataSetReaderDataType
+                {
+                    Name = "reader",
+                    DataSetMetaData = new DataSetMetaDataType
+                    {
+                        ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 2 },
+                        Fields =
+                        [
+                            new FieldMetaData { Name = "first", DataSetFieldId = firstId },
+                            new FieldMetaData { Name = "second", DataSetFieldId = secondId }
+                        ]
+                    }
+                },
+                sink,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            _ = reader.State.TryEnable();
+            _ = reader.State.TryMarkOperational();
+            var version = new ConfigurationVersionDataType
+            {
+                MajorVersion = minorOnly ? 0 : declaredVersion,
+                MinorVersion = minorOnly ? declaredVersion : 0
+            };
+            PubSubDataSetMessage message = json
+                ? new JsonDataSetMessageV2
+                {
+                    ContentMask = minorOnly
+                        ? JsonDataSetMessageContentMask.MinorVersion : JsonDataSetMessageContentMask.MetaDataVersion,
+                    MetaDataVersion = version,
+                    Fields =
+                    [
+                        new DataSetField { Name = "second", Value = new Variant(2002) },
+                        new DataSetField { Name = "first", Value = new Variant(1001) }
+                    ]
+                }
+                : new UadpDataSetMessageV2
+                {
+                    ContentMask = UadpDataSetMessageContentMask.MajorVersion,
+                    MetaDataVersion = version,
+                    MessageType = PubSubDataSetMessageType.DeltaFrame,
+                    Fields =
+                    [
+                        new DataSetField
+                        {
+                            FieldIndex = 1,
+                            Name = firstId.ToString(),
+                            Value = new Variant(2002)
+                        }
+                    ]
+                };
+
+            await reader.DispatchAsync(message).ConfigureAwait(false);
+
+            Assert.That(sink.CallCount, Is.EqualTo(1));
+            IReadOnlyList<DataSetField> captured = sink.LastFields!;
+            Assert.That(captured, Has.Count.EqualTo(json ? 2 : 1));
+            Assert.That(captured[0].DataSetFieldId,
+                Is.EqualTo(compatible ? secondId : Uuid.Empty));
+            Assert.That(captured[0].Value, Is.EqualTo(new Variant(2002)));
+            if (json)
+            {
+                Assert.That(captured[1].DataSetFieldId,
+                    Is.EqualTo(compatible ? firstId : Uuid.Empty));
+                Assert.That(captured[1].Value, Is.EqualTo(new Variant(1001)));
+            }
+        }
+
         [Test]
         public void Constructor_NullConfiguration_ThrowsArgumentNullException()
         {

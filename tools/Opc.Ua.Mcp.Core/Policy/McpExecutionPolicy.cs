@@ -107,15 +107,14 @@ namespace Opc.Ua.Mcp
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
             McpCallerIdentity caller = Require(capability);
-            McpCallerGrant grant = m_grants[caller];
-            foreach (string allowed in grant.SessionNames)
-            {
-                if (string.Equals(allowed, sessionName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return caller;
-                }
-            }
-            throw Denied("The caller has no privileged-operation grant for the selected UA session.");
+            return RequireSessionAccess(caller, sessionName);
+        }
+
+        /// <inheritdoc/>
+        public McpCallerIdentity RequireSessionAccess(string sessionName)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(sessionName);
+            return RequireSessionAccess(RequireCaller(), sessionName);
         }
 
         /// <inheritdoc/>
@@ -131,6 +130,28 @@ namespace Opc.Ua.Mcp
                 }
             }
             throw Denied("The caller has no grant for the selected secret alias.");
+        }
+
+        /// <summary>
+        /// Uses the same frozen exact-session grants for borrowing and privileged operations.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The caller has no grant for the selected session.
+        /// </exception>
+        private McpCallerIdentity RequireSessionAccess(McpCallerIdentity caller, string sessionName)
+        {
+            if (!m_grants.TryGetValue(caller, out McpCallerGrant? grant))
+            {
+                throw Denied("The caller has no grant for the selected UA session.");
+            }
+            foreach (string allowed in grant.SessionNames)
+            {
+                if (string.Equals(allowed, sessionName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return caller;
+                }
+            }
+            throw Denied("The caller has no privileged-operation grant for the selected UA session.");
         }
 
         /// <summary>

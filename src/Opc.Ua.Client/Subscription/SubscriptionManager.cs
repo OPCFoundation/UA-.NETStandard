@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client.Subscriptions
 {
@@ -610,13 +611,8 @@ namespace Opc.Ua.Client.Subscriptions
                 // minted secondary partitions can route their reactive-
                 // fallback callbacks back to the same logical.
                 LogicalSubscription? created = null;
-                partitionFactory = () =>
-                {
-                    IManagedSubscription part = MintPartition(effectiveHandler, options);
-                    AttachReactiveFallback(part, created);
-                    created?.TryApplyDurableToNewPartition(part);
-                    return part;
-                };
+                partitionFactory = () => MintPartition(effectiveHandler, options,
+                    part => InitializePartition(part, created));
                 wrapper = new LogicalSubscription(primary, policy, partitionFactory,
                     m_timeProvider,
                     NormalizeIdleTimeout(snapshot.SecondaryPartitionIdleTimeout),
@@ -670,6 +666,22 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 concrete.OnPartitionCapReached = _ => wrapper.OnPartitionCapReached(partition);
             }
+        }
+
+        /// <summary>
+        /// Wire a freshly constructed secondary partition to its owning
+        /// logical wrapper. Runs before the partition starts its first
+        /// create pass, so a durable logical subscription sends
+        /// <c>SetSubscriptionDurable</c> on the partition even when the
+        /// server answers <c>CreateSubscription</c> before the partition
+        /// factory returns.
+        /// </summary>
+        private static void InitializePartition(
+            IManagedSubscription partition,
+            LogicalSubscription? wrapper)
+        {
+            AttachReactiveFallback(partition, wrapper);
+            wrapper?.TryApplyDurableToNewPartition(partition);
         }
 
         /// <summary>
@@ -785,9 +797,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         private IManagedSubscription MintPartition(
             ISubscriptionNotificationHandler handler,
-            IOptionsMonitor<SubscriptionOptions> options)
+            IOptionsMonitor<SubscriptionOptions> options,
+            Action<IManagedSubscription> initialize)
         {
-            return MintPartitionCore(handler, options, loadState: null);
+            return MintPartitionCore(handler, options, loadState: null, initialize);
         }
 
         /// <summary>
@@ -804,16 +817,17 @@ namespace Opc.Ua.Client.Subscriptions
             IOptionsMonitor<SubscriptionOptions> options,
             SubscriptionLoadState loadState)
         {
-            return MintPartitionCore(handler, options, loadState);
+            return MintPartitionCore(handler, options, loadState, initialize: null);
         }
 
         private IManagedSubscription MintPartitionCore(
             ISubscriptionNotificationHandler handler,
             IOptionsMonitor<SubscriptionOptions> options,
-            SubscriptionLoadState? loadState)
+            SubscriptionLoadState? loadState,
+            Action<IManagedSubscription>? initialize)
         {
             IManagedSubscription partition = m_session.CreateSubscription(
-                handler, options, this, loadState);
+                handler, options, this, loadState, initialize);
             lock (m_subscriptionLock)
             {
                 if (!m_subscriptions.Add(partition))
@@ -971,13 +985,8 @@ namespace Opc.Ua.Client.Subscriptions
                     options.MaxMonitoredItemsPerPartition ?? 0,
                     options.MaxPartitionCount);
                 LogicalSubscription? created = null;
-                partitionFactory = () =>
-                {
-                    IManagedSubscription part = MintPartition(effectiveHandler, optionsMonitor);
-                    AttachReactiveFallback(part, created);
-                    created?.TryApplyDurableToNewPartition(part);
-                    return part;
-                };
+                partitionFactory = () => MintPartition(effectiveHandler, optionsMonitor,
+                    part => InitializePartition(part, created));
                 wrapper = new LogicalSubscription(subscription, policy, partitionFactory,
                     m_timeProvider,
                     NormalizeIdleTimeout(options.SecondaryPartitionIdleTimeout),
@@ -1830,15 +1839,19 @@ namespace Opc.Ua.Client.Subscriptions
                     }
                     else if (desiredWorkerCount > publishWorkers.Count)
                     {
-                        // Not enough workers increase
+                        // Not enough workers increase. Publish the new count
+                        // before the workers start: they run on the thread
+                        // pool and can issue their first publish before this
+                        // loop continues, and a caller that observes a publish
+                        // in flight must not still see the old count.
+                        int count = publishWorkers.Count;
+                        PublishWorkerCount = desiredWorkerCount;
                         publishWorkers.AddRange(Enumerable
-                            .Range(publishWorkers.Count,
-                                desiredWorkerCount - publishWorkers.Count)
+                            .Range(count, desiredWorkerCount - count)
                             .Select(index => new PublishWorker(this, index)));
                     }
 
-                    // The pool is settled for this cycle — only now is the
-                    // count observable by callers.
+                    // The pool is settled for this cycle.
                     PublishWorkerCount = publishWorkers.Count;
                 }
             }
@@ -2782,7 +2795,7 @@ namespace Opc.Ua.Client.Subscriptions
             this ILogger logger,
             int handle,
             uint id,
-            string message);
+            [SensitiveText] string message);
 
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 24, Level = LogLevel.Debug,
             Message = "PUBLISH Worker #{Handle}-{Id} - Transport unavailable ({Status}); " +

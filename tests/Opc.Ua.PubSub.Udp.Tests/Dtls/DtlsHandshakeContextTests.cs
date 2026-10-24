@@ -69,6 +69,18 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             await RunHandshakeAndApplicationRoundTripAsync(profile!).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Both integrity hashes complete a real handshake and protect application data in each direction.
+        /// </summary>
+        [TestCase("ECC_nistP256")]
+        [TestCase("ECC_nistP384")]
+        [Category("SecurityRegression")]
+        public async Task SecurityF20IntegrityOnlyHandshakeProtectsBothDirectionsAsync(string profileName)
+        {
+            DtlsProfile profile = ResolveOrIgnore(profileName);
+            await RunHandshakeAndApplicationRoundTripAsync(profile).ConfigureAwait(false);
+        }
+
         [Test]
         public async Task HandshakeCompletesAndProtectsApplicationDatagramForBrainpoolWhenAvailableAsync()
         {
@@ -156,6 +168,200 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             Assert.That(async () => await clientTask.ConfigureAwait(false), Throws.Exception);
             await cts.CancelAsync().ConfigureAwait(false);
             Assert.That(async () => await serverTask.ConfigureAwait(false), Throws.Exception);
+        }
+
+        /// <summary>
+        /// Trusted certificates for another identity cannot establish an application association.
+        /// </summary>
+        [TestCase("opc.dtls://subscriber.example:4843", "unrelated.example", null)]
+        [TestCase("opc.dtls://subscriber.example:4843", null, "127.0.0.1")]
+        [TestCase("opc.dtls://subscriber.example:4843", "subscriber", null)]
+        [TestCase("opc.dtls://subscriber.example:4843", null, null)]
+        [TestCase("opc.dtls://127.0.0.1:4843", "127.0.0.1", null)]
+        [TestCase("opc.dtls://127.0.0.1:4843", null, "127.0.0.2")]
+        [TestCase("opc.dtls://[::1]:4843", null, "::2")]
+        [Category("SecurityRegression")]
+        public async Task SecurityF06HandshakeRequiresConfiguredPeerIdentityAsync(
+            string configuredUrl,
+            string? dnsName,
+            string? ipAddress)
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate serverCertificate = CreateEcdsaCertificate(
+                profile.CertificateCurve, dnsName, ipAddress, commonName: "subscriber.example");
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            UdpEndpoint endpoint = CreateEndpoint(profile) with { OriginalUrl = configuredUrl };
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair();
+            using IDtlsContext client = await CreateFactoryClientAsync(profile, endpoint, validator.Object)
+                .ConfigureAwait(false);
+            using DtlsHandshakeContext server = CreateContext(
+                profile, DtlsEndpointRole.Server, serverCertificate, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
+            Task serverTask = server.OpenAsync(pair.Server, cts.Token).AsTask();
+            byte[] payload = [0x55, 0x41];
+
+            try
+            {
+                await Assert.ThatAsync(
+                    async () => await clientTask.ConfigureAwait(false),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadCertificateHostNameInvalid)).ConfigureAwait(false);
+                Assert.That(pair.Client.AuthenticatedPeer, Is.Null);
+                await Assert.ThatAsync(
+                    async () => await client.ProtectAsync(payload).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>(),
+                    "An unrelated trusted peer must never receive application traffic keys.");
+                validator.Verify(v => v.ValidateAsync(
+                    It.IsAny<Certificate>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<CancellationToken>()), Times.Once());
+            }
+            finally
+            {
+                await CancelPeerHandshakeAsync(serverTask, cts).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Matching configured identities preserve mutual authentication and bidirectional application traffic.
+        /// </summary>
+        [TestCase("opc.dtls://subscriber.example:4843", "subscriber.example", null)]
+        [TestCase("opc.dtls://SUBSCRIBER.example:4843", "subscriber.example", null)]
+        [TestCase("opc.dtls://localhost:4843", "localhost", null)]
+        [TestCase("opc.dtls://127.0.0.1:4843", null, "127.0.0.1")]
+        [TestCase("opc.dtls://[::1]:4843", null, "::1")]
+        [TestCase(null, null, "127.0.0.1")]
+        [Category("SecurityRegression")]
+        public async Task SecurityF06HandshakeAcceptsConfiguredDnsOrIpSanAsync(
+            string? configuredUrl,
+            string? dnsName,
+            string? ipAddress)
+        {
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate clientCertificate = CreateEcdsaCertificate(
+                profile.CertificateCurve, "publisher.example");
+            using Certificate serverCertificate = CreateEcdsaCertificate(
+                profile.CertificateCurve, dnsName, ipAddress);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            UdpEndpoint endpoint = CreateEndpoint(profile) with { OriginalUrl = configuredUrl };
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair();
+            using IDtlsContext client = await CreateFactoryClientAsync(
+                profile, endpoint, validator.Object, clientCertificate).ConfigureAwait(false);
+            var serverOptions = new DtlsTransportOptions
+            {
+                PeerCertificateValidator = validator.Object,
+                RequireClientCertificate = true
+            };
+            serverOptions.LocalCertificates.Add(serverCertificate);
+            using DtlsHandshakeContext server = CreateContext(
+                profile, DtlsEndpointRole.Server, serverOptions, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            await Task.WhenAll(
+                client.OpenAsync(pair.Client, cts.Token).AsTask(),
+                server.OpenAsync(pair.Server, cts.Token).AsTask()).ConfigureAwait(false);
+
+            byte[] publisherPayload = [0x50, 0x55, 0x42];
+            byte[] subscriberPayload = [0x53, 0x55, 0x42];
+            ReadOnlyMemory<byte> publisherRecord = await client.ProtectAsync(publisherPayload, cts.Token)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> subscriberRecord = await server.ProtectAsync(subscriberPayload, cts.Token)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> receivedPublisherPayload = await server.UnprotectAsync(publisherRecord, cts.Token)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> receivedSubscriberPayload = await client.UnprotectAsync(subscriberRecord, cts.Token)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pair.Client.AuthenticatedPeer, Is.EqualTo(pair.Client.RemoteEndpoint));
+                Assert.That(pair.Server.AuthenticatedPeer, Is.EqualTo(pair.Server.RemoteEndpoint));
+                Assert.That(receivedPublisherPayload.ToArray(), Is.EqualTo(publisherPayload));
+                Assert.That(receivedSubscriberPayload.ToArray(), Is.EqualTo(subscriberPayload));
+                validator.Verify(v => v.ValidateAsync(
+                    It.IsAny<Certificate>(),
+                    It.IsAny<TrustListIdentifier?>(),
+                    It.IsAny<CancellationToken>()), Times.Exactly(2));
+            });
+        }
+
+        /// <summary>
+        /// A matching identity cannot replace certificate trust, CertificateVerify or Finished authentication.
+        /// </summary>
+        [TestCase((byte)DtlsHandshakeType.Certificate)]
+        [TestCase((byte)DtlsHandshakeType.CertificateVerify)]
+        [TestCase((byte)DtlsHandshakeType.Finished)]
+        [Category("SecurityRegression")]
+        public async Task SecurityF06MatchingIdentityStillRequiresChainAndTranscriptAuthenticationAsync(
+            byte rejectedMessageType)
+        {
+            var rejectedMessage = (DtlsHandshakeType)rejectedMessageType;
+            DtlsProfile profile = ResolveOrIgnore("ECC_nistP256_AesGcm");
+            using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
+            Mock<ICertificateValidatorEx> validator = CreateSuccessfulValidator();
+            if (rejectedMessage == DtlsHandshakeType.Certificate)
+            {
+                validator.Setup(v => v.ValidateAsync(
+                        It.IsAny<Certificate>(),
+                        It.IsAny<TrustListIdentifier?>(),
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new CertificateValidationResult(
+                        isValid: false,
+                        statusCode: StatusCodes.BadCertificateInvalid,
+                        errors: [new ServiceResult(StatusCodes.BadCertificateInvalid)],
+                        isSuppressible: false));
+            }
+
+            (InMemoryDtlsDatagramChannel Client, InMemoryDtlsDatagramChannel Server) pair =
+                InMemoryDtlsDatagramChannel.CreatePair(serverToClientTransform: datagram =>
+                {
+                    if (rejectedMessage != DtlsHandshakeType.Certificate &&
+                        datagram.Length > DtlsHandshakeCodec.HandshakeHeaderLength &&
+                        datagram[0] == (byte)rejectedMessage)
+                    {
+                        datagram[^1] ^= 0xff;
+                    }
+                    return datagram;
+                });
+            using DtlsHandshakeContext client = CreateContext(
+                profile, DtlsEndpointRole.Client, certificate, validator.Object);
+            using DtlsHandshakeContext server = CreateContext(
+                profile, DtlsEndpointRole.Server, certificate, validator.Object);
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            Task clientTask = client.OpenAsync(pair.Client, cts.Token).AsTask();
+            Task serverTask = server.OpenAsync(pair.Server, cts.Token).AsTask();
+            byte[] payload = [0x55, 0x41];
+
+            try
+            {
+                if (rejectedMessage == DtlsHandshakeType.Certificate)
+                {
+                    await Assert.ThatAsync(
+                        async () => await clientTask.ConfigureAwait(false),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadCertificateInvalid)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Assert.ThatAsync(
+                        async () => await clientTask.ConfigureAwait(false),
+                        Throws.TypeOf<DtlsHandshakeException>()).ConfigureAwait(false);
+                }
+
+                Assert.That(pair.Client.AuthenticatedPeer, Is.Null);
+                await Assert.ThatAsync(
+                    async () => await client.ProtectAsync(payload).ConfigureAwait(false),
+                    Throws.TypeOf<InvalidOperationException>());
+            }
+            finally
+            {
+                await CancelPeerHandshakeAsync(serverTask, cts).ConfigureAwait(false);
+            }
         }
 
         [Test]
@@ -392,6 +598,9 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             Assert.That(pair.Server.AuthenticatedPeer, Is.Null);
         }
 
+        /// <summary>
+        /// Exercises both real handshake endpoints, directional traffic keys and ordinary duplicate rejection.
+        /// </summary>
         private static async Task RunHandshakeAndApplicationRoundTripAsync(DtlsProfile profile)
         {
             using Certificate certificate = CreateEcdsaCertificate(profile.CertificateCurve);
@@ -411,12 +620,24 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             });
 
             byte[] payload = [0x55, 0x41, 0x44, 0x50];
-            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, CancellationToken.None).ConfigureAwait(false);
-            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, CancellationToken.None).ConfigureAwait(false);
+            ReadOnlyMemory<byte> record = await client.ProtectAsync(payload, CancellationToken.None)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> plaintext = await server.UnprotectAsync(record, CancellationToken.None)
+                .ConfigureAwait(false);
 
             Assert.That(plaintext.ToArray(), Is.EqualTo(payload));
             Assert.That(() => server.UnprotectAsync(record, CancellationToken.None).AsTask(), Throws.Exception,
                 "RFC 9147 §4.5.1 replayed records must be dropped by the anti-replay window.");
+
+            byte[] responsePayload = [0x53, 0x55, 0x42];
+            ReadOnlyMemory<byte> responseRecord = await server.ProtectAsync(responsePayload, CancellationToken.None)
+                .ConfigureAwait(false);
+            ReadOnlyMemory<byte> response = await client.UnprotectAsync(responseRecord, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            Assert.That(response.ToArray(), Is.EqualTo(responsePayload));
+            await Assert.ThatAsync(
+                () => client.UnprotectAsync(responseRecord, CancellationToken.None).AsTask(), Throws.Exception);
         }
 
         private static Mock<ICertificateValidatorEx> CreateSuccessfulValidator()
@@ -496,6 +717,50 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
                 profile.Name);
         }
 
+        /// <summary>
+        /// Creates a publisher/client through the default factory without resolving or connecting a socket.
+        /// </summary>
+        private static ValueTask<IDtlsContext> CreateFactoryClientAsync(
+            DtlsProfile profile,
+            UdpEndpoint endpoint,
+            ICertificateValidatorEx validator,
+            Certificate? clientCertificate = null)
+        {
+            var options = new DtlsTransportOptions { PeerCertificateValidator = validator };
+            if (clientCertificate is not null)
+            {
+                options.LocalCertificates.Add(clientCertificate);
+            }
+
+            var factory = new DefaultDtlsContextFactory(
+                Options.Create(options), new DtlsProfileRegistry(), validator);
+            return factory.CreateAsync(
+                new PubSubConnectionDataType
+                {
+                    Name = "identity-bound-publisher",
+                    WriterGroups = [new WriterGroupDataType { Name = "publisher" }]
+                },
+                endpoint,
+                profile,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+        }
+
+        /// <summary>
+        /// Cancels and observes the peer that is still waiting after a deliberately rejected handshake.
+        /// </summary>
+        private static async Task CancelPeerHandshakeAsync(Task peerTask, CancellationTokenSource cancellation)
+        {
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            try
+            {
+                await peerTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+            {
+            }
+        }
+
         private static DtlsProfile ResolveOrIgnore(string profileName)
         {
             var registry = new DtlsProfileRegistry();
@@ -506,10 +771,32 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             return profile!;
         }
 
-        private static Certificate CreateEcdsaCertificate(DtlsNamedCurve curve)
+        /// <summary>
+        /// Creates an ephemeral ECC certificate with independent DNS and IP subject alternative names.
+        /// </summary>
+        private static Certificate CreateEcdsaCertificate(
+            DtlsNamedCurve curve,
+            string? dnsName = "localhost",
+            string? ipAddress = null,
+            string commonName = "dtls-handshake")
         {
             using var ecdsa = ECDsa.Create(ToEccCurve(curve));
-            var request = new CertificateRequest("CN=dtls-handshake", ecdsa, GetHash(curve));
+            var request = new CertificateRequest($"CN={commonName}", ecdsa, GetHash(curve));
+            if (dnsName is not null || ipAddress is not null)
+            {
+                var subjectAltName = new SubjectAlternativeNameBuilder();
+                if (dnsName is not null)
+                {
+                    subjectAltName.AddDnsName(dnsName);
+                }
+                if (ipAddress is not null)
+                {
+                    subjectAltName.AddIpAddress(IPAddress.Parse(ipAddress));
+                }
+
+                request.CertificateExtensions.Add(subjectAltName.Build());
+            }
+
             return Certificate.From(request.CreateSelfSigned(
                 DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddMinutes(10)));
         }

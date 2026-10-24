@@ -40,6 +40,7 @@ using Opc.Ua.OpenUsd.Server;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.NodeManager;
+using Opc.Ua.XRegistry;
 
 namespace SiteComposition
 {
@@ -81,7 +82,7 @@ namespace SiteComposition
     /// </remarks>
     public sealed partial class SiteNodeManager : FluentNodeManagerBase
     {
-        private const string SiteRootLayerIdentifier = "asset-repo/Site.usd";
+        private const string SiteRootLayerIdentifier = "Site.usda";
         private const string SitePrimPath = "/Site";
         private const string PumpHallPrimPath = "/Site/PumpHall";
         private const string PowerhousePrimPath = "/Site/Powerhouse";
@@ -108,7 +109,9 @@ namespace SiteComposition
             IServerInternal server,
             ApplicationConfiguration configuration,
             IOptions<SiteCompositionOptions>? options = null)
-            : base(server, configuration, Namespaces.Site, Opc.Ua.OpenUsd.Namespaces.OpenUSD)
+            : base(
+                server, configuration, Namespaces.Site,
+                Opc.Ua.OpenUsd.Namespaces.OpenUSD, Opc.Ua.XRegistry.Namespaces.xRegistry)
         {
             m_options = options?.Value ?? new SiteCompositionOptions();
             m_log = server.Telemetry.CreateLogger<SiteNodeManager>();
@@ -125,6 +128,7 @@ namespace SiteComposition
             CancellationToken cancellationToken = default)
         {
             var nodes = new NodeStateCollection();
+            nodes.AddOpcUaXRegistry(context);
             nodes.AddOpcUaOpenUsd(context);
             return new ValueTask<NodeStateCollection>(nodes);
         }
@@ -313,6 +317,7 @@ namespace SiteComposition
 
                 m_siteStage = SystemContext.CreateInstanceOfOpenUsdStageType(
                     stages, new QualifiedName("SiteStage", ns));
+                m_siteStage.ReferenceTypeId = ReferenceTypeIds.Organizes;
                 stages.AddChild(m_siteStage);
                 m_siteStage.CreateOrReplaceRootLayerIdentifier(SystemContext, null!)
                     .Value = SiteRootLayerIdentifier;
@@ -333,7 +338,7 @@ namespace SiteComposition
                     .Value = OpenUsdDigestAlgorithmEnum.Sha256;
 
                 root.AddReference(ReferenceTypeIds.HasComponent, true, Opc.Ua.ObjectIds.Server);
-                UsdAssetDelivery.AttachStageAssets(SystemContext, m_siteStage, ns, served);
+                UsdAssetDelivery.AttachStageAssets(SystemContext, m_siteStage, ns, served, "site");
 
                 SystemContext.AssignInstanceChildNodeIds(root);
                 await AddPredefinedNodeAsync(SystemContext, root, cancellationToken)
@@ -442,6 +447,7 @@ namespace SiteComposition
         {
             Namespaces.Site,
             Opc.Ua.OpenUsd.Namespaces.OpenUSD,
+            Opc.Ua.XRegistry.Namespaces.xRegistry,
         }.ToArrayOf();
 
         /// <inheritdoc/>

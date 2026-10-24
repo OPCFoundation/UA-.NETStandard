@@ -33,6 +33,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.DataChannels;
+using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings
@@ -786,15 +787,15 @@ namespace Opc.Ua.Bindings
     {
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 0, Level = LogLevel.Information,
             Message = "TransportChannel RECONNECT: Reconnecting to {Url}.")]
-        public static partial void UaSCTransportLog0(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog0(this ILogger logger, [NetworkAddress] global::System.Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 1, Level = LogLevel.Information,
             Message = "TransportChannel RECONNECT: Reconnected to {Url}.")]
-        public static partial void UaSCTransportLog1(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog1(this ILogger logger, [NetworkAddress] global::System.Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 2, Level = LogLevel.Debug,
             Message = "TransportChannel RECONNECT: Closing old channel to {Url}.")]
-        public static partial void UaSCTransportLog2(this ILogger logger, global::System.Uri? url);
+        public static partial void UaSCTransportLog2(this ILogger logger, [NetworkAddress] global::System.Uri? url);
 
         [LoggerMessage(EventId = CoreEventIds.UaSCBinaryTransportChannel + 3, Level = LogLevel.Debug,
             Message = "Exception while closing old channel during Reconnect.")]

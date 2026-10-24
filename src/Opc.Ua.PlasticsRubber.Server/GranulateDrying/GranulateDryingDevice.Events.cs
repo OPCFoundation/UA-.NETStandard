@@ -124,6 +124,16 @@ namespace Opc.Ua.GranulateDrying.Server
                 }
                 alarm.Id!.Value = source.Id!.Value;
                 InitializeCondition(alarm, source, source.Id.Value);
+                // These late-created fields are provider observations, not a second control path.
+                alarm.Id.AccessLevel = AccessLevels.CurrentRead;
+                alarm.Id.UserAccessLevel = AccessLevels.CurrentRead;
+                alarm.Status!.AccessLevel = AccessLevels.CurrentRead;
+                alarm.Status.UserAccessLevel = AccessLevels.CurrentRead;
+                if (alarm.RemainingInterval != null)
+                {
+                    alarm.RemainingInterval.AccessLevel = AccessLevels.CurrentRead;
+                    alarm.RemainingInterval.UserAccessLevel = AccessLevels.CurrentRead;
+                }
                 m_maintenanceErrors.Add(ii, alarm);
                 if (m_registered)
                 {

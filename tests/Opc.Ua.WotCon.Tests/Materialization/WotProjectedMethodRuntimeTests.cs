@@ -169,7 +169,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         "href": "opc.tcp://source:4840",
                         "op": "invokeaction",
                         "uav:id": "nsu=urn:source;s=Start",
-                        "uav:componentOf": "nsu=urn:source;s=Device"
+                        "uav:callObjectId": "nsu=urn:source;s=Device"
                       }]
                     }
                   }

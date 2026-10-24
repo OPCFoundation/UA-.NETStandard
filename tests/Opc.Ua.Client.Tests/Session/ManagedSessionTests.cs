@@ -1949,14 +1949,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 "HandleConnectAsync",
                 BindingFlags.NonPublic | BindingFlags.Instance,
                 null,
-                [typeof(CancellationToken)],
+                [typeof(IRetryBudget), typeof(CancellationToken)],
                 null);
 
             Assert.That(method, Is.Not.Null);
 
             var task = (Task<ServiceResult>?)method!.Invoke(
                 managedSession,
-                [CancellationToken.None]);
+                [null, CancellationToken.None]);
 
             Assert.That(task, Is.Not.Null);
             return task!;

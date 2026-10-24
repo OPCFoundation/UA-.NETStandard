@@ -23,15 +23,16 @@ The stack supports Reverse Connect through these components:
 
 ## Contents
 
-- [Overview](#overview)
-- [Reverse Connect Handshake](#reverse-connect-handshake)
-- [Sharing a listener across multiple Servers](#sharing-a-listener-across-multiple-servers)
-- [Server-side dependency injection](#server-side-dependency-injection)
-- [Dependency-injection lifecycle](#dependency-injection-lifecycle)
-- [Configuration Extensions](#configuration-extensions)
-- [WSS reverse-connect](#wss-reverse-connect-opcwss)
-- [Kestrel-hosted opc.tcp reverse-connect](#kestrel-hosted-opctcp-reverse-connect-opt-in)
-- [Known limitations and issues](#known-limitations-and-issues)
+- [Reverse Connect](#reverse-connect)
+  - [Overview](#overview)
+  - [Reverse Connect Handshake](#reverse-connect-handshake)
+  - [Sharing a listener across multiple Servers](#sharing-a-listener-across-multiple-servers)
+  - [Server-side dependency injection](#server-side-dependency-injection)
+  - [Dependency-injection lifecycle](#dependency-injection-lifecycle)
+  - [Configuration Extensions](#configuration-extensions)
+  - [WSS reverse-connect (`opc.wss://`)](#wss-reverse-connect-opcwss)
+  - [Kestrel-hosted opc.tcp reverse-connect (opt-in)](#kestrel-hosted-opctcp-reverse-connect-opt-in)
+  - [Known limitations and issues](#known-limitations-and-issues)
 
 ## Reverse Connect Handshake
 
@@ -101,9 +102,29 @@ Use one shared `ReverseConnectManager` for all Servers that connect to the same 
 
 A `ManagedSession` needs that manager for recovery as well as initial connection.
 A waiting `ITransportWaitingConnection` supplied directly to `CreateAsync` is
-single-use. Without a `ReverseConnectManager`, recovery fails through the configured
-reconnect policy instead of obtaining a fresh connection; it never silently
-switches to an outbound connection.
+single-use. Without a `ReverseConnectManager` or an `IReverseConnectionSource`,
+recovery fails through the configured reconnect policy instead of obtaining a
+fresh connection; it never silently switches to an outbound connection.
+
+An application that accepts reverse connections itself, for example to admit
+them before the OPC UA handshake or to hand over connections accepted
+elsewhere, implements `IReverseConnectionSource` and passes it to
+`ManagedSessionBuilder.UseReverseConnect(source, serverUri)` (or sets
+`ManagedSessionOptions.ReverseConnectionSource`). The session awaits the source
+for the initial connect and once per recovery attempt, within the delay and
+`MaxTotalReconnectTime` of the reconnect policy: when the budget runs out, the
+pending wait is cancelled and the attempt fails with `BadTimeout`. The session
+closes a connection it received but no longer needs. `ReverseConnectManager`
+implements the interface. A source cannot be combined with a
+`ReverseConnectManager` passed to `ManagedSession.CreateAsync`.
+
+``` csharp
+ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .UseReverseConnect(source, new Uri("urn:example:server-a"))
+    .ConnectAsync(cancellationToken)
+    .ConfigureAwait(false);
+```
 
 ``` csharp
 await using var manager = new ReverseConnectManager(telemetry);

@@ -63,6 +63,7 @@ public static class OperatorConsoleHost
         builder.WebHost.ConfigureKestrel(static server => server.Limits.MaxRequestBodySize = 8192);
         // Framework request-start messages include query strings, including the local bootstrap credential.
         builder.Logging.AddFilter("Microsoft.AspNetCore.Hosting.Diagnostics", LogLevel.Warning);
+        builder.Logging.EnableOpcUaRedaction();
         builder.Services.ConfigureHttpJsonOptions(static json =>
             json.SerializerOptions.TypeInfoResolverChain.Insert(0, ConsoleJsonContext.Default));
         builder.Services.AddSingleton(options);

@@ -7,7 +7,7 @@ independent OPC UA source servers.
 
 The aggregation server contains no Pump-specific generated code and does not reference the DI, Machinery, or Pumps server/model assemblies. The complete DI/Machinery/Pumps/Pump instance shape is runtime-loaded from the files in [`samples/WotCon/AggregationClient/Documents`](AggregationClient/Documents) through the generic WoT-to-NodeSet converter, runtime NodeSet loader, and target-mapping binding runtime.
 
-The documents ship with the client because the client is what uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
+The documents ship with the client because it uploads them. The aggregation server has no build-time or run-time dependency on them: it receives whatever the client writes into the registry.
 
 The sample publisher declares typed TD and TM catalogues under
 `urn:opcfoundation.org:UA:WotAggregation:ThingDescriptions` and
@@ -16,8 +16,8 @@ is its source identity when present. For native fragments without `id`, the
 publisher assigns `urn:opcfoundation.org:UA:WotAggregation:document:` followed by
 the URI-escaped manifest resource name and adds that `id` to the uploaded document.
 The checked-in native fragment and its `uav:nodes` payload remain unchanged.
-This is the sample's explicit publication
-identity policy; the generic server does not infer authority from resource names.
+This publication identity policy belongs to the sample; the generic server does
+not infer authority from resource names.
 The client uses the returned server-assigned identifiers for bulk upload, not
 the manifest names. Manifest-relative document links and `tm:ref` selections are
 translated to the declared source identities, preserving fragments. Source labels,
@@ -27,12 +27,12 @@ uses file-backed registry storage so preparation and publication share a durable
 decision.
 Default file-content leases provide mandatory exclusion on Windows only. On other
 platforms, programmatic hosts must supply `AggregationServerOptions.ResourceStore`
-with genuine immutable-content leases for `PerRegistry` publication; the sample
-fails explicitly rather than pretending advisory file sharing is equivalent.
+with immutable-content leases for `PerRegistry` publication. The sample rejects
+providers that offer only advisory file sharing.
 Cross-platform tests inject the existing leased fixture provider while retaining
 the real file-backed manifest. Its in-memory content is not process-crash durable.
 The sample converter admits at most 1,024 linked documents per conversion,
-covering the checked-in 533-document set without removing the existing byte limits.
+covering the checked-in 535-document set while retaining the existing byte limits.
 
 ## Topology
 
@@ -221,10 +221,13 @@ bounds a manually launched client; specify `1200` for the same budget.
 | `pump2NumberOfStarts` | `29` | Pump2 flat source value. |
 | `pump2MotorOverheat` | `false` | Pump2 flat source value. |
 
-`AggregationServer` reads `endpoint`, `host` (`localhost`), `port` (`62550`), `applicationName`
+`AggregationServer` reads `endpoint`, `host` (`127.0.0.1`), `port` (`62550`), `applicationName`
 (`AggregationServer`), `pkiRoot`, `storageFolder` (the `registry` directory beside
 the application), and `maximumDocumentBytes` (`33554432`). The demo script gives
 registry storage its own directory under the isolated run root.
+Its numeric-loopback default keeps the anonymous aggregation demonstration
+local-only; explicit host or endpoint overrides require appropriate remote-access
+security.
 
 `AggregationClient` reads `aggregationEndpoint`, `sourceAEndpoint`, `sourceBEndpoint`,
 `applicationName` (`AggregationClient`), `pkiRoot`, `documentsDirectory`,
@@ -368,7 +371,7 @@ These nodes are not compiled into `AggregationServer`. They are produced from th
 
 [`WotPumpAddressSpaceComparisonTests`](../../tests/Opc.Ua.WotCon.Samples.Tests/WotPumpAddressSpaceComparisonTests.cs)
 compares the declared companion-model subset against
-[`PumpDeviceIntegrationServer`](../DI/PumpDeviceIntegrationServer), which builds
+[`PumpDeviceIntegrationServer`](../Di/PumpDeviceIntegrationServer), which builds
 an OPC 40223 Pump from generated companion-model code. This provides an
 independent oracle rather than only comparing the WoT documents with themselves.
 
@@ -525,4 +528,4 @@ Use the published `FlatTagServer.exe` twice with the Source A and Source B argum
 ## Related documentation
 
 * [WoT protocol bindings](../../docs/WotBindings.md)
-* [WoT Connectivity model, server, registry, and client](../../docs/WoTConnectivity.md)
+* [WoT Connectivity model, server, registry, and client](../../docs/WotCon.md)

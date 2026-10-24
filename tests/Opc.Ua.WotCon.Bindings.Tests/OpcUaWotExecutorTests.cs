@@ -53,7 +53,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     /// each test exercises one operation: readproperty, writeproperty with
     /// readback, observeproperty (native data-change subscription),
     /// invokeaction (a real Method with ordered input/output arguments,
-    /// resolved through <c>uav:componentOf</c>) and subscribeevent (a real
+    /// resolved through <c>uav:callObjectId</c>) and subscribeevent (a real
     /// EventNotifier and an emitted event, asserting selected fields). The
     /// counter, action and event forms address their NodeIds with the
     /// portable <c>nsu=</c> form to prove namespace-table resolution.

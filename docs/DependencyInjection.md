@@ -51,6 +51,7 @@ the manual constructors when you need finer control.
   - [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)
   - [Server security and resource controls](#server-security-and-resource-controls)
   - [First-class server options](#first-class-server-options)
+  - [Server resource isolation](#server-resource-isolation)
   - [Committed session bindings](#committed-session-bindings)
   - [Server-side reverse connect](#server-side-reverse-connect)
   - [Operation limits](#operation-limits)
@@ -65,14 +66,15 @@ the manual constructors when you need finer control.
   - [Fluent shortcuts](#fluent-shortcuts)
   - [Identity (client)](#identity-client)
 - [Complex types](#complex-types)
-- [Alarms and conditions](#alarms-and-conditions)
 - [Programs](#programs)
+- [Alarms and conditions](#alarms-and-conditions)
 - [Client-side reverse connect](#client-side-reverse-connect)
 - [Channel manager](#channel-manager)
 - [Application instance (advanced)](#application-instance-advanced)
 - [GDS Client](#gds-client)
 - [GDS Server](#gds-server)
   - [Identity (GDS server)](#identity-gds-server)
+  - [Startup tasks (GDS server)](#startup-tasks-gds-server)
 - [LDS Server](#lds-server)
 - [WoT Connectivity Server](#wot-connectivity-server)
 - [WoT Connectivity Client](#wot-connectivity-client)
@@ -130,7 +132,7 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 | `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
 | `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
-| `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
+| `AddAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
 | `AddSessionlessInvocation(...)`               | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
@@ -1586,7 +1588,7 @@ use the dependency injection infrastructure. See
 [Alarms and Conditions](AlarmsAndConditions.md) for the full
 developer guide.
 
-### Client-side reverse connect
+## Client-side reverse connect
 
 When `OpcUaClientOptions.ReverseConnect` is set, the dependency injection container
 registers a singleton `ReverseConnectManager` that opens the configured
@@ -2016,6 +2018,6 @@ services.AddOpcUa()
 - [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
-- [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.
+- [WoT Connectivity](WotCon.md) — OPC 10100-1 information model.
 - [Diagnostics](Diagnostics.md) — `ITelemetryContext` end-to-end.
 - [CryptoProvider](CryptoProvider.md) — `AddCryptoProvider`, hardware-held private keys, FIPS posture and audit.

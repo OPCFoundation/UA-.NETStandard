@@ -60,6 +60,7 @@ namespace Quickstarts
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder =>
                 {
+                    builder.EnableOpcUaRedaction();
                     builder.SetMinimumLevel(LogLevel.Information);
                     m_configure?.Invoke(builder);
                 });
@@ -212,6 +213,7 @@ namespace Quickstarts
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder =>
                 {
+                    builder.EnableOpcUaRedaction();
                     builder.SetMinimumLevel(consoleLogLevel);
                     m_configure?.Invoke(builder);
                 });

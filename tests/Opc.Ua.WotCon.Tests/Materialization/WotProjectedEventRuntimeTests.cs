@@ -39,6 +39,7 @@ using System.Threading.Tasks;
 using Moq;
 using Moq.Protected;
 using NUnit.Framework;
+using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Bindings;
@@ -58,6 +59,232 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotProjectedEventRuntimeTests
     {
         /// <summary>
+        /// A permissive generated receiver cannot bypass the original receiver's Call policy.
+        /// </summary>
+        [TestCase("Enable")]
+        [TestCase("Disable")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR38ConditionAliasCannotBypassOriginalReceiverCallPolicyAsync(string action)
+        {
+            var h = new EventHarness();
+            h.AddAlarm("a");
+            MethodState original = h.AddControl("a", action);
+            h.Nodes.Root.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = Ua.ObjectIds.WellKnownRole_Operator,
+                    Permissions = (uint)PermissionType.Browse
+                }
+            ];
+            original.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = Ua.ObjectIds.WellKnownRole_Operator,
+                    Permissions = (uint)PermissionType.Call
+                }
+            ];
+            await using IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
+            using var service = new AliasServiceHarness(h.Nodes);
+            await service.Owner.AddPredefinedNodeAsync(h.Nodes.Root).ConfigureAwait(false);
+            ConditionState condition = h.Conditions.Nodes["a"];
+            MethodState alias = condition.FindChild(h.Nodes.Builder.Context, QualifiedName.From(action))
+                as MethodState ?? throw new InvalidOperationException("The alias must be present.");
+
+            CallMethodResult result = await service.CallAsync(condition.NodeId, alias.NodeId, [])
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(result.OutputArguments, Is.Empty);
+            Assert.That(h.Invokes["a" + action].InvokeCount, Is.Zero);
+            Assert.That(h.Nodes.ChannelFactory.OpenCount, Is.Zero);
+            Assert.That(condition.EnabledState, Is.Null);
+        }
+
+        /// <summary>
+        /// Authorized aliases preserve the upstream status and invoke only the intended source.
+        /// </summary>
+        [TestCase("Enable")]
+        [TestCase("Disable")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR38AuthorizedAliasPreservesOriginalActionResultAsync(string action)
+        {
+            var h = new EventHarness();
+            h.AddAlarm("a");
+            h.AddControl("a", action);
+            h.Invokes["a" + action].OnInvoke = (inputs, _) =>
+            {
+                Assert.That(inputs, Is.Empty);
+                return new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Uncertain));
+            };
+            await using IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
+            using var service = new AliasServiceHarness(h.Nodes);
+            await service.Owner.AddPredefinedNodeAsync(h.Nodes.Root).ConfigureAwait(false);
+            ConditionState condition = h.Conditions.Nodes["a"];
+            MethodState alias = condition.FindChild(h.Nodes.Builder.Context, QualifiedName.From(action))
+                as MethodState ?? throw new InvalidOperationException("The alias must be present.");
+
+            CallMethodResult result = await service.CallAsync(condition.NodeId, alias.NodeId, [])
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Uncertain));
+            Assert.That(result.OutputArguments, Is.Empty);
+            Assert.That(h.Invokes["a" + action].InvokeCount, Is.EqualTo(1));
+            Assert.That(h.Nodes.ChannelFactory.OpenCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Live original policy and retirement are checked again after alias materialization.
+        /// </summary>
+        [TestCase("receiverRole")]
+        [TestCase("methodRole")]
+        [TestCase("receiverRestriction")]
+        [TestCase("methodRestriction")]
+        [TestCase("executable")]
+        [TestCase("userExecutable")]
+        [TestCase("retiredMethod")]
+        [TestCase("retiredReceiver")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR38AliasRechecksOriginalMethodExecutableAndRestrictionsAsync(
+            string mutation)
+        {
+            StatusCode expectedStatus = mutation switch
+            {
+                "receiverRole" or "methodRole" or "userExecutable" => StatusCodes.BadUserAccessDenied,
+                "receiverRestriction" or "methodRestriction" => StatusCodes.BadSecurityModeInsufficient,
+                "executable" => StatusCodes.BadNotExecutable,
+                "retiredMethod" => StatusCodes.BadMethodInvalid,
+                "retiredReceiver" => StatusCodes.BadNodeIdUnknown,
+                _ => throw new ArgumentOutOfRangeException(nameof(mutation))
+            };
+            var h = new EventHarness();
+            h.AddAlarm("a");
+            MethodState original = h.AddControl("a", "Enable");
+            await using IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
+            using var service = new AliasServiceHarness(h.Nodes);
+            await service.Owner.AddPredefinedNodeAsync(h.Nodes.Root).ConfigureAwait(false);
+            ConditionState condition = h.Conditions.Nodes["a"];
+            MethodState alias = condition.FindChild(h.Nodes.Builder.Context, QualifiedName.From("Enable"))
+                as MethodState ?? throw new InvalidOperationException("The alias must be present.");
+            switch (mutation)
+            {
+                case "receiverRole":
+                case "methodRole":
+                    NodeState denied = mutation == "receiverRole" ? h.Nodes.Root : original;
+                    denied.RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = Ua.ObjectIds.WellKnownRole_Operator,
+                            Permissions = (uint)PermissionType.Browse
+                        }
+                    ];
+                    break;
+                case "receiverRestriction":
+                    h.Nodes.Root.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    break;
+                case "methodRestriction":
+                    original.AccessRestrictions = AccessRestrictionType.EncryptionRequired;
+                    break;
+                case "executable":
+                    original.OnReadExecutable = (ISystemContext _, NodeState _, ref bool executable) =>
+                    {
+                        executable = false;
+                        return ServiceResult.Good;
+                    };
+                    break;
+                case "userExecutable":
+                    original.OnReadUserExecutable = (ISystemContext _, NodeState _, ref bool executable) =>
+                    {
+                        executable = false;
+                        return ServiceResult.Good;
+                    };
+                    break;
+                case "retiredMethod":
+                    service.Owner.Retire(original);
+                    break;
+                case "retiredReceiver":
+                    service.Owner.RetireReceiver(h.Nodes.Root);
+                    break;
+            }
+
+            CallMethodResult result = await service.CallAsync(condition.NodeId, alias.NodeId, [])
+                .ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo((StatusCode)expectedStatus));
+            Assert.That(h.Invokes["aEnable"].InvokeCount, Is.Zero);
+            Assert.That(h.Nodes.ChannelFactory.OpenCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Occurrence aliases require original authority and preserve the exact source EventId.
+        /// </summary>
+        [TestCase("Acknowledge")]
+        [TestCase("Confirm")]
+        [TestCase("AddComment")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR38OccurrenceAliasRetainsAuthorizationAndExactEventRoutingAsync(string action)
+        {
+            var h = new EventHarness();
+            var (eventForm, _, _) = h.AddAlarm("a");
+            if (action == "AddComment")
+            {
+                h.AddOccurrence("a", action);
+            }
+            var upstream = new EventChannel(eventForm);
+            h.Nodes.ChannelFactory.SetChannel(eventForm, upstream.Channel);
+            ByteString sourceEvent = ByteString.From([7, 8, 9]);
+            h.Invokes["a" + action].OnInvoke = (inputs, _) =>
+            {
+                Assert.That(inputs, Has.Count.EqualTo(2));
+                Assert.That(inputs[0].TryGetValue(out ByteString eventId), Is.True);
+                Assert.That(eventId, Is.EqualTo(sourceEvent));
+                Assert.That(inputs[1].TryGetValue(out LocalizedText comment), Is.True);
+                Assert.That(comment.Text, Is.EqualTo(action == "Acknowledge" ? null : "operator comment"));
+                return new ValueTask<WotInvokeResult>(new WotInvokeResult(StatusCodes.Good));
+            };
+            await using IAsyncDisposable runtime = await h.WireAsync().ConfigureAwait(false);
+            await using IAsyncEnumerator<BaseEventState> events = h.Publisher.Open(h.Nodes.Root.NodeId);
+            Task<bool> pending = events.MoveNextAsync().AsTask();
+            await upstream.Started.Task.WaitAsync(s_timeout).ConfigureAwait(false);
+            upstream.Push(Notification("a", sourceEvent));
+            Assert.That(await pending.WaitAsync(s_timeout).ConfigureAwait(false), Is.True);
+            ByteString localEvent = events.Current.EventId!.Value;
+            ConditionState condition = h.Conditions.Nodes["a"];
+            MethodState alias = condition.FindChild(h.Nodes.Builder.Context, QualifiedName.From(action))
+                as MethodState ?? throw new InvalidOperationException("The alias must be present.");
+            using var service = new AliasServiceHarness(h.Nodes);
+            await service.Owner.AddPredefinedNodeAsync(h.Nodes.Root).ConfigureAwait(false);
+            h.Nodes.Root.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = Ua.ObjectIds.WellKnownRole_Operator,
+                    Permissions = (uint)PermissionType.Browse
+                }
+            ];
+            ArrayOf<Variant> arguments =
+            [
+                new Variant(localEvent), new Variant(new LocalizedText("operator comment"))
+            ];
+
+            CallMethodResult denied = await service.CallAsync(condition.NodeId, alias.NodeId, arguments)
+                .ConfigureAwait(false);
+
+            Assert.That(denied.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadUserAccessDenied));
+            Assert.That(h.Invokes["a" + action].InvokeCount, Is.Zero);
+            h.Nodes.Root.RolePermissions = default;
+
+            CallMethodResult allowed = await service.CallAsync(condition.NodeId, alias.NodeId, arguments)
+                .ConfigureAwait(false);
+
+            Assert.That(allowed.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(allowed.OutputArguments, Is.Empty);
+            Assert.That(h.Invokes["a" + action].InvokeCount, Is.EqualTo(1));
+            Assert.That(events.Current.EventId!.Value, Is.EqualTo(localEvent));
+        }
+
         /// Verifies that a shared event source preserves distinct conditions and routes acknowledgment and
         /// confirmation.
         /// </summary>
@@ -960,6 +1187,32 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     ?? throw new InvalidOperationException("The runtime must be present.");
             }
 
+            /// <summary>
+            /// Adds an executable Enable or Disable action with no arguments.
+            /// </summary>
+            public MethodState AddControl(string eventName, string action)
+            {
+                string name = eventName + action;
+                MethodState method = Nodes.AddMethod(name, [], []);
+                WotCompiledForm form = Form(WotAffordanceKind.Action, name, action, eventName, "test://source");
+                m_forms.Add(form);
+                var channel = new FakeWotBindingChannel(form);
+                Invokes.Add(name, channel);
+                Nodes.ChannelFactory.SetChannel(form, channel);
+                m_declarations.Add(new WotProjectedAffordance(
+                    WotAffordanceKind.Action, name, "/actions/" + name, method.NodeId.ToString(),
+                    Nodes.Root.NodeId.ToString(), action, eventName));
+                return method;
+            }
+
+            /// <summary>
+            /// Adds another occurrence management action to the existing Condition declaration.
+            /// </summary>
+            public MethodState AddOccurrence(string eventName, string action)
+            {
+                return AddAction(eventName, action, "test://source", Nodes.Root, includeComment: true);
+            }
+
             public void SetEndpoint(string name, WotEndpointDescriptor endpoint)
             {
                 int index = m_forms.FindIndex(form => form.AffordanceName == name);
@@ -1030,7 +1283,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 string op = isEvent ? "subscribeevent" : "invokeaction";
                 ImmutableDictionary<string, string> addressing = owner is null
                     ? ImmutableDictionary<string, string>.Empty
-                    : ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:source;s=" + owner);
+                    : ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:source;s=" + owner);
                 return new WotCompiledForm(
                     new WotBindingIdentity("test", "1", "urn:test"), kind, name,
                     (isEvent ? "/events/" : "/actions/") + name + "/forms/0", operation, op,
@@ -1114,7 +1367,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     BrowseName = new QualifiedName(declaration.Name, harness.Ns),
                     TypeDefinitionId = eventTypeId
                 };
-                foreach (string name in new[] { "Acknowledge", "Confirm" })
+                foreach (string name in new[] { "Acknowledge", "Confirm", "AddComment" })
                 {
                     var method = new AddCommentMethodState(condition)
                     {
@@ -1139,14 +1392,130 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     {
                         condition.Acknowledge = method;
                     }
-                    else
+                    else if (name == "Confirm")
                     {
                         condition.Confirm = method;
                     }
+                    else
+                    {
+                        condition.AddComment = method;
+                    }
                 }
+                condition.Enable = new MethodState(condition)
+                {
+                    NodeId = new NodeId(declaration.Name + "ConditionEnable", harness.Ns),
+                    BrowseName = QualifiedName.From("Enable"),
+                    Executable = true,
+                    UserExecutable = true
+                };
+                condition.Disable = new MethodState(condition)
+                {
+                    NodeId = new NodeId(declaration.Name + "ConditionDisable", harness.Ns),
+                    BrowseName = QualifiedName.From("Disable"),
+                    Executable = true,
+                    UserExecutable = true
+                };
                 notifier.AddChild(condition);
                 Nodes[declaration.Name] = condition;
                 return new ValueTask<ConditionState>(condition);
+            }
+        }
+
+        /// <summary>
+        /// Runs actual local Call dispatch and permission evaluation without a listener.
+        /// </summary>
+        private sealed class AliasServiceHarness : IDisposable
+        {
+            /// <summary>
+            /// Creates actual service routing for the supplied projection graph.
+            /// </summary>
+            public AliasServiceHarness(WotProjectionBindingRuntimeTestHarness nodes)
+            {
+                ISystemContext context = nodes.Builder.Context;
+                var server = new Mock<IServerInternal>();
+                server.SetupGet(s => s.NamespaceUris).Returns(context.NamespaceUris);
+                server.SetupGet(s => s.ServerUris).Returns(context.ServerUris);
+                server.SetupGet(s => s.TypeTree).Returns((TypeTable)context.TypeTable);
+                server.SetupGet(s => s.Factory).Returns(context.EncodeableFactory);
+                server.SetupGet(s => s.Telemetry).Returns(context.Telemetry);
+                server.SetupGet(s => s.DefaultSystemContext).Returns(new ServerSystemContext(server.Object));
+                server.SetupGet(s => s.NodeManager).Returns(Mock.Of<IMasterNodeManager>());
+                var configurationManager = new Mock<IConfigurationNodeManager>();
+                var core = new Mock<ICoreNodeManager>();
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(f => f.CreateConfigurationNodeManager()).Returns(configurationManager.Object);
+                factory.Setup(f => f.CreateCoreNodeManager(It.IsAny<ushort>())).Returns(core.Object);
+                server.SetupGet(s => s.MainNodeManagerFactory).Returns(factory.Object);
+                server.SetupGet(s => s.ConfigurationNodeManager).Returns(configurationManager.Object);
+                server.SetupGet(s => s.CoreNodeManager).Returns(core.Object);
+                Owner = new AliasServiceNodeManager(server.Object, context.NamespaceUris.GetString(nodes.Ns)!);
+                m_master = new MasterNodeManager(server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() }, null, [Owner]);
+                server.SetupGet(s => s.NodeManager).Returns(m_master);
+                var identity = new RoleBasedIdentity(new UserIdentity("operator", []),
+                    [Role.Operator], context.NamespaceUris);
+                var channel = new SecureChannelContext("alias-test",
+                    new EndpointDescription { SecurityMode = MessageSecurityMode.None },
+                    RequestEncoding.Binary, null, null, null);
+                m_operation = new OperationContext(new RequestHeader(), channel,
+                    RequestType.Call, RequestLifetime.None, identity);
+            }
+
+            /// <summary>
+            /// Gets the real node manager owning the graph.
+            /// </summary>
+            public AliasServiceNodeManager Owner { get; }
+
+            /// <summary>
+            /// Calls the specified receiver and Method as the admitted operator.
+            /// </summary>
+            public async Task<CallMethodResult> CallAsync(
+                NodeId receiver, NodeId method, ArrayOf<Variant> arguments)
+            {
+                var (results, _) = await m_master.CallAsync(m_operation,
+                [
+                    new CallMethodRequest { ObjectId = receiver, MethodId = method, InputArguments = arguments }
+                ]).ConfigureAwait(false);
+                Assert.That(results.Count, Is.EqualTo(1));
+                return results[0];
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                m_operation.Dispose();
+                m_master.Dispose();
+                Owner.Dispose();
+            }
+
+            /// <summary>The actual service dispatcher.</summary>
+            private readonly MasterNodeManager m_master;
+
+            /// <summary>The current caller context.</summary>
+            private readonly OperationContext m_operation;
+        }
+
+        /// <summary>
+        /// Owns the real registered projection graph for socket-free Call tests.
+        /// </summary>
+        private sealed class AliasServiceNodeManager(IServerInternal server, string namespaceUri)
+            : AsyncCustomNodeManager(server, namespaceUri)
+        {
+            /// <summary>
+            /// Retires the original Method while leaving its generated alias registered.
+            /// </summary>
+            public void Retire(MethodState method)
+            {
+                PredefinedNodes.Remove(method.NodeId);
+                method.Parent?.RemoveChild(method);
+            }
+
+            /// <summary>
+            /// Retires only the original receiver's lookup entry.
+            /// </summary>
+            public void RetireReceiver(NodeState receiver)
+            {
+                PredefinedNodes.Remove(receiver.NodeId);
             }
         }
 

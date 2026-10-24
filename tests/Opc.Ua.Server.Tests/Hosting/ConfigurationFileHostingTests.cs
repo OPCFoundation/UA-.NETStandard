@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
-                    services.AddLogging(builder => builder.AddProvider(loggerProvider));
+                    services.AddLogging(builder => builder.EnableOpcUaRedaction().AddProvider(loggerProvider));
                     services.AddOpcUa().AddServer<ConfigurationCaptureServer>(configurationFile);
                 }).ConfigureAwait(false);
 
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await using HostedServerFixture fixture = await HostedServerFixture.StartAsync(
                 services =>
                 {
-                    services.AddLogging(builder => builder.AddProvider(loggerProvider));
+                    services.AddLogging(builder => builder.EnableOpcUaRedaction().AddProvider(loggerProvider));
                     // No user database / user management is registered, so the
                     // UserName policy advertised by the file has no matching
                     // authenticator and the hosted service must warn.

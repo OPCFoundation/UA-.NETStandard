@@ -128,7 +128,12 @@ namespace Opc.Ua.Redundancy.Server
 #pragma warning disable CA2000
             // The consensus replica is a container-owned singleton shared with
             // the leader election, so the store must not dispose it.
-            var raftStore = new RaftSharedKeyValueStore(consensus, ownsConsensus: false);
+            var raftStore = new RaftSharedKeyValueStore(
+                consensus,
+                ownsConsensus: false,
+                commitTimeout: default,
+                compactionInterval: options.RaftCompactionInterval,
+                logger: CreateRaftStoreLogger(sp));
             if (options.Mode == RedundancyConsistencyMode.Strong)
             {
                 return raftStore;
@@ -142,6 +147,18 @@ namespace Opc.Ua.Redundancy.Server
                 AggregateStrongKeyPrefixes(sp, options),
                 ownsStores: true);
 #pragma warning restore CA2000
+        }
+
+        /// <summary>
+        /// The logger of a Raft store: from the registered <see cref="ITelemetryContext"/>, else from the
+        /// registered <see cref="ILoggerFactory"/>, else none.
+        /// </summary>
+        private static ILogger? CreateRaftStoreLogger(IServiceProvider sp)
+        {
+            ITelemetryContext? telemetry = sp.GetService<ITelemetryContext>();
+            return telemetry != null
+                ? telemetry.CreateLogger<RaftSharedKeyValueStore>()
+                : sp.GetService<ILoggerFactory>()?.CreateLogger<RaftSharedKeyValueStore>();
         }
 
         private static ArrayOf<string> AggregateStrongKeyPrefixes(

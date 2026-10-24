@@ -369,6 +369,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 : sent;
             var firstKey = new DataSetMetaDataKey(PublisherId.FromString(PublisherName), 0, 1001, Uuid.Empty, 1);
             var secondKey = new DataSetMetaDataKey(PublisherId.FromString(PublisherName), 0, 1002, Uuid.Empty, 1);
+            IDataSetMetaDataRegistry inboundMetaData =
+                ((PubSubConnection)subscriber.Connections[0]).InboundMetaDataRegistry;
             Assert.Multiple(() =>
             {
                 if (chunked)
@@ -400,16 +402,19 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(writer.WriterGroupId, Is.EqualTo(42));
                 Assert.That((writer.DataSetWriters.ToArray() ?? []).Select(item => item.DataSetWriterId),
                     Is.EqualTo(new ushort[] { 1001, 1002 }));
-                Assert.That(subscriber.MetaDataRegistry.TryGet(in firstKey, out DataSetMetaDataType? firstMeta),
+                Assert.That(inboundMetaData.TryGet(in firstKey, out DataSetMetaDataType? firstMeta),
                     Is.EqualTo(MetaDataMatchResult.Match));
                 Assert.That(firstMeta!.Name, Is.EqualTo("TelemetryA"),
                     "Must use metadata actually received, not the reader seed.");
-                Assert.That(subscriber.MetaDataRegistry.TryGet(in secondKey, out DataSetMetaDataType? secondMeta),
+                Assert.That(inboundMetaData.TryGet(in secondKey, out DataSetMetaDataType? secondMeta),
                     Is.EqualTo(MetaDataMatchResult.Match));
                 Assert.That(secondMeta!.Name, Is.EqualTo("TelemetryB"));
-                Assert.That((subscriber.MetaDataRegistry.Keys.ToArray() ?? []).All(
+                Assert.That((inboundMetaData.Keys.ToArray() ?? []).All(
                     key => key.PublisherId != PublisherId.FromString("unexpected")),
                     Is.True, "Metadata from an unconfigured publisher must not be registered.");
+                Assert.That(subscriber.MetaDataRegistry.TryGet(in firstKey, out _),
+                    Is.EqualTo(MetaDataMatchResult.NotFound),
+                    "Received metadata must remain scoped to its connection.");
                 Assert.That(core.LeftAuthorizer.Requests, Is.Not.Empty);
                 Assert.That(core.RightAuthorizer.Requests, Is.Not.Empty);
                 Assert.That(core.LeftAuthorizer.Requests.All(

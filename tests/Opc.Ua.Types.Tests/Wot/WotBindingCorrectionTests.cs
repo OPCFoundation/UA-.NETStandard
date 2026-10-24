@@ -86,7 +86,6 @@ namespace Opc.Ua.Types.Tests.Wot
         [
             "uav:callObjectId",
             "uav:argumentLayout",
-            "uav:projectionKind",
             "uav:declaration",
             "uav:defaultEncodings",
             "uav:eventIdentityMode"
@@ -521,6 +520,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Assert.That(WotBindingConformance.IsKnownTerm(term), Is.True, term);
                     Assert.That(WotBindingConformance.VocabularyTerms.ToArray(), Does.Contain(term));
                 }
+                Assert.That(WotBindingConformance.IsKnownTerm("uav:projectionKind"), Is.False);
                 Assert.That(
                     WotBindingConformance.ScopedTerms.Count,
                     Is.EqualTo(13),

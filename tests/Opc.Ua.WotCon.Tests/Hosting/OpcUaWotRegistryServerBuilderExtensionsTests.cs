@@ -99,7 +99,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         }
 
         /// <summary>
-        /// Verifies that explicit projection compatibility reaches registry and view materialization.
+        /// Verifies that a current projection plan reaches registry and view
+        /// materialization through both builder paths.
         /// </summary>
         /// <param name="forceLeasedContent">The force-leased-content flag for this test case.</param>
         /// <param name="configuration">The configuration flag for this test case.</param>
@@ -107,7 +108,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
-        public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(
+        public async Task CurrentProjectionPlanReachesRegistryAndViewMaterialization(
             bool configuration, bool forceLeasedContent)
         {
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(forceLeasedContent)
@@ -128,8 +129,6 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 IConfiguration settings = new ConfigurationBuilder().AddInMemoryCollection(
                     new Dictionary<string, string?>
                     {
-                        [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:" +
-                            "ProjectionCompatibilityMode"] = "DraftProjection11",
                         [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:StorageFolder"] =
                             runtime.StorageFolder,
                         [$"{OpcUaWotRegistryServerBuilderExtensions.DefaultConfigurationSection}:AutoRefresh"] = "false"
@@ -140,7 +139,6 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             {
                 builder.AddWotRegistryServer(options =>
                 {
-                    options.ProjectionCompatibilityMode = WotProjectionCompatibilityMode.DraftProjection11;
                     options.StorageFolder = runtime.StorageFolder;
                     options.AutoRefresh = false;
                 });
@@ -161,8 +159,8 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             {
                 GroupId = "plans",
                 ResourceId = "view",
-                Format = WotProjection.Format,
-                ContentType = WotProjection.ContentType,
+                Format = "WoT-TD/1.1",
+                ContentType = "application/td+json",
                 Content = ByteString.From(Encoding.UTF8.GetBytes(/*lang=json,strict*/ """
                     {
                       "@context":"https://www.w3.org/2022/wot/td/v1.1",

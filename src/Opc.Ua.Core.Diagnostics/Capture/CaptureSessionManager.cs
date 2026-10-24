@@ -38,6 +38,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Opc.Ua.Pcap.Audit;
 using Opc.Ua.Pcap.DependencyInjection;
+using Opc.Ua.Pcap.Frame;
 using Opc.Ua.Pcap.KeyLog;
 using Opc.Ua.Pcap.Models;
 
@@ -274,6 +275,18 @@ namespace Opc.Ua.Pcap.Capture
                 SessionFolder = folder
             };
 
+            if (resolvedRequest.Source == CaptureSourceKind.Replay &&
+                !string.IsNullOrWhiteSpace(resolvedRequest.PcapFilePath))
+            {
+                CaptureFileValidator.RejectKeyLogPath(
+                    resolvedRequest.PcapFilePath, resolvedRequest.KeyLogFilePath);
+                foreach (CaptureSession existing in m_sessions.Values)
+                {
+                    CaptureFileValidator.RejectKeyLogPath(
+                        resolvedRequest.PcapFilePath, existing.Source.GetKeyLogFilePath());
+                }
+            }
+
             ICaptureSource source = m_sourceFactory.Create(
                 request.Source,
                 folder,
@@ -370,7 +383,7 @@ namespace Opc.Ua.Pcap.Capture
         /// <paramref name="baseFolder"/>.
         /// </summary>
         /// <remarks>
-        /// These paths reach <see cref="System.IO.FileMode.Create"/> on the
+        /// These paths reach <see cref="FileMode.Create"/> on the
         /// write side and <c>File.ReadAllBytesAsync</c> on the read side, so an
         /// unvalidated value lets a caller read or overwrite any file the
         /// process can touch. They are confined to the same base folder as the

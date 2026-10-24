@@ -307,16 +307,32 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public async ValueTask<TimeSpan> SetAsDurableAsync(
+        public ValueTask<TimeSpan> SetAsDurableAsync(
             TimeSpan lifetime,
             CancellationToken ct = default)
         {
-            // Persist the intent so on-demand secondary partitions
-            // created later inherit the same durable lifetime via the
-            // partition state-machine's OnAfterCreateAsync hook,
-            // which guarantees the OPC UA Part 4 §5.13.9 ordering
+            return SetAsDurableAsync(() => lifetime, ct);
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<TimeSpan> SetAsDurableAsync(
+            Func<TimeSpan?> lifetime,
+            CancellationToken ct = default)
+        {
+            if (lifetime == null)
+            {
+                throw new ArgumentNullException(nameof(lifetime));
+            }
+
+            // Persist the provider so partitions created later (on-demand
+            // secondaries, recreate after BadSubscriptionIdInvalid or a
+            // failed transfer) evaluate the lifetime at the moment of their
+            // creation via the partition state-machine's OnAfterCreateAsync
+            // hook, which guarantees the OPC UA Part 4 §5.13.9 ordering
             // requirement (SetSubscriptionDurable must precede any
-            // CreateMonitoredItems).
+            // CreateMonitoredItems). Evaluate first so a throwing provider
+            // leaves the previous durable intent in place for every partition.
+            TimeSpan? current = lifetime();
             m_durableLifetime = lifetime;
             TimeSpan minRevised = TimeSpan.MaxValue;
             foreach (IManagedSubscription partition in SnapshotPartitions())
@@ -331,17 +347,21 @@ namespace Opc.Ua.Client.Subscriptions
                 // CreateSubscription response and the first
                 // CreateMonitoredItems request.
                 InstallDurableHook(partition, lifetime);
-                if (partition.Created)
+                if (current != null && partition.Created)
                 {
                     TimeSpan revised = await partition.SetAsDurableAsync(
-                        lifetime, ct).ConfigureAwait(false);
+                        current.Value, ct).ConfigureAwait(false);
                     if (revised < minRevised)
                     {
                         minRevised = revised;
                     }
                 }
             }
-            return minRevised == TimeSpan.MaxValue ? lifetime : minRevised;
+            if (current == null)
+            {
+                return TimeSpan.Zero;
+            }
+            return minRevised == TimeSpan.MaxValue ? current.Value : minRevised;
         }
 
         /// <inheritdoc/>
@@ -690,7 +710,7 @@ namespace Opc.Ua.Client.Subscriptions
         /// Synchronously install the durable-apply hook on a
         /// freshly-minted secondary partition so its
         /// <see cref="Subscription.OnAfterCreateAsync"/> callback
-        /// invokes <see cref="Subscription.SetAsDurableAsync"/>
+        /// invokes <see cref="Subscription.SetAsDurableAsync(TimeSpan, CancellationToken)"/>
         /// between the partition's <c>CreateSubscription</c>
         /// response and its first <c>CreateMonitoredItems</c>
         /// request — satisfying OPC UA Part 4 §5.13.9 ordering. When
@@ -703,34 +723,44 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 throw new ArgumentNullException(nameof(partition));
             }
-            TimeSpan? lifetime = m_durableLifetime;
+            Func<TimeSpan?>? lifetime = m_durableLifetime;
             if (lifetime == null)
             {
                 return;
             }
-            InstallDurableHook(partition, lifetime.Value);
+            InstallDurableHook(partition, lifetime);
         }
 
         /// <summary>
         /// Wire the partition's
         /// <see cref="Subscription.OnAfterCreateAsync"/> hook to
-        /// invoke <see cref="Subscription.SetAsDurableAsync"/> after every
-        /// physical create, preserving durable intent through reconnect and
-        /// automatic recovery.
+        /// evaluate <paramref name="lifetime"/> and invoke
+        /// <see cref="Subscription.SetAsDurableAsync(TimeSpan, CancellationToken)"/>
+        /// with the result after every physical create, preserving durable
+        /// intent through reconnect and automatic recovery. A <c>null</c>
+        /// result skips the call for that create.
         /// </summary>
-        private static void InstallDurableHook(
-            IManagedSubscription partition, TimeSpan lifetime)
+        internal static void InstallDurableHook(
+            IManagedSubscription partition, Func<TimeSpan?> lifetime)
         {
             if (partition is Subscription concrete)
             {
                 concrete.OnAfterCreateAsync = async ct =>
+                {
+                    // A throwing provider is handled like a failed
+                    // SetSubscriptionDurable: the state machine catches,
+                    // logs and reports SubscriptionState.Modified.
+                    TimeSpan? current = lifetime();
+                    if (current == null)
+                    {
+                        return;
+                    }
                     // Discard the server-revised lifetime; the
-                    // wrapper caches its own intent and reports the
-                    // min revised lifetime from the synchronous Apply
-                    // path. Hook failures are caught by the state
-                    // machine and logged.
-                    _ = await partition.SetAsDurableAsync(lifetime, ct)
+                    // wrapper reports the min revised lifetime from the
+                    // synchronous Apply path.
+                    _ = await partition.SetAsDurableAsync(current.Value, ct)
                         .ConfigureAwait(false);
+                };
             }
         }
 
@@ -790,7 +820,7 @@ namespace Opc.Ua.Client.Subscriptions
 #pragma warning restore CA2213 // Disposable fields should be disposed
         private List<IManagedSubscription>? m_pendingRecreatePartitions;
         private PartitionForwardingHandler? m_forwardingHandler;
-        private TimeSpan? m_durableLifetime;
+        private Func<TimeSpan?>? m_durableLifetime;
         private string? m_logicalGroupId;
     }
 }

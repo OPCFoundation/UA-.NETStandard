@@ -130,6 +130,13 @@ configuration exchanges. Receiving a job list does not start a job. Hardware
 interlocks, job completion and committed cyclic counters remain with the
 explicit provider; the binding does not substitute ISA-95 job semantics.
 
+The cyclic configuration properties, including `NominalParts`, selected
+`NominalBoxParts` and `ExpectedCycleTime`, are read-only published outputs.
+Direct Value writes return `BadNotWritable`. Use `SetCyclicJobData`: the binding
+authorizes the complete request through `IPlasticsRubberAccessPolicy`, awaits
+`ICyclicJobConfigurationProvider.SetAsync`, then publishes the accepted snapshot.
+Denied or failed commits leave the previous values and quality unchanged.
+
 For common production datasets, see the
 [chapter 20 server/client guide](#production-dataset-protocol). It documents
 storage flags, active/preparation layers, metadata, freezing and temporary-file
@@ -314,6 +321,11 @@ and authorization policy explicitly.
 Every method and value read/write is checked through
 `IPlasticsRubberAccessPolicy.AuthorizeAsync`. Temporary-file operations and
 metadata reads are also checked, not just transfer creation.
+
+Dataset status properties apply the same asynchronous policy at monitored-item
+admission and each subscriber delivery. A refresh performed by an authorized
+caller cannot lend that caller's read permission to another subscriber, and a
+later policy revocation prevents subsequent restricted notifications.
 
 The `PlasticsRubberRequestContext.SystemContext` is the original caller context.
 `TargetId` is the actual method-owning or property-owning instance, which can
@@ -723,6 +735,13 @@ Maintenance uses the generated GDD `MaintenanceAlarmState`, with an application-
 subtype because the published `MaintenanceAlarmType` is abstract. Its standard `Id`, `Status`,
 and selected `RemainingInterval` fields remain intact. WARNING and DUE activate the condition;
 severity is configurable per category.
+
+These late-created condition fields are read-only provider observations before
+registration and remain read-only after subsequent publication. Direct Value
+writes return `BadNotWritable`, including for an authorized controller, a
+nonowner or a device with `RemoteControlOpcUa = false`. Their values are updated
+only by accepted provider commits; standard acknowledgement and refresh
+workflows remain available under the existing condition authorization policy.
 
 Conditions preserve unacknowledged return-to-normal states and use core condition branches and
 refresh behavior. Event delivery is asynchronous through the existing notifier chain.

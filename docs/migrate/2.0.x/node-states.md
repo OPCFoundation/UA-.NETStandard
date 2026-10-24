@@ -10,6 +10,7 @@
   - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
   - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
   - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+  - [Declare complete browser dependencies when requested](#declare-complete-browser-dependencies-when-requested)
   - [NodeBrowser gains an async iteration seam](#nodebrowser-gains-an-async-iteration-seam)
 - [`INodeCache` changes](#inodecache-changes)
 
@@ -115,7 +116,14 @@ Use the `CopyPolicy` property or the new `CopyOnWrite` bool directly with `CoreU
 
 `OnAfterCreate(ISystemContext, NodeState)` now has an optional `CancellationToken ct = default` parameter.
 
-> **⚠ Silent regression.** Source-compatible, but **binary-incompatible**. Pre-compiled assemblies whose overrides still target the old `OnAfterCreate(ISystemContext, NodeState)` signature will silently no-op at runtime against 2.0 - the CLR resolves virtual overrides by exact signature, finds no match, and falls back to the base implementation. **No runtime exception is thrown** to alert the developer. The only fix is to **recompile** the consuming assembly against 2.0 so the override binds to the new three-argument signature.
+> **Override migration required.** Update every override to include
+> `CancellationToken ct = default`, pass it to the base call, and recompile
+> against 2.0. The optional parameter preserves calls that omit the token, not
+> overrides with the old signature; those produce `CS0115` when rebuilt.
+> The 2.0 create lifecycle calls only the three-argument method. A previously
+> compiled two-argument method does not override that callback, so its
+> initialization logic is not invoked through it. Rebuild all custom node
+> assemblies; do not rely on binary compatibility with 1.5.x.
 
 ```csharp
 protected override void OnAfterCreate(ISystemContext context, NodeState node, CancellationToken ct = default)

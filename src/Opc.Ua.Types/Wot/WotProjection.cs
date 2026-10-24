@@ -34,14 +34,14 @@ using System.Text.Json;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// A projection document: a Thing Description or Thing Model that declares,
-    /// rather than defines, its affordances.
+    /// A projection document: a Thing Description or Thing Model assembled
+    /// from manifest-source selections and locally defined affordances.
     /// </summary>
     /// <remarks>
-    /// See WoT Binding Section 12. A projection document names one or more
-    /// source documents and states which of their affordances the view is
-    /// assembled from. It carries references and annotations only, so there is
-    /// nothing to drift from the sources it projects.
+    /// See OPC 10101-2. A projection document names one or more source
+    /// documents and states which of their affordances the view is assembled
+    /// from, while also allowing complete affordance definitions owned by the
+    /// projection itself.
     /// </remarks>
     public sealed class WotProjection
     {
@@ -75,13 +75,18 @@ namespace Opc.Ua.Wot
         public ArrayOf<WotProjectionReference> References { get; private set; }
 
         /// <summary>
+        /// Gets the complete affordances defined by this projection document.
+        /// </summary>
+        public ArrayOf<WotProjectionLocalAffordance> LocalAffordances { get; private set; }
+
+        /// <summary>
         /// Gets the <c>ua:Organizes</c> links, in authored order, that name the
         /// groups this view is shaped from.
         /// </summary>
         /// <remarks>
-        /// See WoT Binding Section 12.7. Organizing is not selecting: these
-        /// links carry through to the resolved view unchanged and their
-        /// affordances stay in the groups that organize them.
+        /// See OPC 10101-2. Organizing is not selecting: these links carry
+        /// through to the resolved view unchanged and their affordances stay
+        /// in the groups that organize them.
         /// </remarks>
         public ArrayOf<WotOrganizingLink> OrganizingLinks { get; private set; }
 
@@ -150,32 +155,6 @@ namespace Opc.Ua.Wot
             WotDocument document,
             List<WotDiagnostic> diagnostics)
         {
-            return Parse(document, diagnostics, WotProjectionCompatibilityMode.None);
-        }
-
-        /// <summary>
-        /// Reads a projection plan with an explicitly selected compatibility mode.
-        /// </summary>
-        /// <param name="document">The projection document.</param>
-        /// <param name="diagnostics">Receives plan validation diagnostics.</param>
-        /// <param name="compatibilityMode">
-        /// The permitted legacy plan syntax. Selecting compatibility does not relax current-plan validation.
-        /// </param>
-        /// <returns>
-        /// The parsed plan, or <c>null</c> if the document has no projection role. Callers must reject
-        /// error diagnostics before resolving or materializing the plan.
-        /// </returns>
-        /// <exception cref="ArgumentNullException">
-        /// <paramref name="document"/> or <paramref name="diagnostics"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="ArgumentOutOfRangeException">
-        /// <paramref name="compatibilityMode"/> is not a defined mode.
-        /// </exception>
-        public static WotProjection? Parse(
-            WotDocument document,
-            List<WotDiagnostic> diagnostics,
-            WotProjectionCompatibilityMode compatibilityMode)
-        {
             if (document is null)
             {
                 throw new ArgumentNullException(nameof(document));
@@ -184,28 +163,28 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(diagnostics));
             }
-            if (compatibilityMode is not (
-                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
-            {
-                throw new ArgumentOutOfRangeException(nameof(compatibilityMode));
-            }
             if (!IsProjection(document))
             {
                 return null;
             }
 
+            ArrayOf<WotProjectionManifestSource> sources = ReadSources(document, diagnostics);
+            ArrayOf<WotProjectionReference> references = ReadReferences(
+                document, diagnostics, out ArrayOf<WotProjectionLocalAffordance> locals);
             return new WotProjection
             {
-                ResultKind = ReadResultKind(document, compatibilityMode, diagnostics),
+                ResultKind = ReadResultKind(document, diagnostics),
                 Scenario = ReadScenario(document, diagnostics),
-                Sources = ReadSources(document, diagnostics),
-                References = ReadReferences(document, diagnostics),
+                Sources = sources,
+                References = references,
+                LocalAffordances = locals,
                 OrganizingLinks = ReadOrganizingLinks(document)
             };
         }
 
         private static WotDocumentKind ReadResultKind(
-            WotDocument document, WotProjectionCompatibilityMode compatibilityMode, List<WotDiagnostic> diagnostics)
+            WotDocument document,
+            List<WotDiagnostic> diagnostics)
         {
             var tokens = new List<string>();
             if (!document.RootElement.TryGetProperty("@type", out JsonElement types) ||
@@ -228,56 +207,17 @@ namespace Opc.Ua.Wot
                     return WotDocumentKind.Unknown;
                 }
             }
-            if (!document.TryGetUav("projectionKind", out JsonElement kind))
+            bool isThingDescription = tokens.Contains("Thing");
+            bool isThingModel = tokens.Contains("tm:ThingModel");
+            if (isThingDescription == isThingModel)
             {
-                if (compatibilityMode == WotProjectionCompatibilityMode.DraftProjection11)
-                {
-                    bool td = false;
-                    bool tm = false;
-                    foreach (string token in tokens)
-                    {
-                        td |= token == "Thing";
-                        tm |= token == "tm:ThingModel";
-                    }
-                    if (td != tm)
-                    {
-                        return tm ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription;
-                    }
-                }
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
-                    "A projection plan requires uav:projectionKind; DraftProjection1.1 requires " +
-                    "explicit compatibility processing and exactly one old TD or TM marker.",
-                    new WotLocation(reference: "uav:projectionKind")));
+                    "A projection plan's @type shall carry exactly one of the Thing or tm:ThingModel root roles.",
+                    new WotLocation(reference: "@type")));
                 return WotDocumentKind.Unknown;
             }
-            WotDocumentKind result = kind.ValueKind == JsonValueKind.String
-                ? kind.GetString() switch
-                {
-                    "ThingDescription" => WotDocumentKind.ThingDescription,
-                    "ThingModel" => WotDocumentKind.ThingModel,
-                    _ => WotDocumentKind.Unknown
-                }
-                : WotDocumentKind.Unknown;
-            if (result == WotDocumentKind.Unknown)
-            {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
-                    "uav:projectionKind must be ThingDescription or ThingModel.",
-                    new WotLocation(reference: "uav:projectionKind")));
-            }
-            foreach (string token in tokens)
-            {
-                if (token is "Thing" or "tm:ThingModel")
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error, WotDiagnosticCode.ProjectionManifestInvalid,
-                        "A projection plan must not claim an already resolved TD, TM, or OPC UA NodeClass role.",
-                        new WotLocation(reference: "@type")));
-                    break;
-                }
-            }
-            return result;
+            return isThingModel ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription;
         }
 
         private static string ReadScenario(
@@ -373,14 +313,13 @@ namespace Opc.Ua.Wot
                 return null;
             }
             if (!string.Equals(mediaType, ThingDescriptionMediaType, StringComparison.Ordinal) &&
-                !string.Equals(mediaType, ThingModelMediaType, StringComparison.Ordinal) &&
-                !string.Equals(mediaType, ContentType, StringComparison.Ordinal))
+                !string.Equals(mediaType, ThingModelMediaType, StringComparison.Ordinal))
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
                     WotDiagnosticCode.ProjectionManifestInvalid,
                     $"The source type '{mediaType}' shall be " +
-                    $"'{ThingDescriptionMediaType}', '{ThingModelMediaType}', or '{ContentType}'.",
+                    $"'{ThingDescriptionMediaType}' or '{ThingModelMediaType}'.",
                     new WotLocation(reference: sourceName)));
                 return null;
             }
@@ -579,15 +518,18 @@ namespace Opc.Ua.Wot
 
         private static ArrayOf<WotProjectionReference> ReadReferences(
             WotDocument document,
-            List<WotDiagnostic> diagnostics)
+            List<WotDiagnostic> diagnostics,
+            out ArrayOf<WotProjectionLocalAffordance> localAffordances)
         {
             var references = new List<WotProjectionReference>();
-            ReadReferences(
-                document.Properties, WotAffordanceKind.Property, references, diagnostics);
-            ReadReferences(
-                document.Actions, WotAffordanceKind.Action, references, diagnostics);
-            ReadReferences(
-                document.Events, WotAffordanceKind.Event, references, diagnostics);
+            var locals = new List<WotProjectionLocalAffordance>();
+            ReadReferences(document.Properties, WotAffordanceKind.Property,
+                references, locals, diagnostics);
+            ReadReferences(document.Actions, WotAffordanceKind.Action,
+                references, locals, diagnostics);
+            ReadReferences(document.Events, WotAffordanceKind.Event,
+                references, locals, diagnostics);
+            localAffordances = new ArrayOf<WotProjectionLocalAffordance>([.. locals]);
             return new ArrayOf<WotProjectionReference>([.. references]);
         }
 
@@ -595,23 +537,48 @@ namespace Opc.Ua.Wot
             IReadOnlyDictionary<string, JsonElement> affordances,
             WotAffordanceKind kind,
             List<WotProjectionReference> references,
+            List<WotProjectionLocalAffordance> locals,
             List<WotDiagnostic> diagnostics)
         {
             foreach (KeyValuePair<string, JsonElement> affordance in affordances)
             {
-                if (affordance.Value.ValueKind != JsonValueKind.Object ||
-                    !affordance.Value.TryGetProperty("tm:ref", out JsonElement reference) ||
-                    reference.ValueKind != JsonValueKind.String)
+                if (affordance.Value.ValueKind != JsonValueKind.Object)
                 {
-                    // A projection document declares affordances, it does not
-                    // define them, so every member shall carry tm:ref.
                     diagnostics.Add(new WotDiagnostic(
                         WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.ProjectionDefinesAffordance,
-                        $"The projected affordance '{affordance.Key}' shall " +
-                        "carry tm:ref; a projection document declares " +
-                        "affordances rather than defining them.",
+                        WotDiagnosticCode.ProjectionManifestInvalid,
+                        $"The affordance '{affordance.Key}' shall be an object.",
                         new WotLocation(reference: affordance.Key)));
+                    continue;
+                }
+                if (!affordance.Value.TryGetProperty("tm:ref", out JsonElement reference))
+                {
+                    locals.Add(new WotProjectionLocalAffordance
+                    {
+                        AffordanceKind = kind,
+                        Name = affordance.Key,
+                        Definition = affordance.Value
+                    });
+                    continue;
+                }
+                if (reference.ValueKind != JsonValueKind.String ||
+                    string.IsNullOrEmpty(reference.GetString()))
+                {
+                    diagnostics.Add(new WotDiagnostic(
+                        WotDiagnosticSeverity.Error,
+                        WotDiagnosticCode.ProjectionManifestInvalid,
+                        $"The affordance '{affordance.Key}' has a tm:ref that is not a non-empty string.",
+                        new WotLocation(reference: affordance.Key)));
+                    continue;
+                }
+                if (!IsProjectionSelectionReference(kind, reference.GetString()!))
+                {
+                    locals.Add(new WotProjectionLocalAffordance
+                    {
+                        AffordanceKind = kind,
+                        Name = affordance.Key,
+                        Definition = affordance.Value
+                    });
                     continue;
                 }
                 references.Add(new WotProjectionReference
@@ -625,9 +592,33 @@ namespace Opc.Ua.Wot
             }
         }
 
+        private static bool IsProjectionSelectionReference(WotAffordanceKind kind, string reference)
+        {
+            int hash = reference.IndexOf('#', StringComparison.Ordinal);
+            if (hash < 0)
+            {
+                return false;
+            }
+            string pointer = reference[(hash + 1)..];
+            string prefix = "/" + MapName(kind) + "/";
+            return pointer.StartsWith(prefix, StringComparison.Ordinal) &&
+                pointer.Length > prefix.Length &&
+                pointer.IndexOf('/', prefix.Length) < 0;
+        }
+
+        private static string MapName(WotAffordanceKind kind)
+        {
+            return kind switch
+            {
+                WotAffordanceKind.Action => "actions",
+                WotAffordanceKind.Event => "events",
+                _ => "properties"
+            };
+        }
+
         /// <summary>
         /// Enforces the closed set of members a projection may annotate a
-        /// declared affordance with (WoT Binding Section 12.5).
+        /// declared affordance with (OPC 10101-2).
         /// </summary>
         /// <remarks>
         /// The set is closed for the same reason the <c>uav:select</c> filter
@@ -819,15 +810,9 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// The registry Format identifier for a current projection plan.
+        /// The conformance unit defined by OPC 10101-2 for projection-plan resolution.
         /// </summary>
-        public const string Format = "WoT-Projection/1.1";
-
-        /// <summary>
-        /// The registry ContentType and source-manifest media type for a current projection plan.
-        /// </summary>
-        public const string ContentType =
-            "application/ld+json; profile=\"http://opcfoundation.org/UA/WoT-Binding/v1.1/projection\"";
+        public const string ConformanceUnitName = "WoT-Projection";
 
         private const string ThingDescriptionMediaType = "application/td+json";
         private const string ThingModelMediaType = "application/tm+json";

@@ -29,6 +29,7 @@
 
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
 using Opc.Ua.SpecTraceability;
@@ -44,18 +45,95 @@ namespace Opc.Ua.WotCon.Bindings.Tests
     public sealed class BindingPlannerTests
     {
         /// <summary>
-        /// The implicit BaseEventType default clauses followed by the two clauses that the
-        /// superseded <c>uav:eventFields</c> spelling adds to them.
-        /// </summary>
-        private static readonly string[] s_legacyEventFieldsOnDefault =
-        [
-            "EventId", "EventType", "SourceNode", "SourceName",
-            "Time", "ReceiveTime", "Message", "Severity", "LocalTime"
-        ];
-
         private static WotBindingPlanContext DefaultContext()
         {
             return new WotBindingPlanContext();
+        }
+
+        /// <summary>
+        /// Verifies the OPC UA binding advertises only content types handled by its codec registry.
+        /// </summary>
+        [Test]
+        public void OpcUaBindingAdvertisesOnlyCodecSupportedContentTypes()
+        {
+            var contentTypes = new OpcUaBindingPlanner().Capability.ContentTypes;
+
+            Assert.That(contentTypes, Does.Contain("application/octet-stream"));
+            Assert.That(contentTypes, Does.Not.Contain("application/opcua+uabinary"));
+        }
+
+        /// <summary>
+        /// Verifies the OPC UA planner defaults to the binding's specified serialization.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerDefaultsToApplicationOctetStream()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/octet-stream"));
+            Assert.That(result.Entries[0].Payload.CodecId, Is.EqualTo("octet-stream"));
+        }
+
+        /// <summary>
+        /// Verifies that an explicitly declared legacy octet-stream form retains its codec.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerPreservesExplicitApplicationOctetStream()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty",
+                  "contentType": "application/octet-stream"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.True);
+            Assert.That(result.Entries[0].Payload.ContentType, Is.EqualTo("application/octet-stream"));
+            Assert.That(result.Entries[0].Payload.CodecId, Is.EqualTo("octet-stream"));
+        }
+
+        /// <summary>
+        /// Verifies the OPC UA planner rejects a media type without a matching payload codec.
+        /// </summary>
+        [Test]
+        public void OpcUaPlannerRejectsApplicationOpcUaUaBinaryWithoutCodec()
+        {
+            WotBindingCompilation result = new OpcUaBindingPlanner().Compile(
+                MakePropertyForm(
+                    /*lang=json,strict*/
+                                         """
+                {
+                  "href": "opc.tcp://server.example.com:4840",
+                  "uav:id": "ns=2;i=1001",
+                  "op": "readproperty",
+                  "contentType": "application/opcua+uabinary"
+                }
+                """,
+                    ops: ["readproperty"]),
+                DefaultContext());
+
+            Assert.That(result.IsSupported, Is.False);
+            Assert.That(result.Diagnostics.Any(
+                diagnostic => diagnostic.Code == WotBindingDiagnosticCode.UnsupportedContentType), Is.True);
         }
 
         /// <summary>
@@ -188,32 +266,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 affordanceElement);
         }
 
-        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "act")
-        {
-            using var formDoc = JsonDocument.Parse(formJson);
-            JsonElement formElement = formDoc.RootElement.Clone();
-
-            string? href = null;
-            if (formElement.ValueKind == JsonValueKind.Object &&
-                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
-                hrefEl.ValueKind == JsonValueKind.String)
-            {
-                href = hrefEl.GetString();
-            }
-
-            return new WotAffordanceForm(
-                WotAffordanceKind.Action,
-                affordanceName,
-                ["invokeaction"],
-                href,
-                null,
-                null,
-                [],
-                "/actions/" + affordanceName + "/forms/0",
-                formElement,
-                default);
-        }
-
         private static WotAffordanceForm MakeEventForm(string formJson, string affordanceName = "ev")
         {
             using var formDoc = JsonDocument.Parse(formJson);
@@ -240,6 +292,32 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 default);
         }
 
+        private static WotAffordanceForm MakeActionForm(string formJson, string affordanceName = "action")
+        {
+            using var formDoc = JsonDocument.Parse(formJson);
+            JsonElement formElement = formDoc.RootElement.Clone();
+
+            string? href = null;
+            if (formElement.ValueKind == JsonValueKind.Object &&
+                formElement.TryGetProperty("href", out JsonElement hrefEl) &&
+                hrefEl.ValueKind == JsonValueKind.String)
+            {
+                href = hrefEl.GetString();
+            }
+
+            return new WotAffordanceForm(
+                WotAffordanceKind.Action,
+                affordanceName,
+                ["invokeaction"],
+                href,
+                null,
+                null,
+                [],
+                "/actions/" + affordanceName + "/forms/0",
+                formElement,
+                default);
+        }
+
         /// <summary>
         /// Verifies that MQTT planner compiles valid property form.
         /// </summary>
@@ -260,6 +338,44 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
+        /// Hostless document forms must not acquire an implicit broker during activation.
+        /// </summary>
+        [TestCase("mqtt:///private/status")]
+        [TestCase("mqtts:///private/status")]
+        [Category("SecurityRegression")]
+        public void SecurityF28HostlessMqttDocumentIsNotPlanned(string href)
+        {
+            string document = $$"""
+                {
+                  "@context": "https://www.w3.org/2022/wot/td/v1.1",
+                  "title": "Hostless broker",
+                  "properties": {
+                    "status": {
+                      "type": "number",
+                      "observable": true,
+                      "forms": [{
+                        "href": "{{href}}",
+                        "op": ["readproperty", "writeproperty", "observeproperty"]
+                      }]
+                    }
+                  },
+                  "actions": {
+                    "set": {"forms": [{"href": "{{href}}", "op": "invokeaction"}]}
+                  }
+                }
+                """;
+            var registry = new WotProtocolBinderRegistry([new MqttBindingPlanner()]);
+
+            WotBindingPlan plan = registry.Prepare(WotBindingPlanRequest.FromDocument(
+                "hostless", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+
+            Assert.That(plan.CompiledForms, Is.Empty);
+            Assert.That(plan.UnsupportedForms, Has.Length.EqualTo(2));
+            Assert.That(
+                plan.Diagnostics.Count(diagnostic => diagnostic.Code == WotBindingDiagnosticCode.InvalidHref),
+                Is.EqualTo(2));
+        }
+
         /// Verifies that MQTT planner extracts topic from href.
         /// </summary>
         [Test]
@@ -1045,10 +1161,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that the OPC UA planner carries the component-of target into compiled metadata.
+        /// Verifies that the OPC UA planner does not retain component-of in compiled metadata.
         /// </summary>
         [Test]
-        public void OpcUaPlannerAddsComponentOfToMetadata()
+        public void OpcUaPlannerDoesNotRetainComponentOfInCompiledMetadata()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakePropertyForm(
@@ -1060,7 +1176,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotBindingCompilation result = planner.Compile(form, DefaultContext());
 
             Assert.That(result.IsSupported, Is.True);
-            Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("componentOf"), Is.True);
+            Assert.That(result.Entries[0].Addressing.Metadata.ContainsKey("componentOf"), Is.False);
         }
 
         /// <summary>
@@ -1092,7 +1208,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that OPC UA planner rejects an invalid explicit receiver instead of using a legacy fallback.
+        /// Verifies that OPC UA planner rejects an invalid explicit receiver even when component-of is present.
         /// </summary>
         [TestCase("null")]
         [TestCase("[]")]
@@ -1101,7 +1217,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         [TestCase("\"ns=1;s=Device\"")]
         [TestCase("\"svr=1;i=1\"")]
         [TestCase("\"i=0\"")]
-        public void OpcUaPlannerRejectsAnInvalidExplicitReceiverInsteadOfUsingALegacyFallback(string receiver)
+        public void OpcUaPlannerRejectsAnInvalidExplicitReceiverEvenWhenComponentOfIsPresent(string receiver)
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeActionForm(
@@ -1120,10 +1236,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         /// <summary>
-        /// Verifies that OPC UA planner rejects local placement arrays as call receiver authority.
+        /// Verifies that component-of alone is not accepted as a Call receiver.
         /// </summary>
         [Test]
-        public void OpcUaPlannerRejectsLocalPlacementArraysAsCallReceiverAuthority()
+        public void OpcUaPlannerRejectsComponentOfAloneAsCallReceiver()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeActionForm(
@@ -1132,7 +1248,7 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 {
                   "href": "opc.tcp://source:4840",
                   "uav:id": "nsu=urn:source;s=Run",
-                  "uav:componentOf": ["nsu=urn:local;s=Projection"],
+                  "uav:componentOf": "nsu=urn:source;s=Device",
                   "op": "invokeaction"
                 }
                 """);
@@ -1143,13 +1259,15 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.Entries, Is.Empty);
             Assert.That(result.Diagnostics.Any(d =>
                 d.Code == WotBindingDiagnosticCode.MissingRequiredField), Is.True);
+            Assert.That(result.Diagnostics.Any(d =>
+                d.Message.Contains("uav:callObjectId", System.StringComparison.Ordinal)), Is.True);
         }
 
         /// <summary>
-        /// Verifies that legacy event fields are compiled onto the documented default event selection.
+        /// Verifies that unknown event fields do not alter the documented default event selection.
         /// </summary>
         [Test]
-        public void OpcUaPlannerCompilesLegacyEventFieldsOntoTheDocumentedDefault()
+        public void OpcUaPlannerIgnoresUnknownEventFieldsAndUsesTheDocumentedDefault()
         {
             var planner = new OpcUaBindingPlanner();
             WotAffordanceForm form = MakeEventForm(
@@ -1162,11 +1280,11 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             Assert.That(result.IsSupported, Is.True);
             WotEventSelection? selection = result.Entries[0].EventSelection;
             Assert.That(selection, Is.Not.Null);
-            Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Legacy));
+            Assert.That(selection!.Origin, Is.EqualTo(WotEventSelectionOrigin.Default));
             Assert.That(
                 selection.Clauses.ToList().Select(c => c.BrowsePath),
-                Is.EqualTo(s_legacyEventFieldsOnDefault),
-                "The superseded spelling adds to the implicit BaseEventType default and never repeats it.");
+                Is.EqualTo(WotEventSelectClauses.DefaultFieldNames.ToList()),
+                "The unknown term does not add LocalTime to the implicit BaseEventType default.");
         }
 
         /// <summary>

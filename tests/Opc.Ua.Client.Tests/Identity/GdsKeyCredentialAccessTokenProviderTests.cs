@@ -29,6 +29,7 @@
 
 using System;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -83,6 +84,13 @@ namespace Opc.Ua.Client.Tests.Identity
             var context = new IdentitySelectionContext(
                 endpoint, [policy], ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
 
+            if (expectedAudience != "urn:target-server")
+            {
+                ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await provider.GetIdentityAsync(policy, context).ConfigureAwait(false));
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                return;
+            }
             IUserIdentity identity = await provider.GetIdentityAsync(policy, context).ConfigureAwait(false);
             try
             {
@@ -98,6 +106,135 @@ namespace Opc.Ua.Client.Tests.Identity
             {
                 (identity as IDisposable)?.Dispose();
             }
+        }
+
+        [TestCase("urn:server:B", null)]
+        [TestCase(null, "urn:server:B")]
+        [TestCase("urn:server:B", "urn:server:B")]
+        [TestCase("urn:server:A", "urn:server:B")]
+        [TestCase("urn:server:B", "urn:server:A")]
+        [TestCase("URN:server:A", null)]
+        [Category("SecurityRegression")]
+        public async Task SecurityR03RecipientCannotChooseAnotherServerAudienceAsync(string? audience, string? resource)
+        {
+            int acquisitions = 0;
+            using var accessTokens = new GdsKeyCredentialAccessTokenProvider(
+                _ =>
+                {
+                    acquisitions++;
+                    return new ValueTask<GdsIssuedKeyCredential>(
+                        new GdsIssuedKeyCredential("credential", [1, 2, 3, 4], DateTime.MaxValue));
+                }, "urn:authority");
+            var provider = new IssuedTokenIdentityProvider(accessTokens, GdsKeyCredentialAccessTokenProvider.ProfileUri);
+            var policy = new UserTokenPolicy
+            {
+                PolicyId = "experimental-keycredential",
+                TokenType = UserTokenType.IssuedToken,
+                IssuedTokenType = GdsKeyCredentialAccessTokenProvider.ProfileUri,
+                IssuerEndpointUrl = new JsonObject
+                {
+                    ["authorityUri"] = "urn:authority",
+                    ["audience"] = audience,
+                    ["ua:resourceUri"] = resource
+                }.ToJsonString()
+            };
+            var endpoint = new EndpointDescription
+            {
+                Server = new ApplicationDescription { ApplicationUri = "urn:server:A" },
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                UserIdentityTokens = [policy]
+            };
+            var context = new IdentitySelectionContext(
+                endpoint, [policy], ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.GetIdentityAsync(policy, context).ConfigureAwait(false));
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(acquisitions, Is.Zero, "The recipient is checked before credential acquisition or delivery.");
+        }
+
+        [TestCase(null, null)]
+        [TestCase(" ", "")]
+        [TestCase("urn:server:A", "urn:server:A")]
+        [Category("SecurityRegression")]
+        public async Task SecurityR03EndpointAudienceProducesVerifiableTargetProofAsync(string? audience, string? resource)
+        {
+            var clock = new FakeTimeProvider();
+            byte[] secret = [1, 2, 3, 4];
+            using var provider = new GdsKeyCredentialAccessTokenProvider(
+                _ => new ValueTask<GdsIssuedKeyCredential>(
+                    new GdsIssuedKeyCredential("credential", [.. secret], DateTime.MaxValue)),
+                "urn:authority", timeProvider: clock);
+            using AccessToken token = await provider.AcquireAsync(
+                new AuthorizationServerMetadata
+                {
+                    AuthorityUri = "urn:authority", Audience = audience, ResourceUri = resource
+                },
+                new EndpointDescription { Server = new ApplicationDescription { ApplicationUri = "urn:server:A" } })
+                .ConfigureAwait(false);
+            using var payload = JsonDocument.Parse(token.TokenData.ToArray());
+            JsonElement root = payload.RootElement;
+            Assert.That(root.GetProperty("version").GetInt32(), Is.EqualTo(2));
+            Assert.That(root.GetProperty("aud").GetString(), Is.EqualTo("urn:server:A"));
+            Assert.That(root.GetProperty("issuedAt").GetInt64(), Is.EqualTo(clock.GetUtcNow().ToUnixTimeSeconds()));
+            string nonce = root.GetProperty("nonce").GetString()!;
+            Assert.That(Convert.FromBase64String(nonce.Replace('-', '+').Replace('_', '/') + "="),
+                Has.Length.EqualTo(32));
+            Assert.That(VerifyProof(root, secret, "urn:server:A"), Is.True);
+            Assert.That(VerifyProof(root, secret, "urn:server:B"), Is.False);
+        }
+
+        [Test]
+        [Category("SecurityRegression")]
+        public async Task SecurityR03ConflictingMetadataAndCachedCredentialsCannotRetargetProofAsync()
+        {
+            int acquisitions = 0;
+            byte[] secret = [1, 2, 3, 4];
+            using var provider = new GdsKeyCredentialAccessTokenProvider(
+                _ =>
+                {
+                    acquisitions++;
+                    return new ValueTask<GdsIssuedKeyCredential>(
+                        new GdsIssuedKeyCredential("credential", [.. secret], DateTime.MaxValue));
+                }, "urn:authority");
+            var metadata = new AuthorizationServerMetadata { AuthorityUri = "urn:authority" };
+            using AccessToken first = await provider.AcquireAsync(metadata,
+                new EndpointDescription { Server = new ApplicationDescription { ApplicationUri = "urn:server:A" } })
+                .ConfigureAwait(false);
+            using AccessToken second = await provider.AcquireAsync(metadata,
+                new EndpointDescription { Server = new ApplicationDescription { ApplicationUri = "urn:server:B" } })
+                .ConfigureAwait(false);
+            using var a = JsonDocument.Parse(first.TokenData.ToArray());
+            using var b = JsonDocument.Parse(second.TokenData.ToArray());
+            Assert.That(acquisitions, Is.EqualTo(1));
+            Assert.That(VerifyProof(a.RootElement, secret, "urn:server:A"), Is.True);
+            Assert.That(VerifyProof(b.RootElement, secret, "urn:server:B"), Is.True);
+            Assert.That(VerifyProof(a.RootElement, secret, "urn:server:B"), Is.False);
+            ServiceResultException error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.AcquireAsync(
+                    new AuthorizationServerMetadata { Audience = "urn:server:B", AuthorityUri = "urn:authority" },
+                    new EndpointDescription { Server = new ApplicationDescription { ApplicationUri = string.Empty } })
+                    .ConfigureAwait(false));
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(acquisitions, Is.EqualTo(1));
+            using AccessToken trustedExplicit = await provider.AcquireAsync(
+                new AuthorizationServerMetadata { AuthorityUri = "urn:authority", Audience = "urn:server:B" })
+                .ConfigureAwait(false);
+            using var explicitPayload = JsonDocument.Parse(trustedExplicit.TokenData.ToArray());
+            Assert.That(VerifyProof(explicitPayload.RootElement, secret, "urn:server:B"), Is.True);
+        }
+
+        private static bool VerifyProof(JsonElement token, byte[] secret, string audience)
+        {
+            string input = token.GetProperty("credentialId").GetString() + "\n" +
+                token.GetProperty("nonce").GetString() + "\n" +
+                token.GetProperty("issuedAt").GetInt64().ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                "\n" + audience;
+            using var hmac = new HMACSHA256(secret);
+            return Convert.ToBase64String(hmac.ComputeHash(Encoding.UTF8.GetBytes(input)))
+                .TrimEnd('=').Replace('+', '-').Replace('/', '_') ==
+                token.GetProperty("proof").GetString();
         }
 
         [Test]

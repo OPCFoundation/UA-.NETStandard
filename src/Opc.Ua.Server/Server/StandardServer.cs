@@ -38,6 +38,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Bindings;
 using Opc.Ua.Identity;
+using Opc.Ua.Redaction;
 using Opc.Ua.Schema;
 using Opc.Ua.Security.Certificates;
 
@@ -5932,7 +5933,7 @@ namespace Opc.Ua.Server
                 "Server hostnames.")]
         public static partial void ServerClientConnectsWithAnEndpointUrlEndpointUrl(
             this ILogger logger,
-            string? endpointUrl);
+            [NetworkAddress] string? endpointUrl);
 
         /// <summary>
         /// Logs successful session creation and the assigned session identifier.
@@ -5946,7 +5947,9 @@ namespace Opc.Ua.Server
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 2, Level = LogLevel.Error,
             Message = "Server - SESSION CREATE failed. {ErrorMessage}")]
-        public static partial void ServerSESSIONCREATEFailedErrorMessage(this ILogger logger, string? errorMessage);
+        public static partial void ServerSESSIONCREATEFailedErrorMessage(
+            this ILogger logger,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs successful activation of a session.
@@ -5963,7 +5966,7 @@ namespace Opc.Ua.Server
         public static partial void ServerSESSIONACTIVATEFailedErrorMessage(
             this ILogger logger,
             NodeId? sessionId,
-            string? errorMessage);
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs receipt of a Publish request with its request handle, session, and timestamp.
@@ -5984,15 +5987,17 @@ namespace Opc.Ua.Server
         public static partial void RegisterServerApiFailedForEndpointUrlException(
             this ILogger logger,
             string? api,
-            Uri? endpointUrl,
-            string? errorMessage);
+            [NetworkAddress] Uri? endpointUrl,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs a failure to close the local discovery server connection cleanly.
         /// </summary>
         [LoggerMessage(EventId = ServerEventIds.StandardServer + 7, Level = LogLevel.Warning,
             Message = "Could not cleanly close connection with LDS. Exception={ErrorMessage}")]
-        public static partial void NotCleanlyCloseConnectionWithLDSException(this ILogger logger, string? errorMessage);
+        public static partial void NotCleanlyCloseConnectionWithLDSException(
+            this ILogger logger,
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs successful discovery registration and the interval until the next registration.
@@ -6048,7 +6053,7 @@ namespace Opc.Ua.Server
         public static partial void NotLoadUpdatedConfigurationFileFromFilePath(
             this ILogger logger,
             Exception ex,
-            string? filePath);
+            [FilePath] string? filePath);
 
         /// <summary>
         /// Logs a failure to apply an application configuration update.
@@ -6203,7 +6208,7 @@ namespace Opc.Ua.Server
         public static partial void ServerShutdownResourceDisposalFailed(
             this ILogger logger,
             Exception ex,
-            string? errorMessage);
+            [SensitiveText] string? errorMessage);
 
         /// <summary>
         /// Logs a failure to audit or count a rejected CreateSession.

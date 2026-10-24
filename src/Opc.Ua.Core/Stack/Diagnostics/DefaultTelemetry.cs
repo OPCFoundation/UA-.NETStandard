@@ -58,7 +58,11 @@ namespace Opc.Ua
             ILoggerFactory? factory = null;
             try
             {
-                factory = Microsoft.Extensions.Logging.LoggerFactory.Create(configure);
+                factory = Microsoft.Extensions.Logging.LoggerFactory.Create(logging =>
+                {
+                    logging.EnableOpcUaRedaction();
+                    configure(logging);
+                });
                 var result = new DefaultTelemetry(factory);
                 factory = null;
                 return result;

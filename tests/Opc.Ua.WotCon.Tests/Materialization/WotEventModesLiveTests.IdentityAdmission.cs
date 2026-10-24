@@ -178,10 +178,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 else
                 {
                     await destination.ReportAsync(eventId, ct).ConfigureAwait(false);
+                    // The queued native notification must pin its identity claim through collection.
+                    GC.Collect();
                 }
-                ArrayOf<Variant> first = await events.ReadAsync(ct).ConfigureAwait(false);
-                Assert.That(first[0].TryGetValue(out ByteString firstId), Is.True);
-                Assert.That(firstId, Is.EqualTo(eventId));
                 StatusCode rejection = StatusCodes.Good;
                 if (forwardedFirst)
                 {
@@ -199,6 +198,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     await source.ReportAsync(eventId, ct).ConfigureAwait(false);
                     rejection = (await publisher.ReadAsync(ct).ConfigureAwait(false)).Status;
                 }
+                ArrayOf<Variant> first = await events.ReadAsync(ct).ConfigureAwait(false);
+                Assert.That(first[0].TryGetValue(out ByteString firstId), Is.True);
+                Assert.That(firstId, Is.EqualTo(eventId));
                 int published = 1;
                 if (StatusCode.IsGood(rejection))
                 {

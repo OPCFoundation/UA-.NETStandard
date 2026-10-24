@@ -198,9 +198,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// </param>
         /// <param name="maxJsonDepth">The max JSON depth used to initialize the instance.</param>
         /// <param name="documentSetMode">The document set mode used to initialize the instance.</param>
-        /// <param name="projectionCompatibilityMode">
-        /// The projection compatibility mode used to initialize the instance.
-        /// </param>
         /// <param name="binderRevision">The binder revision used to initialize the instance.</param>
         /// <param name="strictBindings">The strict-bindings flag used to initialize <c>WotRefreshCapture</c>.</param>
         /// <param name="retirementPolicy">The retirement policy used to initialize the instance.</param>
@@ -213,7 +210,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             bool supportsDependencySnapshots,
             int maxJsonDepth,
             WotDocumentSetMode documentSetMode,
-            WotProjectionCompatibilityMode projectionCompatibilityMode,
             string binderRevision,
             bool strictBindings,
             WotProjectionRetirementPolicy retirementPolicy,
@@ -226,7 +222,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
             SupportsDependencySnapshots = supportsDependencySnapshots;
             MaxJsonDepth = maxJsonDepth;
             DocumentSetMode = documentSetMode;
-            ProjectionCompatibilityMode = projectionCompatibilityMode;
             BinderRevision = binderRevision;
             StrictBindings = strictBindings;
             RetirementPolicy = retirementPolicy;
@@ -280,11 +275,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets the explicit import mode captured for this invocation.
         /// </summary>
         public WotDocumentSetMode DocumentSetMode { get; }
-
-        /// <summary>
-        /// Gets the projection compatibility mode captured before body acquisition.
-        /// </summary>
-        public WotProjectionCompatibilityMode ProjectionCompatibilityMode { get; }
 
         /// <summary>
         /// Gets the binder capability revision observed before acquisition.
@@ -367,7 +357,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 writer.Write(MaxJsonDepth);
                 writer.Write((int)DocumentSetMode);
-                writer.Write((int)ProjectionCompatibilityMode);
                 writer.Write(BinderRevision);
             }
             return WotContentDigest.Compute(buffer.ToArray());
@@ -420,7 +409,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 Inputs.DeclarationInputs);
             return new WotRefreshCapture(
                 Request, PreparationGeneration, inputs, RegistryOrigin, SupportsDependencySnapshots,
-                MaxJsonDepth, DocumentSetMode, ProjectionCompatibilityMode, BinderRevision,
+                MaxJsonDepth, DocumentSetMode, BinderRevision,
                 StrictBindings, RetirementPolicy,
                 (resource, version) => m_versionNodeIds.TryGetValue(
                     WotDependencyGraph.VersionXid(resource, version), out ExpandedNodeId nodeId)

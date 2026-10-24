@@ -154,7 +154,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
 
-            Assert.That(selected, Is.SameAs(matching));
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://localhost:4840/"));
+            Assert.That(selected.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+            Assert.That(selected.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
         }
 
         /// <summary>
@@ -336,7 +339,12 @@ namespace Opc.Ua.WotCon.Bindings.Tests
 
             await using IWotBindingChannel channel = await registry.OpenChannelAsync(form).ConfigureAwait(false);
 
-            Assert.That(selected, Is.SameAs(supported));
+            Assert.That(selected, Is.Not.Null);
+            Assert.That(selected!.EndpointUrl, Is.EqualTo("opc.tcp://localhost:4840/"));
+            Assert.That(selected.SecurityMode, Is.EqualTo(MessageSecurityMode.Sign));
+            Assert.That(selected.SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
+            Assert.That(selected.UserIdentityTokens, Has.Count.EqualTo(1));
+            Assert.That(selected.UserIdentityTokens[0].TokenType, Is.EqualTo(UserTokenType.UserName));
         }
 
         /// <summary>

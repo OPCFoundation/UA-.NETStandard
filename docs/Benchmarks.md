@@ -3,16 +3,26 @@
 This document explains how to run the **2.0** stack's BenchmarkDotNet
 harnesses and summarizes its performance against **1.5.378**. It covers
 improvements, remaining slowdowns, and planned future work. It also reports
-the pooled encodeable micro-benchmarks and server session scalability.
+the pooled encodeable micro-benchmarks, server request throughput measured with
+the out-of-process [server load harness](../perf/README.md), and server
+session scalability.
+
+> **Current and historical results.** [Server request throughput](#server-request-throughput)
+> records dated results from the 2.0.2 development line
+> (`2.0.2-preview`, `master`). The other sections are historical records:
+> they were measured on earlier 2.0 builds and other hardware, before the
+> 2.0.2 request-path, publish and event-delivery changes, and are kept as
+> measured, not re-run. Do not combine numbers from different sections, and do
+> not extrapolate a deployment's capacity from one machine.
 
 ## Contents
 
 - [How to run](#how-to-run)
 - [2.0 vs 1.5.378](#20-vs-15378)
-  - [Why 2.0 differs](#why-20-differs-from-15378)
-  - [What was measured](#what-was-measured-20-vs-15378-409-matched-benchmarks)
-  - [What improved](#what-improved-in-20-vs-15378-and-why)
-  - [What is still slower](#what-is-still-slower-in-20-vs-15378-and-why)
+  - [Why 2.0 differs from 1.5.378](#why-20-differs-from-15378)
+  - [What was measured (2.0 vs 1.5.378, 409 matched benchmarks)](#what-was-measured-20-vs-15378-409-matched-benchmarks)
+  - [What improved in 2.0 vs 1.5.378 (and why)](#what-improved-in-20-vs-15378-and-why)
+  - [What is still slower in 2.0 vs 1.5.378 (and why)](#what-is-still-slower-in-20-vs-15378-and-why)
   - [Future work](#future-work)
   - [Environment and caveats](#environment-and-caveats)
 - [Pooled encodeable](#pooled-encodeable)
@@ -23,6 +33,17 @@ the pooled encodeable micro-benchmarks and server session scalability.
   - [Interpretation](#interpretation)
   - [Reproducing](#reproducing)
   - [Out of scope](#out-of-scope)
+- [Server request throughput](#server-request-throughput)
+  - [Run record](#run-record)
+  - [Reference numbers](#reference-numbers)
+  - [Reproducing the results](#reproducing-the-results)
+  - [Garbage collector modes](#garbage-collector-modes)
+  - [Processor placement](#processor-placement)
+  - [Publish and event delivery](#publish-and-event-delivery)
+  - [Recommended baseline](#recommended-baseline)
+  - [Measuring](#measuring)
+  - [Open measurements](#open-measurements)
+  - [Historical results (2026-10-18)](#historical-results-2026-10-18)
 - [Server session scalability](#server-session-scalability)
   - [Observed scaling](#observed-scaling)
   - [Subscription transport buffer pooling](#subscription-transport-buffer-pooling)
@@ -51,6 +72,9 @@ across every security policy.
 > between attempts).
 
 ## 2.0 vs 1.5.378
+
+*Historical record: BenchmarkDotNet measurements of earlier 2.0 builds on the
+Xeon host described under [Environment and caveats](#environment-and-caveats).*
 
 This section compares the **2.0** stack with **1.5.378** on .NET 10. It
 explains what improved, what remains slower, and what future work could
@@ -125,8 +149,7 @@ detailed below.
 
 Aggregate allocation across the 409 matched benchmarks is **0.93×**. The value-type
 redesign means most messages, node ids, values, and byte strings no longer allocate
-individual heap objects. This is the headline win of 2.0 and shows up across client,
-server, and encode paths.
+individual heap objects across client, server, and encode paths.
 
 #### Client read / browse: ~20–33% faster, ~half the allocation
 
@@ -330,12 +353,14 @@ work above. Low priority.
 
 ## Pooled encodeable
 
+*Historical record: measured on an earlier 2.0 build (environment below).*
+
 Microbenchmark results for the `IPooledEncodeable` + `PooledEncodeableType<T>`
 activator pooling feature added in support of `ManagedSessionBuilder.WithPoolNotifications()`.
 
 ### Source
 
-`tests/Opc.Ua.Client.Tests/Subscription/PooledNotificationBenchmarks.cs`
+`tests/Opc.Ua.Subscriptions.Tests/PooledNotificationBenchmarks.cs`
 
 ### Methodology
 
@@ -379,8 +404,8 @@ separate `DataValue` heap object.
 For the dominant publish-payload allocator (`MonitoredItemNotification`,
 which arrives in arrays of arbitrary length on every data-change publish):
 
-- Mean time per item drops from ~35 µs/1000 to ~23 µs/1000 — a **33%
-  throughput improvement** on the synthetic benchmark.
+- Mean time per 1,000 allocate/use iterations drops from 34.874 µs to
+  23.323 µs — a roughly **33% time reduction** in this synthetic benchmark.
 - Allocations per 1000 ops drop from 104 KB to 408 B — **~256× reduction**.
 - Gen-0 collections per 1000 ops drop from 24.17 to 0.09 — **~263× reduction**.
 
@@ -393,26 +418,25 @@ For `DataChangeNotification` (container + inner items + backing array):
 
 For `EventFieldList`:
 
-- The baseline `new` path is already cheap (~9 µs) because the empty
-  `EventFields` `ArrayOf<Variant>` is a zero-allocation default. The
-  pooled path adds `Interlocked.CompareExchange` + pool round-trip
-  overhead (~22 µs). Under realistic dispatch where each `EventFieldList`
-  carries a non-empty `EventFields` array, the allocation savings
-  dominate and the pooled path wins.
+- In the historical empty-`EventFields` benchmark, pooling lowers allocations
+  but increases mean time from 8.967 µs to 22.280 µs per 1,000 iterations.
+  The empty `EventFields` default allocates no backing storage, leaving little
+  allocation work to offset the `Interlocked.CompareExchange` and pool
+  round-trip overhead. Populated events were not measured.
 
 ### Reproducing
 
 ```pwsh
 # Build release
-dotnet build tests/Opc.Ua.Client.Tests -c Release -f net10.0
+dotnet build tests/Opc.Ua.Subscriptions.Tests -c Release -f net10.0
 
 # Run BDN harness
-cd tests/Opc.Ua.Client.Tests/bin/Release/net10.0
-dotnet Opc.Ua.Client.Tests.dll --filter "*PooledNotificationBenchmarks*"
+cd tests/Opc.Ua.Subscriptions.Tests/bin/Release/net10.0
+dotnet Opc.Ua.Subscriptions.Tests.dll --filter "*PooledNotificationBenchmarks*"
 ```
 
 Artifacts (markdown, csv, html) are written to
-`tests/Opc.Ua.Client.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
+`tests/Opc.Ua.Subscriptions.Tests/bin/Release/net10.0/BenchmarkDotNet.Artifacts/results/`.
 
 ### Out of scope
 
@@ -428,7 +452,280 @@ attributable to the residual allocation in the pooled
 heap. It is not an `IEncodeable` and does not participate in the
 activator pool system.
 
+## Server request throughput
+
+The [server load harness](../perf/README.md) runs the server in a child
+process, so its CPU time, allocations and GC counters exclude the load
+generator. Its `native-read` scenario drives the server with the native
+open62541 Read workers of
+[o6-automation/opcua-benchmarks](https://github.com/o6-automation/opcua-benchmarks),
+so the .NET server and other OPC UA stacks are measured with the same client.
+The managed scenarios (`read`, `sub`, `events`) use the harness itself as the
+client.
+
+### Run record
+
+All tables in this section except the [historical results](#historical-results-2026-10-18)
+share this run record.
+
+| Run record | Value |
+|---|---|
+| Date, commit | 2026-10-21, `master` f6b27025a (`2.0.2-preview`), Release build of `perf/ServerLoadHarness` |
+| Host | AMD Ryzen AI 9 HX 370: 4 Zen 5 cores (logical processors 0–7, one core complex) and 8 Zen 5c cores (8–23, the other complex), SMT, 24 logical processors; 64 GB RAM |
+| OS, power policy | Windows 11 Home 10.0.26300, *Balanced* power plan, mains power |
+| SDK, runtime | .NET SDK 10.0.402, .NET runtime 10.0.13 |
+| Server | Harness child; `MaxRequestThreadCount` 200. `native-read`: benchmark-contract mode (`AsyncCustomNodeManager`, `MaxQueuedRequestCount` clients × in flight + 3). Managed scenarios: reference server node set, `MaxQueuedRequestCount` 2000 |
+| GC | Per table; where not stated, Server GC with DATAS (the .NET 10 default for Server GC). The harness client keeps workstation GC |
+| Placement | Client and server on the same machine, not pinned unless the table says so |
+| Repeats | 5 rounds per row, variants alternated and reversed every other round (`perf/variants.sh`); median with the range (min–max) of the 5 rounds |
+| Artifacts | `RESULT` blocks per round, produced by the commands under each table |
+
+The machine was a developer workstation, not a dedicated host. Rounds that
+overlapped another test host or load harness were discarded and repeated, but
+other background work (builds, editors) was not excluded; it shows as the
+low end of some throughput ranges, while CPU and allocation per operation stay
+narrow. Read the ranges before comparing rows, and treat throughput as the
+capacity of this machine only.
+
+### Reference numbers
+
+`native-read`: 10 native Read worker processes with 100 single-value Reads of
+`ns=1;i=1001..1100` in flight each, no security unless noted, steady state
+(100,000 warm-up and 300,000 measured Reads per worker).
+
+| Server | Processors | Throughput (req/s) | Server CPU / Read | Allocated / Read |
+|---|---|--:|--:|--:|
+| UA-.NETStandard | 4 logical (`0xF`, two Zen 5 cores) | 440k [395k–467k] | 8.9 µs [8.4–9.9] | 2.3 KB |
+| open62541 (single-threaded) | — | 137k [105k–141k] | 7.3 µs [7.1–9.4] | — |
+| UA-.NETStandard | 24 logical | 600k [573k–666k] | 22.9 µs [21.7–24.3] | 2.4 KB |
+| UA-.NETStandard, 10 × 1000 in flight | 24 logical | 664k [505k–672k] | 20.8 µs [19.7–24.8] | 2.4 KB |
+| UA-.NETStandard, Basic256Sha256 SignAndEncrypt | 24 logical | 507k [415k–524k] | 24.9 µs [24.0–25.7] | 2.4 KB |
+
+Restricted to 4 logical processors, the .NET server used about 1.2 times the
+CPU per Read of the single-threaded open62541 server and ran the Reads on
+four processors in parallel. On all 24 logical processors throughput rose by
+about a third while CPU per Read rose 2.6 times: the server spans both core
+complexes and both core types; see [Processor placement](#processor-placement).
+
+Short runs include JIT warm-up: with the benchmark's default
+parameters (10,000 warm-up and 100,000 measured calls per client) the same
+server showed about 60 µs per Read on 24 logical processors in earlier
+measurements. See [JIT warm-up](ServerScalability.md#jit-warm-up).
+
+### Reproducing the results
+
+Build the harness and the native workers as described in
+[perf/README.md](../perf/README.md#external-benchmark-workers). Every table in
+this section has a variant file and a scenario file in
+[`perf/benchmarks`](../perf/benchmarks); `perf/variants.sh` runs them (5 rounds
+by default) and `perf/variants-summary.ps1` prints the medians and ranges.
+`WORKERS` is the build directory of the benchmark workers:
+
+```bash
+cd perf
+WORKERS=<workers> VARIANTS=benchmarks/read-variants.txt SCENARIOS=benchmarks/read-scenarios.txt OUT=read.txt ./variants.sh
+pwsh -File variants-summary.ps1 read.txt
+```
+
+| Table | Variants | Scenarios |
+|---|---|---|
+| [Reference numbers](#reference-numbers) | `read-variants.txt` | `read-scenarios.txt` |
+| [Garbage collector modes](#garbage-collector-modes) | `gc-variants.txt` | `gc-scenarios.txt` |
+| [Processor placement](#processor-placement) | `affinity-variants.txt` | `affinity-scenarios.txt` |
+| [Publish and event delivery](#publish-and-event-delivery) | `delivery-variants.txt` | `delivery-scenarios.txt` |
+
+Throughput is `client: req/s` (`notif/s`, `events/s`), CPU and allocated bytes
+per operation are `per-op: cpuUs` and `allocB` (`per-op2` per written value or
+generated event), and the GC counts, pause time and working set of the window
+are on the `server:` line. See
+[Reading the result block](../perf/README.md#reading-the-result-block).
+
+### Garbage collector modes
+
+The server child under three runtime configurations of the same build; the
+harness client is unchanged. `SERVER_DOTNET_gcServer=0` selects workstation
+(concurrent) GC, `SERVER_DOTNET_gcServer=1` Server GC with DATAS, and adding
+`SERVER_DOTNET_GCDynamicAdaptationMode=0` Server GC with a fixed heap count
+(one heap per logical processor, 24). Pause is the total GC pause time of the
+server in the measured window; working set is at the end of the window.
+
+| Workload, window | GC | Throughput | Latency p50 / p99 | Server CPU / op | GC pause | Working set |
+|---|---|--:|--:|--:|--:|--:|
+| `native-read` 10 × 100 (300,000 Reads per worker) | Workstation | 385k req/s [378k–405k] | — | 24.2 µs | 2320 ms | 164 MB |
+| | Server, DATAS | 661k req/s [606k–671k] | — | 22.5 µs | 214 ms | 186 MB |
+| | Server, fixed heaps | 640k req/s [613k–671k] | — | 24.3 µs | 30 ms | 511 MB |
+| `read`, 20 sessions × 100 values (15 s) | Workstation | 45.6k req/s [45.3k–45.7k] | 0.27 / 1.81 ms | 231 µs | 4885 ms | 209 MB |
+| | Server, DATAS | 66.1k req/s [64.6k–66.7k] | 0.26 / 1.15 ms | 222 µs | 602 ms | 325 MB |
+| | Server, fixed heaps | 68.3k req/s [66.8k–68.7k] | 0.26 / 1.15 ms | 214 µs | 132 ms | 616 MB |
+| `events`, 50 sessions × 15 subscriptions, encrypted (15 s) | Workstation | 44 events/s [43–45] | 206 / 323 ms | 53 ms / event | 6923 ms | 315 MB |
+| | Server, DATAS | 83 events/s [81–86] | 153 / 207 ms | 37 ms / event | 519 ms | 803 MB |
+| | Server, fixed heaps | 84 events/s [83–86] | 152 / 199 ms | 35 ms / event | 65 ms | 2041 MB |
+
+The `events` rows report events generated per second (each is delivered to
+750 event monitored items; 99.8–100 % were received in every round), the
+event-to-notification latency and the server CPU per generated event. The
+`sub` scenario of `gc-scenarios.txt` (50 × 15 × 600) is not tabulated: it is
+limited by the regression described under
+[Publish and event delivery](#publish-and-event-delivery) and delivered
+about 26 % in all three modes.
+
+In these runs:
+
+- Workstation GC lowered throughput by 31–47 % against Server GC and paused
+  the server for 30–46 % of the window.
+- Server GC with a fixed heap count cut the pause time by a factor of 4.6–8
+  against DATAS, at 1.9–2.8 times the working set. Throughput and CPU per
+  operation stayed within the ranges of DATAS.
+- Allocated bytes per operation did not depend on the GC mode.
+
+### Processor placement
+
+`native-read`, Server GC with DATAS. Logical processors 0–7 are the Zen 5
+(performance) cores of one core complex, 8–23 the Zen 5c cores of the other.
+The server variants set `--server-affinity` and a matching
+`SERVER_DOTNET_PROCESSOR_COUNT`; the native client workers run unpinned unless
+`--client-affinity` is set.
+
+| Placement | No security: throughput | CPU / Read | Busy cores | SignAndEncrypt: throughput | CPU / Read | Busy cores |
+|---|--:|--:|--:|--:|--:|--:|
+| Default (no affinity) | 637k [578k–657k] | 22.9 µs | 14.3 | 499k [284k–510k] | 24.5 µs | 12.2 |
+| Server on Zen 5 (`0xFF`, 8) | 593k [241k–668k] | 11.7 µs | 7.0 | 500k [495k–519k] | 14.6 µs | 7.3 |
+| Server on Zen 5, clients on Zen 5c | 630k [602k–676k] | 12.0 µs | 7.6 | 471k [254k–525k] | 14.0 µs | 6.6 |
+| Server on Zen 5c (`0xFFFF00`, 16), clients on Zen 5 | 730k [344k–752k] | 20.0 µs | 14.4 | 479k [236k–493k] | 22.2 µs | 10.7 |
+
+CPU per Read stayed within 8 % of the median in every round except one Zen 5c round (16.9 µs). In
+these runs, the server on the eight Zen 5 logical processors had a median
+throughput within 7 % of the default placement (and the same with
+SignAndEncrypt) at about half the CPU per Read and half the busy cores. The
+Zen 5c complex, with clients kept off it, gave the highest median throughput
+without security, at a CPU per Read between the two. The low ends of several
+ranges (241k–344k) are single rounds disturbed by other work on the machine.
+
+These results describe one processor, one workload and Windows; Linux and
+Intel performance/efficiency-core processors were not measured. Commands for
+setting the affinity are in
+[Hybrid CPUs and processor affinity](ServerScalability.md#hybrid-cpus-and-processor-affinity).
+
+### Publish and event delivery
+
+The 2.0.2 line changed the server paths that deliver notifications: the
+publish cadence (#4829), event delivery (#4837, #4845, #4859) and data change
+notification allocation (#4830). `delivery-scenarios.txt`, Server GC with
+DATAS, Basic256Sha256 SignAndEncrypt, publishing interval 100 ms, queue size 1
+(`sub`) and 10000 (`events`), 15-second window after 10 s of warm-up:
+
+| Workload | Rate | Delivered | Latency p50 / p99 | Server CPU / notification | Allocated / notification | GC pause |
+|---|--:|--:|--:|--:|--:|--:|
+| `sub` 10 sessions × 15 subscriptions × 600 items, all written every 150 ms | 600k notif/s [594k–605k] | 100 % [98.1–101] | 104 / 147 ms | 10.8 µs [10.4–11.3] | 803 B [468–1018] | 205 ms |
+| `sub` 2 × 1 × 100, written every 150 ms | 1344 notif/s [1332–1345] | 101 % [100–101] | 61 / 97 ms | 43 µs [34–69] | 5.7 KB | 5 ms |
+| `events` 10 sessions × 15 subscriptions, 1000 events/s requested | 598 events/s generated [593–610], 89.8k notif/s | 100 % [99.7–100] | 61 / 134 ms | 32 µs [30–33] | 6.6 KB | 605 ms |
+
+Latency is from the write (or the event report) to the notification at the
+client. A `sub` delivery above 100 % means some items reported more than one
+value per write interval. In the `events` row the server generated 598 of the
+requested 1000 events per second, at about 4.8 ms of server CPU per event
+delivered to 150 monitored items; the reporting thread did not reach the
+requested rate.
+
+**Regression in many-subscription data change delivery.** The 50 sessions ×
+15 subscriptions × 600 items shape of #4829 (`sub` in `gc-scenarios.txt`) is not
+tabulated: on this `master` it delivered about 26 % of the expected
+notifications in every GC mode, with writes taking 0.4–1.2 s and the server
+reporting about a million lock contentions in the window. With the same
+harness arguments (`--client classic`, Server GC for client and server), the
+#4829 merge commit 37a2a831f delivered 93 % at 3.9 µs of server CPU per
+notification. A `git bisect` over this shape found #4757 to be the first
+commit with the lower delivery (0edc3b55a: 98 %, 2.8 µs per notification;
+65a67dd2f: 6 %, 94 µs). The 10-session row above may be affected as well:
+its CPU per notification is about twice the value reported in #4829.
+
+Results of the individual pull requests, measured as paired A/B rounds
+against the previous `master` when each was merged, are recorded in
+#4829 (publish cadence: 50 × 15 × 600 delivered 67.7 % → 97.8 %),
+#4837 (event delivery: 768 → 1001 generated events/s at 50 × 15) and #4859
+(event queueing split). They show the size of each change on its commit,
+not the current behaviour.
+
+### Recommended baseline
+
+Measured on the machine and workloads above; check it against your own
+deployment:
+
+- **Server GC on** (`ServerGarbageCollection`). It raised throughput by
+  45–89 % over workstation GC in every workload above and cut the pause time
+  by a factor of 8–13.
+- **DATAS at its default.** Disabling it (`GCDynamicAdaptationMode=0`) cut GC
+  pauses 4.6–8 times at 1.9–2.8 times the working set, without a throughput
+  difference beyond the ranges. Choose it for latency-sensitive servers that
+  can afford the memory; `GCHeapCount` caps the heaps.
+- **`MaxQueuedRequestCount` at least the pipelining of all clients**, so that
+  established sessions do not receive `BadServerTooBusy` while CPU is idle.
+- **Default scheduling** (no affinity) unless CPU time matters more than peak
+  throughput. On this hybrid CPU, the server restricted to the performance
+  core complex reached a similar median throughput at about half the CPU; on
+  a host shared with other processes this frees the remaining cores. Measure
+  the placement on the deployment host, since the gain comes from this
+  processor's core types and core complexes. See
+  [Hybrid CPUs and processor affinity](ServerScalability.md#hybrid-cpus-and-processor-affinity).
+- **Compare priority boost on and off on small Windows hosts.** In the
+  one-logical-processor measurement, disabling it cut the 99.9th-percentile
+  Read latency from 32–56 ms to about 3 ms; see
+  [Small Windows machines and thread priority boost](ServerScalability.md#small-windows-machines-and-thread-priority-boost).
+- **Measure at steady state**, after the JIT warm-up.
+
+The baseline changes when the workload changes its bottleneck: node managers
+that block (raise `MaxRequestThreadCount`), many subscriptions or event
+monitored items (watch delivery, latency and GC pauses, not only
+throughput), memory limits (DATAS on, `GCHeapCount`), or a host shared with
+other processes (affinity). See
+[Runtime and host settings](ServerScalability.md#runtime-and-host-settings) for
+each setting and how to verify that it is in effect.
+
+### Measuring
+
+Follow the [measurement method](../perf/README.md#measurement-method) of the
+harness: allocated bytes per operation as the primary metric, CPU per
+operation with the server pinned (`--server-affinity` and
+`SERVER_DOTNET_PROCESSOR_COUNT`) to one core type, the native scenarios at
+[steady state](../perf/README.md#steady-state-parameters), and throughput
+only from paired, alternating rounds: `perf/ab.sh` for two builds,
+`perf/variants.sh` for configurations of one build (5 rounds, medians
+with ranges), discarding rounds during which other test hosts or load
+harnesses ran on the machine. Record every published number with the
+[run record](../perf/README.md#run-record) of the harness.
+
+### Open measurements
+
+Tracked in
+[#4842](https://github.com/OPCFoundation/UA-.NETStandard/issues/4842):
+
+- Linux, and Intel performance/efficiency-core processors (GC modes and
+  processor placement).
+- A dedicated benchmark host without other background work, to narrow the
+  throughput ranges.
+- Session establishment and steady-state session scaling on the current
+  stack (the [session scalability](#server-session-scalability) results are
+  historical).
+
+### Historical results (2026-10-18)
+
+Single runs on the same machine, `master` 014f99a53, .NET SDK 10.0.401 and
+runtime 10.0.12, before the worker wake-up (#4833) and event delivery changes;
+superseded by the [reference numbers](#reference-numbers) above:
+
+| Server | Processors | Throughput | Server CPU / Read | Allocated / Read |
+|---|---|--:|--:|--:|
+| UA-.NETStandard | 4 logical, pinned (`0xF`) | — | 8.8 µs | 2.6 KB |
+| open62541 (single-threaded) | — | 117k req/s | 8.1 µs | — |
+| UA-.NETStandard | 24 logical | 574k req/s | 27.5 µs | — |
+| UA-.NETStandard, 10 × 1000 in flight | 24 logical | 518k req/s | — | — |
+| UA-.NETStandard, Basic256Sha256 SignAndEncrypt | 24 logical | 447k req/s | — | — |
+
 ## Server session scalability
+
+*Historical record: measured on an earlier 2.0 build, before the 2.0.2 publish
+cadence change (#4829); the host is described under
+[Observed scaling](#observed-scaling).*
 
 The `[Explicit]` macro test
 `ServerManySessionsLoadTestAsync(int sessionCount)` in
@@ -548,6 +845,8 @@ The net10.0 in-process short `BufferManagerBenchmarks` run completed 256 `Buffer
   100–200 workers served thousands of sessions. A very large pool
   oversubscribes cores during connection bursts and slows establishment.
   `MinRequestThreadCount` prewarms the pool to avoid thread-pool cold start.
+  See [Request workers and the request queue](ServerScalability.md#request-workers-and-the-request-queue)
+  for the current behaviour of these settings and of `MaxQueuedRequestCount`.
 
   Set `DecoupleHeldPublishRequests = false` to restore the legacy behavior.
   Held Publishes then occupy workers. A server handling N sessions needs a

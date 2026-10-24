@@ -49,7 +49,7 @@ namespace Opc.Ua.Client.Subscriptions
     /// <remarks>
     /// To run interactively:
     /// <code>
-    /// dotnet test tests/Opc.Ua.Client.Tests --filter "FullyQualifiedName~PooledNotificationBenchmarks"
+    /// dotnet test tests/Opc.Ua.Subscriptions.Tests --filter "FullyQualifiedName~PooledNotificationBenchmarks"
     /// </code>
     /// To run as a BenchmarkDotNet harness, invoke the test fixture's
     /// <c>[GlobalSetup]</c>/<c>[Benchmark]</c> via the standard BDN

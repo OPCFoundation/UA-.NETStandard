@@ -12,6 +12,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit.Console" />
     <PackageReference Include="NUnit.Analyzers">
@@ -29,6 +30,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Opc.Ua.Client.Tests\Session\SessionRequestContextTestContext.cs"
+             Link="AuthorizationService\SessionRequestContextTestContext.cs" />
     <Compile Include="..\..\samples\Reference\ConsoleReferenceServer\GdsNodeManagerFactory.cs" Link="GdsNodeManagerFactory.cs" />
   </ItemGroup>
   <ItemGroup>

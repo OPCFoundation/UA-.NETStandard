@@ -237,7 +237,7 @@ namespace Opc.Ua.PubSub.Groups
             }
             try
             {
-                await Sink.WriteAsync([.. dataSetMessage.Fields], cancellationToken)
+                await Sink.WriteAsync(BindConfiguredFieldIds(dataSetMessage), cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -326,6 +326,75 @@ namespace Opc.Ua.PubSub.Groups
                 }
                 return isNew;
             }
+        }
+
+        /// <summary>
+        /// Supplements fields lacking decoded identifiers using matching host-configured metadata.
+        /// </summary>
+        private DataSetField[] BindConfiguredFieldIds(PubSubDataSetMessage message)
+        {
+            DataSetField[] fields = [.. message.Fields];
+            DataSetMetaDataType? metaData = Configuration.DataSetMetaData;
+            if (metaData is null || metaData.Fields.Count == 0)
+            {
+                return fields;
+            }
+            uint configuredMajor = metaData.ConfigurationVersion?.MajorVersion ?? 0;
+            bool hasVersion = message switch
+            {
+                Encoding.Uadp.UadpDataSetMessage uadp =>
+                    (uadp.ContentMask & UadpDataSetMessageContentMask.MajorVersion) != 0,
+                Encoding.Json.JsonDataSetMessage json =>
+                    (json.ContentMask & JsonDataSetMessageContentMask.MetaDataVersion) != 0,
+                _ => true
+            };
+            if (hasVersion && configuredMajor != message.MetaDataVersion.MajorVersion)
+            {
+                return fields;
+            }
+            if (!hasVersion &&
+                message is Encoding.Json.JsonDataSetMessage minorOnly &&
+                (minorOnly.ContentMask & JsonDataSetMessageContentMask.MinorVersion) != 0 &&
+                message.MetaDataVersion.MinorVersion != 0 &&
+                configuredMajor > message.MetaDataVersion.MinorVersion)
+            {
+                return fields;
+            }
+            bool jsonFields = message is Encoding.Json.JsonDataSetMessage;
+            for (int i = 0; i < fields.Length; i++)
+            {
+                DataSetField field = fields[i];
+                if (field.DataSetFieldId != Uuid.Empty)
+                {
+                    continue;
+                }
+                FieldMetaData? descriptor = null;
+                if (jsonFields)
+                {
+                    foreach (FieldMetaData? configured in metaData.Fields)
+                    {
+                        if (configured is not null &&
+                            string.Equals(configured.Name, field.Name, StringComparison.Ordinal))
+                        {
+                            descriptor = configured;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    int index = field.FieldIndex < 0 ? i : field.FieldIndex;
+                    if (index < metaData.Fields.Count)
+                    {
+                        descriptor = metaData.Fields[index];
+                    }
+                }
+                if (descriptor is not null)
+                {
+                    fields[i] = field with { DataSetFieldId = descriptor.DataSetFieldId };
+                }
+            }
+            return fields;
         }
     }
 

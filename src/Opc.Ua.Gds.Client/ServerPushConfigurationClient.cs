@@ -397,7 +397,7 @@ namespace Opc.Ua.Gds.Client
                         endpointDescription,
                         endpointConfiguration);
 
-                    await ConnectInternalAsync(endpoint, false, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, false, new Uri(endpointUrl), ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when (
@@ -432,7 +432,7 @@ namespace Opc.Ua.Gds.Client
             {
                 try
                 {
-                    await ConnectInternalAsync(endpoint, true, ct).ConfigureAwait(false);
+                    await ConnectInternalAsync(endpoint, true, expectedEndpoint: null, ct).ConfigureAwait(false);
                     return;
                 }
                 catch (ServiceResultException e) when (
@@ -759,10 +759,21 @@ namespace Opc.Ua.Gds.Client
         {
             ISession session = await ConnectIfNeededAsync(ct).ConfigureAwait(false);
             IUserIdentity? oldUser = await ElevatePermissionsAsync(session, ct).ConfigureAwait(false);
+            SessionRequestContext? dispatch = null;
 
             try
             {
-                return await m_serverConfiguration!.UpdateCertificateAsync(
+                dispatch = privateKey.IsEmpty
+                    ? null
+                    : await SessionRequestContext.CaptureConfidentialAsync(session, ct).ConfigureAwait(false);
+                ServerConfigurationTypeClient serverConfiguration = dispatch == null
+                    ? m_serverConfiguration!
+                    : new ServerConfigurationTypeClient(
+                        dispatch.Session,
+                        ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, dispatch.Session.NamespaceUris),
+                        MessageContext.Telemetry);
+
+                return await serverConfiguration.UpdateCertificateAsync(
                     certificateGroupId,
                     certificateTypeId,
                     certificate,
@@ -773,7 +784,17 @@ namespace Opc.Ua.Gds.Client
             }
             finally
             {
-                await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+                try
+                {
+                    if (dispatch != null)
+                    {
+                        await dispatch.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    await RevertPermissionsAsync(session, oldUser, ct).ConfigureAwait(false);
+                }
             }
         }
 
@@ -1090,14 +1111,37 @@ namespace Opc.Ua.Gds.Client
         /// <summary>
         /// Connect the session
         /// </summary>
-        private async Task ConnectInternalAsync(
+        /// <exception cref="ServiceResultException">
+        /// The advertised endpoint URL is missing, or discovery changed the requested transport.
+        /// </exception>
+        internal async Task ConnectInternalAsync(
             ConfiguredEndpoint endpoint,
             bool updateBeforeConnect,
+            Uri? expectedEndpoint,
             CancellationToken ct)
         {
             await m_lock.WaitAsync(ct).ConfigureAwait(false);
             try
             {
+                Uri advertisedEndpoint = endpoint.EndpointUrl ??
+                    throw new ServiceResultException(StatusCodes.BadTcpEndpointUrlInvalid);
+                expectedEndpoint ??= advertisedEndpoint;
+                if (!string.Equals(
+                    expectedEndpoint.Scheme, advertisedEndpoint.Scheme, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "The discovered endpoint changed the requested transport.");
+                }
+                endpoint = CoreUtils.Clone(endpoint)!;
+                // Refresh discovery at the configured host, not a server-advertised replacement.
+                endpoint.Description.EndpointUrl = new UriBuilder(advertisedEndpoint)
+                {
+                    Host = expectedEndpoint.IdnHost,
+                    Port = expectedEndpoint.Port
+                }.Uri.AbsoluteUri;
+                endpoint.Description.Server.DiscoveryUrls = [expectedEndpoint.AbsoluteUri];
+
                 Session?.Dispose();
                 Session = null;
 
@@ -1105,7 +1149,7 @@ namespace Opc.Ua.Gds.Client
                     Configuration,
                     endpoint,
                     updateBeforeConnect,
-                    false,
+                    checkDomain: true,
                     Configuration.ApplicationName!,
                     (uint)m_options.SessionTimeout.TotalMilliseconds,
                     AdminCredentials,
@@ -1140,7 +1184,6 @@ namespace Opc.Ua.Gds.Client
                     Session,
                     ExpandedNodeId.ToNodeId(Ua.ObjectIds.ServerConfiguration, Session.NamespaceUris),
                     MessageContext.Telemetry);
-
 
                 m_logger.ConnectedToEndpoint(EndpointUrl);
             }

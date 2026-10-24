@@ -139,14 +139,20 @@ namespace Opc.Ua.GranulateDrying.Tests
                 ready.TrySetResult(true);
                 return default;
             });
+            // The configurator runs while the address space is built, but the TCP listener is
+            // already accepting then and answers every request with BadServerHalted until the
+            // server is Running. Startup tasks run only after the server has fully started.
+            var started = new ServerStartedSignal();
+            services.AddSingleton<IServerStartupTask>(started);
             m_services = services.BuildServiceProvider();
             m_host = m_services.GetServices<IHostedService>().Single();
             await m_host.StartAsync(CancellationToken.None).ConfigureAwait(false);
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(90));
             Task startup = m_host is BackgroundService { ExecuteTask: { } execute }
-                ? await Task.WhenAny(ready.Task, execute).WaitAsync(timeout.Token).ConfigureAwait(false)
-                : ready.Task;
+                ? await Task.WhenAny(started.Task, execute).WaitAsync(timeout.Token).ConfigureAwait(false)
+                : started.Task;
             await startup.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await started.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             m_clientFixture = new ClientFixture(Telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(Path.Combine(m_root, "client")).ConfigureAwait(false);
@@ -307,6 +313,30 @@ namespace Opc.Ua.GranulateDrying.Tests
             m_endpoint = "opc.tcp://localhost:" + port.ToString(CultureInfo.InvariantCulture) + "/gdd";
             options.EndpointUrls.Clear();
             options.EndpointUrls.Add(m_endpoint);
+        }
+
+        /// <summary>
+        /// Completes once the hosted server has started and serves requests.
+        /// </summary>
+        private sealed class ServerStartedSignal : IServerStartupTask
+        {
+            /// <summary>
+            /// Gets the task that completes when the server has started.
+            /// </summary>
+            internal Task Task => m_started.Task;
+
+            /// <inheritdoc/>
+            public ValueTask OnServerStartedAsync(IServerContext server, CancellationToken cancellationToken = default)
+            {
+                m_started.TrySetResult(true);
+                return default;
+            }
+
+            /// <summary>
+            /// The started signal.
+            /// </summary>
+            private readonly TaskCompletionSource<bool> m_started =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         /// <summary>

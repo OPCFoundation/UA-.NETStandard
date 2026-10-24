@@ -36,10 +36,12 @@
     <Project Path="samples/CranesHoists/CranesHoistsClient/CranesHoistsClient.csproj" />
     <Project Path="samples/CranesHoists/CranesHoistsServer/CranesHoistsServer.csproj" />
   </Folder>
-  <Folder Name="/samples/DI/">
-    <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+  <Folder Name="/samples/Di/">
+    <File Path="samples/Di/README.md" />
+    <Project Path="samples/Di/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
   </Folder>
   <Folder Name="/samples/FluentApi/">
+    <File Path="samples/FluentApi/README.md" />
     <Project Path="samples/FluentApi/BasicFluentApiServer/BasicFluentApiServer.csproj" />
   </Folder>
   <Folder Name="/samples/Gds/">
@@ -62,10 +64,12 @@
     <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
     <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
   </Folder>
-  <Folder Name="/samples/Isa95/">
-    <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
+  <Folder Name="/samples/ISA95/">
+    <File Path="samples/ISA95/README.md" />
+    <Project Path="samples/ISA95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
   </Folder>
   <Folder Name="/samples/Lds/">
+    <File Path="samples/Lds/README.md" />
     <Project Path="samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj" />
   </Folder>
   <Folder Name="/samples/MinimalApi/">
@@ -78,6 +82,7 @@
     <Project Path="samples/OpenUsd/SiteCompositionServer/SiteCompositionServer.csproj" />
   </Folder>
   <Folder Name="/samples/PubSub/">
+    <File Path="samples/PubSub/README.md" />
     <Project Path="samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj" />
     <Project Path="samples/PubSub/ConsoleSecureChannelPubSub/ConsoleSecureChannelPubSub.csproj" />
   </Folder>
@@ -341,7 +346,8 @@
     <File Path="docs/Subscriptions.md" />
     <File Path="docs/TransferSubscription.md" />
     <File Path="docs/WhatsNewIn2.0.md" />
-    <File Path="docs/WoTConnectivity.md" />
+    <File Path="docs/WotCon.md" />
+    <File Path="docs/WotNodeSetConversion.md" />
   </Folder>
   <Folder Name="/Solution Items/docs/migrate/" />
   <Folder Name="/Solution Items/docs/migrate/2.0.x/">
@@ -367,6 +373,9 @@
     <File Path=".github/agents/coverage-test-generator.agent.md" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Opc.Ua.Lens.Artifacts.Tests/Opc.Ua.Lens.Artifacts.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.ComplexTypes.Tests/Opc.Ua.Client.ComplexTypes.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Recycling.Samples.Tests/Opc.Ua.Recycling.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Recycling.Operator.Tests/Opc.Ua.Recycling.Operator.Tests.csproj" />
@@ -410,6 +419,7 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Machinery.Tests/Opc.Ua.Machinery.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Samples.Tests/Opc.Ua.PubSub.Samples.Tests.csproj" />
@@ -457,6 +467,8 @@
     <Project Path="tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj" />
+    <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.AutoID/Opc.Ua.Mcp.AutoID.csproj" />

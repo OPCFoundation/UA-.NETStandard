@@ -1939,7 +1939,7 @@ namespace Opc.Ua.SourceGeneration
                 root.GetWriteMaskAsCode());
             context.Template.AddReplacement(
                 Tokens.UserWriteMaskValue,
-                root.GetWriteMaskAsCode());
+                root.GetUserWriteMaskAsCode());
 
             // Add Children
             context.Template.AddReplacement(
@@ -2031,7 +2031,7 @@ namespace Opc.Ua.SourceGeneration
                     : null);
 
             // Role permissions
-            HashSet<RolePermission> rolePermissions = GetRolePermissions(root);
+            List<RolePermission> rolePermissions = GetRolePermissions(root);
             context.Template.AddReplacement(
                 Tokens.ListOfRolePermissions,
                 NodeStateTemplates.ListOfRolePermissions,
@@ -2506,7 +2506,7 @@ namespace Opc.Ua.SourceGeneration
 
         private bool WriteTemplate_RolePermissions(IWriteContext context)
         {
-            if (context.Target is not HashSet<RolePermission> rolePermissions ||
+            if (context.Target is not List<RolePermission> rolePermissions ||
                 rolePermissions.Count == 0)
             {
                 return false;
@@ -2638,20 +2638,9 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            if (!m_context.ModelDesign.TryFindNode(
-                rolePermission.Role,
-                rolePermission.Role.Name,
-                "RoleType",
-                out ObjectDesign? roleNode))
-            {
-                return false;
-            }
-
             context.Template.AddReplacement(
                 Tokens.RoleIdConstant,
-                roleNode.GetNodeIdAsCode(
-                    m_context.ModelDesign.Namespaces,
-                    kNamespaceTableContextVariable));
+                GetRoleIdAsCode(rolePermission));
             context.Template.AddReplacement(
                 Tokens.PermissionsValue,
                 CoreUtils.Format(
@@ -2659,6 +2648,38 @@ namespace Opc.Ua.SourceGeneration
                     rolePermission.Permission.GetPermissionTypeAsCode()));
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// Resolves a role's wire identity without requiring its node to be generated.
+        /// </summary>
+        /// <exception cref="InvalidDataException">
+        /// The role identifier cannot be represented by a supported identifier kind.
+        /// </exception>
+        private string GetRoleIdAsCode(RolePermission permission)
+        {
+            ExpandedNodeId roleId = permission.ResolveRoleId(m_context.ModelDesign);
+            NodeId roleIdentifier = roleId.InnerNodeId;
+            string? identifier = roleIdentifier.IdType switch
+            {
+                IdType.Numeric when roleIdentifier.TryGetValue(out uint numeric) =>
+                    CoreUtils.Format("{0}u", numeric),
+                IdType.String when roleIdentifier.TryGetValue(out string text) => text.AsStringLiteral(),
+                IdType.Guid when roleIdentifier.TryGetValue(out Guid guid) =>
+                    CoreUtils.Format(
+                        "new global::System.Guid({0})",
+                        guid.ToString("D", CultureInfo.InvariantCulture).AsStringLiteral()),
+                IdType.Opaque when roleIdentifier.TryGetValue(out ByteString opaque) =>
+                    CoreUtils.Format(
+                        "global::Opc.Ua.ByteString.FromBase64({0})",
+                        opaque.ToBase64().AsStringLiteral()),
+                _ => throw new InvalidDataException($"RolePermissions cannot represent role '{roleId}'.")
+            };
+            return CoreUtils.Format(
+                "new global::Opc.Ua.NodeId({0}, {2}.GetIndexOrAppend({1}))",
+                identifier,
+                roleId.NamespaceUri.AsStringLiteral(),
+                kNamespaceTableContextVariable);
         }
 
         private void AddNodeStateClassVariableTypeReplacements(
@@ -3496,6 +3517,9 @@ namespace Opc.Ua.SourceGeneration
                     GetEffectiveModellingRule(nodeToGenerate, node)));
             bool executable = !node.NonExecutable;
             context.Template.AddReplacement(Tokens.ExecutableValue, executable);
+            context.Template.AddReplacement(
+                Tokens.UserExecutableValue,
+                node.UserExecutableSpecified ? node.UserExecutable : executable);
 
             context.Template.AddReplacement(
                 Tokens.MethodDeclarationId,
@@ -4627,7 +4651,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool IsGeneratesEventReference(XmlQualifiedName? referenceTypeId)
         {
-            var generatesEvent = new XmlQualifiedName("GeneratesEvent", Ua.Types.Namespaces.OpcUa);
+            var generatesEvent = new XmlQualifiedName("GeneratesEvent", Namespaces.OpcUa);
             if (referenceTypeId == generatesEvent)
             {
                 return true;
@@ -4746,31 +4770,23 @@ namespace Opc.Ua.SourceGeneration
             return childrenWithProperties;
         }
 
-        private HashSet<RolePermission> GetRolePermissions(NodeDesign node)
+        private static List<RolePermission> GetRolePermissions(NodeDesign node)
         {
-            var rolePermissions = new HashSet<RolePermission>();
+            if (!string.IsNullOrEmpty(node.RolePermissions?.Name) ||
+                !string.IsNullOrEmpty(node.DefaultRolePermissions?.Name))
+            {
+                throw new InvalidDataException("RolePermissions contains an unresolved named permission set.");
+            }
             // Emit RolePermissions on all nodes (type and instance).
             // Type hierarchy nodes carry permissions as metadata but the server
             // bypasses enforcement via IsPartOfTypeHierarchy at runtime.
             RolePermission[]? nodeRolePermissions =
                 (node.RolePermissions?.RolePermission) ?? (node.DefaultRolePermissions?.RolePermission);
-            if (nodeRolePermissions != null)
+            if (nodeRolePermissions?.Any(permission => permission is null) == true)
             {
-                foreach (RolePermission rp in nodeRolePermissions)
-                {
-                    ObjectDesign? roleNode = m_context.ModelDesign.FindNode<ObjectDesign>(
-                        rp.Role,
-                        rp.Role.Name,
-                        "RoleType");
-
-                    if (roleNode != null)
-
-                    {
-                        rolePermissions.Add(rp);
-                    }
-                }
+                throw new InvalidDataException("RolePermissions contains an empty ACL entry.");
             }
-            return rolePermissions;
+            return nodeRolePermissions == null ? [] : [.. nodeRolePermissions];
         }
 
         private static string? GetDisplayNameValue(NodeDesign node)

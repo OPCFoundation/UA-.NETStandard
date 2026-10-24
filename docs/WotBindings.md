@@ -46,7 +46,9 @@ This document starts with the bindings that ship today and how to register them,
   - [Contributor checklist](#contributor-checklist)
   - [Testing matrix](#testing-matrix)
 - [Related documentation](#related-documentation)
-- [Conformance to WoT Binding 1.1](#conformance-to-wot-binding-11)
+- [Conformance to OPC 10101 (Binding and Projections)](#conformance-to-opc-10101-binding-and-projections)
+  - [OPC 10101-1 (WoT Binding)](#opc-10101-1-wot-binding)
+  - [OPC 10101-2 (WoT Projections)](#opc-10101-2-wot-projections)
   - [Conversion entry points](#conversion-entry-points)
   - [Independent readable models](#independent-readable-models)
   - [Identity and preservation](#identity-and-preservation)
@@ -133,10 +135,13 @@ Notes:
 * The **W3C Binding Templates registry is a pilot and currently empty**; no binder ever reports `RegistryCurrent`. Drafts expose their Editor's Draft maturity; OPC UA exposes the OPC specification maturity.
 * BACnet, PROFINET, LoRaWAN and CoAP perform **schema / document-level planning only** and are reported as **non-executable** — the runtime materializes their nodes but marks the closure degraded so callers know they cannot be driven yet.
 * Each planner validates the href scheme and the currently-defined vocabulary terms of its pinned document, checks `op` compatibility, `contentType` and required fields, produces immutable endpoint/addressing/operation/payload metadata and returns precise errors/warnings with JSON Pointers.
+* OPC UA forms default to `application/octet-stream`. The planner advertises only media types
+  supported by its registered payload codecs; it does not advertise OPC UA Binary until a matching
+  codec is available.
 
 ### Runtime integration
 
-`WotMaterializationCoordinator` compiles each resource's forms into a `WotBindingPlan` during **Prepare**. Activation/deactivation notifications describe committed generations; the source generation owns its channels and subscriptions until it drains. A deactivation notification alone does not dispose them. See [publication contracts](WoT.md#ownership-and-publication).
+`WotMaterializationCoordinator` compiles each resource's forms into a `WotBindingPlan` during **Prepare**. Activation/deactivation notifications describe committed generations; the source generation owns its channels and subscriptions until it drains. A deactivation notification alone does not dispose them. See [publication contracts](WotCon.md#ownership-and-publication).
 
 * **Strict mode** (`WotRegistryServerOptions.StrictBindings = true`) fails the closure when any required form is unsupported or invalid.
 * **Degraded mode** materializes nodes with `BadConfigurationError` and emits a `WoTBindingFailureEvent`. Validated-but-non-executable forms also degrade the closure so their nodes are visible but flagged.
@@ -158,7 +163,7 @@ Once a closure's forms are materialized as NodeSet2 content, `LifecycleWotProjec
   * A **direct** target (`uav:mapToNodeId` and/or `uav:mapToType` alone) wires executable `readproperty`/`writeproperty` forms as async `OnRead`/`OnWrite` handlers preserving source status/timestamps. A combined read/observe form retains local sampling; distinct or observe-only forms use the subscription bridge described below.
   * A **structured** target (`uav:mapToType` + `uav:mapByFieldPath`) reads fields concurrently and builds registered structures through `IEncodeableFactory` / `IStructure` / `IDataTypeDefinitionSource`, without reflection. Writes extract and write mapped fields concurrently. A Bad field fails the operation; usable Uncertain values remain usable. The result retains the first non-default status at the highest severity and the oldest available source timestamp; writes preserve Good subcodes such as `GoodClamped`.
   * Conflicting direct-vs-field mappings, duplicate read/write mappings for the same target/field, and unsupported target operations all fail activation deterministically. Everything else about a structured target that depends on its structure type being registered — the encodeable type lookup, root instance validation, and `uav:mapByFieldPath` path resolution (empty segments, unknown fields, array-valued or non-structure intermediate fields) — is deferred to the first structured read or write instead of failing activation, because `RuntimeNodeSetOptions.ConfigureAsync` runs before `NodeManagerLifecycle.RefreshComplexTypesAsync` registers the server's custom structure types. Resolution is retried, uncached, on every first use until it succeeds against the (by-then-populated) `IEncodeableFactory` instance; a still-unresolved first use returns a deterministic `BadConfigurationError` read/write status instead of throwing out of the request pipeline.
-  * Channels are opened lazily and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Every successfully opened channel is disposed with the generation; disposal failures are aggregated. A channel open racing with, or started after, generation disposal never leaks: disposal marks the slot disposed under its lock so no later open can start, and still awaits and disposes a channel whose open was already in flight.
+  * Channels are opened lazily, except where transparent event forwarding requires preparation before publication, and cached one-per-compiled-form for the generation; concurrent first use opens once, and a failed open is evicted so a later call can retry. Every successfully opened channel is disposed with the generation; disposal failures are aggregated. A channel open racing with, or started after, generation disposal never leaks: disposal marks the slot disposed under its lock so no later open can start, and still awaits and disposes a channel whose open was already in flight.
 * Both abstractions are always available via direct construction (no DI container required) and are registered through `AddWotRegistryServer` using `TryAdd*` so a host application can supply its own implementation.
 
 ### Projected Methods, events, and Conditions
@@ -209,6 +214,15 @@ a native two-argument Method's signature: OPC UA callers supply both arguments.
 After acknowledgement changes the occurrence, confirmation uses the updated
 EventId. Unbound standard Methods on a Condition proxy are disabled, so they
 cannot change only the local copy.
+
+Remote calls to standard Condition aliases are dispatched through the original
+action's ObjectId and MethodId using the current caller's OperationContext.
+Both the alias and the original receiver/Method must therefore pass effective
+Call permissions, AccessRestrictions and live Executable/UserExecutable checks.
+Removing the original receiver or Method makes the alias fail closed before
+opening its binding channel. This also applies to Enable and Disable, which
+do not take an EventId; occurrence actions retain their source EventId routing.
+Trusted in-process calls without an OperationContext retain their direct path.
 
 `WotProjectionBindingRuntimeOptions` limits pending notifications per local
 notifier (`MaxQueuedEvents`) and retained occurrence routes per event declaration
@@ -264,8 +278,8 @@ with `BadSecurityChecksFailed`, retain accepted evidence, and revoke its route.
 Native ReceiveTime uses the local TimeProvider; source times remain source facts.
 
 `MaxEventRoutes` counts each distinct ordinary/Condition/branch occurrence;
-replay consumes no slot. Restart/action expiry does not reset it. Install a
-replacement generation through shadow reload to let old evidence drain.
+replay consumes no slot. Within a generation, restart/action expiry does not
+reset it. Install a replacement generation through shadow reload to let old evidence drain.
 The server-wide `EventIdentityAdmissionOptions.MaxEventIdentities` defaults to
 65,536 and is configurable before server startup or by injection. Native/projected
 events share that domain. Live event targets, retained Condition snapshots, queues,
@@ -446,12 +460,103 @@ The executable bindings fail closed and never downgrade a secure form to an inse
 | `readproperty` | `Read` service (`ISession.ReadValueAsync`). |
 | `writeproperty` | `Write` service; the mapped `StatusCode` is preserved. |
 | `observeproperty` | A native data-change `MonitoredItem` (`AttributeId = Value`, queue size 1) on a dedicated `Subscription`; no client-side polling. |
-| `invokeaction` | `Call` service; the method NodeId is `uav:id` and its owner object is resolved from `uav:componentOf`. |
+| `invokeaction` | `Call` service; the selected form identifies the Method by `uav:id`, encoded `?id=`, or `uav:browsePath`. A form-scoped `uav:callObjectId` takes precedence; otherwise the planner can capture the explicitly identified original source Thing Object as described below. Local containment is not receiver authority. |
 | `subscribeevent` | A native event `MonitoredItem` (`AttributeId = EventNotifier`) whose `EventFilter` select clauses are the compiled `WotEventSelection` of WoT Binding Section 6.1: the eight mandatory `BaseEventType` fields (`EventId`, `EventType`, `SourceNode`, `SourceName`, `Time`, `ReceiveTime`, `Message`, `Severity`) when the affordance states no selection, and otherwise the selection resolved from the EventType definition it links to with `tm:ref`, overlaid by the `uav:eventSelectClauses` it states. Every selected field is delivered in `WotNotification.EventFields`, keyed by its browse path — an empty path supplies `ConditionId` — with the event's own `Time` / `ReceiveTime` as the source / server timestamp. |
 
 Both subscription kinds share one code path: a dedicated `Subscription` is created per channel subscription, its `MonitoredItem` is disposed and the subscription removed from the session (`ISession.RemoveSubscriptionAsync`) when the returned `IWotSubscription` is disposed, so no session or subscription is leaked — including when creation fails partway through.
 
-A compiled form's NodeId (`uav:id`, and `uav:componentOf` for actions) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+A compiled form's NodeId (`uav:id`, and `uav:callObjectId` for action receivers) is resolved with `NodeId.Parse` for the plain `ns=` / `i=` / `s=` / `g=` / `b=` forms; a portable NodeId carrying an `nsu=` namespace URI is parsed as an `ExpandedNodeId` and resolved against the connected session's namespace table, since `NodeId.Parse` alone cannot resolve a namespace URI without one.
+
+### Source-Thing Call receiver selection
+
+A present form-scoped `uav:callObjectId` must be a portable, non-null NodeId.
+An invalid explicit value fails planning; it never falls back to the Thing.
+The aggregation sample retains this explicit Binding 1.1 contract.
+
+When the term is omitted, extraction can capture the original source Thing's
+explicit `uav:id`. The document must describe an Object, not a Thing Model,
+Variable, Method, View or projection envelope. Its OPC UA base and forms must
+identify one endpoint, matching the selected action endpoint. Missing identity,
+multiple endpoints and relocated actions without captured receiver authority
+fail closed. Scenario/projection envelopes cannot supply their local root as
+an upstream receiver.
+
+For source-routed projections, resolution retains original Object receiver facts
+on the live `WotDocument` result without adding or replacing JSON form terms.
+Pass that result to `WotBindingPlanRequest.FromDocument(resourceXid, kind, document)`
+to carry the facts into the immutable plan. Nested imports retain these facts.
+An existing explicit value, including an invalid one, remains unchanged and takes
+precedence. Explicit imported ObjectType receivers, including the standard
+ConditionRefresh receiver, retain their existing explicit-Call behavior.
+Neither `uav:resolvedFrom` alone nor local `uav:componentOf` arrays supply authority.
+
+**Persisted resolved-only JSON does not retain these source facts.** Re-parsing it
+therefore rejects an omitted receiver, rather than inferring from the projection
+root or treating the provenance locator as proof. Automatic recovery of trusted
+original-source facts from that persisted result is not implemented. Retain the
+live resolution result, resolve the original projection again with its configured
+source acquisition, or author an explicit current-format receiver. Explicit
+`uav:callObjectId` imports are unaffected by this limitation.
+
+Before dispatching an inferred source-Thing Call, the executor checks the connected
+endpoint, reads the receiver and Method NodeClasses, and checks `HasComponent`
+ownership on the Object or its ObjectType/supertype hierarchy. The traversal is
+bounded to 100 types and 10,000 references, releases continuation points, and
+rejects ambiguous/remote type ancestry. Session generation and namespace context
+are checked through dispatch. Denied inspection, wrong classes or failed
+ownership produce an error without a speculative Call. Standard Condition instance
+actions additionally require the appropriate Condition type ancestry;
+ConditionRefresh/ConditionRefresh2 cannot use an inferred Object receiver.
+The Server remains authoritative for execution permissions and explicit-Call
+Object/ObjectType ownership. MCP uses the captured `callObjectId`
+for both its exact Method/receiver grant and mutation guards.
+
+For example, this no-argument action omits the receiver because the original
+Thing identifies it:
+
+```json
+{
+  "@context": [
+    "https://www.w3.org/2022/wot/td/v1.1",
+    { "uav": "http://opcfoundation.org/UA/WoT-Binding/" }
+  ],
+  "@type": "Thing",
+  "title": "Source pump",
+  "securityDefinitions": { "none": { "scheme": "nosec" } },
+  "security": ["none"],
+  "base": "opc.tcp://source.example:4840",
+  "uav:id": "nsu=urn:example:pump;s=Pump",
+  "actions": {
+    "reset": {
+      "forms": [{
+        "href": "opc.tcp://source.example:4840",
+        "uav:id": "nsu=urn:example:pump;s=Reset",
+        "op": "invokeaction"
+      }]
+    }
+  }
+}
+```
+
+This is not a way to infer a Condition receiver from an event's `SourceNode`,
+a containing Object, or a local Method alias. A source-selected Condition
+receiver must pass the same Object/type ownership checks. Existing explicit
+Condition occurrence bindings still require their captured source correlation;
+omission does not make an unexposed Condition identifiable or authorize an
+unrelated Object.
+
+**Published Binding v1.00 interoperability remains incomplete.** Published
+[OPC 10101 v1.00 Section 7.1.3](https://reference.opcfoundation.org/specs/OPC-10101/v1.00/t63916693358/download/markdown)
+requires an **action-level `uav:componentOf` array** declaring the owning Object.
+Section 6.5.3's lack of mandatory *form* terms does not remove that requirement.
+The published array is distinct from the obsolete scalar form-level fallback
+and from local projection containment. This runtime does not select a receiver
+from that published action-level owner array, nor reconstruct native argument
+ordering from server metadata for schemas lacking the current explicit layout.
+Source-Thing selection therefore does not establish full published v1.00
+interoperability. These limits are separate from
+[Connectivity 1.02 asset compatibility](WotCon.md#wot-con-102-compatibility) and
+do not close the mandatory schema-validation gap documented below.
 
 <a id="event-field-selection"></a>
 
@@ -567,7 +672,7 @@ What the runtime does with it:
 * Two clauses **shall not** materialize the same `data` member, even where they reference
   different EventTypes and even where their normalized browse paths differ: the
   **materialized member path** — the sequence of `data` member names the clause fills —
-  is what decides the output, so two clauses that reach it would compete for it and
+  determines the output, so two clauses that reach it would compete for it and
   nothing in the document would say which of them filled it. Normalization resolves each
   element's prefix to the NamespaceUri the document binds it to, so two prefixes for one
   namespace name one path; but the member name drops the qualification altogether and a
@@ -625,13 +730,8 @@ reaches `WotEventDataBuilder` — a plan assembled around the planner, or a Serv
 field list the selection does not describe — the first stated clause keeps the
 member and the collision is logged as an error rather than silently dropped.
 
-The superseded `uav:eventFields` spelling this implementation minted before the term was
-standardized is still **read** — it is authored on a form, carries bare browse names and
-*adds* to the default selection — and is never **written**. Where a form carries both,
-the standardized term wins and the contradiction is reported (`ConflictingFields`)
-rather than silently merged. New documents should author the standardized terms
-instead: link the EventType definition with `tm:ref` and state only the clauses that
-refine it, as described above.
+An event affordance links its EventType definition with `tm:ref` and states the
+clauses that refine it with `uav:eventSelectClauses`, as described above.
 
 ### Constraining an `auto` endpoint selection (`uav:minimumSecurity`)
 
@@ -673,6 +773,11 @@ chosen:
   position in the response. Where no endpoint is eligible the activation fails with
   `BadSecurityModeRejected` and no session is opened: a client **shall** fail and report
   rather than fall back below a stated floor.
+  Before ranking, every advertised destination (and any proxy URL) is validated
+  against the registry's `WotEndpointPolicy` and its endpoint URL is normalized.
+  Denied or malformed candidates are discarded even when no floor is stated.
+  If discovery returned candidates but none pass destination policy, activation
+  fails with `BadUserAccessDenied` without invoking the selected-endpoint factory.
 * The endpoint-blind `SessionFactory` stays exactly as it was where the form states **no**
   floor. A form that states one and finds only that factory configured fails with
   `BadConfigurationError` naming what to configure, rather than opening a session through
@@ -687,6 +792,36 @@ chosen:
 The clause constrains a choice among the endpoints a Server already offers and nothing
 else: certificate trust, trust-list policy, filtering on any other endpoint attribute and
 transport-profile negotiation stay with the application's own security configuration.
+
+`OpcUaWotSessionRequest.EndpointPolicy` carries the same outbound policy to both
+constrained and selected-endpoint factories. A factory that performs further
+discovery or rewrites a destination must call `request.ValidateEndpoint(url)`
+**before** opening that connection, including any proxy connection. The helper
+returns a normalized URI or throws the policy's validation error. The executor
+also validates the endpoint reported by the returned session before exposing a
+binding channel; this check cannot undo a connection a custom factory already
+opened. The legacy endpoint-only factory cannot receive this context: applications
+using it must independently enforce the same policy on any destination changes,
+or migrate to the constrained factory. This does not change certificate trust
+requirements or the endpoint policy's documented DNS-resolution limitations.
+
+For example, the selected-endpoint factory can enforce the boundary again
+immediately before handing the description to its application-specific connector:
+
+```csharp
+options.SelectedEndpointSessionFactory = async (description, request, ct) =>
+{
+    description.EndpointUrl = request.ValidateEndpoint(description.EndpointUrl).AbsoluteUri;
+    if (description.ProxyUrl is { } proxy)
+    {
+        description.ProxyUrl = request.ValidateEndpoint(proxy.OriginalString);
+    }
+    return await ConnectSelectedEndpointAsync(description, ct).ConfigureAwait(false);
+};
+```
+
+`ConnectSelectedEndpointAsync` is the application's connector; it must not
+silently replace either validated destination with an unvalidated discovery result.
 
 The same selection paths also enforce exact `uav:channelsec` and actual
 `uav:authentication` (Anonymous/UserName/Certificate/IssuedToken) requirements.
@@ -717,7 +852,7 @@ The binding pipeline separates pure document processing from transport I/O:
 3. `WotProtocolBinderRegistry.Prepare` validates protocol-neutral target mapping, selects one binder for each form, and calls its planner without performing transport I/O.
 4. The planner validates protocol vocabulary and addressing, then emits one immutable `WotCompiledForm` per supported operation. A compiled form carries endpoint, addressing, operation, payload, secret-free credential references, target mapping, and executability.
 5. The materialization coordinator converts a dependency closure to runtime NodeSet2 content and passes its plans in `WotProjectionDocument.BindingPlans`.
-6. After the NodeSet is imported, `WotProjectionBindingRuntimeFactory` wires the compiled forms to target variables. Wiring is synchronous and performs no transport I/O.
+6. After the NodeSet is imported, `WotProjectionBindingRuntimeFactory` wires the compiled forms to local Variables, Methods, and event declarations. Variable wiring is synchronous; transparent event preparation acquires its authenticated source channel before publication.
 7. On first read or write, `WotBindingChannelSlot` asks `IWotBindingChannelFactory.OpenChannelAsync` for a live channel. The registry resolves the matching `IWotBindingExecutor` and creates a `WotExecutorContext` containing credentials, codecs, and bounds.
 8. The runtime NodeSet generation owns the resulting `IAsyncDisposable` binding runtime. The runtime owns every lazily opened channel and disposes them when that generation drains and is removed.
 
@@ -739,7 +874,7 @@ Do not claim a form merely because its URI scheme is vaguely related to the prot
 
 The planner should validate every term it consumes, reject contradictory terms, enforce `WotBindingBounds`, and report diagnostics at `form.Pointer("term")`. Use `form.AffordancePointer("term")` only for terms defined on the owning affordance. Unknown terms from a pinned vocabulary should produce `UnknownVocabularyTerm` when accepting them could change behavior.
 
-`WotFormExtractor` emits a formless descriptor for an affordance with no `forms` array. This intentionally makes strict materialization reject an affordance that has no executable route instead of silently ignoring it.
+`WotFormExtractor` emits a formless descriptor for an affordance with no `forms` array. Strict materialization rejects an instance affordance that needs an executable route but has none. Type-owned declarations and native Variables without forms or explicit target mappings are exempt, as described under [Projected Methods, events, and Conditions](#projected-methods-events-and-conditions).
 
 ### Authoring OPC 10101 target mapping
 
@@ -823,7 +958,7 @@ A planner can ship without an executor. The registry still validates and compile
 
 The channel implements read, write, invoke, property observation, event subscription, and asynchronous disposal. Unsupported operations return `BadNotSupported` instead of throwing. Transport failures should be translated into deterministic `StatusCode` results; cancellation requested by the caller should normally remain cancellation, while an executor-owned timeout should become `BadTimeout`.
 
-The projection runtime opens channels lazily. One `WotBindingChannelSlot` is shared for each compiled-form object within a generation, concurrent first use opens exactly once, a failed open is evicted for retry, and one caller's cancellation does not cancel the generation-scoped open for other callers. Disposal marks the slot closed before awaiting an in-flight open, then disposes any successfully created channel. Channel disposal must be idempotent, and subscription disposal must stop delivery and release its transport resources.
+The projection runtime opens channels lazily, except for the source channel required during transparent event preparation. One `WotBindingChannelSlot` is shared for each compiled-form object within a generation, concurrent first use opens exactly once, a failed open is evicted for retry, and one caller's cancellation does not cancel the generation-scoped open for other callers. Disposal marks the slot closed before awaiting an in-flight open, then disposes any successfully created channel. Channel disposal must be idempotent, and subscription disposal must stop delivery and release its transport resources.
 
 Do not create transport connections in the planner, binder constructor, or DI registration callback unless the executor itself explicitly owns a long-lived pooled client. Prefer an injectable client/session factory in options, as the built-in executors do.
 
@@ -843,6 +978,12 @@ Register a provider with `AddWotCredentialProvider`. Scope credentials by the re
 
 `WotEndpointPolicy` is an allow-list that decides which endpoint URIs an executor may reach. It fails closed: the default set covers only the schemes the shipped bindings use (`http`, `https`, `modbus+tcp`, `modbus`, `mqtt`, `mqtts`, `opc.tcp`, `opc.https`, `opc.wss`), and it blocks loopback, RFC1918, CGNAT, link-local (including the cloud metadata address `169.254.169.254`) and IPv6 ULA ranges.
 
+Executable MQTT and Modbus network forms require an explicit, nonempty host.
+Hostless forms do not imply localhost. Their executors validate the effective
+destination against the operation's endpoint policy before resolving credentials
+or creating a connection, including when invoked directly without registry
+activation.
+
 A custom binding almost always introduces a scheme the default set does not know about, so opening a channel fails with `BadSecurityChecksFailed` and `Endpoint scheme '<scheme>' is not in the policy's AllowedSchemes set` until the scheme is opted in:
 
 ```csharp
@@ -850,7 +991,7 @@ var endpointPolicy = new WotEndpointPolicy();
 endpointPolicy.AllowedSchemes.Add("mem");
 ```
 
-Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment genuinely requires them relaxed — those blocks are what stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
+Add only the scheme your binding needs, and leave the address-range restrictions alone unless the deployment requires them relaxed — those blocks stop a Thing Description from steering an executor at the host's own listeners or at a cloud metadata endpoint.
 
 #### Internationalized hosts
 
@@ -860,7 +1001,7 @@ A `href` may name an internationalized host (`http://ü.example/x`). Percent-enc
 
 ### Registration
 
-The direct-construction path is useful in focused tests. Note the policy passed alongside the binder and executor, which is what lets the sample's `mem://` endpoints resolve:
+The direct-construction path is useful in focused tests. The policy passed alongside the binder and executor lets the sample's `mem://` endpoints resolve:
 
 ```csharp
 var store = new MemoryWotStore();
@@ -894,7 +1035,7 @@ opcUa
 
 ### Monitoring and local sampling
 
-For a target-mapped variable, the generic projection runtime wires executable `readproperty` and `writeproperty` forms to async `OnRead` and `OnWrite` handlers. Local OPC UA monitored items sample that same read handler. An `observeproperty` entry does not create a second upstream observe bridge for target mapping, so a binding must provide a reliable and bounded read operation even when its native protocol also supports push observation.
+For a target-mapped variable, the generic projection runtime wires executable `readproperty` and `writeproperty` forms to async `OnRead` and `OnWrite` handlers. When the same authored form provides `readproperty` and `observeproperty`, local OPC UA monitored items sample the read handler without a second upstream subscription. Distinct or observe-only forms use the subscription bridge and cache described under [Property observation and contextual values](#property-observation-and-contextual-values).
 
 Outside target mapping, callers can use `IWotBindingChannel.ObserveAsync` or `SubscribeEventAsync` directly. The returned `IWotSubscription` owns the native subscription or polling loop and must stop it in `DisposeAsync`.
 
@@ -1308,16 +1449,20 @@ Conditionally exclude executor source on older TFMs rather than reducing the bas
 
 ## Related documentation
 
-* [WoT Connectivity model, server, registry, and client](WoTConnectivity.md)
+* [WoT Connectivity model, server, registry, and client](WotCon.md)
 * [WoT aggregation sample](../samples/WotCon/README.md) - exercises the complete generic projection runtime with two OPC UA source servers, runtime-loaded DI/Machinery/Pumps models, local monitored items, and shadow-generation replacement.
 * [Dependency injection](DependencyInjection.md)
 * [Runtime NodeSets](RuntimeNodeSets.md)
 
 <a id="conformance-and-authoring-validation"></a>
 
-## Conformance to WoT Binding 1.1
+<a id="conformance-to-opc-10101-1-wot-binding"></a>
 
-The specification defines twelve conformance units and four recommended profiles
+## Conformance to OPC 10101 (Binding and Projections)
+
+### OPC 10101-1 (WoT Binding)
+
+The specification defines eleven conformance units and four recommended profiles
 (Section 11). This is where the implementation stands against them.
 
 | Unit | Status | Where |
@@ -1333,19 +1478,24 @@ The specification defines twelve conformance units and four recommended profiles
 | **WoT-ModelVocabulary** | covered | `WotNodeSetConverter.ModelVocabulary` and `WotNodeSetConverter.Conformance`, all Section 6 terms with their validation rules |
 | **WoT-DataTypeDefinition** | covered | `WotNodeSetConverter.DataTypes`, the explicit and inferred DataType definitions of Section 6.11 |
 | **WoT-ExternalResolver** | covered | `WotResolver` for `uav:externalSchema`, `uav:mapToType`, `uav:mapToNodeId` and cross-document links |
-| **WoT-Projection** | covered | `WotProjection`, `WotProjectionResolver` and, for materialization, `WotProjectionViewBuilder` with `LifecycleWotViewProjectionHost` |
 
 The table identifies implementation paths, not certification of every requirement
 in **WoT-Reader**, **WoT-Modeller**, **WoT-Converter**, or
 **WoT-ArchivalConverter**. Full TD/TM JSON Schema and compatibility-policy validation
 remain separate unfinished work; successful conversion does not close those gaps.
 
-The unit and profile names themselves are stated once, in
+The three profiles beyond **WoT-Reader** include the part-qualified
+`2:WoT-Projection` dependency from OPC 10101-2. Their projection dependency is
+subject to the mandatory validation gap described below.
+
+The WoT Binding unit and profile names are stated once in
 `Opc.Ua.Wot.WotBindingConformance`, together with the vocabulary revision this
 library implements (`CurrentRevision`, `1.1`) and the profile nesting Section 11
-defines. A document declares what it claims with `uav:profile` and the revision it
-was authored against with `uav:bindingVersion` (Section 4.1); both are validated,
-neither becomes a Node, and both are restated verbatim on a round trip.
+defines. The cross-part projection dependency is kept separately qualified in
+those profile closures. A document declares what it claims with `uav:profile` and
+the revision it was authored against with `uav:bindingVersion` (Section 4.1);
+both are validated, neither becomes a Node, and both are restated verbatim on a
+round trip.
 
 `ConformanceMode` defaults Permissive; Strict reports unknown terms and unmet
 required claims. `AuthoringValidation` separately requires known published
@@ -1354,6 +1504,44 @@ unknown claims/revisions with warnings; malformed claims fail in every mode.
 Opaque metadata/configuration objects retain their own 65,536 compact-received
 UTF-8-byte, depth-32, and 256-top-level-key bounds. The `uav:nodes` record grammar
 has a separate namespace and is not readable Binding vocabulary.
+
+### OPC 10101-2 (WoT Projections)
+
+The current official draft defines one conformance unit, **WoT-Projection**.
+It is qualified as `2:WoT-Projection` in Binding profile closures, not counted
+among Part 1's eleven units. The stack has the following implementation and
+regression-test paths; these are partial evidence, not a complete requirement
+audit or executable CTT result.
+
+| Contract | Implementation | Existing evidence |
+| --- | --- | --- |
+| Ordinary TD/TM plan envelopes and result roles | `WotProjection`, registry admission | `WotProjectionPlanFormatTests.ResolvedProjectionHasTheDeclaredOutputKindAndNoPlanControl` |
+| Ordered selection, enumerated-over-bulk precedence and local overrides | `WotProjectionResolver` | `WotProjectionResolverTests.EnumeratedSelectionWinsOverBulkAndReportsDrop`, `LocalAffordancesOverrideSelectionsAndRetainOrdinaryReferencesAsync` |
+| Source routing, provenance, effective context and security ownership | `WotProjectionResolver` and its dependency closure | `WotProjectionResolverTests.SourceRoutingAbsolutizesFormAndCopiesSecurityClosure`, `BulkProvenanceIsHrefPlusPointer`, `WotProjectionSecurityTests.LocalAffordanceSecurityRetainsProjectionOwnershipAsync` |
+| Canonical Views over existing local/imported Nodes, stable identities and owned-node counts | `WotProjectionViewBuilder`, `LifecycleWotViewProjectionHost`, materialization coordinator | `WotProjectionViewCanonicalLiveTests.ProjectionLocalAffordancesJoinImportedMembersAndOverrideCollisionsAsync`, `ProjectionGeneratedLocalIdentitiesAndCountsRemainResourceScopedAsync` |
+| Distinct organizational occurrences, shared canonical roots and cycle rejection | View host and projection dependency resolver | `WotProjectionViewCanonicalLiveTests.CanonicalCandidateRendersSharedChildAndTypedWrappersOverTransportAsync`, `WotProjectionResolverTests.AGroupThatOrganizesItsOwnOrganizerIsACycleAsync` |
+| Complete base TD/TM and Binding validation of the resolved result | **Missing mandatory behavior** | No complete validator is integrated; parsing, conversion and projection regression tests do not satisfy this requirement |
+
+The resolver-side test names are also recorded under part-qualified clause
+anchors in the stack-side
+[traceability locator](../tests/Opc.Ua.Types.Tests/Wot/Assets/wot-binding-traceability.json).
+The View tests are in
+[`WotProjectionViewCanonicalLiveTests`](../tests/Opc.Ua.WotCon.Tests/Materialization/WotProjectionViewCanonicalLiveTests.cs).
+The locator checks that named tests exist and run; it does not establish that
+every requirement or conformance-unit assertion is covered.
+
+Full **WoT-Projection** conformance is **not established**. Complete result
+validation remains a mandatory implementation blocker pending runtime dependency
+approval, license/distribution review and NativeAOT-compatible integration.
+This also prevents claiming the Part 1 **WoT-Modeller**, **WoT-Converter** and
+**WoT-ArchivalConverter** profile closures that require `2:WoT-Projection`.
+View and recovery tests do not close that validation gap.
+
+The separate Connectivity **WOTC-ProjectionMaterialization** unit adds the
+registry/server lifecycle contract. Neither that unit nor the **WoT-Con Full**
+profile is established by the Part 2 resolver and View evidence alone; see
+[Connectivity conformance](WotCon.md#12-conformance-to-wot-connectivity-11)
+for its independent gaps and claim boundaries.
 
 ### Conversion entry points
 
@@ -1433,8 +1621,9 @@ Opaque-size bounds compact whitespace outside strings only.
 ### DataTypes, ranks, arguments, and model vocabulary
 
 Unannotated booleans/strings map to Boolean/String; integer/number to abstract
-Integer/Number. Native pins override inference. Formats `base64`, `date-time`,
-`uuid`, and `uri` refine to ByteString, DateTime, Guid, and UriString.
+Integer/Number. Native pins override inference. Content encoding `base64`
+refines to ByteString; formats `date-time`, `uuid`, and `uri` refine to DateTime,
+Guid, and UriString.
 `uav:dataTypeDefinitions` carries one complete definition per graph identity;
 later occurrences are references. Multi-field inference requires field order,
 Unions require explicit intent, and missing concrete widths/custom bases fail.
@@ -1469,15 +1658,15 @@ engineering-unit members.
 
 ### What the readable mapping does not yet carry
 
-The conversion sections above describe readable mappings and fallback conditions;
-[WoT / NodeSet conversion](WoTNodeSetConversion.md) preserves the topic index.
-[Engineering units, ranges and scaling](#engineering-units-ranges-and-localized-text)
-map in both directions when their values can be decoded. Missing or
+Readable mappings and their fallback conditions are maintained in
+[WoT / NodeSet conversion](WotNodeSetConversion.md). In particular,
+[engineering units, ranges and scaling](WotNodeSetConversion.md#engineering-units-ranges-and-scaling-sections-64-and-641)
+are mapped in both directions when their values can be decoded. Missing or
 unsupported values use the documented preservation projection rather than
 invented defaults.
 
 Use this guide for protocol planners, executors, and binding registration;
-use [WoT Connectivity](WoTConnectivity.md) for registry hosting and projection
+use [WoT Connectivity](WotCon.md) for registry hosting and projection
 lifecycle. Keeping conversion rules in one place avoids binding implementations
 depending on an outdated list of mapping limitations.
 
@@ -1488,53 +1677,18 @@ round-trip guarantees.
 
 ### How this is checked
 
-The pinned specification manifest contains twenty-seven worked examples, and two of them are a
-golden pair: a projection document and the resolved view it is defined to
-resolve to. `WotSpecExampleTests` embeds the pinned examples and runs the pair
-through the resolver, asserting against the specification's own expected output
-rather than against our reading of the prose. That covers, in one document, all
-three selection forms, the bulk naming rule, the security closure naming and the
-provenance term. Example 22 is additionally converted to check that a document
-binds the node it projects to an existing type (Section 5.2.1) and constrains
-its `auto` endpoint selection with a Section 5.7.1 floor. Three examples were
-added by revision 1.1 and pin the corrections it made: a document whose texts
-are authored in German and French while the default locale is `en`
-(example 24, the code-point-first display fallback of Section 9.1.1), a Thing
-Model that projects a ReferenceType Node with `uav:inverseName` and
-`uav:symmetric` (example 25, Section 6.2.1), and one that projects a DataType
-Node (example 26, Sections 5.2 and 6.11).
+The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
+local regression fixtures. They exercise parsing, conversion, import, and
+projection behavior, including validation of projection root roles.
+They are not authoritative copies of the current specification examples and
+must not be treated as evidence of current WoT conformance.
 
-`WotSpecExampleTests.EveryPublishedExamplePassesStrictConformanceAndImports`
-runs the examples through the whole reading pipeline — parse,
-**strict** conformance validation, conversion, then serialize, re-read and
-`Import`. A document that claims a profile covering `WoT-Modeller` has to
-convert: the claim is what makes the conversion mandatory rather than optional.
-
-#### Keeping the vendored examples honest
-
-The examples are vendored byte-for-byte from the specification repository into
-`tests/Opc.Ua.Types.Tests/Wot/Assets`, and `.gitattributes` marks `*.jsonld`
-`eol=lf` so the checked-out bytes are the upstream bytes on every platform.
-They used to be copied by hand with no record of the source, and they drifted:
-one example gained a security floor upstream while the copy here kept the
-superseded text, and a later example never arrived at all.
-
-`spec-examples.manifest.json` beside them now records the source repository,
-branch and commit, the vocabulary revision, and the size and SHA-256 of every
-file. `WotSpecFixtureManifestTests` enforces it in three layers:
-
-| Check | Needs | What it catches |
-| --- | --- | --- |
-| manifest set, count, numbering and per-file SHA-256 | nothing — offline, from embedded resources | an edited, replaced, added or dropped example, and a gap in the `NN-` numbering that would hide a missing tail |
-| manifest provenance | nothing | a manifest that names no full source commit, or that records a revision this library does not implement |
-| byte identity against the specification checkout | a sibling `spec-drafts` checkout, or `OPCUA_WOT_SPEC_DRAFTS` | a regeneration made from the wrong source, which would record wrong hashes just as consistently |
-
-The third check is skipped, not failed, where no checkout is present, so CI needs
-neither the network nor a second repository. Re-vendoring is the explicit
-developer step `WotSpecFixtureManifestTests.RegenerateFromSpecCheckout`, which
-copies the published examples over the vendored ones and rewrites the manifest
-from `git` in the source checkout — so the diff a reviewer sees is the
-specification's diff.
+The normative baseline is the official
+[OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
+repository, merged at commit `40125acd1b65cdf291a92a67a5c6565656358e6e`.
+The local fixture manifest records those baseline coordinates separately from
+the fixture hashes; it does not assert that the fixture files were copied from
+that repository. Tests verify the checked-in fixture set and hashes offline.
 
 ### Resolving a type binding: the local context
 
@@ -1550,8 +1704,8 @@ loading an unrelated companion model can never change what an existing document
 projects to.
 
 `IWotNodeResolver` (in `Opc.Ua.Types`) is one part of that context.
-`WotCompositeNodeResolver` composes parts in the specified order and is what a
-converter is handed. A compact model name is a hint and may match none, one or
+`WotCompositeNodeResolver` composes parts in the specified order and is passed to the
+converter. A compact model name is a hint and may match none, one or
 several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 
 | Implementation | Part of the context | Assembly |
@@ -1561,7 +1715,7 @@ several nodes; an `ExpandedNodeId` is definitive and matches one or none.
 | `NullWotNodeResolver` | holds nothing; the default | `Opc.Ua.Types` |
 
 Both halves are composed with `WotCompositeNodeResolver` in the specified
-order. The AddressSpace half is what lets a document bind to a type a companion
+order. The AddressSpace half lets a document bind to a type a companion
 model defines — the primary use of §5.2.1 — and it is wired in by
 `WotRegistryNodeManager` as soon as an `IServerInternal` exists. Without it a
 document could only bind to a type a sibling projects, and because §5.2.1
@@ -1571,7 +1725,7 @@ the projection instead of resolving.
 `SnapshotWotNodeResolver` indexes the registry snapshot being converted. Only
 Thing Models are indexed, and the decision uses the *registry's* `Kind` rather
 than the document's own content: a Thing Model projects its root as a
-`UAObjectType` and so is what a type binding can name, whereas a Thing
+`UAObjectType` and can therefore be named by a type binding, whereas a Thing
 Description projects an instance and is never a type-binding target. Trusting
 the registry Kind means a party who can only submit Thing Descriptions cannot
 plant a type for another document to bind to. The identity it indexes by is
@@ -1723,7 +1877,7 @@ it:
 | `uav:actsOn` | action affordance | The event affordance, in the same document, whose Condition the action acts on |
 
 A projected Condition event derives from the ConditionType it names rather than
-from `BaseEventType`. That is the whole point of the mapping: a Client browsing
+from `BaseEventType`. A Client browsing
 a type that fell back to `BaseEventType` would see none of the Condition state
 and could not tell an alarm from an ordinary event.
 
@@ -1792,7 +1946,7 @@ carrying `uav:conditionAction` materializes with that declaration as its
 `MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment`
 `i=9029`, `Enable` `i=9027`, `Disable` `i=9028`), takes the base-namespace
 BrowseName the declaration has, and becomes a **component of the EventType**
-the pairing names. That is what records the pairing structurally, so the
+the pairing names. This records the pairing structurally, so the
 forward direction reads `uav:conditionAction` and `uav:actsOn` back from the
 model rather than guessing at them. A pairing OPC 10000-9 does not admit — an
 `Acknowledge` acting on a plain `ua:ConditionType`, which declares no such
@@ -1819,8 +1973,8 @@ resolves.
 notification but can never identify the occurrence to acknowledge, confirm or
 comment on. It is the **one** hard requirement of Section 13.3: an affordance
 carrying `uav:conditionType` shall declare `EventId` in its `data` object and,
-where it states a selection, shall select it — the resolved selection is what a
-MonitoredItem is created with, so one that omits the field
+where it states a selection, shall select it — a
+MonitoredItem uses the resolved selection, so one that omits the field
 describes a notification that never carries it. Every other Condition field is
 present in `data` *where the affordance selects it* and is not otherwise
 required; both are `ConditionEventIdMissing`. `Enable` and `Disable` act on the
@@ -1831,12 +1985,15 @@ Shelving, suppression, dialog conditions and `ConditionRefresh` are outside the
 mapping, as Section 13.1 scopes it.
 
 For the converter-default compatibility note, see
-[Condition events derive from their ConditionType](WoTNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
+[Condition events derive from their ConditionType](WotNodeSetConversion.md#condition-events-derive-from-their-conditiontype).
 
-The aggregation sample now includes source-specific alarm acknowledgment,
-confirmation, and management actions. Views remain organizational rather than
-event notifiers; subscribe to the source notifier. See the
-[sample guide](../samples/WotCon/README.md) for its supported scenario and limits.
+The [two-pump aggregation sample](../samples/WotCon/README.md) includes supervision
+EventTypes and Condition-action Methods. With `--exerciseControls true`, its client
+acknowledges and confirms occurrences through the aggregate and checks the upstream
+Condition state. These controls are opt-in because they modify the source servers.
+Views remain organizational rather than event notifiers; subscribe to the source notifier.
+Shelving, suppression, dialog and cross-WoT ConditionRefresh mappings are outside
+this demonstration.
 
 ### Compatibility switch for non-portable identifiers
 

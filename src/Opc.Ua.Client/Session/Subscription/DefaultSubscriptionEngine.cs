@@ -252,13 +252,14 @@ namespace Opc.Ua.Client
                 ISubscriptionNotificationHandler handler,
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 IMessageAckQueue queue,
-                SubscriptionLoadState? loadState = null)
+                SubscriptionLoadState? loadState = null,
+                Action<IManagedSubscription>? initialize = null)
             {
                 var subscriptionContext =
                     new SubscriptionContextAdapter(m_context);
                 return new DefaultSubscription(
                     subscriptionContext, handler, queue,
-                    options, m_context.Telemetry, loadState, m_timeProvider);
+                    options, m_context.Telemetry, loadState, m_timeProvider, initialize);
             }
 
             /// <inheritdoc/>
@@ -599,9 +600,10 @@ namespace Opc.Ua.Client
                 IOptionsMonitor<Subscriptions.SubscriptionOptions> options,
                 ITelemetryContext telemetry,
                 SubscriptionLoadState? loadState = null,
-                TimeProvider? timeProvider = null)
+                TimeProvider? timeProvider = null,
+                Action<IManagedSubscription>? initialize = null)
                 : base(context, handler, completion,
-                       options, telemetry, loadState, timeProvider)
+                       options, telemetry, loadState, timeProvider, initialize)
             {
             }
 

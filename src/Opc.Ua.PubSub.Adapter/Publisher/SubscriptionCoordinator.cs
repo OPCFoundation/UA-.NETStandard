@@ -66,19 +66,33 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="telemetry">
         /// The telemetry context used to create loggers.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// A configured index range is malformed.
+        /// </exception>
         public SubscriptionCoordinator(
             PubSubConfigurationDataType configuration,
             IServerSession session,
             SubscriptionAffinity affinity,
             ITelemetryContext telemetry)
         {
-            m_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            if (configuration is null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+            m_configuration = (PubSubConfigurationDataType)configuration.Clone();
             m_session = session ?? throw new ArgumentNullException(nameof(session));
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             m_affinity = affinity;
             m_logger = telemetry.CreateLogger<SubscriptionCoordinator>();
 
-            m_dataSetsByName = BuildDataSetMap(configuration);
+            m_dataSetsByName = BuildDataSetMap(m_configuration);
+            foreach (PublishedDataSetDataType dataSet in m_dataSetsByName.Values)
+            {
+                foreach (PublishedVariableDataType variable in GetPublishedVariables(dataSet))
+                {
+                    NumericRange.Parse(variable.IndexRange ?? string.Empty);
+                }
+            }
             BuildGroups();
         }
 
@@ -90,6 +104,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         /// <param name="ct">
         /// A token used to cancel the start.
         /// </param>
+        /// <exception cref="ServiceResultException">
+        /// A ranged field uses a provider without <see cref="IRangedDataChangeSubscription"/> support.
+        /// </exception>
         public async ValueTask StartAsync(CancellationToken ct = default)
         {
             ThrowIfDisposed();
@@ -286,7 +303,23 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             group.Subscription = subscription;
             group.Strategy.Attach(subscription);
 
-            var seen = new HashSet<string>(StringComparer.Ordinal);
+            if (subscription is not IRangedDataChangeSubscription)
+            {
+                foreach (string dataSetName in group.DataSetNames)
+                {
+                    foreach (PublishedVariableDataType variable in GetPublishedVariables(m_dataSetsByName[dataSetName]))
+                    {
+                        if (!string.IsNullOrEmpty(variable.IndexRange))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadNotSupported,
+                                "The external subscription provider does not support IndexRange.");
+                        }
+                    }
+                }
+            }
+
+            var seen = new HashSet<MonitoredItemKey>();
             var primeNodes = new List<ReadValueId>();
             var primeKeys = new List<MonitoredItemKey>();
 
@@ -320,11 +353,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                     uint attributeId = variable.AttributeId != 0
                         ? variable.AttributeId
                         : Attributes.Value;
-                    string dedupe = string.Concat(
-                        nodeId.ToString(),
-                        "|",
-                        attributeId.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                    if (!seen.Add(dedupe))
+                    string indexRange = NumericRange.Parse(variable.IndexRange ?? string.Empty).ToString();
+                    var key = new MonitoredItemKey(nodeId, attributeId, indexRange);
+                    if (!seen.Add(key))
                     {
                         continue;
                     }
@@ -333,16 +364,20 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
                         ? variable.SamplingIntervalHint
                         : group.PublishingIntervalMs;
 
-                    uint clientHandle = await subscription.AddMonitoredItemAsync(
-                        nodeId, attributeId, samplingMs, ct).ConfigureAwait(false);
-                    group.Strategy.RegisterMonitoredItem(clientHandle, nodeId, attributeId);
+                    uint clientHandle = subscription is IRangedDataChangeSubscription rangedSubscription
+                        ? await rangedSubscription.AddMonitoredItemAsync(
+                            nodeId, attributeId, indexRange, samplingMs, ct).ConfigureAwait(false)
+                        : await subscription.AddMonitoredItemAsync(
+                            nodeId, attributeId, samplingMs, ct).ConfigureAwait(false);
+                    group.Strategy.RegisterMonitoredItem(clientHandle, nodeId, attributeId, indexRange);
 
                     primeNodes.Add(new ReadValueId
                     {
                         NodeId = nodeId,
-                        AttributeId = attributeId
+                        AttributeId = attributeId,
+                        IndexRange = indexRange
                     });
-                    primeKeys.Add(new MonitoredItemKey(nodeId, attributeId));
+                    primeKeys.Add(key);
                 }
             }
 
@@ -359,7 +394,8 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
             int primeCount = values.IsNull ? 0 : values.Count;
             for (int i = 0; i < primeKeys.Count && i < primeCount; i++)
             {
-                group.Strategy.Seed(primeKeys[i].NodeId, primeKeys[i].AttributeId, values[i]);
+                group.Strategy.Seed(
+                    primeKeys[i].NodeId, primeKeys[i].AttributeId, values[i], primeKeys[i].IndexRange);
             }
 
             m_logger.BuiltSubscriptionGroup(group.Label, primeNodes.Count, group.PublishingIntervalMs);
@@ -444,20 +480,9 @@ namespace Opc.Ua.PubSub.Adapter.Publisher
         }
 
         /// <summary>
-        /// Node/attribute pair recorded for priming a monitored item.
+        /// Node, attribute and range recorded for monitoring and priming one projection.
         /// </summary>
-        private readonly struct MonitoredItemKey
-        {
-            public MonitoredItemKey(NodeId nodeId, uint attributeId)
-            {
-                NodeId = nodeId;
-                AttributeId = attributeId;
-            }
-
-            public NodeId NodeId { get; }
-
-            public uint AttributeId { get; }
-        }
+        private readonly record struct MonitoredItemKey(NodeId NodeId, uint AttributeId, string IndexRange);
 
         private const double DefaultPublishingIntervalMs = 1000;
 

@@ -184,6 +184,15 @@ configuration. Import rejects those fields rather than silently dropping them.
 not a client-emulated atomic transaction. Unknown outcomes must not be blindly
 retried.
 
+Every imported connection needs an explicit endpoint `configure-connect` grant
+with an empty resource selector, even if it contains no writer or reader groups.
+Authentication defaults and implicit discovery/status traffic can activate such
+a connection. Direction-specific topic grants must also cover writer-group,
+per-writer and metadata queues, including aggregate-message fallbacks. Mutations
+check their actual direction and existing parent address/transport settings;
+unreadable or incompatible parent settings are security errors, not permission
+to substitute a caller-provided plan.
+
 Source/sink bindings require exact declared field names/order and authorized
 Value node scopes. They reuse the Adapter package's cyclic reads and
 TargetVariables sink. Metadata is an explicit immutable schema, not an implicit

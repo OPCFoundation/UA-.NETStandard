@@ -77,7 +77,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             m_logger = context.Telemetry.CreateLogger<OpcUaWotBindingChannel>();
             m_context = context;
             m_eventSource = eventSource;
-            if (form.Addressing.BrowsePathTarget is not null)
+            if (form.Addressing.BrowsePathTarget is not null ||
+                form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
             {
                 m_session.SessionConfigurationChanged += OnPathConfigurationChanged;
             }
@@ -240,7 +241,8 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
         public ValueTask DisposeAsync()
         {
             m_eventSource?.DisposeBinding();
-            if (Form.Addressing.BrowsePathTarget is not null)
+            if (Form.Addressing.BrowsePathTarget is not null ||
+                Form.Addressing.Metadata.ContainsKey("sourceCallReceiver"))
             {
                 m_session.SessionConfigurationChanged -= OnPathConfigurationChanged;
             }
@@ -388,11 +390,10 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             DiagnosticsMasks diagnosticsMask,
             CancellationToken cancellationToken)
         {
-            bool explicitReceiver = Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef);
-            string receiverTerm = explicitReceiver ? "uav:callObjectId" : "uav:componentOf";
-            if ((!explicitReceiver && !Form.Addressing.Metadata.TryGetValue("componentOf", out objectRef)) ||
+            const string receiverTerm = "uav:callObjectId";
+            if (!Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef) ||
                 string.IsNullOrEmpty(objectRef) ||
-                (explicitReceiver && !WotPortableIdentity.IsPortableNodeId(objectRef)))
+                !WotPortableIdentity.IsPortableNodeId(objectRef))
             {
                 return new WotInvokeResult(
                     StatusCodes.BadNodeIdInvalid, null,
@@ -420,6 +421,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                         StatusCodes.BadNodeIdInvalid, null,
                         $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
                 }
+                await ValidateSourceCallReceiverAsync(objectId, target, cancellationToken).ConfigureAwait(false);
                 if (inputContext is not null)
                 {
                     ServiceMessageContext sourceContext = target.State?.CreateContext() ?? CreateSourceContext();

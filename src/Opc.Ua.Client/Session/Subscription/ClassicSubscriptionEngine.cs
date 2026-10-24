@@ -34,6 +34,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Redaction;
 
 namespace Opc.Ua.Client
 {
@@ -1307,7 +1308,7 @@ namespace Opc.Ua.Client
         public static partial void PublishRequestHandleSubscriptionCountErrorMessage(
             this ILogger logger,
             uint requestHandle,
-            string message,
+            [SensitiveText] string message,
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 11, Level = LogLevel.Error,
@@ -1317,14 +1318,14 @@ namespace Opc.Ua.Client
             this ILogger logger,
             uint requestHandle,
             bool reconnecting,
-            string message,
+            [SensitiveText] string message,
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 12, Level = LogLevel.Information,
             Message = "Publish abandoned after error {Message} due to session {SessionId} reconnecting")]
         public static partial void PublishAbandonedAfterErrorMessageSession(
             this ILogger logger,
-            string message,
+            [SensitiveText] string message,
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 13, Level = LogLevel.Error,
@@ -1332,7 +1333,7 @@ namespace Opc.Ua.Client
                 "Old {PreviousSessionId} != New {SessionId}")]
         public static partial void PublishAbandonedAfterErrorMessageSession2(
             this ILogger logger,
-            string message,
+            [SensitiveText] string message,
             NodeId? previousSessionId,
             NodeId? sessionId);
 
@@ -1340,7 +1341,7 @@ namespace Opc.Ua.Client
             Message = "Publish abandoned after error {Message} because session {SessionId} was closed.")]
         public static partial void PublishAbandonedAfterErrorMessageSession3(
             this ILogger logger,
-            string message,
+            [SensitiveText] string message,
             NodeId? sessionId);
 
         [LoggerMessage(EventId = ClientEventIds.ClassicSubscriptionEngine + 15, Level = LogLevel.Information,

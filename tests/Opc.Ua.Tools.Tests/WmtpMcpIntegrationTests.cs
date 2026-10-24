@@ -742,10 +742,18 @@ namespace Opc.Ua.Tools.Tests
         /// <summary>
         /// Delivered MCP cancellation and local deadlines drain their handler without a wire abort or collateral work.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task LocalCancellationAndTimeoutNeverAbortUnrelatedOperations(bool timeout)
+        /// <param name="timeout">Whether to exercise the local deadline instead of MCP cancellation.</param>
+        /// <param name="delayDelivery">Whether to hold cancellation delivery until the client call is canceled.</param>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public async Task LocalCancellationAndTimeoutNeverAbortUnrelatedOperations(bool timeout, bool delayDelivery)
         {
+            var deliverCancellation = NewSignal();
+            if (delayDelivery)
+            {
+                m_mcp.CancellationDelivery = deliverCancellation.Task;
+            }
             var foreignEntered = NewSignal();
             var ownEntered = NewSignal();
             var release = NewSignal();
@@ -808,9 +816,19 @@ namespace Opc.Ua.Tools.Tests
                     await m_mcp.CancelAsync(id).ConfigureAwait(false);
                     await Assert.CatchAsync<OperationCanceledException>(async () =>
                         await own.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false));
+                    if (delayDelivery)
+                    {
+                        Assert.That(delivered.IsCancellationRequested, Is.False);
+                        Assert.That(cleanup.IsCompleted, Is.False);
+                    }
+                }
+                deliverCancellation.TrySetResult(true);
+                // Client cancellation does not confirm server delivery; join the handler before checking its token.
+                await cleanup.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                if (!timeout)
+                {
                     Assert.That(delivered.IsCancellationRequested, Is.True);
                 }
-                await cleanup.WaitAsync(TimeSpan.FromSeconds(15)).ConfigureAwait(false);
                 Assert.That(foreign.IsCompleted, Is.False);
                 Assert.That(foreignToken.IsCancellationRequested, Is.False);
                 Assert.That(m_fixture.Session.Connected, Is.True);
@@ -825,6 +843,7 @@ namespace Opc.Ua.Tools.Tests
             }
             finally
             {
+                deliverCancellation.TrySetResult(true);
                 release.TrySetResult(true);
                 await DrainAsync(foreign).ConfigureAwait(false);
                 if (own != null)
