@@ -162,6 +162,13 @@ namespace Opc.Ua.Client
         internal ConnectionStateCloseOperation? CloseSessionAsync { get; set; }
 
         /// <summary>
+        /// Whether an established session starts another recovery cycle after exhaustion.
+        /// Explicit reconnect requests and initial connection retries remain available.
+        /// Configure before starting the worker.
+        /// </summary>
+        internal bool AutomaticRecoveryEnabled { get; set; } = true;
+
+        /// <summary>
         /// Initializes a new instance of the
         /// <see cref="ConnectionStateMachine"/> class.
         /// </summary>
@@ -1039,7 +1046,7 @@ namespace Opc.Ua.Client
                         error: result,
                         reconnectAttempt: 0);
 
-                    if (m_hasConnected)
+                    if (m_hasConnected && AutomaticRecoveryEnabled)
                     {
                         TimeSpan delay = m_reconnectPolicy is ReconnectPolicy policy
                             ? policy.MaxDelay

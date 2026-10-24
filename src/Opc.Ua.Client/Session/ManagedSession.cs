@@ -276,6 +276,9 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 channelReconnectTimeout: null,
                 rediscoveredEndpointValidator: null,
+                reconnectOnCommunicationFailure: true,
+                keepAliveFailureThreshold: 1,
+                requireSessionOwnedTransport: false,
                 ct);
         }
 
@@ -373,7 +376,7 @@ namespace Opc.Ua.Client
                 options.EnableTokenReuseFailover,
                 options.IdentityProvider,
                 options.TimeProvider,
-                channelManager,
+                options.UseSharedChannelManager ? channelManager : null,
                 options.NetworkRedundancy,
                 options.ServerRedundancy,
                 reverseConnectManager,
@@ -383,6 +386,9 @@ namespace Opc.Ua.Client
                 updateBeforeConnect,
                 options.ChannelReconnectTimeout,
                 options.ValidateRediscoveredEndpoint,
+                options.ReconnectOnCommunicationFailure,
+                options.KeepAliveFailureThreshold,
+                !options.UseSharedChannelManager,
                 ct).ConfigureAwait(false);
             try
             {
@@ -433,11 +439,26 @@ namespace Opc.Ua.Client
             bool? updateBeforeConnect,
             TimeSpan? channelReconnectTimeout,
             RediscoveredEndpointValidator? rediscoveredEndpointValidator,
+            bool reconnectOnCommunicationFailure,
+            uint keepAliveFailureThreshold,
+            bool requireSessionOwnedTransport,
             CancellationToken ct)
         {
             if (sessionFactory == null)
             {
                 throw new ArgumentNullException(nameof(sessionFactory));
+            }
+            if (keepAliveFailureThreshold == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(keepAliveFailureThreshold),
+                    "The keep-alive failure threshold must be at least one.");
+            }
+            bool customAdmission = requireSessionOwnedTransport ||
+                !reconnectOnCommunicationFailure || keepAliveFailureThreshold != 1;
+            if (customAdmission && (channelManager != null || sessionFactory is ChannelManagerSessionFactory))
+            {
+                throw new ArgumentException(
+                    "Custom communication-recovery admission requires a session-owned transport, not a shared channel manager.");
             }
             telemetry ??= sessionFactory.Telemetry;
             ILogger<ManagedSession> logger = telemetry.CreateLogger<ManagedSession>();
@@ -479,6 +500,9 @@ namespace Opc.Ua.Client
                 channelManager,
                 connectGate)
             {
+                ReconnectOnCommunicationFailure = reconnectOnCommunicationFailure,
+                KeepAliveFailureThreshold = keepAliveFailureThreshold,
+                RequiresSessionOwnedTransport = customAdmission,
                 m_engineFactory = engineFactory,
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
@@ -492,6 +516,7 @@ namespace Opc.Ua.Client
                 ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
             };
 
+            managed.StateMachine.AutomaticRecoveryEnabled = reconnectOnCommunicationFailure;
             managed.StateMachine.Start();
             managed.StateMachine.RequestConnect();
 
@@ -500,6 +525,12 @@ namespace Opc.Ua.Client
                 await managed.StateMachine
                     .WaitForConnectedAsync(ct)
                     .ConfigureAwait(false);
+                if (customAdmission && managed.InnerSession.ChannelManager != null)
+                {
+                    throw new ArgumentException(
+                        "The session factory returned a managed channel that cannot honor custom communication-recovery admission.",
+                        nameof(sessionFactory));
+                }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
@@ -934,6 +965,12 @@ namespace Opc.Ua.Client
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            if (RequiresSessionOwnedTransport && channel is IManagedTransportChannel)
+            {
+                throw new ArgumentException(
+                    "A managed channel cannot honor this session's communication-recovery admission settings.",
+                    nameof(channel));
+            }
             if (channel != null && m_session?.ChannelRecoveryInProgress == true)
             {
                 throw new ServiceResultException(
@@ -2962,6 +2999,7 @@ namespace Opc.Ua.Client
             if (e.Status != null &&
                 ServiceResult.IsBad(e.Status))
             {
+                long failures = Interlocked.Increment(ref m_consecutiveKeepAliveFailures);
                 // When the channel manager is wired AND it already
                 // reports transport/session recovery, or is restoring
                 // subscriptions through its provisional Ready gate, it is
@@ -2984,10 +3022,14 @@ namespace Opc.Ua.Client
                             ? TimeSpan.Zero
                             : m_timeProvider.GetElapsedTime(since));
                 }
-                else
+                else if (failures >= KeepAliveFailureThreshold)
                 {
                     TriggerRecoveryReconnect();
                 }
+            }
+            else
+            {
+                Interlocked.Exchange(ref m_consecutiveKeepAliveFailures, 0);
             }
 
             m_keepAlive?.Invoke(this, e);
@@ -3056,6 +3098,11 @@ namespace Opc.Ua.Client
         /// </summary>
         private void TriggerRecoveryReconnect(ChannelStateChange? change = null)
         {
+            if (!ReconnectOnCommunicationFailure)
+            {
+                return;
+            }
+
             // Recorded before the request so the worker never reads an older mark.
             Interlocked.Exchange(
                 ref m_reconnectTriggerMark,
@@ -3147,6 +3194,10 @@ namespace Opc.Ua.Client
 
         private void OnStateChanged(object? sender, ConnectionStateChangedEventArgs e)
         {
+            if (e.NewState == ConnectionState.Connected)
+            {
+                Interlocked.Exchange(ref m_consecutiveKeepAliveFailures, 0);
+            }
             ConnectionStateChanged?.Invoke(this, e);
         }
 
@@ -3601,6 +3652,22 @@ namespace Opc.Ua.Client
         private bool m_enableTokenReuseFailover;
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
+        private long m_consecutiveKeepAliveFailures;
+
+        /// <summary>
+        /// Whether communication failures admit automatic recovery.
+        /// </summary>
+        private bool ReconnectOnCommunicationFailure { get; init; } = true;
+
+        /// <summary>
+        /// Consecutive keep-alive failures required before recovery admission.
+        /// </summary>
+        private uint KeepAliveFailureThreshold { get; init; } = 1;
+
+        /// <summary>
+        /// Whether supplied replacement transports must remain session-owned.
+        /// </summary>
+        private bool RequiresSessionOwnedTransport { get; init; }
         private ReverseConnectManager? m_reverseConnectManager;
         private IReverseConnectionSource? m_reverseConnectionSource;
 

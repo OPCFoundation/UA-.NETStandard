@@ -482,6 +482,28 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Controls automatic communication-failure recovery and consecutive keep-alive admission.
+        /// Initial connection retries and explicit reconnects remain available.
+        /// </summary>
+        /// <param name="enabled">Whether communication failures admit automatic recovery.</param>
+        /// <param name="keepAliveFailureThreshold">Consecutive failures required; must be at least one.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">The threshold is zero.</exception>
+        public ManagedSessionBuilder WithCommunicationRecovery(bool enabled, uint keepAliveFailureThreshold = 1)
+        {
+            if (keepAliveFailureThreshold == 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(keepAliveFailureThreshold));
+            }
+            m_options = m_options with
+            {
+                ReconnectOnCommunicationFailure = enabled,
+                KeepAliveFailureThreshold = keepAliveFailureThreshold
+            };
+            return this;
+        }
+
+        /// <summary>
         /// Validates the endpoint a reconnect rediscovers before the session
         /// is recreated against it. Only a Good result accepts the
         /// rediscovered endpoint; any other result, an exception or a
@@ -567,6 +589,19 @@ namespace Opc.Ua.Client
         {
             m_channelManager = channelManager
                 ?? throw new ArgumentNullException(nameof(channelManager));
+            m_options = m_options with { UseSharedChannelManager = true };
+            return this;
+        }
+
+        /// <summary>
+        /// Requires a session-owned transport instead of a supplied shared channel manager.
+        /// Does not dispose the borrowed manager.
+        /// </summary>
+        /// <returns>This builder.</returns>
+        public ManagedSessionBuilder WithoutChannelManager()
+        {
+            m_channelManager = null;
+            m_options = m_options with { UseSharedChannelManager = false };
             return this;
         }
 
@@ -808,6 +843,13 @@ namespace Opc.Ua.Client
                 throw new InvalidOperationException(
                     "ManagedSessionBuilder.UseEndpoint must be called before ConnectAsync.");
             }
+            if (!opts.UseSharedChannelManager &&
+                (m_httpsResilience != null || (m_sessionFactory == null && IsWebApiEndpoint(opts.Endpoint))))
+            {
+                throw new InvalidOperationException(
+                    "This transport configuration requires a channel manager. Supply a session-owned transport factory " +
+                    "without builder-managed HTTPS resilience, or keep shared-channel recovery enabled.");
+            }
 
             ISubscriptionEngineFactory engineFactory =
                 opts.SubscriptionEngineFactory ??
@@ -835,12 +877,12 @@ namespace Opc.Ua.Client
                     opts.TimeProvider,
                     opts.ServerRedundancy);
 
-            IClientChannelManager? channelManager = m_channelManager;
+            IClientChannelManager? channelManager = opts.UseSharedChannelManager ? m_channelManager : null;
             ClientChannelManager? ownedChannelManager = null;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
             try
             {
-                if (channelManager == null && m_httpsResilience != null)
+                if (opts.UseSharedChannelManager && channelManager == null && m_httpsResilience != null)
                 {
                     ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
                     ownedChannelManager = new ClientChannelManager(
@@ -856,7 +898,7 @@ namespace Opc.Ua.Client
                         securityPolicies: m_securityPolicies);
                     channelManager = ownedChannelManager;
                 }
-                else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
+                else if (opts.UseSharedChannelManager && channelManager == null && IsWebApiEndpoint(opts.Endpoint))
                 {
                     ownedChannelManager = new ClientChannelManager(
                         m_configuration,

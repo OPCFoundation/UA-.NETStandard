@@ -95,6 +95,41 @@ namespace Opc.Ua.Client
         public ReconnectPolicyOptions ReconnectPolicy { get; init; } = new();
 
         /// <summary>
+        /// Whether communication failures initiate automatic session recovery.
+        /// Initial connection retries and explicitly requested reconnects remain available.
+        /// Defaults to <c>true</c>.
+        /// </summary>
+        /// <remarks>
+        /// Disabling this requires a session-owned transport. A shared channel manager
+        /// can recover independently and cannot honor per-session admission controls.
+        /// Such combinations are rejected, not silently ignored. An exhausted recovery
+        /// cycle is not automatically rearmed when this is false.
+        /// </remarks>
+        public bool ReconnectOnCommunicationFailure { get; init; } = true;
+
+        /// <summary>
+        /// Consecutive failed keep-alive notifications required to admit automatic
+        /// recovery. A healthy keep-alive resets the count. Must be at least one;
+        /// the default of one preserves immediate recovery.
+        /// </summary>
+        /// <remarks>
+        /// Values other than one require a session-owned transport rather than a
+        /// shared channel manager whose recovery can precede keep-alive failure.
+        /// </remarks>
+        public uint KeepAliveFailureThreshold { get; init; } = 1;
+
+        /// <summary>
+        /// Whether to use a supplied or dependency-injected shared channel manager.
+        /// Defaults to <c>true</c>. Set to <c>false</c> to require a session-owned
+        /// transport, including when the host registers a shared manager.
+        /// </summary>
+        /// <remarks>
+        /// A custom session factory must also return a session-owned transport when
+        /// this is false. The shared manager remains owned by its caller or host.
+        /// </remarks>
+        public bool UseSharedChannelManager { get; init; } = true;
+
+        /// <summary>
         /// Maximum channel-manager recovery time before the outer
         /// reconnect policy takes over. Null selects the maximum of
         /// three keep-alive intervals, the revised session timeout,

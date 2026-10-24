@@ -4,6 +4,8 @@
 // ------------------------------------------------------------
 
 using System;
+using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -43,6 +45,9 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(opts.ReconnectPolicy.Strategy, Is.EqualTo(BackoffStrategy.Exponential));
             Assert.That(opts.Endpoint, Is.Null);
             Assert.That(opts.SubscriptionEngineFactory, Is.Null);
+            Assert.That(opts.ReconnectOnCommunicationFailure, Is.True);
+            Assert.That(opts.KeepAliveFailureThreshold, Is.EqualTo(1u));
+            Assert.That(opts.UseSharedChannelManager, Is.True);
         }
 
         [Test]
@@ -59,6 +64,8 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 .WithSessionTimeout(TimeSpan.FromSeconds(30))
                 .WithPreferredLocales("en-US", "de-DE")
                 .WithCheckDomain()
+                .WithCommunicationRecovery(false, 3)
+                .WithoutChannelManager()
                 .WithReconnectPolicy(p => p with
                 {
                     Strategy = BackoffStrategy.Linear,
@@ -76,6 +83,44 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             Assert.That(opts.ReconnectPolicy.Strategy, Is.EqualTo(BackoffStrategy.Linear));
             Assert.That(opts.ReconnectPolicy.MaxRetries, Is.EqualTo(5));
             Assert.That(opts.EnableServerRedundancy, Is.True);
+            Assert.That(opts.ReconnectOnCommunicationFailure, Is.False);
+            Assert.That(opts.KeepAliveFailureThreshold, Is.EqualTo(3u));
+            Assert.That(opts.UseSharedChannelManager, Is.False);
+        }
+
+        [Test]
+        public void ChannelManagerSelectionIsExplicitAndLastSelectionWins()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
+            var manager = Mock.Of<IClientChannelManager>();
+
+            builder.WithChannelManager(manager).WithoutChannelManager();
+            Assert.That(builder.Build().UseSharedChannelManager, Is.False);
+            builder.WithChannelManager(manager);
+            Assert.That(builder.Build().UseSharedChannelManager, Is.True);
+        }
+
+        [Test]
+        public void CommunicationRecoveryRejectsZeroThreshold()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry);
+
+            Assert.That(() => builder.WithCommunicationRecovery(true, 0), Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
+        public async Task SessionOwnedTransportRejectsBuilderManagedHttpsResilienceAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var builder = new ManagedSessionBuilder(CreateConfig(telemetry), telemetry)
+                .UseEndpoint(new ConfiguredEndpoint(null, new EndpointDescription("opc.https://localhost:4840"), configuration: null))
+                .WithHttpsResilience(_ => { })
+                .WithoutChannelManager();
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await builder.ConnectAsync().ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
