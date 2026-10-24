@@ -34,6 +34,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.Bindings;
 using Opc.Ua.Identity;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
@@ -269,6 +270,7 @@ namespace Opc.Ua.Client
                 networkRedundancy,
                 serverRedundancy,
                 reverseConnectManager,
+                reverseConnectionSource: null,
                 connectGate,
                 connection,
                 updateBeforeConnect,
@@ -288,18 +290,22 @@ namespace Opc.Ua.Client
         /// <param name="telemetry">The telemetry context, defaulting to the factory's context.</param>
         /// <param name="channelManager">The optional shared channel manager.</param>
         /// <param name="reverseConnectManager">
-        /// The optional reverse-connect manager, required to obtain fresh reverse connections during recovery.
+        /// The optional reverse-connect manager, required to obtain fresh reverse connections during recovery
+        /// unless <see cref="ManagedSessionOptions.ReverseConnectionSource"/> supplies them.
         /// </param>
         /// <param name="connection">
         /// The single-use reverse connection used only for the initial connect.
-        /// Without <paramref name="reverseConnectManager"/>, subsequent recovery fails through the reconnect
-        /// policy rather than falling back to an outbound connection.
+        /// Without <paramref name="reverseConnectManager"/> or
+        /// <see cref="ManagedSessionOptions.ReverseConnectionSource"/>, subsequent recovery fails through the
+        /// reconnect policy rather than falling back to an outbound connection.
         /// </param>
         /// <param name="updateBeforeConnect">An optional override for endpoint discovery.</param>
         /// <param name="ct">Cancellation for connecting.</param>
         /// <returns>The connected managed session.</returns>
         /// <exception cref="ArgumentNullException">A required argument or endpoint is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">The channel recovery timeout is invalid.</exception>
+        /// <exception cref="ArgumentException"><paramref name="reverseConnectManager"/> is passed together with
+        /// <see cref="ManagedSessionOptions.ReverseConnectionSource"/>.</exception>
         public static async Task<ManagedSession> CreateAsync(
             ManagedSessionOptions options,
             ApplicationConfiguration configuration,
@@ -324,6 +330,12 @@ namespace Opc.Ua.Client
             if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(options.ChannelReconnectTimeout))
             {
                 throw new ArgumentOutOfRangeException(nameof(options), "The channel recovery timeout is invalid.");
+            }
+            if (options.ReverseConnectionSource != null && reverseConnectManager != null)
+            {
+                throw new ArgumentException(
+                    "A reverse connection source and a reverse connect manager cannot be combined.",
+                    nameof(reverseConnectManager));
             }
             ConfiguredEndpoint endpoint = options.Endpoint
                 ?? throw new ArgumentNullException(nameof(options), "A session endpoint is required.");
@@ -365,6 +377,7 @@ namespace Opc.Ua.Client
                 options.NetworkRedundancy,
                 options.ServerRedundancy,
                 reverseConnectManager,
+                options.ReverseConnectionSource,
                 options.ConnectGate,
                 connection,
                 updateBeforeConnect,
@@ -414,6 +427,7 @@ namespace Opc.Ua.Client
             NetworkRedundancyOptions? networkRedundancy,
             ServerRedundancyOptions? serverRedundancy,
             ReverseConnectManager? reverseConnectManager,
+            IReverseConnectionSource? reverseConnectionSource,
             IClientConnectGate? connectGate,
             ITransportWaitingConnection? connection,
             bool? updateBeforeConnect,
@@ -468,8 +482,11 @@ namespace Opc.Ua.Client
                 m_engineFactory = engineFactory,
                 m_securityPolicies = ResolveSecurityPolicies(sessionFactory),
                 m_reverseConnectManager = reverseConnectManager,
+                m_reverseConnectionSource = reverseConnectionSource,
                 m_initialConnection = connection,
-                m_reverseConnectRequired = reverseConnectManager != null || connection != null,
+                m_reverseConnectRequired = reverseConnectManager != null ||
+                    reverseConnectionSource != null ||
+                    connection != null,
                 m_updateBeforeConnect = updateBeforeConnect,
                 m_channelReconnectTimeout = channelReconnectTimeout,
                 ValidateRediscoveredEndpoint = rediscoveredEndpointValidator
@@ -1314,7 +1331,7 @@ namespace Opc.Ua.Client
 
         private void WireStateMachineCallbacks()
         {
-            StateMachine.ConnectAsync = HandleConnectAsync;
+            StateMachine.ConnectAsync = ct => HandleConnectAsync(null, ct);
             StateMachine.ReconnectWithBudgetAsync = HandleReconnectAsync;
             StateMachine.FailoverWithBudgetAsync = HandleFailoverAsync;
             StateMachine.CompleteRecoveryAsync = HandleCompleteRecoveryAsync;
@@ -1344,6 +1361,7 @@ namespace Opc.Ua.Client
         }
 
         private async Task<ServiceResult> HandleConnectAsync(
+            IRetryBudget? budget,
             CancellationToken ct)
         {
             ConfiguredEndpoint endpoint = m_configuredEndpoint;
@@ -1365,7 +1383,7 @@ namespace Opc.Ua.Client
                 }
                 else
                 {
-                    result = await HandleConnectEndpointAsync(endpoint, ct).ConfigureAwait(false);
+                    result = await HandleConnectEndpointAsync(endpoint, budget, ct).ConfigureAwait(false);
                     if (!IsConnectivityFailure(result.StatusCode) || ct.IsCancellationRequested)
                     {
                         return result;
@@ -1383,6 +1401,7 @@ namespace Opc.Ua.Client
 
         private async Task<ServiceResult> HandleConnectEndpointAsync(
             ConfiguredEndpoint source,
+            IRetryBudget? budget,
             CancellationToken ct)
         {
             try
@@ -1421,6 +1440,8 @@ namespace Opc.Ua.Client
                 bool refreshBeforeConnect = updateBeforeConnect;
 
                 IDisposable? connectLease = null;
+                // A connection the session owns but no channel has adopted yet.
+                ITransportWaitingConnection? unadopted = null;
                 Session session;
                 try
                 {
@@ -1440,21 +1461,35 @@ namespace Opc.Ua.Client
                     // that only ever connects in reverse.
                     ITransportWaitingConnection? waitingConnection =
                         Interlocked.Exchange(ref m_initialConnection, null);
-                    if (waitingConnection == null && m_reverseConnectRequired && m_reverseConnectManager == null)
+                    if (waitingConnection == null &&
+                        m_reverseConnectRequired &&
+                        m_reverseConnectManager == null &&
+                        m_reverseConnectionSource == null)
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
                     }
+                    if (m_reverseConnectionSource != null)
+                    {
+                        unadopted = waitingConnection;
+                    }
                     IUserIdentity? initialIdentity = m_identity;
                     if (m_identityProvider != null)
                     {
-                        if (updateBeforeConnect && m_reverseConnectManager != null)
+                        if (updateBeforeConnect &&
+                            (m_reverseConnectManager != null || m_reverseConnectionSource != null))
                         {
                             ITransportWaitingConnection discoveryConnection = waitingConnection
-                                ?? await m_reverseConnectManager.WaitForConnectionAsync(
-                                    endpoint.EndpointUrl!,
-                                    endpoint.ReverseConnect?.ServerUri,
-                                    ct).ConfigureAwait(false);
+                                ?? (m_reverseConnectManager != null
+                                    ? await m_reverseConnectManager.WaitForConnectionAsync(
+                                        endpoint.EndpointUrl!,
+                                        endpoint.ReverseConnect?.ServerUri,
+                                        ct).ConfigureAwait(false)
+                                    : await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false));
+                            if (m_reverseConnectionSource != null)
+                            {
+                                unadopted = discoveryConnection;
+                            }
                             await endpoint.UpdateFromServerAsync(
                                 endpoint.EndpointUrl!,
                                 discoveryConnection,
@@ -1462,6 +1497,7 @@ namespace Opc.Ua.Client
                                 endpoint.Description.SecurityPolicyUri!,
                                 SessionFactory.Telemetry,
                                 ct).ConfigureAwait(false);
+                            unadopted = null;
                             waitingConnection = null;
                             updateBeforeConnect = false;
                         }
@@ -1512,6 +1548,31 @@ namespace Opc.Ua.Client
                         }
                     }
 
+                    if (m_reverseConnectionSource != null && (waitingConnection == null || updateBeforeConnect))
+                    {
+                        if (updateBeforeConnect)
+                        {
+                            // Discovery consumes the connection it runs on, also
+                            // an initial connection; the session uses the next one.
+                            ITransportWaitingConnection discoveryConnection = waitingConnection
+                                ?? await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false);
+                            waitingConnection = null;
+                            unadopted = discoveryConnection;
+                            await endpoint.UpdateFromServerAsync(
+                                endpoint.EndpointUrl!,
+                                discoveryConnection,
+                                endpoint.Description.SecurityMode,
+                                endpoint.Description.SecurityPolicyUri!,
+                                SessionFactory.Telemetry,
+                                ct).ConfigureAwait(false);
+                            unadopted = null;
+                            updateBeforeConnect = false;
+                        }
+                        waitingConnection = await WaitForSourceConnectionAsync(endpoint, budget, ct)
+                            .ConfigureAwait(false);
+                        unadopted = waitingConnection;
+                    }
+
                     if (waitingConnection != null)
                     {
                         ISessionFactory reverseFactory = CreateChannelManagerFactory() ?? SessionFactory;
@@ -1526,6 +1587,7 @@ namespace Opc.Ua.Client
                             initialIdentity,
                             m_preferredLocales,
                             ct).ConfigureAwait(false);
+                        unadopted = null;
                     }
                     else if (m_reverseConnectManager != null)
                     {
@@ -1590,6 +1652,12 @@ namespace Opc.Ua.Client
                 }
                 finally
                 {
+                    // The session factory does not close a connection it fails
+                    // to bind, e.g. when the server certificate is rejected.
+                    if (unadopted != null)
+                    {
+                        CloseUnusedConnection(unadopted);
+                    }
                     connectLease?.Dispose();
                 }
 
@@ -1706,7 +1774,7 @@ namespace Opc.Ua.Client
                     if (connection == null && channel == null)
                     {
                         connection = await WaitForRecoveryConnectionAsync(
-                            InnerSession.ConfiguredEndpoint, linked.Token).ConfigureAwait(false);
+                            InnerSession.ConfiguredEndpoint, null, linked.Token).ConfigureAwait(false);
                     }
                     Session session = InnerSession;
                     IManagedTransportChannel? previousChannel = session.ManagedChannel;
@@ -1742,7 +1810,7 @@ namespace Opc.Ua.Client
                 // from Connecting to Reconnecting. Run a full connect so the
                 // reconnect policy retries it. Reporting Good instead would
                 // move the state machine to Connected with no inner session.
-                return await HandleConnectAsync(ct).ConfigureAwait(false);
+                return await HandleConnectAsync(budget, ct).ConfigureAwait(false);
             }
 
             // Explicit requests made after this point are served by a later attempt.
@@ -1772,7 +1840,7 @@ namespace Opc.Ua.Client
                     try
                     {
                         ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                            session.ConfiguredEndpoint, ct).ConfigureAwait(false);
+                            session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
                         await session.ReconnectWithConnectionAsync(budget, connection, ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (
@@ -1805,8 +1873,11 @@ namespace Opc.Ua.Client
                     catch (ServiceResultException sre) when (RequiresEndpointRefresh(sre.StatusCode))
                     {
                         m_logger.ManagedSessionReconnectRejectedStatusRecreatingSession(sre, sre.StatusCode);
-                        await RefreshEndpointAndRecreateAsync(session, budget, UpdateEndpointFromServerAsync, ct)
-                            .ConfigureAwait(false);
+                        await RefreshEndpointAndRecreateAsync(
+                            session,
+                            budget,
+                            (target, token) => UpdateEndpointFromServerAsync(target, budget, token),
+                            ct).ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (
                         RequiresSessionRecreate(sre.StatusCode))
@@ -2011,7 +2082,7 @@ namespace Opc.Ua.Client
                         try
                         {
                             ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                                target, ct).ConfigureAwait(false);
+                                target, null, ct).ConfigureAwait(false);
                             await session.ReactivateMirroredSessionAsync(target, connection, ct)
                                 .ConfigureAwait(false);
                         }
@@ -2088,9 +2159,12 @@ namespace Opc.Ua.Client
             await RecreateInPlaceCoreAndRebindAsync(session, validated, budget, ct).ConfigureAwait(false);
         }
 
-        private async Task UpdateEndpointFromServerAsync(ConfiguredEndpoint target, CancellationToken ct)
+        private async Task UpdateEndpointFromServerAsync(
+            ConfiguredEndpoint target,
+            IRetryBudget? budget,
+            CancellationToken ct)
         {
-            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, ct)
+            ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, budget, ct)
                 .ConfigureAwait(false);
             if (connection == null)
             {
@@ -2642,7 +2716,7 @@ namespace Opc.Ua.Client
             try
             {
                 ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
-                    endpoint ?? session.ConfiguredEndpoint, ct).ConfigureAwait(false);
+                    endpoint ?? session.ConfiguredEndpoint, budget, ct).ConfigureAwait(false);
                 await session.RecreateInPlaceAsync(endpoint, budget, connection, ct, retirePreviousSession)
                     .ConfigureAwait(false);
             }
@@ -2667,8 +2741,8 @@ namespace Opc.Ua.Client
                     IManagedTransportChannel? previousChannel = session.ManagedChannel;
                     try
                     {
-                        ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(target, ct)
-                            .ConfigureAwait(false);
+                        ITransportWaitingConnection? connection = await WaitForRecoveryConnectionAsync(
+                            target, budget, ct).ConfigureAwait(false);
                         await session.ReactivateOnNetworkEndpointAsync(target, connection, budget, ct)
                             .ConfigureAwait(false);
                     }
@@ -2682,6 +2756,7 @@ namespace Opc.Ua.Client
 
         private async Task<ITransportWaitingConnection?> WaitForRecoveryConnectionAsync(
             ConfiguredEndpoint endpoint,
+            IRetryBudget? budget,
             CancellationToken ct)
         {
             if (m_reverseConnectManager != null)
@@ -2691,12 +2766,117 @@ namespace Opc.Ua.Client
                     endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri,
                     ct).ConfigureAwait(false);
             }
+            if (m_reverseConnectionSource != null)
+            {
+                return await WaitForSourceConnectionAsync(endpoint, budget, ct).ConfigureAwait(false);
+            }
             if (m_reverseConnectRequired)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
             }
             return null;
+        }
+
+        /// <summary>
+        /// Waits for a connection from the reverse connection source. During
+        /// recovery the wait ends with <see cref="StatusCodes.BadTimeout"/> once
+        /// the reconnect budget is used up. A connection that arrives after the
+        /// wait was cancelled is closed, because no attempt will use it.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The budget ran out or the
+        /// source returned no connection.</exception>
+        private async Task<ITransportWaitingConnection> WaitForSourceConnectionAsync(
+            ConfiguredEndpoint endpoint,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
+            IReverseConnectionSource source = m_reverseConnectionSource!;
+            TimeSpan? remaining = GetRemainingReconnectTime(budget);
+            if (remaining == TimeSpan.Zero)
+            {
+                throw ReverseConnectionBudgetExhausted();
+            }
+            using CancellationTokenSource? budgetCts = remaining == null
+                ? null
+                : m_timeProvider.CreateCancellationTokenSource(remaining.Value);
+            using CancellationTokenSource? linked = budgetCts == null
+                ? null
+                : CancellationTokenSource.CreateLinkedTokenSource(ct, budgetCts.Token);
+            CancellationToken waitCt = linked?.Token ?? ct;
+
+            ITransportWaitingConnection? connection;
+            try
+            {
+                connection = await source.WaitForConnectionAsync(
+                    endpoint.EndpointUrl!,
+                    endpoint.ReverseConnect?.ServerUri ?? endpoint.Description.Server?.ApplicationUri,
+                    waitCt).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested && budgetCts != null &&
+                budgetCts.IsCancellationRequested)
+            {
+                await WaitUntilBudgetExhaustedAsync(budget!, ct).ConfigureAwait(false);
+                throw ReverseConnectionBudgetExhausted();
+            }
+
+            if (connection == null)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError, "The reverse connection source returned no connection.");
+            }
+            if (waitCt.IsCancellationRequested)
+            {
+                CloseUnusedConnection(connection);
+                ct.ThrowIfCancellationRequested();
+                await WaitUntilBudgetExhaustedAsync(budget!, ct).ConfigureAwait(false);
+                throw ReverseConnectionBudgetExhausted();
+            }
+            return connection;
+        }
+
+        /// <summary>
+        /// Waits until the reconnect budget reports itself exhausted. The budget
+        /// timer can fire before the budget's own clock reaches the limit; the
+        /// state machine would then start one more attempt with the time left.
+        /// </summary>
+        private async Task WaitUntilBudgetExhaustedAsync(IRetryBudget budget, CancellationToken ct)
+        {
+            while (!budget.IsExhausted && budget.ElapsedSinceFirstAttempt > TimeSpan.Zero &&
+                GetRemainingReconnectTime(budget) is TimeSpan remaining)
+            {
+                await m_timeProvider.Delay(
+                    remaining > TimeSpan.Zero ? remaining : TimeSpan.FromMilliseconds(1),
+                    ct).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// The time left in the reconnect budget, or <c>null</c> when there is
+        /// no budget or it is unlimited.
+        /// </summary>
+        private TimeSpan? GetRemainingReconnectTime(IRetryBudget? budget)
+        {
+            // Zero and Timeout.InfiniteTimeSpan both select an unlimited budget.
+            if (budget == null || m_maxTotalReconnectTime <= TimeSpan.Zero)
+            {
+                return null;
+            }
+            TimeSpan remaining = m_maxTotalReconnectTime - budget.ElapsedSinceFirstAttempt;
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        }
+
+        private static ServiceResultException ReverseConnectionBudgetExhausted()
+        {
+            return new ServiceResultException(
+                StatusCodes.BadTimeout,
+                "No reverse connection arrived within the reconnect time budget.");
+        }
+
+        private void CloseUnusedConnection(ITransportWaitingConnection connection)
+        {
+            m_logger.ManagedSessionUnusedReverseConnectionClosed(connection.EndpointUrl);
+            (connection.Handle as IUaSCByteTransport)?.Close();
         }
 
         /// <summary>
@@ -3422,12 +3602,14 @@ namespace Opc.Ua.Client
         private readonly NetworkRedundancyEndpointSelector? m_networkEndpointSelector;
         private readonly IClientChannelManager? m_channelManager;
         private ReverseConnectManager? m_reverseConnectManager;
+        private IReverseConnectionSource? m_reverseConnectionSource;
 
         /// <summary>
         /// A caller supplied reverse connection. A waiting connection can only
         /// be used once, so it is consumed by the first connect attempt and
-        /// later recovery requires the reverse-connect manager to supply a fresh
-        /// connection. An outbound fallback is never permitted.
+        /// later recovery requires the reverse-connect manager or the reverse
+        /// connection source to supply a fresh connection. An outbound fallback
+        /// is never permitted.
         /// </summary>
         private ITransportWaitingConnection? m_initialConnection;
         private bool m_reverseConnectRequired;
@@ -3655,5 +3837,11 @@ namespace Opc.Ua.Client
         public static partial void ManagedSessionServiceLevelMonitoringFailed(
             this ILogger logger,
             Exception? exception);
+
+        [LoggerMessage(EventId = ClientEventIds.ManagedSession + 36, Level = LogLevel.Debug,
+            Message = "ManagedSession: Closing an unused reverse connection from {EndpointUrl}.")]
+        public static partial void ManagedSessionUnusedReverseConnectionClosed(
+            this ILogger logger,
+            [NetworkAddress] Uri? endpointUrl);
     }
 }

@@ -56,7 +56,7 @@ namespace Opc.Ua.Client
     /// overloads and <see cref="Dispose()"/> are retained only as obsolete
     /// compatibility wrappers around the async lifecycle.
     /// </remarks>
-    public class ReverseConnectManager : IDisposable, IAsyncDisposable
+    public class ReverseConnectManager : IDisposable, IAsyncDisposable, IReverseConnectionSource
     {
         /// <summary>
         /// A default value for reverse hello configurations, if undefined.
@@ -2045,6 +2045,15 @@ namespace Opc.Ua.Client
             {
                 UnregisterWait(hashCode, tcs);
             }
+        }
+
+        /// <inheritdoc/>
+        ValueTask<ITransportWaitingConnection> IReverseConnectionSource.WaitForConnectionAsync(
+            Uri endpointUrl,
+            string? serverUri,
+            CancellationToken ct)
+        {
+            return new ValueTask<ITransportWaitingConnection>(WaitForConnectionAsync(endpointUrl, serverUri, ct));
         }
 
         /// <summary>

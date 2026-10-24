@@ -1381,6 +1381,10 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.WithModelChangeTracking();
             }
+            if (sessionOptions.ReverseConnectionSource != null)
+            {
+                builder.UseReverseConnectionSource(sessionOptions.ReverseConnectionSource);
+            }
 
             IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
             if (mgr != null)
