@@ -71,7 +71,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     document, document.RootElement, references, defined, definitions, definitionNames);
                 CollectModelMembership(string.Empty, content.Memory, maxJsonDepth, owners, required);
             }
-            catch (Exception exception) when (exception is JsonException or FormatException)
+            catch (Exception exception) when (exception is JsonException or FormatException or WotVersionException)
             {
                 error = exception.Message;
             }
@@ -382,7 +382,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return;
             }
-            references.Add(new WotResourceReference(raw, lookup, relation, IsOrderingReference(relation)));
+            references.Add(new WotResourceReference(raw, lookup, relation, IsOrderingReference(relation))
+            {
+                RequiredVersion = relation is "tm:extends" or "tm:submodel" or "tm:ref" or "type" ||
+                    relation == EventTypeRefType || relation == EventSelectClauseRefType
+                    ? WotVersionedReference.GetRequiredVersion(document, carryingNode, relation) : null
+            });
         }
 
         private static bool IsOrderingReference(string relation)

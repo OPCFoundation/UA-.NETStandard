@@ -640,6 +640,10 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 ["id"] = sourceId,
                 ["title"] = "A readable title"
             };
+            if (group.Kind == WoTDocumentKindEnum.ThingModel)
+            {
+                document["version"] = new JsonObject { ["model"] = versionId };
+            }
             return new WotUpsertResourceRequest
             {
                 GroupId = group.GroupId,

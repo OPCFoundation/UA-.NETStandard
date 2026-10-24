@@ -494,6 +494,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 ["@context"] = Context(),
                 ["@type"] = new JsonArray("tm:ThingModel", eventType ? "uav:eventType" : "uav:objectType"),
+                ["version"] = new JsonObject { ["model"] = "1.0.0" },
                 ["uav:id"] = id,
                 ["uav:browseName"] = browseName,
                 ["links"] = links

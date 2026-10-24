@@ -7,8 +7,7 @@
     },
     "../opc-ua-wot-binding.context.jsonld"
   ],
-  "@type": "uav:projection",
-  "uav:projectionKind": "ThingModel",
+  "@type": ["tm:ThingModel", "uav:projection"],
   "id": "urn:example:model:pump-asset:alarms",
   "title": "Alarms",
   "description": "A type-level event group selected by predicate. A newly selected event declaration changes the canonical View membership without requiring another canonical View for each organizational occurrence.",

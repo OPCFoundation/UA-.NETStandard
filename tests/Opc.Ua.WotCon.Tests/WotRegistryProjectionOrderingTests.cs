@@ -62,11 +62,11 @@ namespace Opc.Ua.WotCon.Tests
             GroupState group = await harness.CreateThingModelGroupAsync().ConfigureAwait(false);
             await harness.WaitUntilReconciliationBlockedAsync().ConfigureAwait(false);
 
-            ThingModelFileState v1 = await harness.CreateVersionAsync(group, "v1").ConfigureAwait(false);
+            ThingModelFileState v1 = await harness.CreateVersionAsync(group, "1.0.0").ConfigureAwait(false);
             await harness.UploadAsync(v1, "urn:model-titles-first", "1.0.0").ConfigureAwait(false);
-            ThingModelFileState v2 = await harness.CreateVersionAsync(group, "v2").ConfigureAwait(false);
+            ThingModelFileState v2 = await harness.CreateVersionAsync(group, "2.0.0").ConfigureAwait(false);
             await harness.UploadAsync(v2, "urn:model-titles-second", "2.0.0").ConfigureAwait(false);
-            await harness.SetDefaultVersionAsync(v2, "v2").ConfigureAwait(false);
+            await harness.SetDefaultVersionAsync(v2, "2.0.0").ConfigureAwait(false);
 
             WotResource stored = harness.StoredResource;
             string v1Title = v1.ModelTitle!.Value;
@@ -79,10 +79,10 @@ namespace Opc.Ua.WotCon.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(stored.DefaultVersionId, Is.EqualTo("v2"));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("2.0.0"));
                 Assert.That(stored.Title, Is.EqualTo("urn:model-titles-second"));
-                Assert.That(stored.FindVersion("v2")!.Title, Is.EqualTo("urn:model-titles-second"));
-                Assert.That(stored.FindVersion("v2")!.ModelVersion, Is.EqualTo("2.0.0"));
+                Assert.That(stored.FindVersion("2.0.0")!.Title, Is.EqualTo("urn:model-titles-second"));
+                Assert.That(stored.FindVersion("2.0.0")!.ModelVersion, Is.EqualTo("2.0.0"));
                 Assert.That(v1Title, Is.EqualTo("urn:model-titles-first"));
                 Assert.That(v1ModelVersion, Is.EqualTo("1.0.0"));
                 Assert.That(v2Title, Is.EqualTo("urn:model-titles-second"));
@@ -109,24 +109,24 @@ namespace Opc.Ua.WotCon.Tests
             GroupState group = await harness.CreateThingModelGroupAsync().ConfigureAwait(false);
             await harness.WaitUntilReconciliationBlockedAsync().ConfigureAwait(false);
 
-            ThingModelFileState v1 = await harness.CreateVersionAsync(group, "v1").ConfigureAwait(false);
+            ThingModelFileState v1 = await harness.CreateVersionAsync(group, "1.0.0").ConfigureAwait(false);
             await harness.UploadAsync(v1, "urn:model-titles-first", "1.0.0").ConfigureAwait(false);
-            ThingModelFileState v2 = await harness.CreateVersionAsync(group, "v2").ConfigureAwait(false);
+            ThingModelFileState v2 = await harness.CreateVersionAsync(group, "2.0.0").ConfigureAwait(false);
             await harness.UploadAsync(v2, "urn:model-titles-second", "2.0.0").ConfigureAwait(false);
 
             WotResource stored = harness.StoredResource;
             Assert.Multiple(() =>
             {
-                Assert.That(stored.DefaultVersionId, Is.EqualTo("v1"));
-                Assert.That(stored.Title, Is.EqualTo("urn:model-titles-first"));
-                Assert.That(stored.FindVersion("v2")!.Title, Is.EqualTo("urn:model-titles-second"));
-                Assert.That(stored.FindVersion("v2")!.ModelVersion, Is.EqualTo("2.0.0"));
+                Assert.That(stored.DefaultVersionId, Is.EqualTo("2.0.0"));
+                Assert.That(stored.Title, Is.EqualTo("urn:model-titles-second"));
+                Assert.That(stored.FindVersion("2.0.0")!.Title, Is.EqualTo("urn:model-titles-second"));
+                Assert.That(stored.FindVersion("2.0.0")!.ModelVersion, Is.EqualTo("2.0.0"));
                 Assert.That(v1.ModelTitle!.Value, Is.EqualTo("urn:model-titles-first"));
                 Assert.That(v1.ModelVersion!.Value, Is.EqualTo("1.0.0"));
-                Assert.That(v1.IsDefault!.Value, Is.True);
+                Assert.That(v1.IsDefault!.Value, Is.False);
                 Assert.That(v2.ModelTitle!.Value, Is.EqualTo("urn:model-titles-second"));
                 Assert.That(v2.ModelVersion!.Value, Is.EqualTo("2.0.0"));
-                Assert.That(v2.IsDefault!.Value, Is.False);
+                Assert.That(v2.IsDefault!.Value, Is.True);
             });
         }
 

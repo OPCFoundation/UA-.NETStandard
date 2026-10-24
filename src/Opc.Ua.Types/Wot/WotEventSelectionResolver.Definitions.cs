@@ -516,8 +516,9 @@ namespace Opc.Ua.Wot
             }
             if (validReference)
             {
+                string? requiredVersion = WotVersionedReference.GetRequiredVersion(document, carryingNode, "ref");
                 WotDocument? resolved = await LoadAsync(
-                        documentUri, scope, cancellationToken)
+                        documentUri, scope, cancellationToken, requiredVersion)
                     .ConfigureAwait(false);
                 if (resolved is null)
                 {

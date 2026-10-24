@@ -86,6 +86,11 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets whether the dependency resolved to a stored document.
         /// </summary>
         public bool Resolved { get; }
+
+        /// <summary>
+        /// Gets the authored or implicit minimum target version.
+        /// </summary>
+        public string? RequiredVersion { get; init; }
     }
 
     /// <summary>
@@ -784,7 +789,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     }
                     list.Add(new WotDependency(
                         resource.Xid, reference.TargetUri, target?.Xid, reference.RefType,
-                        target?.DefaultVersion?.HasContent == true));
+                        target?.DefaultVersion?.HasContent == true) { RequiredVersion = reference.RequiredVersion });
                     if (target is not null)
                     {
                         AddResource(target);

@@ -607,6 +607,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             string other = changed
                 ? ",\"Other\":{\"type\":\"integer\",\"forms\":[{\"href\":\"https://example.test/other\"}]}"
                 : string.Empty;
+            string assignedVersion = versionId ?? (changed ? "v2" : "v1");
+            if (thingModel)
+            {
+                assignedVersion = assignedVersion == "v1" ? "1.0.0" : assignedVersion == "v2" ? "2.0.0" : assignedVersion;
+            }
             string role = thingModel ? "tm:ThingModel" : "uav:object";
             string rootId = numeric ? "i=100" : "s=Source";
             string readingId = numeric ? "\"uav:id\":\"nsu=urn:c2:prepared-source;i=101\"," : string.Empty;
@@ -628,8 +633,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ResourceId = "stock-source",
                 Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
                 ContentType = thingModel ? "application/tm+json" : "application/td+json",
-                VersionId = versionId ?? (changed ? "v2" : "v1"),
-                Content = ByteString.From(Encoding.UTF8.GetBytes(content))
+                VersionId = assignedVersion,
+                Content = ByteString.From(thingModel
+                    ? TestMaterialization.WithModelVersion(Encoding.UTF8.GetBytes(content), assignedVersion)
+                    : Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);
@@ -670,10 +677,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = thingModel ? WotRegistryGroups.ThingModels : WotRegistryGroups.ThingDescriptions,
                 Kind = thingModel ? WoTDocumentKindEnum.ThingModel : WoTDocumentKindEnum.ThingDescription,
-                ResourceId = id, VersionId = "v1",
+                ResourceId = id,
+                VersionId = thingModel ? "1.0.0" : "v1",
                 Format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1",
                 ContentType = contentType,
-                Content = ByteString.From(Encoding.UTF8.GetBytes(content))
+                Content = ByteString.From(thingModel
+                    ? TestMaterialization.WithModelVersion(Encoding.UTF8.GetBytes(content), "1.0.0")
+                    : Encoding.UTF8.GetBytes(content))
             }).ConfigureAwait(false);
             Assert.That(result.Changed, Is.True, result.Message);
             await AwaitStockRegistryProjectionAsync().ConfigureAwait(false);

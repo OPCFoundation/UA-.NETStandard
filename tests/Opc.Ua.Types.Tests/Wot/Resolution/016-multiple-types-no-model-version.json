@@ -1,0 +1,45 @@
+{
+  "description": "Several type links without version.model have no implicit floor and keep resolving.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "type",
+    "target": "urn:example:pump:v1"
+  },
+  "document": {
+    "typeLinks": [
+      {
+        "target": "urn:example:pump:v1"
+      },
+      {
+        "target": "urn:example:device:v1"
+      }
+    ]
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.1.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+    }
+  }
+}

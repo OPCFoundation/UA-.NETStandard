@@ -76,7 +76,7 @@ namespace Opc.Ua.WotCon.Tests
                     Is.EqualTo("1.1"));
                 Assert.That(
                     model.Attribute("PublicationDate")?.Value,
-                    Is.EqualTo("2026-09-21T00:00:00Z"));
+                    Is.EqualTo("2026-10-24T00:00:00Z"));
             });
         }
 
@@ -90,7 +90,7 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase("ns=2;i=39", "ModelVersion", "i=24263", "1.1.0")]
         [TestCase("ns=2;i=68", "NamespaceUri", "String", ConnectivityNamespace)]
         [TestCase("ns=2;i=69", "NamespaceVersion", "String", "1.1")]
-        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-09-21T00:00:00Z")]
+        [TestCase("ns=2;i=70", "NamespacePublicationDate", "DateTime", "2026-10-24T00:00:00Z")]
         public void TheConnectivityNamespaceMetadataMatchesItsPropertyContract(
             string nodeId,
             string browseName,
@@ -179,8 +179,8 @@ namespace Opc.Ua.WotCon.Tests
                 }
                 Assert.That(
                     nodes,
-                    Has.Count.EqualTo(349),
-                    "The connectivity model has 349 Nodes; a re-sync that drops one is " +
+                    Has.Count.EqualTo(351),
+                    "The connectivity model has 351 Nodes; a re-sync that drops one is " +
                     "invisible in a diff of two large NodeSets.");
             });
         }

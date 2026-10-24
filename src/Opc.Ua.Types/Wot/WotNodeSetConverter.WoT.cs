@@ -3846,7 +3846,9 @@ namespace Opc.Ua.Wot
                     context,
                     options,
                     diagnostics,
-                    cancellationToken).ConfigureAwait(false);
+                    cancellationToken,
+                    document,
+                    thingReference.SourceLink).ConfigureAwait(false);
                 thingCatalog.AddTarget(reference, target);
                 if (lookup != reference)
                 {
@@ -3869,7 +3871,8 @@ namespace Opc.Ua.Wot
                         continue;
                     }
                     WotResolvedNode? target = await ResolveTargetAsync(
-                        lookup, resolver, context, options, diagnostics, cancellationToken).ConfigureAwait(false);
+                        lookup, resolver, context, options, diagnostics, cancellationToken,
+                        document, link).ConfigureAwait(false);
                     thingCatalog.AddTarget(lookup, target);
                 }
             }
@@ -3998,7 +4001,9 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             WotNodeSetConverterOptions options,
             List<WotDiagnostic> diagnostics,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            WotDocument? sourceDocument = null,
+            JsonElement sourceNode = default)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!context.TryEnter(WotResolutionKind.Thing, reference, out WotDiagnostic? blocking))
@@ -4009,10 +4014,13 @@ namespace Opc.Ua.Wot
 
             try
             {
-                WotResolverResult result = await resolver.ResolveThingAsync(
-                    reference,
-                    context,
-                    cancellationToken).ConfigureAwait(false);
+                string kind = sourceNode.ValueKind == JsonValueKind.Object
+                    ? GetElementString(sourceNode, "rel") ?? "ref" : "ref";
+                string? floor = sourceDocument is null ? null :
+                    WotVersionedReference.GetRequiredVersion(sourceDocument, sourceNode, kind);
+                WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                    resolver, new WotReferenceRequest(kind, reference, floor),
+                    context, cancellationToken).ConfigureAwait(false);
                 if (!result.Found)
                 {
                     diagnostics.Add(new WotDiagnostic(
@@ -4057,6 +4065,12 @@ namespace Opc.Ua.Wot
                     WotDiagnosticCode.UnresolvedReference,
                     $"The referenced document '{reference}' does not declare a uav:id.",
                     new WotLocation(reference: reference)));
+                return null;
+            }
+            catch (WotVersionException exception)
+            {
+                diagnostics.Add(new WotDiagnostic(WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.UnresolvedReference, exception.Code, new WotLocation(reference: reference)));
                 return null;
             }
             finally

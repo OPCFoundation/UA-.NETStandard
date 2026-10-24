@@ -151,7 +151,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotResource retired = m_registry.Current.FindResourceByXid(model.Xid)!;
             Assert.That(retired.Enabled, Is.False);
             Assert.That(retired.ActiveVersionId, Is.Null);
-            Assert.That(retired.FindVersion("v1"), Is.Not.Null);
+            Assert.That(retired.FindVersion("1.0.0"), Is.Not.Null);
             Assert.That((await ReadNodeClassAsync(Root(model)).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That((await ReadNodeClassAsync(Root(dependent)).ConfigureAwait(false)).StatusCode,
@@ -296,7 +296,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 WotRegistryMutationResult dependency = await m_registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = outside.GroupId, ResourceId = outside.ResourceId, VersionId = "v1", Kind = outside.Kind,
+                    GroupId = outside.GroupId, ResourceId = outside.ResourceId, VersionId = "1.0.0", Kind = outside.Kind,
                     Content = ByteString.From(TestMaterialization.Tm(
                         "urn:" + outside.ResourceId, extendsHrefs: "urn:" + first.ResourceId))
                 }).ConfigureAwait(false);
@@ -366,7 +366,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(m_registry.Current.FindGroup(model.GroupId), Is.Not.Null);
             WotResource? retained = m_registry.Current.FindResourceByXid(model.Xid);
             Assert.That(retained, Is.Not.Null);
-            Assert.That(retained!.FindVersion("v1"), Is.Not.Null);
+            Assert.That(retained!.FindVersion("1.0.0"), Is.Not.Null);
             Assert.That(retained.Enabled, Is.False);
             Assert.That(retained.ActiveVersionId, Is.Null);
             Assert.That((await ReadNodeClassAsync(Root(model)).ConfigureAwait(false)).StatusCode,

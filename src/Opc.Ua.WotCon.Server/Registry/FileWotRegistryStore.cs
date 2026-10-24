@@ -1173,6 +1173,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title: selectedVersion?.Title ?? dto.Title,
                 labels: ToLabels(dto.Labels))
             {
+                DefaultVersionSticky = dto.DefaultVersionSticky,
                 MetaCreatedAt = string.IsNullOrEmpty(dto.MetaCreatedAt)
                     ? derivedMetaCreatedAt
                     : ParseDate(dto.MetaCreatedAt),
@@ -1275,6 +1276,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Name = resource.Name,
                 Description = resource.Description,
                 DefaultVersionId = resource.DefaultVersionId,
+                DefaultVersionSticky = resource.DefaultVersionSticky,
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
                 CommittedVersion = resource.CommittedVersion is null
@@ -1362,6 +1364,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     TargetUri = reference.TargetUri,
                     LookupUri = reference.LookupUri,
                     RefType = reference.RefType,
+                    RequiredVersion = reference.RequiredVersion,
                     RequiresOrdering = reference.RequiresOrdering,
                     Lookup = reference.Lookup
                 }).ToArray(),
@@ -1386,7 +1389,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 throw new InvalidDataException("Dependency metadata does not identify the exact Version content.");
             }
-            if (dto.IndexVersion == 0)
+            if (dto.IndexVersion is 0 or 2)
             {
                 return null;
             }
@@ -1404,7 +1407,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     reference.LookupUri ?? throw new InvalidDataException("Missing contextual dependency identity."),
                     reference.RefType ?? throw new InvalidDataException("Missing dependency relation."),
                     reference.RequiresOrdering,
-                    reference.Lookup)).ToArrayOf(),
+                    reference.Lookup) { RequiredVersion = reference.RequiredVersion }).ToArrayOf(),
                 dto.OwnedModelUris.ToArrayOf(),
                 dto.RequiredModelUris.ToArrayOf(),
                 dto.DefinedNodeIds.ToArrayOf(),
@@ -1439,6 +1442,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     TargetHref = edge.TargetHref,
                     TargetXid = edge.TargetXid,
                     RefType = edge.RefType,
+                    RequiredVersion = edge.RequiredVersion,
                     Resolved = edge.Resolved
                 }).ToArray(),
                 Targets = snapshot.Graph.Targets.ToList().Select(target => new DependencyTargetDto
@@ -3245,6 +3249,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? RefType { get; set; }
 
             /// <summary>
+            /// Gets or sets the minimum target version.
+            /// </summary>
+            public string? RequiredVersion { get; set; }
+
+            /// <summary>
             /// Gets or sets the resolved for <c>DependencyEdgeDto</c>.
             /// </summary>
             public bool Resolved { get; set; }
@@ -3379,6 +3388,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? RefType { get; set; }
 
             /// <summary>
+            /// Gets or sets the minimum target version.
+            /// </summary>
+            public string? RequiredVersion { get; set; }
+
+            /// <summary>
             /// Gets or sets the requires ordering for <c>DependencyReferenceDto</c>.
             /// </summary>
             public bool RequiresOrdering { get; set; }
@@ -3474,6 +3488,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the default version identifier for clients that do not request one.
             /// </summary>
             public string? DefaultVersionId { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the default is operator-pinned.
+            /// </summary>
+            public bool DefaultVersionSticky { get; set; }
 
             /// <summary>
             /// Gets or sets the desired version identifier selected by management operations.

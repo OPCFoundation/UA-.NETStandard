@@ -1065,11 +1065,16 @@ namespace Opc.Ua.Wot
         private async System.Threading.Tasks.ValueTask<WotDocument?> LoadAsync(
             string documentUri,
             ResolutionScope scope,
-            System.Threading.CancellationToken cancellationToken)
+            System.Threading.CancellationToken cancellationToken,
+            string? requiredVersion = null)
         {
             List<WotDiagnostic> diagnostics = scope.Diagnostics;
             if (scope.TryGetLoaded(documentUri, out WotDocument? cached))
             {
+                if (cached is not null)
+                {
+                    WotVersionedReference.ValidateSelectedVersion(cached, requiredVersion);
+                }
                 return cached;
             }
             if (scope.IsUnresolvable(documentUri))
@@ -1086,8 +1091,9 @@ namespace Opc.Ua.Wot
             }
             try
             {
-                WotResolverResult result = await m_thingResolver
-                    .ResolveThingAsync(documentUri, context, cancellationToken)
+                WotResolverResult result = await WotVersionedReference.ResolveAsync(
+                    m_thingResolver, new WotReferenceRequest("ref", documentUri, requiredVersion),
+                    context, cancellationToken)
                     .ConfigureAwait(false);
                 if (!result.Found)
                 {
@@ -1124,6 +1130,11 @@ namespace Opc.Ua.Wot
                 }
                 scope.AddLoaded(documentUri, parsed);
                 return parsed;
+            }
+            catch (WotVersionException exception)
+            {
+                AddError(diagnostics, exception.Code, string.Empty);
+                return null;
             }
             finally
             {

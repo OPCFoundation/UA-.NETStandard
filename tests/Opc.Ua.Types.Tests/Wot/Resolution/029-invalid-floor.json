@@ -1,0 +1,32 @@
+{
+  "description": "A range is not a version floor.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "ref",
+    "target": "urn:example:pump:v1",
+    "minVersion": "^1.0.0"
+  },
+  "expect": {
+    "error": "invalid-version"
+  }
+}

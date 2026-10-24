@@ -82,7 +82,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             WotRegistryMutationResult added = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingDescriptions,
-                ResourceId = "mutation-source", VersionId = "v1", Kind = WoTDocumentKindEnum.ThingDescription,
+                ResourceId = "mutation-source",
+                VersionId = "v1",
+                Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(TestMaterialization.Td("urn:mutation-source"))
             }).ConfigureAwait(false);
             Assert.That(added.Changed, Is.True, added.Message);
@@ -153,12 +155,17 @@ namespace Opc.Ua.WotCon.Tests.Registry
             {
                 WotRegistryMutationResult model = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = WotRegistryGroups.ThingModels, ResourceId = name, VersionId = "v1",
-                    Kind = WoTDocumentKindEnum.ThingModel, Content = ByteString.From(TestMaterialization.Tm("urn:" + name))
+                    GroupId = WotRegistryGroups.ThingModels,
+                    ResourceId = name,
+                    VersionId = "1.0.0",
+                    Kind = WoTDocumentKindEnum.ThingModel,
+                    Content = ByteString.From(TestMaterialization.Tm("urn:" + name))
                 }).ConfigureAwait(false);
                 WotRegistryMutationResult dependent = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
-                    GroupId = WotRegistryGroups.ThingDescriptions, ResourceId = "consumer-" + name, VersionId = "v1",
+                    GroupId = WotRegistryGroups.ThingDescriptions,
+                    ResourceId = "consumer-" + name,
+                    VersionId = "v1",
                     Kind = WoTDocumentKindEnum.ThingDescription,
                     Content = ByteString.From(TestMaterialization.Td("urn:consumer-" + name, extendsHrefs: "urn:" + name))
                 }).ConfigureAwait(false);
