@@ -124,6 +124,7 @@ namespace Opc.Ua.Server
                     generation.Slot.Publish(generation);
                 }
             }
+            next.SetRevision(Interlocked.Increment(ref m_revision));
             Volatile.Write(ref m_snapshot, next);
         }
 
@@ -1083,6 +1084,7 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private RoutingSnapshot m_snapshot = RoutingSnapshot.Empty;
+        private long m_revision;
 
         /// <summary>
         /// An immutable view of the routing table. Every mutation publishes a new instance, which
@@ -1148,6 +1150,20 @@ namespace Opc.Ua.Server
             /// Gets the generations routed by this immutable view in dispatch order.
             /// </summary>
             public NodeManagerGeneration[] Generations { get; }
+
+            /// <summary>
+            /// Gets the monotonic revision assigned when this view is published.
+            /// </summary>
+            public long Revision { get; private set; }
+
+            /// <summary>
+            /// Assigns the revision before this view becomes visible to readers.
+            /// </summary>
+            /// <param name="revision">The next routing revision.</param>
+            internal void SetRevision(long revision)
+            {
+                Revision = revision;
+            }
 
             /// <summary>
             /// Gets the striped request epoch owned by this immutable view.

@@ -62,6 +62,30 @@ namespace Opc.Ua.Server.Tests.Hosting
         }
 
         [Test]
+        public void RevisionAndSlotsThrowWhenNotAttached()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+
+            Assert.Throws<InvalidOperationException>(() => _ = hosted.Revision);
+            Assert.Throws<InvalidOperationException>(() => _ = hosted.Slots);
+        }
+
+        [Test]
+        public void RevisionAndSlotsDelegateToAttachedLifecycle()
+        {
+            var hosted = new HostedNodeManagerLifecycle();
+            var inner = new Mock<INodeManagerLifecycle>();
+            NodeManagerSlot expectedSlot = NewRegistration().Slot;
+            ArrayOf<NodeManagerSlot> expectedSlots = ArrayOf.Wrapped(expectedSlot);
+            inner.Setup(lifecycle => lifecycle.Revision).Returns(17);
+            inner.Setup(lifecycle => lifecycle.Slots).Returns(expectedSlots);
+            hosted.Attach(inner.Object);
+
+            Assert.That(hosted.Revision, Is.EqualTo(17));
+            Assert.That(hosted.Slots, Is.EqualTo(expectedSlots));
+        }
+
+        [Test]
         public void AddAsyncWithAsyncFactoryThrowsWhenNotAttached()
         {
             var hosted = new HostedNodeManagerLifecycle();

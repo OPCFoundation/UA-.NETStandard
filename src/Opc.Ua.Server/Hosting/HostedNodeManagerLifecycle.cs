@@ -42,6 +42,14 @@ namespace Opc.Ua.Server.Hosting
     internal sealed class HostedNodeManagerLifecycle : INodeManagerPublicationLifecycle
     {
         /// <inheritdoc/>
+        public long Revision
+            => Current.Revision;
+
+        /// <inheritdoc/>
+        public ArrayOf<NodeManagerSlot> Slots
+            => Current.Slots;
+
+        /// <inheritdoc/>
         public ArrayOf<NodeManagerRegistration> Registrations
             => Current.Registrations;
 

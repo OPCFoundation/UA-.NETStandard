@@ -1061,7 +1061,9 @@ waits for its own request.
   pinned to a retired generation. `result.Retirement` completes when all generations retired by
   that batch have been cleaned up, or faults if asynchronous cleanup fails; use it when the caller
   must await teardown. `result.Retired` counts generations already cleaned up when the result was
-  created.
+  created. `result.Revision` identifies the published routing view, and `result.Slots` contains the
+  stable application slots in that view. `INodeManagerLifecycle.Revision` and `Slots` expose the
+  same information for the current view.
 - Before the durable decision callback runs, the batch reserves the serving routing revision. All
   routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
   Retry after it releases. A noncommit or cancellation releases only that batch's reservation.

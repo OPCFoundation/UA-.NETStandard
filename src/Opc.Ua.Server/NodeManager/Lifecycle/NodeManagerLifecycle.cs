@@ -88,6 +88,33 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        public long Revision
+        {
+            get
+            {
+                return m_server.CurrentInstance.NodeManager is IDynamicNodeManagerBatchHost batchHost
+                    ? batchHost.RoutingRevision.Revision
+                    : 0;
+            }
+        }
+
+        /// <inheritdoc/>
+        public ArrayOf<NodeManagerSlot> Slots
+        {
+            get
+            {
+                lock (m_registrationLock)
+                {
+                    return new ArrayOf<NodeManagerSlot>(
+                        m_registrations.Values
+                            .Select(state => state.Registration.Slot)
+                            .Where(slot => slot.TryGetCurrent(out _))
+                            .ToArray());
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         public bool IsShuttingDown => m_shuttingDown;
 
         internal long ShutdownCleanupProgress =>
@@ -5057,14 +5084,24 @@ namespace Opc.Ua.Server
                     failures.Add(failure);
                 }
                 uint completed;
+                NodeManagerSlot[] slots;
+                long revision = ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision.Revision;
                 lock (m_registrationLock)
                 {
                     completed = (uint)retired.Count(item => !m_retiredNodeManagers.Contains(item));
+                    slots =
+                    [
+                        .. m_registrations.Values
+                            .Select(state => state.Registration.Slot)
+                            .Where(slot => slot.TryGetCurrent(out _))
+                    ];
                 }
                 return new NodeManagerBatchResult(
                     batch.Registrations, completed,
                     failures.Count == 0 ? null : new AggregateException(
                         "The batch committed; generation reconciliation remains pending.", failures),
+                    revision,
+                    slots,
                     Task.WhenAll(retired.Select(item => item.Retirement)));
             }
             finally

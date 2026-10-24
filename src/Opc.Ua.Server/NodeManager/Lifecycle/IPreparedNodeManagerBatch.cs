@@ -192,15 +192,21 @@ namespace Opc.Ua.Server
         /// <param name="retired">The number of old generations whose cleanup completed.</param>
         /// <param name="cleanupFailure">The post-commit failure, if any.</param>
         /// <param name="retirement">The task that completes after every retired generation is cleaned up.</param>
+        /// <param name="revision">The published routing revision.</param>
+        /// <param name="slots">The stable slots in the published routing view.</param>
         internal NodeManagerBatchResult(
             ArrayOf<NodeManagerRegistration> registrations,
             uint retired,
             Exception? cleanupFailure,
+            long revision,
+            NodeManagerSlot[] slots,
             Task retirement)
         {
             Registrations = registrations;
             Retired = retired;
             CleanupFailure = cleanupFailure;
+            Revision = revision;
+            Slots = new ArrayOf<NodeManagerSlot>(slots);
             Retirement = retirement ?? throw new ArgumentNullException(nameof(retirement));
         }
 
@@ -218,6 +224,16 @@ namespace Opc.Ua.Server
         /// Gets a post-commit failure, if any. It never denotes an aborted publication.
         /// </summary>
         public Exception? CleanupFailure { get; }
+
+        /// <summary>
+        /// Gets the revision of the published routing view.
+        /// </summary>
+        public long Revision { get; }
+
+        /// <summary>
+        /// Gets the stable slots in the published routing view.
+        /// </summary>
+        public ArrayOf<NodeManagerSlot> Slots { get; }
 
         /// <summary>
         /// Gets a task that completes when every generation retired by this batch has been fully cleaned up,

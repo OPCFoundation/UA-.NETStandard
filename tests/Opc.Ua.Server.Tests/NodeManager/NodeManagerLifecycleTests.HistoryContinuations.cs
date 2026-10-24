@@ -285,6 +285,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                     Assert.That(retirementResult.Retirement.IsCompleted, Is.False);
+                    Assert.That(retirementResult.Revision, Is.GreaterThan(0));
+                    Assert.That(retirementResult.Revision, Is.EqualTo(m_server.NodeManagerLifecycle.Revision));
+                    NodeManagerSlot[] resultSlots = retirementResult.Slots.Memory.ToArray();
+                    NodeManagerSlot[] currentSlots = m_server.NodeManagerLifecycle.Slots.Memory.ToArray();
+                    Assert.That(
+                        resultSlots,
+                        Is.EquivalentTo(currentSlots));
+                    Assert.That(
+                        resultSlots.Any(slot => ReferenceEquals(slot, owner.Registration.Slot)),
+                        Is.False);
+                    Assert.That(
+                        resultSlots.Any(slot => ReferenceEquals(slot, target.Registration.Slot)),
+                        Is.False);
                     var holder = (SessionContinuationPoints)m_server.CurrentInstance.SessionManager
                         .GetSessions().Single(candidate => candidate.Id == session.SessionId).ContinuationPoints;
                     Assert.That(holder.HasHistoryForManager(source), Is.True);

@@ -44,6 +44,17 @@ namespace Opc.Ua.Server
     public interface INodeManagerLifecycle
     {
         /// <summary>
+        /// Gets the revision of the currently published NodeManager routing view.
+        /// </summary>
+        long Revision { get; }
+
+        /// <summary>
+        /// Gets the stable slots for the live application NodeManagers owned by this provider.
+        /// Built-in diagnostics, configuration, and core NodeManagers are excluded.
+        /// </summary>
+        ArrayOf<NodeManagerSlot> Slots { get; }
+
+        /// <summary>
         /// Gets a snapshot of the live application NodeManagers owned by this provider,
         /// including managers composed before server startup and managers added at runtime.
         /// Built-in diagnostics, configuration, and core NodeManagers are excluded.
