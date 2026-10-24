@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -73,6 +74,64 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             await m_server.NodeManagerLifecycle.RemoveAsync(next, null).ConfigureAwait(false);
             Assert.That(slot.TryGetCurrent(out _), Is.False);
+        }
+
+        [Test]
+        public async Task RegistrationSlotSnapshotsKeepManagerAndGenerationTogetherAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var knownGenerations = new ConcurrentDictionary<IAsyncNodeManager, long>();
+            TrackingLifecycleNodeManager? initial = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager =>
+                {
+                    initial = manager;
+                    knownGenerations[manager] = 1;
+                }), null, timeout.Token).ConfigureAwait(false);
+            NodeManagerSlot slot = registration.Slot;
+            var inconsistent = new ConcurrentQueue<(long Generation, long Expected)>();
+
+            Task reloads = Task.Run(async () =>
+            {
+                for (int index = 0; index < 6; index++)
+                {
+                    long expectedGeneration = registration.Generation + 1;
+                    NodeManagerRegistration next = await m_server.NodeManagerLifecycle.ReloadAsync(
+                        registration,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value + index, manager =>
+                        {
+                            knownGenerations[manager] = expectedGeneration;
+                        }),
+                        null,
+                        timeout.Token).ConfigureAwait(false);
+                    registration = next;
+                }
+            }, timeout.Token);
+
+            do
+            {
+                if (slot.TryGetCurrent(out NodeManagerSlotSnapshot snapshot) &&
+                    knownGenerations.TryGetValue(snapshot.NodeManager, out long expectedGeneration) &&
+                    snapshot.Generation != expectedGeneration)
+                {
+                    inconsistent.Enqueue((snapshot.Generation, expectedGeneration));
+                }
+                await Task.Yield();
+            }
+            while (!reloads.IsCompleted);
+
+            await reloads.ConfigureAwait(false);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(initial, Is.Not.Null);
+                Assert.That(inconsistent, Is.Empty);
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot final), Is.True);
+                Assert.That(final.Generation, Is.EqualTo(7));
+                Assert.That(knownGenerations.TryGetValue(final.NodeManager, out long expected), Is.True);
+                Assert.That(final.Generation, Is.EqualTo(expected));
+            }
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token)
+                .ConfigureAwait(false);
         }
 
         [TestCase(false, false)]
