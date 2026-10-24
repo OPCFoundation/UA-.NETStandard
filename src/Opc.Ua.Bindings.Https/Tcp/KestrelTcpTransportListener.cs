@@ -42,6 +42,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 
@@ -177,6 +178,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(settings));
             }
+            UascDataChannelEndpoint.ValidateListener(settings);
 
             ListenerId = Guid.NewGuid().ToString();
             EndpointUrl = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
@@ -223,6 +225,8 @@ namespace Opc.Ua.Bindings
             m_reverseConnectListener = settings.ReverseConnectListener;
             m_maxChannelCount = settings.MaxChannelCount;
             m_pendingAccepts = 0;
+            m_dataChannelFactory = settings.DataChannels;
+            m_allowDataChannelIntegrity = settings.AllowDataChannelIntegrity;
 
             // As in TcpTransportListener the channel limit is enforced
             // against the channel table (ReserveChannel) rather than as a
@@ -756,7 +760,7 @@ namespace Opc.Ua.Bindings
                     m_descriptions!,
                     Telemetry);
             }
-            return new TcpServerChannel(
+            var channel = new TcpServerChannel(
                 ListenerId,
                 this,
                 m_bufferManager!,
@@ -764,6 +768,8 @@ namespace Opc.Ua.Bindings
                 m_serverCertificates!,
                 m_descriptions!,
                 Telemetry);
+            channel.ConfigureDataChannels(m_dataChannelFactory, m_allowDataChannelIntegrity);
+            return channel;
         }
 
         internal void RegisterChannel(uint channelId, TcpListenerChannel channel)
@@ -920,16 +926,8 @@ namespace Opc.Ua.Bindings
             using TcpListenerChannel.PendingRequestScope usage = channel.TrackPendingRequest();
             try
             {
-                var context = new SecureChannelContext(
-                    channel.GlobalChannelId,
-                    channel.EndpointDescription,
-                    RequestEncoding.Binary,
-                    channel.ClientCertificateRawData,
-                    channel.ServerCertificateRawData,
-                    channel.ChannelThumbprint,
-                    (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
                 IServiceResponse response = await m_callback
-                    .ProcessRequestAsync(context, request)
+                    .ProcessRequestAsync(channel.GetRequestContext(), request)
                     .ConfigureAwait(false);
                 if (!await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false))
                 {
@@ -1059,6 +1057,8 @@ namespace Opc.Ua.Bindings
         private readonly IBufferManagerFactory m_bufferManagerFactory;
         private ICertificateRegistry? m_serverCertificates;
         private ITransportListenerCallback? m_callback;
+        private IDataChannelContextFactory? m_dataChannelFactory;
+        private bool m_allowDataChannelIntegrity;
         private ConcurrentDictionary<uint, (TcpListenerChannel Channel, TaskCompletionSource<bool> Done)>? m_channels;
         private int m_nextChannelId;
         private bool m_reverseConnectListener;

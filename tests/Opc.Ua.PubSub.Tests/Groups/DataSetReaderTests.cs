@@ -363,20 +363,186 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
 
         [Test]
+        public async Task DispatchAsync_ValidDataSetMessageMarksReaderOperationalAndStartsTimeoutAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var countingSink = new CountingSink();
+            DataSetReader reader = BuildReader(sink: countingSink, timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            clock.Advance(TimeSpan.FromSeconds(10));
+            Assert.That(reader.IsReceiveTimedOut(), Is.False,
+                "The receive timeout does not start until the reader becomes Operational.");
+
+            await reader.DispatchAsync(new UadpDataSetMessageV2 { DataSetWriterId = 5 })
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(reader.IsReceiveTimedOut(), Is.False);
+                Assert.That(countingSink.CallCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void DispatchAsync_CancelledSinkWriteStillCountsAsReceivedMessage()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+            var throwingSink = new ThrowingSink(new OperationCanceledException(cts.Token));
+            DataSetReader reader = BuildReader(sink: throwingSink, timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            clock.Advance(TimeSpan.FromMilliseconds(600));
+
+            Assert.That(
+                async () => await reader.DispatchAsync(
+                    new UadpDataSetMessageV2 { DataSetWriterId = 5 },
+                    cts.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(reader.IsReceiveTimedOut(), Is.False);
+            });
+        }
+
+        [Test]
         public async Task DispatchAsync_SinkThrowsNonOce_FaultsStateAndSwallowsAsync()
         {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
             var throwingSink = new ThrowingSink(new InvalidOperationException("boom"));
-            DataSetReader reader = BuildReader(sink: throwingSink);
+            DataSetReader reader = BuildReader(sink: throwingSink, timeoutMs: 500, clock: clock);
             _ = reader.State.TryEnable();
             _ = reader.State.TryMarkOperational();
+            clock.Advance(TimeSpan.FromMilliseconds(600));
 
             var dsm = new UadpDataSetMessageV2 { DataSetWriterId = 5 };
 
             // Non-OCE must be caught and the reader faulted — never rethrown.
             await reader.DispatchAsync(dsm).ConfigureAwait(false);
 
-            Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error),
-                "Non-OCE from the sink must transition the reader to Error.");
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Error),
+                    "Non-OCE from the sink must transition the reader to Error.");
+                Assert.That(reader.IsReceiveTimedOut(), Is.False,
+                    "A decoded DataSetMessage refreshes the receive timeout even if the sink fails.");
+            });
+        }
+
+        [Test]
+        public async Task DispatchAsync_DuplicateSequenceNumberDoesNotResetTimeoutAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            UadpDataSetMessageV2 message = BuildSequencedUadpMessage(10);
+
+            await reader.DispatchAsync(message).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+            await reader.DispatchAsync(message).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.True);
+        }
+
+        [Test]
+        public async Task DispatchAsync_IncrementedSequenceNumberResetsTimeoutAcrossRolloverAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+
+            await reader.DispatchAsync(BuildSequencedUadpMessage(ushort.MaxValue)).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+            await reader.DispatchAsync(BuildSequencedUadpMessage(0)).ConfigureAwait(false);
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.False);
+        }
+
+        [Test]
+        public async Task DispatchAsync_JsonSequenceNumberResetsTimeoutAcrossRolloverAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+
+            await reader.DispatchAsync(BuildSequencedJsonMessage(uint.MaxValue)).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+            await reader.DispatchAsync(BuildSequencedJsonMessage(0)).ConfigureAwait(false);
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.False);
+        }
+
+        [Test]
+        public async Task DispatchAsync_KeepAliveRefreshesTimeoutWithoutCallingSinkAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            var countingSink = new CountingSink();
+            DataSetReader reader = BuildReader(sink: countingSink, timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            var keepAlive = BuildSequencedUadpMessage(
+                1,
+                PubSubDataSetMessageType.KeepAlive);
+
+            await reader.DispatchAsync(keepAlive).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+            await reader.DispatchAsync(keepAlive).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reader.State.State, Is.EqualTo(PubSubState.Operational));
+                Assert.That(reader.IsReceiveTimedOut(), Is.False);
+                Assert.That(countingSink.CallCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public async Task DispatchAsync_OlderSequenceNumberDoesNotResetTimeoutAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+
+            await reader.DispatchAsync(BuildSequencedUadpMessage(10)).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(100));
+            await reader.DispatchAsync(BuildSequencedUadpMessage(9)).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.True);
+        }
+
+        [Test]
+        public async Task DispatchAsync_SequenceNumberAtTimeoutBoundaryExpiresReaderAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+
+            await reader.DispatchAsync(new UadpDataSetMessageV2 { DataSetWriterId = 5 })
+                .ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(500));
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.True);
+        }
+
+        [Test]
+        public async Task DispatchAsync_DataSetMessageWithoutSequenceNumberAlwaysResetsTimeoutAsync()
+        {
+            var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+            DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            var message = new UadpDataSetMessageV2 { DataSetWriterId = 5, SequenceNumber = 3 };
+
+            await reader.DispatchAsync(message).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+            await reader.DispatchAsync(message).ConfigureAwait(false);
+            clock.Advance(TimeSpan.FromMilliseconds(400));
+
+            Assert.That(reader.IsReceiveTimedOut(), Is.False);
         }
 
         [Test]
@@ -418,10 +584,13 @@ namespace Opc.Ua.PubSub.Tests.Groups
         }
 
         [Test]
-        public void IsReceiveTimedOut_AfterTimeout_ReturnsTrue()
+        public async Task IsReceiveTimedOut_AfterTimeout_ReturnsTrueAsync()
         {
             var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
             DataSetReader reader = BuildReader(timeoutMs: 500, clock: clock);
+            _ = reader.State.TryEnable();
+            await reader.DispatchAsync(new UadpDataSetMessageV2 { DataSetWriterId = 5 })
+                .ConfigureAwait(false);
 
             clock.Advance(TimeSpan.FromMilliseconds(750));
 
@@ -449,6 +618,29 @@ namespace Opc.Ua.PubSub.Tests.Groups
                 sink ?? NullSink.Instance,
                 NUnitTelemetryContext.Create(),
                 clock ?? TimeProvider.System);
+        }
+
+        private static UadpDataSetMessageV2 BuildSequencedUadpMessage(
+            uint sequenceNumber,
+            PubSubDataSetMessageType messageType = PubSubDataSetMessageType.KeyFrame)
+        {
+            return new UadpDataSetMessageV2
+            {
+                DataSetWriterId = 5,
+                SequenceNumber = sequenceNumber,
+                MessageType = messageType,
+                ContentMask = UadpDataSetMessageContentMask.SequenceNumber
+            };
+        }
+
+        private static Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage BuildSequencedJsonMessage(
+            uint sequenceNumber)
+        {
+            return new Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage
+            {
+                DataSetWriterId = 5,
+                SequenceNumber = sequenceNumber
+            };
         }
 
         private sealed class NullSink : ISubscribedDataSetSink

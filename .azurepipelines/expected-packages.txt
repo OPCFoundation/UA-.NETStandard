@@ -11,6 +11,10 @@
 # `dotnet pack` output only; the hand-authored `nuget/*.nuspec` packages are packed
 # in a later pipeline step and are not part of this check.
 #
+# Native QUIC/HTTP3 packages are validated and produced by the dedicated native
+# workflow; they require native build receipts and are not part of signed preview
+# package publication.
+#
 # To update: reconcile the package ids from the workflow's modern pack steps
 # with this file in the same pull request that changes them.
 
@@ -25,6 +29,8 @@ OPCFoundation.NetStandard.Opc.Ua.AutoID
 OPCFoundation.NetStandard.Opc.Ua.AutoID.Client
 OPCFoundation.NetStandard.Opc.Ua.AutoID.Server
 OPCFoundation.NetStandard.Opc.Ua.Bindings.Https
+OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic
+OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport
 OPCFoundation.NetStandard.Opc.Ua.Client
 OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes
 OPCFoundation.NetStandard.Opc.Ua.Configuration
@@ -42,6 +48,7 @@ OPCFoundation.NetStandard.Opc.Ua.ECM
 OPCFoundation.NetStandard.Opc.Ua.Extrusion
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Client
 OPCFoundation.NetStandard.Opc.Ua.Extrusion.Server
+OPCFoundation.NetStandard.Opc.Ua.Fx
 OPCFoundation.NetStandard.Opc.Ua.Gds
 OPCFoundation.NetStandard.Opc.Ua.Gds.Client
 OPCFoundation.NetStandard.Opc.Ua.Gds.Server

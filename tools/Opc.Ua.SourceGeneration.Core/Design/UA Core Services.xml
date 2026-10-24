@@ -2045,4 +2045,9 @@
     <opc:Value Name="Unknown" Value="4" />
   </opc:EnumeratedType>
 
+  <opc:ComplexType Name="KeyValuePair" AllowArrays="true" PartNo="5">
+    <opc:Field Name="Key" DataType="s0:QualifiedName" />
+    <opc:Field Name="Value" DataType="s0:Variant" />
+  </opc:ComplexType>
+
 </opc:TypeDictionary>

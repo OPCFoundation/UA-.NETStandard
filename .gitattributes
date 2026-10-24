@@ -32,8 +32,15 @@ src/Opc.Ua.AMB/Model/Opc.Ua.AMB.NodeSet2.xml text eol=lf
 # SHA-256 hashes are pinned in src/Opc.Ua.AutoID/Model/provenance.json and
 # tests/Opc.Ua.AutoID.Tests/AutoIdModelAssetTests.cs, so the checked-out bytes must be
 # the upstream bytes on every platform.
-src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeSet2.xml text eol=lf
+# The upstream license banner includes trailing spaces covered by the pinned hash.
+src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeSet2.xml text eol=lf whitespace=-blank-at-eol
 src/Opc.Ua.AutoID/Model/Opc.Ua.AutoID.NodeIds.csv text eol=lf
+
+# Preserve the three release-pinned UAFX NodeSets and their upstream Git blob identities.
+src/Opc.Ua.Fx/Model/*.nodeset2.xml -text
+# The Data NodeSet contains trailing whitespace in a published Description.
+# TODO: remove this exception when a newer pinned upstream input removes it.
+src/Opc.Ua.Fx/Model/opc.ua.fx.data.nodeset2.xml whitespace=-blank-at-eol
 
 # Denote all files that should not have line endings normalized, should not be
 # merged, and should not show in a textual diff.

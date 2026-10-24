@@ -27,6 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+#if NETSTANDARD2_0 || NETFRAMEWORK
+using System.Buffers;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+#endif
+
 namespace System.IO
 {
     /// <summary>
@@ -35,6 +42,66 @@ namespace System.IO
     public static class Polyfills
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
+        /// <summary>
+        /// Reads into memory through the asynchronous array API, preserving slices without copying when possible.
+        /// </summary>
+        public static async ValueTask<int> ReadAsync(
+            this Stream target,
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)buffer, out ArraySegment<byte> segment))
+            {
+                return await target.ReadAsync(segment.Array!, segment.Offset, segment.Count, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            byte[] rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                int count = await target.ReadAsync(rented, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+                rented.AsMemory(0, count).CopyTo(buffer);
+                return count;
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented, clearArray: true);
+            }
+        }
+
+        /// <summary>
+        /// Writes memory through the asynchronous array API, preserving slices without copying when possible.
+        /// </summary>
+        public static async ValueTask WriteAsync(
+            this Stream target,
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (target is null)
+            {
+                throw new ArgumentNullException(nameof(target));
+            }
+            if (MemoryMarshal.TryGetArray(buffer, out ArraySegment<byte> segment))
+            {
+                await target.WriteAsync(segment.Array!, segment.Offset, segment.Count, cancellationToken)
+                    .ConfigureAwait(false);
+                return;
+            }
+            byte[] rented = ArrayPool<byte>.Shared.Rent(buffer.Length);
+            try
+            {
+                buffer.CopyTo(rented);
+                await target.WriteAsync(rented, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented, clearArray: true);
+            }
+        }
+
         extension(Path)
         {
             /// <summary>

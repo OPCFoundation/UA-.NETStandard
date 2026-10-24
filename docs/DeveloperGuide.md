@@ -128,6 +128,31 @@ Conventions and requirements:
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
 - **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
 - **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+- **Native Data Channel prerequisites.** The optional QUIC and WebTransport tests need their
+  verified native assets before execution. They do not use `System.Net.Quic` or `libmsquic`.
+  Follow the source-build instructions in
+  [`Native.QuicGo/NATIVE_ABI.md`](../src/Opc.Ua.Native.QuicGo/NATIVE_ABI.md) and
+  [`Native.Http3/ABI.md`](../src/Opc.Ua.Native.Http3/ABI.md). The supported native test hosts
+  are Windows x64 and Linux x64; native tests are not a net48 or macOS capability claim.
+  Ordinary Core, Client, Server and base PubSub libraries do not require these native packages.
+  Native process tests use `OPCUA_QUIC_NATIVE_PATH` / `OPCUA_QUIC_NATIVE_SHA256` and
+  `OPCUA_HTTP3_NATIVE_PATH` / `OPCUA_HTTP3_NATIVE_SHA256`. Supply trusted absolute paths and
+  reviewed build-receipt hashes; do not treat a hash computed from an arbitrary supplied binary
+  as independent approval to load it. When using these variables, remove legacy
+  `OPCUA_QUIC_LIBRARY` / `OPCUA_QUIC_SHA256` and `OPCUA_HTTP3_LIBRARY` / `OPCUA_HTTP3_SHA256`
+  environment entries rather than setting them to empty strings: the samples give existing
+  legacy entries precedence.
+  Data Channel teardown tests use the linked
+  [`DataChannelResourceAssertions.AreReleased`](../tests/Common/DataChannelResourceAssertions.cs)
+  helper to check every resource counter. Do not use NUnit `Is.Default` for these snapshots:
+  unmanaged struct padding can produce false failures even when every counter is zero.
+  Counter assertions do not replace native resource-retirement checks.
+  Required native CI jobs also set the test action's `require-clean-exit` input:
+  a crashed test host can leave only passing counters in a partial TRX, so the
+  mainline at-exit tolerance is not sufficient evidence for native qualification.
+  Native QUIC and HTTP/3 validation packages are built by the dedicated native
+  workflow and are excluded from the standard signed NuGet package set until
+  their separate production release gate is satisfied.
 
 Wire compatibility with the released 1.5 stack is covered by
 [`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
@@ -545,10 +570,26 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 | Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
 | Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
 | Native AoT | linux-x64, osx-x64, osx-arm64 | the above plus win-x64 |
+| Native Data Channels | Required Windows/Linux x64 backend, real-flow and backend/carrier NativeAOT checks | Same dedicated native checks |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
 A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses.
+
+The native Data Channel projects use the required
+[reusable native workflow](../.github/workflows/native-data-channels.yml), not the
+all-platform mainline sweep. It verifies pinned public Go, Zig and Rust inputs, builds
+the production libraries, and supplies those exact assets to native and managed tests.
+After both hosts pass, it verifies Release and Debug native package payloads,
+source/asset receipts, and the WebTransport native dependency. Its retained unsigned
+prerelease packages are validation artifacts, not approved product distributions.
+The Windows compiler/SDK inputs are pinned in
+[`public-inputs.json`](../src/Opc.Ua.Native.Http3/build/public-inputs.json); a missing or
+different prerequisite is a failure, not a reason to skip tests or use another backend.
+[`prepare-native-quic.ps1`](../.github/scripts/prepare-native-quic.ps1) and
+[`prepare-native-http3.ps1`](../.github/scripts/prepare-native-http3.ps1) keep downloaded
+tools in build-private directories and do not change the system toolchain.
+This validation workflow does not sign or approve native packages for distribution.
 
 The project fan-out is **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. Batches are packed by **duration**, not by count. Every batch pays a fixed cost of several minutes (checkout, SDK install and the cold build of the shared dependency graph), while each further project in it only adds an incremental build of under a minute plus its tests. So projects are packed, in path order, up to `BatchTargetMinutes` (30) of weight from [`.github/ci-test-durations.json`](../.github/ci-test-durations.json), with at most as many projects as the job timeout can budget for. Path order keeps related projects (`PubSub.*`, `Redundancy.*`, `WotCon.*`) together. Packing two projects per job, as before, spent almost half of the pull-request matrix recompiling the same assemblies.
 
@@ -606,6 +647,7 @@ The tiers those filters leave out run elsewhere:
 | `SampleHaLongHaul` in `Opc.Ua.Redundancy.Samples.Tests` | [`.github/workflows/sample-ha-longhaul.yml`](../.github/workflows/sample-ha-longhaul.yml), opt-in |
 | `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `aot-test` job (both workflows) — published and run as native executables, not through `dotnet test` |
 | `Opc.Ua.OneFuzz.Validator.Tests` | `fuzz-drop` job — it pins net10.0 to match the drop it validates |
+| Native QUIC/H3 backends, QUIC/WebTransport bindings, native Client/Server lane and streaming/audio sample test projects | Required `native-data-channels` workflow on Windows/Linux x64; H3 uses its own TUnit/NativeAOT host |
 
 The opt-in workflows run on their schedule, on demand from the Actions tab, and on a pull request that carries their label. Like `interop` for the [foreign stack interop](../.github/workflows/interop-foreign.yml) run, the label is not a required check: add it to start a run, and each later push to the pull request restarts it, cancelling the run in progress. Adding an unrelated label does not restart it.
 

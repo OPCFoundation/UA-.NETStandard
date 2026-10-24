@@ -61,6 +61,56 @@ namespace Opc.Ua.Tools.Tests
         ];
 
         /// <summary>
+        /// Native bindings publish with the standard set; backend packages use the separate native validation gate.
+        /// </summary>
+        [Test]
+        public async Task ExpectedPackageInventoryKeepsNativeBackendPackagesOutOfStandardPublishAsync()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), ".azurepipelines", "expected-packages.txt");
+            string[] lines = await File.ReadAllLinesAsync(path).ConfigureAwait(false);
+            string[] actual =
+            [
+                .. lines.Select(line => line.Trim()).Where(id =>
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Native.", StringComparison.Ordinal) ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic", StringComparison.Ordinal) ||
+                    id.StartsWith("OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport", StringComparison.Ordinal))
+            ];
+            string[] expected =
+            [
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic",
+                "OPCFoundation.NetStandard.Opc.Ua.Bindings.WebTransport"
+            ];
+
+            Assert.That(actual, Is.EquivalentTo(expected));
+        }
+
+        /// <summary>
+        /// Restore must retain the native package edge without exposing or copying a placeholder managed library.
+        /// </summary>
+        [Test]
+        public void WebTransportRetainsTheNativeOnlyHttp3PackageEdge()
+        {
+            string path = Path.Combine(FindRepositoryRoot(), "src",
+                "Opc.Ua.Bindings.WebTransport", "Opc.Ua.Bindings.WebTransport.csproj");
+            var project = XDocument.Load(path);
+            XElement reference = project.Descendants("ProjectReference").Single(element =>
+                element.Attribute("Include")?.Value.EndsWith(
+                    "Opc.Ua.Native.Http3.csproj", StringComparison.Ordinal) == true);
+            string[] assets = (reference.Attribute("IncludeAssets")?.Value ?? string.Empty)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+            string[] expected = ["runtime", "native"];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(reference.Attribute("ReferenceOutputAssembly")?.Value,
+                    Is.Not.EqualTo("false").IgnoreCase,
+                    "NuGet removes false ReferenceOutputAssembly edges from the restore graph.");
+                Assert.That(assets, Is.EquivalentTo(expected));
+                Assert.That(reference.Attribute("Private")?.Value, Is.EqualTo("false"));
+            });
+        }
+
+        /// <summary>
         /// The approved suite adds exactly twelve package identities and never a separate WMTP package.
         /// </summary>
         [Test]

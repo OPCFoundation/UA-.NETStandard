@@ -44,6 +44,11 @@ namespace Opc.Ua
     internal static class ServerEventIds
     {
         /// <summary>
+        /// Event identifier offset for optional data-channel control.
+        /// </summary>
+        public const int DataChannels = 750;
+
+        /// <summary>
         /// Event identifier offset for runtime resource isolation.
         /// </summary>
         public const int ResourceIsolation = 700;

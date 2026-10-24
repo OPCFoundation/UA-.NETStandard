@@ -1209,6 +1209,8 @@ namespace Opc.Ua.Schema.Model
             nodes.AddRange(standard.Items);
 
             builtin.PermissionSets = standard.PermissionSets;
+            builtin.IdentifierCompatibilityFile = standard.IdentifierCompatibilityFile;
+            builtin.SourceFilePath = BuiltInDesignFiles.StandardTypesXml;
             builtin.Items = [.. nodes];
 
             return builtin;
@@ -1410,8 +1412,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            if (metadata == null)
-
+            if (metadata == null || metadata.PreserveExplicitNodes)
             {
                 return;
             }
@@ -1608,6 +1609,16 @@ namespace Opc.Ua.Schema.Model
 
                 {
                     dictionary.PermissionSets = model.PermissionSets;
+                }
+                if (!string.IsNullOrEmpty(model.IdentifierCompatibilityFile))
+                {
+                    if (!string.IsNullOrEmpty(dictionary.IdentifierCompatibilityFile))
+                    {
+                        throw new InvalidOperationException(
+                            "Only one identifier compatibility file can be specified for a model.");
+                    }
+                    dictionary.IdentifierCompatibilityFile = model.IdentifierCompatibilityFile;
+                    dictionary.SourceFilePath = designFilePath;
                 }
                 dictionary.Items = [.. nodes2];
                 model = dictionary;
@@ -2260,6 +2271,10 @@ namespace Opc.Ua.Schema.Model
 
         private void AddEnumStrings(DataTypeDesign dataType)
         {
+            if (dataType.PreserveExplicitNodes)
+            {
+                return;
+            }
             var children = new List<InstanceDesign>();
 
             if (dataType.Children != null && dataType.Children.Items != null)
@@ -2417,6 +2432,17 @@ namespace Opc.Ua.Schema.Model
             EncodingType encodingType,
             List<NodeDesign> nodesToAdd)
         {
+            if (nodes.Items.OfType<DataTypeDesign>().All(type => type.PreserveExplicitNodes))
+            {
+                foreach (DataTypeDesign type in nodes.Items.OfType<DataTypeDesign>())
+                {
+                    if (type.BasicDataType == BasicDataType.UserDefined && !type.NoEncodings)
+                    {
+                        AddDataTypeEncoding(type, null, encodingType, nodesToAdd);
+                    }
+                }
+                return;
+            }
             var descriptions = new List<InstanceDesign>();
 
             DictionaryDesign dictionary;
@@ -2564,6 +2590,15 @@ namespace Opc.Ua.Schema.Model
             object value,
             List<InstanceDesign> children)
         {
+            if (IsInExplicitScope(parent))
+            {
+                if (children.Exists(child => child.SymbolicName == propertyName))
+                {
+                    return;
+                }
+                throw new InvalidOperationException(
+                    $"Explicit model node '{parent.SymbolicId}' must declare property '{propertyName}'.");
+            }
             var property = new PropertyDesign
             {
                 Parent = parent,
@@ -2636,6 +2671,18 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
+        /// <summary>
+        /// Determines whether a source declaration belongs to an explicit top-level subtree.
+        /// </summary>
+        private static bool IsInExplicitScope(NodeDesign node)
+        {
+            while (node.Parent != null)
+            {
+                node = node.Parent;
+            }
+            return node.PreserveExplicitNodes;
+        }
+
         private void AddDataTypeDescription(
             DataTypeDesign dataType,
             DictionaryDesign dictionary,
@@ -2652,7 +2699,7 @@ namespace Opc.Ua.Schema.Model
                 encodingType != EncodingType.Binary ||
                 !dataType.HasInlineMatrixField();
 
-            if (!dataType.NotInAddressSpace && isInDictionary)
+            if (!dataType.NotInAddressSpace && isInDictionary && !dataType.PreserveExplicitNodes)
             {
                 description = new VariableDesign
                 {
@@ -2760,7 +2807,8 @@ namespace Opc.Ua.Schema.Model
             var encoding = new ObjectDesign
             {
                 Parent = null,
-                ReferenceType = null
+                ReferenceType = null,
+                PreserveExplicitNodes = dataType.PreserveExplicitNodes
             };
 
             if (encodingType == EncodingType.Xml)
@@ -2935,11 +2983,26 @@ namespace Opc.Ua.Schema.Model
             SortedDictionary<object, IdInfo> uniqueIdentifiers,
             Dictionary<string, object> duplicateIdentifiers,
             IdAllocator assignedIds,
-            bool isImplicitlyDefined)
+            bool isImplicitlyDefined,
+            IReadOnlyDictionary<string, CompatibilityIdentifier> compatibilityIdentifiers,
+            bool requireExplicitIdentifier)
         {
             // assign identifier if one has not already been assigned.
 
-            if (!identifiers.TryGetValue(node.SymbolicId.Name, out object? id))
+            object? id;
+            if (compatibilityIdentifiers.TryGetValue(
+                node.SymbolicId.Name, out CompatibilityIdentifier? compatible))
+            {
+                if ((compatible.ImplicitOnly && !isImplicitlyDefined) ||
+                    compatible.NodeClass != GetNodeClass(node))
+                {
+                    throw new InvalidOperationException(
+                        $"The compatibility allocation no longer describes '{node.SymbolicId}'.");
+                }
+                id = compatible.Identifier;
+                identifiers[node.SymbolicId.Name] = id;
+            }
+            else if (!identifiers.TryGetValue(node.SymbolicId.Name, out id))
             {
                 if (m_symbolicIdToNodeId.TryGetValue(node.SymbolicId, out NodeId nodeId))
                 {
@@ -2961,11 +3024,21 @@ namespace Opc.Ua.Schema.Model
                     }
                     else
                     {
+                        if (requireExplicitIdentifier)
+                        {
+                            throw new InvalidOperationException(
+                                $"Explicit model node '{node.SymbolicId}' has no allocated identifier.");
+                        }
                         id = assignedIds.FindUnusedId(node.SymbolicId.Namespace, isImplicitlyDefined);
                     }
                 }
                 else
                 {
+                    if (requireExplicitIdentifier)
+                    {
+                        throw new InvalidOperationException(
+                            $"Explicit model node '{node.SymbolicId}' has no allocated identifier.");
+                    }
                     id = assignedIds.FindUnusedId(node.SymbolicId.Namespace, isImplicitlyDefined);
                 }
 
@@ -3067,6 +3140,13 @@ namespace Opc.Ua.Schema.Model
                 new SortedDictionary<object, IdInfo>(uniqueIdentifiersComparer);
             var duplicateIdentifiers = new Dictionary<string, object>();
             var assignedIds = new IdAllocator(m_startId);
+            Dictionary<string, CompatibilityIdentifier> compatibilityIdentifiers =
+                LoadCompatibilityIdentifiers(dictionary, identifiers);
+
+            foreach (CompatibilityIdentifier compatible in compatibilityIdentifiers.Values)
+            {
+                assignedIds.Add(compatible.Identifier);
+            }
 
             foreach (object existingId in identifiers.Values)
             {
@@ -3123,7 +3203,9 @@ namespace Opc.Ua.Schema.Model
                     uniqueIdentifiers,
                     duplicateIdentifiers,
                     assignedIds,
-                    false);
+                    false,
+                    compatibilityIdentifiers,
+                    node.PreserveExplicitNodes);
 
                 if (node.Hierarchy == null)
 
@@ -3149,6 +3231,12 @@ namespace Opc.Ua.Schema.Model
                         continue;
                     }
 
+                    if (node.PreserveExplicitNodes && !current.ExplicitlyDefined)
+                    {
+                        current.Identifier = null;
+                        current.Instance.SetIdentifier(null);
+                        continue;
+                    }
                     bool isExplicitlyDefined =
                         (node is InstanceDesign &&
                             !current.Instance!.SymbolicId.Name.Contains(
@@ -3163,7 +3251,9 @@ namespace Opc.Ua.Schema.Model
                         uniqueIdentifiers,
                         duplicateIdentifiers,
                         assignedIds,
-                        !isExplicitlyDefined);
+                        !isExplicitlyDefined,
+                        compatibilityIdentifiers,
+                        node.PreserveExplicitNodes);
                 }
             }
 
@@ -3203,6 +3293,86 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// Loads a namespace-local compatibility ledger without adding declarations or changing default allocation.
+        /// Conflicts with authored identifiers and duplicate ledger allocations are rejected.
+        /// </summary>
+        private Dictionary<string, CompatibilityIdentifier> LoadCompatibilityIdentifiers(
+            ModelDesign dictionary,
+            Dictionary<string, object> identifiers)
+        {
+            var result = new Dictionary<string, CompatibilityIdentifier>(StringComparer.Ordinal);
+            if (string.IsNullOrEmpty(dictionary.IdentifierCompatibilityFile))
+            {
+                return result;
+            }
+            var owners = new Dictionary<uint, string>();
+            foreach (KeyValuePair<string, object> entry in identifiers)
+            {
+                if (entry.Value is uint identifier)
+                {
+                    owners[identifier] = entry.Key;
+                }
+            }
+            foreach (KeyValuePair<XmlQualifiedName, NodeId> entry in m_symbolicIdToNodeId)
+            {
+                if (entry.Key.Namespace == dictionary.TargetNamespace &&
+                    entry.Value.TryGetValue(out uint identifier))
+                {
+                    owners[identifier] = entry.Key.Name;
+                }
+            }
+            string path = Path.Combine(
+                Path.GetDirectoryName(dictionary.SourceFilePath ?? string.Empty) ?? string.Empty,
+                dictionary.IdentifierCompatibilityFile);
+            using var reader = new StreamReader(FileSystem.OpenRead(path));
+            var ledgerIds = new HashSet<uint>();
+            while (reader.ReadLine() is string line)
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith('#'))
+                {
+                    continue;
+                }
+                string[] fields = line.Split(',');
+                bool implicitOnly = fields.Length == 4 && fields[3] == "Implicit";
+                if ((fields.Length != 3 && !implicitOnly) ||
+                    string.IsNullOrWhiteSpace(fields[0]) ||
+                    !uint.TryParse(fields[1], NumberStyles.None, CultureInfo.InvariantCulture, out uint identifier) ||
+                    identifier == 0 ||
+                    !Enum.TryParse(fields[2], out NodeClass nodeClass) ||
+                    nodeClass == NodeClass.Unspecified ||
+#if NET8_0_OR_GREATER
+                    !Enum.IsDefined(nodeClass) ||
+#else
+                    !Enum.IsDefined(typeof(NodeClass), nodeClass) ||
+#endif
+                    !result.TryAdd(fields[0], new CompatibilityIdentifier(identifier, nodeClass, implicitOnly)) ||
+                    !ledgerIds.Add(identifier))
+                {
+                    throw new InvalidOperationException($"Invalid identifier compatibility row: '{line}'.");
+                }
+                string symbol = fields[0];
+                var qualifiedName = new XmlQualifiedName(symbol, dictionary.TargetNamespace);
+                bool conflictsWithCsv = !implicitOnly &&
+                    identifiers.TryGetValue(symbol, out object? authored) &&
+                    !Equals(authored, identifier);
+                bool conflictsWithDesign = m_symbolicIdToNodeId.TryGetValue(qualifiedName, out NodeId pinned) &&
+                    (!pinned.TryGetValue(out uint numeric) || numeric != identifier);
+                if (conflictsWithCsv ||
+                    conflictsWithDesign ||
+                    (owners.TryGetValue(identifier, out string? owner) && owner != symbol))
+                {
+                    throw new InvalidOperationException($"Conflicting identifier compatibility allocation: '{line}'.");
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// A proven prior allocation, optionally restricted to the legacy implicit-node allocation path.
+        /// </summary>
+        private sealed record CompatibilityIdentifier(uint Identifier, NodeClass NodeClass, bool ImplicitOnly);
+
+        /// <summary>
         /// Loads the identifiers from a CSV file.
         /// </summary>
         /// <exception cref="FileNotFoundException"></exception>
@@ -3229,6 +3399,11 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private bool Import(ModelDesign model, NodeDesign node, NodeDesign? parent)
         {
+            if (node.PreserveExplicitNodes && parent != null)
+            {
+                throw new InvalidOperationException(
+                    "PreserveExplicitNodes must be specified on a top-level declaration.");
+            }
             UpdateNamesAndIdentifiers(node, parent);
 
             if (node.NumericId != 0)
@@ -3926,6 +4101,11 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private PropertyDesign CreateArgumentProperty(MethodDesign method, string type)
         {
+            if (IsInExplicitScope(method))
+            {
+                throw new InvalidOperationException(
+                    $"Explicit Method '{method.SymbolicId}' must declare its '{type}' property.");
+            }
             var property = new PropertyDesign
             {
                 Parent = method,
@@ -6787,6 +6967,7 @@ namespace Opc.Ua.Schema.Model
                 rootNode.Instance.Children = new ListOfChildren();
             }
             rootNode.ExplicitlyDefined = false;
+            rootNode.Instance!.PreserveExplicitNodes = root.PreserveExplicitNodes;
 
             hierarchy.Nodes.Add(string.Empty, rootNode);
             hierarchy.NodeList.Add(rootNode);

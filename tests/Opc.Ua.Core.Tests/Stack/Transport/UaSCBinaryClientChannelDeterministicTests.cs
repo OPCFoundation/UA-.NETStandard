@@ -340,7 +340,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             byte[] header = BuildAsymmetricHeader(
                 SecurityPolicies.Basic256Sha256,
                 sender.RawData,
-                Array.Empty<byte>());
+                []);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => channel.CallReadAsymmetricMessageHeader(
@@ -762,7 +762,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 nameof(ClosedTransportWriteCompletesWithoutGateReentryAsync));
             var buffers = new BufferCollection { new ArraySegment<byte>(buffer, 0, 16) };
 
-            Task beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
+            var beginWrite = Task.Run(() => channel.BeginClosedTransportWriteUnderGate(buffers));
 
             Assert.That(
                 await CompletesWithinAsync(beginWrite, 30).ConfigureAwait(false),
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     timeProvider)
             {
                 SenderCertificateChainParsedForTest =
-                    chain => ParsedSenderChain = new List<Certificate>(chain);
+                    chain => ParsedSenderChain = [.. chain];
             }
 
             /// <summary>
@@ -1467,6 +1467,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public bool IsClosed => m_closed.Task.IsCompleted;
 
+            /// <summary>
+            /// Number of writes observed by the transport.
+            /// </summary>
+            public int SentCount
+            {
+                get
+                {
+                    lock (m_lock)
+                    {
+                        return m_sent.Count;
+                    }
+                }
+            }
+
             public byte[] LastSent
             {
                 get
@@ -1532,6 +1546,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public void Close()
             {
                 m_closed.TrySetResult(true);
+            }
+
+            /// <summary>
+            /// Captures the symmetric sequence numbers in wire order.
+            /// </summary>
+            public ArrayOf<uint> GetSequenceNumbers()
+            {
+                lock (m_lock)
+                {
+                    return [.. m_sent.Select(bytes => BitConverter.ToUInt32(bytes, 16))];
+                }
             }
 
             private void Record(byte[] bytes)

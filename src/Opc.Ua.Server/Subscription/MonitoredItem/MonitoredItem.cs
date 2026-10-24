@@ -1947,6 +1947,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
+            if (!DataChannels.DataChannelEventScope.IsVisible(instance, Session))
+            {
+                return;
+            }
             bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
             using var emissionLease = emission;
             if (!admitted)
@@ -2326,7 +2330,8 @@ namespace Opc.Ua.Server
                         context,
                         notifications,
                         maxNotificationsPerPublish,
-                        out bool overflowEventDue);
+                        out bool overflowEventDue,
+                        m_server.EventManager);
 
                     // with discardOldest FALSE it follows the events queued before the loss.
                     if (overflowEventDue)

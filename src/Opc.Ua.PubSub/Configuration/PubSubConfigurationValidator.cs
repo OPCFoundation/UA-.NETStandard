@@ -29,7 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using Opc.Ua.DataChannels;
 using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Transports.DataChannels;
 
 namespace Opc.Ua.PubSub.Configuration
 {
@@ -215,6 +217,22 @@ namespace Opc.Ua.PubSub.Configuration
                         path,
                         SpecClauses.PubSubConnection));
             }
+            if (DataChannelPubSubConfiguration.TryGetCarrierKind(profile, out _))
+            {
+                try
+                {
+                    _ = DataChannelPubSubConfiguration.GetParameters(connection);
+                }
+                catch (Exception exception) when (exception is ArgumentException or NotSupportedException)
+                {
+                    issues.Add(new PubSubConfigurationIssue(
+                        PubSubConfigurationIssueSeverity.Error,
+                        IssueCodes.InvalidDataChannelConfiguration,
+                        exception.Message,
+                        path + ".ConnectionProperties",
+                        SpecClauses.PubSubConnection));
+                }
+            }
             ValidateConnectionAddress(connection, path, profile, issues);
             ValidateConnectionTransportSettings(connection, path, issues);
             try
@@ -235,6 +253,10 @@ namespace Opc.Ua.PubSub.Configuration
         {
             if (connection.Address.IsNull)
             {
+                if (DataChannelPubSubConfiguration.TryGetCarrierKind(profile, out _))
+                {
+                    return;
+                }
                 issues.Add(
                     new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Error,
@@ -250,6 +272,10 @@ namespace Opc.Ua.PubSub.Configuration
                 : null;
             if (string.IsNullOrEmpty(url))
             {
+                if (DataChannelPubSubConfiguration.TryGetCarrierKind(profile, out _))
+                {
+                    return;
+                }
                 issues.Add(
                     new PubSubConfigurationIssue(
                         PubSubConfigurationIssueSeverity.Warning,
@@ -781,6 +807,19 @@ namespace Opc.Ua.PubSub.Configuration
 
         private static (string Scheme, string Description)[] SchemesForProfile(string profile)
         {
+            if (profile is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
+                DataChannelPubSubConfiguration.UafxTransportProfile)
+            {
+                return [("opc.tcp://", "UASC TCP"), ("opc.wss://", "UASC binary WebSocket")];
+            }
+            if (profile == DataChannelProfiles.Quic)
+            {
+                return [("opc.quic://", "Native QUIC")];
+            }
+            if (profile == DataChannelProfiles.WebTransport)
+            {
+                return [("opc.wt://", "Native WebTransport")];
+            }
             if (string.Equals(profile, Profiles.PubSubUdpUadpTransport, StringComparison.Ordinal))
             {
                 return
@@ -821,6 +860,7 @@ namespace Opc.Ua.PubSub.Configuration
             public const string AddressUrlMissing = "PSC0006";
             public const string AddressSchemeMismatch = "PSC0007";
             public const string DatagramV2InUse = "PSC0008";
+            public const string InvalidDataChannelConfiguration = "PSC0009";
             public const string WriterGroupIdZero = "PSC0010";
             public const string DuplicateWriterGroupId = "PSC0011";
             public const string PublishingIntervalNotPositive = "PSC0012";

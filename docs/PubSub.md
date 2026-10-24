@@ -37,6 +37,7 @@
   - [MQTT (3.1.1 / 5.0)](#mqtt-311--50)
   - [DTLS transport status](#dtls-transport-status)
   - [Apache Kafka](#apache-kafka)
+- [Data Channels (experimental)](#data-channels-experimental)
 - [Encodings](#encodings)
   - [UADP — `Opc.Ua.PubSub.Encoding.Uadp`](#uadp--opcuapubsubencodinguadp)
   - [JSON — `Opc.Ua.PubSub.Encoding.Json`](#json--opcuapubsubencodingjson)
@@ -156,7 +157,12 @@ A production deployment obtains its keys from a
 [Security Key Service](#security-key-service-sks).
 `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
 appear when no matching message arrives for five seconds, for example before
-the publisher starts. The reader resumes when messages arrive.
+the publisher starts. The timeout starts when the reader first becomes
+Operational. A new keep-alive refreshes it; when a DataSetMessage carries a
+sequence number, only forward sequence progress counts. Without a sequence
+number, each received DataSetMessage counts. The reader resumes after a new
+DataSetMessage, and keep-alive messages update status without being written to
+the application sink.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
 address. On one computer, the subscriber can miss multicast messages because
@@ -310,7 +316,11 @@ Filters honoured: `PublisherId`, `WriterGroupId`, `DataSetWriterId`,
 `DataSetClassId`, `MessageReceiveTimeout`.
 `DataSetClassId` mismatches are rejected before the message reaches the
 sink. `MessageReceiveTimeout > 0` moves the reader to `PubSubState.Error`
-when no matching message arrives within the configured idle window.
+when no new matching DataSetMessage arrives within the configured idle window.
+The window starts when the reader becomes Operational. Sequence-numbered
+messages must advance their sequence; keep-alive messages always refresh the
+window, and messages without a sequence number each count as new. Keep-alive
+messages update reader status but are not forwarded to the sink.
 
 WriterGroup and DataSetWriter message settings control the emitted header masks,
 including data, event, and keep-alive messages. Publisher/writer identities,
@@ -683,6 +693,7 @@ Server-side address space — see
 | Ethernet / UADP | `Opc.Ua.PubSub.Eth` | `pubsub-eth-uadp` | `opc.eth://` |
 | MQTT / UADP + JSON | `Opc.Ua.PubSub.Mqtt` | `pubsub-mqtt-uadp`, `pubsub-mqtt-json` | `mqtt://`, `mqtts://`, `ws://`, `wss://` |
 | Kafka / UADP + JSON | `Opc.Ua.PubSub.Kafka` | `pubsub-kafka-uadp`, `pubsub-kafka-json` | `kafka://`, `kafkas://` |
+| Data Channels / UADP (experimental) | `Opc.Ua.PubSub` adapter plus selected carrier | `DataChannelProfiles` carrier and `UadpPayload` | Explicit dedicated/shared UASC or selected QUIC/WebTransport binding |
 
 ### UDP / UADP
 
@@ -1043,6 +1054,58 @@ Credential validation uses that same effective protocol; a TLS endpoint cannot b
 downgraded by a plaintext protocol setting.
 
 **NativeAOT.** The default pure-managed [Dekaf](https://github.com/thomhurst/Dekaf) backend is validated for NativeAOT/trimming on `net10.0`. The opt-in Confluent.Kafka backend uses native librdkafka and is not NativeAOT or trimming compatible. See [Native AOT](#native-aot).
+
+## Data Channels (experimental)
+
+The [rewritten Data Channels binding](DataChannels.md) carries complete existing
+Part 14 **1.05.06** NetworkMessages over an authenticated flow. It is not a new
+encoding, a UDP/MQTT bridge or a Part 14 version upgrade. The base PubSub package
+contains the adapter; native QUIC and WebTransport remain optional dependencies
+of the selected carrier, not of ordinary PubSub applications.
+
+Choose the carrier independently from `DataChannelProfiles.UadpPayload`.
+JSON PubSub is not supported over Data Channels. Use
+`DataChannelPubSubConfiguration.Configure` or
+`PubSubConnectionBuilder.WithDataChannel`, then register the actual flow provider
+through `PubSubApplicationBuilder.UseDataChannelTransport` or the DI builder's
+`AddDataChannelTransport`. The
+[package example](../src/Opc.Ua.PubSub/NugetREADME.md#brokerless-datachannel-transport)
+shows the complete configuration and ownership contracts.
+
+The adapter preserves encoded bytes and the existing PublisherId,
+WriterGroupId, DataSetWriterId, metadata and message-security pipeline.
+It does not infer the payload protocol from the carrier URI. Multiple writers
+can share a flow with the same authorized contract. Keep receive-message ownership
+through decoding and sink delivery; orderly END drains accepted messages
+before disconnecting a receive-only connection.
+
+`AllowQueueExpiry=true` is refused: the adapter has no Publisher dependency and
+recovery policy for expired metadata, key frames or their dependent messages.
+No-expiry delivery remains the default. Binary Data Channel CONTROL does not
+change UADP NetworkMessage bytes.
+
+Configured flows need neither a Session nor an address space. Optional Session
+authorization uses generated manager Call Methods and fresh context-bound
+grants. A server hosting several flow consumers must use its shared
+accepted-flow router, not competing `Context.AcceptAsync` loops.
+
+Carrier confidentiality needs no broker or SKS. Optional UADP message security
+remains independent and uses its normal key provider; confidential carrier
+protection does not satisfy a configured UADP message-security policy.
+
+Run the [brokerless SecureChannel sample](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
+for a finite, real-socket demonstration:
+
+```powershell
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0
+```
+
+Its default creates no Session or optional model. `--shared` adds Read/Publish
+on the same authenticated connection, `--authorization session` enables
+generated model control, and `--reverse`
+changes the Publisher role without changing connection initiation. Separate
+server/client processes, exact-byte evidence, changing typed fields, live
+revision and teardown checks are documented in the sample.
 
 ## Encodings
 

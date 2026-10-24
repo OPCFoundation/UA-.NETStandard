@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>Opc.Ua.DataChannels.ClientServer.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit3TestAdapter" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.WebTransport\Opc.Ua.Bindings.WebTransport.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <Compile Include="..\Opc.Ua.Bindings.WebTransport.Tests\WebTransportTestEnvironment.cs" Link="Support\WebTransportTestEnvironment.cs" />
+    <Compile Include="..\Opc.Ua.Bindings.WebTransport.Tests\RecordingQuicBackend.cs" Link="Support\RecordingQuicBackend.cs" />
+    <Compile Include="..\Common\DataChannelResourceAssertions.cs" />
+    <Compile Include="..\Common\NativeQuicResourceAssertions.cs" />
+  </ItemGroup>
+</Project>

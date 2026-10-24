@@ -1,0 +1,27 @@
+# Copyright (c) OPC Foundation. Licensed under the MIT License.
+# Supply an already-cached public .NET10 SDK + native AOT prerequisites/cache image.
+ARG BUILDER_IMAGE
+FROM ${BUILDER_IMAGE} AS managed
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 TESTINGPLATFORM_TELEMETRY_OPTOUT=1 \
+    TMPDIR=/work/work TMP=/work/work TEMP=/work/work
+WORKDIR /work
+COPY repository/ ./repository/
+COPY feed/ ./feed/
+RUN mkdir -p /work/work
+WORKDIR /work/repository/tests/Opc.Ua.Native.Http3.Tests
+RUN dotnet --version \
+    && dotnet restore Opc.Ua.Native.Http3.Tests.csproj --runtime linux-x64 \
+        -p:PublishAot=true -p:RuntimeFrameworkVersion=10.0.12 -p:Dockerbuild=true \
+        --source /work/feed --verbosity quiet \
+    && dotnet publish Opc.Ua.Native.Http3.Tests.csproj --no-restore --configuration Release \
+        --runtime linux-x64 -p:PublishAot=true -p:RuntimeFrameworkVersion=10.0.12 \
+        -p:Dockerbuild=true --output /app-http3 --verbosity quiet
+RUN mkdir -p /runtime-work/work /runtime-work/results
+FROM mcr.microsoft.com/dotnet/runtime-deps@sha256:65cb70d94766eb71b3faba2947cfec0c235d5cf3b1b1b8ba8f318e0ebd33d643
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 TESTINGPLATFORM_TELEMETRY_OPTOUT=1 \
+    TMPDIR=/work/work TMP=/work/work TEMP=/work/work
+WORKDIR /app-http3
+COPY --from=managed /app-http3/ ./
+COPY --from=managed --chown=1654:1654 /runtime-work/ /work/
+ENTRYPOINT ["/app-http3/Opc.Ua.Native.Http3.Tests"]
+CMD ["--report-trx", "--results-directory", "/work/results"]

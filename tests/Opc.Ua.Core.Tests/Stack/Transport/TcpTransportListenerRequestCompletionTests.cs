@@ -145,6 +145,82 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
+        /// Immutable channel evidence is shared without sharing response state between concurrent requests.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [CancelAfter(30000)]
+        public async Task CachedChannelEvidencePreservesRequestScopedResponsesAsync(bool completeLater)
+        {
+            var contexts = new ConcurrentQueue<SecureChannelContext>();
+            var pending = new ConcurrentDictionary<uint, TaskCompletionSource<IServiceResponse>>();
+            var callback = new Mock<ITransportListenerCallback>();
+            callback.Setup(value => value.ProcessRequestAsync(
+                    It.IsAny<SecureChannelContext>(),
+                    It.IsAny<IServiceRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((SecureChannelContext context, IServiceRequest request, CancellationToken _) =>
+                {
+                    if (request.RequestHeader.RequestHandle > 2)
+                    {
+                        return new ValueTask<IServiceResponse>(Respond(request));
+                    }
+
+                    uint handle = request.RequestHeader.RequestHandle;
+                    contexts.Enqueue(context);
+                    IServiceResponse response = new ReadResponse
+                    {
+                        ResponseHeader = new ResponseHeader { RequestHandle = handle }
+                    };
+                    if (!completeLater)
+                    {
+                        return new ValueTask<IServiceResponse>(response);
+                    }
+
+                    var completion = new TaskCompletionSource<IServiceResponse>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                    pending[handle] = completion;
+                    return new ValueTask<IServiceResponse>(completion.Task);
+                });
+
+            await using Loopback loopback = await Loopback.StartAsync(callback.Object).ConfigureAwait(false);
+            using UaSCUaBinaryTransportChannel client = await loopback.ConnectAsync().ConfigureAwait(false);
+            var first = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 1, TimeoutHint = 10000 }
+            };
+            var second = new ReadRequest
+            {
+                RequestHeader = new RequestHeader { RequestHandle = 2, TimeoutHint = 10000 }
+            };
+            Task<IServiceResponse> responseA = client.SendRequestAsync(first, CancellationToken.None).AsTask();
+            Task<IServiceResponse> responseB = client.SendRequestAsync(second, CancellationToken.None).AsTask();
+            if (completeLater)
+            {
+                Assert.That(await WaitForAsync(() => pending.Count == 2).ConfigureAwait(false), Is.True);
+                pending[2].SetResult(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = 2 }
+                });
+                IServiceResponse completedSecond = await responseB.ConfigureAwait(false);
+                Assert.That(completedSecond.ResponseHeader.RequestHandle, Is.EqualTo(2));
+                Assert.That(responseA.IsCompleted, Is.False);
+                pending[1].SetResult(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { RequestHandle = 1 }
+                });
+            }
+
+            IServiceResponse[] responses = await Task.WhenAll(responseA, responseB).ConfigureAwait(false);
+            await client.SendRequestAsync(CreateReadRequest(3), CancellationToken.None).ConfigureAwait(false);
+            Assert.That(contexts, Has.Count.EqualTo(2));
+            Assert.That(contexts.First(), Is.SameAs(contexts.Last()));
+            Assert.That(responses.Select(response => response.ResponseHeader.RequestHandle),
+                Is.EqualTo(new uint[] { 1, 2 }));
+            Assert.That(loopback.Logs.Where(log => log.Level >= LogLevel.Error), Is.Empty);
+        }
+
+        /// <summary>
         /// A request whose processing fails, synchronously, through a faulted task or later
         /// through a value task source, is logged as an error and answered with a service fault,
         /// and the listener keeps serving the channel.
@@ -407,7 +483,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ITelemetryContext Telemetry { get; }
 
-            public IReadOnlyCollection<LogEntry> Logs => m_logs.Entries.ToArray();
+            public IReadOnlyCollection<LogEntry> Logs => [.. m_logs.Entries];
 
             public static async Task<Loopback> StartAsync(ITransportListenerCallback callback)
             {

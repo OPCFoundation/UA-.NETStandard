@@ -42,6 +42,19 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="System.Threading.RateLimiting" />
   </ItemGroup>
+  <ItemGroup>
+    <AdditionalFiles Include="..\..\tools\Opc.Ua.SourceGeneration.Core\Design\DataChannelMetadata.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/DataChannel/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>DataChannelMetadata</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.DataChannelMetadata</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <AdditionalFiles Include="..\..\tools\Opc.Ua.SourceGeneration.Core\Design\DataChannelMetadata.csv" />
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.Net.Http" />
   </ItemGroup>

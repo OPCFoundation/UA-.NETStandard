@@ -2097,7 +2097,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool IsOmittedFromNodeSetAddressSpace(NodeToGenerate node)
         {
-            return EmitsNodeSetNodesOnly &&
+            return (EmitsNodeSetNodesOnly || GetRoot(node).Design!.PreserveExplicitNodes) &&
                 node.IsNotExplicitlyDefined &&
                 GetRoot(node).InstanceOf == null;
         }
@@ -2111,7 +2111,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private bool OmitsUndeclaredHierarchyNodes(NodeToGenerate node)
         {
-            return EmitsNodeSetNodesOnly &&
+            return (EmitsNodeSetNodesOnly || GetRoot(node).Design!.PreserveExplicitNodes) &&
                 !node.RootIsTypeDefinition &&
                 GetRoot(node).InstanceOf == null;
         }
@@ -2238,6 +2238,7 @@ namespace Opc.Ua.SourceGeneration
             // through the singleton-instance subtree.
             bool isSingletonInstanceContext =
                 m_context.Options.UseTypeDefinitionModellingRules &&
+                !GetRoot(node).Design!.PreserveExplicitNodes &&
                 node.IsUnderSingletonInstance &&
                 node.Parent != null &&
                 instance is VariableDesign or MethodDesign or ObjectDesign;
@@ -2270,6 +2271,7 @@ namespace Opc.Ua.SourceGeneration
                 node.Parent.Parent == null &&
                 node.Parent.InstanceOf == null &&
                 (node.Parent.Design is not InstanceDesign ||
+                    GetRoot(node).Design!.PreserveExplicitNodes ||
                     !m_context.Options.UseTypeDefinitionModellingRules);
 
             // Explicitly-declared descendants of a concrete predefined instance
@@ -2293,7 +2295,8 @@ namespace Opc.Ua.SourceGeneration
                 !node.RootIsTypeDefinition &&
                 node.InstanceOf == null &&
                 !node.IsNotExplicitlyDefined &&
-                !m_context.Options.UseTypeDefinitionModellingRules;
+                (!m_context.Options.UseTypeDefinitionModellingRules ||
+                    GetRoot(node).Design!.PreserveExplicitNodes);
 
             bool alwaysEmitInstanceChild =
                 topLevelInstanceException || concreteInstanceDescendant;
@@ -2390,6 +2393,7 @@ namespace Opc.Ua.SourceGeneration
                                 {
                                     case ModellingRule.Mandatory:
                                     case ModellingRule.Optional:
+                                    case ModellingRule.None when GetRoot(node).Design!.PreserveExplicitNodes:
                                         EmitCreateOrReplaceChild(
                                             output,
                                             node,
@@ -2536,6 +2540,13 @@ namespace Opc.Ua.SourceGeneration
                         parameters,
                         WriteTemplate_Argument);
                     break;
+                case ExplicitArgument[] explicitArguments:
+                    context.Template.AddReplacement(
+                        Tokens.ListOfValues,
+                        NodeStateTemplates.ArgumentValue,
+                        explicitArguments,
+                        WriteTemplate_Argument);
+                    break;
                 default:
                     return false;
             }
@@ -2547,6 +2558,7 @@ namespace Opc.Ua.SourceGeneration
         {
             Argument? argument = null;
             Parameter? parameter;
+            string? arrayDimensions = null;
             switch (context.Target)
             {
                 case Argument arg:
@@ -2555,6 +2567,10 @@ namespace Opc.Ua.SourceGeneration
                     break;
                 case Parameter parm:
                     parameter = parm;
+                    break;
+                case ExplicitArgument explicitArgument:
+                    parameter = explicitArgument.Parameter;
+                    arrayDimensions = explicitArgument.ArrayDimensions;
                     break;
                 default:
                     return false;
@@ -2574,9 +2590,12 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ValueRank,
                 parameter?.ValueRank.GetValueRankAsCode(parameter.ArrayDimensions));
+            string dimensions = arrayDimensions ??
+                parameter?.ValueRank.GetArrayDimensionsAsCode(parameter.ArrayDimensions) ??
+                "default";
             context.Template.AddReplacement(
                 Tokens.ArrayDimensions,
-                parameter?.ValueRank.GetArrayDimensionsAsCode(parameter.ArrayDimensions) ?? "default");
+                dimensions);
             context.Template.AddReplacement(
                 Tokens.Description,
                 (parameter?.Description).GetLocalizedTextAsCode(true));
@@ -3229,7 +3248,16 @@ namespace Opc.Ua.SourceGeneration
             }
 
             Parameter[]? methodArguments = GetMethodArgumentParameters(nodeToGenerate);
-            if (methodArguments != null)
+            ExplicitArgument[]? explicitArguments = GetExplicitArguments(nodeToGenerate, node, methodArguments);
+            if (explicitArguments != null)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ValueCode,
+                    NodeStateTemplates.VariantArrayOfValue,
+                    [explicitArguments],
+                    WriteTemplate_ArgumentCollection);
+            }
+            else if (methodArguments != null)
             {
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
@@ -3311,6 +3339,71 @@ namespace Opc.Ua.SourceGeneration
 
             return null;
         }
+
+        /// <summary>
+        /// Preserves authored argument dimensions while resolving each argument's data type at runtime.
+        /// In particular, an explicitly empty array is not silently replaced by a null array.
+        /// </summary>
+        private static ExplicitArgument[]? GetExplicitArguments(
+            NodeToGenerate node,
+            VariableDesign variable,
+            Parameter[]? parameters)
+        {
+            if (!GetRoot(node).Design!.PreserveExplicitNodes ||
+                variable.DefaultValue == null ||
+                parameters == null)
+            {
+                return null;
+            }
+            const string typesNamespace = "http://opcfoundation.org/UA/2008/02/Types.xsd";
+            XmlNodeList values = variable.DefaultValue.GetElementsByTagName("Argument", typesNamespace);
+            if (values.Count != parameters.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Explicit argument metadata does not match '{variable.SymbolicId}'.");
+            }
+            var result = new ExplicitArgument[parameters.Length];
+            for (int ii = 0; ii < parameters.Length; ii++)
+            {
+                var value = (System.Xml.XmlElement)values[ii]!;
+                if (value["Name", typesNamespace]?.InnerText != parameters[ii].Name)
+                {
+                    throw new InvalidOperationException(
+                        $"Explicit argument order does not match '{variable.SymbolicId}'.");
+                }
+                System.Xml.XmlElement? dimensions = value["ArrayDimensions", typesNamespace];
+                string? code = null;
+                if (dimensions != null)
+                {
+                    string nil = dimensions.GetAttribute("nil", "http://www.w3.org/2001/XMLSchema-instance");
+                    if (nil.Length > 0 && XmlConvert.ToBoolean(nil))
+                    {
+                        code = "default";
+                    }
+                    else
+                    {
+                        string[] entries =
+                        [
+                            .. dimensions.ChildNodes.OfType<System.Xml.XmlElement>().Select(dimension =>
+                            {
+                                uint length = XmlConvert.ToUInt32(dimension.InnerText);
+                                return XmlConvert.ToString(length) + "u";
+                            })
+                        ];
+                        code = entries.Length == 0
+                            ? "global::Opc.Ua.ArrayOf<uint>.Empty"
+                            : "new uint[] { " + string.Join(", ", entries) + " }";
+                    }
+                }
+                result[ii] = new ExplicitArgument(parameters[ii], code);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// A resolved argument with its authored dimension-array representation.
+        /// </summary>
+        private sealed record ExplicitArgument(Parameter Parameter, string? ArrayDimensions);
 
         private void AddReferenceTypeStateFactoryReplacements(
             IWriteContext context,
@@ -3481,7 +3574,8 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
             bool hasChild = HasArgumentChild(nodeToGenerate, browseName);
-            if (hasChild && !RequiresArgumentValueOverride(arguments))
+            if (hasChild &&
+                (!RequiresArgumentValueOverride(arguments) || GetRoot(nodeToGenerate).Design!.PreserveExplicitNodes))
             {
                 return;
             }

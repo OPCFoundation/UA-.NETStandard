@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <RootNamespace>Opc.Ua.DataChannel.Samples.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\samples\Core\ConsoleDataChannelStreaming\ConsoleDataChannelStreaming.csproj"
+                      ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\samples\Core\ConsoleDataChannelAudio\ConsoleDataChannelAudio.csproj"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+</Project>

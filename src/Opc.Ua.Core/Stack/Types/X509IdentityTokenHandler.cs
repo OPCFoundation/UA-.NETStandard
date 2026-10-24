@@ -84,9 +84,10 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// The wire-format <see cref="X509IdentityToken.CertificateData"/>
-        /// payload (public-key DER) is loaded eagerly during
-        /// construction so it is ready for the
-        /// <c>ActivateSession</c> request without a registry round-trip.
+        /// payload (public-key DER) is loaded eagerly during construction so it
+        /// is ready for the <c>ActivateSession</c> request without a registry
+        /// round-trip. Prefer <see cref="CreateAsync"/> when resolving a
+        /// certificate that may require an asynchronous store operation.
         /// </remarks>
         /// <param name="identifier">The certificate identifier.</param>
         /// <param name="passwordProvider">The certificate password provider.</param>
@@ -165,6 +166,61 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         public UserTokenType TokenType => UserTokenType.Certificate;
+
+        /// <summary>
+        /// Creates an identity token handler by asynchronously resolving its
+        /// private-key certificate.
+        /// </summary>
+        /// <param name="identifier">The certificate identifier.</param>
+        /// <param name="passwordProvider">The certificate password provider.</param>
+        /// <param name="certificateProvider">The certificate provider.</param>
+        /// <param name="securityPolicies">
+        /// The policies to resolve the token's security policy URI against, or
+        /// <see langword="null"/> to use <see cref="SecurityPolicies.Default"/>.
+        /// </param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// A handler whose wire token contains the resolved certificate's public
+        /// data and which resolves the private-key certificate on each signing
+        /// operation.
+        /// </returns>
+        /// <exception cref="ArgumentNullException">
+        /// An identifier, password provider, or certificate provider is
+        /// <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The identifier does not resolve to a private-key certificate.
+        /// </exception>
+        /// <exception cref="OperationCanceledException">
+        /// The operation is canceled.
+        /// </exception>
+        public static Task<X509IdentityTokenHandler> CreateAsync(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
+            ISecurityPolicyRegistry? securityPolicies = null,
+            CancellationToken ct = default)
+        {
+            if (identifier == null)
+            {
+                throw new ArgumentNullException(nameof(identifier));
+            }
+            if (passwordProvider == null)
+            {
+                throw new ArgumentNullException(nameof(passwordProvider));
+            }
+            if (certificateProvider == null)
+            {
+                throw new ArgumentNullException(nameof(certificateProvider));
+            }
+
+            return CreateCoreAsync(
+                identifier,
+                passwordProvider,
+                certificateProvider,
+                securityPolicies ?? SecurityPolicies.Default,
+                ct);
+        }
 
         /// <inheritdoc/>
         public void UpdatePolicy(UserTokenPolicy userTokenPolicy)
@@ -316,6 +372,38 @@ namespace Opc.Ua
                 return false;
             }
             return Utils.IsEqual(m_token.CertificateData, tokenHandler.m_token.CertificateData);
+        }
+
+        private static async Task<X509IdentityTokenHandler> CreateCoreAsync(
+            CertificateIdentifier identifier,
+            ICertificatePasswordProvider passwordProvider,
+            ICertificateProvider certificateProvider,
+            ISecurityPolicyRegistry securityPolicies,
+            CancellationToken ct)
+        {
+            using Certificate? resolved = await certificateProvider
+                .GetPrivateKeyCertificateAsync(identifier, passwordProvider, ct: ct)
+                .ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+
+            if (resolved == null || !resolved.HasPrivateKey)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "Cannot resolve a private-key certificate from the supplied CertificateIdentifier.");
+            }
+
+            var token = new X509IdentityToken
+            {
+                CertificateData = resolved.RawData.ToByteString()
+            };
+
+            return new X509IdentityTokenHandler(
+                token,
+                identifier,
+                passwordProvider,
+                certificateProvider,
+                securityPolicies);
         }
 
         /// <summary>

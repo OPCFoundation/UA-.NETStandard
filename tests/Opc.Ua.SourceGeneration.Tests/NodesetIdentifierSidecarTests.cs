@@ -34,6 +34,7 @@ using System.IO;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration
@@ -274,8 +275,10 @@ namespace Opc.Ua.SourceGeneration
         /// identifier sidecar a NodeSet claims through its IdentifierFile
         /// metadata - and took the NodeSet's numeric ids.
         /// </summary>
-        [Test]
-        public void ModelDesignDoesNotAdoptASidecarClaimedByANodeSet()
+        /// <param name="designNamespaceUri">The design namespace, which may contain the sidecar's numeric text.</param>
+        [TestCase("urn:test:design")]
+        [TestCase("urn:test:design:4242")]
+        public void ModelDesignDoesNotAdoptASidecarClaimedByANodeSet(string designNamespaceUri)
         {
             string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
             string designPath = Path.Combine("Models", "Design.xml");
@@ -292,7 +295,7 @@ namespace Opc.Ua.SourceGeneration
                     EmbeddedText.Create(
                         Path.Combine("Models", "Model.ids.csv"),
                         "SymbolicName,NodeId,NodeClass\r\nThing,4242,Object\r\n"),
-                    EmbeddedText.Create(designPath, Design("urn:test:design", "Thing"))
+                    EmbeddedText.Create(designPath, Design(designNamespaceUri, "Thing"))
                 ],
                 new Dictionary<string, string> { [modelPath] = "Model.ids.csv" });
 
@@ -307,9 +310,21 @@ namespace Opc.Ua.SourceGeneration
                 string.Join(
                     Environment.NewLine,
                     result.Diagnostics.Concat(result.Results.SelectMany(r => r.Diagnostics))));
+            // GeneratedCodeAttribute versions can contain "4242" in the commit hash.
+            // Verify the model identifier rather than unrelated generated metadata.
+            VariableDeclaratorSyntax[] identifiers = [.. designSources
+                .SelectMany(source => source.SyntaxTree.GetRoot().DescendantNodes())
+                .OfType<ClassDeclarationSyntax>()
+                .Where(type => type.Identifier.ValueText == "Objects")
+                .SelectMany(type => type.Members.OfType<FieldDeclarationSyntax>())
+                .SelectMany(field => field.Declaration.Variables)
+                .Where(variable => variable.Identifier.ValueText == "Thing")];
+            Assert.That(identifiers, Has.Length.EqualTo(1));
+            var identifier = identifiers[0].Initializer?.Value as LiteralExpressionSyntax;
+            Assert.That(identifier, Is.Not.Null);
             Assert.That(
-                designSources.Select(s => s.SourceText.ToString()),
-                Has.None.Contains("4242"),
+                identifier!.Token.Value,
+                Is.EqualTo(1u),
                 "the design must not take the NodeSet sidecar's identifiers");
         }
 

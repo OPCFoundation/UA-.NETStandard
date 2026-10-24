@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "rust_version": "1.97.0",
+  "rust_commit": "2d8144b7880597b6e6d3dfd63a9a9efae3f533d3",
+  "release_manifest_url": "https://static.rust-lang.org/dist/channel-rust-1.97.0.toml",
+  "release_manifest_sha256": "3804d2666f7c12ce64205baa69b6be52f910b45b158091013264beb7aa1de7f5",
+  "archive_url_prefix": "https://static.rust-lang.org/dist/2026-07-09/",
+  "archives": [
+    {
+      "package": "rustc",
+      "file": "rustc-1.97.0-x86_64-pc-windows-msvc.tar.xz",
+      "sha256": "32f62b4162c729c080d0f5fddc8386ae6d160bd493016e850c1dba26aa20a196"
+    },
+    {
+      "package": "cargo",
+      "file": "cargo-1.97.0-x86_64-pc-windows-msvc.tar.xz",
+      "sha256": "c20eac3f96be787b0a3d5be6204a37b921307b2573e0c1d8162a3d992fd186f6"
+    },
+    {
+      "package": "rust-std",
+      "file": "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz",
+      "sha256": "da2c160b962b98b1603eda2120e608bd74e0baf56962fc32a7b5ea56b6fd6211"
+    },
+    {
+      "package": "rust-src",
+      "file": "rust-src-1.97.0.tar.xz",
+      "sha256": "f2530acd6b4da25a21151e3560d908b31f082edd6968f96d2682c8c2c15c66b7"
+    },
+    {
+      "package": "rustfmt-preview",
+      "file": "rustfmt-1.97.0-x86_64-pc-windows-msvc.tar.xz",
+      "sha256": "a184cd6790c45eae0221a8a16c8eee53e31cac7d6b733ce5005bf811ae98ba41"
+    },
+    {
+      "package": "clippy-preview",
+      "file": "clippy-1.97.0-x86_64-pc-windows-msvc.tar.xz",
+      "sha256": "d5a89f8449764d397077f2cde9db2cb569b629ed28a7e08eca2b04695ff2ad7e"
+    }
+  ],
+  "windows": {
+    "target": "x86_64-pc-windows-msvc",
+    "msvc_directory": "14.51.36231",
+    "link_version": "14.51.36260.0",
+    "visual_studio_version": "18.10.4",
+    "sdk_version": "10.0.26100.0",
+    "crt": "static",
+    "files": [
+      {
+        "path": "bin/cargo-clippy.exe",
+        "sha256": "d2e4a82ae44b78ab9b218d23ad9a9284f3e71efde5573edaf3076cbbf2b9213e",
+        "official_archives": [
+          "clippy-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/cargo-fmt.exe",
+        "sha256": "3eb9b94afb841b7dd95687a35fe815d592bc130961147213d4f2b5dd579597bd",
+        "official_archives": [
+          "rustfmt-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/cargo.exe",
+        "sha256": "3cd119fe81dfedb9dce4573696bf65058f16b57c9e5babe415b71624315cbb7d",
+        "official_archives": [
+          "cargo-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/clippy-driver.exe",
+        "sha256": "4ff747c4e2a55d05bfd42b6ea1849c558d4533e44ef44e009706b2be473c5450",
+        "official_archives": [
+          "clippy-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/rustc.exe",
+        "sha256": "6d1c5543ed3a45cfbc1c1332d42d6550d883c14d3c2e323427e631c331cebeeb",
+        "official_archives": [
+          "rustc-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/rustdoc.exe",
+        "sha256": "7967c1da7e3bec5cd699b7f4bf7a69a1f9292e1ac38bef8dba403fa55ebddda3",
+        "official_archives": [
+          "rustc-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/rustfmt.exe",
+        "sha256": "607162816ec4f330fee34d6954e20631a76657c4264d75ae80c14183f8dc1b18",
+        "official_archives": [
+          "rustfmt-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/rustc_driver-4aa755545f2784f5.dll",
+        "sha256": "ad21f47663430f5cda9fede05ee4a0de543ce6aa8b1c231a1949104670eb09db",
+        "official_archives": [
+          "rustc-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "bin/std-24270508f4fdc995.dll",
+        "sha256": "cf4f7e4b6ce329025270c5d35fec90c62f1af6c5bd7052e150d296c25b3eaf02",
+        "official_archives": [
+          "rustc-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/liballoc-5ce52ca9e9b97f6f.rlib",
+        "sha256": "98f9e7793d8bac5864bf699349481696c0aea8dd7f125a453faf6bee04da566a",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libcfg_if-d0bae02e627e1601.rlib",
+        "sha256": "6275e1dba3da85a63901b520e089c9a43d254b8d4bf54607cbe08eb8db63b31e",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libcompiler_builtins-572e9bd37680df1d.rlib",
+        "sha256": "7e3fb306aab521b6b73ae5441c73f574a97bebb6f94de54be35bbfa40363da20",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libcore-121909ff8fe0ed1e.rlib",
+        "sha256": "702c0378a93da4b4e6b0bbd9632475f1e2e5a84b5dd970b163dd5dab0ceb4ab4",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libgetopts-0cdfff7ca81afce0.rlib",
+        "sha256": "49bbf44817ae415470463c0cb015c737125d8fbc476e59c81ae27dafd0c11864",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libhashbrown-b91a676ede1bd033.rlib",
+        "sha256": "7e8968deea74150c0ddecbfd68962f16e30a305e2e61346dd9eef69ee82b9a47",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libpanic_abort-17622b537205a72b.rlib",
+        "sha256": "3a904f03c959d6fb55097081aad091c63e98b17f7dd86503443a7bad19991afb",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libpanic_unwind-20c965c7517a0cbf.rlib",
+        "sha256": "f3e14d6c0a9787225ee89c3b08f8660b1264bc63547553527aaebc9a51b305a0",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libproc_macro-479f5bdacb67bfb9.rlib",
+        "sha256": "3476f6f4c4e36bbf09ccfb4d4300c75bd5416ee62aa8eb5d3514fc9d12feae84",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libprofiler_builtins-7962cc9214635312.rlib",
+        "sha256": "3fff23875edb7c22ff2592fdcdafc6ee004805355b31570a8380a4f5d304a959",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/librustc_demangle-543d9cc542e9f8e1.rlib",
+        "sha256": "46b82eec55f20631c7690ed3b1216dcfb5a0f4dfcdc2375d0455b791e848ff16",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/librustc_literal_escaper-06052d3862e7f7ad.rlib",
+        "sha256": "699b15d27e48d5f56b2cc08f3b55efc2c767d661a59eea5ef4e2d8effc9c74c5",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_alloc-0dce9bf49f474b4f.rlib",
+        "sha256": "f4295f451d1d211a0e0793020cb7399eba55300c6877b98337c8f3c04cec4b96",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_core-85501d58ef5c2e8c.rlib",
+        "sha256": "8f7e7559087bc25e1c9e75e1dee05e6c830a3b7e953ebf68b87cdc4effaaa144",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/librustc_std_workspace_std-3cfb9ec75848e449.rlib",
+        "sha256": "03da80b539fe55a277446d7ed9d04bcc576b45522f74ec33eab42693d98a9914",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libstd-24270508f4fdc995.rlib",
+        "sha256": "7c30313feddcbc6da6bcfdd2989b2f3b77cb2b994f2ab0b2db3481be301d11f6",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libstd_detect-eeb6972c4f80fac7.rlib",
+        "sha256": "abc9cd7c567d5667a26f0e79238b5fde574db346041ba34e547f0c929daf9a99",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libsysroot-74d6d5d02d017a71.rlib",
+        "sha256": "38fd494770d7dfa61ea4977f23fe8e4e46c4d01e6a213e6b3e09545a59612558",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libtest-87eddf5692b20e14.rlib",
+        "sha256": "c0f7e41f0df828623ecaee2186a14d8677445ea7bdddad197d69159799726b60",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libunwind-fbb0e4f2d360d089.rlib",
+        "sha256": "a262483e47b5aed17f319b2b5c78e2a039a542514e001af56500282ec543f721",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/libwindows_link-9268b5f823a89e4b.rlib",
+        "sha256": "5425ed69c92e82b5dc6038be68cbb7cf7fa409f4a71b0ad743c1f55f7922773e",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      },
+      {
+        "path": "lib/rustlib/x86_64-pc-windows-msvc/lib/std-24270508f4fdc995.dll.lib",
+        "sha256": "330dc14499ca3a93c0131a79ba21b31b786658c2fd476fb0eef0a94a2942f583",
+        "official_archives": [
+          "rust-std-1.97.0-x86_64-pc-windows-msvc.tar.xz"
+        ]
+      }
+    ],
+    "native_files": [
+      {
+        "base": "msvc",
+        "path": "bin/Hostx64/x64/link.exe",
+        "sha256": "a8c42e25c91ca2453e1110540ac08f0fc12d7539454a11b9af8baeecb469837d"
+      },
+      {
+        "base": "sdk",
+        "path": "lib/10.0.26100.0/um/x64/kernel32.lib",
+        "sha256": "341c7d56125a03b458e4d5093e4c79b33123ccfdfd610fe236937b8e6f3134bb"
+      },
+      {
+        "base": "sdk",
+        "path": "lib/10.0.26100.0/um/x64/ntdll.lib",
+        "sha256": "a373f724ef6d8ea11a8b03de653ac1b4f111522f59a1f4b787ec9d93f31fe7c1"
+      },
+      {
+        "base": "msvc",
+        "path": "lib/x64/libcmt.lib",
+        "sha256": "d4cc4c224455825dec1669f9ad6a9872a4f5b37ed1daae1fd0b9044d7650d908"
+      },
+      {
+        "base": "msvc",
+        "path": "lib/x64/libvcruntime.lib",
+        "sha256": "f0a898588ecb26fe4c7530b2495a6fe5e768856309a33391702a3cbcb72b0589"
+      },
+      {
+        "base": "sdk",
+        "path": "lib/10.0.26100.0/ucrt/x64/libucrt.lib",
+        "sha256": "ea2ffa5d9b1ebc3fa76f34c364471750db8951b341dbccbc1bef628ef1a20e39"
+      }
+    ]
+  },
+  "linux": {
+    "image": "docker.io/library/rust@sha256:b5a086f64ffecaa4e283063184770107915756739598173e1f5712d6b34b84d0",
+    "image_id": "7ea53b11a01d2d52b4af8fa073cd76ecbaf7dc385b88cc9d0ce8205a7c941ff1",
+    "target": "x86_64-unknown-linux-gnu",
+    "glibc_floor": "2.34",
+    "minimum_host_execution": "Not yet validated; downstream release gate"
+  }
+}

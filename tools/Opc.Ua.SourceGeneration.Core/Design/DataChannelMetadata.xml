@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<opc:ModelDesign
+  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+  xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+  xmlns:ua="http://opcfoundation.org/UA/"
+  xmlns:dc="http://opcfoundation.org/UA/DataChannel/"
+  TargetNamespace="http://opcfoundation.org/UA/DataChannel/"
+  TargetVersion="0.3.0"
+  TargetPublicationDate="2026-10-21T00:00:00Z">
+  <opc:Namespaces>
+    <opc:Namespace
+      Name="DataChannelMetadata"
+      Prefix="Opc.Ua.DataChannelMetadata">http://opcfoundation.org/UA/DataChannel/</opc:Namespace>
+    <opc:Namespace
+      Name="OpcUa"
+      Prefix="Opc.Ua"
+      XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+      Version="1.05.04"
+      PublicationDate="2024-05-01T00:00:00Z">http://opcfoundation.org/UA/</opc:Namespace>
+  </opc:Namespaces>
+  <opc:Object
+    SymbolicName="dc:DataChannelNamespace"
+    PartNo="5"
+    ModellingRule="None"
+    TypeDefinition="ua:NamespaceMetadataType" PreserveExplicitNodes="true">
+    <opc:BrowseName>http://opcfoundation.org/UA/DataChannel/</opc:BrowseName>
+    <opc:Description>Value or operation for http://opcfoundation.org/UA/DataChannel/.</opc:Description>
+    <opc:Children>
+      <opc:Property
+        SymbolicName="ua:NamespaceUri"
+        SymbolicId="dc:DataChannelNamespace_NamespaceUri"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for NamespaceUri.</opc:Description>
+        <opc:DefaultValue>
+          <uax:String>http://opcfoundation.org/UA/DataChannel/</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:NamespaceVersion"
+        SymbolicId="dc:DataChannelNamespace_NamespaceVersion"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for NamespaceVersion.</opc:Description>
+        <opc:DefaultValue>
+          <uax:String>0.3.0</uax:String>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:NamespacePublicationDate"
+        SymbolicId="dc:DataChannelNamespace_NamespacePublicationDate"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:DateTime"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for NamespacePublicationDate.</opc:Description>
+        <opc:DefaultValue>
+          <uax:DateTime>2026-10-21T00:00:00Z</uax:DateTime>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:IsNamespaceSubset"
+        SymbolicId="dc:DataChannelNamespace_IsNamespaceSubset"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:Boolean"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for IsNamespaceSubset.</opc:Description>
+        <opc:DefaultValue>
+          <uax:Boolean>false</uax:Boolean>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:StaticNodeIdTypes"
+        SymbolicId="dc:DataChannelNamespace_StaticNodeIdTypes"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:IdType"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="1">
+        <opc:Description>Value or operation for StaticNodeIdTypes.</opc:Description>
+        <opc:DefaultValue>
+          <uax:ListOfInt32>
+            <uax:Int32>0</uax:Int32>
+          </uax:ListOfInt32>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:StaticNumericNodeIdRange"
+        SymbolicId="dc:DataChannelNamespace_StaticNumericNodeIdRange"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:NumericRange"
+        ValueRank="Array"
+        AccessLevel="Read"
+        ArrayDimensions="1">
+        <opc:Description>Value or operation for StaticNumericNodeIdRange.</opc:Description>
+        <opc:DefaultValue>
+          <uax:ListOfString>
+            <uax:String>100067:100074</uax:String>
+          </uax:ListOfString>
+        </opc:DefaultValue>
+      </opc:Property>
+      <opc:Property
+        SymbolicName="ua:StaticStringNodeIdPattern"
+        SymbolicId="dc:DataChannelNamespace_StaticStringNodeIdPattern"
+        ModellingRule="None"
+        TypeDefinition="ua:PropertyType"
+        DataType="ua:String"
+        ValueRank="Scalar"
+        AccessLevel="Read">
+        <opc:Description>Value or operation for StaticStringNodeIdPattern.</opc:Description>
+        <opc:DefaultValue>
+          <uax:String />
+        </opc:DefaultValue>
+      </opc:Property>
+    </opc:Children>
+    <opc:References>
+      <opc:Reference IsInverse="true">
+        <opc:ReferenceType>ua:HasComponent</opc:ReferenceType>
+        <opc:TargetId>ua:Server_Namespaces</opc:TargetId>
+      </opc:Reference>
+    </opc:References>
+  </opc:Object>
+</opc:ModelDesign>

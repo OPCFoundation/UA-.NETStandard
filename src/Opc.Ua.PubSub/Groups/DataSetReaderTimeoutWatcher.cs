@@ -41,7 +41,7 @@ namespace Opc.Ua.PubSub.Groups
     /// Periodically polls every operational <see cref="DataSetReader"/> in a
     /// <see cref="ReaderGroup"/> and faults any reader whose
     /// <see cref="DataSetReader.MessageReceiveTimeout"/> has elapsed
-    /// without a successful dispatch.
+    /// without a new DataSetMessage.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -53,7 +53,9 @@ namespace Opc.Ua.PubSub.Groups
     /// reader transitions to <see cref="PubSubState.Error"/> with
     /// status <see cref="StatusCodes.BadTimeout"/>; recovery to
     /// <see cref="PubSubState.Operational"/> happens automatically when
-    /// the next valid dispatch resets the receive clock.
+    /// the next new DataSetMessage resets the receive clock. Sequence-numbered
+    /// messages must advance the sequence, while keep-alive messages always
+    /// refresh the clock.
     /// </para>
     /// <para>
     /// Polling is driven by <see cref="IPubSubScheduler"/> at a fixed

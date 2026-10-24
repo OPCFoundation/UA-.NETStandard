@@ -201,12 +201,26 @@ namespace Opc.Ua.SourceGeneration
                 .AddReferences(producer.ToMetadataReference());
             ModelDependencyReference[] programs = [.. ReferencedModelDependencyScanner.Scan(probe)
                 .Where(reference => reference.ModelUri == programsUri)];
-            Assert.That(programs, Has.Length.EqualTo(2));
+            Assert.That(programs.Select(reference => reference.AssemblyName), Is.Unique);
             ModelDependencyReference owner = programs.Single(reference => reference.AssemblyName == "Opc.Ua.Core");
             ModelDependencyReference dependency =
                 programs.Single(reference => reference.AssemblyName == producer.AssemblyName);
             ModelDependencyV1? payload = owner.GetDependency();
             Assert.That(payload, Is.Not.Null, "The normal reference layout must contain the current Programs model.");
+            // Server's generated metadata can also carry a dependency-only reference to Programs.
+            foreach (ModelDependencyReference reference in programs.Where(
+                reference => reference.AssemblyName != owner.AssemblyName))
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(reference.Payload, Is.Empty, reference.AssemblyName);
+                    Assert.That(reference.GetDependency(), Is.Null, reference.AssemblyName);
+                    Assert.That(reference.Prefix, Is.EqualTo(owner.Prefix));
+                    Assert.That(reference.Version, Is.EqualTo(owner.Version));
+                    Assert.That(reference.PublicationDate, Is.EqualTo(owner.PublicationDate));
+                    Assert.That(reference.Name, Is.EqualTo(owner.Name));
+                });
+            }
             Assert.Multiple(() =>
             {
                 Assert.That(payload!.ModelUri, Is.EqualTo(programsUri));

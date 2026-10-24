@@ -575,6 +575,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             yield return Case<CancelRequest, CancelResponse>(
                 "Cancel",
                 m => m.CancelAsync(null, 0, default).AsTask());
+
             yield return Case<CreateSessionRequest, CreateSessionResponse>(
                 "CreateSession",
                 m => m.CreateSessionAsync(null, new ApplicationDescription(),

@@ -489,7 +489,7 @@ namespace Opc.Ua.PubSub.Application
                 : new Uuid(metaData.DataSetClassId);
             PubSubNetworkMessage message;
             if (string.Equals(
-                TransportProfileFamily(connection.TransportProfileUri),
+                TransportProfileFamily(connection.EncodingProfileUri),
                 "Json",
                 StringComparison.Ordinal))
             {

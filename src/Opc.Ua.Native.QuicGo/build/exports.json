@@ -1,0 +1,17 @@
+{
+  "abi": 7,
+  "operation_revision": 7,
+  "production_exports": [
+    "opcua_quic_abi",
+    "opcua_quic_listen_begin",
+    "opcua_quic_connect_begin",
+    "opcua_quic_listener_begin",
+    "opcua_quic_connection_begin",
+    "opcua_quic_stream_begin",
+    "opcua_quic_poll",
+    "opcua_quic_cancel",
+    "opcua_quic_release",
+    "opcua_quic_counts"
+  ],
+  "go_runtime_exports": ["_cgo_dummy_export"]
+}

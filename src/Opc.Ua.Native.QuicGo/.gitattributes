@@ -1,0 +1,4 @@
+# Native build receipts and source payloads must retain identical bytes on every checkout host.
+native/** -text whitespace=cr-at-eol
+build/** -text whitespace=cr-at-eol
+notices/** -text

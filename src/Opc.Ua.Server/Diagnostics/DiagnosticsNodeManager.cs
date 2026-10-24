@@ -381,6 +381,16 @@ namespace Opc.Ua.Server
         {
             NodeStateCollection nodes = new NodeStateCollection().AddOpcUa(context);
 
+            // These exact generated singleton declarations are installed by the optional
+            // DataChannelNodeManager only. Their existence in the model is not runtime opt-in.
+            for (int ii = nodes.Count - 1; ii >= 0; ii--)
+            {
+                if (nodes[ii].NodeId == ObjectIds.DataChannelManager ||
+                    nodes[ii].NodeId == ObjectIds.DataChannelCapabilities)
+                {
+                    nodes.RemoveAt(ii);
+                }
+            }
             AddSdkImplementedOptionalChildren(context, nodes);
 
             return new ValueTask<NodeStateCollection>(nodes);

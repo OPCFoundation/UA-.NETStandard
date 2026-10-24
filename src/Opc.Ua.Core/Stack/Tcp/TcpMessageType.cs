@@ -108,6 +108,21 @@ namespace Opc.Ua.Bindings
         public const uint Error = 0x46525245;
 
         /// <summary>
+        /// A final chunk carrying one unchanged UADP NetworkMessage.
+        /// </summary>
+        public const uint FlowData = 0x004F4C46;
+
+        /// <summary>
+        /// The legacy flow message identifier, equal to FLO.
+        /// </summary>
+        public const uint Flow = FlowData;
+
+        /// <summary>
+        /// A final chunk carrying one typed flow-control message.
+        /// </summary>
+        public const uint FlowControl = 0x00434C46;
+
+        /// <summary>
         /// Returns true if the message type is equal to the expected type.
         /// </summary>
         public static bool IsType(uint actualType, uint expectedType)
@@ -155,6 +170,10 @@ namespace Opc.Ua.Bindings
                         case Open:
                         case Close:
                             return true;
+                        case FlowData:
+                        case FlowControl:
+                            // FLO and FLC are single final protected chunks, never Message aborts.
+                            return chunkTypeMask == Final;
                         default:
                             return false;
                     }

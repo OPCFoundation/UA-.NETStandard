@@ -1,0 +1,863 @@
+ 
+
+			
+
+			Visual Studio Redistribution | Microsoft Learn
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			 
+
+			 
+
+			
+
+			
+
+			
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+		
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+			
+
+		
+
+			
+
+		
+
+		
+			Skip to main content
+
+	
+
+			Skip to Ask Learn chat experience
+
+	
+
+			
+
+			
+
+				
+					This browser is no longer supported.
+
+					
+						Upgrade to Microsoft Edge to take advantage of the latest features, security updates, and technical support.
+
+					
+
+							Download Microsoft Edge
+
+						
+							More info about Internet Explorer and Microsoft Edge
+
+					
+
+				
+
+			
+
+			
+
+				
+
+				
+
+				
+
+			
+
+			
+
+		
+
+			
+
+		
+
+		
+
+	
+
+					
+
+			
+
+					
+
+							
+
+								
+
+						
+
+					
+
+				
+
+		
+
+	
+
+				
+
+			
+
+			
+
+				 Table of contents 
+
+			
+
+				Exit editor mode
+
+		
+
+	
+
+		
+
+	
+
+				
+
+		
+
+				
+
+			
+
+					
+
+			
+
+		
+
+		
+
+		
+
+		
+
+				
+
+		
+
+			
+
+			
+			Ask Learn
+
+		
+
+				
+
+			Ask Learn
+
+	 
+
+			
+
+					
+
+					
+
+				
+
+		
+
+				
+
+			Reading mode
+
+	 
+
+			
+			Table of contents
+
+	 
+
+			
+
+			
+			Read in English
+
+	
+
+		
+
+				
+
+			Add
+
+	 
+
+			
+
+			
+			Add to Plans
+
+	 
+
+		
+
+				
+
+						
+
+						
+
+					Copy Markdown
+
+		   
+
+					
+
+					
+					Print
+
+		  
+
+				
+
+			
+
+	
+
+		
+
+	  
+
+		
+
+			
+
+					
+
+						Note
+
+					
+						Access to this page requires authorization. You can try signing in or changing directories.
+
+					
+						Access to this page requires authorization. You can try changing directories.
+
+				
+
+			
+
+		
+
+	
+					 Distributable Code for Visual Studio 2026
+
+					
+
+			 
+
+					
+
+			
+
+			
+			Feedback
+
+	
+
+		  
+
+	 
+
+			
+
+					
+
+				
+
+						Summarize this article for me
+
+				
+
+			
+
+		
+
+	 
+
+			
+				In this article
+
+		
+	 This page provides the list of distributable code files and utilities for Visual Studio 2026 and later.
+
+On this Page
+
+List of Utilities for Visual Studio
+
+Distributable Code Files for Visual Studio
+
+Note
+
+In the lists below...
+
+[arch] represents the processor architecture identifier, for instance "x64", or "arm64".
+
+[locale] represents a specific language, locale, or culture identifier, for instance "ENU", "en-us", or "1033".
+
+[version] represents a folder name that uses a version number.
+
+[VisualStudioFolder] represents the install location for Visual Studio.
+
+ List of Utilities and Build Tools for Visual Studio 2026 and later
+
+This is the "Utilities List" that is referenced in the "Utilities" section of Microsoft Software License Terms for certain editions of Visual Studio 2026 and later (the "software"). Depending on the specific edition of the software, the software you received may not include all of the files on this list. To determine your rights with respect to the following files, please refer to the Visual Studio License Terms that came with your edition of the software. You may not modify these files. Some Utilities by their nature may make it possible for others to access the devices on which the Utilities are installed. You should delete all Utilities you have installed after you finish debugging or deploying your applications and databases
+
+Diagnostic Tools
+
+IntelliTrace Standalone Collector for Visual Studio
+
+[VisualStudioFolder]\Common7\IDE\CommonExtensions\Microsoft\IntelliTrace\IntelliTraceCollection.cab
+
+Remote Tools for Visual Studio
+
+vs_remotetools.exe (x86, x64, ARM64 versions)
+
+Visual C++ Utilities
+
+The "Utilities List" includes all files within the subfolders of the directories specified (if present):
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\debug_nonredist[arch]\
+
+Microsoft.VC[version].DebugCRT
+
+Microsoft.VC[version].DebugCXXAMP
+
+Microsoft.VC[version].DebugMFC
+
+Microsoft.VC[version].DebugOpenMP
+
+Microsoft.VC[version].OpenMP.LLVM
+
+The "Utilities List" includes the following files within the subfolders of the directories specified:
+
+[VisualStudioFolder]\VC\Auxiliary\VS\redist\GraphicsDbgRedist\
+
+VsGraphicsHelper.dll
+
+VsGraphicsResources.dll
+
+[VisualStudioFolder]\VC\Tools\MSVC\[version]\bin\
+
+pgort140.dll
+
+pgort140ui.dll
+
+pgosweep.exe
+
+ Distributable Code Files for Visual Studio 2026 and later
+
+The following section is the "Distributable List" or the "REDIST.TXT" that is referenced in the "Distributable Code" section of the Microsoft Software License Terms for Visual Studio Enterprise, Visual Studio Professional, Visual Studio Community, and Visual Studio Build Tools ("the software"). If you have a validly licensed copy of such software, you may copy and distribute with your program the unmodified form of the files listed below, subject to the License Terms for the software.
+
+Important
+
+Files and components marked as "pre-release" or "preview" in the software are not licensed for redistribution.
+
+ASP.NET Libraries
+
+The following software components are licensed and supported separately under the Microsoft .NET Library terms located at https://aka.ms/dotnet-library-license-vs. If you do not agree to the license terms for these software components, you may not use them.
+
+MVC
+
+Web API
+
+Web Pages with Razor
+
+Entity Framework
+
+SignalR
+
+Katana
+
+Microsoft XML Document Transformation
+
+Microsoft Azure
+
+Source
+
+MobileServices.js
+
+MobileServices.min.js
+
+Object Code
+
+Microsoft.WindowsAzure.Mobile.dll
+
+Microsoft.WindowsAzure.Mobile.resources.dll
+
+Microsoft.WindowsAzure.Mobile.UI.dll
+
+Microsoft.WindowsAzure.Ext.dll
+
+.NET Framework (4.6.2 and later versions)
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+Offline Installer
+
+dotNetFx-x86-x64-AllOS-ENU.exe (.NET Framework redistributable as present in Visual Studio)
+
+NDP[ver]-KB[number]-x86-x64-AllOS-ENU.exe (.NET Framework redistributable as present on other channels, such as the Microsoft Download Center)
+Note: Both files are identical but may use different names for different distribution channels.
+
+Language Packs
+
+dotNetFx-x86-x64-AllOS-[locale].exe
+
+NDP[ver]-KB[number]-x86-x64-AllOS-[locale].exe
+
+Note
+
+Both files are identical but may use different names for different distribution channels.
+
+[ver] represents a 3 digit version such 462 or 481. For instance, NDP462-KB[number]-x86-x64-AllOS-[locale].exe
+
+[number] represents a numeric KB number such as 3151800. For instance, NDP462-KB3151800-x86-x64-AllOS-[locale].exe
+
+[locale] represents the specific three-letter language identifier. For instance, NDP462-KB3151800-x86-x64-AllOS-DEU.exe
+
+Language Packs are available for the following (listed here with their associated identifier code): Arabic (ARA), Chinese-Taiwan (CHT), Czech (CSY), Danish (DAN), German (DEU), Greek (ELL), Finnish (FIN), French (FRA), Hebrew (HEB), Hungarian (HUN), Italian (ITA), Japanese (JPN), Korean (KOR), Dutch-Netherlands (NLD), Norwegian (NOR), Polish (PLK), Portuguese-Brazil (PTB), Russian (RUS), Swedish (SVE), Turkish (TRK), Chinese (CHS), Portuguese-Portugal (PTG), Spanish (ESN)
+
+F# Runtime
+
+Fsharp.Core.dll
+
+ADO.NET
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+System.Data.dll
+
+System.Data.DatasetExtensions.dll
+
+System.Data.OracleClient.dll
+
+Adonetdiag.dll
+
+DIA SDK
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+[VisualStudioFolder]\DIA SDK\bin\msdia140.dll
+
+[VisualStudioFolder]\DIA SDK\bin\amd64\msdia140.dll
+
+[VisualStudioFolder]\DIA SDK\bin\arm64\msdia140.dll
+
+Visual C++ Runtime Files
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, as a part of the installation package of your program:
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\MergeModules\Microsoft_VC145_CRT_[arch].msm
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\MergeModules\Microsoft_VC145_CXXAMP_[arch].msm
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\MergeModules\Microsoft_VC145_MFCLOC_[arch].msm
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\MergeModules\Microsoft_VC145_MFC_[arch].msm
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\MergeModules\Microsoft_VC145_OpenMP_[arch].msm
+
+Subject to the License Terms for the software, you may copy and distribute with your program any of the files within the following folder and its subfolders except as noted below. You may not modify these files.
+
+[VisualStudioFolder]\VC\redist
+
+The same Visual C++ Runtime Redistributable package is available from Latest supported Visual C++ Redistributable downloads and Download Visual Studio Tools. Distribution of the Visual C++ Runtime Redistributable package, merge modules, and individual binaries obtained from those pages is limited to licensed Visual Studio users and is subject to its license terms.
+
+Note
+
+You may not distribute the contents of the following folders (please see List of Utilities and Build Tools for Visual Studio for allowed usage for development/testing purposes):
+
+[VisualStudioFolder]VC\Redist\MSVC\[version]\debug_nonredist
+
+[VisualStudioFolder]\VC\Redist\MSVC\[version]\onecore\debug_nonredist
+
+Subject to the License Terms for the software, you may copy and distribute the following files with your program in your program's application local folder or by deploying them into the Global Assembly Cache (GAC):
+
+[VisualStudioFolder]\VC\Tools\MSVC\[version]\atlmfc\lib\[arch]\mfcmifc80.dll
+
+Universal Windows Apps and Windows Store Apps
+
+Side-loading of Universal Windows Apps
+
+The AppX files contained in the following locations may be distributed unmodified with your Universal Windows apps that you intend to side-load:
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs\14.0\Appx\Retail\[arch]\Microsoft.VCLibs.[arch].14.00.appx
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.VCLibs.Desktop\14.0\Appx\Retail\[arch]\Microsoft.VCLibs.[arch].14.00.Desktop.appx
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.NET.Native.Framework.1.3\1.3\[arch]\ret\Native\Microsoft.NET.Native.Framework.1.3.appx
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\Microsoft.NET.Native.Runtime.1.4\1.4\AppX\[arch]\Microsoft.NET.Native.Runtime.1.4.appx
+
+For additional versions of .NET Native, see https://www.nuget.org/packages/Microsoft.Net.Native.Compiler/.
+
+The files contained in the following locations may be distributed unmodified with your Universal Windows apps that you intend to side-load:
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\CppUnitTestFramework.Universal\15.0\Redist\CommonConfiguration
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\MSTestFramework.Universal\15.0\Redist\CommonConfiguration
+
+[Program Files (x86)]\Microsoft SDKs\Windows Kits\10\ExtensionSDKs\TestPlatform.Universal\15.0\Redist\CommonConfiguration
+
+SQL Server Database Tooling files
+
+Subject to the License Terms for the software, you may copy and distribute the .dll files and .exe files, unmodified, in this folder with your program:
+
+[VisualStudioFolder]Common7\IDE\Extensions\Microsoft\SQLDB\DAC
+
+SQL Server Redistributable Components
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+MsSqlCmdLnUtils.msi
+
+sqlncli.msi
+
+sqllocaldb.msi
+
+SQLSysClrTypes.msi
+
+Microsoft WCF Data Services files
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+Microsoft.Data.Services.dll
+
+Microsoft.Data.Services.Client.dll
+
+Microsoft.Data.OData.dll
+
+Microsoft.Data.Edm.dll
+
+System.Spatial.dll
+
+Microsoft Visual Studio Tools for Office
+
+Subject to the License Terms for the software, you may copy and distribute the following files, unmodified, with your program:
+
+Microsoft.Office.Tools.Common.v4.0.Utilities.dll
+
+Microsoft.Office.Tools.Excel.v4.0.Utilities.dll
+
+Microsoft.Office.Tools.Outlook.v4.0.Utilities.dll
+
+Microsoft.Office.Tools.Word.v4.0.Utilities.dll
+
+Subject to the License Terms for the software, you may copy and distribute the following files with your program:
+
+setup.exe (bootstrapper used to install Office Add-ins)
+
+					
+
+	 
+
+		
+
+	
+
+				
+
+				
+
+			
+
+				Additional resources
+
+			
+
+	 
+
+	 
+
+	
+
+	 
+
+			
+
+				
+
+				Last updated on 
+		2025-11-11
+
+			
+
+			
+
+	
+
+		
+
+				
+
+		
+
+				
+
+			In this article
+
+		
+
+				
+
+			
+
+		
+
+	
+
+					 
+
+			   
+
+			
+
+		en-us
+
+		
+
+		
+
+			
+
+			
+
+	
+			Your Privacy Choices
+
+	
+
+				
+
+			
+
+				Theme
+
+					
+
+			
+
+				
+
+						
+
+								
+
+										
+
+										
+
+										
+
+										
+
+									
+
+							
+							 Light 
+
+					
+
+					
+
+							
+
+									
+
+										
+
+										
+
+										
+
+										
+
+								
+
+							 Dark 
+
+					
+
+					
+
+							
+
+									
+
+										
+
+										
+
+										
+
+										
+
+								
+
+							 High contrast 
+
+					
+
+				
+
+		
+
+	
+
+			
+
+			
+
+				
+
+		AI Disclaimer
+
+	
+
+		
+		Previous Versions
+
+	
+
+		
+		Blog
+
+	
+
+		
+		Contribute
+
+	
+
+		
+		Privacy
+
+	
+
+		
+		Consumer Health Privacy
+
+	
+
+		
+		Terms of Use
+
+	
+
+		
+		Trademarks
+
+	
+
+				© Microsoft 2026
+
+			
+
+	
+
+		

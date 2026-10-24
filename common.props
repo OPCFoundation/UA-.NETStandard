@@ -50,6 +50,9 @@
   </ItemGroup>
   <PropertyGroup>
     <NoWarn>$(NoWarn);NU1510</NoWarn>
+    <!-- Repository projects explicitly opt into the provisional Data Channels APIs.
+         TODO: remove this opt-in when the APIs are standardized and their Experimental attributes are retired. -->
+    <NoWarn>$(NoWarn);DataChannels</NoWarn>
     <PackageIcon>images/logo.jpg</PackageIcon>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>

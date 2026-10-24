@@ -174,6 +174,7 @@ namespace Opc.Ua.Bindings
             m_backgroundWork = new BackgroundTaskScope(nameof(UaSCUaBinaryChannel), telemetry);
             m_logger = telemetry.CreateLogger<UaSCUaBinaryChannel>();
             TimeProvider = timeProvider ?? TimeProvider.System;
+            m_sequenceBudget = new SequenceNumberBudget(TimeProvider);
             m_lastActiveTimestamp = TimeProvider.GetTimestamp();
 
             if (string.IsNullOrEmpty(m_contextId))
@@ -322,6 +323,8 @@ namespace Opc.Ua.Bindings
                 // accepted immediately and any in flight are cancelled.
                 m_backgroundWork.Dispose();
 
+                NotifyChannelClosed();
+
                 CloseTransport(DetachTransport());
                 DiscardTokens();
 
@@ -444,6 +447,17 @@ namespace Opc.Ua.Bindings
             long newSeqNumber = Interlocked.Increment(ref m_sequenceNumber);
             bool maxValueOverflow = newSeqNumber > uint.MaxValue;
 
+            // Every symmetric chunk - MSG, OPN, CLO and FLO alike - draws from
+            // this one sequence space, and reusing a number under one TokenId
+            // reuses the AEAD nonce derived from it. Service traffic is
+            // accounted for by observing this counter rather than by calling
+            // into the budget on each send, but observation alone is passive:
+            // a channel carrying only Service traffic would never learn that
+            // it is close to exhaustion until a data channel asked. This hook
+            // pushes the transition so the client can renew ahead of the
+            // lifetime timer.
+            OnSequenceNumberIssued();
+
             // LegacySequenceNumbers are TRUE for non ECC profiles
             // https://reference.opcfoundation.org/Core/Part6/v105/docs/6.7.2.4
             if (isLegacy)
@@ -475,6 +489,15 @@ namespace Opc.Ua.Bindings
         /// LastSequenceNumber input of the AEAD nonce (OPC 10000-6 6.8.1).
         /// </summary>
         internal uint LastSentSequenceNumber => (uint)(Interlocked.Read(ref m_localSequenceNumber) - 1);
+
+        /// <summary>
+        /// Called for every symmetric SequenceNumber issued on this channel.
+        /// Overridden where the channel can act on the budget by renewing the
+        /// SecurityToken early.
+        /// </summary>
+        protected virtual void OnSequenceNumberIssued()
+        {
+        }
 
         /// <summary>
         /// Resets the sequence number after a connect.
@@ -571,7 +594,7 @@ namespace Opc.Ua.Bindings
         private bool IsLaterSequenceNumber(uint sequenceNumber)
         {
             uint distance = unchecked(sequenceNumber - m_remoteSequenceNumber);
-            return distance != 0 && distance < 0x80000000u;
+            return distance is not 0 and < 0x80000000u;
         }
 
         /// <summary>
@@ -613,12 +636,12 @@ namespace Opc.Ua.Bindings
             bool budgetExceeded = false;
             bool hasSession = true;
             IServerResourceIsolationProvider? isolation = isServerContext ? Quotas.ResourceIsolationProvider : null;
-            ResourceIsolationOwner? owner = null;
             IDisposable? incomingLease = null;
             List<IDisposable>? releasedLeases = null;
             bool chunkOwned = true;
             try
             {
+                ResourceIsolationOwner? owner;
                 lock (m_partialMessageLock)
                 {
                     if (m_partialMessageClosed)
@@ -676,9 +699,10 @@ namespace Opc.Ua.Bindings
 
                     if (!chunkOrSizeLimitsExceeded && !budgetExceeded && requestId != 0 && chunk.Array != null)
                     {
-                        if (isFinal || TryReservePartialMessageChunk(
-                            chunk.Array.Length,
-                            isolation is IResourceIsolationReassemblyProvider || hasSession))
+                        if (isFinal ||
+                            TryReservePartialMessageChunk(
+                                chunk.Array.Length,
+                                isolation is IResourceIsolationReassemblyProvider || hasSession))
                         {
                             if (m_partialMessageChunks == null)
                             {
@@ -1548,7 +1572,18 @@ namespace Opc.Ua.Bindings
 
             lock (m_writeQueueLock)
             {
-                m_unsealedWriteQueue.Enqueue(write);
+                if (state is DataChannelWriteOperation { Write.IsData: true })
+                {
+                    m_unsealedFlowWriteQueue.Enqueue(write);
+                }
+                else if (state is DataChannelWriteOperation)
+                {
+                    m_unsealedControlWriteQueue.Enqueue(write);
+                }
+                else
+                {
+                    m_unsealedWriteQueue.Enqueue(write);
+                }
                 if (m_writerRunning)
                 {
                     return true;
@@ -1595,15 +1630,19 @@ namespace Opc.Ua.Bindings
                 bool numbered;
                 lock (m_writeQueueLock)
                 {
-                    if (m_writeQueue.Count == 0 && m_unsealedWriteQueue.Count == 0)
+                    if (m_writeQueue.Count == 0 &&
+                        m_unsealedWriteQueue.Count == 0 &&
+                        m_unsealedControlWriteQueue.Count == 0 &&
+                        m_unsealedFlowWriteQueue.Count == 0)
                     {
+                        m_serviceWriteBurst = 0;
                         m_writerRunning = false;
                         return;
                     }
 
                     // Writes numbered by their producers go out without the send
                     // order lock: each was queued under it, after the writes numbered
-                    // before it. A client channel only queues such writes.
+                    // before it. Ordinary-profile client requests also use this queue.
                     numbered = m_writeQueue.Count > 0 && TakeWriteBatch(batch, includeUnsealed: false);
                 }
 
@@ -1693,44 +1732,70 @@ namespace Opc.Ua.Bindings
         /// </remarks>
         private bool TakeWriteBatch(List<PendingWrite> batch, bool includeUnsealed)
         {
-            PendingWrite first;
-            if (m_writeQueue.Count > 0)
-            {
-                first = m_writeQueue.Dequeue();
-            }
-            else if (includeUnsealed && m_unsealedWriteQueue.Count > 0)
-            {
-                first = m_unsealedWriteQueue.Dequeue();
-            }
-            else
+            Queue<PendingWrite>? queue = GetNextWriteQueue(includeUnsealed);
+            if (queue == null)
             {
                 return false;
             }
-
+            PendingWrite first = DequeueWrite(queue);
             batch.Add(first);
 
             if (first.Transport is IUaSCChunkCoalescing coalescing &&
                 coalescing.CanCoalesceChunks)
             {
-                while (m_writeQueue.Count > 0 &&
-                    batch.Count < kMaxCoalescedWrites &&
-                    ReferenceEquals(m_writeQueue.Peek().Transport, first.Transport))
+                while (batch.Count < kMaxCoalescedWrites)
                 {
-                    batch.Add(m_writeQueue.Dequeue());
-                }
-
-                // unsealed writes only once no sealed write is left ahead of them.
-                while (includeUnsealed &&
-                    m_writeQueue.Count == 0 &&
-                    m_unsealedWriteQueue.Count > 0 &&
-                    batch.Count < kMaxCoalescedWrites &&
-                    ReferenceEquals(m_unsealedWriteQueue.Peek().Transport, first.Transport))
-                {
-                    batch.Add(m_unsealedWriteQueue.Dequeue());
+                    queue = GetNextWriteQueue(includeUnsealed);
+                    if (queue == null || !ReferenceEquals(queue.Peek().Transport, first.Transport))
+                    {
+                        break;
+                    }
+                    batch.Add(DequeueWrite(queue));
                 }
             }
 
             return true;
+        }
+
+        /// <summary>
+        /// Preserves numbered order, bounds control delay, and keeps Services ahead of unsealed DATA.
+        /// </summary>
+        private Queue<PendingWrite>? GetNextWriteQueue(bool includeUnsealed)
+        {
+            if (m_writeQueue.Count > 0)
+            {
+                return m_writeQueue;
+            }
+            if (!includeUnsealed)
+            {
+                return null;
+            }
+            if (m_unsealedControlWriteQueue.Count > 0 &&
+                (m_unsealedWriteQueue.Count == 0 || m_serviceWriteBurst >= kMaxServiceWriteBurst))
+            {
+                return m_unsealedControlWriteQueue;
+            }
+            if (m_unsealedWriteQueue.Count > 0)
+            {
+                return m_unsealedWriteQueue;
+            }
+            return m_unsealedFlowWriteQueue.Count > 0 ? m_unsealedFlowWriteQueue : null;
+        }
+
+        /// <summary>
+        /// Accounts each selected message separately, including messages selected for a coalesced send.
+        /// </summary>
+        private PendingWrite DequeueWrite(Queue<PendingWrite> queue)
+        {
+            if (ReferenceEquals(queue, m_unsealedWriteQueue))
+            {
+                m_serviceWriteBurst = Math.Min(m_serviceWriteBurst + 1, kMaxServiceWriteBurst);
+            }
+            else if (!ReferenceEquals(queue, m_writeQueue))
+            {
+                m_serviceWriteBurst = 0;
+            }
+            return queue.Dequeue();
         }
 
         /// <summary>
@@ -1775,6 +1840,37 @@ namespace Opc.Ua.Bindings
                             ServiceResult.Create(
                                 StatusCodes.BadSecureChannelClosed,
                                 "The channel was closed before the message was sent."));
+                        continue;
+                    }
+
+                    if (write.State is DataChannelWriteOperation flowOperation)
+                    {
+                        if (SequenceBudget.MustStall)
+                        {
+                            flowOperation.Refuse(DataChannelResult.WouldBlock);
+                            message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                            ReportWriteComplete(null, write.State, 0, ServiceResult.Good);
+                            continue;
+                        }
+                        if (!flowOperation.Write.TryCommit())
+                        {
+                            flowOperation.Refuse(flowOperation.Write.Result);
+                            message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                            ReportWriteComplete(null, write.State, 0, ServiceResult.Good);
+                            continue;
+                        }
+                    }
+
+                    if (write.State is DataChannelWriteOperation && !SequenceBudget.TryConsume())
+                    {
+                        message.Chunks.Release(BufferManager, nameof(SealWriteBatch));
+                        ReportWriteComplete(
+                            null,
+                            write.State,
+                            0,
+                            ServiceResult.Create(
+                                StatusCodes.BadSecureChannelTokenUnknown,
+                                "The SequenceNumber space under the current SecurityToken is exhausted."));
                         continue;
                     }
 
@@ -2161,6 +2257,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <param name="transport">The transport all writes in the batch target.</param>
         /// <param name="batch">The writes, in queue order. Cleared on return.</param>
+        /// <exception cref="InvalidOperationException"></exception>
         private async Task WriteCoalescedAsync(
             IUaSCByteTransport transport,
             List<PendingWrite> batch)
@@ -2338,7 +2435,13 @@ namespace Opc.Ua.Bindings
 
             buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
+
             SignalWriteCapacity();
+
+            if (state is DataChannelWriteOperation operation)
+            {
+                operation.Complete(result);
+            }
         }
 
         /// <summary>
@@ -2545,10 +2648,10 @@ namespace Opc.Ua.Bindings
         /// (<see cref="BeginWriteSymmetricMessage"/>) while it holds the lock,
         /// in queue order, after taking them from the queue under it.</item>
         /// <item>A producer that numbers its own message (asymmetric messages,
-        /// <see cref="WriteSymmetricMessage"/>) holds the lock from taking the
-        /// numbers until the message is in the queue of sealed writes, unless its
-        /// channel queues no unsealed messages and orders those producers itself
-        /// (the client, under its gate).</item>
+        /// <see cref="SealSymmetricMessage"/>) holds the lock from taking the
+        /// numbers until the message is in the queue of sealed writes. A channel
+        /// that queues no unsealed messages may instead order its numbered
+        /// producers separately.</item>
         /// </list>
         /// The writer sends every sealed write ahead of the unsealed ones it takes
         /// with them, so a write numbered by a producer — necessarily before the
@@ -2786,7 +2889,10 @@ namespace Opc.Ua.Bindings
         private readonly Lock m_writeQueueLock = new();
         private readonly Queue<PendingWrite> m_writeQueue = new();
         private readonly Queue<PendingWrite> m_unsealedWriteQueue = new();
+        private readonly Queue<PendingWrite> m_unsealedControlWriteQueue = new();
+        private readonly Queue<PendingWrite> m_unsealedFlowWriteQueue = new();
         private bool m_writerRunning;
+        private int m_serviceWriteBurst;
 
         /// <summary>
         /// The transport on which a message failed after taking sequence numbers;
@@ -2804,6 +2910,11 @@ namespace Opc.Ua.Bindings
         /// The most writes sent together in one vectored send.
         /// </summary>
         private const int kMaxCoalescedWrites = 16;
+
+        /// <summary>
+        /// Reference-policy Service burst before selecting a pending Part 28 lifecycle/control message.
+        /// </summary>
+        private const int kMaxServiceWriteBurst = 8;
 
         /// <summary>
         /// The writes and the gathered segments of the current coalesced send,

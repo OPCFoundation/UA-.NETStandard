@@ -53,8 +53,8 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, IServerSessionBindingProvider,
-        IRequestParkingPolicySource
+    public partial class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable,
+        IServerSessionBindingProvider, IRequestParkingPolicySource
     {
         /// <inheritdoc/>
         public StandardServer(ITelemetryContext telemetry)
@@ -282,6 +282,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
+            ShutdownDataChannelServices();
+
             // Run the orderly server shutdown (idempotent) before releasing base resources,
             // so no request is still dispatching to the address space when it is torn down.
             // The cached m_disposeTask makes this method run exactly once.
@@ -482,6 +484,8 @@ namespace Opc.Ua.Server
                 m_semaphoreSlim.Release();
             }
 
+            endpoints = IncludeDataChannelEndpoints(endpoints, profileUris);
+
             // consult the optional load-direction seam; when it directs the
             // Client to a peer it replaces the local endpoints (extension
             // beyond OPC 10000-4 §6.6; opt-in and gated).
@@ -493,7 +497,16 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 if (redirect)
                 {
-                    endpoints = directed;
+                    var matches = new List<EndpointDescription>();
+                    foreach (EndpointDescription endpoint in directed)
+                    {
+                        if (profileUris.Count == 0 || DataChannels.DataChannelSource.Contains(
+                            profileUris, endpoint.TransportProfileUri ?? string.Empty))
+                        {
+                            matches.Add(endpoint);
+                        }
+                    }
+                    endpoints = [.. matches];
                 }
             }
 
@@ -904,7 +917,8 @@ namespace Opc.Ua.Server
                     }
 
                     // return the endpoints supported by the server.
-                    serverEndpoints = GetEndpointDescriptions(endpointUrl, BaseAddresses, default);
+                    serverEndpoints = IncludeDataChannelEndpoints(
+                        GetEndpointDescriptions(endpointUrl, BaseAddresses, default), default);
                 }
                 finally
                 {
@@ -3822,6 +3836,12 @@ namespace Opc.Ua.Server
         {
             ResourceIsolationOptions.ValidateHandshakeTimeout();
             base.ConfigureTransportListenerSettings(settings, endpointUri);
+            bool advertisesUascFlow =
+                endpointUri.Scheme is Utils.UriSchemeOpcTcp or Utils.UriSchemeOpcWss &&
+                settings.Descriptions?.Exists(static endpoint =>
+                    UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri).HasValue) == true;
+            settings.DataChannels = advertisesUascFlow ? DataChannelProvider : null;
+            settings.AllowDataChannelIntegrity = advertisesUascFlow && DataChannelProvider?.AllowIntegrity == true;
             settings.HandshakeTimeout = ResourceIsolationOptions.HandshakeTimeout;
             IServerRateLimiterProvider? provider = m_rateLimiterProvider;
             if (provider != null)
@@ -4218,9 +4238,16 @@ namespace Opc.Ua.Server
 
             List<EndpointDescription> endpointsList = [];
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            foreach (
-                string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))))
+            var schemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string address in baseAddresses)
+            {
+                if (Uri.TryCreate(address, UriKind.Absolute, out Uri? uri))
+                {
+                    schemes.Add(uri.Scheme);
+                }
+            }
+
+            foreach (string scheme in schemes)
             {
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
                     throw new InvalidOperationException(
@@ -4255,6 +4282,7 @@ namespace Opc.Ua.Server
             return scheme switch
             {
                 Utils.UriSchemeOpcTcp => "OpcTcp",
+                Utils.UriSchemeOpcQuic => "Quic",
                 Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps => "Https",
                 Utils.UriSchemeWss or Utils.UriSchemeOpcWss => "Wss",
                 _ => scheme
@@ -4481,6 +4509,7 @@ namespace Opc.Ua.Server
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
                 unregisteredSessionManager = null;
                 unregisteredSubscriptionManager = null;
+                InitializeDataChannelServices();
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4860,6 +4889,8 @@ namespace Opc.Ua.Server
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
+
+            ShutdownDataChannelServices();
 
             // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
             // audits each of them once its close completed (OPC 10000-5 6.4.7).

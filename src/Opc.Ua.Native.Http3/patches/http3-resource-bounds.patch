@@ -1,0 +1,356 @@
+--- a/src/connection/client.rs
++++ b/src/connection/client.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: expose receive budget observations; see the proof patch manifest.
+ //! HTTP/3 クライアント接続
+ 
+ use crate::error::Error;
+@@ -227,6 +228,16 @@
+     /// WebTransport セッションのフロー制御が有効かどうかを取得する
+     pub fn wt_session_flow_control_enabled(&self, session_id: u64) -> bool {
+         self.inner.wt_session_flow_control_enabled(session_id)
++    }
++
++    /// Allocated capsule capacity across all sessions.
++    pub fn wt_buffered_capsule_bytes(&self) -> usize {
++        self.inner.wt_buffered_capsule_bytes()
++    }
++
++    /// Allocated request framing/body capacity across all streams.
++    pub fn buffered_request_bytes(&self) -> usize {
++        self.inner.buffered_request_bytes()
+     }
+ }
+ 
+--- a/src/connection/mod.rs
++++ b/src/connection/mod.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: bounded receive admission; see the proof patch manifest.
+ //! HTTP/3 接続 (RFC 9114)
+ //!
+ //! Sans I/O パターンに基づく HTTP/3 接続管理。
+@@ -39,6 +40,7 @@
+ //! ```
+ 
+ mod client;
++pub mod receive_limits;
+ mod server;
+ mod wt_capsule;
+ mod wt_session;
+@@ -1483,6 +1485,8 @@
+             return Err(Error::StreamError(ErrorCode::MessageError));
+         }
+ 
++        self.admit_request_data(stream_id, data.len())?;
++
+         // GOAWAY 送信後の新規ストリームを拒否する (RFC 9114 Section 5.2 SHOULD)
+         // サーバー側のみ: クライアントの last_sent_goaway_id は push ID のため対象外
+         if self.role == Role::Server
+--- /dev/null
++++ b/src/connection/receive_limits.rs
+@@ -0,0 +1,79 @@
++// Copyright (c) OPC Foundation. Licensed under the MIT License.
++//! Local resource-admission patch; the upstream protocol decoder is unchanged.
++
++use crate::{Error, ErrorCode};
++
++use super::Connection;
++
++/// Retained capsule storage per session. Exceeding policy is excessive load, not malformed syntax.
++pub const MAX_WT_CAPSULE_BYTES_PER_SESSION: usize = 64 * 1024;
++/// Retained capsule storage across all pending, established, and draining sessions.
++pub const MAX_WT_CAPSULE_BYTES_PER_CONNECTION: usize = 128 * 1024;
++/// Retained HTTP request framing/body storage per stream.
++pub const MAX_REQUEST_BUFFER_BYTES_PER_STREAM: usize = 64 * 1024;
++/// Retained HTTP request framing/body storage across the connection.
++pub const MAX_REQUEST_BUFFER_BYTES_PER_CONNECTION: usize = 128 * 1024;
++
++impl Connection {
++    /// Returns allocated capsule buffer capacity, not merely live lengths.
++    pub fn wt_buffered_capsule_bytes(&self) -> usize {
++        self.wt_sessions
++            .values()
++            .map(|session| session.capsule_buf.capacity())
++            .sum()
++    }
++
++    /// Returns allocated request-parser/body capacities, including deferred CONNECT bodies.
++    pub fn buffered_request_bytes(&self) -> usize {
++        self.streams.values().map(|stream| stream.buffered_receive_bytes()).sum()
++    }
++
++    /// Rejects one stream and releases its retained buffers without poisoning other sessions.
++    pub(crate) fn reject_receive_buffer(
++        &mut self,
++        stream_id: u64,
++        code: ErrorCode,
++    ) -> Result<(), Error> {
++        self.terminate_wt_session(stream_id);
++        self.deferred_wt_connects.remove(&stream_id);
++        self.streams.remove(&stream_id);
++        Err(Error::StreamError(code))
++    }
++
++    /// Reserves capsule storage before copying bytes into the decoder.
++    pub(crate) fn append_wt_capsule_data(
++        &mut self,
++        session_id: u64,
++        data: &[u8],
++    ) -> Result<(), Error> {
++        let Some(session) = self.wt_sessions.get(&session_id) else {
++            return Ok(());
++        };
++        let desired = session.capsule_buf.len().checked_add(data.len());
++        let Some(desired) = desired else {
++            return self.reject_receive_buffer(session_id, ErrorCode::ExcessiveLoad);
++        };
++        let additional = desired.saturating_sub(session.capsule_buf.capacity());
++        if desired > MAX_WT_CAPSULE_BYTES_PER_SESSION
++            || additional > MAX_WT_CAPSULE_BYTES_PER_CONNECTION
++                .saturating_sub(self.wt_buffered_capsule_bytes())
++        {
++            return self.reject_receive_buffer(session_id, ErrorCode::ExcessiveLoad);
++        }
++        let session = self.wt_sessions.get_mut(&session_id).expect("session retained");
++        session.capsule_buf.reserve_exact(data.len());
++        session.capsule_buf.extend_from_slice(data);
++        Ok(())
++    }
++
++    /// Bounds incomplete HTTP DATA/HEADERS framing too, before the capsule layer is reached.
++    pub(crate) fn admit_request_data(&mut self, stream_id: u64, bytes: usize) -> Result<(), Error> {
++        let current = self.streams.get(&stream_id).map_or(0, |s| s.buffered_receive_bytes());
++        if bytes > MAX_REQUEST_BUFFER_BYTES_PER_STREAM.saturating_sub(current)
++            || bytes > MAX_REQUEST_BUFFER_BYTES_PER_CONNECTION.saturating_sub(self.buffered_request_bytes())
++        {
++            return self.reject_receive_buffer(stream_id, ErrorCode::ExcessiveLoad);
++        }
++        Ok(())
++    }
++}
+--- a/src/connection/server.rs
++++ b/src/connection/server.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: expose receive budget observations; see the proof patch manifest.
+ //! HTTP/3 サーバー接続
+ 
+ use crate::error::Error;
+@@ -229,6 +230,16 @@
+     pub fn wt_session_flow_control_enabled(&self, session_id: u64) -> bool {
+         self.inner.wt_session_flow_control_enabled(session_id)
+     }
++
++    /// Allocated capsule capacity across all sessions.
++    pub fn wt_buffered_capsule_bytes(&self) -> usize {
++        self.inner.wt_buffered_capsule_bytes()
++    }
++
++    /// Allocated request framing/body capacity across all streams.
++    pub fn buffered_request_bytes(&self) -> usize {
++        self.inner.buffered_request_bytes()
++    }
+ }
+ 
+ #[cfg(test)]
+--- a/src/connection/wt_capsule.rs
++++ b/src/connection/wt_capsule.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: bounded capsule storage; see the proof patch manifest.
+ //! WebTransport Capsule 処理 connection/mod.rs からの分離
+ //!
+ //! WebTransport CONNECT ストリーム上の Capsule デコード・処理を担う
+@@ -23,28 +24,21 @@
+         data: &[u8],
+     ) -> Result<(), Error> {
+         // セッションの capsule_buf にデータを追加
+-        if let Some(session) = self.wt_sessions.get_mut(&session_id) {
+-            session.capsule_buf.extend_from_slice(data);
+-        } else {
+-            return Ok(());
+-        }
+-
+-        // Capsule を逐次デコード
++        self.append_wt_capsule_data(session_id, data)?;
++
++        // Decode without cloning/draining the entire suffix for every small capsule.
++        let mut offset = 0;
+         while let Some(session) = self.wt_sessions.get(&session_id) {
+-            if session.capsule_buf.is_empty() {
++            if offset == session.capsule_buf.len() {
+                 break;
+             }
+-            let buf = session.capsule_buf.clone();
+-
+-            match crate::webtransport::Capsule::decode(&buf) {
++            let buffered_len = session.capsule_buf.len();
++            match crate::webtransport::Capsule::decode(&session.capsule_buf[offset..]) {
+                 Ok(Some((capsule, consumed))) => {
+-                    let has_trailing = buf.len() > consumed;
++                    offset += consumed;
++                    let has_trailing = buffered_len > offset;
+                     let is_close_session =
+                         matches!(capsule, crate::webtransport::Capsule::CloseSession { .. });
+-                    // バッファから消費済み部分を除去
+-                    if let Some(session) = self.wt_sessions.get_mut(&session_id) {
+-                        session.capsule_buf.drain(..consumed);
+-                    }
+ 
+                     // Capsule を処理してイベントに変換
+                     self.handle_wt_capsule(session_id, &capsule)?;
+@@ -53,7 +47,7 @@
+                     // H3_MESSAGE_ERROR で拒否する (draft-ietf-webtrans-http3-16 Section 6)。
+                     // セッション除去で while ループが終了するため、ここで検出する。
+                     if is_close_session && has_trailing {
+-                        return Err(Error::StreamError(ErrorCode::MessageError));
++                        return self.reject_receive_buffer(session_id, ErrorCode::MessageError);
+                     }
+                 }
+                 Ok(None) => {
+@@ -63,11 +57,19 @@
+                 Err(_) => {
+                     // RFC 9297 Section 3.3: malformed Capsule は
+                     // HTTP message エラーとして扱う → H3_MESSAGE_ERROR
+-                    return Err(Error::StreamError(ErrorCode::MessageError));
+-                }
+-            }
+-        }
+-
++                    return self.reject_receive_buffer(session_id, ErrorCode::MessageError);
++                }
++            }
++        }
++
++        if offset != 0 && let Some(session) = self.wt_sessions.get_mut(&session_id) {
++            if offset == session.capsule_buf.len() {
++                session.capsule_buf = Vec::new();
++            } else {
++                session.capsule_buf.drain(..offset);
++                session.capsule_buf.shrink_to_fit();
++            }
++        }
+         Ok(())
+     }
+ 
+@@ -206,19 +208,11 @@
+                     // (draft-ietf-webtrans-http3-16 Section 3.2)
+                     // サーバー側のみ: クライアントは楽観的送信を送信方向にのみ行う
+                     if self.role == crate::connection::Role::Server {
+-                        // DoS 対策: バッファ上限を超えたら H3_MESSAGE_ERROR でリセットする
+-                        const PENDING_CAPSULE_BUF_LIMIT: usize = 64 * 1024;
+-                        let session = self
+-                            .wt_sessions
+-                            .get_mut(&stream_id)
+-                            .expect("session must exist");
+-                        if session.capsule_buf.len() + data.len() > PENDING_CAPSULE_BUF_LIMIT {
+-                            return Err(Error::StreamError(ErrorCode::MessageError));
+-                        }
+-                        session.capsule_buf.extend_from_slice(data);
++                        // Apply both per-session and aggregate storage policy before copying.
++                        self.append_wt_capsule_data(stream_id, data)?;
+                         return Ok(true);
+                     }
+-                    return Err(Error::StreamError(ErrorCode::MessageError));
++                    return self.reject_receive_buffer(stream_id, ErrorCode::MessageError).map(|()| true);
+                 }
+                 // draft-02: Pending 中の DATA は破棄する
+             }
+@@ -251,7 +245,7 @@
+                 return Ok(true);
+             }
+             if !session.capsule_buf.is_empty() {
+-                return Err(Error::StreamError(ErrorCode::MessageError));
++                return self.reject_receive_buffer(stream_id, ErrorCode::MessageError).map(|()| true);
+             }
+             self.terminate_wt_session(stream_id);
+             return Ok(true);
+--- a/src/connection/wt_session.rs
++++ b/src/connection/wt_session.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: transfer deferred capsule ownership; see the proof patch manifest.
+ //! WebTransport セッション管理 connection/mod.rs からの分離
+ //!
+ //! WebTransport の能力ネゴシエーション、セッションライフサイクル管理、
+@@ -1180,13 +1181,11 @@
+                 Ok(()) => {
+                     self.register_wt_connect_session(stream_id, &headers);
+                     // 保留中に届いた DATA を処理する
+-                    if let Some(stream) = self.streams.get(&stream_id) {
+-                        let body = stream.received_body().to_vec();
++                    if let Some(stream) = self.streams.get_mut(&stream_id) {
++                        let body = stream.take_received_body();
+                         if !body.is_empty() {
+                             // データをセッションの capsule_buf に移動する
+-                            if let Some(session) = self.wt_sessions.get_mut(&stream_id) {
+-                                session.capsule_buf.extend_from_slice(&body);
+-                            }
++                            self.append_wt_capsule_data(stream_id, &body)?;
+                         }
+                     }
+                     // ヘッダーイベントを発行する
+--- a/src/stream/mod.rs
++++ b/src/stream/mod.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: bounded receive allocation and release; see the proof patch manifest.
+ //! HTTP/3 ストリーム (RFC 9114 Section 6)
+ //!
+ //! HTTP/3 で使用されるストリームの管理とバッファリングを提供。
+@@ -259,7 +260,13 @@
+ 
+     /// データを追加
+     pub fn push(&mut self, data: &[u8]) {
++        self.data.reserve_exact(data.len());
+         self.data.extend_from_slice(data);
++    }
++
++    /// Allocated receive storage retained by this buffer.
++    pub(crate) fn capacity(&self) -> usize {
++        self.data.capacity()
+     }
+ 
+     /// FIN を受信
+@@ -280,6 +287,11 @@
+     /// データを消費
+     pub fn consume(&mut self, len: usize) {
+         self.consumed += len;
++        if self.consumed == self.data.len() {
++            self.data = Vec::new();
++            self.consumed = 0;
++            return;
++        }
+         if self.consumed >= self.data.len() / 2 {
+             self.data.drain(..self.consumed);
+             self.consumed = 0;
+--- a/src/stream/request.rs
++++ b/src/stream/request.rs
+@@ -1,3 +1,4 @@
++// Modified by OPC Foundation, 2026-10-16: account and transfer receive buffers; see the proof patch manifest.
+ //! HTTP/3 リクエストストリーム (RFC 9114 Section 6.1)
+ //!
+ //! 双方向ストリームで HTTP リクエスト/レスポンスを送受信。
+@@ -391,6 +392,7 @@
+                     // WebTransport CONNECT ストリームの DATA は Capsule データであり、
+                     // recv_body に累積しない (転送量に比例したメモリ消費を防ぐ)
+                     if !self.is_wt_connect {
++                        self.recv_body.reserve_exact(data.len());
+                         self.recv_body.extend_from_slice(&data);
+                     }
+                     return Ok(Some(RawReceivedData::Data(data)));
+@@ -511,6 +513,18 @@
+         &self.recv_body
+     }
+ 
++    /// Allocated request receive storage retained between feed calls.
++    pub(crate) fn buffered_receive_bytes(&self) -> usize {
++        self.recv_buf.capacity()
++            + self.recv_body.capacity()
++            + self.qpack_blocked_header.as_ref().map_or(0, |(bytes, _)| bytes.capacity())
++    }
++
++    /// Transfers a deferred CONNECT body instead of retaining a second copy.
++    pub(crate) fn take_received_body(&mut self) -> Vec<u8> {
++        std::mem::take(&mut self.recv_body)
++    }
++
+     /// HEAD リクエストかどうかを設定 (Content-Length 検証用)
+     pub fn set_is_head_request(&mut self, v: bool) {
+         self.is_head_request = v;
