@@ -1,0 +1,51 @@
+{
+  "description": "Deprecation does not redirect or disable the old Resource.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.1.0",
+      "versions": [
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+          "version.model": "1.0.0"
+        },
+        {
+          "versionid": "1.1.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+          "version.model": "1.1.0"
+        }
+      ],
+      "deprecated": {
+        "alternative": "https://registry.example/thingmodelgroups/vendor/thingmodels/pump-v2"
+      }
+    },
+    {
+      "wotid": "urn:example:pump:v2",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0",
+      "versions": [
+        {
+          "versionid": "2.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+          "version.model": "2.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:pump:v1",
+      "versionid": "1.1.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
+    }
+  }
+}

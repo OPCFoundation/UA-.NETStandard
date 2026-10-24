@@ -1552,7 +1552,7 @@ namespace Opc.Ua.WotCon.Tests
                 .CreateThingModelGroupAsync()
                 .ConfigureAwait(false);
             (WotRegistryResourceClient v1, _) =
-                await group.CreateResourceAsync("model-titles", "v1")
+                await group.CreateResourceAsync("model-titles", "1.0.0")
                 .ConfigureAwait(false);
             await v1.Proxy.UploadAsync(
                     ByteString.From(ThingModelWithMetadata(
@@ -1561,7 +1561,7 @@ namespace Opc.Ua.WotCon.Tests
                         "1.0.0")))
                 .ConfigureAwait(false);
             (WotRegistryResourceClient v2, _) =
-                await group.CreateResourceAsync("model-titles", "v2")
+                await group.CreateResourceAsync("model-titles", "2.0.0")
                 .ConfigureAwait(false);
             await v2.Proxy.UploadAsync(
                     ByteString.From(ThingModelWithMetadata(
@@ -1570,7 +1570,7 @@ namespace Opc.Ua.WotCon.Tests
                         "2.0.0")))
                 .ConfigureAwait(false);
 
-            await v2.SetDefaultVersionAsync("v2", expectedEpoch: 0)
+            await v2.SetDefaultVersionAsync("2.0.0", expectedEpoch: 0)
                 .ConfigureAwait(false);
             string v1Title = await ReadWotChildValueAsync<string>(
                     v1.ResourceNodeId,
@@ -1760,14 +1760,16 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = kind == WoTDocumentKindEnum.ThingModel
                 ? await client.CreateThingModelGroupAsync().ConfigureAwait(false)
                 : await client.CreateThingDescriptionGroupAsync().ConfigureAwait(false);
+            string versionId = kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1";
             WotRegistryResourceAllocation allocation = await group
-                .CreateDocumentResourceAsync("urn:uploaded:plan", "v1").ConfigureAwait(false);
+                .CreateDocumentResourceAsync("urn:uploaded:plan", versionId).ConfigureAwait(false);
             WotRegistryResourceClient resource = allocation.Version;
             string rootType = kind == WoTDocumentKindEnum.ThingModel ? "tm:ThingModel" : "Thing";
             string json = "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                 "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"," +
                 "\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"}]," +
                 "\"@type\":[\"" + rootType + "\",\"uav:projection\"]," +
+                (kind == WoTDocumentKindEnum.ThingModel ? "\"version\":{\"model\":\"1.0.0\"}," : string.Empty) +
                 "\"id\":\"urn:uploaded:plan\",\"title\":\"Plan\",\"uav:scenario\":\"urn:scenario\"," +
                 "\"uav:projects\":[{\"uav:sourceName\":\"source\",\"href\":\"urn:source\"," +
                 "\"type\":\"application/td+json\",\"uav:selectAll\":true}]}";
@@ -1776,7 +1778,7 @@ namespace Opc.Ua.WotCon.Tests
             await resource.Proxy.UploadAsync(content).ConfigureAwait(false);
 
             WotResource stored = m_registry.Current.FindResource(group.GroupId, resource.ResourceId)!;
-            WotResourceVersion version = stored.FindVersion("v1")!;
+            WotResourceVersion version = stored.FindVersion(versionId)!;
             Assert.That(stored.SourceId, Is.EqualTo("urn:uploaded:plan"));
             Assert.That(stored.Kind, Is.EqualTo(kind));
             Assert.That(version.Format, Is.EqualTo(kind == WoTDocumentKindEnum.ThingModel
@@ -2487,7 +2489,7 @@ namespace Opc.Ua.WotCon.Tests
         {
             return Encoding.UTF8.GetBytes(
                 "{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\"," +
-                "\"@type\":\"tm:ThingModel\",\"id\":\"" +
+                "\"@type\":\"tm:ThingModel\",\"version\":{\"model\":\"1.0.0\"},\"id\":\"" +
                 id +
                 "\"," +
                 "\"title\":\"" +

@@ -101,7 +101,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             {
                 GroupId = WotRegistryGroups.ThingModels,
                 ResourceId = "reading-types",
-                VersionId = "v1",
+                VersionId = "1.0.0",
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(System.Text.Encoding.UTF8.GetBytes($$"""
                 {
@@ -113,6 +113,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     }
                   ],
                   "@type": "tm:ThingModel",
+                  "version": {"model": "1.0.0"},
                   "id": "urn:r30:types",
                   "title": "Reading types",
                   "uav:dataTypeDefinitions": [{
@@ -352,6 +353,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         "types": "urn:r30:cycle:"
                       },
                       "@type": "tm:ThingModel",
+                      "version": {"model": "1.0.0"},
                       "id": "urn:r30:document-{{{name}}}",
                       "uav:dataTypeDefinitions": [{
                         "@id": "urn:r30:{{{name}}}",
@@ -673,6 +675,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             byte[] document = System.Text.Encoding.UTF8.GetBytes($$"""
                 {
                   "@type": "tm:ThingModel",
+                  "version": {"model": "1.0.0"},
                   "id": "urn:self",
                   "properties": { "Value": { "tm:ref": "{{reference}}" } },
                   "events": {

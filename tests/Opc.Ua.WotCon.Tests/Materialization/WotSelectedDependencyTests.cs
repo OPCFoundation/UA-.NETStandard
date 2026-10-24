@@ -61,17 +61,17 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task IncompatibleDependencyVersionPinsAreRejectedBeforeAcquisition(bool twoDependencies)
         {
             await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
-            WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "v1");
-            await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "v2");
+            WotResource model = await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "1.0.0");
+            await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel, "2.0.0");
             WotResource a = await fixture.RegisterAsync("a", content:
-                TestMaterialization.Td("urn:a", extendsHrefs: model.Xid + "/versions/v1"));
+                TestMaterialization.Td("urn:a", extendsHrefs: model.Xid + "/versions/1.0.0"));
             WotResource other = twoDependencies
                 ? await fixture.RegisterAsync("c", content:
-                    TestMaterialization.Td("urn:c", extendsHrefs: model.Xid + "/versions/v2"))
+                    TestMaterialization.Td("urn:c", extendsHrefs: model.Xid + "/versions/2.0.0"))
                 : fixture.Registry.Current.FindResource(model.GroupId, model.ResourceId)!;
             var request = new WotRefreshRequest
             {
-                Selection = [Select(a).Selection[0], Select(other, twoDependencies ? "v1" : "v2").Selection[0]]
+                Selection = [Select(a).Selection[0], Select(other, twoDependencies ? "v1" : "2.0.0").Selection[0]]
             };
             await Assert.ThatAsync(() => fixture.Coordinator.CaptureAsync(request).AsTask(),
                 Throws.TypeOf<ServiceResultException>()
@@ -736,10 +736,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             public async Task<WotResource> RegisterAsync(
                 string resourceId,
                 WoTDocumentKindEnum kind = WoTDocumentKindEnum.ThingDescription,
-                string versionId = "v1",
+                string? versionId = null,
                 byte[]? content = null,
                 string? groupId = null)
             {
+                versionId ??= kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1";
                 WotRegistryMutationResult result = await Registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = groupId ?? (kind == WoTDocumentKindEnum.ThingModel ? "models" : "things"),

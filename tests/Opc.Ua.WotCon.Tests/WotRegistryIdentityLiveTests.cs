@@ -292,10 +292,11 @@ namespace Opc.Ua.WotCon.Tests
         [TestCase(WoTDocumentKindEnum.ThingModel)]
         public async Task ReturnedHandleIsSessionOwnedAndCleanReopenPreservesCommittedBytes(WoTDocumentKindEnum kind)
         {
+            string versionId = kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1";
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(kind, "urn:catalogue")
                 .ConfigureAwait(false);
             WotRegistryResourceAllocation allocation = await group.CreateDocumentResourceAsync(
-                "urn:thing", "v1", requestFileOpen: true).ConfigureAwait(false);
+                "urn:thing", versionId, requestFileOpen: true).ConfigureAwait(false);
             Assert.That(allocation.FileHandle, Is.Not.Zero);
             Assert.That(await allocation.Version.Proxy.GetPositionAsync(allocation.FileHandle)
                 .ConfigureAwait(false), Is.Zero);
@@ -312,19 +313,19 @@ namespace Opc.Ua.WotCon.Tests
                     .ConfigureAwait(false)))!;
             Assert.That(ownership.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             WotUpsertResourceRequest request = WotRegistryIdentityTests.Request(
-                m_registry.Current.FindGroup(group.GroupId)!, allocation.Version.ResourceId, "urn:thing", "v1");
+                m_registry.Current.FindGroup(group.GroupId)!, allocation.Version.ResourceId, "urn:thing", versionId);
             await allocation.Version.Proxy.WriteAsync(allocation.FileHandle, request.Content).ConfigureAwait(false);
             await allocation.Version.Proxy.CloseAsync(allocation.FileHandle).ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
             int writes = m_store.Blobs.Writes;
             (WotRegistryResourceAllocation reopened, bool createdResource, bool createdVersion) =
-                await group.GetOrCreateDocumentResourceAsync("urn:thing", "v1", requestFileOpen: true)
+                await group.GetOrCreateDocumentResourceAsync("urn:thing", versionId, requestFileOpen: true)
                     .ConfigureAwait(false);
             Assert.That(await reopened.Version.Proxy.GetPositionAsync(reopened.FileHandle)
                 .ConfigureAwait(false), Is.Zero);
             await reopened.Version.Proxy.CloseAsync(reopened.FileHandle).ConfigureAwait(false);
             (WotRegistryResourceAllocation nonTruncating, _, _) =
-                await group.GetOrCreateDocumentResourceAsync("urn:thing", "v1", requestFileOpen: true)
+                await group.GetOrCreateDocumentResourceAsync("urn:thing", versionId, requestFileOpen: true)
                     .ConfigureAwait(false);
             await nonTruncating.Version.Proxy.WriteAsync(nonTruncating.FileHandle, ByteString.From("{"u8.ToArray()))
                 .ConfigureAwait(false);
@@ -388,19 +389,19 @@ namespace Opc.Ua.WotCon.Tests
             WotRegistryGroupClient group = await m_client.CreateDocumentGroupAsync(
                 WoTDocumentKindEnum.ThingModel, "urn:models").ConfigureAwait(false);
             WotRegistryResourceAllocation first = await group.CreateThingModelResourceAsync(
-                "urn:thing", "v1", requestFileOpen: true).ConfigureAwait(false);
+                "urn:thing", "1.0.0", requestFileOpen: true).ConfigureAwait(false);
             WotResourceGroup storedGroup = m_registry.Current.FindGroup(group.GroupId)!;
             ByteString original = WotRegistryIdentityTests.Request(
-                storedGroup, first.Version.ResourceId, "urn:thing", "v1").Content;
+                storedGroup, first.Version.ResourceId, "urn:thing", "1.0.0").Content;
             await first.Version.Proxy.WriteAsync(first.FileHandle, original).ConfigureAwait(false);
             await first.Version.Proxy.CloseAsync(first.FileHandle).ConfigureAwait(false);
             WotRegistrySnapshot before = m_registry.Current;
             int writes = m_store.Blobs.Writes;
             (WotRegistryResourceAllocation replacement, _, _) =
-                await group.GetOrCreateThingModelResourceAsync("urn:thing", "v1", requestFileOpen: true)
+                await group.GetOrCreateThingModelResourceAsync("urn:thing", "1.0.0", requestFileOpen: true)
                     .ConfigureAwait(false);
             ByteString other = WotRegistryIdentityTests.Request(
-                storedGroup, first.Version.ResourceId, "urn:other", "v1").Content;
+                storedGroup, first.Version.ResourceId, "urn:other", "1.0.0").Content;
             await replacement.Version.Proxy.WriteAsync(replacement.FileHandle, other).ConfigureAwait(false);
 
             ServiceResultException rejected = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
