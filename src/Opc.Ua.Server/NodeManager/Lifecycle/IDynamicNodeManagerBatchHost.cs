@@ -38,7 +38,6 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
     /// <param name="Removed">The node managers removed by the batch.</param>
-    /// <param name="ImmediateRetirements">The removed managers that retire without draining.</param>
     /// <param name="RoutingRevision">The routing image the batch was prepared against.</param>
     /// <param name="TypeTree">The candidate type tree.</param>
     /// <param name="OriginalTypes">The type tree the batch was prepared against.</param>
@@ -56,7 +55,6 @@ namespace Opc.Ua.Server
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
-        ArrayOf<IAsyncNodeManager> ImmediateRetirements,
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
         TypeTable TypeTree,
         TypeTable OriginalTypes,

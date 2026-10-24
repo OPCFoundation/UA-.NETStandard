@@ -162,7 +162,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
-                context.PinRouting(previous);
+                using OperationContext.RoutingScope routingScope = context.UseRouting(previous);
                 Assert.That(CreateReadImageSource(table, firstPermanent).Object.GetReadImage(context, firstPermanent),
                     Is.SameAs(readImage));
                 var routing = table.GetDispatchView(previous);

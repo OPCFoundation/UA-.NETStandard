@@ -647,6 +647,88 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(entries.DisposeCount, Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies an opaque DirectoryBrowser continuation is rejected once its generation retires.
+        /// </summary>
+        [Test]
+        public async Task DispatcherRejectsRetiredDirectoryBrowserContinuationWithoutAdvancingCursorAsync()
+        {
+            var entries = new CountingEntries(53);
+            SetEntries(entries);
+            m_provider.Setup(value => value.GetEntryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Returns((string path, CancellationToken _) =>
+                {
+                    int index = path.Length == 0
+                        ? 0
+#if NET8_0_OR_GREATER
+                        : int.Parse(path.AsSpan("entry-".Length), CultureInfo.InvariantCulture);
+#else
+                        : int.Parse(path.Substring("entry-".Length), CultureInfo.InvariantCulture);
+#endif
+                    return new ValueTask<FileSystemEntry?>(new FileSystemEntry(
+                        path, path, path.Length == 0 || index % 2 == 0, index, false,
+                        new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), string.Empty));
+                });
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            m_server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            m_server.Object.TypeTree.AddReferenceSubtype(
+                ReferenceTypeIds.References, NodeId.Null, new QualifiedName(BrowseNames.References));
+            m_server.Object.TypeTree.AddReferenceSubtype(
+                ReferenceTypeIds.HasComponent, ReferenceTypeIds.References, new QualifiedName(BrowseNames.HasComponent));
+            await using var master = new MasterNodeManager(
+                m_server.Object,
+                new ApplicationConfiguration
+                {
+                    ServerConfiguration = new ServerConfiguration { MaxBrowseContinuationPoints = 10 }
+                },
+                null,
+                m_manager);
+            var points = new SessionContinuationPoints(() => new NodeId(99, 1), 10, 10, null);
+            var session = new Mock<ISession>();
+            session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+            session.SetupGet(value => value.ContinuationPoints).Returns(points);
+            using var context = new OperationContext(
+                new RequestHeader(), null!, RequestType.Browse, RequestLifetime.None, session.Object);
+            try
+            {
+                (ArrayOf<BrowseResult> results, _) = await master.BrowseAsync(
+                    context,
+                    new ViewDescription(),
+                    1,
+                    [
+                        new BrowseDescription
+                        {
+                            NodeId = m_directory.NodeId,
+                            BrowseDirection = BrowseDirection.Forward,
+                            ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                            ResultMask = (uint)BrowseResultMask.All
+                        }
+                    ]).ConfigureAwait(false);
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(results[0].References.Count, Is.EqualTo(1));
+                Assert.That(results[0].ContinuationPoint.IsEmpty, Is.False);
+                int cursorPosition = entries.MoveNextCount;
+
+                NodeManagerGenerationRegistry.GetOrCreate(m_manager).Gate.Retire();
+
+                (ArrayOf<BrowseResult> stale, _) = await master.BrowseNextAsync(
+                    context, false, [results[0].ContinuationPoint]).ConfigureAwait(false);
+
+                Assert.That(stale[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(stale[0].References, Is.Empty);
+                Assert.That(entries.MoveNextCount, Is.EqualTo(cursorPosition));
+                Assert.That(entries.DisposeCount, Is.EqualTo(1));
+            }
+            finally
+            {
+                points.Clear();
+            }
+        }
+
         private void SetEntries(CountingEntries entries)
         {
             m_provider.Setup(value => value.EnumerateAsync(string.Empty, It.IsAny<CancellationToken>()))

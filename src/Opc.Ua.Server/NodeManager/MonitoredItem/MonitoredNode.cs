@@ -142,7 +142,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the NodeManager which the MonitoredNode belongs to.
         /// </summary>
-        public IAsyncNodeManager NodeManager { get; set; }
+        public IAsyncNodeManager NodeManager
+        {
+            get => m_nodeManager;
+            set
+            {
+                m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
+                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+            }
+        }
+
+        /// <summary>
+        /// Gets the non-owning identity of the generation currently bound to this monitored node.
+        /// </summary>
+        internal NodeManagerGenerationReference Generation { get; private set; } = null!;
 
         /// <summary>
         /// Gets or sets the Node being monitored.
@@ -395,7 +408,7 @@ namespace Opc.Ua.Server
             MasterNodeManager.NotificationDispatchLease? emission = null;
             try
             {
-                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
+                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission, Generation))
                 {
                     return;
                 }
@@ -501,7 +514,7 @@ namespace Opc.Ua.Server
             MasterNodeManager.NotificationDispatchLease? emission = null;
             try
             {
-                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission))
+                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission, Generation))
                 {
                     // A cut-off source still retires the items this change would have reached, in
                     // channel order so snapshots captured before the cutoff are delivered first.
@@ -1748,7 +1761,7 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -1976,6 +1989,7 @@ namespace Opc.Ua.Server
 
         private ServerSystemContext? m_subscriberContextTemplate;
         private readonly IServerInternal m_server;
+        private IAsyncNodeManager m_nodeManager = null!;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger? m_logger;
         private readonly Channel<INodeNotification> m_channel;

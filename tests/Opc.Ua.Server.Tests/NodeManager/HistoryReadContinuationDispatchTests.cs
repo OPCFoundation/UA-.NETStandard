@@ -138,12 +138,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task FaultedRequestKeepsClientSuppliedContinuationPoint()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
-            var continued = new TrackingPoint();
-            harness.Points.SaveHistory(continued);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+            (ArrayOf<HistoryReadResult> initial, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            TrackingPoint continued = created[0];
             harness.RestoreSaveThenThrow();
 
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false));
+                async () => await harness.ReadAsync(1, initial[0].ContinuationPoint).ConfigureAwait(false));
 
             Assert.That(continued.Disposed, Is.False);
             Assert.That(harness.Points.RestoreHistory(ToByteString(continued.Id)), Is.SameAs(continued));
@@ -157,12 +159,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task FaultedRequestKeepsAssignedClientSuppliedContinuationPointAsync()
         {
             using var harness = new HistoryHarness(maxHistory: 10);
-            var continued = new TrackingPoint();
-            harness.Points.SaveHistory(continued);
+            var created = new List<TrackingPoint>();
+            harness.SaveForEveryOperation(created);
+            (ArrayOf<HistoryReadResult> initial, _) = await harness.ReadAsync(1).ConfigureAwait(false);
+            TrackingPoint continued = created[0];
             harness.RestoreSaveAssignThenThrow();
 
             await Assert.ThrowsAsync<OperationCanceledException>(
-                async () => await harness.ReadAsync(1, ToByteString(continued.Id)).ConfigureAwait(false))
+                async () => await harness.ReadAsync(1, initial[0].ContinuationPoint).ConfigureAwait(false))
                 .ConfigureAwait(false);
 
             Assert.That(continued.Disposed, Is.False);

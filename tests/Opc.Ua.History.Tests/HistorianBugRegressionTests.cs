@@ -714,8 +714,7 @@ namespace Opc.Ua.History.Tests
         /// </summary>
         private sealed class StreamingPageProvider :
             HistorianProviderBase,
-            IHistorianDataProvider,
-            IHistorianContinuationDependencies
+            IHistorianDataProvider
         {
             /// <summary>
             /// Gets the fixed UTC start of the controlled raw-history range.
@@ -726,16 +725,6 @@ namespace Opc.Ua.History.Tests
             /// Gets the number of raw pages requested by the dispatcher.
             /// </summary>
             public int ReadCount { get; private set; }
-
-            /// <inheritdoc/>
-            public bool TryGetContinuationDependencies(
-                NodeId sourceNodeId,
-                HistorianResumeToken resumeToken,
-                out ArrayOf<NodeId> dependencies)
-            {
-                dependencies = [];
-                return true;
-            }
 
             /// <summary>
             /// Returns two bounding points on the first page and an empty terminal page on continuation.

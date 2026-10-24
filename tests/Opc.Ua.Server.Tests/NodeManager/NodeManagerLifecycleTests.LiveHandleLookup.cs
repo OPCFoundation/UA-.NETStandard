@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using (var context = new OperationContext(
                     new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
                 {
-                    context.PinRouting(table.Revision);
+                    context.PinRouting(table);
                     NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                     registration = await m_server.NodeManagerLifecycle
                         .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null, timeout.Token)
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Call, RequestLifetime.None))
             {
-                context.PinRouting(table.Revision);
+                context.PinRouting(table);
                 NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 bool known = await master.IsNodeMaterializedAsync(ObjectIds.ObjectsFolder, timeout.Token)
                     .ConfigureAwait(false);

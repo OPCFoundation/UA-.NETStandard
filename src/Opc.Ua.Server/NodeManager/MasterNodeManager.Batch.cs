@@ -90,7 +90,6 @@ namespace Opc.Ua.Server
 
             ArrayOf<PreparedNodeManager> candidates = context.Candidates;
             ArrayOf<IAsyncNodeManager> removed = context.Removed;
-            ArrayOf<IAsyncNodeManager> immediateRetirements = context.ImmediateRetirements;
             NodeManagerRoutingTable.RoutingSnapshot routingRevision = context.RoutingRevision;
             TypeTable typeTree = context.TypeTree;
             TypeTable originalTypes = context.OriginalTypes;
@@ -174,8 +173,6 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
-                        using PreparedSourceEmissionCutoff emissions =
-                            PrepareSourceEmissionCutoff(immediateRetirements);
                         cancellationToken.ThrowIfCancellationRequested();
                         if (decideAsync is null)
                         {
@@ -202,7 +199,7 @@ namespace Opc.Ua.Server
                         {
                             update.Remove();
                         }
-                        emissions.Publish(routes);
+                        routes.Publish();
                         foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                         {
                             update.Complete();

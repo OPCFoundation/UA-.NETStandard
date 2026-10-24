@@ -216,7 +216,7 @@ An admitted request owns its routing view on `OperationContext`, before applicat
 Dispatch and permission lookups use that explicit view; completing the request releases it. Independent
 background work does not inherit the request's routes through `ExecutionContext`: contextless master lookups
 read live routes, and internal subscriber contexts are not permanently pinned. Browse and history continuation
-resumes temporarily select their issuing view and restore the request's view afterward. Metadata lookups
+resumes validate the issuing generation and resolve later-page targets through the request's current view. Metadata lookups
 use shared additive type and encodeable registrations, not request-selected metadata images.
 
 Application-state providers implement `INodeManagerReadImageSource` for live reads. Request-aware consumers call
@@ -943,9 +943,8 @@ subscriptions:
 | `ShadowReloadAsync` | Items stay on the retired generation and keep sampling; only new items use the replacement. | Old subscriptions must keep the old model until they drain. Runs two generations at once. |
 | `ImmediateReloadAsync` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
-Browse continuation points that captured a retired generation are invalidated after the request
-drain in normal and immediate reload; shadow reload retains them (see
-[Continuation points](#continuation-points)).
+Browse continuation points issued by a retired generation are invalid as soon as its gate closes
+(see [Continuation points](#continuation-points)).
 
 #### MonitoredItems
 
@@ -969,35 +968,21 @@ Subscription). An implementation the server cannot migrate safely fails with
 
 #### Continuation points
 
-A Client may page through a large Browse or HistoryRead result while you reload the NodeManager that
-produced it. A saved continuation point keeps its issuing NodeManager, and every old NodeManager
-that owns a reference target it still needs (matched by exact NodeId), alive until it is released.
-Each page uses the original model and is checked against the Session's current permissions; new
-requests use the active generation. A paged HistoryRead keeps its exact provider, source Node and
-query, and another Session cannot consume the token.
+A continuation point carries a weak identity for the generation that issued it; it does not keep
+that generation, its NodeManager, or its routing view alive. `BrowseNext` and `HistoryRead` resume
+only while the issuing generation's gate is open. After retirement closes that gate, the server
+returns `BadContinuationPointInvalid` and disposes the saved cursor. An already-admitted request
+may finish on its pinned immutable view, but a later page resolves target nodes through that
+request's current view. The Session's current permissions are checked on every page, and another
+Session cannot consume its token.
 
-Retention ends on the last page, an explicit release, cache eviction, a failed or cancelled
-`BrowseNext`, or Session close. A retired NodeManager is deleted only after its MonitoredItems,
-continuation points and in-flight requests have finished. A normal or immediate reload or removal
-instead invalidates every continuation point that needs the removed manager; `BrowseNext` then
-returns `BadContinuationPointInvalid`. Shutdown discards saved continuation points.
-
-Custom parts, each only needed if you replace the built-in one:
-
-- **Lazy browser:** pagination does not require a dependency declaration. When
-  `IBrowseContinuationDependencies` can declare every remaining target, the server retains only
-  their exact owners and the issuing manager. Otherwise it conservatively retains the issuing
-  routing view until the continuation ends, without eagerly enumerating the browser. This also
-  supports the file-system `DirectoryBrowser`. A declaration is an optional retention optimization,
-  not a prerequisite for paged Browse. Without one, an open continuation can delay retirement of
-  unrelated managers in that issuing view until it is completed, released, or evicted.
-- **Dynamic history provider:** implement `IHistorianContinuationDependencies` and declare the extra
-  local Nodes a later page needs. A missing declaration returns `BadNotSupported` with no partial
-  data. See [historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).
-- **Session cache:** use the cache `Session` supplies for dynamic history; a replacement is rejected
-  with `BadNotSupported`. A custom Browse cache implements `ISessionContinuationPointLifecycle` and
-  checks `ContinuationPoint.RequiresManager`, not only `Manager`. If it cannot answer, graceful
-  cleanup refuses to delete the manager and reports `CleanupFailure` without rolling back.
+Retirement waits for request-view epochs and generation-gated background work, not saved
+continuation points. Releasing a point, cache eviction, cancellation, or Session close still
+disposes its cursor state. Paged Browse does not require pre-enumerating targets or declaring
+dependencies; the file-system `DirectoryBrowser` continues to use ordinary cursor pagination.
+History providers likewise need not capture or declare NodeManager dependencies; pages from a
+retired generation are rejected rather than preserving access to its provider. See
+[historian pagination](HistoricalAccess.md#read-pagination--historianresumetoken-and-historianpaget).
 
 A replicated history record lets a standby clean up the original Session's state but cannot resume
 the read; the Client gets `BadContinuationPointInvalid` and starts a new read.

@@ -281,10 +281,10 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that browse cleanup matches the underlying synchronous manager across different adapter instances.
+        /// Verifies that browse cleanup does not confuse distinct adapter generations sharing a synchronous manager.
         /// </summary>
         [Test]
-        public void RemoveBrowseForManagerMatchesBySyncNodeManagerWhenManagerInstancesDiffer()
+        public void RemoveBrowseForManagerDoesNotMatchByUnderlyingSyncNodeManager()
         {
             SessionContinuationPoints holder = NewHolder();
             INodeManager sharedSyncManager = new Mock<INodeManager>().Object;
@@ -297,7 +297,7 @@ namespace Opc.Ua.Server.Tests
 
             holder.RemoveBrowseForManager(lookupManager);
 
-            Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
+            Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.SameAs(cp));
         }
 
         /// <summary>

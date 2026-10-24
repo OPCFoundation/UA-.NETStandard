@@ -32,49 +32,31 @@ using System.Threading;
 
 namespace Opc.Ua.Server
 {
-    /// <summary>
-    /// Service-dispatch surface of <see cref="MasterNodeManager"/>: the OPC UA session
-    /// service entry points and the protected helpers derived classes build on. The
-    /// implementations live in <see cref="NodeManagerServiceDispatcher"/>, which reads
-    /// the routing snapshot and never touches lifecycle coordination state; the members
-    /// here stay on <see cref="MasterNodeManager"/> so overrides, protected access, and
-    /// the public API surface are unchanged.
-    /// </summary>
     public partial class MasterNodeManager
     {
         /// <summary>
-        /// Determines whether the node manager may currently emit source notifications.
+        /// Determines whether a source generation may currently emit notifications.
         /// </summary>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <param name="includeCaptured">The include-captured flag supplied by the caller.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="includeCaptured">Whether an already admitted source emission is allowed.</param>
+        /// <returns><c>true</c> when the source generation is live or already admitted.</returns>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager, bool includeCaptured = true)
         {
             if (includeCaptured && HasCapturedSourceEmission(nodeManager))
             {
                 return true;
             }
-            // The table holds the one state of the node manager; the cutoff only clears its flag.
-            if (!m_notificationDispatchStateTable.TryGetValue(
-                nodeManager,
-                out NotificationDispatchState? state))
-            {
-                return true;
-            }
-            if (state.TryGetBusinessEmissionsEnabled(out bool enabled))
-            {
-                return enabled;
-            }
-            // A cutoff is publishing its routes: answer after it, together with the routes.
-            lock (m_retiredGenerationNotificationsLock)
-            {
-                return state.BusinessEmissionsEnabled;
-            }
+            return m_nodeManagers.Revision.TryGetGeneration(
+                    nodeManager,
+                    out NodeManagerGeneration? generation) &&
+                generation!.Gate.State == NodeManagerGenerationState.Live;
         }
 
         /// <summary>
-        /// Determines whether the current execution context holds a captured emission for the node manager.
+        /// Determines whether this execution context holds an emission for the given generation.
         /// </summary>
-        /// <param name="nodeManager">The node manager.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <returns><c>true</c> when the source emission was admitted before retirement.</returns>
         internal bool HasCapturedSourceEmission(IAsyncNodeManager nodeManager)
         {
             return m_currentSourceEmission.Value is { IsActive: true } captured &&
@@ -82,57 +64,72 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Captures a source emission lease for the node manager when emissions are enabled.
+        /// Enters the source generation gate for one notification emission.
         /// </summary>
         /// <param name="server">The server internal.</param>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <param name="emission">The notification dispatch lease.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="emission">The generation lease, when admitted.</param>
+        /// <param name="generationReference">The exact bound generation for an item emission, if known.</param>
+        /// <returns><c>true</c> when the generation accepted the emission.</returns>
         internal static bool TryCaptureSourceEmission(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
-            out NotificationDispatchLease? emission)
+            out NotificationDispatchLease? emission,
+            NodeManagerGenerationReference? generationReference = null)
         {
             emission = null;
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
             }
-            // Forwarding a source event through the Server object must retain its original owner.
+
+            NodeManagerGeneration generation;
             if (ReferenceEquals(nodeManager, master.CoreNodeManager) &&
                 master.m_currentSourceEmission.Value is { IsActive: true } captured)
             {
-                nodeManager = captured.NodeManager;
+                generation = captured.Generation;
             }
-            // Every data change and event captures a lease, so the common case (emissions enabled,
-            // no drain waiting) is counted per processor instead of under the master's lock.
-            NotificationDispatchState fastState = master.GetNotificationDispatchState(nodeManager);
-            if (fastState.TryAdmitFast(out int slot, out bool releaseRequired))
+            else if (generationReference is not null)
             {
-                emission = new NotificationDispatchLease(master, nodeManager, fastState, [], slot);
-                return true;
-            }
-            if (releaseRequired)
-            {
-                master.CompleteNotificationDispatchDrain(fastState);
-            }
-            lock (master.m_retiredGenerationNotificationsLock)
-            {
-                NotificationDispatchState state = master.GetOrCreateNotificationDispatchState(nodeManager);
-                if (!state.BusinessEmissionsEnabled && !master.HasCapturedSourceEmission(nodeManager))
+                if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
+                    boundGeneration is null ||
+                    !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
                 {
                     return false;
                 }
-                emission = master.CreateNotificationDispatch(nodeManager, state, null);
-                return true;
+                generation = boundGeneration;
             }
+            else
+            {
+                if (!master.m_nodeManagers.Revision.TryGetGeneration(
+                        nodeManager,
+                        out NodeManagerGeneration? currentGeneration))
+                {
+                    return false;
+                }
+                generation = currentGeneration!;
+            }
+            if (!generation.Gate.TryEnter(out int slot))
+            {
+                return false;
+            }
+
+            emission = new NotificationDispatchLease(
+                master,
+                generation,
+                master.GetNotificationDispatchState(generation),
+                [],
+                slot);
+            return true;
         }
 
         /// <summary>
-        /// Admits creation of a custom source for the node manager.
+        /// Admits creation of a custom source while its generation remains live.
         /// </summary>
         /// <param name="server">The server internal.</param>
-        /// <param name="nodeManager">The node manager.</param>
-        /// <param name="admission">The disposable admission scope, or <c>null</c> when none is required.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="admission">The generation lease, or null when no master gate applies.</param>
+        /// <returns><c>true</c> when creation was admitted.</returns>
         internal static bool TryBeginCustomSourceCreation(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
@@ -143,18 +140,25 @@ namespace Opc.Ua.Server
             {
                 return true;
             }
-            lock (master.m_retiredGenerationNotificationsLock)
+
+            if (!master.m_nodeManagers.Revision.TryGetGeneration(
+                    nodeManager,
+                    out NodeManagerGeneration? generation))
             {
-                NotificationDispatchState state = master.GetOrCreateNotificationDispatchState(nodeManager);
-                if (state.EmissionCutoffReservations != 0 || !state.BusinessEmissionsEnabled)
-                {
-                    return false;
-                }
-                state.CustomSourceCreations++;
-                admission = new CustomSourceCreation(
-                    master, master.CreateNotificationDispatch(nodeManager, state, null));
-                return true;
+                return false;
             }
+            NodeManagerGeneration currentGeneration = generation!;
+            if (!currentGeneration.Gate.TryEnter(out int slot))
+            {
+                return false;
+            }
+            admission = new NotificationDispatchLease(
+                master,
+                currentGeneration,
+                master.GetNotificationDispatchState(currentGeneration),
+                [],
+                slot);
+            return true;
         }
 
         private SourceEmissionScope EnterSourceEmission(NotificationDispatchLease emission)
@@ -164,59 +168,13 @@ namespace Opc.Ua.Server
             return new SourceEmissionScope(this, previous);
         }
 
-        private PreparedSourceEmissionCutoff PrepareSourceEmissionCutoff(
-            ArrayOf<IAsyncNodeManager> nodeManagers)
-        {
-            if (nodeManagers.Count > 0)
-            {
-                if (CoreNodeManager is not Opc.Ua.Server.CoreNodeManager)
-                {
-                    throw new NotSupportedException(
-                        "The configured Core provider cannot service immediately retired monitored items.");
-                }
-                foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
-                {
-                    if (subscription.MonitoredItemCount > 0 && subscription is not ISubscriptionMonitoredItemLifecycle)
-                    {
-                        throw new NotSupportedException(
-                            "The configured subscription cannot retain immediately retired monitored-item identities.");
-                    }
-                }
-            }
-            var states = new NotificationDispatchState[nodeManagers.Count];
-            lock (m_retiredGenerationNotificationsLock)
-            {
-                for (int index = 0; index < nodeManagers.Count; index++)
-                {
-                    IAsyncNodeManager manager = nodeManagers[index];
-                    if (manager is not AsyncCustomNodeManager { SupportsSourceEmissionCutoff: true })
-                    {
-                        throw new NotSupportedException(
-                            "Immediate batch retirement requires the stock source and monitored-item emission paths.");
-                    }
-                    NotificationDispatchState state = GetOrCreateNotificationDispatchState(manager);
-                    if (state.CustomSourceCreations != 0)
-                    {
-                        throw new NotSupportedException(
-                            "A custom source factory is still establishing its emission ownership.");
-                    }
-                    states[index] = state;
-                }
-                foreach (NotificationDispatchState state in states)
-                {
-                    state.EmissionCutoffReservations++;
-                }
-            }
-            return new PreparedSourceEmissionCutoff(this, states);
-        }
-
         private readonly AsyncLocal<NotificationDispatchLease?> m_currentSourceEmission = new();
 
         /// <summary>
-        /// Restores the previously captured source emission when disposed.
+        /// Restores the previous admitted source emission when disposed.
         /// </summary>
         /// <param name="owner">The master node manager.</param>
-        /// <param name="previous">The notification dispatch lease.</param>
+        /// <param name="previous">The previous source emission.</param>
         internal readonly struct SourceEmissionScope(
             MasterNodeManager owner,
             NotificationDispatchLease? previous) : IDisposable
@@ -225,69 +183,6 @@ namespace Opc.Ua.Server
             public void Dispose()
             {
                 owner.m_currentSourceEmission.Value = previous;
-            }
-        }
-
-        private sealed class CustomSourceCreation : IDisposable
-        {
-            /// <summary>
-            /// Initializes a new <c>CustomSourceCreation</c> instance.
-            /// </summary>
-            /// <param name="owner">The master node manager used to initialize the instance.</param>
-            /// <param name="dispatch">The dispatch used to initialize the instance.</param>
-            public CustomSourceCreation(MasterNodeManager owner, NotificationDispatchLease dispatch)
-            {
-                m_owner = owner;
-                m_dispatch = dispatch;
-            }
-
-            public void Dispose()
-            {
-                MasterNodeManager? current = Interlocked.Exchange(ref m_owner, null);
-                if (current is not null)
-                {
-                    lock (current.m_retiredGenerationNotificationsLock)
-                    {
-                        m_dispatch.DispatchState.CustomSourceCreations--;
-                    }
-                    m_dispatch.Dispose();
-                }
-            }
-
-            private MasterNodeManager? m_owner;
-            private readonly NotificationDispatchLease m_dispatch;
-        }
-
-        private sealed class PreparedSourceEmissionCutoff(
-            MasterNodeManager owner,
-            NotificationDispatchState[] states) : IDisposable
-        {
-            /// <summary>
-            /// Publishes the prepared routes under the source admission cutoff.
-            /// </summary>
-            /// <param name="routes">The prepared routes.</param>
-            public void Publish(NodeManagerRoutingTable.PreparedRoutes routes)
-            {
-                // Source admission observes the same switch, never a per-manager drain or callback.
-                lock (owner.m_retiredGenerationNotificationsLock)
-                {
-                    routes.Publish();
-                    foreach (NotificationDispatchState state in states)
-                    {
-                        state.BusinessEmissionsEnabled = false;
-                    }
-                }
-            }
-
-            public void Dispose()
-            {
-                lock (owner.m_retiredGenerationNotificationsLock)
-                {
-                    foreach (NotificationDispatchState state in states)
-                    {
-                        state.EmissionCutoffReservations--;
-                    }
-                }
             }
         }
     }

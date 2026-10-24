@@ -261,6 +261,11 @@ namespace Opc.Ua.Server
         public ChangePreparer? Preparation { get; set; }
 
         /// <summary>
+        /// Gets or sets the exact generation identity assigned to this prepared NodeManager.
+        /// </summary>
+        public NodeManagerGeneration? Generation { get; set; }
+
+        /// <summary>
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }

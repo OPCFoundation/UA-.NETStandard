@@ -48,9 +48,8 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Verifies that raw-history continuation state round-trips through the codec.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task RawContinuationRoundTripsAsync(bool captured)
+        [Test]
+        public async Task RawContinuationRoundTripsAsync()
         {
             NodeId nodeId = new("Historized", 1);
             PortableProvider provider = new("shared-historian");
@@ -58,12 +57,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 CreateCodec(out NamespaceTable namespaceUris);
             registry.RegisterForNode(nodeId, provider);
             using HistorianContinuationState original = CreateRawState(nodeId, provider);
-            var source = new Mock<IAsyncNodeManager>();
-            if (captured)
-            {
-                original.Ownership.Manager = source.Object;
-                original.Ownership.SetDependencyOwners([source.Object]);
-            }
             var store = new Mock<IHistoryContinuationPointStore>();
             NodeId sessionId = new(Guid.NewGuid());
             store.Setup(value => value.TryTakeAsync(
@@ -81,7 +74,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 It.Is<HistoryContinuationPointEnvelope>(payload =>
                     payload.Id == original.Id && payload.OwnerSessionId == sessionId),
                 It.IsAny<CancellationToken>()), Times.Once);
-            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
 
             HistoryContinuationPointEnvelope? envelope = await codec.EncodeAsync(
                 new NodeId(Guid.NewGuid()),
@@ -106,10 +98,6 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(state.RawRequest.MaxValues, Is.EqualTo(17));
             Assert.That(state.RawRequest.IsForward, Is.True);
             Assert.That(state.RawRequest.ReturnBounds, Is.True);
-            Assert.That(state.Ownership.HasCapturedDependencies, Is.False);
-            Assert.That(state.Ownership.Manager, Is.Null);
-            Assert.That(state.Ownership.RoutingSnapshot, Is.Null);
-            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
             state.Dispose();
             ByteString token = original.Id.ToByteArray().ToByteString();
             Assert.That(points.RestoreHistory(token), Is.Null);
@@ -117,7 +105,6 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(claimed, Is.SameAs(original));
             store.Verify(value => value.TryTakeAsync(
                 sessionId, original.Id, It.IsAny<CancellationToken>()), Times.Once);
-            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
             using (SessionContinuationPoints.HistoryReadScope read = points.BeginHistoryRead(token, claimed))
             {
                 Assert.That(read.Point, Is.SameAs(original));
@@ -129,26 +116,18 @@ namespace Opc.Ua.Server.Tests.Historian
                     sessionId, original.Id, It.IsAny<CancellationToken>()), Times.Once);
             }
             points.Clear();
-            Assert.That(points.HasHistoryForManager(source.Object), Is.False);
         }
 
         /// <summary>
         /// Verifies that nonportable continuation state is not encoded.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task NonPortableContinuationIsNotEncodedAsync(bool captured)
+        [Test]
+        public async Task NonPortableContinuationIsNotEncodedAsync()
         {
             NodeId nodeId = new("Historized", 1);
             var provider = new PortableProvider("local-historian", portable: false);
             (HistorianContinuationPointCodec codec, _) = CreateCodec(out NamespaceTable namespaceUris);
             using HistorianContinuationState state = CreateRawState(nodeId, provider);
-            var source = new Mock<IAsyncNodeManager>();
-            if (captured)
-            {
-                state.Ownership.Manager = source.Object;
-                state.Ownership.SetDependencyOwners([source.Object]);
-            }
 
             HistoryContinuationPointEnvelope? envelope = await codec.EncodeAsync(
                 new NodeId(Guid.NewGuid()),
@@ -168,13 +147,10 @@ namespace Opc.Ua.Server.Tests.Historian
             await points.SaveHistoryAsync(state).ConfigureAwait(false);
             store.Verify(value => value.StoreAsync(
                 It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
-            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
             Assert.That(
                 await points.RestoreHistoryAsync(state.Id.ToByteArray().ToByteString()).ConfigureAwait(false),
                 Is.SameAs(state));
-            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
             state.Dispose();
-            Assert.That(points.HasHistoryForManager(source.Object), Is.False);
             points.Clear();
         }
 
@@ -322,20 +298,13 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Verifies that buffered processed-history continuations are not encoded as portable state.
         /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task BufferedProcessedContinuationIsNotEncodedAsync(bool captured)
+        [Test]
+        public async Task BufferedProcessedContinuationIsNotEncodedAsync()
         {
             NodeId nodeId = new("Historized", 1);
             PortableProvider provider = new("shared-historian");
             (HistorianContinuationPointCodec codec, _) = CreateCodec();
             using HistorianContinuationState state = CreateRawState(nodeId, provider);
-            var source = new Mock<IAsyncNodeManager>();
-            if (captured)
-            {
-                state.Ownership.Manager = source.Object;
-                state.Ownership.SetDependencyOwners([source.Object]);
-            }
             state.BufferedProcessedOutputs =
                 new HistorianBufferedProcessedPayload([]);
 

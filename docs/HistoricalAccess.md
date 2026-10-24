@@ -646,11 +646,12 @@ Pagination rules:
 4. **Do not** put live resources (cursors, transactions, connections) into a token. The token is retained server-side behind the wire continuation identifier and can outlive the originating task. Encode just enough state (typically the next timestamp or a keyset offset) to resume cleanly.
 
 The default Session cache retains a history continuation while it is saved or
-being used by a request. Each resumed read uses the original provider, source,
-query, timestamp selection, index range, data encoding and event filter. The
-server checks the calling Session's current permissions on every page. For
-Annotations reads, it also remembers the requested Property separately from
-the provider's source Variable.
+being used by a request. Its state includes the provider cursor and the original
+query parameters. A continuation records only a weak identity for its issuing
+NodeManager generation; it does not keep that generation alive. Every resumed
+read checks the caller's current permissions, and a continuation from a retired
+generation returns `BadContinuationPointInvalid`. For Annotations reads, the
+requested Property is remembered separately from the provider's source Variable.
 
 Clients use the continuation identifier returned by the latest response.
 Completion is indicated by an empty continuation identifier, not by the number
@@ -664,31 +665,13 @@ finished. Clients therefore check both the operation status and the returned
 continuation identifier, rather than treating an empty values array as failure
 or as completion by itself.
 
-When a source participates in dynamic NodeManager retirement, paginated providers additionally
-implement `IHistorianContinuationDependencies`. Its `TryGetContinuationDependencies` method
-returns an `ArrayOf<NodeId>` containing all additional local Nodes needed by this token and
-every successor page. The server records which NodeManager instance serves
-each declared Node when it creates the first continuation. Later pages use
-those same instances, even after a replacement model starts serving new
-requests. Returning `true` with an empty array means that no additional
-NodeManager is needed. Returning `false` rejects pagination with
-`BadNotSupported` and no partial result. Declare all dependencies, not only
-those needed for the next page. Register or construct the provider normally.
-There is no separate continuation registry.
-
-`InMemoryHistorianProvider` implements this interface. A custom provider needs
-it for paginated reads from dynamically managed Nodes, but not for unpaged reads
-or sources outside the dynamic lifecycle. Use the continuation cache supplied
-by `Session` for dynamic pagination. The dispatcher rejects a replacement cache
-with `BadNotSupported` before saving a dynamic continuation or returning partial
-data. Implementing `ISessionHistoryContinuationPointLifecycle` alone does not
-enable a replacement cache: that interface reports retained NodeManagers, but
-does not restore the original request's routing and type information.
-
-During graceful retirement, the server keeps the source and dependency
-NodeManagers alive until the final page, release, eviction, failed or cancelled
-read, or Session teardown releases the continuation. Immediate retirement
-invalidates its identifier. See
+Paginated providers do not declare NodeManager dependencies. A later page is
+admitted only while the issuing generation's gate is open; target resolution
+uses the current request view. Retirement closes the gate, so a stale identifier
+returns `BadContinuationPointInvalid` before the provider is called. The
+continuation cache supplied by `Session` stores state and disposes it on
+completion, release, eviction, cancellation, or Session teardown; it does not
+retain NodeManagers. See
 [NodeManager continuation points](NodeManagers.md#continuation-points).
 
 Replicated history continuation records let a standby identify and remove

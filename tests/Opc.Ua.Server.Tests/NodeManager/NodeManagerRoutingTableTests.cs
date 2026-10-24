@@ -105,7 +105,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 using var context = new OperationContext(
                     new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-                context.PinRouting(table.Revision);
+                context.PinRouting(table);
                 NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
                 table.Add(lifecycleManager, AddNamespaceIndexes);
                 if (completeAsynchronously)
@@ -133,7 +133,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager added = CreateManager();
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            using OperationContext.RoutingScope requestRouting = context.UseRouting(table.Revision);
+            context.PinRouting(table);
+            using OperationContext.RoutingScope requestRouting = context.UseRouting(context.RoutingSnapshot!);
             var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<(IAsyncNodeManager[] Routes, NodeManagerRoutingTable.RoutingSnapshot Metadata)> background =
@@ -173,10 +174,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            context.PinRouting(table.Revision);
+            context.PinRouting(table);
             NodeManagerRoutingTable.RoutingSnapshot original = context.RoutingSnapshot!;
             table.Add(CreateManager(), AddNamespaceIndexes);
-            context.PinRouting(table.Revision);
+            context.PinRouting(table);
             Assert.That(context.RoutingSnapshot, Is.SameAs(original), "A later dispatch must not repin the request.");
             using (context.UseRouting(table.Revision))
             {
@@ -462,6 +463,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 for (int iteration = 0; iteration < ReaderIterations; iteration++)
                 {
+                    var pinned = table.PinCurrent();
+                    try
+                    {
+                        var pinnedManagers = pinned.Snapshot.NodeManagers;
+                        if (pinnedManagers.Length != 3 ||
+                            !ReferenceEquals(pinnedManagers[0], firstPermanent) ||
+                            !ReferenceEquals(pinnedManagers[1], secondPermanent) ||
+                            (!ReferenceEquals(pinnedManagers[2], generationA) &&
+                                !ReferenceEquals(pinnedManagers[2], generationB)))
+                        {
+                            managerSnapshotFailures.Add(
+                                $"iteration {iteration}: pinned manager count {pinnedManagers.Length}");
+                        }
+                    }
+                    finally
+                    {
+                        pinned.Epoch.Exit(pinned.Slot);
+                    }
+
                     using IEnumerator<IAsyncNodeManager> managerSnapshot = table.GetEnumerator();
                     var managers = new List<IAsyncNodeManager>();
                     while (managerSnapshot.MoveNext())

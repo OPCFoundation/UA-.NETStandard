@@ -432,6 +432,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// A retired issuing generation rejects BrowseNext without invoking its manager callback.
+        /// </summary>
+        [Test]
+        public async Task RetiredIssuingGenerationRejectsBrowseNextWithoutManagerCallbackAsync()
+        {
+            using var harness = new BrowseHarness();
+            var resource = new Mock<IDisposable>();
+            ContinuationPoint point = harness.AddPoint(resource);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(harness.Manager.Object);
+            generation.Gate.Retire();
+
+            (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
+                harness.Context, false, [Token(point)]).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            harness.Manager.Verify(value => value.BrowseAsync(
+                It.IsAny<OperationContext>(),
+                It.IsAny<ContinuationPoint>(),
+                It.IsAny<IList<ReferenceDescription>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            resource.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
         /// Encodes a continuation identifier as the token supplied to BrowseNext.
         /// </summary>
         private static ByteString Token(ContinuationPoint point)
@@ -568,19 +593,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             private readonly MonitoredItemQueueFactory m_queues;
         }
 
-        private sealed class BrowseContinuationData : IDisposable, IBrowseContinuationDependencies
+        private sealed class BrowseContinuationData : IDisposable
         {
             public BrowseContinuationData(ExpandedNodeId targetId, IDisposable? resource = null)
             {
                 m_targetId = targetId;
                 m_resource = resource;
-            }
-
-            public bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
-            {
-                // This fixture's remaining pages all repeat the same reference without advancing here.
-                targetIds = [m_targetId];
-                return true;
             }
 
             public void Dispose()

@@ -819,15 +819,6 @@ namespace Opc.Ua.Server
         protected ConcurrentDictionary<uint, IMonitoredItem> MonitoredItems
             => m_monitoredItemManager.MonitoredItems;
 
-        /// <summary>
-        /// Gets whether the monitored-item manager and all current items support source-emission cutoff.
-        /// </summary>
-        internal bool SupportsSourceEmissionCutoff =>
-            (m_monitoredItemManager.GetType() == typeof(MonitoredNodeMonitoredItemManager) ||
-                m_monitoredItemManager.GetType() == typeof(SamplingGroupMonitoredItemManager)) &&
-            m_monitoredItemManager.MonitoredItems.Values.All(item =>
-                item is null || item.GetType() == typeof(MonitoredItem));
-
         /// <inheritdoc/>
         async ValueTask<IReadOnlyList<IMonitoredItem>>
             INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
@@ -11153,9 +11144,9 @@ namespace Opc.Ua.Server
 #pragma warning restore IDE1006 // Naming Styles
 
         /// <summary>
-        /// A wrapper for the browser that provides a lock.
+        /// A wrapper that serializes access to a resumable browser.
         /// </summary>
-        private class BrowserContext : IDisposable, IBrowseContinuationDependencies
+        private class BrowserContext : IDisposable
         {
             /// <summary>
             /// Gets the browser retained by the continuation point.
@@ -11173,22 +11164,6 @@ namespace Opc.Ua.Server
             public BrowserContext(INodeBrowser browser)
             {
                 Browser = browser;
-            }
-
-            /// <summary>
-            /// Gets the node identifiers the retained browser depends on, when the browser declares them.
-            /// </summary>
-            /// <param name="targetIds">Receives the dependency identifiers, or the default value when the browser
-            /// declares none.</param>
-            /// <returns>True if the browser declared its dependencies; otherwise false.</returns>
-            public bool TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds)
-            {
-                if (Browser is IBrowseContinuationDependencies dependencies)
-                {
-                    return dependencies.TryGetContinuationDependencies(out targetIds);
-                }
-                targetIds = default;
-                return false;
             }
 
             /// <summary>

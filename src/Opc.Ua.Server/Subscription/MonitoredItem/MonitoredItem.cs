@@ -388,7 +388,8 @@ namespace Opc.Ua.Server
         private void Initialize()
         {
             m_server = null!;
-            NodeManager = null!;
+            m_nodeManager = null!;
+            Generation = null;
             ManagerHandle = null!;
             SubscriptionId = 0;
             Id = 0;
@@ -415,7 +416,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The node manager that created the item.
         /// </summary>
-        public IAsyncNodeManager NodeManager { get; private set; }
+        public IAsyncNodeManager NodeManager
+        {
+            get => m_nodeManager;
+            private set
+            {
+                m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
+                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+            }
+        }
+
+        /// <summary>
+        /// Gets the non-owning identity of the generation currently bound to this monitored item.
+        /// </summary>
+        internal NodeManagerGenerationReference? Generation { get; private set; }
 
         /// <summary>
         /// Gets the metadata snapshot of the source node captured when the item was created or last rebound, which
@@ -1571,7 +1585,7 @@ namespace Opc.Ua.Server
             bool ignoreFilters,
             bool initialValue)
         {
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -1947,7 +1961,7 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -2053,7 +2067,7 @@ namespace Opc.Ua.Server
         /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -3341,6 +3355,7 @@ namespace Opc.Ua.Server
         private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
+        private IAsyncNodeManager m_nodeManager = null!;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;

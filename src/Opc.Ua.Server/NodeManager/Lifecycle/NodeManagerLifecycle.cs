@@ -717,10 +717,9 @@ namespace Opc.Ua.Server
 
                         try
                         {
-                            await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                            await WaitForGenerationAdmissionsOutsideLifecycleSemaphoreAsync(
                                     server,
-                                    host,
-                                    state.Prepared.NodeManager)
+                                    state.Registration.Identity)
                                 .ConfigureAwait(false);
                             ValidateRemovalClaim(
                                 registration,
@@ -728,9 +727,10 @@ namespace Opc.Ua.Server
                                 "The registration was replaced while notifications drained.");
                             InvalidateContinuationPoints(
                                 server,
-                                state.Prepared.NodeManager);
-                            await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                state.Registration.Identity);
+                            await DrainGenerationOutsideLifecycleSemaphoreAsync(
                                     server,
+                                    state.Registration.Identity,
                                     ct)
                                 .ConfigureAwait(false);
                             EnsureSameRunningServer(
@@ -743,7 +743,7 @@ namespace Opc.Ua.Server
                                 "The registration was replaced while removal requests drained.");
                             InvalidateContinuationPoints(
                                 server,
-                                state.Prepared.NodeManager);
+                                state.Registration.Identity);
 
                             // A request routed before the unpublish can still have created a
                             // monitored item on this manager while the drain waited for it.
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server
                                     .ConfigureAwait(false);
                                 rollbackBindings = await BindToServerAsync(
                                     server,
-                                    state.Prepared.NodeManager,
+                                    state.Registration.Identity,
                                     callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                                 await CommitWithReconciliationAsync(
@@ -800,10 +800,6 @@ namespace Opc.Ua.Server
                                 host.SetRetiredGenerationNotifications(
                                     state.Prepared.NodeManager,
                                     enabled: true);
-                                await DrainRequestsOutsideLifecycleSemaphoreAsync(
-                                        server,
-                                        CancellationToken.None)
-                                    .ConfigureAwait(false);
                                 EnsureSameRunningServer(
                                     server,
                                     host,
@@ -998,6 +994,7 @@ namespace Opc.Ua.Server
                 ChangePreparer.Attach(nodeManager, stagingServer);
                 prepared = await host.PrepareAsync(nodeManager, ct).ConfigureAwait(false);
                 prepared.Preparation = preparation;
+                prepared.Generation = NodeManagerGenerationRegistry.CreateAddition(nodeManager);
 
                 await ValidateDataTypeCompatibilityAsync(stagingServer, nodeManager, ct)
                     .ConfigureAwait(false);
@@ -1007,7 +1004,7 @@ namespace Opc.Ua.Server
                     .ConfigureAwait(false);
                 ServerBindings bindings = await BindToServerAsync(
                     server,
-                    nodeManager,
+                    prepared.Generation,
                     callerContext,
                     ct).ConfigureAwait(false);
                 await host.PublishAsync(prepared, ct).ConfigureAwait(false);
@@ -1046,10 +1043,6 @@ namespace Opc.Ua.Server
                 }
                 committed = true;
 
-                await DrainRequestsOutsideLifecycleSemaphoreAsync(
-                        server,
-                        CancellationToken.None)
-                    .ConfigureAwait(false);
                 EnsureSameRunningServer(
                     server,
                     host,
@@ -1122,7 +1115,7 @@ namespace Opc.Ua.Server
                             ServerBindings recoveryBindings =
                                 await BindToServerAsync(
                                     server,
-                                    nodeManager,
+                                    retainedRegistration.Identity,
                                     callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
                             await ReconcileBindingsAsync(
@@ -1131,8 +1124,9 @@ namespace Opc.Ua.Server
                                 recoveryBindings,
                                 callerContext,
                                 CancellationToken.None).ConfigureAwait(false);
-                            await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                            await DrainGenerationOutsideLifecycleSemaphoreAsync(
                                     server,
+                                    retainedRegistration.Identity,
                                     CancellationToken.None)
                                 .ConfigureAwait(false);
                             EnsureSameRunningServer(
@@ -1368,9 +1362,12 @@ namespace Opc.Ua.Server
                     .RefreshComplexTypesAsync(
                         stagingServer, replacementManager, publishResolver: false, cancellationToken: ct)
                     .ConfigureAwait(false);
+                replacement.Generation = NodeManagerGenerationRegistry.CreateReplacement(
+                    current.Registration.Identity,
+                    replacementManager);
                 ServerBindings bindings = await BindToServerAsync(
                     server,
-                    replacementManager,
+                    replacement.Generation,
                     callerContext,
                     ct).ConfigureAwait(false);
 
@@ -1416,7 +1413,7 @@ namespace Opc.Ua.Server
                 }
 
                 var retired = new RetiredNodeManager(
-                    current.Prepared.NodeManager,
+                    current.Registration.Identity,
                     droppedInboundReferences,
                     needsDetachment: true,
                     allowActiveMonitoredItems: deferForActiveMonitoredItems,
@@ -1453,10 +1450,9 @@ namespace Opc.Ua.Server
                     retired.DrainPending = true;
                     try
                     {
-                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
+                        await WaitForGenerationAdmissionsOutsideLifecycleSemaphoreAsync(
                                 server,
-                                host,
-                                retired.NodeManager)
+                                retired.Generation)
                             .ConfigureAwait(false);
                         if (deferForActiveMonitoredItems &&
                             HasRetainedUses(server, retired.NodeManager))
@@ -1470,7 +1466,7 @@ namespace Opc.Ua.Server
                         }
                         else if (!deferForActiveMonitoredItems)
                         {
-                            InvalidateContinuationPoints(server, retired.NodeManager);
+                            InvalidateContinuationPoints(server, retired.Generation);
                         }
                     }
                     catch
@@ -1495,8 +1491,9 @@ namespace Opc.Ua.Server
                 Exception? postCommitFailure = null;
                 try
                 {
-                    await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                    await DrainGenerationOutsideLifecycleSemaphoreAsync(
                             server,
+                            current.Registration.Identity,
                             CancellationToken.None)
                         .ConfigureAwait(false);
                     EnsureSameRunningServer(
@@ -1673,7 +1670,7 @@ namespace Opc.Ua.Server
                                     allowRequestCallback);
                             m_retiredNodeManagers.Add(
                                 new RetiredNodeManager(
-                                    current.Prepared.NodeManager,
+                                    current.Registration.Identity,
                                     droppedInboundReferences,
                                     needsDetachment: true,
                                     allowActiveMonitoredItems: deferForActiveMonitoredItems,
@@ -1688,7 +1685,7 @@ namespace Opc.Ua.Server
                                 ServerBindings recoveryBindings =
                                     await BindToServerAsync(
                                         server,
-                                        replacementManager,
+                                        retainedRegistration.Identity,
                                         callerContext,
                                         CancellationToken.None).ConfigureAwait(false);
                                 await ReconcileBindingsAsync(
@@ -1697,8 +1694,9 @@ namespace Opc.Ua.Server
                                     recoveryBindings,
                                     callerContext,
                                     CancellationToken.None).ConfigureAwait(false);
-                                await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                                await DrainGenerationOutsideLifecycleSemaphoreAsync(
                                         server,
+                                        current.Registration.Identity,
                                         CancellationToken.None)
                                     .ConfigureAwait(false);
                                 EnsureSameRunningServer(
@@ -1905,27 +1903,7 @@ namespace Opc.Ua.Server
                 throw new NotSupportedException(
                     "The configured master NodeManager does not support live lifecycle operations.");
             }
-            if (host is MasterNodeManager master)
-            {
-                master.SetHistoryContinuationLifecycle(this);
-            }
             return (server, host);
-        }
-
-        /// <summary>
-        /// Determines whether the specified node manager is a registered or retired history source owned by this
-        /// lifecycle.
-        /// </summary>
-        /// <param name="nodeManager">The node manager to look up.</param>
-        /// <returns>True if the lifecycle owns the node manager.</returns>
-        internal bool OwnsHistorySource(IAsyncNodeManager nodeManager)
-        {
-            lock (m_registrationLock)
-            {
-                return m_registrations.Values.Any(
-                    state => ReferenceEquals(state.Registration.NodeManager, nodeManager)) ||
-                    m_retiredNodeManagers.Exists(state => ReferenceEquals(state.NodeManager, nodeManager));
-            }
         }
 
         /// <summary>
@@ -2085,20 +2063,36 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Releases the lifecycle semaphore for a request drain and always reacquires it
-        /// before returning. Callers must revalidate every server or registration state
-        /// that can change while the semaphore is released.
+        /// Releases the lifecycle semaphore while one retired generation's view epochs and
+        /// background admissions drain, then reacquires it before returning.
         /// </summary>
-        private async ValueTask DrainRequestsOutsideLifecycleSemaphoreAsync(
+        private async ValueTask DrainGenerationOutsideLifecycleSemaphoreAsync(
             IServerInternal server,
+            NodeManagerGeneration generation,
             CancellationToken ct)
         {
             m_lifecycleSemaphore.Release();
             try
             {
-                await server.RequestManager
-                    .WaitForCurrentRequestsAsync(ct)
+                await generation.WaitForQuiescenceAsync(ct)
                     .ConfigureAwait(false);
+            }
+            finally
+            {
+                await m_lifecycleSemaphore
+                    .WaitAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask WaitForGenerationAdmissionsOutsideLifecycleSemaphoreAsync(
+            IServerInternal server,
+            NodeManagerGeneration generation)
+        {
+            m_lifecycleSemaphore.Release();
+            try
+            {
+                await generation.Gate.WaitForDrainAsync().ConfigureAwait(false);
             }
             finally
             {
@@ -2119,40 +2113,6 @@ namespace Opc.Ua.Server
             {
                 await host
                     .FinalizeRetiredGenerationNotificationsAsync(
-                        nodeManager,
-                        CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-            finally
-            {
-                await m_lifecycleSemaphore
-                    .WaitAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
-            }
-
-            if (!TryGetRunningServer(
-                out IServerInternal currentServer,
-                out IDynamicNodeManagerHost currentHost,
-                allowShuttingDown) ||
-                !ReferenceEquals(currentServer, server) ||
-                !ReferenceEquals(currentHost, host))
-            {
-                throw new InvalidOperationException(
-                    "The running server changed while notification dispatches drained.");
-            }
-        }
-
-        private async ValueTask WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
-            IServerInternal server,
-            IDynamicNodeManagerHost host,
-            IAsyncNodeManager nodeManager,
-            bool allowShuttingDown = false)
-        {
-            m_lifecycleSemaphore.Release();
-            try
-            {
-                await host
-                    .WaitForNotificationDispatchesAsync(
                         nodeManager,
                         CancellationToken.None)
                     .ConfigureAwait(false);
@@ -2649,53 +2609,26 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Determines whether a retired node manager is still used by monitored items or by Browse and HistoryRead
-        /// continuation points of any session.
+        /// Determines whether a retired node manager is still used by monitored items.
         /// </summary>
         /// <param name="server">The running server.</param>
         /// <param name="nodeManager">The retired node manager.</param>
-        /// <returns>True if the node manager is still retained.</returns>
+        /// <returns>True if monitored items still use the node manager.</returns>
         private bool HasRetainedUses(IServerInternal server, IAsyncNodeManager nodeManager)
         {
-            if (HasActiveMonitoredItems(server, nodeManager))
-            {
-                return true;
-            }
-            foreach (ISession session in server.SessionManager.GetSessions())
-            {
-                if (session.ContinuationPoints is not ISessionContinuationPointLifecycle owner)
-                {
-                    throw new NotSupportedException(
-                        "The configured session cannot verify Browse continuation ownership.");
-                }
-                owner.BrowseContinuationPointsReleased -= ScheduleRetiredGenerationDrainCleanup;
-                owner.BrowseContinuationPointsReleased += ScheduleRetiredGenerationDrainCleanup;
-                if (session.ContinuationPoints is not ISessionHistoryContinuationPointLifecycle historyOwner)
-                {
-                    throw new NotSupportedException(
-                        "The configured session cannot verify HistoryRead continuation ownership.");
-                }
-                historyOwner.HistoryContinuationPointsReleased -= ScheduleRetiredGenerationDrainCleanup;
-                historyOwner.HistoryContinuationPointsReleased += ScheduleRetiredGenerationDrainCleanup;
-                if (historyOwner.HasHistoryForManager(nodeManager))
-                {
-                    return true;
-                }
-                if (owner.HasBrowseForManager(nodeManager))
-                {
-                    return true;
-                }
-            }
-            return false;
+            return HasActiveMonitoredItems(server, nodeManager);
         }
 
         private static void InvalidateContinuationPoints(
             IServerInternal server,
-            IAsyncNodeManager nodeManager)
+            NodeManagerGeneration generation)
         {
             foreach (ISession session in server.SessionManager.GetSessions())
             {
-                session.ContinuationPoints.RemoveForManager(nodeManager);
+                if (session.ContinuationPoints is SessionContinuationPoints points)
+                {
+                    points.RemoveForGeneration(generation);
+                }
             }
         }
 
@@ -2768,12 +2701,28 @@ namespace Opc.Ua.Server
                 : default;
         }
 
+        private static NodeManagerGeneration GetCurrentGeneration(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager)
+        {
+            if (server.NodeManager is MasterNodeManager master &&
+                master.TryGetCurrentGeneration(
+                    nodeManager,
+                    out NodeManagerGeneration? generation))
+            {
+                return generation!;
+            }
+            throw new InvalidOperationException(
+                "The NodeManager is not present in the current routing view.");
+        }
+
         private static async ValueTask<ServerBindings> BindToServerAsync(
             IServerInternal server,
-            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             IOperationContext? callerContext,
             CancellationToken ct)
         {
+            IAsyncNodeManager nodeManager = generation.NodeManager;
             var bindings = new ServerBindings();
             try
             {
@@ -2787,7 +2736,7 @@ namespace Opc.Ua.Server
 
                     SessionBinding? binding = await ActivateSessionAsync(
                         server,
-                        nodeManager,
+                        generation,
                         session,
                         ct).ConfigureAwait(false);
                     if (binding is not null)
@@ -2893,7 +2842,7 @@ namespace Opc.Ua.Server
 
                 SessionBinding? newBinding = await ActivateSessionAsync(
                     server,
-                    nodeManager,
+                    GetCurrentGeneration(server, nodeManager),
                     session,
                     ct).ConfigureAwait(false);
                 if (newBinding is not null)
@@ -3030,10 +2979,11 @@ namespace Opc.Ua.Server
 
         private static async ValueTask<SessionBinding?> ActivateSessionAsync(
             IServerInternal server,
-            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             ISession session,
             CancellationToken ct)
         {
+            IAsyncNodeManager nodeManager = generation.NodeManager;
             while (true)
             {
                 using var context = new OperationContext(session, DiagnosticsMasks.None);
@@ -3072,7 +3022,10 @@ namespace Opc.Ua.Server
                     server.SessionManager.GetSessions().Any(current =>
                         ReferenceEquals(current, session)))
                 {
-                    return new SessionBinding(session, identity);
+                    return new SessionBinding(
+                        session,
+                        identity,
+                        generation.Reference);
                 }
                 if (!session.Activated ||
                     session.IsClosing ||
@@ -3593,8 +3546,11 @@ namespace Opc.Ua.Server
                             prepared.NodeManager,
                             allowShuttingDown: true)
                         .ConfigureAwait(false);
-                    await DrainRequestsOutsideLifecycleSemaphoreAsync(
+                    await DrainGenerationOutsideLifecycleSemaphoreAsync(
                             server,
+                            prepared.Generation ??
+                                throw new InvalidOperationException(
+                                    "A published NodeManager has no generation identity."),
                             CancellationToken.None)
                         .ConfigureAwait(false);
                     EnsureSameRunningServer(
@@ -3836,13 +3792,6 @@ namespace Opc.Ua.Server
                     var drainReady = new List<RetiredNodeManager>();
                     foreach (RetiredNodeManager retiredNodeManager in claimed)
                     {
-                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
-                                server,
-                                host,
-                                retiredNodeManager.NodeManager,
-                                allowShuttingDown)
-                            .ConfigureAwait(false);
-
                         bool stillRetired;
                         lock (m_registrationLock)
                         {
@@ -3868,7 +3817,7 @@ namespace Opc.Ua.Server
                         {
                             InvalidateContinuationPoints(
                                 server,
-                                retiredNodeManager.NodeManager);
+                                retiredNodeManager.Generation);
                         }
                         drainReady.Add(retiredNodeManager);
                     }
@@ -3878,22 +3827,13 @@ namespace Opc.Ua.Server
                         return;
                     }
 
-                    m_lifecycleSemaphore.Release();
-                    try
-                    {
-                        await server.RequestManager
-                            .WaitForCurrentRequestsAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        await m_lifecycleSemaphore
-                            .WaitAsync(CancellationToken.None)
-                            .ConfigureAwait(false);
-                    }
-
                     foreach (RetiredNodeManager retiredNodeManager in drainReady)
                     {
+                        await DrainGenerationOutsideLifecycleSemaphoreAsync(
+                                server,
+                                retiredNodeManager.Generation,
+                                CancellationToken.None)
+                            .ConfigureAwait(false);
                         retiredNodeManager.RequestsDrained = true;
                     }
 
@@ -4046,7 +3986,7 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "A retired NodeManager cannot be detached before its requests drain.");
                 }
-                InvalidateContinuationPoints(server, retired.NodeManager);
+                InvalidateContinuationPoints(server, retired.Generation);
 
                 // A migrating reload moves its items at commit, but a request routed before
                 // the commit can still create one on the retired generation afterwards. If
@@ -4498,27 +4438,35 @@ namespace Opc.Ua.Server
         {
             public SessionBinding(
                 ISession session,
-                IUserIdentity identity)
+                IUserIdentity identity,
+                NodeManagerGenerationReference generation)
             {
                 Session = session;
                 Identity = identity;
+                Generation = generation;
             }
 
             public ISession Session { get; }
 
             public IUserIdentity Identity { get; }
+
+            /// <summary>
+            /// Gets the non-owning generation identity this session binding belongs to.
+            /// </summary>
+            public NodeManagerGenerationReference Generation { get; }
         }
 
         private sealed class RetiredNodeManager
         {
             public RetiredNodeManager(
-                IAsyncNodeManager nodeManager,
+                NodeManagerGeneration generation,
                 List<LocalReference> pendingReferences,
                 bool needsDetachment,
                 bool allowActiveMonitoredItems = false,
                 bool detachActiveMonitoredItems = false)
             {
-                NodeManager = nodeManager;
+                Generation = generation ?? throw new ArgumentNullException(nameof(generation));
+                NodeManager = generation.NodeManager;
                 PendingReferences = pendingReferences;
                 NeedsDetachment = needsDetachment;
                 AllowActiveMonitoredItems = allowActiveMonitoredItems;
@@ -4526,6 +4474,11 @@ namespace Opc.Ua.Server
             }
 
             public IAsyncNodeManager NodeManager { get; }
+
+            /// <summary>
+            /// Gets the exact generation whose view epochs and admitted callbacks must drain.
+            /// </summary>
+            public NodeManagerGeneration Generation { get; }
 
             public List<LocalReference> PendingReferences { get; }
 
@@ -4859,7 +4812,7 @@ namespace Opc.Ua.Server
                     if (entry.Current is not null)
                     {
                         retired.Add(new RetiredNodeManager(
-                            entry.Current.Prepared.NodeManager,
+                            entry.Current.Registration.Identity,
                             entry.DroppedReferences,
                             needsDetachment: true,
                             allowActiveMonitoredItems: !entry.Change.Immediate,
@@ -4883,8 +4836,6 @@ namespace Opc.Ua.Server
                     new NodeManagerBatchContext(
                         Candidates: candidates,
                         Removed: removed,
-                        ImmediateRetirements: retired.Where(generation => generation.DetachActiveMonitoredItems)
-                            .Select(generation => generation.NodeManager).ToArrayOf(),
                         RoutingRevision: batch.RoutingRevision,
                         TypeTree: batch.TypeTree,
                         OriginalTypes: batch.OriginalTypes,
@@ -5055,8 +5006,9 @@ namespace Opc.Ua.Server
                     try
                     {
                         // Cut off sources under publication admission, not the later request/destruction drain.
-                        await WaitForNotificationDispatchesOutsideLifecycleSemaphoreAsync(
-                            batch.Server, batch.Host, generation.NodeManager).ConfigureAwait(false);
+                        await WaitForGenerationAdmissionsOutsideLifecycleSemaphoreAsync(
+                            batch.Server,
+                            generation.Generation).ConfigureAwait(false);
                         await DetachActiveMonitoredItemsAsync(batch.Server, generation.NodeManager)
                             .ConfigureAwait(false);
                     }

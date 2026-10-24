@@ -3205,8 +3205,7 @@ namespace Opc.Ua.Server.Historian
                         nodeToRead.NodeId);
                 }
                 HistorianContinuationState claimedState = claim.State;
-                if (!claimedState.Ownership.HasCapturedDependencies &&
-                    !ReferenceEquals(claimedState.Provider, provider) &&
+                if (!ReferenceEquals(claimedState.Provider, provider) &&
                     (claimedState.Provider is not
                             IHistorianProviderIdentity savedIdentity ||
                         provider is not IHistorianProviderIdentity currentIdentity ||
@@ -3324,12 +3323,6 @@ namespace Opc.Ua.Server.Historian
                     admission = await master.CaptureHistoryContinuationAsync(
                         systemContext.OperationContext!, state, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsGood(admission) &&
-                        state.Ownership.HasCapturedDependencies &&
-                        continuationPoints is not SessionContinuationPoints)
-                    {
-                        admission = StatusCodes.BadNotSupported;
-                    }
                 }
                 if (ServiceResult.IsBad(admission))
                 {

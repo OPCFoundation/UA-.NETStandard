@@ -106,7 +106,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IRequestRouting.PinRequest(OperationContext context)
         {
-            context.PinRouting(m_nodeManagers.Revision);
+            context.PinRouting(m_nodeManagers);
         }
 
         /// <inheritdoc/>

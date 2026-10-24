@@ -206,6 +206,20 @@ namespace Opc.Ua.Server
         internal NodeManagerRoutingTable.RoutingSnapshot? RoutingSnapshot { get; private set; }
 
         /// <summary>
+        /// Gets whether this operation currently owns a routing-view pin.
+        /// </summary>
+        internal bool HasRoutingPin =>
+            Volatile.Read(ref m_routingPinState) == kRoutingPinActive;
+
+        /// <summary>
+        /// Gets whether this operation's pin protects the currently selected routing view.
+        /// </summary>
+        internal bool RoutingPinMatchesSnapshot =>
+            RoutingSnapshot is { } snapshot &&
+            HasRoutingPin &&
+            ReferenceEquals(Volatile.Read(ref m_routingEpoch), snapshot.Epoch);
+
+        /// <summary>
         /// The lifetime of the request.
         /// This object is used to track the lifetime of the request and to trigger cancellation if the client aborts the request or if the request times out.
         /// </summary>
@@ -399,19 +413,126 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    RoutingSnapshot = null;
-                    System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    try
+                    {
+                        ReleaseRoutingPin();
+                    }
+                    finally
+                    {
+                        RoutingSnapshot = null;
+                        System.Threading.Interlocked.Exchange(ref m_sessionlessLease, null)?.Dispose();
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Attaches the request's view before application admission or service callbacks run.
+        /// Pins the current routing view once for this request before admission or service callbacks run.
+        /// Subsequent calls are no-ops and do not replace the view.
         /// </summary>
-        /// <param name="snapshot">The current published view.</param>
-        internal void PinRouting(NodeManagerRoutingTable.RoutingSnapshot snapshot)
+        /// <param name="routingTable">The routing table providing the current published view.</param>
+        internal void PinRouting(NodeManagerRoutingTable routingTable)
         {
-            RoutingSnapshot ??= snapshot;
+            if (routingTable is null)
+            {
+                throw new ArgumentNullException(nameof(routingTable));
+            }
+            if (RoutingSnapshot is not null)
+            {
+                return;
+            }
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinActive)
+                {
+                    return;
+                }
+                if (state == kRoutingPinReleased)
+                {
+                    throw new ObjectDisposedException(nameof(OperationContext));
+                }
+                if (state == kRoutingPinAcquiring)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinAcquiring,
+                    kRoutingPinUnclaimed) == kRoutingPinUnclaimed)
+                {
+                    break;
+                }
+            }
+
+            AddressSpaceEpoch? epoch = null;
+            int slot = -1;
+            try
+            {
+                (NodeManagerRoutingTable.RoutingSnapshot snapshot, AddressSpaceEpoch pinnedEpoch, int pinSlot) =
+                    routingTable.PinCurrent();
+                epoch = pinnedEpoch;
+                slot = pinSlot;
+                m_routingEpoch = pinnedEpoch;
+                m_routingPinSlot = pinSlot;
+                RoutingSnapshot = snapshot;
+                Volatile.Write(ref m_routingPinState, kRoutingPinActive);
+            }
+            catch
+            {
+                if (epoch is not null && slot >= 0)
+                {
+                    epoch.Exit(slot);
+                }
+                m_routingEpoch = null;
+                m_routingPinSlot = -1;
+                RoutingSnapshot = null;
+                _ = Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinUnclaimed,
+                    kRoutingPinAcquiring);
+                throw;
+            }
+        }
+
+        private void ReleaseRoutingPin()
+        {
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                int state = Volatile.Read(ref m_routingPinState);
+                if (state == kRoutingPinReleased)
+                {
+                    return;
+                }
+                if (state == kRoutingPinAcquiring)
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (Interlocked.CompareExchange(
+                    ref m_routingPinState,
+                    kRoutingPinReleased,
+                    state) != state)
+                {
+                    continue;
+                }
+                if (state == kRoutingPinActive)
+                {
+                    AddressSpaceEpoch? epoch = m_routingEpoch;
+                    int slot = m_routingPinSlot;
+                    m_routingEpoch = null;
+                    m_routingPinSlot = -1;
+                    if (epoch is null || slot < 0)
+                    {
+                        throw new InvalidOperationException("An active routing pin has no epoch slot.");
+                    }
+                    epoch.Exit(slot);
+                }
+                return;
+            }
         }
 
         /// <summary>
@@ -679,10 +800,17 @@ namespace Opc.Ua.Server
         private IDisposable? m_requestScope;
         private RequestManager? m_requestCompletion;
         private IDisposable? m_sessionlessLease;
+        private AddressSpaceEpoch? m_routingEpoch;
+        private int m_routingPinSlot = -1;
+        private int m_routingPinState;
         private SystemContextCacheEntry? m_systemContextCache;
         private NamespaceDefaultPermissions[]? m_defaultPermissions;
         private bool m_defaultPermissionCacheDisabled;
         private static uint s_lastRequestId;
+        private const int kRoutingPinUnclaimed = 0;
+        private const int kRoutingPinAcquiring = 1;
+        private const int kRoutingPinActive = 2;
+        private const int kRoutingPinReleased = 3;
     }
 
     /// <summary>

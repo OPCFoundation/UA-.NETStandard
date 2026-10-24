@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
-                context.PinRouting(table.Revision);
+                context.PinRouting(table);
                 var next = new TestReadImage(owner, 2);
                 using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [], retire ? [owner] : [], table.Revision, _ => InitialNamespaceIndexes,
@@ -71,9 +71,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var previous = new TestReadImage(owner, 1);
             var next = new TestReadImage(owner, 2);
             PublishReadImage(table, previous);
-            NodeManagerRoutingTable.RoutingSnapshot captured = table.Revision;
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            context.PinRouting(captured);
+            context.PinRouting(table);
+            NodeManagerRoutingTable.RoutingSnapshot captured = context.RoutingSnapshot!;
             Mock<INodeManagerReadImageSource> source = CreateReadImageSource(table, owner);
 
             using (NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 PublishReadImage(table, previous);
             }
             using var pinned = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
-            pinned.PinRouting(table.Revision);
+            pinned.PinRouting(table);
             var next = new TestReadImage(owner, 2);
             PublishReadImage(table, next);
             Mock<INodeManagerReadImageSource> source = CreateReadImageSource(table, owner);
@@ -183,7 +183,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (var context = new OperationContext(
                 new RequestHeader(), null, RequestType.Read, RequestLifetime.None))
             {
-                context.PinRouting(table.Revision);
+                context.PinRouting(table);
                 using (NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [], [], table.Revision, _ => InitialNamespaceIndexes,
                     new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),

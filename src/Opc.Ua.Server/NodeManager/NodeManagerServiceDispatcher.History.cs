@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
             HistorianContinuationState state,
             CancellationToken cancellationToken)
         {
-            if (state.Ownership.HasCapturedDependencies)
+            if (state.Ownership.Generation is not null)
             {
                 return ServiceResult.Good;
             }
@@ -102,54 +102,7 @@ namespace Opc.Ua.Server
             {
                 return StatusCodes.BadNodeIdUnknown;
             }
-            ArrayOf<NodeId> dependencies = [];
-            if (state.Provider is IHistorianContinuationDependencies declaration)
-            {
-                if (!declaration.TryGetContinuationDependencies(state.NodeId, state.ResumeToken, out dependencies))
-                {
-                    return ServiceResult.Create(StatusCodes.BadNotSupported,
-                        "The historian cannot declare its complete continuation dependencies.");
-                }
-            }
-            else if (m_owner.RequiresHistoryContinuationOwnership(source))
-            {
-                return ServiceResult.Create(StatusCodes.BadNotSupported,
-                    "A dynamic historian source requires complete continuation dependencies.");
-            }
-            else
-            {
-                return ServiceResult.Good;
-            }
-
-            var owners = new List<IAsyncNodeManager> { source };
-            HashSet<NodeId> nodeIds = [state.NodeId, .. dependencies];
-            foreach (NodeId nodeId in nodeIds)
-            {
-                if (nodeId.IsNull)
-                {
-                    return ServiceResult.Create(StatusCodes.BadNotSupported,
-                        "A history continuation dependency must identify a local Node.");
-                }
-                (object? target, IAsyncNodeManager? manager) = await GetManagerHandleAsync(
-                    context, nodeId, cancellationToken).ConfigureAwait(false);
-                if (target is null || manager is null)
-                {
-                    return ServiceResult.Create(StatusCodes.BadNodeIdUnknown,
-                        "A history continuation dependency has no captured owner.");
-                }
-                if (!owners.Exists(owner => ReferenceEquals(owner, manager)))
-                {
-                    owners.Add(manager);
-                }
-            }
-            if (!owners.Exists(m_owner.RequiresHistoryContinuationOwnership))
-            {
-                return ServiceResult.Good;
-            }
-            ArrayOf<IAsyncNodeManager> retained = [.. owners];
-            state.Ownership.Manager = source;
-            state.Ownership.SetDependencyOwners(retained);
-            state.Ownership.RoutingSnapshot = GetRouting(context).ForContinuation(retained);
+            state.Ownership.Generation = GetGeneration(context, source).Reference;
             return ServiceResult.Good;
         }
 
@@ -187,6 +140,14 @@ namespace Opc.Ua.Server
                 single.AggregateType = [processed.AggregateType[index]];
                 details = single;
             }
+            if (release)
+            {
+                return (
+                    new HistoryReadResult(),
+                    holder.ReleaseHistory(node.ContinuationPoint)
+                        ? ServiceResult.Good
+                        : StatusCodes.BadContinuationPointInvalid);
+            }
             IHistoryContinuationPoint? point = await holder.RestoreHistoryAsync(
                 node.ContinuationPoint, cancellationToken).ConfigureAwait(false);
             using SessionContinuationPoints.HistoryReadScope use = holder.BeginHistoryRead(node.ContinuationPoint, point);
@@ -198,42 +159,60 @@ namespace Opc.Ua.Server
                 return (result, StatusCodes.BadContinuationPointInvalid);
             }
             var state = use.Point as HistorianContinuationState;
-            using OperationContext.RoutingScope continuationRouting =
-                CaptureRouting(context, state?.Ownership.RoutingSnapshot);
-            ServiceResult? error = await ValidateHistoryReadRequestAsync(context, node, cancellationToken)
-                .ConfigureAwait(false);
-            if (ServiceResult.IsBad(error))
+            NodeManagerGenerationReference? generationReference =
+                state?.Ownership.Generation ?? holder.GetHistoryGeneration(use.Point);
+            if (generationReference is null ||
+                !generationReference.TryGetGeneration(out NodeManagerGeneration? generation) ||
+                generation is null)
             {
-                return (result, error!);
+                return (result, StatusCodes.BadContinuationPointInvalid);
             }
+            using GenerationGate.Lease? generationLease = TryEnterHistoryContinuation(generation);
+            if (generationLease is null)
+            {
+                return (result, StatusCodes.BadContinuationPointInvalid);
+            }
+            using (generationLease)
+            {
+                ServiceResult? error = await ValidateHistoryReadRequestAsync(context, node, cancellationToken)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(error))
+                {
+                    return (result, error!);
+                }
 
-            node.Processed = false;
-            var results = new List<HistoryReadResult> { result };
-            var errors = new List<ServiceResult> { ServiceResult.Good };
-            try
-            {
-                if (state?.Ownership.RoutingSnapshot is not null)
+                node.Processed = false;
+                var results = new List<HistoryReadResult> { result };
+                var errors = new List<ServiceResult> { ServiceResult.Good };
+                try
                 {
-                    await state.Ownership.Manager.HistoryReadAsync(
-                        context, details, timestampsToReturn, release, [node], results, errors, cancellationToken)
-                        .ConfigureAwait(false);
+                    await generation.NodeManager.HistoryReadAsync(
+                        context,
+                        details,
+                        timestampsToReturn,
+                        release,
+                        [node],
+                        results,
+                        errors,
+                        cancellationToken).ConfigureAwait(false);
+                    return (results[0] ?? result, node.Processed ? errors[0] : StatusCodes.BadNodeIdUnknown);
                 }
-                else
+                catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
-                    foreach (IAsyncNodeManager manager in GetRouting(context).VisibleNodeManagers)
-                    {
-                        await manager.HistoryReadAsync(
-                            context, details, timestampsToReturn, release, [node], results, errors, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
+                    ReleaseFailedHistoryResults(context, [node], results, failure);
+                    throw;
                 }
-                return (results[0] ?? result, node.Processed ? errors[0] : StatusCodes.BadNodeIdUnknown);
             }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                ReleaseFailedHistoryResults(context, [node], results, failure);
-                throw;
-            }
+        }
+
+        /// <summary>
+        /// Enters a history cursor's issuing generation for the duration of a resumed read.
+        /// </summary>
+        /// <param name="generation">The cursor's issuing generation.</param>
+        /// <returns>A generation lease while it remains live, or null after retirement.</returns>
+        private static GenerationGate.Lease? TryEnterHistoryContinuation(NodeManagerGeneration generation)
+        {
+            return generation.Gate.TryEnter(out GenerationGate.Lease? lease) ? lease : null;
         }
 
         /// <summary>

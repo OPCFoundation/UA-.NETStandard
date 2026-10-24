@@ -108,8 +108,12 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            OperationContext.RoutingScope scope = context.UseRouting(snapshot ?? GetRouting(context));
-            return scope;
+            if (snapshot is null)
+            {
+                context.PinRouting(m_nodeManagers);
+                snapshot = GetRouting(context);
+            }
+            return context.UseRouting(snapshot);
         }
 
         /// <summary>
@@ -956,11 +960,12 @@ namespace Opc.Ua.Server
                     ServiceResult error = ServiceResult.Good;
                     try
                     {
-                        NodeManagerRoutingTable.RoutingSnapshot continuationSnapshot =
-                            cp?.RoutingSnapshot ?? GetRouting(context);
-                        using OperationContext.RoutingScope continuationRouting =
-                            context.UseRouting(continuationSnapshot);
-                        if (cp is not null)
+                        using GenerationGate.Lease? generationLease = TryEnterContinuation(cp);
+                        if (!releaseContinuationPoints && cp is not null && generationLease is null)
+                        {
+                            error = StatusCodes.BadContinuationPointInvalid;
+                        }
+                        if (ServiceResult.IsGood(error) && cp is not null)
                         {
                             error = await ValidatePermissionsAsync(
                                 context, cp.Manager, cp.NodeToBrowse, PermissionType.Browse,
@@ -1108,8 +1113,7 @@ namespace Opc.Ua.Server
 
             using var owner = new ContinuationPointOwner(new ContinuationPoint
             {
-                Manager = nodeManager!,
-                RoutingSnapshot = GetRouting(context),
+                Generation = GetGeneration(context, nodeManager!).Reference,
                 View = view,
                 NodeToBrowse = handle,
                 RequestedNodeId = nodeToBrowse.NodeId,
@@ -1159,8 +1163,6 @@ namespace Opc.Ua.Server
             Debug.Assert(cp != null);
 
             ContinuationPoint? currentCp = cp;
-            NodeManagerRoutingTable.RoutingSnapshot snapshot = cp.RoutingSnapshot ?? GetRouting(context);
-            using OperationContext.RoutingScope continuationRouting = CaptureRouting(context, snapshot);
             bool saved = false;
             try
             {
@@ -1179,7 +1181,7 @@ namespace Opc.Ua.Server
                     }
                     if (currentCp is not null)
                     {
-                        currentCp.RoutingSnapshot = snapshot;
+                        currentCp.Generation = cp.Generation;
                     }
 
                     var referencesToKeep = new List<ReferenceDescription>(referenceList.Count);
@@ -1210,15 +1212,6 @@ namespace Opc.Ua.Server
                         {
                             TranslateDisplayNames(context, referenceList);
                             return (StatusCodes.BadNoContinuationPoints, null, referenceList);
-                        }
-                        if (!currentCp.HasCapturedDependencies)
-                        {
-                            ServiceResult dependencyResult = await CaptureBrowseDependenciesAsync(
-                                context, currentCp, snapshot, cancellationToken).ConfigureAwait(false);
-                            if (ServiceResult.IsBad(dependencyResult))
-                            {
-                                return (dependencyResult, null, []);
-                            }
                         }
                         TranslateDisplayNames(context, referenceList);
                         currentCp.Id = Guid.NewGuid();
@@ -1267,50 +1260,19 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask<ServiceResult> CaptureBrowseDependenciesAsync(
-            OperationContext context,
-            ContinuationPoint point,
-            NodeManagerRoutingTable.RoutingSnapshot snapshot,
-            CancellationToken cancellationToken)
+        private static GenerationGate.Lease? TryEnterContinuation(ContinuationPoint? point)
         {
-            if (point.Data is not IBrowseContinuationDependencies dependencies ||
-                !dependencies.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> targetIds))
-            {
-                // Lazy browsers cannot enumerate future targets without consuming their cursor.
-                // Until retirement uses generation gates, conservatively protect the issuing view.
-                ArrayOf<IAsyncNodeManager> issuingOwners = [.. snapshot.VisibleNodeManagers];
-                point.SetDependencyOwners(issuingOwners);
-                point.RoutingSnapshot = snapshot;
-                return ServiceResult.Good;
-            }
+            return point?.Generation is { } reference &&
+                reference.TryGetGeneration(out NodeManagerGeneration? generation) &&
+                generation is not null &&
+                generation.Gate.TryEnter(out GenerationGate.Lease? lease)
+                    ? lease
+                    : null;
+        }
 
-            var targets = new HashSet<NodeId>();
-            foreach (ExpandedNodeId targetId in targetIds)
-            {
-                if (!targetId.IsAbsolute && !targetId.IsNull)
-                {
-                    targets.Add((NodeId)targetId);
-                }
-            }
-            if (point.View is not null && !point.View.ViewId.IsNull)
-            {
-                targets.Add(point.View.ViewId);
-            }
-            var owners = new List<IAsyncNodeManager> { point.Manager };
-            foreach (NodeId targetId in targets)
-            {
-                (object? handle, IAsyncNodeManager? manager) = await GetManagerHandleAsync(
-                    context, targetId, cancellationToken).ConfigureAwait(false);
-                if (handle is not null && manager is not null &&
-                    !owners.Exists(owner => ReferenceEquals(owner, manager)))
-                {
-                    owners.Add(manager);
-                }
-            }
-            ArrayOf<IAsyncNodeManager> retainedOwners = [.. owners];
-            point.SetDependencyOwners(retainedOwners);
-            point.RoutingSnapshot = snapshot.ForContinuation(retainedOwners);
-            return ServiceResult.Good;
+        private NodeManagerGeneration GetGeneration(OperationContext context, IAsyncNodeManager nodeManager)
+        {
+            return GetRouting(context).GetGeneration(nodeManager);
         }
 
         /// <summary>
@@ -1698,14 +1660,10 @@ namespace Opc.Ua.Server
             {
                 foreach (IAsyncNodeManager nodeManager in GetRouting(context).VisibleNodeManagers)
                 {
-                    bool[] pending = [];
-                    if (m_owner.RequiresHistoryContinuationOwnership(nodeManager))
+                    var pending = new bool[nodesToRead.Count];
+                    for (int ii = 0; ii < pending.Length; ii++)
                     {
-                        pending = new bool[nodesToRead.Count];
-                        for (int ii = 0; ii < pending.Length; ii++)
-                        {
-                            pending[ii] = !nodesToRead[ii].Processed;
-                        }
+                        pending[ii] = !nodesToRead[ii].Processed;
                     }
                     await nodeManager.HistoryReadAsync(
                         context,
@@ -1716,17 +1674,19 @@ namespace Opc.Ua.Server
                         results,
                         errors,
                         cancellationToken).ConfigureAwait(false);
-                    for (int ii = 0; ii < pending.Length; ii++)
+                    if (context.Session?.ContinuationPoints is SessionContinuationPoints continuationPoints)
                     {
-                        if (pending[ii] && nodesToRead[ii].Processed &&
-                            results[ii] is { ContinuationPoint.IsEmpty: false } page &&
-                            (context.Session?.ContinuationPoints is not SessionContinuationPoints points ||
-                                !points.IsCapturedHistoryPoint(page.ContinuationPoint)))
+                        NodeManagerGeneration generation = GetRouting(context).GetGeneration(nodeManager);
+                        for (int ii = 0; ii < pending.Length; ii++)
                         {
-                            context.Session?.ContinuationPoints.RestoreHistory(page.ContinuationPoint)?.Dispose();
-                            results[ii] = new HistoryReadResult { StatusCode = StatusCodes.BadNotSupported };
-                            errors[ii] = ServiceResult.Create(StatusCodes.BadNotSupported,
-                                "Opaque custom HistoryRead points do not support dynamic retirement.");
+                            if (pending[ii] &&
+                                nodesToRead[ii].Processed &&
+                                results[ii] is { ContinuationPoint.IsEmpty: false } page)
+                            {
+                                continuationPoints.BindHistoryGeneration(
+                                    page.ContinuationPoint,
+                                    generation);
+                            }
                         }
                     }
                 }

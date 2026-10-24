@@ -72,6 +72,14 @@ namespace Opc.Ua.Server
             => ReadSnapshot.VisibleNamespaceManagers;
 
         /// <summary>
+        /// Resolves a manager to the generation carried by the current routing view.
+        /// </summary>
+        /// <param name="nodeManager">The manager present in the current view.</param>
+        /// <returns>The exact generation identity.</returns>
+        internal NodeManagerGeneration GetGeneration(IAsyncNodeManager nodeManager)
+            => ReadSnapshot.GetGeneration(nodeManager);
+
+        /// <summary>
         /// Gets the visible NodeManagers in dispatch order and the namespace routes from one
         /// snapshot, so a service call cannot see the routes of one lifecycle generation and
         /// the dispatch order of another.
@@ -83,6 +91,40 @@ namespace Opc.Ua.Server
         {
             snapshot ??= ReadSnapshot;
             return (snapshot.VisibleNodeManagers, snapshot.VisibleNamespaceManagers);
+        }
+
+        /// <summary>
+        /// Closes the prior view, transitions its removed generations, and publishes the next immutable view.
+        /// </summary>
+        /// <param name="next">The view to publish.</param>
+        private void PublishSnapshot(RoutingSnapshot next)
+        {
+            RoutingSnapshot previous = m_snapshot;
+            previous.Epoch.Close();
+            foreach (NodeManagerGeneration generation in previous.Generations)
+            {
+                if (!next.Generations.Contains(generation))
+                {
+                    generation.Gate.Retire();
+                    generation.Slot.Unpublish(generation);
+                }
+            }
+            foreach (NodeManagerGeneration generation in next.Generations)
+            {
+                bool wasHidden = previous.HiddenNodeManagers.Contains(generation.NodeManager);
+                bool isHidden = next.HiddenNodeManagers.Contains(generation.NodeManager);
+                if (generation.Gate.State == NodeManagerGenerationState.Prepared &&
+                    !isHidden &&
+                    (!previous.Generations.Contains(generation) || wasHidden))
+                {
+                    generation.Gate.Activate();
+                }
+                if (generation.Gate.State == NodeManagerGenerationState.Live)
+                {
+                    generation.Slot.Publish(generation);
+                }
+            }
+            Volatile.Write(ref m_snapshot, next);
         }
 
         /// <summary>
@@ -101,13 +143,14 @@ namespace Opc.Ua.Server
             {
                 EnsureMutable();
                 RoutingSnapshot snapshot = m_snapshot;
-                m_snapshot = new RoutingSnapshot(
+                _ = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+                PublishSnapshot(new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
                     snapshot.NamespaceManagers,
                     snapshot.HiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -131,7 +174,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureMutable();
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     m_snapshot.NodeManagers,
                     namespaceManagers.ToDictionary(
                         entry => entry.Key,
@@ -139,7 +182,7 @@ namespace Opc.Ua.Server
                     m_snapshot.HiddenNodeManagers,
                     typeTree ?? m_snapshot.TypeTree,
                     factory ?? m_snapshot.Factory,
-                    m_snapshot.ReadImages);
+                    m_snapshot.ReadImages));
             }
         }
 
@@ -175,6 +218,7 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The NodeManager is already registered.");
                 }
+                _ = NodeManagerGenerationRegistry.CreateAddition(nodeManager);
 
                 Dictionary<int, IReadOnlyList<IAsyncNodeManager>> routes =
                     CopyRoutes(snapshot.NamespaceManagers);
@@ -208,13 +252,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     [.. snapshot.NodeManagers, nodeManager],
                     routes,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -269,6 +313,9 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "The replacement NodeManager is already registered.");
                 }
+                NodeManagerGenerationRegistry.CreateReplacement(
+                    snapshot.GetGeneration(current),
+                    replacement);
 
                 NodeManagerRoutingPosition currentPosition = CreatePosition(
                     snapshot,
@@ -355,13 +402,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     managers,
                     routes,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
                 return currentPosition;
             }
         }
@@ -406,6 +453,9 @@ namespace Opc.Ua.Server
                     throw new InvalidOperationException(
                         "The previous NodeManager is already registered.");
                 }
+                NodeManagerGenerationRegistry.CreateReplacement(
+                    snapshot.GetGeneration(replacement),
+                    previous);
 
                 var managers = new List<IAsyncNodeManager>(
                     snapshot.NodeManagers);
@@ -464,13 +514,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     [.. managers],
                     routes,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -530,7 +580,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     [.. managers],
                     routes,
                     [
@@ -539,7 +589,7 @@ namespace Opc.Ua.Server
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
                 return position;
             }
         }
@@ -635,13 +685,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     [.. managers],
                     routes,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -693,13 +743,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     snapshot.NodeManagers,
                     routes,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -748,13 +798,13 @@ namespace Opc.Ua.Server
                 {
                     routes[namespaceIndex] = [.. updated];
                 }
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     snapshot.NodeManagers,
                     routes,
                     snapshot.HiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
                 return true;
             }
         }
@@ -792,7 +842,7 @@ namespace Opc.Ua.Server
                     }
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     snapshot.NodeManagers,
                     routes,
                     [
@@ -801,7 +851,7 @@ namespace Opc.Ua.Server
                     ],
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -881,13 +931,13 @@ namespace Opc.Ua.Server
                     ];
                 }
 
-                m_snapshot = new RoutingSnapshot(
+                PublishSnapshot(new RoutingSnapshot(
                     snapshot.NodeManagers,
                     snapshot.NamespaceManagers,
                     hiddenNodeManagers,
                     snapshot.TypeTree,
                     snapshot.Factory,
-                    snapshot.ReadImages);
+                    snapshot.ReadImages));
             }
         }
 
@@ -899,7 +949,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureMutable();
-                m_snapshot = RoutingSnapshot.Empty;
+                PublishSnapshot(RoutingSnapshot.Empty);
             }
         }
 
@@ -1067,6 +1117,12 @@ namespace Opc.Ua.Server
                     ? new Dictionary<IAsyncNodeManager, INodeManagerReadImage>(ReadImageOwnerComparer.Instance)
                     : readImages.Where(entry => Array.Exists(nodeManagers, owner => ReferenceEquals(owner, entry.Key)))
                         .ToDictionary(entry => entry.Key, entry => entry.Value, ReadImageOwnerComparer.Instance);
+                Generations = [.. nodeManagers.Select(NodeManagerGenerationRegistry.GetOrCreate)];
+                Epoch = new AddressSpaceEpoch();
+                foreach (NodeManagerGeneration generation in Generations)
+                {
+                    generation.RegisterViewEpoch(Epoch);
+                }
                 VisibleNodeManagers =
                 [
                     .. nodeManagers.Where(manager =>
@@ -1082,10 +1138,67 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the snapshot of a routing table without any NodeManager.
             /// </summary>
-            public static RoutingSnapshot Empty { get; } = new(
-                [],
-                new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
-                []);
+            public static RoutingSnapshot Empty
+                => new(
+                    [],
+                    new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(),
+                    []);
+
+            /// <summary>
+            /// Gets the generations routed by this immutable view in dispatch order.
+            /// </summary>
+            public NodeManagerGeneration[] Generations { get; }
+
+            /// <summary>
+            /// Gets the striped request epoch owned by this immutable view.
+            /// </summary>
+            public AddressSpaceEpoch Epoch { get; }
+
+            /// <summary>
+            /// Resolves a manager to the exact generation carried by this view.
+            /// </summary>
+            /// <param name="nodeManager">The manager in this view.</param>
+            /// <returns>The generation identity.</returns>
+            internal NodeManagerGeneration GetGeneration(IAsyncNodeManager nodeManager)
+            {
+                if (TryGetGeneration(nodeManager, out NodeManagerGeneration? generation))
+                {
+                    return generation!;
+                }
+                throw new InvalidOperationException("The manager is not present in this routing view.");
+            }
+
+            /// <summary>
+            /// Attempts to resolve a manager to its exact generation in this view.
+            /// </summary>
+            /// <param name="nodeManager">The manager in the view.</param>
+            /// <param name="generation">The matching generation, when present.</param>
+            /// <returns><c>true</c> when the manager is present in the view.</returns>
+            internal bool TryGetGeneration(
+                IAsyncNodeManager nodeManager,
+                out NodeManagerGeneration? generation)
+            {
+                for (int ii = 0; ii < NodeManagers.Length; ii++)
+                {
+                    if (ReferenceEquals(NodeManagers[ii], nodeManager))
+                    {
+                        generation = Generations[ii];
+                        return true;
+                    }
+                }
+                generation = null;
+                return false;
+            }
+
+            /// <summary>
+            /// Attempts to acquire a request pin while this view remains published.
+            /// </summary>
+            /// <param name="slot">The epoch counter slot on success.</param>
+            /// <returns><c>true</c> if this view admitted the request.</returns>
+            internal bool TryPin(out int slot)
+            {
+                return Epoch.TryPin(out slot);
+            }
 
             /// <summary>
             /// Gets the type image owned by this routing generation.
@@ -1132,39 +1245,6 @@ namespace Opc.Ua.Server
             public IReadOnlyDictionary<int, IReadOnlyList<IAsyncNodeManager>>
                 VisibleNamespaceManagers
             { get; }
-
-            /// <summary>
-            /// Keeps the captured images but limits continuation dispatch to its retained owners.
-            /// The first two infrastructure managers keep their fixed dispatcher indexes.
-            /// </summary>
-            /// <param name="owners">The retained owners that continuation dispatch is limited to.</param>
-            /// <returns>A snapshot limited to the retained owners.</returns>
-            internal RoutingSnapshot ForContinuation(ArrayOf<IAsyncNodeManager> owners)
-            {
-                IAsyncNodeManager[] managers =
-                [
-                    .. NodeManagers.Where((manager, index) =>
-                        index < 2 || owners.Contains(owner => ReferenceEquals(owner, manager)))
-                ];
-                var routes = new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>();
-                foreach (KeyValuePair<int, IReadOnlyList<IAsyncNodeManager>> route in NamespaceManagers)
-                {
-                    IAsyncNodeManager[] retained =
-                    [
-                        .. route.Value.Where(manager => Array.Exists(
-                            managers, owner => ReferenceEquals(owner, manager)))
-                    ];
-                    if (retained.Length > 0)
-                    {
-                        routes.Add(route.Key, retained);
-                    }
-                }
-                return new RoutingSnapshot(
-                    managers, routes,
-                    [.. HiddenNodeManagers.Where(manager => Array.Exists(
-                        managers, owner => ReferenceEquals(owner, manager)))],
-                    TypeTree, Factory, ReadImages);
-            }
 
             /// <summary>
             /// Builds the namespace routes that exclude hidden NodeManagers, dropping namespaces
@@ -1274,6 +1354,30 @@ namespace Opc.Ua.Server
         /// Gets the current published routing revision.
         /// </summary>
         internal RoutingSnapshot Revision => Volatile.Read(ref m_snapshot);
+
+        /// <summary>
+        /// Pins the current routing revision, retrying when publication closes the view concurrently.
+        /// </summary>
+        /// <returns>The immutable view, epoch, and matching counter slot.</returns>
+        internal (RoutingSnapshot Snapshot, AddressSpaceEpoch Epoch, int Slot) PinCurrent()
+        {
+            var spinWait = new SpinWait();
+            while (true)
+            {
+                RoutingSnapshot snapshot = Revision;
+                if (!snapshot.TryPin(out int slot))
+                {
+                    spinWait.SpinOnce();
+                    continue;
+                }
+                if (ReferenceEquals(snapshot, Revision))
+                {
+                    return (snapshot, snapshot.Epoch, slot);
+                }
+                snapshot.Epoch.Exit(slot);
+                spinWait.SpinOnce();
+            }
+        }
 
         /// <summary>
         /// Gets the shared canonical type table.
@@ -1415,6 +1519,19 @@ namespace Opc.Ua.Server
                     }
                     images[owner] = image;
                 }
+                foreach (PreparedNodeManager candidate in candidates)
+                {
+                    if (candidate.ReplacedNodeManager is { } replaced)
+                    {
+                        NodeManagerGenerationRegistry.CreateReplacement(
+                            current.GetGeneration(replaced),
+                            candidate.NodeManager);
+                    }
+                    else
+                    {
+                        _ = NodeManagerGenerationRegistry.CreateAddition(candidate.NodeManager);
+                    }
+                }
                 var next = new RoutingSnapshot(
                     [.. managers],
                     routes,
@@ -1532,7 +1649,7 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("The routing publication has not been reserved.");
                     }
-                    Volatile.Write(ref m_owner.m_snapshot, m_next);
+                    m_owner.PublishSnapshot(m_next);
                     m_published = true;
                 }
             }
@@ -1547,6 +1664,18 @@ namespace Opc.Ua.Server
                         m_owner.m_reservedRoutes = null;
                     }
                     m_disposed = true;
+                }
+                if (!m_published)
+                {
+                    m_next.Epoch.Close();
+                    foreach (NodeManagerGeneration generation in m_next.Generations)
+                    {
+                        if (!m_previous.Generations.Contains(generation) &&
+                            generation.Gate.State == NodeManagerGenerationState.Prepared)
+                        {
+                            generation.Gate.Abort();
+                        }
+                    }
                 }
             }
 

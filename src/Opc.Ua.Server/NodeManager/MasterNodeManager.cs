@@ -708,6 +708,9 @@ namespace Opc.Ua.Server
                 }
                 replacement.ReplacedNodeManager = current;
                 replacement.ReplacedExternalReferences = currentExternalReferences;
+                replacement.Generation = NodeManagerGenerationRegistry.CreateReplacement(
+                    m_nodeManagers.GetGeneration(current),
+                    replacement.NodeManager);
                 replacement.AllowActiveMonitoredItems = allowActiveMonitoredItems;
                 replacement.RetainReplacedNotifications =
                     retainReplacedNotifications;
@@ -1036,6 +1039,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (prepared.Generation is { Gate.State: NodeManagerGenerationState.Prepared } generation)
+                {
+                    generation.Gate.Abort();
+                }
                 ((IDynamicNodeManagerHost)this).Release(
                     prepared.NodeManager);
             }
@@ -1090,6 +1097,7 @@ namespace Opc.Ua.Server
                         state.NodeManager,
                         externalReferences)
                     {
+                        Generation = m_nodeManagers.GetGeneration(state.NodeManager),
                         AllowLifecycleFromRequestCallback =
                             state.NodeManager is IRequestCallbackSafeNodeManager
                             {
@@ -1228,30 +1236,44 @@ namespace Opc.Ua.Server
                 monitoredItems = [.. notifications.SubscribedEventMonitoredItems];
             }
 
-            foreach (IEventMonitoredItem monitoredItem in monitoredItems)
+            using GenerationGate.Lease? generationLease =
+                TryEnterGeneration(notifications.DispatchState.Generation);
+            if (generationLease is null)
             {
-                using var eventContext = new OperationContext(monitoredItem);
-                ServiceResult result = await nodeManager
-                    .SubscribeToAllEventsAsync(
-                        eventContext,
-                        monitoredItem.SubscriptionId,
-                        monitoredItem,
-                        true,
-                        ct)
-                    .ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
+                return;
+            }
+            using (generationLease)
+            {
+                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                 {
-                    throw new ServiceResultException(result);
-                }
-                lock (m_retiredGenerationNotificationsLock)
-                {
-                    if (m_retiredGenerationNotifications.Contains(notifications))
+                    using var eventContext = new OperationContext(monitoredItem);
+                    ServiceResult result = await nodeManager
+                        .SubscribeToAllEventsAsync(
+                            eventContext,
+                            monitoredItem.SubscriptionId,
+                            monitoredItem,
+                            true,
+                            ct)
+                        .ConfigureAwait(false);
+                    if (ServiceResult.IsBad(result))
                     {
-                        notifications.SubscribedEventMonitoredItems.RemoveAll(
-                            candidate => ReferenceEquals(candidate, monitoredItem));
+                        throw new ServiceResultException(result);
+                    }
+                    lock (m_retiredGenerationNotificationsLock)
+                    {
+                        if (m_retiredGenerationNotifications.Contains(notifications))
+                        {
+                            notifications.SubscribedEventMonitoredItems.RemoveAll(
+                                candidate => ReferenceEquals(candidate, monitoredItem));
+                        }
                     }
                 }
             }
+        }
+
+        private static GenerationGate.Lease? TryEnterGeneration(NodeManagerGeneration generation)
+        {
+            return generation.Gate.TryEnter(out GenerationGate.Lease? lease) ? lease : null;
         }
 
         private async ValueTask WaitForNotificationDispatchesAsync(
@@ -1263,36 +1285,35 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            Task dispatchesDrained;
+            NodeManagerGeneration generation;
             lock (m_retiredGenerationNotificationsLock)
             {
                 RetiredGenerationNotifications? notifications =
                     m_retiredGenerationNotifications.FirstOrDefault(
                         candidate => ReferenceEquals(candidate.NodeManager, nodeManager));
-                NotificationDispatchState dispatchState =
-                    notifications?.DispatchState ??
-                    GetOrCreateNotificationDispatchState(nodeManager);
+                NotificationDispatchState? dispatchState = notifications?.DispatchState;
+                if (dispatchState is null &&
+                    !m_notificationDispatchStateTable.TryGetValue(
+                        nodeManager,
+                        out dispatchState))
+                {
+                    if (!m_nodeManagers.Revision.TryGetGeneration(
+                        nodeManager,
+                        out NodeManagerGeneration? currentGeneration))
+                    {
+                        return;
+                    }
+                    dispatchState = GetNotificationDispatchState(currentGeneration!);
+                }
+                generation = dispatchState.Generation;
                 dispatchState.Enabled = false;
                 if (notifications is not null)
                 {
                     notifications.Enabled = false;
                     notifications.AcceptEventDeletes = false;
                 }
-
-                // Publishing the signal closes lock-free admission before the leases are counted.
-                TaskCompletionSource<bool> drained = dispatchState.DispatchesDrained ??=
-                    new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously);
-                if (dispatchState.ActiveDispatches == 0 &&
-                    dispatchState.FastDispatches == 0)
-                {
-                    dispatchState.DispatchesDrained = null;
-                    drained.TrySetResult(true);
-                }
-                dispatchesDrained = drained.Task;
             }
-
-            await dispatchesDrained.WaitAsync(ct).ConfigureAwait(false);
+            await generation.Gate.WaitForDrainAsync().WaitAsync(ct).ConfigureAwait(false);
         }
 
         private void RetainRetiredGenerationNotifications(
@@ -1340,11 +1361,7 @@ namespace Opc.Ua.Server
                         {
                             notifications.DispatchState.Notifications = null;
                         }
-                        if (notifications.DispatchState.Enabled &&
-                            notifications.DispatchState.BusinessEmissionsEnabled &&
-                            notifications.DispatchState.EmissionCutoffReservations == 0 &&
-                            notifications.DispatchState.CustomSourceCreations == 0 &&
-                            notifications.DispatchState.ActiveDispatches == 0)
+                        if (notifications.DispatchState.Enabled)
                         {
                             m_notificationDispatchStates.Remove(notifications.DispatchState);
                         }
@@ -1352,10 +1369,6 @@ namespace Opc.Ua.Server
                 }
                 m_notificationDispatchStates.RemoveAll(dispatchState =>
                     dispatchState.Enabled &&
-                    dispatchState.BusinessEmissionsEnabled &&
-                    dispatchState.EmissionCutoffReservations == 0 &&
-                    dispatchState.CustomSourceCreations == 0 &&
-                    dispatchState.ActiveDispatches == 0 &&
                     dispatchState.References(nodeManager));
             }
         }
@@ -1376,8 +1389,7 @@ namespace Opc.Ua.Server
                     if (notifications.Enabled &&
                         !ContainsNodeManager(dispatches, notifications.NodeManager))
                     {
-                        dispatches.Add(
-                            CreateRetiredNotificationDispatch(notifications));
+                        AddRetiredNotificationDispatch(dispatches, notifications);
                     }
                 }
             }
@@ -1410,8 +1422,7 @@ namespace Opc.Ua.Server
                             ReferenceEquals(candidate, monitoredItem)) &&
                         !ContainsNodeManager(dispatches, notifications.NodeManager))
                     {
-                        dispatches.Add(
-                            CreateRetiredNotificationDispatch(notifications));
+                        AddRetiredNotificationDispatch(dispatches, notifications);
                     }
                 }
             }
@@ -1458,10 +1469,10 @@ namespace Opc.Ua.Server
                     ];
                     if (retainedItems.Length > 0)
                     {
-                        dispatches.Add(
-                            CreateRetiredNotificationDispatch(
-                                notifications,
-                                retainedItems));
+                        AddRetiredNotificationDispatch(
+                            dispatches,
+                            notifications,
+                            retainedItems);
                     }
                 }
             }
@@ -1493,8 +1504,7 @@ namespace Opc.Ua.Server
                             ReferenceEquals(candidate, monitoredItem)) &&
                         !ContainsNodeManager(dispatches, notifications.NodeManager))
                     {
-                        dispatches.Add(
-                            CreateRetiredNotificationDispatch(notifications));
+                        AddRetiredNotificationDispatch(dispatches, notifications);
                     }
                 }
             }
@@ -1552,14 +1562,26 @@ namespace Opc.Ua.Server
             }
         }
 
-        private NotificationDispatchLease CreateRetiredNotificationDispatch(
+        private void AddRetiredNotificationDispatch(
+            List<NotificationDispatchLease> dispatches,
             RetiredGenerationNotifications notifications,
             IEventMonitoredItem[]? monitoredItems = null)
         {
-            return CreateNotificationDispatch(
-                notifications.NodeManager,
+            NotificationDispatchLease? dispatch = CreateNotificationDispatch(
                 notifications.DispatchState,
                 monitoredItems);
+            try
+            {
+                if (dispatch is not null)
+                {
+                    dispatches.Add(dispatch);
+                    dispatch = null;
+                }
+            }
+            finally
+            {
+                dispatch?.Dispose();
+            }
         }
 
         private NotificationDispatchLease? TryCreateActiveNotificationDispatch(
@@ -1574,10 +1596,7 @@ namespace Opc.Ua.Server
             NotificationDispatchState dispatchState =
                 GetOrCreateNotificationDispatchState(nodeManager);
             return dispatchState.Enabled
-                ? CreateNotificationDispatch(
-                    nodeManager,
-                    dispatchState,
-                    monitoredItems)
+                ? CreateNotificationDispatch(dispatchState, monitoredItems)
                 : null;
         }
 
@@ -1602,17 +1621,21 @@ namespace Opc.Ua.Server
             }
         }
 
-        private NotificationDispatchLease CreateNotificationDispatch(
-            IAsyncNodeManager nodeManager,
+        private NotificationDispatchLease? CreateNotificationDispatch(
             NotificationDispatchState dispatchState,
             IEventMonitoredItem[]? monitoredItems)
         {
-            dispatchState.ActiveDispatches++;
+            NodeManagerGeneration generation = dispatchState.Generation;
+            if (!generation.Gate.TryEnter(out int slot))
+            {
+                return null;
+            }
             return new NotificationDispatchLease(
                 this,
-                nodeManager,
+                generation,
                 dispatchState,
-                monitoredItems ?? []);
+                monitoredItems ?? [],
+                slot);
         }
 
         private static bool ContainsNodeManager(
@@ -1623,77 +1646,18 @@ namespace Opc.Ua.Server
                 ReferenceEquals(dispatch.NodeManager, nodeManager));
         }
 
-        private void ReleaseNotificationDispatch(
-            NotificationDispatchState dispatchState)
-        {
-            TaskCompletionSource<bool>? dispatchesDrained = null;
-            lock (m_retiredGenerationNotificationsLock)
-            {
-                Debug.Assert(dispatchState.ActiveDispatches > 0);
-                if (dispatchState.ActiveDispatches <= 0)
-                {
-                    return;
-                }
-
-                if (--dispatchState.ActiveDispatches == 0)
-                {
-                    // Leases admitted without the lock complete the drain on their release.
-                    if (dispatchState.FastDispatches == 0)
-                    {
-                        dispatchesDrained = dispatchState.DispatchesDrained;
-                        dispatchState.DispatchesDrained = null;
-                    }
-                    if (dispatchState.DispatchesDrained is null &&
-                        dispatchState.Enabled &&
-                        dispatchState.BusinessEmissionsEnabled &&
-                        dispatchState.EmissionCutoffReservations == 0 &&
-                        dispatchState.CustomSourceCreations == 0 &&
-                        !m_retiredGenerationNotifications.Any(notifications =>
-                            ReferenceEquals(
-                                notifications.DispatchState,
-                                dispatchState)))
-                    {
-                        m_notificationDispatchStates.Remove(dispatchState);
-                    }
-                }
-            }
-            dispatchesDrained?.TrySetResult(true);
-        }
-
-        /// <summary>
-        /// Completes a waiting drain once the last lease of the generation, counted with or
-        /// without the lock, is released.
-        /// </summary>
-        /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
-        private void CompleteNotificationDispatchDrain(
-            NotificationDispatchState dispatchState)
-        {
-            TaskCompletionSource<bool>? dispatchesDrained = null;
-            lock (m_retiredGenerationNotificationsLock)
-            {
-                if (dispatchState.DispatchesDrained is not null &&
-                    dispatchState.ActiveDispatches == 0 &&
-                    dispatchState.FastDispatches == 0)
-                {
-                    dispatchesDrained = dispatchState.DispatchesDrained;
-                    dispatchState.DispatchesDrained = null;
-                }
-            }
-            dispatchesDrained?.TrySetResult(true);
-        }
-
         /// <summary>
         /// Gets the generation state of the node manager without the lock. The table keeps one
         /// state per node manager for its lifetime, so leases admitted without the lock and the
         /// tracked list below always count on the same state.
         /// </summary>
-        /// <param name="nodeManager">The node manager associated with the operation.</param>
-        private NotificationDispatchState GetNotificationDispatchState(
-            IAsyncNodeManager nodeManager)
+        /// <param name="generation">The exact generation associated with the operation.</param>
+        internal NotificationDispatchState GetNotificationDispatchState(
+            NodeManagerGeneration generation)
         {
             return m_notificationDispatchStateTable.GetValue(
-                nodeManager,
-                static manager => new NotificationDispatchState(manager));
+                generation.NodeManager,
+                _ => new NotificationDispatchState(generation));
         }
 
         private NotificationDispatchState GetOrCreateNotificationDispatchState(
@@ -1701,8 +1665,19 @@ namespace Opc.Ua.Server
         {
             m_notificationDispatchStates.RemoveAll(candidate =>
                 !candidate.IsAlive);
-            NotificationDispatchState dispatchState =
-                GetNotificationDispatchState(nodeManager);
+            if (!m_notificationDispatchStateTable.TryGetValue(
+                nodeManager,
+                out NotificationDispatchState? dispatchState))
+            {
+                if (!m_nodeManagers.Revision.TryGetGeneration(
+                    nodeManager,
+                    out NodeManagerGeneration? generation))
+                {
+                    throw new InvalidOperationException(
+                        "A NodeManager without a current generation cannot start notification dispatch.");
+                }
+                dispatchState = GetNotificationDispatchState(generation!);
+            }
             if (!m_notificationDispatchStates.Contains(dispatchState))
             {
                 m_notificationDispatchStates.Add(dispatchState);
@@ -2060,6 +2035,7 @@ namespace Opc.Ua.Server
                         ResolveNamespaceIndexes(prepared.NodeManager));
                 }
                 routeAdded = true;
+                prepared.Generation = m_nodeManagers.GetGeneration(prepared.NodeManager);
                 await AddExternalReferencesAsync(
                     prepared.ExternalReferences,
                     prepared.NodeManager,
@@ -2631,52 +2607,54 @@ namespace Opc.Ua.Server
             => m_nodeManagers.NamespaceManagers;
 
         /// <summary>
+        /// Attempts to resolve the exact generation in the current address-space view.
+        /// </summary>
+        /// <param name="nodeManager">The manager expected in the current view.</param>
+        /// <param name="generation">The exact current generation, when present.</param>
+        /// <returns><c>true</c> when the current view contains the manager.</returns>
+        internal bool TryGetCurrentGeneration(
+            IAsyncNodeManager nodeManager,
+            out NodeManagerGeneration? generation)
+        {
+            return m_nodeManagers.Revision.TryGetGeneration(nodeManager, out generation);
+        }
+
+        /// <summary>
         /// Retains a node-manager generation while an event notification or refresh is dispatched.
         /// </summary>
         internal sealed class NotificationDispatchLease : IDisposable
         {
             /// <summary>
-            /// Captures a dispatch owner, generation state, and the monitored items covered by the lease.
+            /// Captures one generation admission and the monitored items covered by the dispatch.
             /// </summary>
             /// <param name="owner">The master node manager responsible for releasing this dispatch lease.</param>
-            /// <param name="nodeManager">The node manager associated with the operation.</param>
+            /// <param name="generation">The generation admitted by the lease.</param>
             /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
             /// <param name="monitoredItems">The monitored items included in the operation.</param>
+            /// <param name="slot">The striped gate slot released by this lease.</param>
             public NotificationDispatchLease(
                 MasterNodeManager owner,
-                IAsyncNodeManager nodeManager,
-                NotificationDispatchState dispatchState,
-                IEventMonitoredItem[] monitoredItems)
-                : this(owner, nodeManager, dispatchState, monitoredItems, -1)
-            {
-            }
-
-            /// <summary>
-            /// Captures a dispatch admitted without the lock in a counter slot of the generation state.
-            /// </summary>
-            /// <param name="owner">The master node manager responsible for releasing this dispatch lease.</param>
-            /// <param name="nodeManager">The node manager associated with the operation.</param>
-            /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
-            /// <param name="monitoredItems">The monitored items included in the operation.</param>
-            /// <param name="fastSlot">The counter slot, or -1 for a lease counted under the lock.</param>
-            public NotificationDispatchLease(
-                MasterNodeManager owner,
-                IAsyncNodeManager nodeManager,
+                NodeManagerGeneration generation,
                 NotificationDispatchState dispatchState,
                 IEventMonitoredItem[] monitoredItems,
-                int fastSlot)
+                int slot)
             {
                 m_owner = owner;
-                NodeManager = nodeManager;
+                Generation = generation;
                 DispatchState = dispatchState;
                 MonitoredItems = monitoredItems;
-                m_fastSlot = fastSlot;
+                m_slot = slot;
             }
 
             /// <summary>
             /// Gets the node manager receiving the notification dispatch.
             /// </summary>
-            public IAsyncNodeManager NodeManager { get; }
+            public IAsyncNodeManager NodeManager => Generation.NodeManager;
+
+            /// <summary>
+            /// Gets the exact generation protected by this lease.
+            /// </summary>
+            public NodeManagerGeneration Generation { get; }
 
             /// <summary>
             /// Gets the generation state retained by this dispatch lease.
@@ -2715,18 +2693,11 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                if (m_fastSlot < 0)
-                {
-                    owner.ReleaseNotificationDispatch(DispatchState);
-                }
-                else if (DispatchState.ReleaseFast(m_fastSlot))
-                {
-                    owner.CompleteNotificationDispatchDrain(DispatchState);
-                }
+                Generation.Gate.Exit(m_slot);
             }
 
             private MasterNodeManager? m_owner;
-            private readonly int m_fastSlot;
+            private readonly int m_slot;
         }
 
         /// <summary>
@@ -2783,18 +2754,29 @@ namespace Opc.Ua.Server
         internal sealed class NotificationDispatchState
         {
             /// <summary>
-            /// Initializes dispatch state with a weak reference to the owning node manager.
+            /// Initializes dispatch state with the owning manager's generation identity.
             /// </summary>
-            /// <param name="nodeManager">The node manager associated with the operation.</param>
-            public NotificationDispatchState(IAsyncNodeManager nodeManager)
+            /// <param name="generation">The generation associated with the operation.</param>
+            public NotificationDispatchState(NodeManagerGeneration generation)
             {
-                m_nodeManager = new WeakReference<IAsyncNodeManager>(nodeManager);
+                m_nodeManager = new WeakReference<IAsyncNodeManager>(generation.NodeManager);
+                m_generation = generation.Reference;
             }
 
             /// <summary>
             /// Gets whether the owning node manager is still reachable.
             /// </summary>
-            public bool IsAlive => m_nodeManager.TryGetTarget(out _);
+            public bool IsAlive =>
+                m_nodeManager.TryGetTarget(out _) &&
+                m_generation.TryGetGeneration(out _);
+
+            /// <summary>
+            /// Gets the exact generation associated with this manager.
+            /// </summary>
+            public NodeManagerGeneration Generation =>
+                m_generation.TryGetGeneration(out NodeManagerGeneration? generation)
+                    ? generation!
+                    : throw new ObjectDisposedException(nameof(NotificationDispatchState));
 
             /// <summary>
             /// Determines whether this state belongs to the supplied node-manager instance.
@@ -2812,153 +2794,12 @@ namespace Opc.Ua.Server
             public bool Enabled { get; set; } = true;
 
             /// <summary>
-            /// Gets or sets a value indicating whether business source emissions may be admitted while dispatch
-            /// is active.
-            /// </summary>
-            public bool BusinessEmissionsEnabled
-            {
-                get => Volatile.Read(ref m_businessEmissionsEnabled);
-                set => Volatile.Write(ref m_businessEmissionsEnabled, value);
-            }
-
-            /// <summary>
-            /// Gets or sets the number of outstanding source-emission cutoff reservations that block immediate
-            /// dispatch.
-            /// </summary>
-            /// <remarks>
-            /// A reservation closes the lock-free admission path before the cutoff publishes its
-            /// routes, so emissions admitted from then on observe the routes and the cutoff flag
-            /// together under the lock.
-            /// </remarks>
-            public int EmissionCutoffReservations
-            {
-                get => Volatile.Read(ref m_emissionCutoffReservations);
-                set
-                {
-                    Interlocked.Exchange(ref m_emissionCutoffReservations, value);
-                    // Every reservation and release moves the version, so an admission that read the
-                    // gate before a cutoff started and checks it again after the cutoff completed
-                    // still sees that a cutoff ran in between.
-                    Interlocked.Increment(ref m_cutoffVersion);
-                }
-            }
-
-            /// <summary>
-            /// Reads <see cref="BusinessEmissionsEnabled"/> without the lock when no cutoff is reserved.
-            /// </summary>
-            /// <remarks>
-            /// A cutoff publishes its routes and clears the flag under the lock while it holds a
-            /// reservation, and releases the reservation after the flag is cleared. Reading the
-            /// reservation first therefore either sees the reservation (the caller must read the flag
-            /// under the lock) or sees the flag as the cutoff left it.
-            /// </remarks>
-            /// <param name="enabled">The flag, when no cutoff is reserved.</param>
-            /// <returns><c>false</c> when a cutoff is reserved.</returns>
-            public bool TryGetBusinessEmissionsEnabled(out bool enabled)
-            {
-                if (EmissionCutoffReservations != 0)
-                {
-                    enabled = false;
-                    return false;
-                }
-                enabled = BusinessEmissionsEnabled;
-                return true;
-            }
-
-            /// <summary>
-            /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
-            /// </summary>
-            public int CustomSourceCreations { get; set; }
-
-            /// <summary>
-            /// Gets or sets the number of outstanding dispatch leases for this generation.
-            /// </summary>
-            public int ActiveDispatches { get; set; }
-
-            /// <summary>
-            /// Gets or sets the completion signal for draining outstanding dispatch leases.
-            /// </summary>
-            /// <remarks>
-            /// Setting a signal closes the lock-free admission path; the store is a full fence,
-            /// so a drain that then reads <see cref="FastDispatches"/> sees every lease admitted
-            /// without the lock, or the lease's release sees the pending drain.
-            /// </remarks>
-            public TaskCompletionSource<bool>? DispatchesDrained
-            {
-                get => Volatile.Read(ref m_dispatchesDrained);
-                set => Interlocked.Exchange(ref m_dispatchesDrained, value);
-            }
-
-            /// <summary>
             /// Gets or sets the retained notifications when this generation is retired.
             /// </summary>
             public RetiredGenerationNotifications? Notifications { get; set; }
 
-            /// <summary>
-            /// Gets the number of outstanding leases admitted without the lock.
-            /// </summary>
-            public long FastDispatches => m_fastDispatches.Count;
-
-            /// <summary>
-            /// Admits a lease without the lock while business emissions are enabled, no cutoff is
-            /// reserved and no drain waits. Source emissions run per data change on every core, so
-            /// the admission counts in a per-processor slot instead of under the master's lock.
-            /// </summary>
-            /// <param name="slot">The counter slot to release the lease from.</param>
-            /// <param name="releaseRequired">
-            /// <c>true</c> when admission failed after a drain could have counted the lease, so
-            /// the caller must complete that drain.
-            /// </param>
-            /// <param name="beforeEnter">Test hook run between the first gate check and the count.</param>
-            public bool TryAdmitFast(out int slot, out bool releaseRequired, Action? beforeEnter = null)
-            {
-                releaseRequired = false;
-                slot = -1;
-                int version = Volatile.Read(ref m_cutoffVersion);
-                if (!IsFastAdmissionOpen)
-                {
-                    return false;
-                }
-                beforeEnter?.Invoke();
-                int entered = m_fastDispatches.Enter();
-                // A cutoff that started (or started and completed) since the first check moved the
-                // version: the routes it published and its flag are then only observed together under
-                // the lock.
-                if (IsFastAdmissionOpen && Volatile.Read(ref m_cutoffVersion) == version)
-                {
-                    slot = entered;
-                    return true;
-                }
-                releaseRequired = ReleaseFast(entered);
-                return false;
-            }
-
-            /// <summary>
-            /// Releases a lease admitted without the lock.
-            /// </summary>
-            /// <param name="slot">The counter slot the lease was admitted in.</param>
-            /// <returns><c>true</c> when a drain waits and may now be complete.</returns>
-            public bool ReleaseFast(int slot)
-            {
-                m_fastDispatches.Exit(slot);
-                return DispatchesDrained is not null;
-            }
-
-            /// <summary>
-            /// Reads the reservation before the flag: a cutoff clears the flag before it releases
-            /// its reservation, so a released reservation implies the cleared flag is visible.
-            /// </summary>
-            private bool IsFastAdmissionOpen =>
-                EmissionCutoffReservations == 0 &&
-                BusinessEmissionsEnabled &&
-                DispatchesDrained is null;
-
-            private readonly StripedCounter m_fastDispatches = new();
-            private bool m_businessEmissionsEnabled = true;
-            private int m_emissionCutoffReservations;
-            private int m_cutoffVersion;
-            private TaskCompletionSource<bool>? m_dispatchesDrained;
             private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
+            private readonly NodeManagerGenerationReference m_generation;
         }
 
         private sealed class StartupNodeManagerState

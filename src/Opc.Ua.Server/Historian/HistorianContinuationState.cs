@@ -41,9 +41,9 @@ namespace Opc.Ua.Server.Historian
     /// The dispatcher retains one instance per outstanding paginated
     /// read in the session's continuation-point cache
     /// (<see cref="ISessionContinuationPoints.SaveHistory"/>).
-    /// On the next page request the dispatcher restores the state
-    /// (which checks it out without releasing its generation owners), calls the same
-    /// provider with the saved <see cref="ResumeToken"/>, and either
+    /// On the next page request the dispatcher restores the state and admits it only while
+    /// its issuing generation remains live, calls the same provider with the saved
+    /// <see cref="ResumeToken"/>, and either
     /// retires the continuation (final page → <see cref="Dispose"/>) or
     /// re-saves it with the new resume token under a fresh <see cref="Id"/>.
     /// This makes every issued continuation point single-use.
@@ -53,9 +53,9 @@ namespace Opc.Ua.Server.Historian
     /// session for as long as the client keeps the continuation point
     /// active. The session disposes available entries on eviction or close. Checked-out
     /// entries remain owned until their request completes, fails, or is cancelled.
-    /// Successor and restoration copies share their exact source and dependency lease until
-    /// the last copy is disposed. Portable native cursors can be durably mirrored, but captured
-    /// generation owners and their provider tokens remain process-local.
+    /// Successor and restoration copies share the weak issuing-generation identity until the
+    /// last copy is disposed. Portable native cursors can be durably mirrored, but their
+    /// generation identity and provider tokens remain process-local.
     /// </para>
     /// </remarks>
     internal sealed class HistorianContinuationState : IHistoryContinuationPoint
@@ -430,7 +430,7 @@ namespace Opc.Ua.Server.Historian
         private sealed class SharedOwnership : IDisposable
         {
             /// <summary>
-            /// Gets the continuation point that carries the retained manager, dependency owners and routing snapshot.
+            /// Gets the continuation point that carries the weak issuing-generation identity.
             /// </summary>
             public ContinuationPoint Point { get; } = new();
 
