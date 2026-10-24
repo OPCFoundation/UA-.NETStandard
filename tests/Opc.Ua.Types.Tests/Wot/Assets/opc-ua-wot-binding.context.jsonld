@@ -116,7 +116,6 @@
     },
 
     "uav:projection": { "@id": "uav:projection" },
-    "uav:projectionKind": { "@id": "uav:projectionKind", "@type": "xsd:string" },
     "uav:scenario": { "@id": "uav:scenario", "@type": "@id" },
     "uav:projects": { "@id": "uav:projects", "@container": "@list" },
     "uav:sourceName": { "@id": "uav:sourceName", "@type": "xsd:string" },

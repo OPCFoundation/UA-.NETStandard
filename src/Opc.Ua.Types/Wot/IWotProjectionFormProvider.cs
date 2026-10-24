@@ -35,7 +35,7 @@ namespace Opc.Ua.Wot
 {
     /// <summary>
     /// Supplies actual host forms for bulk-selected and supporting
-    /// projection-routed affordances (WoT Binding Section 12.5).
+    /// projection-routed affordances (OPC 10101-2).
     /// </summary>
     public interface IWotProjectionFormProvider
     {
@@ -150,7 +150,7 @@ namespace Opc.Ua.Wot
         public WotAffordanceKind Kind { get; }
 
         /// <summary>
-        /// Gets the projection's explicit result kind.
+        /// Gets the projection's Thing Description or Thing Model result kind.
         /// </summary>
         public WotDocumentKind ResultKind { get; }
 

@@ -96,7 +96,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// <param name="forceLeasedContent">The force-leased-content flag supplied by the caller.</param>
         public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
         {
-            string root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+            string root = Path.Combine(Path.GetTempPath(),
                 "pwr", Guid.NewGuid().ToString("N").Substring(0, 12));
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
             {
@@ -112,17 +112,14 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         /// Creates a registry service backed by the runtime's stores and projection host.
         /// </summary>
         /// <param name="bounds">The WoT registry persistence bounds.</param>
-        /// <param name="compatibilityMode">The compatibility mode.</param>
-        public async Task<WotRegistryService> CreateRegistryAsync(
-            WotRegistryPersistenceBounds? bounds = null,
-            WotProjectionCompatibilityMode compatibilityMode = WotProjectionCompatibilityMode.None)
+        public async Task<WotRegistryService> CreateRegistryAsync(WotRegistryPersistenceBounds? bounds = null)
         {
             var storage = new PreparedWotTestStorage(
                 Path.Combine(m_root, Guid.NewGuid().ToString("N").Substring(0, 12)), m_forceLeasedContent);
             m_storages.Add(storage);
             FileWotRegistryStore store = storage.OpenStore();
             Assert.That(store.SupportsPreparedCommits, Is.True);
-            var registry = new WotRegistryService(store, bounds, compatibilityMode);
+            var registry = new WotRegistryService(store, bounds);
             m_registries.Add((registry, store));
             await registry.InitializeAsync().ConfigureAwait(false);
             return registry;

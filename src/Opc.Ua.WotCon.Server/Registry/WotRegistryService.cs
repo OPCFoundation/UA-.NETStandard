@@ -74,7 +74,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         public WotRegistryService(
             IWotRegistryStore? store = null,
             WotRegistryPersistenceBounds? bounds = null)
-            : this(store, bounds, new WotRegistryIdentityBindings(), WotProjectionCompatibilityMode.None)
+            : this(store, bounds, new WotRegistryIdentityBindings())
         {
         }
 
@@ -88,47 +88,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             IWotRegistryStore? store,
             WotRegistryPersistenceBounds? bounds,
             WotRegistryIdentityBindings identityBindings)
-            : this(store, bounds, identityBindings, WotProjectionCompatibilityMode.None)
         {
-        }
-
-        /// <summary>
-        /// Initializes a registry with an explicitly selected projection-plan compatibility mode.
-        /// </summary>
-        /// <param name="store">The WoT registry store used to initialize the instance.</param>
-        /// <param name="bounds">The bounds used to initialize the instance.</param>
-        /// <param name="projectionCompatibilityMode">
-        /// The projection compatibility mode used to initialize the instance.
-        /// </param>
-        public WotRegistryService(
-            IWotRegistryStore? store,
-            WotRegistryPersistenceBounds? bounds,
-            WotProjectionCompatibilityMode projectionCompatibilityMode)
-            : this(store, bounds, new WotRegistryIdentityBindings(), projectionCompatibilityMode)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a registry with explicit authority bindings and projection-plan compatibility.
-        /// </summary>
-        /// <param name="store">The WoT registry store used to initialize the instance.</param>
-        /// <param name="bounds">The bounds used to initialize the instance.</param>
-        /// <param name="identityBindings">The identity bindings used to initialize the instance.</param>
-        /// <param name="projectionCompatibilityMode">
-        /// The projection compatibility mode used to initialize the instance.
-        /// </param>
-        public WotRegistryService(
-            IWotRegistryStore? store,
-            WotRegistryPersistenceBounds? bounds,
-            WotRegistryIdentityBindings identityBindings,
-            WotProjectionCompatibilityMode projectionCompatibilityMode)
-        {
-            if (projectionCompatibilityMode is not (
-                WotProjectionCompatibilityMode.None or WotProjectionCompatibilityMode.DraftProjection11))
-            {
-                throw new ArgumentOutOfRangeException(nameof(projectionCompatibilityMode));
-            }
-            m_projectionCompatibilityMode = projectionCompatibilityMode;
             m_store = store ?? new InMemoryWotRegistryStore();
             m_resourceStore = m_store is IWotRegistryResourceStoreProvider provider
                 ? provider.ResourceStore
@@ -961,7 +921,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             {
                 using var document = WotDocument.Parse(content.Span.ToArray(), CreateDocumentOptions());
                 string? projectionError = WotProjectionAdmission.GetError(
-                    document, kind, version.Format, version.ContentType, m_projectionCompatibilityMode);
+                    document, kind, version.Format, version.ContentType);
                 if (projectionError is not null)
                 {
                     return FailedValidation(projectionError);
@@ -989,8 +949,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             return new WotNodeSetConverterOptions
             {
                 MaxJsonDocumentSize = Bounds.MaxDocumentBytes,
-                MaxJsonDepth = Bounds.MaxJsonDepth,
-                ProjectionCompatibilityMode = m_projectionCompatibilityMode
+                MaxJsonDepth = Bounds.MaxJsonDepth
             };
         }
 
@@ -1062,17 +1021,18 @@ namespace Opc.Ua.WotCon.Server.Registry
                 projectionPlan = WotProjection.IsProjection(document);
                 if (request.DetectProjectionFormat && projectionPlan)
                 {
-                    format = WotProjection.Format;
-                    contentType = WotProjection.ContentType;
+                    bool thingModel = request.Kind == WoTDocumentKindEnum.ThingModel;
+                    format = thingModel ? "WoT-TM/1.1" : "WoT-TD/1.1";
+                    contentType = thingModel ? "application/tm+json" : "application/td+json";
                 }
                 string? projectionError = WotProjectionAdmission.GetError(
-                    document, request.Kind, format, contentType, m_projectionCompatibilityMode);
+                    document, request.Kind, format, contentType);
                 if (projectionError is not null)
                 {
                     return Rejected(m_snapshot.Generation, projectionError);
                 }
                 documentId = WotRegistryIdentity.ReadSourceId(document.RootElement);
-                // Admission checked the plan's declared result kind; its root is not an ordinary TD/TM.
+                // Admission checked the plan's ordinary root role against the stored TD/TM kind.
                 parsedKind = projectionPlan
                     ? request.Kind == WoTDocumentKindEnum.ThingModel
                         ? WotDocumentKind.ThingModel
@@ -3427,7 +3387,6 @@ namespace Opc.Ua.WotCon.Server.Registry
             bool CreatedResource = false);
 
         private readonly IWotRegistryStore m_store;
-        private readonly WotProjectionCompatibilityMode m_projectionCompatibilityMode;
         private readonly IXRegistryResourceStore m_resourceStore;
         private readonly SemaphoreSlim m_mutex = new(1, 1);
         private WotRegistrySnapshot m_snapshot;

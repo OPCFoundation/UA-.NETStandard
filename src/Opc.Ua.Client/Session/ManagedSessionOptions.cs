@@ -132,6 +132,22 @@ namespace Opc.Ua.Client
         public int? ConnectRateLimiterMaxConcurrency { get; init; }
 
         /// <summary>
+        /// Optional source of reverse connect connections. The session
+        /// awaits it for the initial connect, unless an initial connection
+        /// is passed, and once per recovery attempt. Default: <c>null</c>
+        /// (no reverse connections, unless a
+        /// <see cref="ReverseConnectManager"/> is passed to the session).
+        /// </summary>
+        /// <remarks>
+        /// A recovery attempt waits at most for the remaining time of the
+        /// reconnect policy's <see cref="ReconnectPolicyOptions.MaxTotalReconnectTime"/>.
+        /// The session closes a connection it received but did not use.
+        /// Setting this option and passing a <see cref="ReverseConnectManager"/>
+        /// to the session is rejected.
+        /// </remarks>
+        public IReverseConnectionSource? ReverseConnectionSource { get; init; }
+
+        /// <summary>
         /// Optional validator for the endpoint a reconnect rediscovers from
         /// the server's discovery endpoint. It is installed on the
         /// <see cref="ManagedSession"/> before the session connects, so that

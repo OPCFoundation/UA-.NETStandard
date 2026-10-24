@@ -46,7 +46,7 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
     /// <summary>
     /// V2 ports of the classic <c>DurableSubscriptionTest.cs</c> 5 tests.
     /// Exercises the new
-    /// <see cref="ISubscription.SetAsDurableAsync"/> surface and
+    /// <see cref="ISubscription.SetAsDurableAsync(TimeSpan, CancellationToken)"/> surface and
     /// validates the V2 manager behavior around durable subscriptions.
     /// </summary>
     [TestFixture]

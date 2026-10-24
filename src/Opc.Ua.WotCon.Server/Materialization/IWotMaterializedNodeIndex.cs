@@ -196,12 +196,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="sourceRootsByXid">The source roots by xid used to initialize the instance.</param>
         /// <param name="containsSourceNode">The contains source node used to initialize the instance.</param>
         /// <param name="containsEventType">The contains event type used to initialize the instance.</param>
+        /// <param name="resolveAffordance">The converter-authoritative affordance identity lookup.</param>
         internal WotMaterializedNodeIndex(
             WotRegistrySnapshot snapshot,
             NamespaceTable serverNamespaceUris,
             IReadOnlyDictionary<string, NodeId> sourceRootsByXid,
             Func<string, NodeId, bool>? containsSourceNode,
-            Func<string, NodeId, bool>? containsEventType = null)
+            Func<string, NodeId, bool>? containsEventType = null,
+            Func<string, WotAffordanceKind, string, ExpandedNodeId>? resolveAffordance = null)
         {
             m_snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
             m_serverNamespaceUris = serverNamespaceUris ??
@@ -210,6 +212,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 throw new ArgumentNullException(nameof(sourceRootsByXid));
             m_containsSourceNode = containsSourceNode;
             m_containsEventType = containsEventType;
+            m_resolveAffordance = resolveAffordance;
         }
 
         /// <summary>
@@ -231,9 +234,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return NodeId.Null;
             }
-            if (!affordance.AuthoredId.IsNull)
+            ExpandedNodeId identity = affordance.AuthoredId;
+            if (identity.IsNull && m_resolveAffordance is not null)
             {
-                NodeId byId = ExpandedNodeId.ToNodeId(affordance.AuthoredId, m_serverNamespaceUris);
+                identity = m_resolveAffordance(source.Xid, affordance.Kind, affordance.AffordanceName);
+            }
+            if (!identity.IsNull)
+            {
+                NodeId byId = ExpandedNodeId.ToNodeId(identity, m_serverNamespaceUris);
                 if (!byId.IsNull && (m_containsSourceNode is not null
                     ? m_containsSourceNode(source.Xid, byId) ||
                         (affordance.Kind == WotAffordanceKind.Event &&
@@ -298,5 +306,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private readonly IReadOnlyDictionary<string, NodeId> m_sourceRootsByXid;
         private readonly Func<string, NodeId, bool>? m_containsSourceNode;
         private readonly Func<string, NodeId, bool>? m_containsEventType;
+
+        /// <summary>Resolves actual converted identities without relying on root identifier layout.</summary>
+        private readonly Func<string, WotAffordanceKind, string, ExpandedNodeId>? m_resolveAffordance;
     }
 }

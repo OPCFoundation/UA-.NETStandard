@@ -458,7 +458,7 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Computes the <c>ViewVersion</c> of Section 12.6 from a View's
+        /// Computes the <c>ViewVersion</c> defined by OPC 10101-2 from a View's
         /// resolved membership.
         /// </summary>
         /// <remarks>

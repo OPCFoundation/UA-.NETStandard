@@ -1283,7 +1283,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 string op = isEvent ? "subscribeevent" : "invokeaction";
                 ImmutableDictionary<string, string> addressing = owner is null
                     ? ImmutableDictionary<string, string>.Empty
-                    : ImmutableDictionary<string, string>.Empty.Add("componentOf", "nsu=urn:source;s=" + owner);
+                    : ImmutableDictionary<string, string>.Empty.Add("callObjectId", "nsu=urn:source;s=" + owner);
                 return new WotCompiledForm(
                     new WotBindingIdentity("test", "1", "urn:test"), kind, name,
                     (isEvent ? "/events/" : "/actions/") + name + "/forms/0", operation, op,

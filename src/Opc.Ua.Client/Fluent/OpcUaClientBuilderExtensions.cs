@@ -1385,6 +1385,10 @@ namespace Microsoft.Extensions.DependencyInjection
             {
                 builder.PreferRecoverableExecution(sessionOptions.RecoverableExecution);
             }
+            if (sessionOptions.ReverseConnectionSource != null)
+            {
+                builder.UseReverseConnectionSource(sessionOptions.ReverseConnectionSource);
+            }
 
             IClientChannelManager? mgr = sp.GetService<IClientChannelManager>();
             if (mgr != null)

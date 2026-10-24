@@ -45,25 +45,21 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Conformance tests that run the WoT Binding specification's own worked
-    /// examples through the implementation.
+    /// Regression tests that run the local WoT Binding fixture corpus through
+    /// the implementation.
     /// </summary>
     /// <remarks>
-    /// Examples 07 and 08 are a golden pair: 07 is a projection document and 08
-    /// is the resolved view the specification says it resolves to. Asserting
-    /// against 08 checks the selection order, the bulk naming rule, the security
-    /// closure naming and the provenance term against the specification's own
-    /// expectation rather than against our reading of it.
-    /// The conversion harness expands only the pinned local context reference
-    /// published beside these examples; embedded source bytes are checked
-    /// separately and no network context loading is performed.
+    /// The fixtures are not authoritative copies of the current specification
+    /// examples or evidence of current conformance. Retired projection
+    /// annotations are retained only to verify their rejection. The resolver
+    /// uses a local context fixture and performs no network context loading.
     /// </remarks>
     [TestFixture]
     [Category("WotSpecExamples")]
     public sealed class WotSpecExampleTests
     {
         [Test]
-        public void EveryPublishedExampleParses()
+        public void EveryRegressionFixtureParses()
         {
             IReadOnlyList<string> names = ExampleNames();
             Assert.That(names, Is.Not.Empty, "The example fixtures should be embedded.");
@@ -79,27 +75,25 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Runs every published example through the whole reading pipeline:
+        /// Runs every regression fixture through the reading pipeline:
         /// parse, strict conformance validation, conversion where the profile
         /// the document claims requires one, and then serialize, re-read and
         /// import.
         /// </summary>
         /// <remarks>
-        /// These are the specification's own worked documents, so a
-        /// conformance diagnostic on one of them is either a defect here or
-        /// drift in the vendored copy. Both have to be visible, which is why
-        /// this runs the strict mode rather than the permissive one the
-        /// converter defaults to.
+        /// These fixtures are regression inputs, not current normative
+        /// examples. Their conversion and rejection behavior remains explicit
+        /// without claiming current specification conformance.
         /// </remarks>
         [Test]
-        public void EveryPublishedExamplePassesStrictConformanceAndImports()
+        public void EveryRegressionFixtureHasExplicitPipelineBehavior()
         {
             IReadOnlyList<string> names = ExampleNames();
             Assert.That(names, Is.Not.Empty, "The example fixtures should be embedded.");
 
             var converted = new List<string>();
             var modelled = new List<string>();
-            var plans = new List<string>();
+            var retiredFormatFixtures = new List<string>();
             var needsContext = new List<string>();
             Assert.Multiple(() =>
             {
@@ -113,6 +107,17 @@ namespace Opc.Ua.Types.Tests.Wot
                     };
                     WotConversionResult<UANodeSet> result =
                         WotNodeSetConverter.ToNodeSetResult(document, options);
+
+                    if (WotProjection.IsProjection(document) &&
+                        document.TryGetUav("projectionKind", out _))
+                    {
+                        Assert.That(result.Value, Is.Null, name);
+                        Assert.That(result.Diagnostics.Any(diagnostic =>
+                            diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid &&
+                            diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True, name);
+                        retiredFormatFixtures.Add(name);
+                        continue;
+                    }
 
                     Assert.That(
                         result.Diagnostics.Where(IsConformanceDiagnostic).ToList(),
@@ -136,7 +141,6 @@ namespace Opc.Ua.Types.Tests.Wot
                         Assert.That(result.Value, Is.Null, name);
                         Assert.That(result.Diagnostics.Any(diagnostic =>
                             diagnostic.Code == WotDiagnosticCode.ProjectionManifestInvalid), Is.True, name);
-                        plans.Add(name);
                     }
                     else if (name is "01-opcua-td-pump.jsonld" or "02-thing-model-pump.jsonld" or
                         ConditionExample or TypeBindingExample)
@@ -166,7 +170,9 @@ namespace Opc.Ua.Types.Tests.Wot
                     Is.EqualTo(s_standaloneExamples),
                     "Every standalone example must convert and import; projection plans and context-dependent " +
                     "examples have separate explicit contracts.");
-                Assert.That(plans, Has.Count.EqualTo(11));
+                Assert.That(
+                    retiredFormatFixtures,
+                    Is.EqualTo(s_retiredProjectionFixtures));
                 Assert.That(needsContext, Is.EqualTo(new[]
                 {
                     "01-opcua-td-pump.jsonld", "02-thing-model-pump.jsonld", ConditionExample, TypeBindingExample
@@ -226,7 +232,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void PredictiveMaintenanceExampleIsRecognisedAsAProjection()
         {
             using WotDocument document = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             Assert.That(WotProjection.IsProjection(document), Is.True);
 
@@ -237,7 +243,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.False,
-                "A published example should not break any projection rule.");
+                "The adapted regression fixture should satisfy the current projection rules.");
             Assert.That(
                 projection.Scenario,
                 Is.EqualTo("http://example.com/scenario/PredictiveMaintenance"));
@@ -260,7 +266,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task PredictiveMaintenanceProjectionResolvesToThePublishedViewAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
             using WotDocument expected = WotDocument.Parse(
                 ReadExample(ResolvedExample));
 
@@ -295,7 +301,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task ResolvedViewCarriesProvenanceForEverySelectionAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
@@ -328,7 +334,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task BulkSelectionAppliesThePrefixWithAnUpperCasedSourceNameAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
+                ReadCurrentProjectionExample());
 
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
@@ -350,10 +356,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public async Task CarriedFormsBringTheirSecurityClosureUnderQualifiedNamesAsync()
         {
             using WotDocument projection = WotDocument.Parse(
-                ReadExample(ProjectionExample));
-            using WotDocument expected = WotDocument.Parse(
-                ReadExample(ResolvedExample));
-
+                ReadCurrentProjectionExample());
             var resolver = new WotProjectionResolver(new EmbeddedExampleResolver());
             WotConversionResult<WotDocument> result = await resolver
                 .ResolveAsync(projection)
@@ -362,16 +365,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(result.Value, Is.Not.Null, DescribeErrors(result.Diagnostics));
             using WotDocument actual = result.Value;
 
-            // Under source routing every scheme in the transitive closure of a
-            // carried form's effective security travels with it, named
-            // <sourceName>_<scheme name>.
-            foreach (string scheme in expected.SecurityDefinitions.Keys)
-            {
-                Assert.That(
-                    actual.SecurityDefinitions.ContainsKey(scheme),
-                    Is.True,
-                    $"The resolved view should define the security scheme '{scheme}'.");
-            }
+            Assert.That(actual.SecurityDefinitions.Keys, Is.EquivalentTo(s_projectionSecurityNames));
         }
 
         internal static byte[] ReadExample(string name)
@@ -392,11 +386,20 @@ namespace Opc.Ua.Types.Tests.Wot
                         value.TryGetValue(out string? uri) &&
                         uri == "../opc-ua-wot-binding.context.jsonld")
                     {
-                        contexts[index] = ReadPublishedContext();
+                        contexts[index] = ReadLocalBindingContextFixture();
                     }
                 }
             }
             return Encoding.UTF8.GetBytes(root.ToJsonString());
+        }
+
+        private static byte[] ReadCurrentProjectionExample()
+        {
+            using JsonDocument fixture = JsonDocument.Parse(ReadExample(ProjectionExample));
+            JsonObject projection = JsonNode.Parse(fixture.RootElement.GetRawText())!.AsObject();
+            projection["@type"] = new JsonArray("Thing", "uav:projection");
+            projection.Remove("uav:projectionKind");
+            return Encoding.UTF8.GetBytes(projection.ToJsonString());
         }
 
         private static string DescribeErrors(IReadOnlyList<WotDiagnostic> diagnostics)
@@ -424,13 +427,13 @@ namespace Opc.Ua.Types.Tests.Wot
                 .OrderBy(n => n, StringComparer.Ordinal)];
         }
 
-        private static JsonNode ReadPublishedContext()
+        private static JsonNode ReadLocalBindingContextFixture()
         {
             var assembly = typeof(WotSpecExampleTests).Assembly;
             string resource = assembly.GetManifestResourceNames().Single(name =>
                 name.EndsWith(".opc-ua-wot-binding.context.jsonld", StringComparison.Ordinal));
             using Stream stream = assembly.GetManifestResourceStream(resource)
-                ?? throw new InvalidOperationException("The published example context is not embedded.");
+                ?? throw new InvalidOperationException("The local binding context fixture is not embedded.");
             using JsonDocument document = JsonDocument.Parse(stream);
             Assert.That(document.RootElement.GetProperty("@id").GetString(), Is.EqualTo(WotVocabulary.BindingContext));
             return JsonNode.Parse(document.RootElement.GetProperty("@context").GetRawText())!;
@@ -477,19 +480,16 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Example 22 is the specification's own worked example of WoT Binding
-        /// Section 5.2.1, so converting it is the end-to-end check that a
-        /// document binds to a type that already exists rather than projecting
-        /// an untyped node.
+        /// The local fixture exercises binding to a type that already exists
+        /// rather than projecting an untyped node.
         /// </summary>
         [Test]
         public async Task TypeBindingExampleBindsTheProjectedObjectToTheNamedTypeAsync()
         {
             using WotDocument document = WotDocument.Parse(ReadExample(TypeBindingExample));
 
-            // The example binds by both forms of Section 5.2.1, so it only
-            // converts against a Section 5.1.5 local context that holds the
-            // type it names - which is the point of the example.
+            // The fixture binds by both forms of type reference, so it only
+            // converts against a local context that holds the type it names.
             var resolver = new ExampleTypeResolver(
                 "http://example.com/demo/pump",
                 "TankType",
@@ -520,14 +520,14 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The specification's own Condition example must remain an accepted
-        /// shape as validation of the actionable-event rules evolves.
+        /// The local Condition fixture exercises the actionable-event shape
+        /// as validation rules evolve.
         /// </summary>
         /// <remarks>
-        /// The example's event affordance links to the EventType definitions of
-        /// example 27, so it converts against the local document context of
-        /// WoT Binding Section 5.1.5 that holds them. The native type context
-        /// separately verifies the custom query's ancestry and inherited EventId.
+        /// Its event affordance links to another fixture's EventType
+        /// definitions, so conversion uses the local document context. The
+        /// native type context separately verifies the custom query's ancestry
+        /// and inherited EventId.
         /// </remarks>
         [Test]
         public async Task ConditionExampleConvertsWithoutSection13DiagnosticsAsync()
@@ -876,6 +876,33 @@ namespace Opc.Ua.Types.Tests.Wot
         private const string ConditionExample = "21-condition-limit-alarm.jsonld";
         private const string TypeBindingExample = "22-type-binding-and-instance-reference.jsonld";
         private const string DataTypeExample = "23-datatype-definitions.jsonld";
+
+        /// <summary>
+        /// Expected qualified security closure for the local projection fixtures.
+        /// </summary>
+        private static readonly string[] s_projectionSecurityNames =
+        [
+            "q:p:nosec_sc",
+            "q:s:pump:opcua_sc",
+            "q:s:pump:opcua_channel_sc",
+            "q:s:pump:opcua_authentication_sc",
+            "q:s:identity:opcua_channel_sc"
+        ];
+
+        private static readonly string[] s_retiredProjectionFixtures =
+        [
+            "07-projection-predictive-maintenance.jsonld",
+            "09-asset-instance.jsonld",
+            "10-group-process-data.jsonld",
+            "11-group-condition-data.jsonld",
+            "12-group-alarms.jsonld",
+            "13-group-management.jsonld",
+            "15-asset-model.jsonld",
+            "16-model-group-process-data.jsonld",
+            "17-model-group-condition-data.jsonld",
+            "18-model-group-alarms.jsonld",
+            "19-model-group-management.jsonld"
+        ];
         private static readonly string[] s_standaloneExamples =
         [
             "03-nodeset-preservation-envelope.jsonld",
