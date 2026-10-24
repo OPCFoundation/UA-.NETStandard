@@ -1,5 +1,5 @@
 {
-  "description": "Several type links without version.model have no implicit floor.",
+  "description": "Several type links without version.model have no implicit floor and keep resolving.",
   "registry": [
     {
       "wotid": "urn:example:pump:v1",

@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Assert.That(bytes[^1], Is.EqualTo((byte)'\n'), line[66..]);
                 });
             }
-            Assert.That(Vectors.Count(), Is.EqualTo(42));
+            Assert.That(Vectors.Count(), Is.EqualTo(49));
         }
 
         [TestCaseSource(nameof(Vectors))]
@@ -192,6 +192,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         [TestCase("1.2.0", null, "1.2.0")]
         [TestCase("1.2.0", "1.3.0", "1.3.0")]
+        [TestCase("1.3.0", "1.2.0", "1.3.0")]
         [TestCase(null, "1.3.0", "1.3.0")]
         public void TypeLinkFloorUsesTdContext(string? model, string? explicitFloor, string expected)
         {
@@ -200,6 +201,22 @@ namespace Opc.Ua.Types.Tests.Wot
             using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
                 "{\"@type\":\"Thing\",\"links\":[{\"rel\":\"type\",\"href\":\"urn:parent\"" +
                 minimum + "}]" + version + "}"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
+                Is.EqualTo(expected));
+        }
+
+        [TestCase("1.3.0", "1.2.0", "1.3.0")]
+        [TestCase("1.2.0", "1.3.0", "1.3.0")]
+        [TestCase(null, "1.2.0", "1.2.0")]
+        [TestCase(null, null, null)]
+        public void MultipleTypeLinkFloorUsesOnlyApplicableConstraints(
+            string? model, string? explicitFloor, string? expected)
+        {
+            string version = model is null ? string.Empty : ",\"version\":{\"model\":\"" + model + "\"}";
+            string minimum = explicitFloor is null ? string.Empty : ",\"tm:minVersion\":\"" + explicitFloor + "\"";
+            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@type\":\"Thing\",\"links\":[{\"rel\":\"type\",\"href\":\"urn:a\"" + minimum + "}," +
+                "{\"rel\":\"type\",\"href\":\"urn:b\",\"tm:minVersion\":\"9.0.0\"}]" + version + "}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
                 Is.EqualTo(expected));
         }

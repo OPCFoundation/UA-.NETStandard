@@ -1,5 +1,5 @@
 {
-  "description": "An explicit single-link floor overrides document version.model.",
+  "description": "A lower explicit floor does not weaken the single-link implicit floor.",
   "registry": [
     {
       "wotid": "urn:example:pump:v1",
@@ -36,10 +36,6 @@
     ]
   },
   "expect": {
-    "result": {
-      "wotid": "urn:example:pump:v1",
-      "versionid": "1.1.0",
-      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000002"
-    }
+    "error": "unsatisfied"
   }
 }

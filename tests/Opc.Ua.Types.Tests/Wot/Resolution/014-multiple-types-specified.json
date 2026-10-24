@@ -1,5 +1,5 @@
 {
-  "description": "Several type links each have a floor; the document model version is not applied to all.",
+  "description": "Several type links with explicit floors also satisfy the document model floor.",
   "registry": [
     {
       "wotid": "urn:example:pump:v1",
@@ -27,7 +27,7 @@
     "minVersion": "1.0.0"
   },
   "document": {
-    "version.model": "9.0.0",
+    "version.model": "1.1.0",
     "typeLinks": [
       {
         "target": "urn:example:pump:v1",

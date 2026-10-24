@@ -247,9 +247,14 @@ namespace Opc.Ua.Wot
                     }
                 }
 
-                if (floor is null && document.TypeLinks.Count == 1)
+                if (document.ModelVersion is not null)
                 {
-                    floor = document.ModelVersion;
+                    var implicitFloor = ParseFloor(document.ModelVersion);
+                    var explicitFloor = floor is null ? null : ParseFloor(floor);
+                    if (explicitFloor is null || implicitFloor.CompareTo(explicitFloor) > 0)
+                    {
+                        floor = document.ModelVersion;
+                    }
                 }
             }
 

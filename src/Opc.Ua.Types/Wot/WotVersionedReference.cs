@@ -83,9 +83,13 @@ namespace Opc.Ua.Wot
                         WotVersionResolver.ValidateFloor(explicitFloor);
                     }
                 }
-                if (links.Length == 1)
+                if (model is not null)
                 {
-                    floor ??= model;
+                    WotVersionResolver.ValidateFloor(model);
+                    if (floor is null || WotSemanticVersion.Parse(model).CompareTo(WotSemanticVersion.Parse(floor)) > 0)
+                    {
+                        floor = model;
+                    }
                 }
             }
             if (floor is not null)
