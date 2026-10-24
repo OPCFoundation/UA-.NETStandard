@@ -971,7 +971,7 @@ namespace Opc.Ua.Wot
         /// path, so a nested document's <c>uav:componentOf</c> href resolves
         /// without reaching outside the set.
         /// </summary>
-        private sealed class DocumentSetThingResolver : IWotThingResolver
+        private sealed class DocumentSetThingResolver : IWotVersionedThingResolver
         {
             public DocumentSetThingResolver(WotDocumentSet documents, IWotThingResolver? fallback = null)
             {
@@ -1016,6 +1016,20 @@ namespace Opc.Ua.Wot
                 }
                 return m_fallback?.ResolveThingAsync(reference, context, cancellationToken) ??
                     new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                WotReferenceRequest reference,
+                WotResolutionContext context,
+                CancellationToken cancellationToken)
+            {
+                if (m_documents.TryGetDocument(reference.Target, out WotDocument document))
+                {
+                    WotVersionedReference.ValidateSelectedVersion(document, reference.MinimumVersion);
+                    return new ValueTask<WotResolverResult>(WotResolverResult.FromBytes(document.Utf8Json.ToArray()));
+                }
+                return m_fallback is null ? new ValueTask<WotResolverResult>(WotResolverResult.NotFound) :
+                    WotVersionedReference.ResolveAsync(m_fallback, reference, context, cancellationToken);
             }
 
             private readonly WotDocumentSet m_documents;

@@ -660,6 +660,7 @@ namespace Opc.Ua.Wot
         internal static bool IsPermittedAnnotation(string name)
         {
             return name is "tm:ref"
+                or "tm:minVersion"
                 or "title"
                 or "titles"
                 or "description"

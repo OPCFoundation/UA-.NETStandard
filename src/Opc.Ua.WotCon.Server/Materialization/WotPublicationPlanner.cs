@@ -191,7 +191,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     partition.Root(edge.SourceXid) != partition.Root(target))
                 .Select(edge => new WotDependency(
                     partition.Root(edge.SourceXid), edge.TargetHref, partition.Root(edge.TargetXid!),
-                    edge.RefType, true)).ToImmutableArray();
+                    edge.RefType, true) { RequiredVersion = edge.RequiredVersion }).ToImmutableArray();
             return WotDependencyGraph.BuildStronglyConnectedComponents(roots, condensed, roots);
         }
 

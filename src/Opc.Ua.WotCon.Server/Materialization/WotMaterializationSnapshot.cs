@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.WotCon.Server.Registry;
 
+using Opc.Ua.Wot;
+
 namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
@@ -642,7 +644,17 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         private static WotResource PinVersion(WotResource resource, WotResourceVersion version)
         {
-            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId);
+            return resource.With(defaultVersionId: version.VersionId, desiredVersionId: version.VersionId)
+                .WithDefaultVersionSticky(true);
+        }
+
+        internal static WotResourceSnapshot VersionSnapshot(WotResource resource)
+        {
+            return new WotResourceSnapshot(resource.SourceId ?? resource.Xid,
+                resource.DefaultVersionSticky, resource.DefaultVersionId,
+                resource.Versions.Select(version => new WotVersionSnapshot(version.VersionId,
+                    version.ModelVersion == version.VersionId ? "authored" : "generated",
+                    "sha256:" + version.DigestHex, version.ModelVersion)).ToArrayOf());
         }
 
         private static WotResource? ResolveReference(
@@ -682,6 +694,22 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 if (exact is not null)
                 {
                     return PinVersion(target, exact);
+                }
+                if (IsLocalFragmentReference(source, reference.TargetUri, reference.RefType, target))
+                {
+                    return target;
+                }
+                if (target.Kind == WoTDocumentKindEnum.ThingModel &&
+                    (reference.RequiredVersion is not null ||
+                        reference.RefType is "tm:extends" or "tm:submodel" or "tm:ref" or "type") &&
+                    (reference.RequiredVersion is not null ||
+                        target.Versions.All(version => WotSemanticVersion.TryParse(version.VersionId, out _))))
+                {
+                    WotResourceSnapshot resource = VersionSnapshot(target);
+                    WotResolutionResult selected = WotVersionResolver.Resolve([resource],
+                        new WotReferenceRequest(reference.RefType, resource.WotId, reference.RequiredVersion),
+                        "urn:opcua:registry-snapshot");
+                    return PinVersion(target, target.FindVersion(selected.VersionId)!);
                 }
             }
             return target;

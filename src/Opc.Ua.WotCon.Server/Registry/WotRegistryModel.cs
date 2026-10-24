@@ -529,6 +529,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? DefaultVersionId { get; }
 
         /// <summary>
+        /// Gets whether an operator pinned the logical default.
+        /// </summary>
+        public bool DefaultVersionSticky { get; init; }
+
+        /// <summary>
         /// Gets the versionid the operator wants active.
         /// </summary>
         public string? DesiredVersionId { get; }
@@ -775,12 +780,30 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title ?? Title,
                 labels ?? Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
                 CommittedVersion = clearActiveVersion ||
                     (activeVersionId is not null && activeVersionId != ActiveVersionId) ? null : CommittedVersion,
                 CommittedInputs = clearActiveVersion ||
                     (activeVersionId is not null && activeVersionId != ActiveVersionId) ? default : CommittedInputs
+            };
+        }
+
+        /// <summary>
+        /// Creates a copy with the operator's default-version policy changed.
+        /// </summary>
+        public WotResource WithDefaultVersionSticky(bool sticky)
+        {
+            return new WotResource(GroupId, ResourceId, Kind, Versions, DefaultVersionId, DesiredVersionId,
+                ActiveVersionId, Enabled, LoadState, Validation, Diagnostics, Epoch, RefreshGeneration,
+                LastRefreshTime, MaterializedNodeCount, RootNodeId, Name, Description, ThingId, Title, Labels)
+            {
+                DefaultVersionSticky = sticky,
+                MetaCreatedAt = MetaCreatedAt,
+                MetaModifiedAt = MetaModifiedAt,
+                CommittedVersion = CommittedVersion,
+                CommittedInputs = CommittedInputs
             };
         }
 
@@ -819,6 +842,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 updated.Title,
                 updated.Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = modifiedAt ?? MetaModifiedAt,
                 CommittedVersion = updated.CommittedVersion,
@@ -858,6 +882,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 title,
                 Labels)
             {
+                DefaultVersionSticky = DefaultVersionSticky,
                 MetaCreatedAt = MetaCreatedAt,
                 MetaModifiedAt = MetaModifiedAt,
                 CommittedVersion = CommittedVersion,

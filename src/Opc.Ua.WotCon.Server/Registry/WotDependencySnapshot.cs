@@ -307,6 +307,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                 TargetXid = string.Empty,
                 TargetUri = edge.TargetHref,
                 RefType = edge.RefType,
+                RequiredVersion = edge.RequiredVersion ?? string.Empty,
+                EncodingMask = edge.RequiredVersion is null ? 0 :
+                    (uint)WoTDependencyDataTypeFields.RequiredVersion,
                 Resolved = edge.Resolved
             });
             foreach (WotDependencyTargetPin target in Graph.Targets)

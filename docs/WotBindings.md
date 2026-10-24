@@ -1677,18 +1677,17 @@ round-trip guarantees.
 
 ### How this is checked
 
-The documents under `tests/Opc.Ua.Types.Tests/Wot/Assets` are retained as
-local regression fixtures. They exercise parsing, conversion, import, and
-projection behavior, including validation of projection root roles.
-They are not authoritative copies of the current specification examples and
-must not be treated as evidence of current WoT conformance.
+The `.jsonld` examples under `tests/Opc.Ua.Types.Tests/Wot/Assets` are mirrored byte-for-byte from the official [OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT) Binding specification at commit `0b06c3e3b5d6a427193a17321abb6d1da4a2bae0`. UA-only regression assets are retained alongside them. `spec-examples.manifest.json` records the upstream coordinates and the SHA-256 and length of every numbered example; tests verify those bytes offline. `.gitattributes` preserves LF on checkout. To synchronize, copy every `*.jsonld` recursively from `source/WoT-Binding` by filename without transforming it, update the baseline and hashes in the manifest, and run the WoT tests.
 
-The normative baseline is the official
-[OPCF-Members/OPC10100-WoT](https://github.com/OPCF-Members/OPC10100-WoT)
-repository, merged at commit `40125acd1b65cdf291a92a67a5c6565656358e6e`.
-The local fixture manifest records those baseline coordinates separately from
-the fixture hashes; it does not assert that the fixture files were copied from
-that repository. Tests verify the checked-in fixture set and hashes offline.
+The shared reference-resolution corpus is mirrored without changes into `tests/Opc.Ua.Types.Tests/Wot/Resolution`. Its `MANIFEST.sha256` covers the vectors, schema, README and Python reference checker. `WotVersionResolverTests.CanonicalManifestMatchesEveryFile` verifies complete manifest coverage, hashes and LF, and `CanonicalVectorMatches` executes every vector through the C# resolver and publisher.
+
+### Versioned document references
+
+`WotVersionResolver` selects a Thing Model version from caller-supplied resource snapshots. A digest or version-id pin overrides floors and default selection. Without a pin, an operator's sticky default is authoritative; otherwise the highest eligible SemVer wins. Prereleases (including generated `0.0.0-N` ids) require opt-in or a prerelease floor. A selected version below the floor fails as `unsatisfied`; resolution never downgrades. The returned identity includes the registry origin and content digest.
+
+`AssignPublishedVersion` derives authored ids from `version.model`, rejects build metadata and mismatches, and assigns the lowest free `0.0.0-N` for absent or non-SemVer model versions. TD instance revision ids remain manual. Native FileType writers allocate an authored TM Version using its `version.model` before opening the file; content-less unversioned TM Versions use generated ids. Callers can explicitly select a generated Version as the sticky default with `SetDefaultVersionAsync` when deploying unversioned models.
+
+`IWotVersionedThingResolver` extends `IWotThingResolver` additively for stores holding multiple versions. The converter passes `tm:minVersion` on extends/submodel links and beside `tm:ref`, and derives the implicit TD type-link floor from `version.model`. `WotVersionedReference` checks floors on legacy providers' returned documents; those providers cannot silently satisfy a newer floor with older bytes. Registry dependency metadata retains each floor and projects it to `WoTDependencyDataType.RequiredVersion`. The model source is OPC 10100 WoT Connectivity 1.1.1 (2026-10-24), consumed by the existing Roslyn model source generator during build.
 
 ### Resolving a type binding: the local context
 

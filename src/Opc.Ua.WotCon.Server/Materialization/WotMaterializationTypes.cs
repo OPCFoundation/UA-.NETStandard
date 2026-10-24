@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Export;
@@ -328,7 +329,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// the converter can pull in the Thing Models it depends on.
     /// </summary>
     internal sealed class SnapshotThingResolver :
-        IWotThingResolver, IWotCapturedDataTypeDefinitions, IWotArchiveContextProvider
+        IWotVersionedThingResolver, IWotCapturedDataTypeDefinitions, IWotArchiveContextProvider
     {
         /// <summary>
         /// Initializes a new <c>SnapshotThingResolver</c> instance.
@@ -368,13 +369,37 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResolutionContext context,
             CancellationToken cancellationToken)
         {
+            return ResolveThingAsync(new WotReferenceRequest("ref", reference), context, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<WotResolverResult> ResolveThingAsync(
+            WotReferenceRequest reference,
+            WotResolutionContext context,
+            CancellationToken cancellationToken)
+        {
             cancellationToken.ThrowIfCancellationRequested();
-            WotResource? resource = WotDependencyGraph.Resolve(m_snapshot, reference);
-            WotResourceVersion? version = resource?.DefaultVersion;
-            WotResolverResult result = version is null ||
-                !m_contents.TryGetValue(version.DigestHex, out ByteString content)
-                ? WotResolverResult.NotFound
-                : WotResolverResult.FromBytes(content.Span.ToArray());
+            WotResource? resource = WotDependencyGraph.Resolve(m_snapshot, reference.Target);
+            if (resource is null)
+            {
+                return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+            }
+            string target = reference.Target.Split('#')[0];
+            WotResourceVersion? exact = resource.Versions.FirstOrDefault(candidate =>
+                WotDependencyGraph.VersionXid(resource, candidate) == target);
+            WotResourceVersion? version = exact ?? resource.DefaultVersion;
+            if (exact is null && resource.Kind == WoTDocumentKindEnum.ThingModel &&
+                (reference.MinimumVersion is not null ||
+                    resource.Versions.All(candidate => WotSemanticVersion.TryParse(candidate.VersionId, out _))))
+            {
+                WotResourceSnapshot snapshot = WotDependencyGraph.VersionSnapshot(resource);
+                WotResolutionResult selected = WotVersionResolver.Resolve([snapshot],
+                    reference with { Target = snapshot.WotId }, "urn:opcua:registry-snapshot");
+                version = resource.FindVersion(selected.VersionId);
+            }
+            WotResolverResult result = version is not null &&
+                m_contents.TryGetValue(version.DigestHex, out ByteString content)
+                ? WotResolverResult.FromBytes(content.Span.ToArray()) : WotResolverResult.NotFound;
             return new ValueTask<WotResolverResult>(result);
         }
 
