@@ -221,6 +221,7 @@
     <Project Path="src/Opc.Ua.Extrusion.Client/Opc.Ua.Extrusion.Client.csproj" />
     <Project Path="src/Opc.Ua.Extrusion.Server/Opc.Ua.Extrusion.Server.csproj" />
     <Project Path="src/Opc.Ua.Extrusion/Opc.Ua.Extrusion.csproj" />
+    <Project Path="src/Opc.Ua.Fx/Opc.Ua.Fx.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
@@ -417,6 +418,7 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Tests/Opc.Ua.Subscriptions.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Subscriptions.Classic.Tests/Opc.Ua.Subscriptions.Classic.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Fx.Tests/Opc.Ua.Fx.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lens.Workflow.Tests/Opc.Ua.Lens.Workflow.Tests.csproj" />

@@ -441,6 +441,8 @@ substituting an encoding or ignoring incompatible settings. This is only the
 transport/config bridge: Part 81 ConnectionManager procedures,
 endpoint ownership, role claims, authorization, status, persistence and
 recovery remain unimplemented, so this API does not establish UAFX conformance.
+The [UAFX model package](UAFX.md) supplies the standard generated Part 81
+contracts independently of this transport bridge.
 
 The PubSub adapter rejects `AllowQueueExpiry=true`. Dropping a key frame or
 metadata can invalidate later messages, so enabling expiry requires a
@@ -701,7 +703,8 @@ or empty test run is not native acceptance.
   TCP evidence does not establish the complete transport assertion matrix.
 - **UAFX integration is partial.** The standard `pubsub-uasc` profile, strict
   local-policy validation and an opt-in shared-UASC PubSub transport bridge are
-  implemented. Part 81 ConnectionManager/AutomationComponent configuration,
+  implemented. The [UAFX model package](UAFX.md) supplies generated Part 81
+  contracts. ConnectionManager/AutomationComponent configuration,
   endpoint ownership, authorization, status, persistence and recovery are not.
   This does not establish the Data Channel UAFX Binding Facet or a UAFX role
   claim. The binding selects ordered, confidential PubSub over UASC; it does

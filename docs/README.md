@@ -128,7 +128,7 @@ started exercise and the other two paths are optional here.
    encodings, and security.
 4. [Transport selection](PubSub.md#transports) — UDP, Ethernet, MQTT, and Kafka.
 5. [Brokerless PubSub over a SecureChannel](../samples/PubSub/ConsoleSecureChannelPubSub/README.md)
-   (experimental) - run complete UADP or JSON NetworkMessages over a dedicated
+   (experimental) - run complete UADP NetworkMessages over a dedicated
    flow, or share the connection with ordinary Read/Publish traffic.
 
 ## 3. Add data types and application services
@@ -192,6 +192,9 @@ models that each model depends on.
   Integration first.
 - [ISA-95](ISA95.md) (OPC 10030 and OPC 10031-4) — the common
   model and job control.
+- [UAFX information models](UAFX.md) (OPC 10000-81) - generated Data,
+  AutomationComponent and ConnectionManager contracts, without a lifecycle
+  implementation or conformance claim.
 - [Positioning](Positioning.md) (OPC 10000-210 and OPC 10000-211; preview
   package) — relative frames and geographic positions.
 - [Machinery](Machinery.md) (OPC 40001-1, -2, -3, -4 and -101) —
