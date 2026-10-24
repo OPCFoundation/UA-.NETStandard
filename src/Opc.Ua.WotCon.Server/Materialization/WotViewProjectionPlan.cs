@@ -35,7 +35,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
     /// A pure, side-effect-free description of how one WoT <em>projection
-    /// document</em> (WoT Binding Section 12) materializes into a single OPC UA
+    /// document</em> (OPC 10101-2) materializes into a single OPC UA
     /// <c>View</c> Node. It records the already-materialized Nodes the View
     /// <c>Organizes</c>, the organizational Objects grown from its
     /// <c>ua:Organizes</c> links, the affordances that were dropped because
@@ -133,8 +133,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
         /// <summary>
         /// Gets the deterministic membership version copied to the View's
-        /// standard <c>ViewVersion</c> attribute. Per <i>OPC UA — WoT Binding</i>
-        /// §12.6 it is a deterministic function of the resolved membership
+        /// standard <c>ViewVersion</c> attribute. Per OPC 10101-2 it is a
+        /// deterministic function of the resolved membership
         /// alone, taken in a canonical order (the organized Node set plus every
         /// group's <c>uav:refName</c> and members, depth-first, each ordinally
         /// sorted), so two servers that resolved the same membership report the
@@ -196,7 +196,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
     /// <summary>
     /// An organizational Object grown from a single <c>ua:Organizes</c> link of
-    /// a projection document (WoT Binding Section 12.7). The Object
+    /// a projection document (OPC 10101-2). The Object
     /// <c>Organizes</c> the already-materialized member Nodes of the organized
     /// sub-projection and any further nested organizational Objects. The
     /// organizing document does not absorb the organized document's affordances:

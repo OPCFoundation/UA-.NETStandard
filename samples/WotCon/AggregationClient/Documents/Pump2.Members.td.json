@@ -8,6 +8,7 @@
     }
   ],
   "@type": [
+    "Thing",
     "uav:projection"
   ],
   "actions": {
@@ -105,7 +106,6 @@
     }
   },
   "title": "Pump2 Members",
-  "uav:projectionKind": "ThingDescription",
   "uav:projects": [
     {
       "href": "sample-pump-pump-2",

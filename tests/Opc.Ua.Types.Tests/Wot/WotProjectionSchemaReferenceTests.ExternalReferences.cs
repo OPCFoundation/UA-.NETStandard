@@ -583,7 +583,7 @@ namespace Opc.Ua.Types.Tests.Wot
             source["@type"] = "tm:ThingModel";
             source["properties"]!["Value"]!.AsObject().Remove("forms");
             JsonObject plan = Plan();
-            plan["uav:projectionKind"] = "ThingModel";
+            plan["@type"] = new JsonArray("tm:ThingModel", "uav:projection");
             plan["uav:projects"]![0]!["type"] = "application/tm+json";
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);

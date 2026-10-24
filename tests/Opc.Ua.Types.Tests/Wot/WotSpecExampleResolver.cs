@@ -40,15 +40,12 @@ using Opc.Ua.Wot;
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>
-    /// Serves the vendored specification examples by their relative reference.
+    /// Serves local regression fixtures by their relative reference.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The published examples reference one another by relative path - example
-    /// 02 links its event affordances to the definitions example 27 declares -
-    /// so converting one of them is converting a small document set. This
-    /// resolver is that set: it answers a reference with the embedded bytes of
-    /// the example it names, and answers nothing else.
+    /// Some fixtures reference one another by relative path, so converting one
+    /// can require this resolver to expose the rest of the local document set.
     /// </para>
     /// <para>
     /// Nothing here reaches the network. WoT Binding Section 5.1.5 resolves a
@@ -87,8 +84,8 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Reads one vendored example, or reports that the set does not hold
-        /// it.
+        /// Reads one embedded fixture, or reports that the fixture set does
+        /// not hold it.
         /// </summary>
         internal static bool TryReadExample(string name, out byte[] bytes)
         {
@@ -111,8 +108,7 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// Converts one vendored example with the rest of the set available to
-        /// it, which is what a document that links a sibling needs.
+        /// Converts one fixture with the rest of the set available to it.
         /// </summary>
         internal static async Task<WotConversionResult<UANodeSet>> ConvertAsync(
             WotDocument document)
@@ -123,17 +119,16 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         /// <summary>
-        /// The address space the published examples assume a Server already
-        /// holds.
+        /// The address space a local fixture assumes a Server already holds.
         /// </summary>
         /// <remarks>
-        /// Example 01 places its Pump under a production line the Server owns
+        /// Fixture 01 places its Pump under a production line the Server owns
         /// (<c>uav:componentOf</c> naming <c>...;s=Line01</c>). That Node is
         /// not in any document of the set, and it is not supposed to be: the
         /// point of the term is to attach a converted document to something
         /// that already exists. Converting the example without a Server to
         /// attach to reports the parent as unresolved, correctly, so a test
-        /// that wants the conversion has to model the Server - which is all
+        /// that exercises the conversion has to model the Server - which is all
         /// this resolver is.
         /// </remarks>
         internal static IWotNodeResolver NodeResolver { get; } = new ExampleNodeResolver();

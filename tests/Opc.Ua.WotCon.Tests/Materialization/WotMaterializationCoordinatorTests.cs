@@ -35,8 +35,6 @@ using NUnit.Framework;
 using Opc.Ua.WotCon.Bindings;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
-using WotNodeSetConverterOptions = Opc.Ua.Wot.WotNodeSetConverterOptions;
-using WotProjectionCompatibilityMode = Opc.Ua.Wot.WotProjectionCompatibilityMode;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
 {
@@ -261,39 +259,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(
                 second.Results.Single(r => r.ResourceId == "td-a").Outcome,
                 Is.EqualTo(WoTOutcomeEnum.Unchanged));
-        }
-
-        /// <summary>
-        /// Verifies that changing projection compatibility reprocesses otherwise unchanged input.
-        /// </summary>
-        /// <param name="initial">The WoT projection compatibility mode.</param>
-        /// <param name="changed">The WoT projection compatibility mode.</param>
-        [TestCase(WotProjectionCompatibilityMode.None, WotProjectionCompatibilityMode.DraftProjection11)]
-        [TestCase(WotProjectionCompatibilityMode.DraftProjection11, WotProjectionCompatibilityMode.None)]
-        public async Task ChangingProjectionCompatibilityReprocessesOtherwiseUnchangedInput(
-            WotProjectionCompatibilityMode initial, WotProjectionCompatibilityMode changed)
-        {
-            var options = new WotNodeSetConverterOptions { ProjectionCompatibilityMode = initial };
-            m_coordinator.Dispose();
-            m_coordinator = new WotMaterializationCoordinator(
-                m_registry, m_preparedHost, converterOptions: options, documentConverter: m_converter);
-            await RegisterTd("td-mode", TestMaterialization.Td("urn:td-mode")).ConfigureAwait(false);
-            await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
-            WotRefreshResult stable = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
-            Assert.That(stable.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
-            Assert.That(m_host.AddCount, Is.EqualTo(1));
-            Assert.That(m_host.ShadowCount, Is.Zero);
-
-            options.ProjectionCompatibilityMode = changed;
-            WotRefreshResult reapplied =
-                await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
-
-            Assert.That(reapplied.Results.Single().Outcome, Is.Not.EqualTo(WoTOutcomeEnum.Unchanged));
-            Assert.That(m_host.AddCount, Is.EqualTo(1));
-            Assert.That(m_host.ShadowCount, Is.EqualTo(1));
-            WotRefreshResult unchanged = await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
-            Assert.That(unchanged.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Unchanged));
-            Assert.That(m_host.ShadowCount, Is.EqualTo(1));
         }
 
         /// <summary>

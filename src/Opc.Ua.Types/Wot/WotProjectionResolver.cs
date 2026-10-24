@@ -43,17 +43,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Wot
 {
     /// <summary>
-    /// Resolves a projection document (WoT Binding Section 12) into a resolved
+    /// Resolves a projection document (OPC 10101-2) into a resolved
     /// view: an ordinary Thing Description or Thing Model that carries no
     /// <c>uav:projection</c> marker, so a consumer needs no projection support
-    /// to use it.
+    /// to use it. The view combines source selections with local definitions,
+    /// with local definitions taking precedence by affordance name.
     /// </summary>
     /// <remarks>
     /// The resolver performs no network I/O of its own. It obtains source
     /// documents through the supplied <see cref="IWotThingResolver"/> and
     /// bounds the work through a <see cref="WotResolutionContext"/>, exactly as
     /// <see cref="WotNodeSetConverter"/> does. The four carriage rules of
-    /// Section 12.4 - forms, security, anchors and context - are applied to the
+    /// forms, security, anchors and context carriage rules are applied to the
     /// selected affordances, and every resolved affordance records its origin in
     /// <c>uav:resolvedFrom</c>.
     /// </remarks>
@@ -124,7 +125,7 @@ namespace Opc.Ua.Wot
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 
-            var projection = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+            var projection = WotProjection.Parse(document, diagnostics);
             if (projection is null || HasErrors(diagnostics))
             {
                 return new WotConversionResult<WotDocument>(null, diagnostics);
@@ -134,6 +135,7 @@ namespace Opc.Ua.Wot
                 new WotResolutionContext(m_options.ToResolverOptions());
             var resolving = new HashSet<string>(StringComparer.Ordinal);
             var supportOnly = new List<(WotAffordanceKind Kind, string Name)>();
+            var callReceivers = new List<(string Name, string Receiver, string Endpoint)>();
 
             byte[]? bytes = await ResolveViewAsync(
                 document,
@@ -143,7 +145,8 @@ namespace Opc.Ua.Wot
                 context,
                 diagnostics,
                 cancellationToken,
-                supportOnly).ConfigureAwait(false);
+                supportOnly,
+                callReceivers).ConfigureAwait(false);
 
             await CheckOrganizingAcyclicAsync(
                 projection,
@@ -161,6 +164,7 @@ namespace Opc.Ua.Wot
                     view = WotDocument.Parse(bytes, m_options);
 #pragma warning restore CA2000
                     view.MarkSupportOnly(supportOnly);
+                    view.CaptureSourceCallReceivers(callReceivers);
                 }
                 catch (Exception exception) when (
                     exception is JsonException or FormatException)
@@ -186,7 +190,8 @@ namespace Opc.Ua.Wot
             WotResolutionContext context,
             List<WotDiagnostic> diagnostics,
             CancellationToken cancellationToken,
-            List<(WotAffordanceKind Kind, string Name)>? supportOnly = null)
+            List<(WotAffordanceKind Kind, string Name)>? supportOnly = null,
+            List<(string Name, string Receiver, string Endpoint)>? callReceivers = null)
         {
             int errorsAtEntry = CountErrors(diagnostics);
             var openDocuments = new List<WotDocument>();
@@ -233,7 +238,28 @@ namespace Opc.Ua.Wot
                 {
                     referenceOwner[jj] = FindSourceIndex(
                         projection.Sources,
-                        SplitDocumentPart(references[jj].Reference));
+                        SplitDocumentPart(references[jj].Reference),
+                        projectionBase);
+                    if (referenceOwner[jj] < 0)
+                    {
+                        AddError(
+                            diagnostics,
+                            WotDiagnosticCode.ProjectionSourceUnresolved,
+                            "A projection-selection reference shall target a document declared in uav:projects.",
+                            references[jj].Reference);
+                    }
+                }
+
+                foreach (WotProjectionLocalAffordance local in projection.LocalAffordances)
+                {
+                    selection.Claim(local.AffordanceKind, local.Name);
+                }
+                for (int jj = 0; jj < references.Count; jj++)
+                {
+                    if (referenceOwner[jj] == -1)
+                    {
+                        selection.Claim(references[jj].AffordanceKind, references[jj].Name);
+                    }
                 }
 
                 for (int ii = 0; ii < count; ii++)
@@ -254,16 +280,30 @@ namespace Opc.Ua.Wot
                     }
                 }
 
+                var localSource = new ResolvedSource
+                {
+                    Source = new WotProjectionManifestSource
+                    {
+                        SourceName = "projection",
+                        Href = projectionOrigin,
+                        Routing = WotProjectionRouting.Source
+                    },
+                    Document = projectionDocument,
+                    DocumentHref = projectionOrigin,
+                    BaseHref = projectionBase
+                };
+                foreach (WotProjectionLocalAffordance local in projection.LocalAffordances)
+                {
+                    AddLocalAffordance(local.AffordanceKind, local.Name, local.Definition,
+                        localSource, selection, diagnostics);
+                }
                 for (int jj = 0; jj < references.Count; jj++)
                 {
                     if (referenceOwner[jj] == -1)
                     {
-                        AddError(
-                            diagnostics,
-                            WotDiagnosticCode.ProjectionSourceUnresolved,
-                            $"The reference '{references[jj].Reference}' names no " +
-                            "source in uav:projects.",
-                            references[jj].Reference);
+                        WotProjectionReference local = references[jj];
+                        AddLocalAffordance(local.AffordanceKind, local.Name, local.Annotations,
+                            localSource, selection, diagnostics);
                     }
                 }
 
@@ -273,22 +313,16 @@ namespace Opc.Ua.Wot
                 }
 
                 CloseAffordanceDependencies(selection, diagnostics, cancellationToken);
-                bool legacyPlan = m_options.ProjectionCompatibilityMode ==
-                    WotProjectionCompatibilityMode.DraftProjection11 &&
-                    !projectionDocument.TryGetUav("projectionKind", out _);
-                if (!legacyPlan)
+                foreach (ResolvedAffordance member in selection.Members)
                 {
-                    foreach (ResolvedAffordance member in selection.Members)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (member.Enumerated &&
+                        member.Source.Source.Routing == WotProjectionRouting.Projection &&
+                        (member.Value["forms"] is not JsonArray authoredForms || authoredForms.Count == 0))
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (member.Enumerated &&
-                            member.Source.Source.Routing == WotProjectionRouting.Projection &&
-                            (member.Value["forms"] is not JsonArray authoredForms || authoredForms.Count == 0))
-                        {
-                            AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
-                                "An enumerated projection-routed affordance must declare its own serving forms.",
-                                "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
-                        }
+                        AddError(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
+                            "An enumerated projection-routed affordance must declare its own serving forms.",
+                            "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
                     }
                 }
                 if (CountErrors(diagnostics) > errorsAtEntry ||
@@ -308,10 +342,10 @@ namespace Opc.Ua.Wot
                     if ((hostRouting || executableSource) &&
                         (member.Value["forms"] is not JsonArray forms || forms.Count == 0))
                     {
-                        if (legacyPlan || (!hostRouting && !hasDocumentContext))
+                        if (!hostRouting && !hasDocumentContext)
                         {
                             AddWarning(diagnostics, WotDiagnosticCode.ProjectionSourceUnresolved,
-                                "Draft or context-free structural projection processing did not establish " +
+                                "Context-free structural projection processing did not establish " +
                                 "executable forms; the result is not executable-TD admission proof.",
                                 "/" + MapName(member.Kind) + "/" + EscapePointer(member.Name) + "/forms");
                             continue;
@@ -359,6 +393,19 @@ namespace Opc.Ua.Wot
                         }
                     }
                 }
+                if (callReceivers is not null)
+                {
+                    foreach (ResolvedAffordance action in selection.Actions)
+                    {
+                        if (action.Source.Source.Routing == WotProjectionRouting.Source &&
+                            WotCallReceiver.TryCaptureSourceObject(
+                                action.Source.Document, action.Definition,
+                                out string receiver, out string endpoint, out _))
+                        {
+                            callReceivers.Add((action.Name, receiver, endpoint));
+                        }
+                    }
+                }
                 return Serialize(root);
             }
             finally
@@ -368,6 +415,37 @@ namespace Opc.Ua.Wot
                     openDocuments[ii].Dispose();
                 }
             }
+        }
+
+        private static void AddLocalAffordance(
+            WotAffordanceKind kind,
+            string name,
+            JsonElement definition,
+            ResolvedSource source,
+            Selection selection,
+            List<WotDiagnostic> diagnostics)
+        {
+            string pointer = "/" + MapName(kind) + "/" + EscapePointer(name);
+            JsonObject? value = CloneAffordance(source, definition, pointer, diagnostics);
+            if (value is null)
+            {
+                return;
+            }
+            QualifyProjectionSecurity(value);
+            if (value["forms"] is JsonArray forms)
+            {
+                foreach (JsonNode? formNode in forms)
+                {
+                    if (formNode is JsonObject form &&
+                        form["href"] is JsonValue hrefNode &&
+                        hrefNode.TryGetValue(out string? href) &&
+                        href is not null)
+                    {
+                        form["href"] = ResolveHref(source.BaseHref, href);
+                    }
+                }
+            }
+            selection.Add(kind, name, value, source, name, definition);
         }
 
         private static bool ValidateSourceIdentities(ResolvedSource?[] sources, List<WotDiagnostic> diagnostics)
@@ -529,11 +607,12 @@ namespace Opc.Ua.Wot
                 try
                 {
                     int errorsBeforeParse = CountErrors(diagnostics);
-                    var nested = WotProjection.Parse(document, diagnostics, m_options.ProjectionCompatibilityMode);
+                    var nested = WotProjection.Parse(document, diagnostics);
                     if (nested is null || CountErrors(diagnostics) != errorsBeforeParse)
                     {
                         return null;
                     }
+                    var nestedReceivers = new List<(string Name, string Receiver, string Endpoint)>();
                     byte[]? nestedBytes = await ResolveViewAsync(
                         document,
                         nested,
@@ -541,7 +620,7 @@ namespace Opc.Ua.Wot
                         resolving,
                         context,
                         diagnostics,
-                        cancellationToken).ConfigureAwait(false);
+                        cancellationToken, callReceivers: nestedReceivers).ConfigureAwait(false);
                     if (nestedBytes is null)
                     {
                         return null;
@@ -552,6 +631,7 @@ namespace Opc.Ua.Wot
 #pragma warning disable CA2000 // Ownership transfers to openDocuments, disposed in the caller's finally.
                         resolvedView = WotDocument.Parse(nestedBytes, m_options);
 #pragma warning restore CA2000
+                        resolvedView.CaptureSourceCallReceivers(nestedReceivers);
                     }
                     catch (Exception exception) when (
                         exception is JsonException or FormatException)
@@ -592,17 +672,11 @@ namespace Opc.Ua.Wot
             string ordinaryMediaType = document.Kind == WotDocumentKind.ThingModel
                 ? "application/tm+json"
                 : "application/td+json";
-            if (!WotProjection.IsProjection(document))
-            {
-                return string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
-            }
-            if (string.Equals(source.MediaType, WotProjection.ContentType, StringComparison.Ordinal))
+            if (string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal))
             {
                 return true;
             }
-            return m_options.ProjectionCompatibilityMode == WotProjectionCompatibilityMode.DraftProjection11 &&
-                !document.TryGetUav("projectionKind", out _) &&
-                string.Equals(source.MediaType, ordinaryMediaType, StringComparison.Ordinal);
+            return false;
         }
 
         private async ValueTask CheckOrganizingAcyclicAsync(
@@ -722,7 +796,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Orders the enumerated selections of one source by the total order of
-        /// WoT Binding Section 12.4: affordance kind in the fixed order
+        /// OPC 10101-2: affordance kind in the fixed order
         /// <c>properties</c>, <c>actions</c>, <c>events</c>; then ascending
         /// Unicode code point of the name the selection takes <em>in the
         /// view</em>; then ascending Unicode code point of the affordance's
@@ -769,7 +843,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// The position of an affordance kind in the fixed order of
-        /// WoT Binding Section 12.4.
+        /// OPC 10101-2.
         /// </summary>
         private static int KindRank(WotAffordanceKind kind)
         {
@@ -784,7 +858,7 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Gets the affordance's own name in the source, which is the last
         /// token of the <c>tm:ref</c> JSON Pointer and the final tie-break of
-        /// WoT Binding Section 12.4.
+        /// OPC 10101-2.
         /// </summary>
         private static string SourceAffordanceName(string reference)
         {
@@ -831,7 +905,7 @@ namespace Opc.Ua.Wot
                 source.Source.Routing == WotProjectionRouting.Source;
             if (sourceRouting && CarriesTransportAnnotation(reference.Annotations, out string member))
             {
-                // Section 12.5: under source routing the consumer talks to the
+                // OPC 10101-2: under source routing the consumer talks to the
                 // source's own endpoint, so a member that restates forms or
                 // security makes the document invalid. Dropping it would be
                 // worse than reporting it: a dropped form is one the author
@@ -887,7 +961,7 @@ namespace Opc.Ua.Wot
                 candidates.Add((kind, name, definition));
             }
 
-            // Section 12.4: within one source and group, by affordance kind,
+            // OPC 10101-2: within one source and group, by affordance kind,
             // then by the name the selection takes in the view, then by the
             // affordance's own name in the source. The last key is what makes
             // the order total, because uav:namePrefix upper-cases the first
@@ -1067,7 +1141,7 @@ namespace Opc.Ua.Wot
                     source.DocumentHref + "#" + pointer);
                 return;
             }
-            // WoT Binding Section 12: the reference the selection was made by, not the ultimate origin.
+            // OPC 10101-2: the reference the selection was made by, not the ultimate origin.
             value["uav:resolvedFrom"] = source.DocumentHref + "#" + pointer;
         }
 
@@ -1103,7 +1177,7 @@ namespace Opc.Ua.Wot
 
         /// <summary>
         /// Merges the members a projection annotated a declared affordance
-        /// with, honouring the closed set of WoT Binding Section 12.5.
+        /// with, honouring the closed set of OPC 10101-2.
         /// </summary>
         /// <remarks>
         /// The set is checked again here, and not only where the projection is
@@ -1159,7 +1233,7 @@ namespace Opc.Ua.Wot
                         string.Equals(member.Name, "security", StringComparison.Ordinal)))
                 {
                     // A member selected under source routing shall not carry its
-                    // own forms or security (Section 12.5); the source's own form
+                    // own forms or security; the source's own form
                     // is carried and absolutized instead.
                     continue;
                 }
@@ -1438,7 +1512,6 @@ namespace Opc.Ua.Wot
                         root[member.Name] = CloneNode(member.Value);
                         break;
                     case "uav:projects":
-                    case "uav:projectionKind":
                     case "properties":
                     case "actions":
                     case "events":
@@ -2287,7 +2360,36 @@ namespace Opc.Ua.Wot
                 : "q:s:" + EncodeSecurityName(sourceName) + ":" + EncodeSecurityName(schemeName);
         }
 
+        /// <summary>
+        /// Percent-encodes exact UTF-8 names, preserving only RFC 3986 unreserved bytes.
+        /// </summary>
+        /// <param name="name">The security-name component.</param>
         private static string EncodeSecurityName(string name)
+        {
+            var encoded = new StringBuilder();
+            foreach (byte value in Encoding.UTF8.GetBytes(name))
+            {
+                if (value is >= (byte)'A' and <= (byte)'Z' or
+                    >= (byte)'a' and <= (byte)'z' or
+                    >= (byte)'0' and <= (byte)'9' or
+                    (byte)'-' or (byte)'.' or (byte)'_' or (byte)'~')
+                {
+                    encoded.Append((char)value);
+                }
+                else
+                {
+                    encoded.Append('%');
+                    encoded.Append(value.ToString("X2", CultureInfo.InvariantCulture));
+                }
+            }
+            return encoded.ToString();
+        }
+
+        /// <summary>
+        /// Encodes dependency support names with unpadded base64url.
+        /// </summary>
+        /// <param name="name">The dependency-name component.</param>
+        private static string EncodeDependencyName(string name)
         {
             return Convert.ToBase64String(Encoding.UTF8.GetBytes(name))
                 .TrimEnd('=')
@@ -2297,12 +2399,17 @@ namespace Opc.Ua.Wot
 
         private static int FindSourceIndex(
             ArrayOf<WotProjectionManifestSource> sources,
-            string documentPart)
+            string documentPart,
+            string projectionBase)
         {
+            string referenceUri = ResolveHref(projectionBase, documentPart);
             for (int ii = 0; ii < sources.Count; ii++)
             {
-                if (string.Equals(
-                        sources[ii].Href, documentPart, StringComparison.Ordinal))
+                string sourceUri = ResolveHref(projectionBase, sources[ii].Href);
+                if (Uri.TryCreate(sourceUri, UriKind.Absolute, out Uri? source) &&
+                    Uri.TryCreate(referenceUri, UriKind.Absolute, out Uri? reference)
+                    ? source.Equals(reference)
+                    : string.Equals(sourceUri, referenceUri, StringComparison.Ordinal))
                 {
                     return ii;
                 }
@@ -2755,7 +2862,8 @@ namespace Opc.Ua.Wot
                 {
                     return name;
                 }
-                string stem = "q:d:" + EncodeSecurityName(source.Source.SourceName) + ":" + EncodeSecurityName(pointer);
+                string stem = "q:d:" +
+                    EncodeDependencyName(source.Source.SourceName) + ":" + EncodeDependencyName(pointer);
                 string candidate = stem;
                 for (int suffix = 1; !Claim(kind, candidate); suffix++)
                 {

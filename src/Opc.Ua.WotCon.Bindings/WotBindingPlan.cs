@@ -223,6 +223,30 @@ namespace Opc.Ua.WotCon.Bindings
         }
 
         /// <summary>
+        /// Builds a plan from a live parsed document, retaining trusted source Object
+        /// facts captured by projection resolution. Serialized provenance alone does not retain those facts.
+        /// </summary>
+        /// <param name="resourceXid">The resource xid.</param>
+        /// <param name="kind">The document kind.</param>
+        /// <param name="document">The parsed document or live projection resolution result.</param>
+        /// <param name="eventSelections">Previously resolved event selections, if any.</param>
+        /// <param name="selection">The explicit binder selection, if any.</param>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static WotBindingPlanRequest FromDocument(
+            string resourceXid,
+            WoTDocumentKindEnum kind,
+            WotDocument document,
+            WotEventSelectionCatalog? eventSelections = null,
+            WotBindingSelectionContext? selection = null)
+        {
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
+            return Build(resourceXid, kind, default, 64, selection, eventSelections, document);
+        }
+
+        /// <summary>
         /// Builds a plan request from a WoT document and an event field
         /// selection catalog a caller has already resolved.
         /// </summary>
@@ -396,7 +420,8 @@ namespace Opc.Ua.WotCon.Bindings
             ReadOnlyMemory<byte> document,
             int maxJsonDepth,
             WotBindingSelectionContext? selection,
-            WotEventSelectionCatalog? eventSelections)
+            WotEventSelectionCatalog? eventSelections,
+            WotDocument? parsedDocument = null)
         {
             WotDocumentKinds.RequireDocument(kind, nameof(kind));
             ImmutableArray<WotAffordanceForm> forms = [];
@@ -408,10 +433,13 @@ namespace Opc.Ua.WotCon.Bindings
             string? baseUri = null;
             try
             {
-                using var json = WotDocument.Parse(document, new WotNodeSetConverterOptions
-                {
-                    MaxJsonDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth
-                });
+                using WotDocument? owned = parsedDocument is null
+                    ? WotDocument.Parse(document, new WotNodeSetConverterOptions
+                    {
+                        MaxJsonDepth = maxJsonDepth <= 0 ? 64 : maxJsonDepth
+                    })
+                    : null;
+                WotDocument json = parsedDocument ?? owned!;
                 JsonElement root = json.RootElement;
                 if (root.ValueKind == JsonValueKind.Object)
                 {

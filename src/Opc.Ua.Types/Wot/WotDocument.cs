@@ -578,6 +578,42 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
+        /// Retains original source Object facts captured by projection resolution, not by serialized annotations.
+        /// </summary>
+        internal void CaptureSourceCallReceivers(
+            IEnumerable<(string Name, string Receiver, string Endpoint)> receivers)
+        {
+            if (!RootElement.TryGetProperty("actions", out JsonElement actions) ||
+                actions.ValueKind != JsonValueKind.Object)
+            {
+                return;
+            }
+            foreach ((string name, string receiver, string endpoint) in receivers)
+            {
+                if (actions.TryGetProperty(name, out JsonElement action))
+                {
+                    m_sourceCallReceivers[action] = (receiver, endpoint);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Reads trusted source Object facts for an action in this live resolver result.
+        /// </summary>
+        internal bool TryGetSourceCallReceiver(
+            JsonElement action, out string receiver, out string endpoint)
+        {
+            if (m_sourceCallReceivers.TryGetValue(action, out (string Receiver, string Endpoint) captured))
+            {
+                (receiver, endpoint) = captured;
+                return true;
+            }
+            receiver = string.Empty;
+            endpoint = string.Empty;
+            return false;
+        }
+
+        /// <summary>
         /// Determines whether the element belongs to this document.
         /// </summary>
         /// <param name="element">The JSON element.</param>
@@ -1578,6 +1614,9 @@ namespace Opc.Ua.Wot
         private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
         private readonly byte[] m_utf8Json;
         private readonly JsonDocument m_document;
+
+        /// <summary>Original source authority retained only for this live resolution result.</summary>
+        private readonly Dictionary<JsonElement, (string Receiver, string Endpoint)> m_sourceCallReceivers = [];
         private readonly Dictionary<(WotAffordanceKind Kind, JsonElement Affordance), WotPayloadSchema>
             m_payloadSchemas;
         private HashSet<(WotAffordanceKind Kind, string Name)>? m_supportOnly;
