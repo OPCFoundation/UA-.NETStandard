@@ -210,5 +210,58 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await FinishShutdownTestAsync().ConfigureAwait(false);
             }
         }
+
+        [Test]
+        public async Task ServerShutdownWaitsForBatchDecisionBeforeDisposingHostAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? manager = null;
+            IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    kFirstRegistrationValue, value => manager = value))], null, timeout.Token)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(manager);
+            Task<NodeManagerBatchResult> commit = prepared.CommitAsync(async _ =>
+            {
+                entered.TrySetResult(true);
+                await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }, timeout.Token).AsTask();
+            Task? shutdown = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                shutdown = m_server.ShutdownInternalsAsync(timeout.Token).AsTask();
+                Assert.That(shutdown.IsCompleted, Is.False,
+                    "Server shutdown must wait while the durable decision is pending.");
+                Assert.That(manager.DisposeCount, Is.Zero);
+
+                release.TrySetResult(true);
+                NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(prepared.IsCommitted, Is.True);
+                Assert.That(result.Registrations.Count, Is.EqualTo(1));
+                await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                AssertServerInternalsDisposed();
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await prepared.DisposeAsync().ConfigureAwait(false);
+                if (shutdown is null)
+                {
+                    await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
+                }
+                else
+                {
+                    await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                AssertServerInternalsDisposed();
+                await FinishShutdownTestAsync().ConfigureAwait(false);
+            }
+        }
     }
 }

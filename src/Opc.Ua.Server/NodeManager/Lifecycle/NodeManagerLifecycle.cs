@@ -206,6 +206,8 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public void Dispose()
         {
+            ThrowIfDecisionCallbackActive();
+
             // Signal only: Dispose is synchronous. A drain already running
             // finishes retiring the generations it captured.
             m_backgroundWork.Dispose();
@@ -234,6 +236,8 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void BeginStartup()
         {
+            ThrowIfDecisionCallbackActive();
+
             lock (m_operationLifetimeLock)
             {
                 if (m_disposed)
@@ -1914,6 +1918,8 @@ namespace Opc.Ua.Server
         /// <returns>The scope that ends the operation when disposed.</returns>
         private OperationLifetime EnterLifecycleOperation(PublicationCapture? publication = null)
         {
+            ThrowIfDecisionCallbackActive();
+
             lock (m_operationLifetimeLock)
             {
                 if (m_disposed)
@@ -4548,6 +4554,27 @@ namespace Opc.Ua.Server
             public bool Disposed { get; set; }
         }
 
+        private sealed class DecisionCallbackScope
+        {
+            /// <summary>
+            /// Gets whether the durable decision callback is still running.
+            /// </summary>
+            public bool IsActive => Volatile.Read(ref m_active) != 0;
+
+            /// <summary>
+            /// Marks the callback as complete for execution contexts it spawned.
+            /// </summary>
+            public void Deactivate()
+            {
+                Volatile.Write(ref m_active, 0);
+            }
+
+            /// <summary>
+            /// Indicates whether the durable decision callback is still running.
+            /// </summary>
+            private int m_active = 1;
+        }
+
         private sealed class OperationLifetime : IDisposable
         {
             /// <summary>
@@ -4791,6 +4818,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken,
             Action? publishCommittedState = null)
         {
+            ThrowIfDecisionCallbackActive();
+
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 EnterRequestLifecycleWaiter(batch.Server);
             await using var bindingAdmission =
@@ -4844,7 +4873,9 @@ namespace Opc.Ua.Server
                         OriginalFactory: batch.OriginalFactory,
                         FactoryRevision: batch.FactoryRevision,
                         ReadImages: batch.ReadImages,
-                        DecideAsync: decideAsync,
+                        DecideAsync: decideAsync is null
+                            ? null
+                            : token => InvokeDecisionCallbackAsync(decideAsync, token),
                         Published: () =>
                         {
                             batch.IsCommitted = true;
@@ -4979,6 +5010,38 @@ namespace Opc.Ua.Server
             finally
             {
                 m_lifecycleSemaphore.Release();
+            }
+        }
+
+        private async ValueTask InvokeDecisionCallbackAsync(
+            Func<CancellationToken, ValueTask> decideAsync,
+            CancellationToken cancellationToken)
+        {
+            ThrowIfDecisionCallbackActive();
+
+            DecisionCallbackScope? previous = m_decisionCallback.Value;
+            var current = new DecisionCallbackScope();
+            m_decisionCallback.Value = current;
+            try
+            {
+                await decideAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                current.Deactivate();
+                m_decisionCallback.Value = previous;
+            }
+        }
+
+        /// <summary>
+        /// Rejects lifecycle re-entry from the durable decision callback.
+        /// </summary>
+        private void ThrowIfDecisionCallbackActive()
+        {
+            if (m_decisionCallback.Value is { IsActive: true })
+            {
+                throw new InvalidOperationException(
+                    "NodeManager lifecycle operations cannot be started from the durable decision callback.");
             }
         }
 
@@ -5361,6 +5424,8 @@ namespace Opc.Ua.Server
             /// <returns>A task that completes when the cleanup finished.</returns>
             public async ValueTask DisposeAsync()
             {
+                m_owner.ThrowIfDecisionCallbackActive();
+
                 int state;
                 lock (m_stateGate)
                 {
@@ -5420,6 +5485,8 @@ namespace Opc.Ua.Server
                 Action? publishCommittedState,
                 CancellationToken cancellationToken)
             {
+                m_owner.ThrowIfDecisionCallbackActive();
+
                 if (IsValidationOnly != (decideAsync is null))
                 {
                     throw new InvalidOperationException("A validation candidate cannot be committed.");
@@ -5535,6 +5602,8 @@ namespace Opc.Ua.Server
         /// <returns>A task that completes when the active operations have drained.</returns>
         private async ValueTask<Task> EnterShutdownAfterPublicationAsync(CancellationToken cancellationToken)
         {
+            ThrowIfDecisionCallbackActive();
+
             while (true)
             {
                 Task finished;
@@ -5787,6 +5856,11 @@ namespace Opc.Ua.Server
         private volatile bool m_disposed;
         private volatile bool m_shuttingDown;
         private readonly AsyncLocal<OperationLifetime?> m_currentOperation = new();
+
+        /// <summary>
+        /// Carries the active durable-decision scope through asynchronous callback execution.
+        /// </summary>
+        private readonly AsyncLocal<DecisionCallbackScope?> m_decisionCallback = new();
         private PublicationCapture? m_publicationCapture;
         private TaskCompletionSource<bool>? m_publicationFinished;
     }

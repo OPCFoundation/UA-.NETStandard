@@ -1226,6 +1226,23 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            // Retired unsubscribe callbacks cannot re-enter the closed generation gate. Their separate
+            // dispatch count pins this record until all callbacks finish, before final unsubscription.
+            Task? activeUnsubscribeDispatches;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (!m_retiredGenerationNotifications.Contains(notifications))
+                {
+                    return;
+                }
+                activeUnsubscribeDispatches =
+                    notifications.EventUnsubscribeDispatchesDrained?.Task;
+            }
+            if (activeUnsubscribeDispatches is not null)
+            {
+                await activeUnsubscribeDispatches.WaitAsync(ct).ConfigureAwait(false);
+            }
+
             IEventMonitoredItem[] monitoredItems;
             lock (m_retiredGenerationNotificationsLock)
             {
@@ -1236,37 +1253,41 @@ namespace Opc.Ua.Server
                 monitoredItems = [.. notifications.SubscribedEventMonitoredItems];
             }
 
-            using GenerationGate.Lease? generationLease =
-                TryEnterGeneration(notifications.DispatchState.Generation);
-            if (generationLease is null)
+            foreach (IEventMonitoredItem monitoredItem in monitoredItems)
             {
-                return;
-            }
-            using (generationLease)
-            {
-                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
+                using var eventContext = new OperationContext(monitoredItem);
+                ServiceResult result = await nodeManager
+                    .SubscribeToAllEventsAsync(
+                        eventContext,
+                        monitoredItem.SubscriptionId,
+                        monitoredItem,
+                        true,
+                        ct)
+                    .ConfigureAwait(false);
+                if (ServiceResult.IsBad(result))
                 {
-                    using var eventContext = new OperationContext(monitoredItem);
-                    ServiceResult result = await nodeManager
-                        .SubscribeToAllEventsAsync(
-                            eventContext,
-                            monitoredItem.SubscriptionId,
-                            monitoredItem,
-                            true,
-                            ct)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result))
+                    throw new ServiceResultException(result);
+                }
+                lock (m_retiredGenerationNotificationsLock)
+                {
+                    if (m_retiredGenerationNotifications.Contains(notifications))
                     {
-                        throw new ServiceResultException(result);
+                        notifications.SubscribedEventMonitoredItems.RemoveAll(
+                            candidate => ReferenceEquals(candidate, monitoredItem));
                     }
-                    lock (m_retiredGenerationNotificationsLock)
-                    {
-                        if (m_retiredGenerationNotifications.Contains(notifications))
-                        {
-                            notifications.SubscribedEventMonitoredItems.RemoveAll(
-                                candidate => ReferenceEquals(candidate, monitoredItem));
-                        }
-                    }
+                }
+            }
+        }
+
+        private void ExitRetiredEventUnsubscribeDispatch(
+            RetiredGenerationNotifications notifications)
+        {
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (--notifications.ActiveEventUnsubscribeDispatches == 0)
+                {
+                    notifications.EventUnsubscribeDispatchesDrained?.TrySetResult(true);
+                    notifications.EventUnsubscribeDispatchesDrained = null;
                 }
             }
         }
@@ -1504,7 +1525,19 @@ namespace Opc.Ua.Server
                             ReferenceEquals(candidate, monitoredItem)) &&
                         !ContainsNodeManager(dispatches, notifications.NodeManager))
                     {
-                        AddRetiredNotificationDispatch(dispatches, notifications);
+                        // Finalization closes admission under this lock; the count must cover every lease it can
+                        // observe before the lease is returned to its caller.
+                        if (notifications.ActiveEventUnsubscribeDispatches++ == 0)
+                        {
+                            notifications.EventUnsubscribeDispatchesDrained =
+                                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                        }
+                        dispatches.Add(new NotificationDispatchLease(
+                            this,
+                            notifications.DispatchState.Generation,
+                            notifications.DispatchState,
+                            [],
+                            slot: null));
                     }
                 }
             }
@@ -2620,7 +2653,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Retains a node-manager generation while an event notification or refresh is dispatched.
+        /// Retains a node-manager generation or retired binding record while an event callback is dispatched.
         /// </summary>
         internal sealed class NotificationDispatchLease : IDisposable
         {
@@ -2631,13 +2664,15 @@ namespace Opc.Ua.Server
             /// <param name="generation">The generation admitted by the lease.</param>
             /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
             /// <param name="monitoredItems">The monitored items included in the operation.</param>
-            /// <param name="slot">The striped gate slot released by this lease.</param>
+            /// <param name="slot">
+            /// The striped gate slot released by this lease, or <see langword="null"/> for a retired unsubscribe.
+            /// </param>
             public NotificationDispatchLease(
                 MasterNodeManager owner,
                 NodeManagerGeneration generation,
                 NotificationDispatchState dispatchState,
                 IEventMonitoredItem[] monitoredItems,
-                int slot)
+                int? slot)
             {
                 m_owner = owner;
                 Generation = generation;
@@ -2693,11 +2728,22 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                Generation.Gate.Exit(m_slot);
+                if (m_slot is int slot)
+                {
+                    Generation.Gate.Exit(slot);
+                }
+                else if (DispatchState.Notifications is { } notifications)
+                {
+                    owner.ExitRetiredEventUnsubscribeDispatch(notifications);
+                }
             }
 
             private MasterNodeManager? m_owner;
-            private readonly int m_slot;
+
+            /// <summary>
+            /// Gets the owned generation-gate slot, or null when the lease pins a retired unsubscribe callback.
+            /// </summary>
+            private readonly int? m_slot;
         }
 
         /// <summary>
@@ -2745,6 +2791,16 @@ namespace Opc.Ua.Server
             /// Gets or sets whether event unsubscription can still be dispatched to the retired generation.
             /// </summary>
             public bool AcceptEventDeletes { get; set; } = true;
+
+            /// <summary>
+            /// Gets or sets the count of in-flight retired-generation event-unsubscribe callbacks.
+            /// </summary>
+            public int ActiveEventUnsubscribeDispatches { get; set; }
+
+            /// <summary>
+            /// Gets or sets the completion source for active event-unsubscribe callbacks.
+            /// </summary>
+            public TaskCompletionSource<bool>? EventUnsubscribeDispatchesDrained { get; set; }
 
         }
 

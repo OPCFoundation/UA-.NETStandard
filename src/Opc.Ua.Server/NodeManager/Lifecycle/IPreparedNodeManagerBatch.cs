@@ -36,6 +36,10 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Owns an unpublished unit and all resources acquired while preparing it.
     /// </summary>
+    /// <remarks>
+    /// Durable decision callbacks cannot re-enter NodeManager lifecycle operations. Nested lifecycle operations
+    /// are rejected before they can wait on the active commit or alter its prepared unit.
+    /// </remarks>
     public interface IPreparedNodeManagerBatch : IAsyncDisposable
     {
         /// <summary>

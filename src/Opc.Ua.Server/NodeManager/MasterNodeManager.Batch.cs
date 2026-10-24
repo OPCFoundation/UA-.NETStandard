@@ -106,12 +106,14 @@ namespace Opc.Ua.Server
 
             var referenceUpdates = new List<NodeState.ReferenceUpdate>();
             bool bindingAdmissionHeld = false;
+            bool startupShutdownSemaphoreHeld = false;
             try
             {
                 await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
                     await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    startupShutdownSemaphoreHeld = true;
                     try
                     {
                         foreach (PreparedNodeManager candidate in candidates)
@@ -178,7 +180,14 @@ namespace Opc.Ua.Server
                         {
                             return;
                         }
+                        // The lifecycle writer excludes server teardown; do not hold the startup/shutdown semaphore
+                        // while the durable decision callback performs external I/O. The prepared batch retains
+                        // its lifecycle operation until commit or disposal, so shutdown cannot dispose this host.
+                        m_startupShutdownSemaphoreSlim.Release();
+                        startupShutdownSemaphoreHeld = false;
                         await decideAsync(cancellationToken).ConfigureAwait(false);
+                        await m_startupShutdownSemaphoreSlim.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+                        startupShutdownSemaphoreHeld = true;
 
                         // Lifecycle-waiting callbacks suspend their admission while the committed image is installed.
                         await m_bindingSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -231,7 +240,11 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        m_startupShutdownSemaphoreSlim.Release();
+                        if (startupShutdownSemaphoreHeld)
+                        {
+                            m_startupShutdownSemaphoreSlim.Release();
+                            startupShutdownSemaphoreHeld = false;
+                        }
                     }
                 }
                 finally

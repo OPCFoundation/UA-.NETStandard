@@ -962,6 +962,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(secondValue.WrappedValue.TryGetValue(out int secondNumber), Is.True);
             Assert.That(firstNumber, Is.EqualTo(101));
             Assert.That(secondNumber, Is.EqualTo(202));
+
+            await prepared.DisposeAsync().ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch followup = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Replace(first, new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, 606)))
+                ], null);
+            await followup.CommitAsync(_ => default).ConfigureAwait(false);
+            Assert.That(followup.IsCommitted, Is.True);
+            DataValue followupValue = await ReadValueAsync(new NodeId(
+                kValueNodeId, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri)));
+            Assert.That(followupValue.WrappedValue.TryGetValue(out int followupNumber), Is.True);
+            Assert.That(followupNumber, Is.EqualTo(606));
+        }
+
+        [Test]
+        public async Task PreparedBatchDecisionCallbackRejectsNestedLifecycleOperationsAsync()
+        {
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))
+                ], null);
+            await using IPreparedNodeManagerBatch nestedCommit = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                ], null);
+
+            await prepared.CommitAsync(async _ =>
+            {
+                await Task.Run(async () =>
+                {
+                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await lifecycle.PrepareAsync(
+                            [
+                                NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                                    CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                            ], null, timeout.Token).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await nestedCommit.CommitAsync(_ => default).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                    await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    {
+                        await nestedCommit.DisposeAsync().ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+                }, _).ConfigureAwait(false);
+            }).ConfigureAwait(false);
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations().Count, Is.EqualTo(1));
+            await nestedCommit.DisposeAsync().ConfigureAwait(false);
+
+            await using IPreparedNodeManagerBatch followup = await lifecycle.PrepareAsync(
+                [
+                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                        CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
+                ], null);
+            await followup.CommitAsync(_ => default).ConfigureAwait(false);
+            Assert.That(followup.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations().Count, Is.EqualTo(2));
         }
 
         [Test]
