@@ -51,7 +51,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// The stable identity shared by every generation of one registered node manager.
     /// </summary>
-    internal sealed class NodeManagerSlot
+    public sealed class NodeManagerSlot
     {
         /// <summary>
         /// Initializes a new slot.
@@ -64,7 +64,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the stable identifier of this slot.
         /// </summary>
-        internal Guid Id
+        public Guid Id
         {
             get
             {
@@ -73,6 +73,23 @@ namespace Opc.Ua.Server
                     return m_id;
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets one consistent snapshot of the currently published generation.
+        /// </summary>
+        /// <param name="snapshot">The current slot and generation state when present.</param>
+        /// <returns><see langword="true"/> when the slot has a current generation.</returns>
+        public bool TryGetCurrent(out NodeManagerSlotSnapshot snapshot)
+        {
+            NodeManagerGeneration? current = Current;
+            if (current is null)
+            {
+                snapshot = default;
+                return false;
+            }
+            snapshot = new NodeManagerSlotSnapshot(this, current.Number, current.NodeManager);
+            return true;
         }
 
         /// <summary>
@@ -125,6 +142,43 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether the public registration identifier has been assigned.</summary>
         private bool m_registrationIdSet;
+    }
+
+    /// <summary>
+    /// A consistent snapshot of one stable NodeManager slot and its current generation.
+    /// </summary>
+    public readonly record struct NodeManagerSlotSnapshot
+    {
+        /// <summary>
+        /// Creates a snapshot.
+        /// </summary>
+        /// <param name="slot">The stable slot.</param>
+        /// <param name="generation">The generation number.</param>
+        /// <param name="nodeManager">The NodeManager in that generation.</param>
+        internal NodeManagerSlotSnapshot(
+            NodeManagerSlot slot,
+            long generation,
+            IAsyncNodeManager nodeManager)
+        {
+            Slot = slot;
+            Generation = generation;
+            NodeManager = nodeManager;
+        }
+
+        /// <summary>
+        /// Gets the stable slot.
+        /// </summary>
+        public NodeManagerSlot Slot { get; }
+
+        /// <summary>
+        /// Gets the generation number represented by this snapshot.
+        /// </summary>
+        public long Generation { get; }
+
+        /// <summary>
+        /// Gets the NodeManager represented by this snapshot.
+        /// </summary>
+        public IAsyncNodeManager NodeManager { get; }
     }
 
     /// <summary>

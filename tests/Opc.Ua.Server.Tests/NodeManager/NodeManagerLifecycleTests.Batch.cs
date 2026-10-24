@@ -44,6 +44,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        [Test]
+        public async Task RegistrationSlotTracksReplacementAndRemovalAsync()
+        {
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? replacement = null;
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager), null)
+                .ConfigureAwait(false);
+            NodeManagerSlot slot = registration.Slot;
+            Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot initial), Is.True);
+            Assert.That(initial.NodeManager, Is.SameAs(original));
+            Assert.That(initial.Generation, Is.EqualTo(registration.Generation));
+
+            NodeManagerRegistration next = await m_server.NodeManagerLifecycle.ReloadAsync(
+                registration,
+                CreateTrackingNodeManagementFactory(kGeneration2Value, manager => replacement = manager),
+                null).ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(next.Slot, Is.SameAs(slot));
+                Assert.That(slot.Id, Is.EqualTo(registration.Id));
+                Assert.That(slot.TryGetCurrent(out NodeManagerSlotSnapshot current), Is.True);
+                Assert.That(current.NodeManager, Is.SameAs(replacement));
+                Assert.That(current.Generation, Is.EqualTo(next.Generation));
+            }
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(next, null).ConfigureAwait(false);
+            Assert.That(slot.TryGetCurrent(out _), Is.False);
+        }
+
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(false, true)]

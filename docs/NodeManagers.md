@@ -889,6 +889,20 @@ invalidates the previous handle. `Registrations` also lists application NodeMana
 before startup (not the protected diagnostics, configuration and core managers), so a control plane
 can remove them or, if they implement `INodeManagerReloadParticipant`, reload them.
 
+`registration.Slot` is the stable handle shared by every generation of that logical registration.
+Use `TryGetCurrent` to capture the current manager and generation together; it returns `false` after
+the registration is removed. A captured snapshot continues to identify that exact manager even if a
+later reload publishes another generation:
+
+```csharp
+NodeManagerSlot slot = registration.Slot;
+if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
+{
+    IAsyncNodeManager manager = current.NodeManager;
+    long generation = current.Generation;
+}
+```
+
 `INodeManagerLifecycle` is a host control-plane API. Teardown waits for requests that captured the
 retired generation, so a lifecycle call made from inside an OPC UA service or Method callback would
 wait for itself. Every lifecycle method therefore takes the operation the caller is running under;

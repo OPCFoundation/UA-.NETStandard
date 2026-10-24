@@ -51,7 +51,8 @@ namespace Opc.Ua.Server
                     $"Expected node-manager generation {generation}, but the published identity is {identity.Number}.");
             }
             Identity = identity;
-            Id = identity.Slot.Id;
+            Slot = identity.Slot;
+            Id = Slot.Id;
             Generation = identity.Number;
             NodeManager = identity.NodeManager;
             IEnumerable<string>? namespaceUris = nodeManager.NamespaceUris;
@@ -59,6 +60,11 @@ namespace Opc.Ua.Server
                 ? default
                 : new ArrayOf<string>(namespaceUris.ToArray());
         }
+
+        /// <summary>
+        /// Gets the stable slot shared by every generation of this registration.
+        /// </summary>
+        public NodeManagerSlot Slot { get; }
 
         /// <summary>
         /// Gets the stable identifier shared by all generations of this registration.
