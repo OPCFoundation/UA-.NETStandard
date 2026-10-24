@@ -99,9 +99,9 @@ namespace Opc.Ua.Server.Tests
                 {
                     UriScheme = uriScheme
                 };
-                StandardServer server = await fixture.StartAsync(takenPort).ConfigureAwait(false);
                 try
                 {
+                    StandardServer server = await fixture.StartAsync(takenPort).ConfigureAwait(false);
                     Assert.That(server, Is.Not.Null);
                     Assert.That(fixture.Port, Is.Not.EqualTo(takenPort));
                 }
@@ -113,6 +113,62 @@ namespace Opc.Ua.Server.Tests
             finally
             {
                 blocker.Stop();
+            }
+        }
+
+        /// <summary>
+        /// A second port collision during a fixed-port fallback still retries.
+        /// </summary>
+        [TestCase(SocketError.AddressAlreadyInUse)]
+        [TestCase(SocketError.AccessDenied)]
+        public async Task StartServerRetriesSuccessivePortFailuresAsync(SocketError socketError)
+        {
+            int attempts = 0;
+            var fixture = new ServerFixture<StandardServer>(telemetry =>
+            {
+                if (++attempts <= 2)
+                {
+                    throw new SocketException((int)socketError);
+                }
+                return new StandardServer(telemetry);
+            });
+            try
+            {
+                int initialPort = ServerFixtureUtils.GetNextFreeIPPort();
+                StandardServer server = await fixture.StartAsync(initialPort).ConfigureAwait(false);
+                Assert.That(server, Is.Not.Null);
+                Assert.That(attempts, Is.EqualTo(3));
+                Assert.That(fixture.Port, Is.Not.EqualTo(initialPort));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// A non-port startup failure is surfaced without trying another port.
+        /// </summary>
+        [Test]
+        public async Task StartServerDoesNotRetryUnrelatedFailureAsync()
+        {
+            int attempts = 0;
+            var failure = new InvalidOperationException("Controlled server factory failure.");
+            var fixture = new ServerFixture<StandardServer>(_ =>
+            {
+                attempts++;
+                throw failure;
+            });
+            try
+            {
+                InvalidOperationException thrown = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await fixture.StartAsync(ServerFixtureUtils.GetNextFreeIPPort()).ConfigureAwait(false));
+                Assert.That(thrown, Is.SameAs(failure));
+                Assert.That(attempts, Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
             }
         }
 
