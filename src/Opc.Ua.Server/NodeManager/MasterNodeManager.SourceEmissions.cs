@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Linq;
 using System.Threading;
 
 namespace Opc.Ua.Server
@@ -50,14 +49,25 @@ namespace Opc.Ua.Server
         /// <param name="includeCaptured">The include-captured flag supplied by the caller.</param>
         internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager, bool includeCaptured = true)
         {
+            if (includeCaptured && HasCapturedSourceEmission(nodeManager))
+            {
+                return true;
+            }
+            // The table holds the one state of the node manager; the cutoff only clears its flag.
+            if (!m_notificationDispatchStateTable.TryGetValue(
+                nodeManager,
+                out NotificationDispatchState? state))
+            {
+                return true;
+            }
+            if (state.TryGetBusinessEmissionsEnabled(out bool enabled))
+            {
+                return enabled;
+            }
+            // A cutoff is publishing its routes: answer after it, together with the routes.
             lock (m_retiredGenerationNotificationsLock)
             {
-                if (includeCaptured && HasCapturedSourceEmission(nodeManager))
-                {
-                    return true;
-                }
-                return m_notificationDispatchStates.All(state =>
-                    !state.References(nodeManager) || state.BusinessEmissionsEnabled);
+                return state.BusinessEmissionsEnabled;
             }
         }
 
@@ -87,14 +97,26 @@ namespace Opc.Ua.Server
             {
                 return true;
             }
+            // Forwarding a source event through the Server object must retain its original owner.
+            if (ReferenceEquals(nodeManager, master.CoreNodeManager) &&
+                master.m_currentSourceEmission.Value is { IsActive: true } captured)
+            {
+                nodeManager = captured.NodeManager;
+            }
+            // Every data change and event captures a lease, so the common case (emissions enabled,
+            // no drain waiting) is counted per processor instead of under the master's lock.
+            NotificationDispatchState fastState = master.GetNotificationDispatchState(nodeManager);
+            if (fastState.TryAdmitFast(out int slot, out bool releaseRequired))
+            {
+                emission = new NotificationDispatchLease(master, nodeManager, fastState, [], slot);
+                return true;
+            }
+            if (releaseRequired)
+            {
+                master.CompleteNotificationDispatchDrain(fastState);
+            }
             lock (master.m_retiredGenerationNotificationsLock)
             {
-                // Forwarding a source event through the Server object must retain its original owner.
-                if (ReferenceEquals(nodeManager, master.CoreNodeManager) &&
-                    master.m_currentSourceEmission.Value is { IsActive: true } captured)
-                {
-                    nodeManager = captured.NodeManager;
-                }
                 NotificationDispatchState state = master.GetOrCreateNotificationDispatchState(nodeManager);
                 if (!state.BusinessEmissionsEnabled && !master.HasCapturedSourceEmission(nodeManager))
                 {

@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1323,11 +1324,17 @@ namespace Opc.Ua.Server
                     notifications.AcceptEventDeletes = false;
                 }
 
-                dispatchesDrained = dispatchState.ActiveDispatches == 0
-                    ? Task.CompletedTask
-                    : (dispatchState.DispatchesDrained ??=
-                        new TaskCompletionSource<bool>(
-                            TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+                // Publishing the signal closes lock-free admission before the leases are counted.
+                TaskCompletionSource<bool> drained = dispatchState.DispatchesDrained ??=
+                    new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                if (dispatchState.ActiveDispatches == 0 &&
+                    dispatchState.FastDispatches == 0)
+                {
+                    dispatchState.DispatchesDrained = null;
+                    drained.TrySetResult(true);
+                }
+                dispatchesDrained = drained.Task;
             }
 
             await dispatchesDrained.WaitAsync(ct).ConfigureAwait(false);
@@ -1675,9 +1682,14 @@ namespace Opc.Ua.Server
 
                 if (--dispatchState.ActiveDispatches == 0)
                 {
-                    dispatchesDrained = dispatchState.DispatchesDrained;
-                    dispatchState.DispatchesDrained = null;
-                    if (dispatchState.Enabled &&
+                    // Leases admitted without the lock complete the drain on their release.
+                    if (dispatchState.FastDispatches == 0)
+                    {
+                        dispatchesDrained = dispatchState.DispatchesDrained;
+                        dispatchState.DispatchesDrained = null;
+                    }
+                    if (dispatchState.DispatchesDrained is null &&
+                        dispatchState.Enabled &&
                         dispatchState.BusinessEmissionsEnabled &&
                         dispatchState.EmissionCutoffReservations == 0 &&
                         dispatchState.CustomSourceCreations == 0 &&
@@ -1693,17 +1705,51 @@ namespace Opc.Ua.Server
             dispatchesDrained?.TrySetResult(true);
         }
 
+        /// <summary>
+        /// Completes a waiting drain once the last lease of the generation, counted with or
+        /// without the lock, is released.
+        /// </summary>
+        /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
+        private void CompleteNotificationDispatchDrain(
+            NotificationDispatchState dispatchState)
+        {
+            TaskCompletionSource<bool>? dispatchesDrained = null;
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                if (dispatchState.DispatchesDrained is not null &&
+                    dispatchState.ActiveDispatches == 0 &&
+                    dispatchState.FastDispatches == 0)
+                {
+                    dispatchesDrained = dispatchState.DispatchesDrained;
+                    dispatchState.DispatchesDrained = null;
+                }
+            }
+            dispatchesDrained?.TrySetResult(true);
+        }
+
+        /// <summary>
+        /// Gets the generation state of the node manager without the lock. The table keeps one
+        /// state per node manager for its lifetime, so leases admitted without the lock and the
+        /// tracked list below always count on the same state.
+        /// </summary>
+        /// <param name="nodeManager">The node manager associated with the operation.</param>
+        private NotificationDispatchState GetNotificationDispatchState(
+            IAsyncNodeManager nodeManager)
+        {
+            return m_notificationDispatchStateTable.GetValue(
+                nodeManager,
+                static manager => new NotificationDispatchState(manager));
+        }
+
         private NotificationDispatchState GetOrCreateNotificationDispatchState(
             IAsyncNodeManager nodeManager)
         {
             m_notificationDispatchStates.RemoveAll(candidate =>
                 !candidate.IsAlive);
-            NotificationDispatchState? dispatchState =
-                m_notificationDispatchStates.FirstOrDefault(candidate =>
-                    candidate.References(nodeManager));
-            if (dispatchState is null)
+            NotificationDispatchState dispatchState =
+                GetNotificationDispatchState(nodeManager);
+            if (!m_notificationDispatchStates.Contains(dispatchState))
             {
-                dispatchState = new NotificationDispatchState(nodeManager);
                 m_notificationDispatchStates.Add(dispatchState);
             }
             return dispatchState;
@@ -2640,11 +2686,30 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager nodeManager,
                 NotificationDispatchState dispatchState,
                 IEventMonitoredItem[] monitoredItems)
+                : this(owner, nodeManager, dispatchState, monitoredItems, -1)
+            {
+            }
+
+            /// <summary>
+            /// Captures a dispatch admitted without the lock in a counter slot of the generation state.
+            /// </summary>
+            /// <param name="owner">The master node manager responsible for releasing this dispatch lease.</param>
+            /// <param name="nodeManager">The node manager associated with the operation.</param>
+            /// <param name="dispatchState">The generation state retained for notification dispatch.</param>
+            /// <param name="monitoredItems">The monitored items included in the operation.</param>
+            /// <param name="fastSlot">The counter slot, or -1 for a lease counted under the lock.</param>
+            public NotificationDispatchLease(
+                MasterNodeManager owner,
+                IAsyncNodeManager nodeManager,
+                NotificationDispatchState dispatchState,
+                IEventMonitoredItem[] monitoredItems,
+                int fastSlot)
             {
                 m_owner = owner;
                 NodeManager = nodeManager;
                 DispatchState = dispatchState;
                 MonitoredItems = monitoredItems;
+                m_fastSlot = fastSlot;
             }
 
             /// <summary>
@@ -2684,11 +2749,23 @@ namespace Opc.Ua.Server
             /// <inheritdoc />
             public void Dispose()
             {
-                Interlocked.Exchange(ref m_owner, null)?
-                    .ReleaseNotificationDispatch(DispatchState);
+                MasterNodeManager? owner = Interlocked.Exchange(ref m_owner, null);
+                if (owner is null)
+                {
+                    return;
+                }
+                if (m_fastSlot < 0)
+                {
+                    owner.ReleaseNotificationDispatch(DispatchState);
+                }
+                else if (DispatchState.ReleaseFast(m_fastSlot))
+                {
+                    owner.CompleteNotificationDispatchDrain(DispatchState);
+                }
             }
 
             private MasterNodeManager? m_owner;
+            private readonly int m_fastSlot;
         }
 
         /// <summary>
@@ -2777,13 +2854,55 @@ namespace Opc.Ua.Server
             /// Gets or sets a value indicating whether business source emissions may be admitted while dispatch
             /// is active.
             /// </summary>
-            public bool BusinessEmissionsEnabled { get; set; } = true;
+            public bool BusinessEmissionsEnabled
+            {
+                get => Volatile.Read(ref m_businessEmissionsEnabled);
+                set => Volatile.Write(ref m_businessEmissionsEnabled, value);
+            }
 
             /// <summary>
             /// Gets or sets the number of outstanding source-emission cutoff reservations that block immediate
             /// dispatch.
             /// </summary>
-            public int EmissionCutoffReservations { get; set; }
+            /// <remarks>
+            /// A reservation closes the lock-free admission path before the cutoff publishes its
+            /// routes, so emissions admitted from then on observe the routes and the cutoff flag
+            /// together under the lock.
+            /// </remarks>
+            public int EmissionCutoffReservations
+            {
+                get => Volatile.Read(ref m_emissionCutoffReservations);
+                set
+                {
+                    Interlocked.Exchange(ref m_emissionCutoffReservations, value);
+                    // Every reservation and release moves the version, so an admission that read the
+                    // gate before a cutoff started and checks it again after the cutoff completed
+                    // still sees that a cutoff ran in between.
+                    Interlocked.Increment(ref m_cutoffVersion);
+                }
+            }
+
+            /// <summary>
+            /// Reads <see cref="BusinessEmissionsEnabled"/> without the lock when no cutoff is reserved.
+            /// </summary>
+            /// <remarks>
+            /// A cutoff publishes its routes and clears the flag under the lock while it holds a
+            /// reservation, and releases the reservation after the flag is cleared. Reading the
+            /// reservation first therefore either sees the reservation (the caller must read the flag
+            /// under the lock) or sees the flag as the cutoff left it.
+            /// </remarks>
+            /// <param name="enabled">The flag, when no cutoff is reserved.</param>
+            /// <returns><c>false</c> when a cutoff is reserved.</returns>
+            public bool TryGetBusinessEmissionsEnabled(out bool enabled)
+            {
+                if (EmissionCutoffReservations != 0)
+                {
+                    enabled = false;
+                    return false;
+                }
+                enabled = BusinessEmissionsEnabled;
+                return true;
+            }
 
             /// <summary>
             /// Gets or sets the number of in-flight custom source creations that block immediate dispatch.
@@ -2798,13 +2917,86 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets or sets the completion signal for draining outstanding dispatch leases.
             /// </summary>
-            public TaskCompletionSource<bool>? DispatchesDrained { get; set; }
+            /// <remarks>
+            /// Setting a signal closes the lock-free admission path; the store is a full fence,
+            /// so a drain that then reads <see cref="FastDispatches"/> sees every lease admitted
+            /// without the lock, or the lease's release sees the pending drain.
+            /// </remarks>
+            public TaskCompletionSource<bool>? DispatchesDrained
+            {
+                get => Volatile.Read(ref m_dispatchesDrained);
+                set => Interlocked.Exchange(ref m_dispatchesDrained, value);
+            }
 
             /// <summary>
             /// Gets or sets the retained notifications when this generation is retired.
             /// </summary>
             public RetiredGenerationNotifications? Notifications { get; set; }
 
+            /// <summary>
+            /// Gets the number of outstanding leases admitted without the lock.
+            /// </summary>
+            public long FastDispatches => m_fastDispatches.Count;
+
+            /// <summary>
+            /// Admits a lease without the lock while business emissions are enabled, no cutoff is
+            /// reserved and no drain waits. Source emissions run per data change on every core, so
+            /// the admission counts in a per-processor slot instead of under the master's lock.
+            /// </summary>
+            /// <param name="slot">The counter slot to release the lease from.</param>
+            /// <param name="releaseRequired">
+            /// <c>true</c> when admission failed after a drain could have counted the lease, so
+            /// the caller must complete that drain.
+            /// </param>
+            /// <param name="beforeEnter">Test hook run between the first gate check and the count.</param>
+            public bool TryAdmitFast(out int slot, out bool releaseRequired, Action? beforeEnter = null)
+            {
+                releaseRequired = false;
+                slot = -1;
+                int version = Volatile.Read(ref m_cutoffVersion);
+                if (!IsFastAdmissionOpen)
+                {
+                    return false;
+                }
+                beforeEnter?.Invoke();
+                int entered = m_fastDispatches.Enter();
+                // A cutoff that started (or started and completed) since the first check moved the
+                // version: the routes it published and its flag are then only observed together under
+                // the lock.
+                if (IsFastAdmissionOpen && Volatile.Read(ref m_cutoffVersion) == version)
+                {
+                    slot = entered;
+                    return true;
+                }
+                releaseRequired = ReleaseFast(entered);
+                return false;
+            }
+
+            /// <summary>
+            /// Releases a lease admitted without the lock.
+            /// </summary>
+            /// <param name="slot">The counter slot the lease was admitted in.</param>
+            /// <returns><c>true</c> when a drain waits and may now be complete.</returns>
+            public bool ReleaseFast(int slot)
+            {
+                m_fastDispatches.Exit(slot);
+                return DispatchesDrained is not null;
+            }
+
+            /// <summary>
+            /// Reads the reservation before the flag: a cutoff clears the flag before it releases
+            /// its reservation, so a released reservation implies the cleared flag is visible.
+            /// </summary>
+            private bool IsFastAdmissionOpen =>
+                EmissionCutoffReservations == 0 &&
+                BusinessEmissionsEnabled &&
+                DispatchesDrained is null;
+
+            private readonly StripedCounter m_fastDispatches = new();
+            private bool m_businessEmissionsEnabled = true;
+            private int m_emissionCutoffReservations;
+            private int m_cutoffVersion;
+            private TaskCompletionSource<bool>? m_dispatchesDrained;
             private readonly WeakReference<IAsyncNodeManager> m_nodeManager;
         }
 
@@ -2848,6 +3040,8 @@ namespace Opc.Ua.Server
             m_retiredGenerationNotifications = [];
         private readonly List<NotificationDispatchState>
             m_notificationDispatchStates = [];
+        private readonly ConditionalWeakTable<IAsyncNodeManager, NotificationDispatchState>
+            m_notificationDispatchStateTable = new();
         private volatile Action? m_retiredGenerationDrainObserver;
 
         private bool m_startupApplicationNodeManagersTransferred;
