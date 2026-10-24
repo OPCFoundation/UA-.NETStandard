@@ -43,7 +43,7 @@ namespace Opc.Ua.Types.Tests.Wot
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Neither term is defined by WoT Binding 1.1. Event identity is stated by
+    /// Neither term is defined by OPC 10101-1. Event identity is stated by
     /// the <c>@type: uav:eventType</c> annotation alone, and no default
     /// severity metadata exists: <c>Severity</c> is a field of an occurrence,
     /// declared by <c>BaseEventType</c>, and appears in the notification data

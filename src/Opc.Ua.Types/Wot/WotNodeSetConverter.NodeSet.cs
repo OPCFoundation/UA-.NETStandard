@@ -1681,7 +1681,7 @@ namespace Opc.Ua.Wot
         {
             writer.WriteStartObject();
             // Section 5.2: @type uav:eventType is the sole annotation that
-            // records an EventType projection. WoT Binding 1.1 defines no
+            // records an EventType projection. OPC 10101-1 defines no
             // parallel boolean flag, so nothing else states event identity.
             writer.WriteString("@type", WotVocabulary.EventTypeAnnotation);
             WriteLocalizedTextContext(

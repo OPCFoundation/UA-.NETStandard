@@ -50,7 +50,8 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values("Valid", "Missing", "Malformed", "Escaped")] string scenario)
         {
             JsonObject plan = Plan();
-            plan["uav:projectionKind"] = thingModel ? "ThingModel" : "ThingDescription";
+            plan["@type"] = new JsonArray(
+                thingModel ? "tm:ThingModel" : "Thing", "uav:projection");
             string href = scenario switch
             {
                 "Malformed" => "https://host.test/all{device:0}",
@@ -109,7 +110,8 @@ namespace Opc.Ua.Types.Tests.Wot
             [Values] bool localDeclaration)
         {
             JsonObject plan = Plan();
-            plan["uav:projectionKind"] = thingModel ? "ThingModel" : "ThingDescription";
+            plan["@type"] = new JsonArray(
+                thingModel ? "tm:ThingModel" : "Thing", "uav:projection");
             plan["forms"] = new JsonArray(new JsonObject
             {
                 ["href"] = "https://host.test/all{?device}",

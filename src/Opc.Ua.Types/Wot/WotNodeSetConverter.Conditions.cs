@@ -97,7 +97,7 @@ namespace Opc.Ua.Wot
         /// <c>Severity</c> is one of the eight mandatory <c>BaseEventType</c>
         /// fields, so it is part of the notification data schema and of the
         /// implicit select-clause set. It is a field of an occurrence, not
-        /// free-standing affordance metadata: WoT Binding 1.1 defines no term
+        /// free-standing affordance metadata: OPC 10101-1 defines no term
         /// that states a default severity, and none is synthesized.
         /// </remarks>
         internal const string SeverityBrowseName = "Severity";

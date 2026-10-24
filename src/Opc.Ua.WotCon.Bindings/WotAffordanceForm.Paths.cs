@@ -45,6 +45,21 @@ namespace Opc.Ua.WotCon.Bindings
     /// </summary>
     public sealed partial class WotAffordanceForm
     {
+        /// <summary>
+        /// Gets the captured original source Object identity.
+        /// </summary>
+        internal string? SourceCallReceiver { get; private init; }
+
+        /// <summary>
+        /// Gets the unambiguous endpoint that supplied the source Object identity.
+        /// </summary>
+        internal string? SourceCallEndpoint { get; private init; }
+
+        /// <summary>
+        /// Gets the diagnostic when source receiver authority cannot be captured.
+        /// </summary>
+        internal string? SourceCallError { get; private init; }
+
         private WotBrowsePathTarget? BrowsePathTarget { get; init; }
 
         private string? BrowsePathError { get; init; }
@@ -58,6 +73,20 @@ namespace Opc.Ua.WotCon.Bindings
         internal WotAffordanceForm WithBrowsePathCapture(WotDocument document)
         {
             Capture(document, JsonPointer, out WotBrowsePathTarget? target, out string? error);
+            string receiver = string.Empty;
+            string endpoint = string.Empty;
+            string receiverError = string.Empty;
+            JsonElement originalAffordance = AffordanceElement;
+            if (Kind == WotAffordanceKind.Action &&
+                document.RootElement.TryGetProperty("actions", out JsonElement actions) &&
+                actions.ValueKind == JsonValueKind.Object &&
+                actions.TryGetProperty(AffordanceName, out JsonElement original))
+            {
+                originalAffordance = original;
+            }
+            bool hasReceiver = Kind == WotAffordanceKind.Action &&
+                WotCallReceiver.TryCaptureSourceObject(
+                    document, originalAffordance, out receiver, out endpoint, out receiverError);
             return new WotAffordanceForm(
                 Kind, AffordanceName, Operations, Href, ContentType, Subprotocol, SecuritySchemes,
                 JsonPointer, FormElement, AffordanceElement, TargetMapping)
@@ -65,7 +94,10 @@ namespace Opc.Ua.WotCon.Bindings
                 PayloadSchema = PayloadSchema,
                 BrowsePathTarget = target,
                 BrowsePathError = error,
-                HasBrowsePathCapture = true
+                HasBrowsePathCapture = true,
+                SourceCallReceiver = hasReceiver ? receiver : null,
+                SourceCallEndpoint = hasReceiver ? endpoint : null,
+                SourceCallError = hasReceiver ? null : receiverError
             };
         }
 

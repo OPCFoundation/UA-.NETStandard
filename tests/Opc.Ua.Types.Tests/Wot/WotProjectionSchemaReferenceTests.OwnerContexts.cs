@@ -231,7 +231,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 default:
                     owned = source["securityDefinitions"]!["none"]!.AsObject();
                     source["properties"]!["Value"]!["type"] = "number";
-                    pointer = "/securityDefinitions/q:s:cA:bm9uZQ";
+                    pointer = "/securityDefinitions/q:s:p:none";
                     break;
             }
             owned["@context"] = new JsonObject { ["ex"] = "urn:owned:" + kind };
