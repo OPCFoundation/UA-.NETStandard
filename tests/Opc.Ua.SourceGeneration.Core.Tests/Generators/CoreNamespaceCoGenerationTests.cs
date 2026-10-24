@@ -27,9 +27,13 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Xml;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Schema.Model;
@@ -146,6 +150,98 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(identifiers, Does.Contain("class ExtensionObjectTypeIds"));
             Assert.That(identifiers, Does.Contain("global::Opc.Ua.ExtensionObjectTypes.ExtensionObjectType"));
             Assert.That(identifiers, Does.Contain("global::Opc.Ua.ExtensionNamespaces.Extension"));
+        }
+
+        /// <summary>
+        /// State-machine identifiers compile against helper types qualified for a model sharing Opc.Ua.
+        /// </summary>
+        [Test]
+        public void StateMachineIdentifiersCompileWithModelScopedObjectsHelper()
+        {
+            const string namespaceUri = "urn:extension";
+            const string uaNamespaceUri = "http://opcfoundation.org/UA/";
+            var model = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = "Opc.Ua",
+                Name = "Extension"
+            };
+            var state = new ObjectDesign
+            {
+                SymbolicId = new XmlQualifiedName("Machine_Idle", namespaceUri),
+                SymbolicName = new XmlQualifiedName("Idle", namespaceUri),
+                BrowseName = "Idle",
+                TypeDefinition = new XmlQualifiedName("StateType", uaNamespaceUri),
+                NumericId = 1,
+                NumericIdSpecified = true,
+                ModellingRule = ModellingRule.Mandatory
+            };
+            var machineType = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Machine", namespaceUri),
+                SymbolicName = new XmlQualifiedName("Machine", namespaceUri),
+                BrowseName = "Machine",
+                BaseTypeNode = new ObjectTypeDesign
+                {
+                    SymbolicName = new XmlQualifiedName("FiniteStateMachineType", uaNamespaceUri)
+                },
+                Children = new ListOfChildren { Items = [state] },
+                HasChildren = true,
+                Hierarchy = new Hierarchy()
+            };
+            machineType.Hierarchy.Nodes["Idle"] = new HierarchyNode
+            {
+                RelativePath = "Idle",
+                Instance = state
+            };
+
+            var design = new Mock<IModelDesign>();
+            design.Setup(value => value.TargetNamespace).Returns(model);
+            design.Setup(value => value.Namespaces).Returns([model]);
+            design.Setup(value => value.Nodes).Returns([machineType]);
+            design.Setup(value => value.GetNodeDesigns()).Returns([machineType]);
+            design.Setup(value => value.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            using var files = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = files,
+                OutputFolder = "output",
+                ModelDesign = design.Object,
+                Telemetry = NUnitTelemetryContext.Create(),
+                Options = new GeneratorOptions()
+            };
+            _ = new NodeIdGenerator(context).Emit().ToArray();
+            _ = new StateMachineIdsGenerator(context).Emit().ToArray();
+
+            string identifiersPath = files.CreatedFiles.Single(path =>
+                path.EndsWith(".Identifiers.g.cs", System.StringComparison.Ordinal));
+            string stateMachinePath = files.CreatedFiles.Single(path =>
+                path.EndsWith(".StateMachineIds.g.cs", System.StringComparison.Ordinal));
+            string identifiers = Encoding.UTF8.GetString(files.Get(identifiersPath));
+            string stateMachineIds = Encoding.UTF8.GetString(files.Get(stateMachinePath));
+            ClassDeclarationSyntax objects = CSharpSyntaxTree.ParseText(identifiers)
+                .GetRoot()
+                .DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .Single(type => type.Identifier.ValueText == "ExtensionObjects");
+            string objectsSource = $"namespace Opc.Ua {{ {objects.ToFullString()} }}";
+            CSharpCompilation compilation = OptimizationLevel.Release.CreateCompilation()
+                .AddCode(
+                [
+                    new KeyValuePair<string, string>(identifiersPath, objectsSource),
+                    new KeyValuePair<string, string>(stateMachinePath, stateMachineIds)
+                ],
+                LanguageVersion.Latest);
+            Diagnostic[] errors = [.. compilation.GetDiagnostics()
+                .Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    stateMachineIds,
+                    Does.Contain("global::Opc.Ua.ExtensionObjects.Machine_Idle"));
+                Assert.That(errors.Select(diagnostic => diagnostic.ToString()), Is.Empty);
+            });
         }
     }
 }

@@ -20,6 +20,35 @@ The current specification is
 [OPCF-Members/OPC10000-Core#8](https://github.com/OPCF-Members/OPC10000-Core/pull/8).
 The earlier three-Service prototype is retired, not a second supported binding.
 
+Follow the guide in this order: understand the protocol contract, enable and
+qualify the Server, choose a Client recovery scope, then review restart behavior
+and the validation evidence. The Client flow uses ordinary `ISession` calls;
+RSE adds outcome collection and explicit acknowledgement around them.
+
+## Contents
+
+- [Five manager Methods](#five-manager-methods)
+  - [Model identity and discovery](#model-identity-and-discovery)
+- [Enable the Server explicitly](#enable-the-server-explicitly)
+  - [Original requests](#original-requests)
+- [Recovery modes and ownership](#recovery-modes-and-ownership)
+  - [Stable authenticated owners](#stable-authenticated-owners)
+  - [Eligibility is a held guarantee](#eligibility-is-a-held-guarantee)
+  - [Current authorization](#current-authorization)
+- [Time, outcomes and controls](#time-outcomes-and-controls)
+- [Durable storage and restart](#durable-storage-and-restart)
+  - [Qualified time and serialized decisions](#qualified-time-and-serialized-decisions)
+  - [Capacity, interpretation and failure](#capacity-interpretation-and-failure)
+- [Client use and acceptance](#client-use-and-acceptance)
+  - [Owner and Durable selection](#owner-and-durable-selection)
+  - [Protected Client checkpoints](#protected-client-checkpoints)
+  - [Reattachment after Client restart](#reattachment-after-client-restart)
+  - [Dependency injection](#dependency-injection)
+- [Security, native mappings and certificate management](#security-native-mappings-and-certificate-management)
+- [Samples and validation scope](#samples-and-validation-scope)
+  - [Opt-in network chaos soak](#opt-in-network-chaos-soak)
+  - [Evidence limits](#evidence-limits)
+
 ## Five manager Methods
 
 The feature uses ordinary `Call`, generated Structures and generated Method
@@ -394,9 +423,15 @@ renegotiate an existing admission to Owner, Session or ordinary execution.
 
 ## Client use and acceptance
 
-The [Client guide](ClientRecoverableExecution.md) covers transparent calls,
-explicit modes, handle-first submission, receipt scopes, protected checkpoints
-and typed reattachment.
+RSE is an experimental protocol. Opt-in Client execution uses the ordinary
+`Call` Service and the generated `RecoverableExecutionManagerTypeClient`. The
+Client resolves `http://opcfoundation.org/UA/RSE/` dynamically and discovers
+the actual manager and Method instance NodeIds beneath
+`Server/RecoverableExecutionManager`. It does not calculate instance identifiers
+from the model's declaration identifiers. Unsupported namespaces, managers,
+contract revisions or original Services permit ordinary execution only before
+Submit is attempted. Owner and Durable recovery are strict opt-ins; their Client
+requirements follow the ordinary call and acceptance flow below.
 
 ```csharp
 await using ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
@@ -418,20 +453,198 @@ reactivation and authenticated owner-scoped replacement use distinct opt-in
 bindings.
 
 Ordinary fallback is allowed only after conclusive lack of support **before any
-Submit attempt**. An explicit rejected Submit, malformed reply, lost connection,
-Unknown lookup, store error or unsupported selected mode cannot authorize
-ordinary dispatch of the original request.
+Submit attempt**. Authorization failures, malformed discovery data, transport
+failures, an explicit rejected Submit, a failed Submit reply, an Unknown lookup,
+a store error or an unsupported selected mode cannot authorize ordinary
+dispatch of the original request. After Submit is attempted, the Client collects
+by Client ID or token; it never repeats the original request, including a
+MethodId compatibility fallback.
 
-Default SDK acknowledgement follows decoding, complete typed validation and
-acceptance into the caller completion context. Application acceptance or durable
-storage policies are Client-local and use the same Acknowledge Method.
-If its reply is lost, retry Acknowledge only. A failed acknowledgement exchange
-does not replace already accepted caller data.
+Generated Method outputs and typed convenience results are validated before the
+application acceptance callback and before acknowledgement. Default SDK
+acknowledgement follows decoding, complete typed validation and acceptance into
+the caller completion context. Application acceptance or durable storage
+policies are Client-local and use the same Acknowledge Method. If its reply is
+lost, retry Acknowledge only. Disposing a receipt scope performs local cleanup;
+it does not cancel, abandon or acknowledge Server work. A failed acknowledgement
+exchange does not replace already accepted caller data.
 
 A protected Client checkpoint records identity and interpretation context for
 reattachment. Reattachment collects or retries controls; it cannot submit again.
 Server durability and Client acceptance/storage are separate obligations.
 An indeterminate operation requires application/operator reconciliation.
+
+### Owner and Durable selection
+
+Owner and Durable must be selected explicitly and never downgrade to Session
+or ordinary execution:
+
+```csharp
+var options = new RecoverableSessionOptions
+{
+    RecoveryMode = ServiceOperationRecoveryMode.Owner,
+    IdentityProvider = authenticatedOwnerMapping
+};
+```
+
+`IRecoverableExecutionIdentityProvider` is an application-supplied, injectable
+continuity authority. Its `VerifyAsync` method receives the activated, borrowed
+Session and returns independent opaque keys for the logical Server, authenticated
+Client application and authenticated user. It must validate actual authenticated
+credentials and authorized renewal mappings. Display names, claimed
+ApplicationUris and trust in a new certificate alone do not establish continuity.
+Denied, revoked, ambiguous or unavailable mappings must throw.
+
+The Client rejects anonymous users and unauthenticated applications for these
+modes. The Server independently enforces its current owner mapping. A saved
+Client ID or token grants no authority.
+
+Session mode continues to use verified reactivation of the original Session.
+Owner/Durable recovery uses a separate binding: it acquires a fresh strict
+context from the original `ManagedSession`, verifies Server and owner continuity,
+and preserves the captured namespace/type interpretation. It does not relax
+`SessionRequestContext.CaptureAsync` or `CaptureRecoverableAsync`, retarget an
+arbitrary transport, transfer Session resources, or make an ineligible original
+request eligible. A changed interpretation fails closed.
+
+### Protected Client checkpoints
+
+Durable Client mode requires `RecoverableOperationCheckpointStore`. Owner mode
+can also select it. The store uses `ISharedKeyValueStore`, the explicit
+`ISharedKeyValueStoreDurability` qualification, linearizable conditional writes,
+and `IRecordProtector` with `RecordProtectionContext`.
+
+The protector and its keys must come from the application's existing protected
+key/secret infrastructure. `NullRecordProtector` is rejected. Neither credentials
+nor a Session authentication token are persisted. Original request/result data,
+operation tokens, identity keys and acceptance state are encrypted and
+authenticated for the complete application-prefixed record key.
+
+```csharp
+await using var backend = new FileSharedKeyValueStore(
+    checkpointDirectory, logicalStoreId, protector, maximumSnapshotBytes);
+var checkpoints = new RecoverableOperationCheckpointStore(
+    backend, protector, "application/rse-client/");
+
+var options = new RecoverableSessionOptions
+{
+    RecoveryMode = ServiceOperationRecoveryMode.Durable,
+    IdentityProvider = authenticatedOwnerMapping,
+    CheckpointStore = checkpoints
+};
+```
+
+The Client commits recovery identity and the sanitized original request before
+attempting Submit. It commits the validated original outcome and local acceptance
+state before Acknowledge. For compound typed calls, every retained original must
+complete the outer caller's validation and acceptance policy before the group
+may acknowledge any of them.
+
+An application acceptance callback can add domain-specific durable storage.
+The SDK persists original OPC UA outcomes, not arbitrary application object
+graphs or a distributed transaction with application storage. A callback failure
+or storage failure leaves acknowledgement pending. Failed conditional writes
+may have committed; reload and reconcile rather than treating failure as
+permission to repeat the original request.
+
+### Reattachment after Client restart
+
+Checkpoint format/protection version 2 requires a qualified type-interpretation
+witness. Version 1 records are rejected; the Client does not retry their old
+protection context or fabricate compatibility from matching IDs.
+
+The shared Core `RecoverableExecutionTypeCompatibility` module hashes the exact
+namespace/Server URI tables, full ordered structure/enum definitions, registration
+and encoding identities, and qualified codec revisions with SHA256. The opaque
+witness includes a format/version prefix. Message-size and other decoding limits
+are **not** schema identity: the returned context applies them separately.
+
+Built-in authority comes from a fresh Core/RSE generated registration set and
+exact activator singletons, not a mutable global factory, CLR names or reflection.
+Every custom registration requires `IDataTypeDefinitionSource` metadata and an
+explicit `IRecoverableExecutionCodecQualifier` revision. This is a trusted
+application qualification contract, not proof that metadata describes arbitrary
+handwritten codec behavior. Qualified custom codecs must remain immutable for a
+captured context's lifetime; their revision must change when their semantics do.
+Opaque or nested unknown types that cannot be qualified are rejected.
+
+`RestoreAsync(currentContext, savedWitness, ct)` recaptures and verifies the live
+factory before decoding saved payloads. It detects registration changes behind
+the same factory facade. The Client also rechecks before persistent submission,
+acceptance and acknowledgement. Merely retaining a frozen map is not considered
+proof that the current factory remains compatible.
+
+The module is in Core and is reusable by Server journals without referencing
+Client:
+
+```csharp
+RecoverableExecutionTypeContext captured =
+    await compatibility.CaptureAsync(currentContext, ct);
+ByteString witness = captured.Witness;
+ByteString payload = captured.Encode(originalResponse);
+
+// After authenticating the stored record, before interpreting its payload:
+RecoverableExecutionTypeContext restored =
+    await compatibility.RestoreAsync(currentContext, savedWitness, ct);
+IServiceResponse original = restored.Decode<IServiceResponse>(savedPayload);
+```
+
+Its `MessageContext` exposes a copied context over the captured strict factory.
+`Encode` validates the whole encoded payload tree; `Decode` rejects unknown types,
+malformed bodies and trailing data rather than recovering them as opaque values.
+Configure `RecoverableOperationCheckpointStore` with an explicitly constructed
+compatibility module when custom codecs are needed, or register the qualifier
+and call `AddRecoverableExecutionTypeCompatibility()` for DI.
+
+Reopen the same protected store and reauthenticate against the same logical
+Server and owner. Recover each saved original with its exact generated response
+type:
+
+```csharp
+var recovery = new AsyncServiceClient(options);
+ArrayOf<Uuid> ids = await checkpoints.GetOperationIdsAsync(ct);
+
+await using AsyncServiceOperation<ReadResponse> operation =
+    await recovery.ReattachAsync<ReadResponse>(session, savedReadId, ct: ct);
+
+if (!operation.Completion.IsCompleted)
+{
+    await operation.WaitForResultAsync(ct: ct);
+}
+
+ReadResponse original = (await operation.Completion).GetValueOrThrow();
+await operation.AcknowledgeAsync(ct);
+```
+
+Restored handles cannot Submit. They restore a previously accepted local outcome
+or collect the remembered operation and use explicit acknowledgement. Typed
+generated Method projections can use `ReattachMethodAsync`; their captured Call
+must match the saved original Call before a result can be accepted.
+An unfinished typed Method checkpoint cannot fall back to raw Call-response
+acceptance. An unfinished application or compound-call acceptance policy must
+also be supplied again; omitting it fails before collection or acknowledgement.
+
+A Session-mode checkpoint cannot attach to a replacement Session, even for the
+same authenticated owner. Missing checkpoints, an Unknown lookup, expired
+retention, an indeterminate outcome or a failed control reply never prove that
+business work did not execute. Durable mode does not resume interrupted business
+execution or provide exactly-once external effects.
+
+### Dependency injection
+
+Direct construction remains available. The corresponding registrations are:
+
+- `AddRecoverableOperationCheckpoints`, using registered qualified
+  `ISharedKeyValueStore` and `IRecordProtector` implementations.
+- `AddExperimentalAsyncServiceClient`, optionally accepting an
+  `IServiceProvider`-based options factory so owner mapping and checkpoint storage
+  can be injected.
+- `ManagedSessionOptions.RecoverableExecution` or
+  `ManagedSessionBuilder.PreferRecoverableExecution(options)` for unchanged
+  ordinary `ISession` calls.
+
+Client unit tests use scripted transports and distinguish that evidence from
+production Server integration and restart-conformance tests.
 
 ## Security, native mappings and certificate management
 

@@ -69,7 +69,7 @@ accounting. Durable also requires protected stable storage, a custom qualified
 clock, persisted interpretation compatibility and recovery fencing. No mode
 authorizes replay of the original request.
 
-See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AsyncServices.md)
+See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/rse.md)
 for direct construction, DI, exact lifetimes, qualification requirements and
 the distinction between implementation tests and complete conformance evidence.
 

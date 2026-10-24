@@ -210,7 +210,7 @@ replacement-session creation to finish.
 
 ### RSE testing
 
-The [recoverable Service prototype](AsyncServices.md) separates
+The [recoverable Service prototype](rse.md) separates
 codec, scripted-lifecycle, in-process endpoint and native transport evidence.
 Its native Server selection is `FullyQualifiedName~AsyncServices` in
 `tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj`; run with

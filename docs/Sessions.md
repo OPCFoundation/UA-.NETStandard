@@ -539,7 +539,7 @@ recovery, select `ManagedSessionBuilder.PreferRecoverableExecution()` before
 connecting. Options and DI use `ManagedSessionOptions.RecoverableExecution`.
 Call signatures remain unchanged; unsupported-only fallback and operation-local
 acknowledgement scopes are described in
-[Recoverable Service Execution](AsyncServices.md#use-ordinary-isession-calls).
+[Recoverable Service Execution](rse.md#client-use-and-acceptance).
 This does not weaken the strict contexts described below.
 
 Use `SessionRequestContext` when several calls must use the **same server
@@ -656,7 +656,7 @@ The certificate continuity guard concerns the **Client** certificate. A changed
 peer Server certificate can follow normal trust/identity validation and verified
 same-Session activation. After an explicit endpoint-discovery refresh the channel
 manager replaces a transport still holding the previous peer certificate.
-See [experimental recoverable Services](AsyncServices.md) for the typed handle,
+See [experimental recoverable Services](rse.md) for the typed handle,
 acceptance/ACK API and a live certificate-rotation example using this binding.
 
 ### Closing a `ManagedSession`

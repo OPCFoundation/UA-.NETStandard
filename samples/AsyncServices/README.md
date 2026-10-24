@@ -102,7 +102,7 @@ Durable recovery additionally requires protected storage, a custom qualified
 clock and recoverable work fencing. The local backend does not supply elapsed
 time across a host restart. Do not adapt this sample by using an unchecked UTC
 clock or resetting E/R/H when reopening a store. See the
-[Durable hosting contract](../../docs/AsyncServices.md#durable-storage-and-restart).
+[Durable hosting contract](../../docs/rse.md#durable-storage-and-restart).
 
 ## Supervised real child-process restart TEST
 
@@ -294,5 +294,5 @@ dotnet test tests\Opc.Ua.Server.Tests\Opc.Ua.Server.Tests.csproj `
     --filter FullyQualifiedName~RecoverableServiceDemoTests
 ```
 
-See the [combined implementation and protocol guide](../../docs/AsyncServices.md)
+See the [combined implementation and protocol guide](../../docs/rse.md)
 for eligibility, security, lifetime, acknowledgement and evidence details.

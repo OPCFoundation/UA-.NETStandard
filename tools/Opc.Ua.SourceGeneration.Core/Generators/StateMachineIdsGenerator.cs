@@ -125,6 +125,7 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
             string namespacePrefix = m_context.ModelDesign.TargetNamespace.Prefix;
+            string helperPrefix = m_context.ModelDesign.TargetNamespace.GetModelHelperPrefix();
 
             context.Template.AddReplacement(Tokens.TypeName, machine.TypeName);
             context.Template.AddReplacement(
@@ -135,25 +136,29 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfIdentifiers,
                 machine.States,
                 isId: true,
-                namespacePrefix);
+                namespacePrefix,
+                helperPrefix);
             AddEntrySection(
                 context.Template,
                 Tokens.ListOfValues,
                 machine.States,
                 isId: false,
-                namespacePrefix);
+                namespacePrefix,
+                helperPrefix);
             AddEntrySection(
                 context.Template,
                 Tokens.ListOfChildren,
                 machine.Transitions,
                 isId: true,
-                namespacePrefix);
+                namespacePrefix,
+                helperPrefix);
             AddEntrySection(
                 context.Template,
                 Tokens.ListOfFields,
                 machine.Transitions,
                 isId: false,
-                namespacePrefix);
+                namespacePrefix,
+                helperPrefix);
 
             return context.Template.Render();
         }
@@ -163,7 +168,8 @@ namespace Opc.Ua.SourceGeneration
             string token,
             List<FsmEntry> entries,
             bool isId,
-            string namespacePrefix)
+            string namespacePrefix,
+            string helperPrefix)
         {
             if (entries.Count == 0)
             {
@@ -184,7 +190,7 @@ namespace Opc.Ua.SourceGeneration
                     StateMachineIdsTemplates.IdEntry,
                     entries,
                     null,
-                    ctx => RenderIdEntry(ctx, namespacePrefix));
+                    ctx => RenderIdEntry(ctx, namespacePrefix, helperPrefix));
             }
             else
             {
@@ -197,15 +203,23 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        private static bool RenderIdEntry(IWriteContext context, string namespacePrefix)
+        private static bool RenderIdEntry(
+            IWriteContext context,
+            string namespacePrefix,
+            string helperPrefix)
         {
             if (context.Target is not FsmEntry entry)
             {
                 return false;
             }
             context.Template.AddReplacement(Tokens.Name, entry.Name);
-            context.Template.AddReplacement(Tokens.NamespacePrefix, namespacePrefix);
-            context.Template.AddReplacement(Tokens.Identifier, entry.ObjectsConstantName);
+            context.Template.AddReplacement(
+                Tokens.Identifier,
+                CoreUtils.Format(
+                    "global::{0}.{1}Objects.{2}",
+                    namespacePrefix,
+                    helperPrefix,
+                    entry.ObjectsConstantName));
             context.Template.AddReplacement(Tokens.IdType, entry.IdType);
             context.Template.AddReplacement(Tokens.IdModifier, entry.IdModifier);
             return context.Template.Render();

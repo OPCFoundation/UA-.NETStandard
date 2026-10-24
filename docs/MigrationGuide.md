@@ -8,7 +8,6 @@ covers cross-cutting changes.
 ## Contents
 
 - [General principles](#general-principles)
-- [Experimental Async Services to RSE 0.4](#experimental-async-services-to-rse-04)
 - [Program state numbers and managed execution](#program-state-numbers-and-managed-execution)
 - [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
 - [Per-version migration index](#per-version-migration-index)
@@ -102,42 +101,6 @@ empty selected translation remains absent text rather than selecting fallback
 text; its `Text` property returns `null`. Translation-backed values retain
 their metadata and are not necessarily `IsNull`, even when both exposed fields
 are null.
-
-## Experimental Async Services to RSE 0.4
-
-The earlier experimental `SubmitService`, `GetServiceResult` and
-`ControlServiceExecution` binding is replaced, not supported alongside RSE.
-These provisional definitions were not part of the released 1.5.378 interface.
-Ordinary `ISession` calls and their default-off behavior remain unchanged.
-
-Update both prototype peers together:
-
-- Use the generated Submit, GetResult, Acknowledge, Cancel and Abandon manager
-  Methods over ordinary Call. The new wrapper Structures are headerless.
-  The invoked control Method replaces the old Action field.
-- Resolve `http://opcfoundation.org/UA/RSE/` from the live namespace table.
-  Retired namespace-zero experimental IDs are not aliases. Generated public
-  types use `Opc.Ua`; model-scoped `Rse*` helpers keep local numeric IDs separate
-  from Core IDs.
-- Discover `Server/RecoverableExecutionManager/Capabilities` and actual Method
-  instances, not the old ServerCapabilities root or Method declaration IDs.
-- Keep Session as the default selection. Owner and Durable require explicit
-  selection and qualified providers; neither may downgrade to ordinary execution.
-- Remove any original-request retry after a Submit attempt, including after an
-  explicit unsupported response. Only conclusive discovery before Submit permits
-  ordinary fallback.
-- Preserve explicit acceptance/acknowledgement scopes. A lost Acknowledge reply
-  permits retrying that control, not the business request.
-
-Client checkpoint version 2 includes qualified type/namespace interpretation
-evidence and rejects version 1. A saved ID or a matching TypeId is not enough to
-reinterpret an earlier payload. Retain old application evidence for explicit
-reconciliation; do not migrate by replaying the original request.
-
-See [RSE activation and recovery](AsyncServices.md) and the
-[Client checkpoint and reattachment guide](ClientRecoverableExecution.md).
-The canonical five-Method input snapshot is documented in the
-[contract tooling](../tools/AsyncServices/README.md).
 
 ## Per-version migration index
 

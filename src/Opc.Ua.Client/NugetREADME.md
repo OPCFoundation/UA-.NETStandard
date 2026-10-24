@@ -82,11 +82,16 @@ never falls back or replays the original request—even if Submit returns
 Use `session.BeginAcknowledgementScope(requireRecoverableReceipt: true)` when
 external storage or an RPC handoff must finish before acknowledgement. An
 ordinary fallback has no receipt and cannot produce a successful no-op ACK.
-See the [RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/AsyncServices.md)
-for acceptance callbacks, exact lifetime defaults and same-Session limits.
-This remains the earlier 0.2.0 prototype. Migration to OPC 10000-29 draft 0.4.0
-is in progress; this package does not yet implement its five-Method interface
-or Owner/Durable recovery. It is not an adopted standard.
+The binding uses the experimental OPC 10000-29 draft 0.4.0 manager Methods:
+`Submit`, `GetResult`, `Acknowledge`, `Cancel`, and `Abandon`. Session recovery
+remains the default; Owner and Durable are strict opt-ins that require an
+application-qualified identity provider for authenticated application and user
+continuity. Durable additionally requires protected, qualified checkpoints;
+Owner can use checkpoints as well. The experimental contract is not an adopted
+standard. See the
+[RSE guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/rse.md)
+for the complete Client workflow, qualification requirements, and validation
+scope.
 
 ## Reverse connect lifecycle
 

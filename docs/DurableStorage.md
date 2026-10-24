@@ -12,6 +12,16 @@ store. It reports process-local visibility even though its data survives
 reopening. It does not provide replication, failover, stale-backup detection,
 business exactly-once effects or a clock that measures time across host restart.
 
+## Contents
+
+- [Construction and startup](#construction-and-startup)
+- [Commit and recovery behavior](#commit-and-recovery-behavior)
+  - [Snapshot publication](#snapshot-publication)
+  - [Recovery after failure](#recovery-after-failure)
+- [Bounds and lifetime](#bounds-and-lifetime)
+  - [Capacity and RSE reservations](#capacity-and-rse-reservations)
+  - [Scans, watchers and disposal](#scans-watchers-and-disposal)
+
 ## Construction and startup
 
 The application supplies an `IRecordProtector` backed by keys managed through
@@ -66,12 +76,16 @@ A snapshot contains its format version, store identity, revision and complete
 key/value map. The complete file is authenticated and encrypted. Keys use exact
 ordinal comparison; values use `ByteString`.
 
+### Snapshot publication
+
 Each mutation writes and flushes a new staged snapshot before atomically
 replacing the primary file and synchronizing the directory. In-memory state and
 watch notifications are published only after that sequence completes.
 Compare-and-swap retains the existing shared-store semantics: a null expected
 value requires absence, and a null replacement deletes the matched key.
 `SetAsync` can store a present null ByteString separately from an absent key.
+
+### Recovery after failure
 
 The directory's ownership marker, protected identity and primary snapshot are
 checked during recovery. A missing identity or snapshot, changed committed
@@ -106,11 +120,15 @@ updates and deletions available. Other exceptions remain potentially committed
 failures. The original `CompareAndSwapAsync` interface retains its existing
 exception behavior.
 
+### Capacity and RSE reservations
+
 RSE reserves a bounded future protected record slot in its admission value,
 then shrinks that value to terminal history at release. This uses the store's
 existing snapshot bound; it does not introduce a separate storage quota.
 Budget protected record slots, store metadata and protection overhead when
 selecting `MaximumSnapshotBytes`.
+
+### Scans, watchers and disposal
 
 `ScanAsync` returns a stable prefix snapshot. Watchers observe committed changes
 from the live instance and have bounded queues. A lagging watcher fails
@@ -118,7 +136,7 @@ explicitly and must obtain a new snapshot; changes are not silently dropped.
 Disposal closes watchers, cancels pending local work and releases the directory
 lease.
 
-For [RSE](AsyncServices.md), this store is only one prerequisite. Durable mode
+For [RSE](rse.md), this store is only one prerequisite. Durable mode
 also needs consistent authenticated ownership, qualified restart-safe timing,
 crash-consistent operation transitions and conservative handling of surviving
 execution. File readback or a process-restart demonstration is not proof of a

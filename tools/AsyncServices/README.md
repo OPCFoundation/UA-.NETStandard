@@ -7,7 +7,7 @@ OPC UA standard. Its identifiers are provisional, and the now-closed
 active approval record.
 
 Client and Server use the five manager Methods; the earlier dedicated Services
-are removed. The [runtime guide](../../docs/AsyncServices.md#samples-and-validation-scope)
+are removed. The [runtime guide](../../docs/rse.md#samples-and-validation-scope)
 separates integrated recovery tests, native transports, process restarts and
 NativeAOT evidence. Activation and Owner/Durable qualification remain explicit.
 Importing or checking artifacts does not enable those modes or establish runtime
@@ -93,7 +93,7 @@ reassigned or registered as an alternate binding. Diagnostics type 49 and
 instance 72 are `RecoverableExecutionDiagnosticsType` and
 `RecoverableExecutionDiagnostics`.
 
-See the [runtime guide](../../docs/AsyncServices.md),
-[five-Method binding](../../docs/AsyncServices.md#five-manager-methods) and
-[Client guide](../../docs/ClientRecoverableExecution.md) for current activation,
+See the [runtime guide](../../docs/rse.md),
+[five-Method binding](../../docs/rse.md#five-manager-methods) and
+[Client guide](../../docs/rse.md#owner-and-durable-selection) for current activation,
 acceptance, lifetimes and evidence boundaries.
