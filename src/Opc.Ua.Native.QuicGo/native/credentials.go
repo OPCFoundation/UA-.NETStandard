@@ -25,10 +25,11 @@ type credentials struct {
 }
 
 type configuration struct {
-	address, alpn string
-	identity      credentials
-	streamLimit   uint32
-	idleTimeout   uint32
+	address, alpn        string
+	identity             credentials
+	streamLimit          uint32
+	idleTimeout          uint32
+	authenticationPolicy uint32
 }
 
 func certificateBundle(data []byte, optional bool) ([]*x509.Certificate, error) {
@@ -51,23 +52,31 @@ func applicationMatches(cert *x509.Certificate, uri string) bool {
 	return false
 }
 
-func authorizedPeer(state tls.ConnectionState, peers []peerRule) (string, error) {
+func verifiedPeer(state tls.ConnectionState) (*x509.Certificate, error) {
 	if state.Version != tls.VersionTLS13 ||
 		len(state.VerifiedChains) == 0 || len(state.VerifiedChains[0]) == 0 ||
 		len(state.PeerCertificates) == 0 {
-		return "", errors.New("verified TLS1.3 peer identity required")
+		return nil, errors.New("verified TLS1.3 peer identity required")
 	}
 	leaf := state.VerifiedChains[0][0]
 	if len(state.VerifiedChains[0]) > 16 || len(state.PeerCertificates) > 16 {
-		return "", errors.New("peer certificate chain exceeds the credential bound")
+		return nil, errors.New("peer certificate chain exceeds the credential bound")
 	}
 	for _, cert := range state.VerifiedChains[0] {
 		if len(cert.Raw) > 16384 {
-			return "", errors.New("peer certificate exceeds the credential bound")
+			return nil, errors.New("peer certificate exceeds the credential bound")
 		}
 	}
 	if !bytes.Equal(leaf.Raw, state.PeerCertificates[0].Raw) {
-		return "", errors.New("verified chain leaf mismatch")
+		return nil, errors.New("verified chain leaf mismatch")
+	}
+	return leaf, nil
+}
+
+func authorizedPeer(state tls.ConnectionState, peers []peerRule) (string, error) {
+	leaf, err := verifiedPeer(state)
+	if err != nil {
+		return "", err
 	}
 	key := sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
 	for _, peer := range peers {
@@ -81,8 +90,29 @@ func authorizedPeer(state tls.ConnectionState, peers []peerRule) (string, error)
 func makeTLS(c *configuration, client bool) (*tls.Config, error) {
 	m := &c.identity
 	defer clear(m.key)
+	transportOnly := c.authenticationPolicy == 1
+	roots, err := certificateBundle(m.roots, transportOnly && !client)
+	if err != nil {
+		return nil, err
+	}
+	trust := x509.NewCertPool()
+	for _, root := range roots {
+		trust.AddCert(root)
+	}
+	config := &tls.Config{
+		MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13,
+		NextProtos: []string{c.alpn}, SessionTicketsDisabled: true,
+	}
+	if transportOnly && client {
+		config.RootCAs, config.ServerName = trust, m.serverName
+		config.VerifyConnection = func(state tls.ConnectionState) error {
+			_, err := verifiedPeer(state)
+			return err
+		}
+		return config, nil
+	}
 	leaf, err := x509.ParseCertificate(m.certificate)
-	if err != nil || !applicationMatches(leaf, m.localURI) {
+	if err != nil || (!transportOnly && !applicationMatches(leaf, m.localURI)) {
 		return nil, errors.New("invalid local application certificate")
 	}
 	key, err := x509.ParsePKCS8PrivateKey(m.key)
@@ -112,26 +142,16 @@ func makeTLS(c *configuration, client bool) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	roots, err := certificateBundle(m.roots, false)
-	if err != nil {
-		return nil, err
-	}
 	cert := tls.Certificate{Certificate: [][]byte{leaf.Raw}, PrivateKey: signer, Leaf: leaf}
 	for _, issuer := range issuers {
 		cert.Certificate = append(cert.Certificate, issuer.Raw)
 	}
-	trust := x509.NewCertPool()
-	for _, root := range roots {
-		trust.AddCert(root)
-	}
-	config := &tls.Config{
-		MinVersion: tls.VersionTLS13, MaxVersion: tls.VersionTLS13,
-		Certificates: []tls.Certificate{cert}, NextProtos: []string{c.alpn},
-		SessionTicketsDisabled: true,
-		VerifyConnection: func(state tls.ConnectionState) error {
+	config.Certificates = []tls.Certificate{cert}
+	if !transportOnly {
+		config.VerifyConnection = func(state tls.ConnectionState) error {
 			_, err := authorizedPeer(state, m.peers)
 			return err
-		},
+		}
 	}
 	if client {
 		config.RootCAs, config.ServerName = trust, m.serverName
@@ -149,6 +169,9 @@ func makeTLS(c *configuration, client bool) (*tls.Config, error) {
 		}
 	} else {
 		config.ClientAuth, config.ClientCAs = tls.RequireAndVerifyClientCert, trust
+		if transportOnly {
+			config.ClientAuth, config.ClientCAs = tls.NoClientCert, nil
+		}
 		// Force a per-connection selection callback even when SNI is absent.
 		config.Certificates = nil
 		config.GetCertificate = func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {

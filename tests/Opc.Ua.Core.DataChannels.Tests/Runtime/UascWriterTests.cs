@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
                 Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
                 [
-                    TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Flow
+                    TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.FlowData
                 ]));
                 Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.EqualTo(3));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await Task.WhenAll(first, laterService, data).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
             [
-                TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.Flow
+                TcpMessageType.Message, TcpMessageType.Message, TcpMessageType.FlowData
             ]));
             Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
         }
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             }
             FlowRecord control = FlowControlCodec.Encode(
                 new FlowProbe(FlowOperation.Ping, 0, 42), 0, 900, new FlowCodecLimits());
-            ByteString payload = FlowCarrierCodec.EncodeUascPayload(
+            ByteString payload = UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, 0, in control, new FlowCodecLimits(), out uint requestId);
             var controlWrite = new DataChannelWrite(
                 DataChannelPath.Management, 0, 0, requestId, payload, false, 0, () => DataChannelResult.Good);
@@ -132,15 +132,26 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await Task.WhenAll(pending).WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
 
             uint[] types = fixture.Transport.MessageTypes;
-            int firstFlow = Array.IndexOf(types, TcpMessageType.Flow);
+            byte[][] chunks = fixture.Transport.Chunks;
+            int bodyOffset = TcpMessageLimits.MessageTypeAndSize +
+                TcpMessageLimits.SymmetricHeaderSize;
+            int firstFlowControl = Array.FindIndex(chunks, chunk =>
+            {
+                return (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) ==
+                    TcpMessageType.FlowControl &&
+                    chunk.Length >= bodyOffset + sizeof(uint) * 2 + 1 &&
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(bodyOffset)) == 0 &&
+                    chunk[bodyOffset + sizeof(uint) * 2] == (byte)FlowOperation.Ping;
+            });
             Assert.Multiple(() =>
             {
                 Assert.That(types, Has.Length.EqualTo(27));
-                Assert.That(firstFlow, Is.InRange(1, 9),
+                Assert.That(firstFlowControl, Is.InRange(1, 9),
                     "At most eight newly selected Services may precede a queued control after the in-flight write.");
-                Assert.That(fixture.Transport.Chunks[firstFlow][32], Is.EqualTo((byte)FlowRecordKind.Control));
-                Assert.That(types[^1], Is.EqualTo(TcpMessageType.Flow));
-                Assert.That(fixture.Transport.Chunks[^1][32], Is.EqualTo((byte)FlowRecordKind.Data));
+                Assert.That(types[^1], Is.EqualTo(TcpMessageType.FlowData));
+                Assert.That(chunks[^1][TcpMessageLimits.MessageTypeAndSize +
+                    TcpMessageLimits.SymmetricHeaderSize], Is.Zero,
+                    "FLO must carry the raw application body without a channel prefix.");
                 Assert.That(fixture.Transport.Sequences, Is.EqualTo(Enumerable.Range(100, 27).Select(value => (uint)value)));
                 Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
             });
@@ -183,7 +194,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     Assert.That(fixture.Transport.Sequences, Is.EqualTo(new uint[] { 100, 101, 102 }));
                     Assert.That(fixture.Transport.MessageTypes, Is.EqualTo(
                     [
-                        TcpMessageType.Message, TcpMessageType.Flow, TcpMessageType.Message
+                        TcpMessageType.Message, TcpMessageType.FlowData, TcpMessageType.Message
                     ]));
                     Assert.That(fixture.Pool.OutstandingCount, Is.Zero);
                     Assert.That(fixture.Transport.Chunks.All(chunk => chunk[3] == (byte)'F'), Is.True);
@@ -243,7 +254,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             await using var fixture = new WriterFixture();
             int maximumRecord = fixture.Channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.SharedUasc);
-            DataChannelWrite oversized = DataWrite(maximumRecord - 13 + 1);
+            DataChannelWrite oversized = DataWrite(maximumRecord + 1);
             Assert.That(await fixture.Channel.SendDataChannelWriteAsync(oversized, CancellationToken.None)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.TooLarge));
             Assert.That(fixture.Channel.SequenceNumbersIssuedUnderCurrentToken, Is.Zero);
@@ -308,7 +319,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             var record = new FlowRecord(
                 FlowRecordKind.Data, 1, 1, new ByteString(new byte[payloadLength]));
-            ByteString encoded = FlowCarrierCodec.EncodeUascPayload(
+            ByteString encoded = UascFlowMessageCodec.Encode(
                 FlowCarrier.SharedUasc, 1, in record, new FlowCodecLimits(), out uint requestId);
             return new DataChannelWrite(DataChannelPath.Flow, 1, 0, requestId, encoded, true, 0,
                 commit ?? (() => DataChannelResult.Good));

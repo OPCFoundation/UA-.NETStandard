@@ -62,7 +62,7 @@ namespace Opc.Ua.DataChannels.Wire
     }
 
     /// <summary>
-    /// Identifies a control operation within the private wire seam.
+    /// Identifies a control operation in the Data Channel wire protocol.
     /// </summary>
     internal enum FlowOperation
     {
@@ -109,7 +109,16 @@ namespace Opc.Ua.DataChannels.Wire
         Pong = 13,
 
         /// <summary>Recorded operation outcome.</summary>
-        Status = 14
+        Status = 14,
+
+        /// <summary>Authenticated binding proof.</summary>
+        Bind = 15,
+
+        /// <summary>Direct delivery association proposal.</summary>
+        Associate = 16,
+
+        /// <summary>Direct delivery association acknowledgement.</summary>
+        AssociateAck = 17
     }
 
     /// <summary>
@@ -550,6 +559,68 @@ namespace Opc.Ua.DataChannels.Wire
         /// Gets the aggregate increment.
         /// </summary>
         internal uint ConnectionCredit { get; }
+    }
+
+    /// <summary>
+    /// Carries the role-specific proof for an authenticated direct binding.
+    /// </summary>
+    internal sealed class FlowBinding : FlowControl
+    {
+        /// <summary>
+        /// Creates a direct-binding proof.
+        /// </summary>
+        internal FlowBinding(byte role, ByteString transcriptDigest, ByteString proof)
+            : base(FlowOperation.Bind, 0)
+        {
+            Role = role;
+            TranscriptDigest = transcriptDigest;
+            Proof = proof;
+        }
+
+        /// <summary>
+        /// Gets the endpoint role: 0 for initiator or 1 for acceptor.
+        /// </summary>
+        internal byte Role { get; }
+
+        /// <summary>
+        /// Gets the 32-byte digest of the locally computed binding transcript.
+        /// </summary>
+        internal ByteString TranscriptDigest { get; }
+
+        /// <summary>
+        /// Gets the 32-byte exporter-derived role proof.
+        /// </summary>
+        internal ByteString Proof { get; }
+    }
+
+    /// <summary>
+    /// Carries a direct-delivery association token and direction.
+    /// </summary>
+    internal sealed class FlowAssociation : FlowControl
+    {
+        /// <summary>
+        /// Creates an association proposal or acknowledgement.
+        /// </summary>
+        internal FlowAssociation(FlowOperation operation, uint flow, byte direction, Guid token)
+            : base(operation, flow)
+        {
+            if (operation is not (FlowOperation.Associate or FlowOperation.AssociateAck))
+            {
+                throw new ArgumentOutOfRangeException(nameof(operation));
+            }
+            Direction = direction;
+            Token = token;
+        }
+
+        /// <summary>
+        /// Gets the sending direction relative to the flow opener.
+        /// </summary>
+        internal byte Direction { get; }
+
+        /// <summary>
+        /// Gets the opaque per-direction association token.
+        /// </summary>
+        internal Guid Token { get; }
     }
 
     /// <summary>

@@ -43,46 +43,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
     public sealed class FlowCarrierCodecTests
     {
         /// <summary>
-        /// Checks RequestId and final-chunk obligations using independent records.
-        /// </summary>
-        [TestCase(false, 1u, 'F', "RequestIdMismatch")]
-        [TestCase(false, 2u, 'F', "RequestIdMismatch")]
-        [TestCase(true, 1u, 'F', "RequestIdMismatch")]
-        [TestCase(false, 1u, 'C', "NonFinalUasc")]
-        [TestCase(false, 1u, 'A', "NonFinalUasc")]
-        [TestCase(true, 0u, 'C', "NonFinalUasc")]
-        [TestCase(true, 0u, 'A', "NonFinalUasc")]
-        [TestCase(false, 1u, 'X', "NonFinalUasc")]
-        [TestCase(true, 0u, '\0', "NonFinalUasc")]
-        public void UascEnvelopeConstraintsAreChecked(bool shared, uint requestId, char finality, string error)
-        {
-            var frozen = new FrozenWire(shared ? "shared-uasc_opaque" : "dedicated-uasc_opaque");
-            FlowCodecException exception = Assert.Throws<FlowCodecException>(() =>
-                FlowCarrierCodec.DecodeUascPayload(frozen.Carrier, (byte)finality, requestId,
-                    frozen.CarrierPayload, new()))!;
-            Assert.That(exception.Error.ToString(), Is.EqualTo(error));
-        }
-
-        /// <summary>
-        /// Requires DATA flow addressing and exact shared prefix/control-body agreement.
-        /// </summary>
-        [TestCase("shared-uasc_opaque", 0u)]
-        [TestCase("control_accept", 2u)]
-        [TestCase("shared-uasc_hello", 1u)]
-        [TestCase("dedicated-uasc_opaque", 0u)]
-        [TestCase("dedicated-uasc_opaque", 2u)]
-        [TestCase("dedicated-uasc_hello", 1u)]
-        public void ChannelPrefixMustMatchTheBodyAndProfile(string name, uint channel)
-        {
-            var frozen = new FrozenWire(name);
-            byte[] payload = frozen.CarrierPayload.ToArray();
-            BinaryPrimitives.WriteUInt32LittleEndian(payload, channel);
-            FrozenWire.Fails(() => FlowCarrierCodec.DecodeUascPayload(
-                frozen.Carrier, (byte)'F', 0, new ByteString(payload), new()), FlowCodecError.InvalidFlow);
-        }
-
-        /// <summary>
-        /// Keeps the ChannelId outside the common length and uses little endian on both applicable envelopes.
+        /// Keeps the ChannelId outside the common length in native datagrams.
         /// </summary>
         [Test]
         public void ChannelIdIsLittleEndianAndOutsideRecordLength()
@@ -90,10 +51,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowRecord record = new FrozenWire("quic_opaque").Decode().Record;
             const uint channel = 0x78563412;
             const string expected = "123456780c0000000001000000010000006b3921";
-            ByteString shared = FlowCarrierCodec.EncodeUascPayload(
-                FlowCarrier.SharedUasc, channel, in record, new(), out uint requestId);
-            Assert.That(shared.ToHexString().ToLowerInvariant(), Is.EqualTo(expected));
-            Assert.That(requestId, Is.Zero);
             foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport })
             {
                 ByteString datagram = FlowCarrierCodec.EncodeDatagram(carrier, channel, in record, 20, new());
@@ -109,21 +66,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         [Test]
         public void EnvelopeIdentifiersPreserveUnsignedMaxima()
         {
-            var dedicated = ByteString.FromHexString("010000000c00000000ffffffffffffffff6b3921");
             var prefixed = ByteString.FromHexString("ffffffff0c00000000ffffffffffffffff6b3921");
             var record = new FlowRecord(FlowRecordKind.Data, uint.MaxValue, uint.MaxValue,
                 new ByteString("k9!"u8.ToArray()));
-            Assert.That(FlowCarrierCodec.DecodeUascPayload(
-                FlowCarrier.DedicatedUasc, (byte)'F', 0, dedicated, new()).Record.MessageId,
-                Is.EqualTo(uint.MaxValue));
-            Assert.That(FlowCarrierCodec.EncodeUascPayload(FlowCarrier.DedicatedUasc, 1, in record, new(),
-                out uint requestId).ToArray(), Is.EqualTo(dedicated.ToArray()));
-            Assert.That(requestId, Is.Zero);
-            Assert.That(FlowCarrierCodec.DecodeUascPayload(
-                FlowCarrier.SharedUasc, (byte)'F', 0, prefixed, new()).ChannelId, Is.EqualTo(uint.MaxValue));
-            Assert.That(FlowCarrierCodec.EncodeUascPayload(FlowCarrier.SharedUasc, uint.MaxValue,
-                in record, new(), out requestId).ToArray(), Is.EqualTo(prefixed.ToArray()));
-            Assert.That(requestId, Is.Zero);
             foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport })
             {
                 Assert.That(FlowCarrierCodec.DecodeDatagram(carrier, prefixed, 20, new()).ChannelId,
@@ -131,26 +76,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 Assert.That(FlowCarrierCodec.EncodeDatagram(
                     carrier, uint.MaxValue, in record, 20, new()).ToArray(), Is.EqualTo(prefixed.ToArray()));
             }
-        }
-
-        /// <summary>
-        /// Rejects truncated and concatenated UASC payloads rather than treating them as native stream segments.
-        /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void UascPayloadRejectsEveryTruncationAndConcatenation(bool shared)
-        {
-            var specimen = new FrozenWire(shared ? "shared-uasc_opaque" : "dedicated-uasc_opaque");
-            const uint requestId = 0;
-            for (int size = 0; size < specimen.Bytes.Length; size++)
-            {
-                ByteString shortened = specimen.Bytes[..size];
-                FrozenWire.Fails(() => FlowCarrierCodec.DecodeUascPayload(
-                    specimen.Carrier, (byte)'F', requestId, shortened, new()), FlowCodecError.Truncated);
-            }
-            ByteString concatenated = new(specimen.Bytes.ToArray().Concat(specimen.Bytes.ToArray()).ToArray());
-            FrozenWire.Fails(() => FlowCarrierCodec.DecodeUascPayload(
-                specimen.Carrier, (byte)'F', requestId, concatenated, new()), FlowCodecError.TrailingBytes);
         }
 
         /// <summary>
@@ -234,46 +159,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Allows explicit UASC chunk/footer-derived bounds without implementing security.
-        /// </summary>
-        [TestCase(false, 0)]
-        [TestCase(false, 33)]
-        [TestCase(true, 0)]
-        [TestCase(true, 33)]
-        public void UascCapacityUsesCallerSuppliedPostSecurityRecordLimit(bool shared, int footer)
-        {
-            var frozen = new FrozenWire(shared ? "shared-uasc_opaque" : "dedicated-uasc_opaque");
-            int capacity = 24 + footer + 4 + 16;
-            var limits = new FlowCodecLimits(maxRecordBytes: capacity - 24 - footer - 4);
-            Assert.That(frozen.Decode(limits).Record.Body.Length, Is.EqualTo(3));
-            var lower = new FlowCodecLimits(maxRecordBytes: limits.MaxRecordBytes - 1);
-            FrozenWire.Fails(() => frozen.Decode(lower), FlowCodecError.TooLarge);
-        }
-
-        /// <summary>
-        /// Rejects a nonzero native stream or unsupported delivery on either UASC profile.
-        /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void UascOpenRequiresStreamZeroAndOrderedDelivery(bool shared)
-        {
-            FlowCarrier carrier = shared ? FlowCarrier.SharedUasc : FlowCarrier.DedicatedUasc;
-            var nativeStream = new FlowOpen(1, 4, FlowControlCodecTests.Parameters(),
-                FlowWireAuthorization.Configured, null);
-            FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(nativeStream, carrier),
-                FlowCodecError.InvalidStream);
-            var datagram = new FlowOpen(1, 0, FlowControlCodecTests.Parameters(
-                delivery: FlowWireDelivery.Datagram, maxRate: 100), FlowWireAuthorization.Configured, null);
-            FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(datagram, carrier), FlowCodecError.CarrierMismatch);
-            var valid = new FlowOpen(1, 0, FlowControlCodecTests.Parameters(), FlowWireAuthorization.Configured, null);
-            FlowRecord record = FlowControlCodec.Encode(valid, 1, 1, new());
-            ByteString body = FlowCarrierCodec.EncodeUascPayload(carrier, 1, in record, new(), out uint requestId);
-            Assert.That(
-                FlowCarrierCodec.DecodeUascPayload(carrier, (byte)'F', requestId, body, new()).Control!.Operation,
-                Is.EqualTo(FlowOperation.Open));
-        }
-
-        /// <summary>
         /// Checks carrier-only semantics without admitting an identity, grant or native stream.
         /// </summary>
         [Test]
@@ -282,24 +167,35 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowControl hello = new FrozenWire("quic_hello").Decode().Control!;
             FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(hello, FlowCarrier.WebTransport),
                 FlowCodecError.CarrierMismatch);
-            foreach (FlowCarrier carrier in new[]
-            {
-                FlowCarrier.DedicatedUasc, FlowCarrier.Quic, FlowCarrier.WebTransport
-            })
+            FlowControlCodec.ValidateCarrier(new FlowCredit(1, 0, 0), FlowCarrier.DedicatedUasc);
+            foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport })
             {
                 FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(new FlowCredit(1, 0, 0), carrier),
                     FlowCodecError.CarrierMismatch);
             }
-            FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(new FlowSignal(FlowOperation.Ready, 2),
-                FlowCarrier.DedicatedUasc), FlowCodecError.InvalidFlow);
-            var tight = new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1040));
+            FlowControlCodec.ValidateCarrier(new FlowSignal(FlowOperation.Ready, 2), FlowCarrier.DedicatedUasc);
+            var tight = new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1023));
             FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(tight, FlowCarrier.SharedUasc),
                 FlowCodecError.InvalidDescriptor);
-            var exact = new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1041));
+            var exact = new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1024));
             FlowControlCodec.ValidateCarrier(exact, FlowCarrier.SharedUasc);
-            Assert.That(exact.Parameters.Limits.MaxReceiveBytes, Is.EqualTo(1041));
+            Assert.That(exact.Parameters.Limits.MaxReceiveBytes, Is.EqualTo(1024));
             FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(new FlowPrepare(1,
-                new FlowWireLimits(1024, 1040, 0, 0)), FlowCarrier.SharedUasc), FlowCodecError.InvalidDescriptor);
+                new FlowWireLimits(1024, 1023, 0, 0)), FlowCarrier.SharedUasc), FlowCodecError.InvalidDescriptor);
+            FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(
+                new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1036)),
+                FlowCarrier.Quic), FlowCodecError.InvalidDescriptor);
+            FlowControlCodec.ValidateCarrier(
+                new FlowAccept(1, 0, FlowControlCodecTests.Parameters(maxReceiveBytes: 1037)),
+                FlowCarrier.Quic);
+            FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(
+                new FlowAccept(1, 0, FlowControlCodecTests.Parameters(
+                    FlowWireDelivery.Datagram, maxReceiveBytes: 1040)),
+                FlowCarrier.Quic), FlowCodecError.InvalidDescriptor);
+            FlowControlCodec.ValidateCarrier(
+                new FlowAccept(1, 0, FlowControlCodecTests.Parameters(
+                    FlowWireDelivery.Datagram, maxReceiveBytes: 1041)),
+                FlowCarrier.Quic);
             foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport })
             {
                 var integrity = new FlowAccept(1, 4,
@@ -346,13 +242,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         public void CarrierSelectorsRejectUnknownOrWrongProfile()
         {
             FlowRecord record = new FrozenWire("quic_opaque").Decode().Record;
-            foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport, (FlowCarrier)99 })
-            {
-                FrozenWire.Fails(() => FlowCarrierCodec.DecodeUascPayload(carrier, (byte)'F', 1,
-                    ByteString.Empty, new()), FlowCodecError.CarrierMismatch);
-                FrozenWire.Fails(() => FlowCarrierCodec.EncodeUascPayload(carrier, 1, in record, new(), out _),
-                    FlowCodecError.CarrierMismatch);
-            }
             foreach (FlowCarrier carrier in new[]
             {
                 FlowCarrier.DedicatedUasc, FlowCarrier.SharedUasc, (FlowCarrier)99
@@ -369,22 +258,5 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 FlowCarrier.Quic, 1, in record, -1, new()));
         }
 
-        /// <summary>
-        /// Applies dedicated implicit-flow and shared prefix consistency on encoding too.
-        /// </summary>
-        [Test]
-        public void UascEncodingRejectsInconsistentAddresses()
-        {
-            var data = new FlowRecord(FlowRecordKind.Data, 1, 1, ByteString.Empty);
-            FrozenWire.Fails(() => FlowCarrierCodec.EncodeUascPayload(
-                FlowCarrier.DedicatedUasc, 2, in data, new(), out _), FlowCodecError.InvalidFlow);
-            FrozenWire.Fails(() => FlowCarrierCodec.EncodeUascPayload(
-                FlowCarrier.SharedUasc, 0, in data, new(), out _), FlowCodecError.InvalidFlow);
-            FlowRecord control = FlowControlCodec.Encode(new FlowSignal(FlowOperation.Ready, 1), 1, 1, new());
-            FrozenWire.Fails(() => FlowCarrierCodec.EncodeUascPayload(
-                FlowCarrier.SharedUasc, 2, in control, new(), out _), FlowCodecError.InvalidFlow);
-            FrozenWire.Fails(() => FlowCarrierCodec.EncodeUascPayload(
-                FlowCarrier.DedicatedUasc, 0, in control, new(), out _), FlowCodecError.InvalidFlow);
-        }
     }
 }

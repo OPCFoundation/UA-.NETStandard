@@ -8,7 +8,7 @@
     <AssemblyName>$(AssemblyPrefix).Bindings.Quic</AssemblyName>
     <PackageId>$(PackagePrefix).Opc.Ua.Bindings.Quic</PackageId>
     <RootNamespace>Opc.Ua.Bindings</RootNamespace>
-    <Description>Optional mutually authenticated native QUIC flow binding. Uses the common OPC UA flow runtime and explicit certificate-manager policy, without an implicit UASC or Session lane.</Description>
+    <Description>Optional managed QUIC UACP/UASC baseline and experimental native QUIC flow binding. Uses explicit transport/profile selection, certificate-manager policy and the common OPC UA Data Channel runtime.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -18,7 +18,12 @@
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExperimentalAttribute">
+      <_Parameter1>DataChannels</_Parameter1>
+      <UrlFormat>https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DataChannels.md</UrlFormat>
+    </AssemblyAttribute>
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Quic.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.WebTransport" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Core\Opc.Ua.Core.csproj" />

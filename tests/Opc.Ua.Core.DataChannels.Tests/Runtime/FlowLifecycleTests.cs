@@ -223,7 +223,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(flow.Local.GetStatus().AcceptorEnded, Is.False);
                 Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
             });
-            Assert.That(await flow.Remote.SendAsync(ByteString.Empty).ConfigureAwait(false),
+            Assert.That(await flow.Remote.SendAsync(FlowLoopback.UadpPayload(ByteString.Empty))
+                .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? received = await flow.Local.ReadAsync().ConfigureAwait(false);
             Assert.That(received!.MessageId, Is.EqualTo(1));
@@ -237,7 +238,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Credit;
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
-            Task<DataChannelResult> send = flow.Local.SendAsync(ByteString.Empty).AsTask();
+            Task<DataChannelResult> send = flow.Local.SendAsync(new ByteString(new byte[] { 0x01 })).AsTask();
             Task<DataChannelResult> end = flow.Local.EndAsync().AsTask();
             Assert.That(await pair.Initiator.PingAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5))
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
@@ -259,7 +260,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             DataChannelResult result,
             DataChannelState terminal)
         {
-            await using var pair = new FlowLoopback();
+            await using var pair = new FlowLoopback(DataChannelCarrierKind.Quic);
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair first = await pair.OpenAsync().ConfigureAwait(false);
             FlowPair other = await pair.OpenAsync().ConfigureAwait(false);
@@ -320,7 +321,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 TestFlowCarrier.Operation(write, pair.AcceptorCarrier.Kind) == FlowOperation.Credit;
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
-            Task<DataChannelResult> send = flow.Local.SendAsync(ByteString.Empty).AsTask();
+            Task<DataChannelResult> send = flow.Local.SendAsync(new ByteString(new byte[] { 0x01 })).AsTask();
             await revoked.CancelAsync().ConfigureAwait(false);
             Assert.That(await send.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.NotAuthorized));
@@ -378,14 +379,15 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                         lifetime: TimeSpan.FromSeconds(1)));
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
-            Assert.That(await flow.Local.SendAsync(new ByteString(new byte[] { 7 })).ConfigureAwait(false),
+            ByteString payload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 7 }));
+            Assert.That(await flow.Local.SendAsync(payload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? owned = await flow.Remote.ReadAsync().ConfigureAwait(false);
             pair.Clock.Advance(TimeSpan.FromMilliseconds(999));
             Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
             pair.Clock.Advance(TimeSpan.FromMilliseconds(1));
             Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Faulted));
-            Assert.That(owned!.Payload[0], Is.EqualTo(7));
+            Assert.That(owned!.Payload.ToArray(), Is.EqualTo(payload.ToArray()));
             Assert.That(flow.Remote.GetStatus().Result, Is.EqualTo(DataChannelResult.NotAuthorized));
         }
 
@@ -402,7 +404,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(flow.Remote.State, Is.EqualTo(DataChannelState.Open));
             await FlowLoopback.EventuallyAsync(() => pair.AcceptorPolicy.Requests.Any(
                 request => request.Purpose == DataChannelAuthorizationPurpose.Recheck)).ConfigureAwait(false);
-            Assert.That(await flow.Local.SendAsync(ByteString.Empty).ConfigureAwait(false),
+            Assert.That(await flow.Local.SendAsync(FlowLoopback.UadpPayload(ByteString.Empty)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(message!.MessageId, Is.EqualTo(1));

@@ -14,7 +14,7 @@ from generic_network_test import Abi, Driver, fixture
 async def run(args):
     driver = Driver(args.library)
     abi = Abi(size=c.sizeof(Abi))
-    assert driver.abi(c.byref(abi)) == 0 and abi.version in (1, 2, 3, 4)
+    assert driver.abi(c.byref(abi)) == 0 and abi.version in (1, 2, 3, 4, 5)
     pki = fixture(args.fixture)
     results = []
     for flag, expected in (("client-auth", -3), ("confirm", -8)):

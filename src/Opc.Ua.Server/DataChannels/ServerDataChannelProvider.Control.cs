@@ -282,8 +282,9 @@ namespace Opc.Ua.Server.DataChannels
                             flow.Operations.Remove(ids.Current);
                         }
                     }
-                    result = DataChannelResult.Good;
-                    return GetOperationStatus(flow, operation);
+                    DataChannelStatusDataType staged = GetOperationStatus(flow, operation);
+                    result = staged.Result;
+                    return staged;
                 }
             }
             catch (ServiceResultException exception)
@@ -312,8 +313,8 @@ namespace Opc.Ua.Server.DataChannels
                 Audit(new DataChannelControlAudit(
                     "ModifyDataChannel", flow?.Source.SourceNodeId ?? ExpandedNodeId.Null,
                     flow?.Source.ResourceUri ?? string.Empty, session.ClientApplicationUri ?? string.Empty,
-                    flow?.Key.ContextId ?? Guid.Empty, flow?.Key.Generation ?? 0, channelId, session.Id,
-                    operationId, requestedRevision, result));
+                    flow?.Key.ContextId ?? Guid.Empty, flow?.Key.Generation ?? 0, flow?.Key.ChannelId ?? 0, session.Id,
+                    operationId, flow == null ? 0 : requestedRevision, result));
             }
         }
 
@@ -430,7 +431,7 @@ namespace Opc.Ua.Server.DataChannels
                 Audit(new DataChannelControlAudit(
                     "CloseDataChannel", flow?.Source.SourceNodeId ?? ExpandedNodeId.Null,
                     flow?.Source.ResourceUri ?? string.Empty, session.ClientApplicationUri ?? string.Empty,
-                    flow?.Key.ContextId ?? Guid.Empty, flow?.Key.Generation ?? 0, channelId, session.Id,
+                    flow?.Key.ContextId ?? Guid.Empty, flow?.Key.Generation ?? 0, flow?.Key.ChannelId ?? 0, session.Id,
                     0, flow?.Channel?.Revision ?? 0, result));
             }
         }

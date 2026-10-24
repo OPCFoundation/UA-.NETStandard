@@ -7,7 +7,7 @@ using Opc.Ua.Native.QuicGo;
 namespace Opc.Ua.Bindings.Quic.Tests
 {
     /// <summary>
-    /// Runs the same framework-independent real native flow checks in a NativeAOT executable.
+    /// Runs framework-independent real native flow and authenticated UASC/direct checks under NativeAOT.
     /// </summary>
     internal static class Program
     {
@@ -28,7 +28,12 @@ namespace Opc.Ua.Bindings.Quic.Tests
                 {
                     Console.WriteLine("PASS " + check);
                 }
-                Console.WriteLine($"Passed {checks.Count} real native flow checks.");
+                ArrayOf<string> uascChecks = await NativeUascLiveScenario.RunAsync(backend).ConfigureAwait(false);
+                foreach (string check in uascChecks)
+                {
+                    Console.WriteLine("PASS UASC " + check);
+                }
+                Console.WriteLine($"Passed {checks.Count + uascChecks.Count} real native flow and UASC checks.");
                 return 0;
             }
             catch (Exception exception)

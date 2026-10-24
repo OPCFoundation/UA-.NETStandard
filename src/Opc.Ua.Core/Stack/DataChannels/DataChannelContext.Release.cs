@@ -71,6 +71,10 @@ namespace Opc.Ua.DataChannels
             try
             {
                 bool native = IsNative && flow.StreamReserved && flow.StreamId != m_carrier.ManagementStreamId;
+                if (flow.DirectLane != null && interruptNative)
+                {
+                    await ReleaseDirectLaneAsync(flow.DirectLane).ConfigureAwait(false);
+                }
                 if (native && interruptNative)
                 {
                     // Native RESET is out-of-band: the common RESET can itself be blocked by connection byte credit.
@@ -87,6 +91,10 @@ namespace Opc.Ua.DataChannels
                 if (native && !interruptNative)
                 {
                     await m_carrier.CloseFlowAsync(flow.StreamId, result, CancellationToken.None).ConfigureAwait(false);
+                }
+                if (flow.DirectLane != null && !interruptNative)
+                {
+                    await ReleaseDirectLaneAsync(flow.DirectLane).ConfigureAwait(false);
                 }
                 await writer.ConfigureAwait(false);
             }

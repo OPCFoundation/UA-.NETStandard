@@ -250,11 +250,23 @@ namespace Opc.Ua.PubSub.Connections
             m_reassembler = new UadpReassembler(timeProvider);
             Name = configuration.Name ?? string.Empty;
             TransportProfileUri = configuration.TransportProfileUri ?? string.Empty;
-            m_isDataChannelTransport = DataChannelPubSubConfiguration.TryGetCarrierKind(TransportProfileUri, out _);
+            IDataChannelPubSubConfigurationProvider? dataChannelConfigurationProvider =
+                transportFactory as IDataChannelPubSubConfigurationProvider;
+            bool hasFlowProfile = DataChannelPubSubConfiguration.TryGetCarrierKind(
+                TransportProfileUri, out _);
+            m_isDataChannelTransport = dataChannelConfigurationProvider is not null || hasFlowProfile;
             m_encodingProfileUri = TransportProfileUri;
-            if (m_isDataChannelTransport)
+            if (dataChannelConfigurationProvider is not null)
             {
-                DataChannelParametersDataType parameters = DataChannelPubSubConfiguration.GetParameters(configuration);
+                DataChannelParametersDataType parameters =
+                    dataChannelConfigurationProvider.GetParameters(configuration);
+                m_encodingProfileUri = DataChannelPubSubConfiguration.GetEncodingProfile(parameters.Protocol);
+                m_flowMaxMessageSize = (int)parameters.MaxMessageSize;
+            }
+            else if (hasFlowProfile)
+            {
+                DataChannelParametersDataType parameters =
+                    DataChannelPubSubConfiguration.GetParameters(configuration);
                 m_encodingProfileUri = DataChannelPubSubConfiguration.GetEncodingProfile(parameters.Protocol);
                 m_flowMaxMessageSize = (int)parameters.MaxMessageSize;
             }

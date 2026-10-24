@@ -88,7 +88,7 @@ namespace ConsoleDataChannelStreaming
         private bool IsDescriptor(DataChannelParametersDataType proposed)
         {
             return proposed.ResourceUri == parameters.ResourceUri &&
-                proposed.Protocol == DataChannelProfiles.OpaquePayload &&
+                proposed.Protocol == parameters.Protocol &&
                 proposed.ContentType == parameters.ContentType &&
                 proposed.Direction == parameters.Direction &&
                 proposed.Delivery == DataChannelDeliveryMode.Ordered &&

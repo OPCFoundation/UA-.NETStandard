@@ -441,9 +441,8 @@ namespace Opc.Ua.Bindings
         {
             using PendingRequestScope usage = TrackPendingRequest();
 
-            if (TcpMessageType.IsType(messageType, TcpMessageType.Flow) ||
-                (SelectedDataChannelKind == DataChannelCarrierKind.DedicatedUasc &&
-                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
+            if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, true);
             }
@@ -464,7 +463,7 @@ namespace Opc.Ua.Bindings
                     // process a response.
                     if (TcpMessageType.IsType(messageType, TcpMessageType.Message))
                     {
-                        if (SelectedDataChannelKind == DataChannelCarrierKind.SharedUasc &&
+                        if (FlowModel.SharesServices(SelectedDataChannelKind) &&
                             DataChannels?.IsReady != true)
                         {
                             ForceChannelFaultCore(
@@ -957,7 +956,12 @@ namespace Opc.Ua.Bindings
                         StatusCodes.BadStructureMissing,
                         "Could not parse OpenSecureChannel request body.");
 
-                if (SelectedDataChannelKind.HasValue)
+                if (IsReliableStreamBaseline)
+                {
+                    UascDataChannelEndpoint.ValidateProtection(
+                        request.SecurityMode, SecurityPolicyUri, allowIntegrity: false);
+                }
+                else if (SelectedDataChannelKind.HasValue)
                 {
                     UascDataChannelEndpoint.ValidateProtection(
                         request.SecurityMode,

@@ -38,6 +38,8 @@ namespace Opc.Ua.DataChannels
     /// Application-wide ceilings, shared by configured and Session-authorized contexts alike.
     /// These are independent of Server Session/request isolation and also work without a Server.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed record DataChannelApplicationLimits
     {
         /// <summary>
@@ -95,6 +97,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Exact resource counters for application diagnostics.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public readonly record struct DataChannelResourceUsage(
         int Contexts,
         int Flows,
@@ -110,6 +114,8 @@ namespace Opc.Ua.DataChannels
     /// Shared, atomic admission accounting. Register one instance per application, not per connection.
     /// Reservations are retained while messages are application-owned, even after context closure.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelApplicationBudget
     {
         /// <summary>
@@ -308,6 +314,86 @@ namespace Opc.Ua.DataChannels
                 m_used[(int)FlowResource.Message]++;
                 return true;
             }
+        }
+
+        /// <summary>
+        /// Reserves one received message and its retained body storage with disposable ownership.
+        /// </summary>
+        internal bool TryReserveMessageLease(
+            long bufferedBytes,
+            [NotNullWhen(true)] out DataChannelMessageReservation? reservation)
+        {
+            if (bufferedBytes < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bufferedBytes));
+            }
+            lock (m_gate)
+            {
+                if (bufferedBytes > m_limits.MaxBufferedBytes -
+                    m_used[(int)FlowResource.BufferedBytes] -
+                    m_unusedControlBytes ||
+                    m_used[(int)FlowResource.Message] >= m_limits.MaxMessages - m_unusedControlMessages)
+                {
+                    reservation = null;
+                    return false;
+                }
+                reservation = new DataChannelMessageReservation(this, bufferedBytes);
+                m_used[(int)FlowResource.BufferedBytes] += bufferedBytes;
+                m_used[(int)FlowResource.Message]++;
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Releases a received-message lease atomically and wakes admission waiters.
+        /// </summary>
+        private void ReleaseMessageLease(long bufferedBytes)
+        {
+            TaskSignal signal;
+            lock (m_gate)
+            {
+                m_used[(int)FlowResource.BufferedBytes] -= bufferedBytes;
+                m_used[(int)FlowResource.Message]--;
+                signal = m_changed;
+                m_changed = new TaskSignal();
+            }
+            signal.Complete();
+        }
+
+        /// <summary>
+        /// Owns one atomic received-message and retained-body reservation.
+        /// </summary>
+        internal sealed class DataChannelMessageReservation : IDisposable
+        {
+            /// <summary>
+            /// Creates a reservation after all message and byte limits have been checked.
+            /// </summary>
+            internal DataChannelMessageReservation(DataChannelApplicationBudget budget, long bufferedBytes)
+            {
+                m_budget = budget;
+                m_bufferedBytes = bufferedBytes;
+            }
+
+            /// <summary>
+            /// Transfers the existing charge to the context's application-message release path.
+            /// </summary>
+            internal void TransferOwnership()
+            {
+                if (Interlocked.Exchange(ref m_budget, null) == null)
+                {
+                    throw new InvalidOperationException("The message reservation has already been released.");
+                }
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                DataChannelApplicationBudget? budget = Interlocked.Exchange(ref m_budget, null);
+                budget?.ReleaseMessageLease(m_bufferedBytes);
+            }
+
+            private DataChannelApplicationBudget? m_budget;
+            private readonly long m_bufferedBytes;
         }
 
         /// <summary>

@@ -98,6 +98,45 @@ namespace ConsoleDataChannelStreaming
         public bool ResourcesReleased { get; private set; }
 
         /// <summary>
+        /// Gets whether the selected UASC carrier requires the amended UADP opaque application profile.
+        /// </summary>
+        private bool UsesUadpOpaquePayload =>
+            m_options.Carrier is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc;
+
+        /// <summary>
+        /// Adds the minimal UADP type-3 envelope required for opaque payloads over UASC.
+        /// </summary>
+        public ByteString FrameApplicationPayload(ByteString payload)
+        {
+            if (!UsesUadpOpaquePayload)
+            {
+                return payload;
+            }
+
+            byte[] networkMessage = new byte[checked(s_uadpOpaqueHeader.Length + payload.Length)];
+            s_uadpOpaqueHeader.Span.CopyTo(networkMessage);
+            payload.Span.CopyTo(networkMessage.AsSpan(s_uadpOpaqueHeader.Length));
+            return new ByteString(networkMessage);
+        }
+
+        /// <summary>
+        /// Removes and validates the minimal UADP type-3 envelope required for opaque payloads over UASC.
+        /// </summary>
+        public ByteString UnframeApplicationPayload(ByteString networkMessage)
+        {
+            if (!UsesUadpOpaquePayload)
+            {
+                return networkMessage;
+            }
+            if (networkMessage.IsNull || networkMessage.Length < s_uadpOpaqueHeader.Length ||
+                !networkMessage.Span[..s_uadpOpaqueHeader.Length].SequenceEqual(s_uadpOpaqueHeader.Span))
+            {
+                throw new InvalidOperationException("The UASC sample received an invalid opaque application header.");
+            }
+            return networkMessage[s_uadpOpaqueHeader.Length..];
+        }
+
+        /// <summary>
         /// Establishes a pair over the exact selected profile, then completes OPEN/ACCEPT/READY.
         /// </summary>
         public static async Task<StreamingHarness> CreateAsync(
@@ -266,6 +305,10 @@ namespace ConsoleDataChannelStreaming
                 (m_options.Shared ? DataChannelProfiles.SharedResource : DataChannelProfiles.DedicatedResource);
             string controlAddress = $"opc.tcp://127.0.0.1:{controlPort}/control";
             bool uasc = m_options.Carrier is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc;
+            string protocol = uasc
+                ? DataChannelProfiles.UadpOpaqueApplicationPayload : DataChannelProfiles.OpaquePayload;
+            uint maximumMessageSize = checked((uint)(m_options.Size +
+                (uasc ? s_uadpOpaqueHeader.Length : 0)));
             ArrayOf<string> addresses = uasc
                 ? m_options.Shared || m_options.SessionAuthorization ? [flowAddress, controlAddress] : [flowAddress]
                 : [controlAddress];
@@ -281,13 +324,13 @@ namespace ConsoleDataChannelStreaming
             var parameters = new DataChannelParametersDataType
             {
                 ResourceUri = resource,
-                Protocol = DataChannelProfiles.OpaquePayload,
+                Protocol = protocol,
                 ContentType = contentType,
                 Direction = m_options.ClientPublishes
                     ? DataChannelDirection.OpenerToAcceptor : DataChannelDirection.AcceptorToOpener,
                 Delivery = DataChannelDeliveryMode.Ordered,
                 Protection = DataChannelProtectionMode.Confidential,
-                MaxMessageSize = checked((uint)m_options.Size),
+                MaxMessageSize = maximumMessageSize,
                 MaxReceiveBytes = checked((uint)Math.Max(65536, (m_options.Size + 17) * 16)),
                 Priority = 1
             };
@@ -309,7 +352,11 @@ namespace ConsoleDataChannelStreaming
                 MaxReceiveBytes = parameters.MaxReceiveBytes,
                 MaxFlows = 1
             });
-            var options = new DataChannelOptions { MaxFlows = 2, MaxMessageSize = 32768 };
+            var options = new DataChannelOptions
+            {
+                MaxFlows = 2,
+                MaxMessageSize = Math.Max(32768, checked((int)maximumMessageSize))
+            };
             m_provider = new ServerDataChannelProvider(
                 registry, options, m_serverBudget, TimeProvider.System, m_telemetry);
             ServerDataChannelProvider provider = m_provider;
@@ -416,7 +463,7 @@ namespace ConsoleDataChannelStreaming
                     .ConfigureAwait(false);
             m_cleanup.Push(() => m_opener.DisposeAsync());
             DataChannel acceptor = Own(await provider.AcceptAsync(
-                resource, DataChannelProfiles.OpaquePayload, m_options.Carrier, token).ConfigureAwait(false) ??
+                resource, protocol, m_options.Carrier, token).ConfigureAwait(false) ??
                 throw new DataChannelException(DataChannelResult.Closed));
             m_source = m_options.ClientPublishes ? m_opener : acceptor;
             m_sink = m_options.ClientPublishes ? acceptor : m_opener;
@@ -693,6 +740,7 @@ namespace ConsoleDataChannelStreaming
         private readonly ConcurrentStack<Func<ValueTask>> m_cleanup = new();
         private readonly ConcurrentQueue<ServerSession> m_sessions = new();
         private readonly CancellationTokenSource m_lifetime = new();
+        private static readonly ByteString s_uadpOpaqueHeader = ByteString.FromHexString("91820C01000000");
         private UascDataChannelConnection? m_uasc;
         private NativeQuicBackend? m_native;
         private SampleIdentityPair? m_identities;

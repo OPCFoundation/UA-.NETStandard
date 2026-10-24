@@ -101,7 +101,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         [Test]
         public void EveryUnknownOpcodeIsUnsupported()
         {
-            for (int opcode = 15; opcode <= byte.MaxValue; opcode++)
+            for (int opcode = 18; opcode <= byte.MaxValue; opcode++)
             {
                 var body = new ByteString(new byte[] { (byte)opcode });
                 FlowCodecException? error = Assert.Throws<FlowCodecException>(() => Decode(body));
@@ -295,6 +295,89 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
+        /// Direct binding fields are fixed-width and role-scoped; associations require a valid direction and token.
+        /// </summary>
+        [Test]
+        public void DirectControlsRejectInvalidRoleDirectionAndToken()
+        {
+            byte[] binding = new FrozenWire("control_bind").ExpectedBody.ToArray();
+            binding[1] = 2;
+            AssertError(binding, FlowCodecError.InvalidEnumeration, 0);
+
+            binding = new FrozenWire("control_bind").ExpectedBody.ToArray();
+            BinaryPrimitives.WriteInt32LittleEndian(binding.AsSpan(2), 31);
+            AssertError(binding, FlowCodecError.InvalidChallenge, 0);
+
+            byte[] association = new FrozenWire("control_associate").ExpectedBody.ToArray();
+            association[5] = 2;
+            AssertError(association, FlowCodecError.InvalidEnumeration);
+
+            association = new FrozenWire("control_associate").ExpectedBody.ToArray();
+            association.AsSpan(6, 16).Clear();
+            AssertError(association, FlowCodecError.InvalidFlow);
+        }
+
+        /// <summary>
+        /// A connection-level STATUS reports an unsupported direct-binding capability without closing baseline FLO.
+        /// </summary>
+        [Test]
+        public void ConnectionStatusReportsUnsupportedBinding()
+        {
+            byte[] body = [14, 0, 0, 0, 0, (byte)FlowWireStatus.Unsupported];
+            var record = new FlowRecord(FlowRecordKind.Control, 0, 99, new ByteString(body));
+
+            FlowControl control = FlowControlCodec.Decode(in record, new());
+            FlowRecord encoded = FlowControlCodec.Encode(control, 0, 99, new());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(control, Is.TypeOf<FlowOutcome>());
+                Assert.That(((FlowOutcome)control).Flow, Is.Zero);
+                Assert.That(((FlowOutcome)control).Status, Is.EqualTo(FlowWireStatus.Unsupported));
+                Assert.That(encoded.Body.ToArray(), Is.EqualTo(body));
+            });
+        }
+
+        /// <summary>
+        /// Direct controls require the protected QUIC or WebTransport UASC baseline.
+        /// </summary>
+        [Test]
+        public void DirectControlsRequireQuicOrWebTransportUascBaseline()
+        {
+            var binding = new FrozenWire("control_bind");
+            var association = new FrozenWire("control_associate");
+            var acknowledgement = new FrozenWire("control_associate-ack");
+            foreach (FlowCarrier carrier in new[] { FlowCarrier.Quic, FlowCarrier.WebTransport })
+            {
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(binding.ExpectedControl!, carrier),
+                    FlowCodecError.CarrierMismatch);
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(association.ExpectedControl!, carrier),
+                    FlowCodecError.CarrierMismatch);
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(acknowledgement.ExpectedControl!, carrier),
+                    FlowCodecError.CarrierMismatch);
+                FlowControlCodec.ValidateCarrier(binding.ExpectedControl!, carrier, uascBaseline: true);
+                FlowControlCodec.ValidateCarrier(association.ExpectedControl!, carrier, uascBaseline: true);
+                FlowControlCodec.ValidateCarrier(acknowledgement.ExpectedControl!, carrier, uascBaseline: true);
+            }
+            foreach (FlowCarrier carrier in new[] { FlowCarrier.DedicatedUasc, FlowCarrier.SharedUasc })
+            {
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(binding.ExpectedControl!, carrier, uascBaseline: true),
+                    FlowCodecError.CarrierMismatch);
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(association.ExpectedControl!, carrier, uascBaseline: true),
+                    FlowCodecError.CarrierMismatch);
+                FrozenWire.Fails(
+                    () => FlowControlCodec.ValidateCarrier(
+                        acknowledgement.ExpectedControl!, carrier, uascBaseline: true),
+                    FlowCodecError.CarrierMismatch);
+            }
+        }
+
+        /// <summary>
         /// Guid fields retain OPC UA Binary's mixed field order rather than textual or network-byte-order encoding.
         /// </summary>
         [Test]
@@ -430,13 +513,29 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         [TestCase("control_ack", 1u)]
         [TestCase("control_abort-update", 1u)]
         [TestCase("control_ping", 1u)]
+        [TestCase("control_bind", 1u)]
+        [TestCase("control_associate", 0u)]
+        [TestCase("control_associate-ack", 0u)]
         public void OperationRevisionRulesRemainEnforced(string name, uint revision)
         {
             AssertError(new FrozenWire(name).ExpectedBody.ToArray(), FlowCodecError.InvalidRevision, revision);
         }
 
         /// <summary>
-        /// Both UASC profiles charge the FLO address in receive limits and forbid native stream claims.
+        /// Direct operation names are exact and round-trip through the closed name map.
+        /// </summary>
+        [TestCase("bind")]
+        [TestCase("associate")]
+        [TestCase("associate-ack")]
+        public void DirectOperationNamesAreStable(string name)
+        {
+            FlowOperation operation = FlowWireNames.Operation(name);
+            Assert.That(FlowWireNames.Operation(operation), Is.EqualTo(name));
+            Assert.That(FlowWireNames.Operation(name), Is.EqualTo(operation));
+        }
+
+        /// <summary>
+        /// Both UASC profiles admit body-sized receive limits and forbid native stream claims.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
@@ -446,7 +545,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             var old = (FlowOpen)new FrozenWire("control_open").ExpectedControl!;
             FlowWireParameters p = old.Parameters;
             var tooSmall = new FlowWireParameters(p.Resource, p.Protocol, p.ContentType, p.Direction,
-                p.Delivery, p.Protection, new FlowWireLimits(64, 80, 0, 0), false);
+                p.Delivery, p.Protection, new FlowWireLimits(64, 63, 0, 0), false);
             FrozenWire.Fails(() => FlowControlCodec.ValidateCarrier(
                 new FlowOpen(1, 0, tooSmall, FlowWireAuthorization.Configured, null), carrier),
                 FlowCodecError.InvalidDescriptor);

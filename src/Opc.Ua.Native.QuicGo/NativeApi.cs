@@ -9,7 +9,7 @@ using System.Text;
 namespace Opc.Ua.Native.QuicGo
 {
     /// <summary>
-    /// Blittable ABI3 declarations; no marshalled delegates, Go pointers or reflection-generated stubs.
+    /// Blittable ABI7 declarations; no marshalled delegates, Go pointers or reflection-generated stubs.
     /// </summary>
     internal sealed unsafe class NativeApi
     {
@@ -38,7 +38,7 @@ namespace Opc.Ua.Native.QuicGo
             m_counts = (delegate* unmanaged[Cdecl]<Counts*, int>)NativeLibrary.GetExport(library, "opcua_quic_counts");
             var abi = new Abi { Size = (uint)sizeof(Abi) };
             if (m_abi(&abi) != 0 ||
-                abi.Version != 4 ||
+                abi.Version != 7 ||
                 abi.PointerSize != 8 ||
                 abi.ConfigSize != sizeof(Config) ||
                 abi.RequestSize != sizeof(Request) ||
@@ -57,7 +57,7 @@ namespace Opc.Ua.Native.QuicGo
         internal NativeQuicStatus Create(bool listen, NativeQuicOptions options, out Handle operation)
         {
             NativeQuicCredentials identity = options.Credentials;
-            byte[] key = identity.PrivateKey.Copy();
+            byte[] key = identity.PrivateKey?.Copy() ?? [];
             byte[]? storage = null;
             try
             {
@@ -111,10 +111,11 @@ namespace Opc.Ua.Native.QuicGo
                             Uri = spans[6],
                             ServerName = spans[7]
                         },
-                        Peers = peers,
+                        Peers = options.AllowedPeers.Count == 0 ? null : peers,
                         PeerCount = (uint)options.AllowedPeers.Count,
                         StreamLimit = options.StreamLimit,
-                        IdleTimeout = options.IdleTimeoutMilliseconds
+                        IdleTimeout = options.IdleTimeoutMilliseconds,
+                        AuthenticationPolicy = options.AuthenticationPolicy
                     };
                     Handle handle = default;
                     int status = listen ? m_listen(&config, &handle) : m_connect(&config, &handle);
@@ -311,8 +312,8 @@ namespace Opc.Ua.Native.QuicGo
             /// <summary>Idle timeout.</summary>
             internal uint IdleTimeout;
 
-            /// <summary>Must be zero.</summary>
-            internal uint Reserved;
+            /// <summary>Explicit application-mTLS or server-authenticated TLS policy.</summary>
+            internal uint AuthenticationPolicy;
         }
 
         /// <summary>

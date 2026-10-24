@@ -14,6 +14,8 @@ namespace Opc.Ua.Client.DataChannels
     /// <summary>
     /// Injectable factory for Session-bound control helpers and independently enforced local policies.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelSessionControlFactory(TimeProvider timeProvider)
     {
         /// <summary>
@@ -54,6 +56,8 @@ namespace Opc.Ua.Client.DataChannels
     /// <summary>
     /// Fluent opt-in to Session control; it does not install or select a data carrier.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelClientBuilderExtensions
     {
         /// <summary>

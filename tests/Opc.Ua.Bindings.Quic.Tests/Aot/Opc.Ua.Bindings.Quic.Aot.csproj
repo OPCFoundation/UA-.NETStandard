@@ -14,5 +14,6 @@
                Condition="'$(QuicPrebuiltReferencesDirectory)' != ''" />
     <Compile Include="..\NativeFlowTestEnvironment.cs" Link="NativeFlowTestEnvironment.cs" />
     <Compile Include="..\NativeFlowLiveScenario.cs" Link="NativeFlowLiveScenario.cs" />
+    <Compile Include="..\NativeUascLiveScenario.cs" Link="NativeUascLiveScenario.cs" />
   </ItemGroup>
 </Project>

@@ -2,9 +2,9 @@
 
 `OPCFoundation.NetStandard.Opc.Ua.PubSub` implements the publisher /
 subscriber side-channel defined by OPC 10000-14 (Part 14). It
-supports the UADP and JSON message mappings over UDP, MQTT, and
-broker-less transports — independent of the standard Client / Server
-session model.
+supports the UADP and JSON message mappings over UDP and MQTT, plus UADP
+over Data Channels — independent of the standard Client / Server session
+model.
 
 ## Overview
 
@@ -17,10 +17,10 @@ The package provides:
   `Opc.Ua.PubSub.Udp` / `Opc.Ua.PubSub.Mqtt` packages).
 - Dataset filtering, AES-CTR message security with a Security Key
   Service, diagnostics, and persisted state.
-- Complete NetworkMessage transport over the provisional DataChannel
-  Dedicated UASC, Shared UASC, QUIC, and WebTransport profiles. Each
-  carrier independently negotiates UADP or JSON. Native carrier packages
-  are not dependencies of this package.
+- Complete UADP NetworkMessage transport over DataChannel Dedicated UASC,
+  Shared UASC, QUIC, and WebTransport profiles. Other PubSub mappings retain
+  their existing UADP and JSON support. Native carrier packages are not
+  dependencies of this package.
 
 ## Getting started
 

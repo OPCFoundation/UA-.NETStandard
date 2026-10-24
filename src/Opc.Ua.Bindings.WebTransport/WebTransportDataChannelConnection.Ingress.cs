@@ -74,6 +74,7 @@ namespace Opc.Ua.Bindings
                 m_streams.Add(native.StreamId, state);
                 if (provisional)
                 {
+                    state.PendingBinding = true;
                     m_pendingStreams++;
                     StartJobLocked(() => MonitorBindingAsync(state));
                 }
@@ -178,12 +179,35 @@ namespace Opc.Ua.Bindings
             }
             state.Associated = true;
             state.PrefixComplete.TrySetResult();
-            if (!NativeConnection.Peer.IsClient)
+            if (m_uascBaseline)
+            {
+                if (m_baselineStreamState != null)
+                {
+                    if (m_directStreamAdmissions.Count == 0)
+                    {
+                        StartJobLocked(() => CloseFlowAsync(metadata.Stream, DataChannelResult.InvalidState));
+                    }
+                    else
+                    {
+                        state.DirectTokenPrefix = new byte[16];
+                    }
+                    return;
+                }
+                if (NativeConnection.IsClient || metadata.Stream != 4)
+                {
+                    throw new WebTransportException(
+                        "The first client-created WebTransport stream must carry the UACP/UASC baseline.");
+                }
+                AttachBaselineStreamLocked(state);
+                return;
+            }
+            if (!NativeConnection.IsClient)
             {
                 if (m_management == null)
                 {
                     m_management = state;
                     m_pendingStreams--;
+                    state.PendingBinding = false;
                     state.Bound.TrySetResult();
                     m_managementReady.TrySetResult();
                 }
@@ -193,6 +217,36 @@ namespace Opc.Ua.Bindings
                         "Management was not the initiator's first WT bidirectional stream.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Publishes the one associated reliable stream without starting a legacy Data Channel context.
+        /// </summary>
+        private void AttachBaselineStream(StreamState state)
+        {
+            lock (m_gate)
+            {
+                AttachBaselineStreamLocked(state);
+            }
+        }
+
+        private void AttachBaselineStreamLocked(StreamState state)
+        {
+            if (!m_uascBaseline || !state.Associated || state.Stream.StreamId != 4 ||
+                m_baselineStreamState != null || state.Retired)
+            {
+                throw new WebTransportException("The actual first WebTransport stream is not an available baseline.");
+            }
+            m_baselineStreamState = state;
+            m_baselineStream = new WebTransportByteStream(this, state, m_lifetime);
+            state.ByteStream = m_baselineStream;
+            state.Bound.TrySetResult();
+            if (state.PendingBinding)
+            {
+                m_pendingStreams--;
+                state.PendingBinding = false;
+            }
+            m_baselineReady.TrySetResult();
         }
 
         /// <summary>
@@ -274,7 +328,7 @@ namespace Opc.Ua.Bindings
                     lock (m_gate)
                     {
                         m_hostBytes += read.Payload.Length;
-                        if (m_hostBytes > m_options.MaxHostBufferedBytes)
+                        if (m_hostBytes + m_queuedStreamBytes > m_options.MaxHostBufferedBytes)
                         {
                             m_hostBytes -= read.Payload.Length;
                             throw new WebTransportException("The host input memory limit was reached.");
@@ -435,10 +489,23 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Delivers one intact ChannelId+common-record datagram to Core's bounded admission path.
+        /// Routes intact session datagrams without waiting for a standalone context on a UASC baseline.
         /// </summary>
         private async ValueTask DeliverDatagramAsync(ByteString payload)
         {
+            if (m_uascBaseline)
+            {
+                lock (m_gate)
+                {
+                    if (payload.Length <= MaxDatagramSize &&
+                        m_directDatagramReceive is { } pending)
+                    {
+                        m_directDatagramReceive = null;
+                        pending.TrySetResult(payload);
+                    }
+                }
+                return;
+            }
             await m_attached.Task.WaitAsync(m_lifetime).ConfigureAwait(false);
             await Context.ReceiveDatagramAsync(payload, m_lifetime).ConfigureAwait(false);
         }
@@ -449,9 +516,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private async ValueTask NotifyStreamFailureAsync(StreamState state, DataChannelResult result)
         {
-            if (ReferenceEquals(state, m_management))
+            if (m_uascBaseline && ReferenceEquals(state, m_baselineStreamState) ||
+                ReferenceEquals(state, m_management))
             {
                 RequestClose(result);
+                return;
+            }
+            if (m_uascBaseline)
+            {
+                state.ByteStream?.CompleteInput(result);
+                if (state.Associated && !state.Closing)
+                {
+                    await CloseFlowAsync(state.Stream.StreamId, result, m_lifetime).ConfigureAwait(false);
+                }
                 return;
             }
             await m_attached.Task.WaitAsync(m_lifetime).ConfigureAwait(false);
@@ -527,6 +604,12 @@ namespace Opc.Ua.Bindings
                             throw new WebTransportException("The native peer-reset observation is inconsistent.");
                         }
                         await state.PrefixComplete.Task.WaitAsync(lifetime.Token).ConfigureAwait(false);
+                        if (reset.ReliableSize != 0 && reset.ReliableSize == reset.FinalSize)
+                        {
+                            // A fully retained reset must not overtake bytes still owned by the native reader.
+                            // ReceiveStreamAsync reports its terminal outcome after delivering that exact range.
+                            return;
+                        }
                         lock (m_gate)
                         {
                             if (!m_closing)

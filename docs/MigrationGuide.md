@@ -47,6 +47,18 @@ covers cross-cutting changes.
 
 ## Replacing the experimental Data Channels protocol
 
+The Part 30 audit model also replaces the experimental custom-field
+`AuditDataChannelEventType`: it is now a fieldless `AuditUpdateMethodEventType`
+subtype. Select specialized metadata from `DataChannelOperationEventType` and
+join its `AuditEventId` to the audit record's `EventId`. Both records require
+authorized audit-consumer access. Do not treat the operation's `Result` as the
+Method Call's `Status`, or expect an audit record for configured data-path
+admission. See [manager audit records](DataChannels.md#manager-audit-records).
+
+`DataChannelStatusDataType.TransportStreamId` is reserved and now always zero.
+Do not use the earlier experimental native stream number as flow identity;
+identify flows by ContextId, Generation and ChannelId.
+
 The rewritten Data Channels draft is a deliberate **wire, model and API break
 from the earlier experiment**, not a replacement for stable Client/Server
 Services. Update both flow peers together; no legacy-draft compatibility mode
@@ -66,13 +78,16 @@ preserved. Native `opc.quic` now uses mutually authenticated TLS and
 optional Client/Server lane explicitly when it is required. Reconnection
 needs fresh context identity, flow IDs and authorization.
 
-The subsequent OPC 10000-28 revision pinned in [DataChannels.md](DataChannels.md)
-is another wire break: binary CONTROL replaces JSON, and both UASC profiles use
-FLO with a ChannelId prefix and RequestId zero. Upgrade both peers even if they
-already report draft `0.2.0` and model `2.0.0`; those versions and the model
-NodeIds did not change in this revision. Do not regenerate a different model
-solely for its compact binary wire discriminators. The PubSub adapter now rejects
-queue expiry unless a Publisher dependency/recovery policy is available.
+The later split OPC 10000-30, -31 and -32 drafts `0.3.0` supersede that native
+transport design. Parts 31 and 32 require UACP/UASC Services and PubSub on a
+reliable baseline stream; the current branch's `opcua-flow/1` management
+exchange and separately selected Client/Server lane do not implement that
+baseline. Do not treat the legacy endpoint/profile values described above as
+the current draft profiles or as conformance evidence. The coordinated Part 14
+application-payload amendment assigns NetworkMessageType 3 to the explicitly
+selected A/V and opaque formats; unamended type 3 and reserved types 4 through
+7 remain invalid. Full migration guidance will be updated as the new baseline
+and direct-delivery capabilities are implemented.
 
 See [the migration table and carrier guide](DataChannels.md#migrating-from-the-earlier-experiment)
 and the [updated sample catalogue](Samples.md#experimental-data-channel-samples).

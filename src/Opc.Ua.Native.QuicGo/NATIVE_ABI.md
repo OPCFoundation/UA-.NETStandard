@@ -1,4 +1,4 @@
-# Native QUIC ABI4 and reproducible packaging
+# Native QUIC ABI7 and reproducible packaging
 
 `native\include\opcua_quic.h` is authoritative. All ten production `opcua_quic_*`
 exports are Cdecl; scalar widths are fixed, x64 natural alignment is eight.
@@ -59,7 +59,7 @@ shutdown (allowing finite background transport cleanup).
 
 ## Security and transport evidence
 
-Every endpoint has a supplied leaf, intermediates, private key, trust anchors and local
+The default application-mTLS endpoint has a supplied leaf, intermediates, private key, trust anchors and local
 URI. Every peer rule requires an exact certificate URI SAN **and** SHA256 SPKI pin.
 TLS performs ordinary chain/lifetime/EKU validation, plus connector hostname validation.
 Unknown roots, malformed material, missing key capability and empty policy fail closed.
@@ -77,13 +77,64 @@ CertificateRequest is refused, not treated as mutually authenticated. Server adm
 its own per-connection certificate selection and native post-client-auth handshake completion.
 Higher-layer application acceptance/authorization remains separate.
 
-The ABI2 layout, retained by ABI3 and ABI4, appends independent observations to the first 904 info bytes:
+The ABI2 layout, retained by ABI3 through ABI6, appends independent observations to the first 904 info bytes:
 `handshake_confirmed` at904, `mutual_tls_authenticated` at908, `local_certificate_used` at912,
-and zero `reserved` at916. Offset16 remains **local TLS HandshakeComplete**, not QUIC
-confirmation. Managed loading requires ABI4/info920. ABI1 lacks the authentication facts,
+and the admitted `authentication_policy` at916. Offset16 remains **local TLS HandshakeComplete**, not QUIC
+confirmation. Managed loading requires ABI6/info920. ABI1 lacks the authentication facts,
 ABI2 lacks the independent received-reset watcher, and ABI3 lacks the actual peer-STOP
 watcher; none is silently assumed. The ten export signatures and structure sizes are
-unchanged by these additive operation revisions.
+unchanged by these additive ABI revisions.
+
+ABI7 / operation revision7 adds stream operation31, `ReleaseGracefully`. It
+closes the send direction with FIN, cancels only the unused receive direction,
+and releases the managed native handle without `CancelWrite`. The QUIC connection
+retains outstanding stream data and FIN until acknowledgment or connection close.
+Ordinary stream `Release` remains abortive. Direct byte streams use graceful
+release only after a complete final write carrying FIN; explicit reset, partial
+write failure and uncompleted streams retain the abortive path. This behavior
+does not depend on RESET_STREAM_AT negotiation.
+
+ABI5 / operation revision5 adds connection operation19, `ExportKeyingMaterial`.
+The request payload is exactly the 32-byte Part 31 binding transcript digest; the
+result is the 32-byte TLS exporter output for `EXPORTER-OPCUA-QUIC-DRAFT`.
+Exporter failure returns `CAPABILITY` and does not close the connection, so the
+protected UASC baseline remains available. The managed connection wrapper validates
+the transcript-digest length and links the operation to the owning connection lifetime.
+Direct delivery must not be advertised when this operation is unavailable.
+
+ABI6 / operation revision6 adds connection operation30, `ExportCustomKeyingMaterial`.
+Its bounded payload is `[labelLength:8][ASCII label][contextLength:8][context][outputLength:8]`;
+each length is one unsigned byte. It returns exactly the requested TLS exporter output.
+This is used by Part 32 with TLS label `EXPORTER-WebTransport` and the serialized
+WebTransport Session ID, application label and 32-byte flow-binding transcript digest.
+The Part 31 fixed-label operation19 remains unchanged. Export failure returns
+`CAPABILITY` without closing the connection.
+
+Operation revision4 makes the config's final UInt32 and the info field at916
+explicit authentication-policy discriminators. Policy0 preserves the full application-mTLS
+contract, including its mandatory peer URI/SPKI allowlist and actual client-certificate request.
+Policy1 is separately selected server-authenticated transport TLS; it does **not** authorize
+OPC UA applications. A connector supplies only explicit trust roots and an expected hostname,
+without a certificate, key, URI or client-certificate selector. A listener supplies its
+certificate, optional intermediates and signing key, without client trust roots, application
+URI or peer allowlist. Mixed-policy inputs and unknown discriminators are refused before
+native operation admission.
+
+Policy1 still requires ordinary server chain/lifetime/EKU/hostname validation, TLS1.3
+and fresh confirmed QUIC. Datagrams and reset09 are independently observed optional
+capabilities, not prerequisites for a reliable UASC baseline. Absent datagram transport
+parameters and unavailable datagram payload capacity are reported as zero, not as the
+native implementation's negative sentinel converted to an unsigned value. Managed loading
+checks the consistency of these flags, transport parameters and payload capacity.
+Policy0 retains its mandatory datagram/reset09 contract. The ABI6 layout is unchanged.
+Policy1 info has no peer application URI
+and `mutual_tls_authenticated` is zero in both roles. A client reports the actually verified
+server chain/hashes and no local certificate use. A server reports actual local certificate
+use, zero verified client certificates and zero peer hashes; a certificate query there returns
+Invalid, never a fabricated identity. `NativeQuicTlsEvidence` and `NativeQuicPeerEvidence`
+are disjoint checked types: neither accepts the other's authentication policy.
+UASC must independently establish application authentication and authorization over a
+transport-only baseline. These native facts alone do not establish Part32/browser conformance.
 
 Peer facts return the actual verified certificate chain, authorized URI, leaf/SPKI hashes,
 ALPN and TLS/transport facts. Exact **remote** TP `0x1d` comes from the observation overlay,
@@ -141,9 +192,13 @@ first cancellation cause, which can be local. If local Reset wins first, a subse
 STOP cannot replace that context cause. Use operation29 for actual peer STOP, including
 crossed shutdown; do not interpret the legacy local context result as remote evidence.
 
-ABI4 is the runtime gate for operation29. The managed loader rejects ABI3 or older before
-admitting operations. Receipt revision3 is additional provenance, not a substitute for that
-runtime gate. Export signatures and all structure sizes remain unchanged.
+ABI4 introduced the runtime gate for operation29. The current managed loader
+requires ABI7 for graceful stream release, while preserving the ABI6 TLS/exporter
+capabilities. Receipt revision3 recorded the operation29 introduction; revision4
+additionally records the explicit TLS policy; revision5 records the transcript-bound
+QUIC exporter; revision6 records bounded custom-label exporter support; revision7
+records graceful stream release. Receipt provenance
+does not replace the runtime ABI gate. Export signatures and structure sizes remain unchanged.
 
 ### STOP and application reliable-minimum policies
 

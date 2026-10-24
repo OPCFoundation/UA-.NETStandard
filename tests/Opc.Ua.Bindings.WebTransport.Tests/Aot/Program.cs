@@ -1,6 +1,8 @@
 // Copyright (c) OPC Foundation. Licensed under the OPC Foundation MIT License 1.00.
 
 using System;
+using System.IO;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +56,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                     throw new InvalidOperationException("Real native datagram framing/capacity was not observed.");
                 }
             }
+            await CheckBaselineCompletionAsync(environment, backend, library).ConfigureAwait(false);
             NativeQuicCounts counts = default;
             for (int attempt = 0; attempt < 100; attempt++)
             {
@@ -71,7 +74,84 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             }
             Console.WriteLine(
                 $"PASS ({(aot ? "NativeAOT" : "JIT")}): confirmed mTLS+h3, exact WT/Core establishment, " +
-                "both roles, datagrams, reset, zero ownership.");
+                "both roles, datagrams, reset, TLS-only baseline direct completion, zero ownership.");
+        }
+
+        /// <summary>
+        /// Verifies both baseline direct openers retain final bytes through disposal without reflection.
+        /// This primitive check does not substitute for authenticated UASC Services acceptance.
+        /// </summary>
+        private static async Task CheckBaselineCompletionAsync(
+            WebTransportTestEnvironment environment, INativeQuicBackend backend, NativeHttp3Library library)
+        {
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var budget = new DataChannelApplicationBudget();
+            var transport = new WebTransportUascTransport(backend, library, budget, environment.Options);
+            await using (WebTransportUascListener listener = await transport.ListenAsync(
+                new Uri("https://127.0.0.1:0/ua/wt?resource=completion"),
+                new IPEndPoint(IPAddress.Loopback, 0),
+                environment.TlsServerCredentials,
+                static (_, token) =>
+                {
+                    token.ThrowIfCancellationRequested();
+                    return ValueTask.FromResult(true);
+                },
+                cancellationToken: deadline.Token).ConfigureAwait(false))
+            {
+                Task<WebTransportUascBaselineConnection> accepting = listener.AcceptAsync(deadline.Token).AsTask();
+                await using WebTransportUascBaselineConnection client = await transport.ConnectAsync(
+                    listener.EndpointUrl, environment.TlsClientCredentials, cancellationToken: deadline.Token)
+                    .ConfigureAwait(false);
+                await using WebTransportUascBaselineConnection server = await accepting.ConfigureAwait(false);
+                var clientBuffers = new BufferManager("AotCompletionClient", 65536, environment.Telemetry);
+                var serverBuffers = new BufferManager("AotCompletionServer", 65536, environment.Telemetry);
+                using var clientBytes = (UascStreamByteTransport)client.Create(
+                    clientBuffers, 65536, environment.Telemetry);
+                using var serverBytes = (UascStreamByteTransport)server.Create(
+                    serverBuffers, 65536, environment.Telemetry);
+                await clientBytes.ConnectAsync(listener.EndpointUrl, deadline.Token).ConfigureAwait(false);
+                foreach (bool serverOpens in new[] { false, true })
+                {
+                    UascStreamByteTransport opener = serverOpens ? serverBytes : clientBytes;
+                    UascStreamByteTransport acceptor = serverOpens ? clientBytes : serverBytes;
+                    Guid token = Guid.NewGuid();
+                    Task<Stream> pending = acceptor.AcceptDirectStreamAsync(token, deadline.Token).AsTask();
+                    await using Stream sending = await opener.OpenDirectStreamAsync(token, deadline.Token)
+                        .ConfigureAwait(false);
+                    await using Stream receiving = await pending.ConfigureAwait(false);
+                    IDataChannelDirectStreamCompletion completion = sending as IDataChannelDirectStreamCompletion ??
+                        throw new InvalidOperationException("The baseline direct retention interface was lost.");
+                    ByteString expected = ByteString.FromHexString("000102030405060708090aff00ff");
+                    await sending.WriteAsync(expected.Memory[..^1], deadline.Token).ConfigureAwait(false);
+                    await completion.CompleteWritesAsync(expected.Slice(expected.Length - 1), deadline.Token)
+                        .ConfigureAwait(false);
+                    await sending.DisposeAsync().ConfigureAwait(false);
+                    byte[] actual = new byte[expected.Length];
+                    await receiving.ReadExactlyAsync(actual, deadline.Token).ConfigureAwait(false);
+                    if (!actual.AsSpan().SequenceEqual(expected.Span))
+                    {
+                        throw new InvalidOperationException("The disposed direct sender abandoned accepted bytes.");
+                    }
+                }
+                byte[] hello = [0x48, 0x45, 0x4c, 0x46, 12, 0, 0, 0, 1, 2, 3, 4];
+                await clientBytes.SendChunkAsync(hello, deadline.Token).ConfigureAwait(false);
+                ArraySegment<byte> received = await serverBytes.ReceiveChunkAsync(deadline.Token).ConfigureAwait(false);
+                try
+                {
+                    if (!received.AsSpan().SequenceEqual(hello))
+                    {
+                        throw new InvalidOperationException("Direct release damaged the surviving UACP baseline.");
+                    }
+                }
+                finally
+                {
+                    serverBuffers.ReturnBuffer(received.Array, nameof(CheckBaselineCompletionAsync));
+                }
+            }
+            if (budget.Usage != default)
+            {
+                throw new InvalidOperationException("The baseline direct completion retained application ownership.");
+            }
         }
 
         /// <summary>

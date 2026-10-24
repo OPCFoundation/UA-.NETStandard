@@ -34,6 +34,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Opc.Ua.DataChannels;
 
 namespace Opc.Ua.Bindings
 {
@@ -253,6 +254,9 @@ namespace Opc.Ua.Bindings
             IUaSCByteTransportLimits,
             IUaSCChunkCoalescing,
             IUaSCHandshakeCompletionSource,
+            IDataChannelDirectBindingProvider,
+            IDataChannelDirectStreamProvider,
+            IDataChannelDirectDatagramProvider,
             IDisposable
         {
             /// <summary>
@@ -289,6 +293,83 @@ namespace Opc.Ua.Bindings
             /// Gets the attached transport's implementation identifier.
             /// </summary>
             public string Implementation => Transport.Implementation;
+
+            /// <inheritdoc/>
+            bool IDataChannelDirectBindingProvider.IsAvailable =>
+                m_transport is IDataChannelDirectBindingProvider provider && provider.IsAvailable;
+
+            /// <inheritdoc/>
+            string IDataChannelDirectBindingProvider.TransportProfileUri =>
+                DirectBindingProvider?.TransportProfileUri ?? string.Empty;
+
+            /// <inheritdoc/>
+            string IDataChannelDirectBindingProvider.Capability =>
+                DirectBindingProvider?.Capability ?? string.Empty;
+
+            /// <inheritdoc/>
+            string IDataChannelDirectBindingProvider.Authority =>
+                DirectBindingProvider?.Authority ?? string.Empty;
+
+            /// <inheritdoc/>
+            string IDataChannelDirectBindingProvider.Path =>
+                DirectBindingProvider?.Path ?? string.Empty;
+
+            /// <inheritdoc/>
+            bool IDataChannelDirectStreamProvider.AreDirectStreamsAvailable =>
+                m_transport is IDataChannelDirectStreamProvider { AreDirectStreamsAvailable: true };
+
+            /// <inheritdoc/>
+            int IDataChannelDirectDatagramProvider.MaxDirectDatagramSize =>
+                m_transport is IDataChannelDirectDatagramProvider provider ? provider.MaxDirectDatagramSize : 0;
+
+            /// <inheritdoc/>
+            ValueTask<DataChannelResult> IDataChannelDirectDatagramProvider.SendDirectDatagramAsync(
+                DataChannelWrite write,
+                CancellationToken cancellationToken)
+            {
+                return m_transport is IDataChannelDirectDatagramProvider provider
+                    ? provider.SendDirectDatagramAsync(write, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            /// <inheritdoc/>
+            ValueTask<ByteString> IDataChannelDirectDatagramProvider.ReceiveDirectDatagramAsync(
+                CancellationToken cancellationToken)
+            {
+                return m_transport is IDataChannelDirectDatagramProvider provider
+                    ? provider.ReceiveDirectDatagramAsync(cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            /// <inheritdoc/>
+            ValueTask<System.IO.Stream> IDataChannelDirectStreamProvider.OpenDirectStreamAsync(
+                Guid associationToken,
+                CancellationToken cancellationToken)
+            {
+                return m_transport is IDataChannelDirectStreamProvider provider
+                    ? provider.OpenDirectStreamAsync(associationToken, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            /// <inheritdoc/>
+            ValueTask<System.IO.Stream> IDataChannelDirectStreamProvider.AcceptDirectStreamAsync(
+                Guid associationToken,
+                CancellationToken cancellationToken)
+            {
+                return m_transport is IDataChannelDirectStreamProvider provider
+                    ? provider.AcceptDirectStreamAsync(associationToken, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            /// <inheritdoc/>
+            ValueTask<ByteString> IDataChannelDirectBindingProvider.ExportKeyingMaterialAsync(
+                ByteString transcriptDigest,
+                CancellationToken cancellationToken)
+            {
+                IDataChannelDirectBindingProvider provider = DirectBindingProvider ??
+                    throw new InvalidOperationException("The admitted transport does not provide direct binding.");
+                return provider.ExportKeyingMaterialAsync(transcriptDigest, cancellationToken);
+            }
 
             /// <summary>
             /// Registers pre-attachment physical cleanup, invoking it immediately if the lease is already closed.
@@ -519,6 +600,9 @@ namespace Opc.Ua.Bindings
             /// </summary>
             private IUaSCByteTransport Transport => m_transport ??
                 throw new InvalidOperationException("The admission lease has no transport.");
+
+            private IDataChannelDirectBindingProvider? DirectBindingProvider =>
+                m_transport as IDataChannelDirectBindingProvider;
 
             /// <summary>
             /// Scope whose connection count and timer include this lease.

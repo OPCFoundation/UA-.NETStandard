@@ -68,7 +68,7 @@ namespace Opc.Ua.PubSub.Samples.Tests
             await process.AssertSuccessAsync().ConfigureAwait(false);
             using JsonDocument result = await ReadAsync(report).ConfigureAwait(false);
             JsonElement[] peers = [.. result.RootElement.GetProperty("Endpoints").EnumerateArray()];
-            AssertPeers(peers, false, false, false, false, 8);
+            AssertPeers(peers, false, false, false, 8);
             Assert.That(Directory.Exists(pki), Is.False, "The demo must remove its owned private-key resources.");
         }
 
@@ -80,20 +80,19 @@ namespace Opc.Ua.PubSub.Samples.Tests
         [CancelAfter(90000)]
         public async Task OneProcessPreservesExactNetworkMessagesValuesAndLiveRevisionAsync(
             [Values] bool shared,
-            [Values] bool json,
             [Values] bool session,
             [Values] bool reverse)
         {
             using var workspace = new OwnedWorkspace();
             string report = Path.Combine(workspace.Root, "demo.json");
-            List<string> arguments = ModeArguments(shared, json, session, reverse);
+            List<string> arguments = ModeArguments(shared, session, reverse);
             arguments.AddRange(["--pki", Path.Combine(workspace.Root, "pki"), "--result", report]);
             var process = SampleProcess.Start(workspace, arguments);
             await using ConfiguredAsyncDisposable processLifetime = process.ConfigureAwait(false);
             await process.AssertSuccessAsync().ConfigureAwait(false);
             using JsonDocument result = await ReadAsync(report).ConfigureAwait(false);
             JsonElement[] peers = [.. result.RootElement.GetProperty("Endpoints").EnumerateArray()];
-            AssertPeers(peers, shared, json, session, reverse, SampleCount);
+            AssertPeers(peers, shared, session, reverse, SampleCount);
         }
 
         /// <summary>
@@ -104,7 +103,6 @@ namespace Opc.Ua.PubSub.Samples.Tests
         [CancelAfter(120000)]
         public async Task TwoProcessesPreserveExactNetworkMessagesValuesAndLiveRevisionAsync(
             [Values] bool shared,
-            [Values] bool json,
             [Values] bool session,
             [Values] bool reverse)
         {
@@ -113,7 +111,7 @@ namespace Opc.Ua.PubSub.Samples.Tests
             string ready = Path.Combine(workspace.Root, "ready.json");
             string serverReport = Path.Combine(workspace.Root, "server.json");
             string clientReport = Path.Combine(workspace.Root, "client.json");
-            List<string> common = ModeArguments(shared, json, session, reverse);
+            List<string> common = ModeArguments(shared, session, reverse);
             common.AddRange(["--pki", workspace.Pki, "--ready", ready]);
             var server = SampleProcess.Start(workspace, ["server", .. common, "--result", serverReport]);
             await using ConfiguredAsyncDisposable serverLifetime = server.ConfigureAwait(false);
@@ -138,13 +136,13 @@ namespace Opc.Ua.PubSub.Samples.Tests
                     serverResult.RootElement.GetProperty("Endpoints")[0],
                     clientResult.RootElement.GetProperty("Endpoints")[0]
                 ],
-                shared, json, session, reverse, SampleCount);
+                shared, session, reverse, SampleCount);
         }
 
         /// <summary>
         /// Invalid input fails before provisioning or choosing a different transport.
         /// </summary>
-        [TestCase("--encoding", "mqtt")]
+        [TestCase("--encoding", "json")]
         [TestCase("--authorization", "anonymous")]
         [TestCase("--count", "3")]
         [TestCase("--count", "1001")]
@@ -242,7 +240,6 @@ namespace Opc.Ua.PubSub.Samples.Tests
         private static void AssertPeers(
             JsonElement[] peers,
             bool shared,
-            bool json,
             bool session,
             bool reverse,
             int count)
@@ -320,7 +317,7 @@ namespace Opc.Ua.PubSub.Samples.Tests
                     Assert.That(peer.GetProperty("Profile").GetString(),
                         Is.EqualTo(shared ? DataChannelProfiles.SharedUasc : DataChannelProfiles.DedicatedUasc));
                     Assert.That(peer.GetProperty("Protocol").GetString(),
-                        Is.EqualTo(json ? DataChannelProfiles.JsonPayload : DataChannelProfiles.UadpPayload));
+                        Is.EqualTo(DataChannelProfiles.UadpPayload));
                 });
             }
             if (shared)
@@ -359,11 +356,10 @@ namespace Opc.Ua.PubSub.Samples.Tests
         /// <summary>
         /// Builds one finite configuration used unchanged by both independently launched peers.
         /// </summary>
-        private static List<string> ModeArguments(bool shared, bool json, bool session, bool reverse)
+        private static List<string> ModeArguments(bool shared, bool session, bool reverse)
         {
             List<string> arguments =
             [
-                "--encoding", json ? "json" : "uadp",
                 "--authorization", session ? "session" : "configured",
                 "--count", SampleCount.ToString(System.Globalization.CultureInfo.InvariantCulture)
             ];

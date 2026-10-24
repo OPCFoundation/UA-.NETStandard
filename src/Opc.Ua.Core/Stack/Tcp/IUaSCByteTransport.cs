@@ -107,12 +107,12 @@ namespace Opc.Ua.Bindings
         ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct);
 
         /// <summary>
-        /// Sends one complete UASC <c>MessageChunk</c> gathered from multiple
-        /// buffer segments (vectored / gather send). Concrete implementations
-        /// may copy into a single buffer if the underlying transport does not
-        /// support vectored writes.
+        /// Sends the buffers of an encoded UASC message in order. A message
+        /// can contain multiple complete <c>MessageChunk</c> values, and a
+        /// chunk can span several segments. Implementations must preserve
+        /// each chunk's framing when the underlying transport adds envelopes.
         /// </summary>
-        /// <param name="buffers">The buffer segments that make up the chunk,
+        /// <param name="buffers">The buffer segments that make up the message,
         /// in order.</param>
         /// <param name="ct">Cancellation token.</param>
         ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct);
@@ -225,5 +225,17 @@ namespace Opc.Ua.Bindings
             BufferManager bufferManager,
             int receiveBufferSize,
             ITelemetryContext telemetry);
+    }
+
+    /// <summary>
+    /// Declares a transport-specific baseline profile validated by an external stream host.
+    /// A profile declaration does not replace protocol negotiation or UASC application authentication.
+    /// </summary>
+    public interface IUaSCTransportProfile
+    {
+        /// <summary>
+        /// Gets the exact transport profile, or an empty string for a generic, unselected stream adapter.
+        /// </summary>
+        string TransportProfileUri { get; }
     }
 }

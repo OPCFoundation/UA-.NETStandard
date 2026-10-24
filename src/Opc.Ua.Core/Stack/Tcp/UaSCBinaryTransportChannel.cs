@@ -169,6 +169,8 @@ namespace Opc.Ua.Bindings
         public UaSCUaBinaryClientChannel? SecureChannel => m_channel;
 
         /// <inheritdoc/>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public DataChannelContext? DataChannels => m_channel?.DataChannels;
 
         /// <inheritdoc/>
@@ -547,6 +549,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentException"></exception>
         private void SaveSettings(Uri url, TransportChannelSettings settings)
         {
+            UascDataChannelEndpoint.ValidateTransportProfile(settings.Description?.TransportProfileUri, m_transportFactory);
             UascDataChannelEndpoint.Validate(
                 url,
                 settings.Description,

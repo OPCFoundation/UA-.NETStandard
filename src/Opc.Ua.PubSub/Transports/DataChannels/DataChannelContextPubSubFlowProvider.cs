@@ -39,6 +39,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// Opens or routes PubSub flows on an application-owned authenticated context with bounded pending admission.
     /// In accept mode this provider is the sole consumer of that context's AcceptAsync.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelContextPubSubFlowProvider : IDataChannelPubSubFlowProvider, IAsyncDisposable
     {
         /// <summary>
@@ -94,11 +96,49 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 m_acquisitions++;
             }
             DataChannel? channel = null;
+            Action? routeCleanup = null;
             uint reservedChannelId = 0;
             try
             {
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, m_lifetimeToken);
                 DataChannelParametersDataType parameters = request.Parameters;
+                if ((request.Direction & PubSubTransportDirection.Receive) != 0 &&
+                    (request.CarrierKind is DataChannelCarrierKind.DedicatedUasc or
+                        DataChannelCarrierKind.SharedUasc or
+                        DataChannelCarrierKind.QuicUasc or
+                        DataChannelCarrierKind.WebTransportUasc) &&
+                    parameters.Protocol == DataChannelProfiles.UadpPayload)
+                {
+                    var routes = new List<IDisposable>();
+                    try
+                    {
+                        foreach (DataChannelPubSubRoute association in request.InboundAssociations)
+                        {
+                            routes.Add(m_context.RegisterUascPublisherRoute(
+                                parameters.ResourceUri ?? throw new DataChannelException(DataChannelResult.InvalidArgument),
+                                association.PublisherId,
+                                association.WriterGroupId,
+                                association.DataSetWriterId,
+                                association.NetworkMessageType));
+                        }
+                    }
+                    catch
+                    {
+                        foreach (IDisposable route in routes)
+                        {
+                            route.Dispose();
+                        }
+                        throw;
+                    }
+                    routeCleanup = () =>
+                    {
+                        for (int i = routes.Count - 1; i >= 0; i--)
+                        {
+                            routes[i].Dispose();
+                        }
+                        routes.Clear();
+                    };
+                }
                 if (m_openLocally)
                 {
                     uint channelId = 0;
@@ -124,7 +164,16 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     channel = await AcceptAsync(parameters, linked.Token).ConfigureAwait(false);
                 }
                 linked.Token.ThrowIfCancellationRequested();
-                var result = new DataChannelPubSubFlow(channel, m_context.CarrierKind);
+                DataChannelPubSubFlow result;
+                if (routeCleanup is not null)
+                {
+                    result = new DataChannelPubSubFlow(channel, m_context.CarrierKind, routeCleanup);
+                    routeCleanup = null;
+                }
+                else
+                {
+                    result = new DataChannelPubSubFlow(channel, m_context.CarrierKind);
+                }
                 channel = null;
                 return result;
             }
@@ -139,16 +188,23 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 }
                 finally
                 {
-                    if (reservedChannelId != 0)
+                    try
                     {
-                        _ = m_context.ReleaseChannelId(reservedChannelId);
+                        routeCleanup?.Invoke();
                     }
-                    lock (m_gate)
+                    finally
                     {
-                        m_acquisitions--;
-                        if (m_acquisitions == 0)
+                        if (reservedChannelId != 0)
                         {
-                            m_drained?.TrySetResult(true);
+                            _ = m_context.ReleaseChannelId(reservedChannelId);
+                        }
+                        lock (m_gate)
+                        {
+                            m_acquisitions--;
+                            if (m_acquisitions == 0)
+                            {
+                                m_drained?.TrySetResult(true);
+                            }
                         }
                     }
                 }
@@ -269,7 +325,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     }
                     DataChannelParametersDataType parameters = channel.Parameters;
                     DataChannelResult rejection = DataChannelResult.Good;
-                    if (parameters.Protocol is not (DataChannelProfiles.UadpPayload or DataChannelProfiles.JsonPayload))
+                    if (parameters.Protocol != DataChannelProfiles.UadpPayload)
                     {
                         rejection = DataChannelResult.Unsupported;
                     }

@@ -31,7 +31,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
@@ -50,32 +52,48 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             DataChannelCarrierKind kind = DataChannelCarrierKind.SharedUasc,
             DataChannelOptions? options = null,
             DataChannelApplicationBudget? initiatorBudget = null,
-            FakeTimeProvider? clock = null)
+            FakeTimeProvider? clock = null,
+            bool enableDirectBinding = false,
+            bool enableDirectStreams = false,
+            bool enableDirectDatagrams = false)
         {
             Clock = clock ?? new FakeTimeProvider(new DateTimeOffset(2026, 10, 16, 0, 0, 0, TimeSpan.Zero));
             Options = options ??
                 new DataChannelOptions
-                    {
-                        MaxMessageSize = 1024,
-                        MaxReceiveBytes = 4096,
-                        MaxContextBytes = 32768,
-                        MaxQueueMessages = 16,
-                        MaxContextMessages = 128
-                    };
+                {
+                    MaxMessageSize = 1024,
+                    MaxReceiveBytes = 4096,
+                    MaxContextBytes = 32768,
+                    MaxQueueMessages = 16,
+                    MaxContextMessages = 128
+                };
             m_telemetry = DefaultTelemetry.Create(builder => builder.SetMinimumLevel(LogLevel.None));
             InitiatorBudget = initiatorBudget ?? new DataChannelApplicationBudget();
             AcceptorBudget = new DataChannelApplicationBudget();
             InitiatorPolicy = new TestFlowAuthorizer();
             AcceptorPolicy = new TestFlowAuthorizer();
             var association = new TestFlowAssociation();
-            InitiatorCarrier = new TestFlowCarrier(kind, true, association);
-            AcceptorCarrier = new TestFlowCarrier(kind, false, association);
+            InitiatorCarrier = new TestFlowCarrier(kind, true, association, enableDirectBinding);
+            AcceptorCarrier = new TestFlowCarrier(kind, false, association, enableDirectBinding);
+            if (enableDirectStreams)
+            {
+                var direct = new TestDirectStreamNetwork();
+                InitiatorCarrier.DirectStreams = direct;
+                AcceptorCarrier.DirectStreams = direct;
+            }
             Initiator = new DataChannelContext(
                 InitiatorCarrier, InitiatorPolicy, Options, InitiatorBudget, Clock, m_telemetry);
             Acceptor = new DataChannelContext(
                 AcceptorCarrier, AcceptorPolicy, Options, AcceptorBudget, Clock, m_telemetry);
             InitiatorCarrier.Peer = Acceptor;
             AcceptorCarrier.Peer = Initiator;
+            InitiatorCarrier.PeerCarrier = AcceptorCarrier;
+            AcceptorCarrier.PeerCarrier = InitiatorCarrier;
+            if (enableDirectDatagrams)
+            {
+                InitiatorCarrier.MaxDirectDatagramSize = 2048;
+                AcceptorCarrier.MaxDirectDatagramSize = 2048;
+            }
         }
 
         internal FakeTimeProvider Clock { get; }
@@ -123,8 +141,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             return new DataChannelParametersDataType
             {
                 ResourceUri = "urn:runtime:test:resource",
-                Protocol = DataChannelProfiles.OpaquePayload,
-                ContentType = "application/octet-stream",
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = "application/opcua+uadp",
                 Direction = direction,
                 Delivery = delivery,
                 Protection = DataChannelProtectionMode.Confidential,
@@ -133,6 +151,24 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 MaxRate = rate,
                 AllowQueueExpiry = expiry
             };
+        }
+
+        /// <summary>
+        /// Creates a type-0 UADP message around synthetic test payload bytes.
+        /// </summary>
+        internal static ByteString UadpPayload(ByteString payload, uint publisherId = 42)
+        {
+            byte[] networkMessage = UadpApplicationPayloadHeaderCodec.Encode(
+                new Variant(publisherId), payload, int.MaxValue).ToArray();
+            networkMessage[2] = 0;
+            return new ByteString(networkMessage);
+        }
+
+        internal static ByteString TestPayload(DataChannelCarrierKind kind, ByteString payload)
+        {
+            return kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc
+                ? UadpPayload(payload)
+                : payload;
         }
 
         internal async Task FlushAsync()
@@ -154,8 +190,23 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             InitiatorCarrier.ReleaseGates();
             AcceptorCarrier.ReleaseGates();
-            await Task.WhenAll(Initiator.DisposeAsync().AsTask(), Acceptor.DisposeAsync().AsTask())
-                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            FlowState[] flows = [.. (Initiator.Channels.ToArray() ?? [])
+                .Concat(Acceptor.Channels.ToArray() ?? [])
+                .Select(channel => channel.StateData)];
+            try
+            {
+                await Task.WhenAll(Initiator.DisposeAsync().AsTask(), Acceptor.DisposeAsync().AsTask())
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            catch (TimeoutException exception)
+            {
+                throw new TimeoutException($"Direct lanes: {string.Join("; ", flows.Select(flow =>
+                    $"release={flow.ReleaseStarted}/{flow.Released.Task.Status}, state={flow.State}, " +
+                    $"cancel={flow.DirectLane?.Shutdown.IsCancellationRequested}, " +
+                    $"send={flow.DirectLane?.SendTask.Status}, receive={flow.DirectLane?.ReceiveTask.Status}, " +
+                    $"sender={flow.DirectLane?.Sender.Task.Status}"))}; active baseline sends: " +
+                    $"{InitiatorCarrier.ActiveSends}/{AcceptorCarrier.ActiveSends}", exception);
+            }
             if (m_telemetry is IDisposable disposable)
             {
                 disposable.Dispose();
@@ -232,13 +283,20 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
     /// <summary>
     /// In-process carrier with explicit pre/post-commit gates and bounded fault injection.
     /// </summary>
-    internal sealed class TestFlowCarrier : IDataChannelCarrier
+    internal sealed class TestFlowCarrier :
+        IDataChannelCarrier, IDataChannelDirectBindingProvider, IDataChannelDirectStreamProvider,
+        IDataChannelDirectDatagramProvider
     {
-        internal TestFlowCarrier(DataChannelCarrierKind kind, bool initiator, TestFlowAssociation association)
+        internal TestFlowCarrier(
+            DataChannelCarrierKind kind,
+            bool initiator,
+            TestFlowAssociation association,
+            bool enableDirectBinding = false)
         {
             Kind = kind;
             m_initiator = initiator;
             m_association = association;
+            IsAvailable = enableDirectBinding;
             ByteString keyA = new(Enumerable.Repeat((byte)0x31, 32).ToArray());
             ByteString keyB = new(Enumerable.Repeat((byte)0x72, 32).ToArray());
             Identity = new DataChannelPeerIdentity(
@@ -253,6 +311,56 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         public DataChannelCarrierKind Kind { get; }
         public DataChannelPeerIdentity Identity { get; set; }
+        public bool IsAvailable { get; set; }
+        public string TransportProfileUri { get; set; } = DataChannelProfiles.UascQuic;
+        public string Capability { get; set; } = "quic-direct-draft";
+        public string Authority { get; set; } = "localhost:4840";
+        public string Path { get; set; } = "/ua/quic?direct=1";
+        internal bool ExporterUnavailable { get; set; }
+
+        internal TestDirectStreamNetwork? DirectStreams { get; set; }
+
+        /// <summary>The finite, genuinely separate datagram ingress used by the provider seam.</summary>
+        private readonly Channel<ByteString> m_directDatagrams = Channel.CreateBounded<ByteString>(128);
+
+        public bool AreDirectStreamsAvailable => DirectStreams != null;
+
+        public int MaxDirectDatagramSize { get; set; }
+
+        internal DataChannelResult DirectDatagramReceiveResult { get; set; } = DataChannelResult.Good;
+
+        internal TestFlowCarrier? PeerCarrier { get; set; }
+
+        public ValueTask<DataChannelResult> SendDirectDatagramAsync(
+            DataChannelWrite write, CancellationToken cancellationToken = default)
+        {
+            return SendAsync(write, cancellationToken);
+        }
+
+        public ValueTask<ByteString> ReceiveDirectDatagramAsync(CancellationToken cancellationToken = default)
+        {
+            if (DirectDatagramReceiveResult != DataChannelResult.Good)
+            {
+                throw new DataChannelException(DirectDatagramReceiveResult);
+            }
+            return m_directDatagrams.Reader.ReadAsync(cancellationToken);
+        }
+
+        public ValueTask<System.IO.Stream> OpenDirectStreamAsync(
+            Guid associationToken, CancellationToken cancellationToken = default)
+        {
+            return DirectStreams?.OpenAsync(associationToken, cancellationToken) ??
+                throw new DataChannelException(DataChannelResult.Unsupported);
+        }
+
+        public ValueTask<System.IO.Stream> AcceptDirectStreamAsync(
+            Guid associationToken, CancellationToken cancellationToken = default)
+        {
+            return DirectStreams?.AcceptAsync(associationToken, cancellationToken) ??
+                throw new DataChannelException(DataChannelResult.Unsupported);
+        }
+
+        internal byte[]? LastExporterMaterial { get; private set; }
         public int MaxRecordSize { get; set; } = 4096;
         public int MaxDatagramSize { get; set; }
         public ulong ManagementStreamId => 0;
@@ -287,6 +395,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             cancellationToken.ThrowIfCancellationRequested();
             return new ValueTask<ulong>(m_association.Open(m_initiator));
+        }
+
+        public ValueTask<ByteString> ExportKeyingMaterialAsync(
+            ByteString transcriptDigest,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!IsAvailable || ExporterUnavailable)
+            {
+                throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+            return new ValueTask<ByteString>(CreateExporterValue(transcriptDigest));
         }
 
         public ValueTask<bool> BindStreamAsync(
@@ -354,6 +474,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         internal async Task<DataChannelResult> DeliverAsync(CapturedFlowWrite write)
         {
+            if (!IsNative && write.Path == DataChannelPath.Datagram)
+            {
+                PeerCarrier!.m_directDatagrams.Writer.TryWrite(write.Payload.Copy());
+                return DataChannelResult.Good;
+            }
             if (IsNative && write.Path == DataChannelPath.Datagram)
             {
                 return await Peer!.ReceiveDatagramAsync(write.Payload).ConfigureAwait(false);
@@ -373,11 +498,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 {
                     if (UseQueuedUascIngress)
                     {
-                        Peer!.QueueVerifiedUasc((byte)'F', write.RequestId, write.Payload);
+                        Peer!.QueueVerifiedUasc(
+                            write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                            (byte)'F',
+                            write.RequestId,
+                            write.Payload);
                         return DataChannelResult.Good;
                     }
                     return await Peer!.ReceiveUascAsync(
-                        (byte)'F', write.RequestId, write.Payload).ConfigureAwait(false);
+                        write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                        (byte)'F',
+                        write.RequestId,
+                        write.Payload).ConfigureAwait(false);
                 }
                 DataChannelResult result = DataChannelResult.Good;
                 for (int offset = 0; offset < write.Payload.Length; offset += SegmentSize)
@@ -405,6 +537,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         internal static FlowRecord Record(DataChannelWrite write, DataChannelCarrierKind kind)
         {
+            if (kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
+            {
+                UascFlowMessage decoded = UascFlowMessageCodec.Decode(
+                    FlowModel.ToWire(kind),
+                    write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                    (byte)'F',
+                    write.RequestId,
+                    write.Payload,
+                    new FlowCodecLimits());
+                return decoded.Record;
+            }
             int prefix = kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc ||
                 write.Path == DataChannelPath.Datagram ? 4 : 0;
             return FlowRecordCodec.DecodeExact(write.Payload[prefix..], new FlowCodecLimits());
@@ -419,6 +563,18 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
 
         internal static FlowRecord Record(CapturedFlowWrite write, DataChannelCarrierKind kind)
         {
+            if (kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
+            {
+                UascFlowMessage decoded = UascFlowMessageCodec.Decode(
+                    FlowModel.ToWire(kind),
+                    write.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                    (byte)'F',
+                    write.RequestId,
+                    write.Payload,
+                    new FlowCodecLimits());
+                return decoded.Record;
+            }
             int prefix = kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc ||
                 write.Path == DataChannelPath.Datagram ? 4 : 0;
             return FlowRecordCodec.DecodeExact(write.Payload[prefix..], new FlowCodecLimits());
@@ -443,7 +599,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             var record = new FlowRecord(FlowRecordKind.Data, revision, messageId, payload);
             uint requestId = 0;
             ByteString encoded = !IsNative
-                ? FlowCarrierCodec.EncodeUascPayload(
+                ? UascFlowMessageCodec.Encode(
                     FlowModel.ToWire(Kind), channelId, in record, limits, out requestId)
                 : datagram
                     ? FlowCarrierCodec.EncodeDatagram(FlowModel.ToWire(Kind), channelId, in record, 65536, limits)
@@ -470,7 +626,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             }
             else
             {
-                payload = FlowCarrierCodec.EncodeUascPayload(
+                payload = UascFlowMessageCodec.Encode(
                     FlowModel.ToWire(Kind), control.Flow, in record, limits, out requestId);
             }
             return DeliverAsync(new CapturedFlowWrite(path, control.Flow, streamId, requestId, payload, false));
@@ -520,6 +676,21 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         private static TaskCompletionSource<bool> NewSignal()
         {
             return new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private ByteString CreateExporterValue(ByteString transcriptDigest)
+        {
+            byte[] key = Enumerable.Repeat((byte)0xA7, 32).ToArray();
+            try
+            {
+                using var hmac = new HMACSHA256(key);
+                LastExporterMaterial = hmac.ComputeHash(transcriptDigest.ToArray());
+                return new ByteString(LastExporterMaterial);
+            }
+            finally
+            {
+                Array.Clear(key, 0, key.Length);
+            }
         }
 
         private readonly bool m_initiator;

@@ -38,6 +38,8 @@ namespace Opc.Ua.Bindings
     /// Registers one explicit virtual native Service endpoint with ordinary ServerBase hosting.
     /// The independently configured native transport owns its sockets and connection/CONNECT endpoint.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelClientServerListenerFactory : ITransportListenerFactory, ITransportListenerProfile
     {
         /// <summary>

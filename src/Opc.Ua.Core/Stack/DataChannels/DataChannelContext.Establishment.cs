@@ -160,6 +160,7 @@ namespace Opc.Ua.DataChannels
                 m_peerChallenge,
                 m_carrier.Kind);
             m_ready.TrySetResult(DataChannelResult.Good);
+            StartDirectBindingLocked();
             PulseCapacityLocked();
         }
 
@@ -182,29 +183,14 @@ namespace Opc.Ua.DataChannels
                     m_budget.Release(FlowResource.Flow, 1);
                     throw new DataChannelException(DataChannelResult.WouldBlock);
                 }
-                uint id;
-                if (m_carrier.Kind == DataChannelCarrierKind.DedicatedUasc)
+                if (m_nextChannelId > uint.MaxValue)
                 {
-                    if (m_dedicatedUsed)
-                    {
-                        m_budget.Release(FlowResource.Flow, 1);
-                        m_budget.Release(FlowResource.Operation, 1);
-                        throw new DataChannelException(DataChannelResult.InvalidState);
-                    }
-                    m_dedicatedUsed = true;
-                    id = 1;
+                    m_budget.Release(FlowResource.Flow, 1);
+                    m_budget.Release(FlowResource.Operation, 1);
+                    throw new DataChannelException(DataChannelResult.InvalidState);
                 }
-                else
-                {
-                    if (m_nextChannelId > uint.MaxValue)
-                    {
-                        m_budget.Release(FlowResource.Flow, 1);
-                        m_budget.Release(FlowResource.Operation, 1);
-                        throw new DataChannelException(DataChannelResult.InvalidState);
-                    }
-                    id = (uint)m_nextChannelId;
-                    m_nextChannelId += 2;
-                }
+                uint id = (uint)m_nextChannelId;
+                m_nextChannelId += 2;
                 m_reservations.Add(id, m_clock.GetTimestamp());
                 ArmTimerLocked();
                 return id;
@@ -223,6 +209,28 @@ namespace Opc.Ua.DataChannels
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (IsDirectBindingProviderAvailable &&
+                m_carrier is IDataChannelDirectStreamProvider { AreDirectStreamsAvailable: true })
+            {
+                using var deadline = new CancellationTokenSource();
+                deadline.CancelAfter(m_options.OpenTimeout);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, deadline.Token);
+                DataChannelResult binding;
+                try
+                {
+                    binding = await WaitForDirectBindingAsync(linked.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    throw new DataChannelException(DataChannelResult.Timeout);
+                }
+                if (binding is not (DataChannelResult.Good or DataChannelResult.Unsupported))
+                {
+                    throw new DataChannelException(binding);
+                }
+            }
             DataChannelParametersDataType snapshot = FlowModel.Copy(parameters);
             FlowState flow;
             lock (m_gate)
@@ -361,6 +369,10 @@ namespace Opc.Ua.DataChannels
                         DataChannelPath.Management,
                         flow: flow);
                 }
+                if (flow.DirectLane != null)
+                {
+                    await SendDirectAssociationsAsync(flow).ConfigureAwait(false);
+                }
                 return DataChannelResult.Good;
             }
             catch (Exception exception)
@@ -378,15 +390,6 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private bool RetirePeerIdLocked(uint id)
         {
-            if (m_carrier.Kind == DataChannelCarrierKind.DedicatedUasc)
-            {
-                if (id != 1 || m_dedicatedUsed)
-                {
-                    return false;
-                }
-                m_dedicatedUsed = true;
-                return true;
-            }
             uint peerParity = m_carrier.Identity.IsTransportInitiator ? 0u : 1u;
             if (id == 0 || (id & 1) != peerParity || id <= m_peerChannelHighWater)
             {
@@ -416,7 +419,8 @@ namespace Opc.Ua.DataChannels
                 m_clock.GetUtcNow().UtcDateTime)
             {
                 FlowReserved = true,
-                OpeningOperationReserved = true
+                OpeningOperationReserved = true,
+                DirectLane = HasSelectedDirectStreams ? new FlowDirectLane() : null
             };
             flow.Facade = new DataChannel(this, flow);
             m_flows.Add(id, flow);
@@ -444,11 +448,12 @@ namespace Opc.Ua.DataChannels
             {
                 throw new DataChannelException(DataChannelResult.NotAuthorized);
             }
+            flow.Parameters = admitted;
+            BindUascStreamingPublishersLocked(flow);
             if (!TryReserveRevisionLocked(flow, 1, admitted, false))
             {
                 throw new DataChannelException(DataChannelResult.WouldBlock);
             }
-            flow.Parameters = admitted;
             flow.SourceNodeId = authorization.SourceNodeId;
             flow.SessionId = authorization.SessionId;
             flow.AuthorizationLifetime = authorization.Lifetime;
@@ -529,8 +534,10 @@ namespace Opc.Ua.DataChannels
             {
                 var control = new FlowOpen(1, 0, FlowModel.ToWire(parameters), FlowWireAuthorization.Configured, null);
                 FlowControlCodec.GetEncodedBodyLength(control, 1, 1, m_codecLimits);
-                if (parameters.Protocol is not (DataChannelProfiles.OpaquePayload or
-                    DataChannelProfiles.UadpPayload or DataChannelProfiles.JsonPayload))
+                if ((IsNative &&
+                    parameters.Protocol is not (DataChannelProfiles.OpaquePayload or DataChannelProfiles.JsonPayload) &&
+                    !DataChannelProfiles.IsUadpPayloadProtocol(parameters.Protocol)) ||
+                    (!IsNative && !DataChannelProfiles.IsUadpPayloadProtocol(parameters.Protocol)))
                 {
                     throw new DataChannelException(DataChannelResult.Unsupported);
                 }
@@ -553,17 +560,36 @@ namespace Opc.Ua.DataChannels
                 {
                     throw new DataChannelException(DataChannelResult.InvalidArgument);
                 }
-                int overhead = 13 + (!IsNative || parameters.Delivery == DataChannelDeliveryMode.Datagram ? 4 : 0);
+                int overhead = HasSelectedDirectStreams
+                    ? parameters.Delivery == DataChannelDeliveryMode.Datagram
+                        ? DirectDatagramCodec.HeaderSize : DirectDeliveryFrameCodec.HeaderSize :
+                    IsNative ? FlowRecordCodec.HeaderSize +
+                        (parameters.Delivery == DataChannelDeliveryMode.Datagram ? 4 : 0) : 0;
                 uint maxMessage = Math.Min((uint)m_options.MaxMessageSize, m_peerMaxMessageSize);
-                maxMessage = Math.Min(maxMessage, (uint)Math.Max(0, m_carrier.MaxRecordSize - 13));
+                maxMessage = Math.Min(
+                    maxMessage,
+                    (uint)Math.Max(0, m_carrier.MaxRecordSize -
+                        (HasSelectedDirectStreams ? overhead : IsNative ? FlowRecordCodec.HeaderSize : 0)));
                 uint maxReceive = Math.Min(m_options.MaxReceiveBytes, m_peerMaxReceiveBytes);
                 if (parameters.Delivery == DataChannelDeliveryMode.Datagram)
                 {
-                    if (!IsNative || m_carrier.MaxDatagramSize <= 17)
+                    if (HasSelectedDirectStreams)
                     {
-                        throw new DataChannelException(DataChannelResult.Unsupported);
+                        if (DirectDatagramCapacity <= DirectDatagramCodec.HeaderSize)
+                        {
+                            throw new DataChannelException(DataChannelResult.Unsupported);
+                        }
+                        maxMessage = Math.Min(
+                            maxMessage, (uint)(DirectDatagramCapacity - DirectDatagramCodec.HeaderSize));
                     }
-                    maxMessage = Math.Min(maxMessage, (uint)(m_carrier.MaxDatagramSize - 17));
+                    else
+                    {
+                        if (!IsNative || m_carrier.MaxDatagramSize <= 17)
+                        {
+                            throw new DataChannelException(DataChannelResult.Unsupported);
+                        }
+                        maxMessage = Math.Min(maxMessage, (uint)(m_carrier.MaxDatagramSize - 17));
+                    }
                 }
                 if (clamp)
                 {
@@ -632,6 +658,12 @@ namespace Opc.Ua.DataChannels
                 return ResetLocked(flow, DataChannelResult.WouldBlock);
             }
             flow.Parameters = admitted;
+            if (flow.DirectLane != null)
+            {
+                flow.DirectLane.Accepted = true;
+                TryQueueDirectReadyLocked(flow);
+                return DataChannelResult.Good;
+            }
             QueueControlLocked(new FlowSignal(FlowOperation.Ready, flow.Id), 1, 0,
                 IsNative ? DataChannelPath.Flow : DataChannelPath.Management, () =>
             {
@@ -656,6 +688,15 @@ namespace Opc.Ua.DataChannels
             }
             flow.Ready = true;
             flow.State = DataChannelState.Open;
+            if (flow.DirectLane is { } lane)
+            {
+                lane.Ready.TrySetResult(true);
+                if (!flow.IsDatagram && flow.MaySend &&
+                    m_directAssociations.TryGetUsable(flow, true, out var association))
+                {
+                    lane.SendTask = Task.Run(() => OpenDirectSenderAsync(flow, association));
+                }
+            }
             flow.LocalEnded = !flow.MaySend;
             flow.RemoteEnded = !flow.MayReceive;
             long now = m_clock.GetTimestamp();
@@ -672,7 +713,7 @@ namespace Opc.Ua.DataChannels
                 m_acceptChanged = new TaskSignal();
                 flow.Opened.TrySetResult(DataChannelResult.Good);
             }
-            if (IsShared)
+            if (UsesFlowCredit(flow))
             {
                 GrantCreditLocked(flow);
             }

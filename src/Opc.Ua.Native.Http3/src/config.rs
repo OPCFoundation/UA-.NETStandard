@@ -147,7 +147,7 @@ impl Policy {
     /// Every nonempty UTF8 view must be readable for its declared length during this call.
     /// Lengths and all scalar bounds are checked before any view is read or copied.
     pub unsafe fn from_config(config: &Config, facts: &TransportFacts) -> Result<Self, Failure> {
-        if config.abi_version != 1 || config.struct_size as usize != size_of::<Config>() {
+        if !matches!(config.abi_version, 1 | 2) || config.struct_size as usize != size_of::<Config>() {
             return Err(Failure::config(
                 Code::InvalidAbi,
                 "unsupported configuration layout",
@@ -158,13 +158,13 @@ impl Policy {
         if config.maximum_sessions != 1 {
             return Err(Failure::config(
                 Code::SessionLimit,
-                "one CONNECT lifetime per authenticated application pair",
+                "one CONNECT lifetime per admitted transport",
             ));
         }
-        if config.connection_tag == 0 || config.application_pair_tag == 0 {
+        if config.connection_tag == 0 || (config.abi_version == 1 && config.application_pair_tag == 0) {
             return Err(Failure::config(
                 Code::InvalidTransportEvidence,
-                "external connection/application-pair tags required",
+                "connection tag and legacy application-pair tag required",
             ));
         }
         let streams = [
@@ -229,14 +229,20 @@ impl Policy {
                 "Origin must match the selected exact HTTPS policy",
             ));
         }
-        if protocol.is_empty()
-            || !protocol
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b"-._+/".contains(&b))
-        {
+        let valid_protocol = match config.abi_version {
+            1 => {
+                !protocol.is_empty()
+                    && protocol
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"-._+/".contains(&b))
+            }
+            2 => protocol.is_empty(),
+            _ => unreachable!(),
+        };
+        if !valid_protocol {
             return Err(Failure::config(
                 Code::InvalidProtocol,
-                "application protocol must be a nonempty ASCII identifier",
+                "configuration1 requires an ASCII protocol; configuration2 omits subprotocol negotiation",
             ));
         }
         if authority.len() + path.len() + origin.len() + protocol.len() + 512

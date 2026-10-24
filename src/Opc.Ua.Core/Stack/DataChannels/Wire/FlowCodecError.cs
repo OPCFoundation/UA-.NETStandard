@@ -107,7 +107,16 @@ namespace Opc.Ua.DataChannels.Wire
         CarrierMismatch,
 
         /// <summary>A UASC control claims a native stream.</summary>
-        InvalidStream
+        InvalidStream,
+
+        /// <summary>The amended minimal UADP application header is invalid.</summary>
+        InvalidApplicationHeader,
+
+        /// <summary>A PublisherId is null, empty, or zero.</summary>
+        InvalidPublisherId,
+
+        /// <summary>A PublisherId type discriminator is not supported.</summary>
+        InvalidPublisherIdType
     }
 
     /// <summary>

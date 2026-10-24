@@ -38,6 +38,8 @@ namespace Opc.Ua.Bindings
     /// Owns one ordinary SecureChannel and its reserved native flow, never the shared native context.
     /// Session disposal may close Services; asynchronous disposal still joins the actual flow release.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelClientServerConnection : ITransportChannel, IAsyncDisposable
     {
         /// <summary>

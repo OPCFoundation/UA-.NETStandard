@@ -41,7 +41,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 SourceNodeId = new ExpandedNodeId(400u, kSourceNamespace),
                 SupportedDirections = [DataChannelDirection.Duplex, DataChannelDirection.AcceptorToOpener,
                     DataChannelDirection.OpenerToAcceptor],
-                ContentType = "application/octet-stream",
+                SupportedProtocols = [DataChannelProfiles.UadpPayload],
+                ContentType = "application/opcua+uadp",
                 MaxMessageSize = 2048,
                 MaxReceiveBytes = 8192
             });
@@ -157,7 +158,9 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 .ConfigureAwait(false);
             Assert.That(read.Results.ToList().All(value => StatusCode.IsGood(value.StatusCode)), Is.True);
             Assert.That(read.Results[2].WrappedValue.TryGetValue(out string? version), Is.True);
-            Assert.That(version, Is.EqualTo("2.0.0"));
+            Assert.That(version, Is.EqualTo("0.3.0"));
+            Assert.That(read.Results[3].WrappedValue.TryGetValue(out DateTimeUtc publication), Is.True);
+            Assert.That(publication.ToDateTime(), Is.EqualTo(new DateTime(2026, 10, 21, 0, 0, 0, DateTimeKind.Utc)));
 #if NET8_0_OR_GREATER
             string[] requestTypes = Enum.GetNames<RequestType>();
 #else
@@ -212,7 +215,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 pair.Client, SourceId, DataChannelControlTestContext.Parameters(), deadline.Token)
                 .ConfigureAwait(false);
             DataChannel accepted = (await m_provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             var payload = ByteString.From([1, 3, 5, 7]);
             Assert.That(await opened.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
@@ -232,7 +235,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
             ArrayOf<DataChannelDiagnosticsDataType> counters = await m_provider.GetDiagnosticsAsync(ServerSession)
                 .ConfigureAwait(false);
             Assert.That(counters[0].MessagesReceived, Is.EqualTo(1));
-            Assert.That(counters[0].BytesReceived, Is.EqualTo((ulong)payload.Length + 17));
+            Assert.That(
+                counters[0].BytesReceived,
+                Is.EqualTo((ulong)payload.Length),
+                "Baseline FLO diagnostics count the UADP NetworkMessage body, excluding UASC overhead.");
             ClientSession other = await m_client.ConnectAsync(new Uri(m_endpoint), SecurityPolicies.Basic256Sha256)
                 .ConfigureAwait(false);
             try
@@ -402,10 +408,19 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 session, ObjectTypeIds.DataChannelOfferedEventType, BrowseNames.ResourceUri);
         }
 
+        private static Task<uint> CreateEventSubscriptionAsync(
+            ClientSession session,
+            NodeId selectedType,
+            params string[] selectedFields)
+        {
+            return CreateEventSubscriptionAsync(session, selectedType, false, selectedFields);
+        }
+
         private static async Task<uint> CreateEventSubscriptionAsync(
             ClientSession session,
             NodeId selectedType,
-            string selectedField)
+            bool restrictType,
+            params string[] selectedFields)
         {
             var filter = new EventFilter
             {
@@ -417,14 +432,31 @@ namespace Opc.Ua.Server.Tests.DataChannels
                         BrowsePath = [QualifiedName.From(BrowseNames.EventType)],
                         AttributeId = Attributes.Value
                     },
-                    new SimpleAttributeOperand
+                    .. selectedFields.Select(selectedField => new SimpleAttributeOperand
                     {
                         TypeDefinitionId = selectedType,
                         BrowsePath = [QualifiedName.From(selectedField)],
                         AttributeId = Attributes.Value
-                    }
+                    })
                 ]
             };
+            if (restrictType)
+            {
+                filter.WhereClause = new ContentFilter
+                {
+                    Elements =
+                    [
+                        new ContentFilterElement
+                        {
+                            FilterOperator = FilterOperator.OfType,
+                            FilterOperands = [new ExtensionObject(new LiteralOperand
+                            {
+                                Value = new Variant(selectedType)
+                            })]
+                        }
+                    ]
+                };
+            }
             CreateSubscriptionResponse subscription = await session.CreateSubscriptionAsync(
                 null, 100, 100, 1, 0, true, 0, CancellationToken.None).ConfigureAwait(false);
             CreateMonitoredItemsResponse items = await session.CreateMonitoredItemsAsync(

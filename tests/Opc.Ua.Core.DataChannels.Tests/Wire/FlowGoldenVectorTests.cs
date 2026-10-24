@@ -44,10 +44,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
     public sealed class FlowGoldenVectorTests
     {
         /// <summary>
-        /// Gets every operation plus the other HELLO carrier layouts and session-grant syntax.
+        /// Gets every operation plus the native HELLO carrier layouts and session-grant syntax.
         /// </summary>
         public static IEnumerable<string> Controls => FrozenWire.ControlNames().Concat(
-            ["dedicated-uasc_hello", "shared-uasc_hello", "webtransport_hello", "session_open"]);
+            ["webtransport_hello", "session_open"]);
 
         /// <summary>
         /// Gets independently authored opaque, UADP and JSON bytes for each applicable envelope.
@@ -67,7 +67,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             Assert.That(record.Body.ToArray(), Is.EqualTo(specimen.ExpectedBody.ToArray()));
             Assert.That(FlowRecordCodec.Encode(in record, new()).ToArray(),
                 Is.EqualTo(specimen.CommonRecord.ToArray()));
-            AssertEnvelopeEncoding(specimen, in record);
         }
 
         /// <summary>
@@ -77,16 +76,15 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         public void GoldenControlsDecodeEveryTypedMember(string name)
         {
             var specimen = new FrozenWire(name);
-            FlowWireEnvelope envelope = specimen.Decode();
+            FlowRecord record = FlowRecordCodec.DecodeExact(specimen.CommonRecord, new());
             Assert.Multiple(() =>
             {
-                Assert.That(envelope.ChannelId, Is.EqualTo(specimen.ChannelId));
-                Assert.That(envelope.Record.Kind, Is.EqualTo(FlowRecordKind.Control));
-                Assert.That(envelope.Record.Revision, Is.EqualTo(specimen.Revision));
-                Assert.That(envelope.Record.MessageId, Is.EqualTo(specimen.MessageId));
-                Assert.That(envelope.Record.Body.ToArray(), Is.EqualTo(specimen.ExpectedBody.ToArray()));
+                Assert.That(record.Kind, Is.EqualTo(FlowRecordKind.Control));
+                Assert.That(record.Revision, Is.EqualTo(specimen.Revision));
+                Assert.That(record.MessageId, Is.EqualTo(specimen.MessageId));
+                Assert.That(record.Body.ToArray(), Is.EqualTo(specimen.ExpectedBody.ToArray()));
             });
-            AssertControl(envelope.Control, specimen.ExpectedControl!);
+            AssertControl(FlowControlCodec.Decode(in record, new()), specimen.ExpectedControl!);
         }
 
         /// <summary>
@@ -108,7 +106,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(specimen.CommonRecord.Span),
                     Is.EqualTo(specimen.ExpectedBody.Length + 9));
             });
-            if (specimen.Datagram || specimen.Carrier is FlowCarrier.SharedUasc or FlowCarrier.DedicatedUasc)
+            if (specimen.Datagram)
             {
                 Assert.That(envelope.ChannelId, Is.EqualTo(1));
             }
@@ -129,12 +127,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 FlowOperation.Hello, FlowOperation.Open, FlowOperation.Accept, FlowOperation.Ready,
                 FlowOperation.Prepare, FlowOperation.AcceptUpdate, FlowOperation.Commit, FlowOperation.Ack,
                 FlowOperation.AbortUpdate, FlowOperation.Credit, FlowOperation.End, FlowOperation.Reset,
-                FlowOperation.Ping, FlowOperation.Pong, FlowOperation.Status
+                FlowOperation.Ping, FlowOperation.Pong, FlowOperation.Status, FlowOperation.Bind,
+                FlowOperation.Associate, FlowOperation.AssociateAck
             ];
             FlowOperation[] actual =
                 [.. FrozenWire.ControlNames().Select(name => new FrozenWire(name).ExpectedControl!.Operation)];
             Assert.That(actual, Is.EquivalentTo(expected));
-            Assert.That(actual, Has.Length.EqualTo(15));
+            Assert.That(actual, Has.Length.EqualTo(18));
         }
 
         /// <summary>
@@ -153,22 +152,6 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             FlowCodecException exception = Assert.Throws<FlowCodecException>(() =>
                 FlowRecordCodec.DecodeExact(bytes, new()))!;
             Assert.That(exception.Error.ToString(), Is.EqualTo(error));
-        }
-
-        /// <summary>
-        /// Requires adapters to remove external bytes; arbitrary suffixes are not interpreted as signatures.
-        /// </summary>
-        [TestCase(false)]
-        [TestCase(true)]
-        public void UascPayloadRejectsUnremovedExternalBytes(bool shared)
-        {
-            var specimen = new FrozenWire(shared ? "shared-uasc_opaque" : "dedicated-uasc_opaque");
-            byte[] bytes = [.. specimen.Bytes.ToArray(), 0xA5, 0, 0xFF];
-            var unremoved = new ByteString(bytes);
-            FrozenWire.Fails(() => FlowCarrierCodec.DecodeUascPayload(
-                specimen.Carrier, (byte)'F', 0, unremoved, new()),
-                FlowCodecError.TrailingBytes);
-            Assert.That(specimen.Decode().Record.Body.ToArray(), Is.EqualTo("k9!"u8.ToArray()));
         }
 
         /// <summary>
@@ -211,22 +194,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         /// </summary>
         private static void AssertEnvelopeEncoding(FrozenWire specimen, in FlowRecord record)
         {
-            ByteString encoded;
-            if (specimen.Carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc)
-            {
-                encoded = FlowCarrierCodec.EncodeUascPayload(
-                    specimen.Carrier, specimen.ChannelId, in record, new(), out uint requestId);
-                Assert.That(requestId, Is.Zero);
-            }
-            else if (specimen.Datagram)
-            {
-                encoded = FlowCarrierCodec.EncodeDatagram(
-                    specimen.Carrier, specimen.ChannelId, in record, specimen.Bytes.Length, new());
-            }
-            else
-            {
-                encoded = FlowRecordCodec.Encode(in record, new());
-            }
+            ByteString encoded = specimen.Datagram
+                ? FlowCarrierCodec.EncodeDatagram(
+                    specimen.Carrier, specimen.ChannelId, in record, specimen.Bytes.Length, new())
+                : FlowRecordCodec.Encode(in record, new());
             Assert.That(encoded.ToArray(), Is.EqualTo(specimen.Bytes.ToArray()));
         }
 

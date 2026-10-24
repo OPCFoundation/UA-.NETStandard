@@ -29,18 +29,39 @@ namespace Opc.Ua.Bindings.Native
             ArrayOf<ByteString> chain,
             NativeQuicConnectionSettings settings,
             TimeProvider clock)
+            : this(
+                backend, handle, peer.IsClient, peer.MaximumDatagramPayload, chain,
+                credentials.ExpiresAt, settings, clock, credentials.Invalidated)
+        {
+            m_peer = peer;
+            m_credentials = credentials;
+            m_provider = provider;
+        }
+
+        /// <summary>
+        /// Shares bounded stream ownership without making transport-only TLS an application credential.
+        /// </summary>
+        private NativeQuicConnection(
+            INativeQuicBackend backend,
+            NativeQuicConnectionHandle handle,
+            bool isClient,
+            uint maximumDatagramPayload,
+            ArrayOf<ByteString> chain,
+            DateTimeOffset expiresAt,
+            NativeQuicConnectionSettings settings,
+            TimeProvider clock,
+            CancellationToken credentialsInvalidated)
         {
             Backend = backend;
             Handle = handle;
-            Peer = peer;
-            Credentials = credentials;
+            IsClient = isClient;
             Settings = settings;
             Closed = m_shutdown.Token;
-            m_provider = provider;
             m_chain = chain;
             m_clock = clock;
-            m_datagramSize = checked((int)peer.MaximumDatagramPayload);
-            m_peerExpiresAt = credentials.ExpiresAt;
+            m_invalidated = credentialsInvalidated;
+            m_datagramSize = checked((int)maximumDatagramPayload);
+            m_peerExpiresAt = expiresAt;
             foreach (ByteString der in chain)
             {
                 using Certificate certificate = Certificate.FromRawData(der.Span.ToArray());
@@ -63,9 +84,23 @@ namespace Opc.Ua.Bindings.Native
         public NativeQuicConnectionHandle Handle { get; }
 
         /// <summary>
-        /// Gets TLS-authenticated peer evidence, including the actual local transport role.
+        /// Gets application-mTLS peer evidence. Transport-only TLS has no application-pair identity.
         /// </summary>
-        public NativeQuicPeerEvidence Peer { get; }
+        /// <exception cref="InvalidOperationException">The connection uses transport-only TLS.</exception>
+        public NativeQuicPeerEvidence Peer => m_peer ??
+            throw new InvalidOperationException("Transport-only TLS does not authenticate an application pair.");
+
+        /// <summary>
+        /// Gets transport-only TLS evidence, never an authenticated OPC UA application identity.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">The connection uses application-mTLS.</exception>
+        public NativeQuicTlsEvidence TlsPeer => m_tlsPeer ??
+            throw new InvalidOperationException("The connection uses application mutual TLS.");
+
+        /// <summary>
+        /// Gets the actual local transport role independently of application authentication.
+        /// </summary>
+        public bool IsClient { get; }
 
         /// <summary>
         /// Gets the actual verified peer DER chain, leaf first, retained immutably after stack validation.
@@ -74,9 +109,12 @@ namespace Opc.Ua.Bindings.Native
         public ArrayOf<ByteString> VerifiedPeerCertificateChain => m_chain;
 
         /// <summary>
-        /// Gets the public credential snapshot used by this connection. Its software key has been cleared.
+        /// Gets the application-mTLS credential snapshot. Its software key has been cleared.
+        /// A transport-only connection deliberately has no application credential lease.
         /// </summary>
-        public NativeQuicCredentialLease Credentials { get; }
+        /// <exception cref="InvalidOperationException">The connection uses transport-only TLS.</exception>
+        public NativeQuicCredentialLease Credentials => m_credentials ??
+            throw new InvalidOperationException("Transport-only TLS has no application credential lease.");
 
         /// <summary>
         /// Gets the finite native limits.
@@ -161,6 +199,59 @@ namespace Opc.Ua.Bindings.Native
         }
 
         /// <summary>
+        /// Establishes server-authenticated transport TLS without a client certificate or application identity.
+        /// The host owns credentials and signals policy changes through credentialsInvalidated.
+        /// Independent UASC authentication is still required by the hosting protocol.
+        /// </summary>
+        public static async ValueTask<NativeQuicConnection> ConnectTlsAsync(
+            INativeQuicBackend backend,
+            NativeQuicCredentials credentials,
+            string address,
+            string applicationProtocol,
+            string serverName,
+            NativeQuicConnectionSettings? settings = null,
+            TimeProvider? timeProvider = null,
+            CancellationToken credentialsInvalidated = default,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(backend);
+            ArgumentNullException.ThrowIfNull(credentials);
+            ArgumentException.ThrowIfNullOrWhiteSpace(serverName);
+            if (!credentials.IsTransportOnly || !credentials.CertificateDer.IsEmpty)
+            {
+                throw new ArgumentException("Explicit transport-only client trust is required.", nameof(credentials));
+            }
+            settings ??= new NativeQuicConnectionSettings();
+            settings.Validate();
+            TimeProvider clock = timeProvider ?? TimeProvider.System;
+            NativeQuicOptions options = CreateTlsOptions(
+                address, applicationProtocol, credentials, serverName, settings);
+            using var deadline = new CancellationTokenSource(settings.HandshakeTimeout, clock);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, credentialsInvalidated, deadline.Token);
+            NativeQuicConnectionHandle handle = default;
+            try
+            {
+                linked.Token.ThrowIfCancellationRequested();
+                NativeQuicCompletion result = await backend.ConnectAsync(options, linked.Token).ConfigureAwait(false);
+                handle = result.Connection;
+                RequireSuccess(result);
+                NativeQuicConnection connection = await AuthenticateTlsAsync(
+                    backend, handle, applicationProtocol, true, DateTimeOffset.MaxValue,
+                    settings, clock, credentialsInvalidated, linked.Token).ConfigureAwait(false);
+                handle = default;
+                return connection;
+            }
+            finally
+            {
+                if (handle.Value != 0)
+                {
+                    await ReleaseUnestablishedAsync(backend, handle).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
         /// Allocates a real native stream and preserves the backend's actual stream identifier.
         /// An empty write does not announce a QUIC stream to the peer.
         /// </summary>
@@ -206,6 +297,66 @@ namespace Opc.Ua.Bindings.Native
         }
 
         /// <summary>
+        /// Exports the Part 31 direct-binding key from this established QUIC connection.
+        /// A capability failure leaves the protected UASC baseline usable but direct binding unsupported.
+        /// </summary>
+        internal async ValueTask<NativeQuicCompletion> ExportKeyingMaterialAsync(
+            ByteString transcriptDigest,
+            CancellationToken cancellationToken = default)
+        {
+            if (transcriptDigest.Length != 32)
+            {
+                throw new ArgumentException(
+                    "The direct-binding transcript digest must be 32 bytes.", nameof(transcriptDigest));
+            }
+            using Operation operation = EnterOperation();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Closed);
+            return await Backend.ConnectionAsync(
+                Handle,
+                NativeQuicConnectionOperation.ExportKeyingMaterial,
+                new NativeQuicRequest(Settings.OperationTimeout, transcriptDigest),
+                linked.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Exports bounded caller-selected TLS keying material for a transport-defined context.
+        /// </summary>
+        internal async ValueTask<NativeQuicCompletion> ExportCustomKeyingMaterialAsync(
+            ReadOnlyMemory<byte> label,
+            ReadOnlyMemory<byte> context,
+            int outputLength,
+            CancellationToken cancellationToken = default)
+        {
+            if (label.IsEmpty || label.Length > byte.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(label));
+            }
+            if (context.Length > byte.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(context));
+            }
+            if (outputLength is < 1 or > byte.MaxValue)
+            {
+                throw new ArgumentOutOfRangeException(nameof(outputLength));
+            }
+            byte[] request = new byte[checked(1 + label.Length + 1 + context.Length + 1)];
+            request[0] = checked((byte)label.Length);
+            label.Span.CopyTo(request.AsSpan(1));
+            int offset = 1 + label.Length;
+            request[offset++] = checked((byte)context.Length);
+            context.Span.CopyTo(request.AsSpan(offset));
+            request[^1] = checked((byte)outputLength);
+
+            using Operation operation = EnterOperation();
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Closed);
+            return await Backend.ConnectionAsync(
+                Handle,
+                NativeQuicConnectionOperation.ExportCustomKeyingMaterial,
+                new NativeQuicRequest(Settings.OperationTimeout, new ByteString(request)),
+                linked.Token).ConfigureAwait(false);
+        }
+
+        /// <summary>
         /// Sends a real datagram. A false commitment callback returns null without native admission.
         /// Once committed, the caller token cannot retract or release the in-flight payload.
         /// Native datagram deadline failure can close the entire connection.
@@ -237,7 +388,8 @@ namespace Opc.Ua.Bindings.Native
                 {
                     Volatile.Write(ref m_datagramSize, checked((int)result.MaximumDatagramPayload));
                 }
-                if (result.Status is not (NativeQuicStatus.Success or NativeQuicStatus.TooLarge))
+                if (result.Status is not (NativeQuicStatus.Success or NativeQuicStatus.TooLarge or
+                    NativeQuicStatus.Limit or NativeQuicStatus.Busy))
                 {
                     RequestClose(1, false);
                 }
@@ -309,6 +461,74 @@ namespace Opc.Ua.Bindings.Native
         }
 
         /// <summary>
+        /// Adopts transport-only TLS after policy, ALPN, role and actual certificate-chain checks.
+        /// The caller retains handle ownership until this method returns successfully.
+        /// </summary>
+        internal static async ValueTask<NativeQuicConnection> AuthenticateTlsAsync(
+            INativeQuicBackend backend,
+            NativeQuicConnectionHandle handle,
+            string applicationProtocol,
+            bool isClient,
+            DateTimeOffset expiresAt,
+            NativeQuicConnectionSettings settings,
+            TimeProvider clock,
+            CancellationToken credentialsInvalidated,
+            CancellationToken cancellationToken)
+        {
+            NativeQuicTlsEvidence peer = await backend.GetTlsEvidenceAsync(handle, cancellationToken)
+                .ConfigureAwait(false);
+            if (peer.ApplicationProtocol != applicationProtocol || peer.IsClient != isClient ||
+                expiresAt <= clock.GetUtcNow())
+            {
+                throw new AuthenticationException("Native TLS does not match the transport role, protocol or lifetime.");
+            }
+            var chain = new ByteString[peer.VerifiedCertificateCount];
+            for (uint index = 0; index < peer.VerifiedCertificateCount; index++)
+            {
+                NativeQuicCompletion result = await backend.ConnectionAsync(
+                    handle, NativeQuicConnectionOperation.Certificate,
+                    new NativeQuicRequest(settings.OperationTimeout, certificateIndex: index),
+                    cancellationToken).ConfigureAwait(false);
+                RequireSuccess(result);
+                chain[index] = result.Payload;
+            }
+            credentialsInvalidated.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
+            var connection = new NativeQuicConnection(
+                backend, handle, peer.IsClient, peer.MaximumDatagramPayload,
+                new ArrayOf<ByteString>(chain.AsMemory()), expiresAt, settings, clock, credentialsInvalidated)
+            {
+                m_tlsPeer = peer
+            };
+            if (connection.m_peerExpiresAt <= clock.GetUtcNow())
+            {
+                connection.m_shutdown.Dispose();
+                connection.m_datagramWriter.Dispose();
+                throw new AuthenticationException("The verified transport certificate has expired.");
+            }
+            connection.m_closeMonitor = connection.MonitorClosedAsync();
+            connection.m_policyMonitor = connection.MonitorPolicyAsync();
+            return connection;
+        }
+
+        /// <summary>
+        /// Applies the same finite native limits to explicitly selected transport-only TLS.
+        /// </summary>
+        internal static NativeQuicOptions CreateTlsOptions(
+            string address,
+            string applicationProtocol,
+            NativeQuicCredentials credentials,
+            string serverName,
+            NativeQuicConnectionSettings settings)
+        {
+            return NativeQuicOptions.ForServerAuthenticatedTls(
+                address, applicationProtocol, credentials, serverName,
+                timeoutMilliseconds: checked((uint)settings.HandshakeTimeout.TotalMilliseconds),
+                streamLimit: (uint)settings.MaxStreams,
+                idleTimeoutMilliseconds: checked((uint)settings.IdleTimeout.TotalMilliseconds));
+        }
+
+        /// <summary>
         /// Constructs native options from the explicitly selected credential snapshot.
         /// </summary>
         internal static NativeQuicOptions CreateOptions(
@@ -377,7 +597,33 @@ namespace Opc.Ua.Bindings.Native
                     ReferenceEquals(found, stream))
                 {
                     m_streams.Remove(stream.StreamId);
+                    SignalAllocationCapacityLocked();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Waits without reserving an operation until an actual stream allocation can be attempted.
+        /// Callers still handle a competing allocator winning the available capacity.
+        /// </summary>
+        internal async ValueTask WaitForStreamAllocationCapacityAsync(CancellationToken cancellationToken)
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, Closed);
+            while (true)
+            {
+                Task changed;
+                lock (m_gate)
+                {
+                    linked.Token.ThrowIfCancellationRequested();
+                    if (m_streams.Count + m_streamReservations < Settings.MaxStreams &&
+                        m_activeOperations < Settings.MaxPendingOperations)
+                    {
+                        return;
+                    }
+                    m_allocationCapacity ??= new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    changed = m_allocationCapacity.Task;
+                }
+                await changed.WaitAsync(linked.Token).ConfigureAwait(false);
             }
         }
 
@@ -492,7 +738,7 @@ namespace Opc.Ua.Bindings.Native
                     throw new NativeQuicTransportException(result);
                 }
                 bool locallyOpened = kind == NativeQuicConnectionOperation.OpenStream;
-                ulong expectedOpener = Peer.IsClient == locallyOpened ? 0UL : 1UL;
+                ulong expectedOpener = IsClient == locallyOpened ? 0UL : 1UL;
                 if (stream == null || (stream.StreamId & 1) != expectedOpener ||
                     ((stream.StreamId & 2) != 0) != unidirectional)
                 {
@@ -510,6 +756,7 @@ namespace Opc.Ua.Bindings.Native
                 lock (m_gate)
                 {
                     m_streamReservations--;
+                    SignalAllocationCapacityLocked();
                 }
             }
         }
@@ -551,7 +798,7 @@ namespace Opc.Ua.Bindings.Native
         {
             try
             {
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(Closed, Credentials.Invalidated);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(Closed, m_invalidated);
                 while (!linked.IsCancellationRequested)
                 {
                     TimeSpan delay = m_peerExpiresAt - m_clock.GetUtcNow();
@@ -562,9 +809,13 @@ namespace Opc.Ua.Bindings.Native
                     }
                     delay = delay < Settings.CertificateRecheckInterval ? delay : Settings.CertificateRecheckInterval;
                     await Task.Delay(delay, m_clock, linked.Token).ConfigureAwait(false);
-                    await m_provider.ValidatePeerAsync(Credentials, Peer, m_chain, linked.Token).ConfigureAwait(false);
+                    if (m_provider is not null)
+                    {
+                        await m_provider.ValidatePeerAsync(Credentials, Peer, m_chain, linked.Token)
+                            .ConfigureAwait(false);
+                    }
                 }
-                if (Credentials.Invalidated.IsCancellationRequested && !Closed.IsCancellationRequested)
+                if (m_invalidated.IsCancellationRequested && !Closed.IsCancellationRequested)
                 {
                     RequestClose(1, true);
                 }
@@ -614,7 +865,7 @@ namespace Opc.Ua.Bindings.Native
                         Handle, NativeQuicConnectionOperation.Release,
                         new NativeQuicRequest(Settings.OperationTimeout)), Settings.OperationTimeout).ConfigureAwait(false);
                 RequireSuccess(released);
-                Credentials.Dispose();
+                m_credentials?.Dispose();
                 m_datagramWriter.Dispose();
                 m_shutdown.Dispose();
                 m_completion.TrySetResult();
@@ -636,7 +887,18 @@ namespace Opc.Ua.Bindings.Native
                 {
                     m_idle.TrySetResult();
                 }
+                SignalAllocationCapacityLocked();
             }
+        }
+
+        /// <summary>
+        /// Wakes finite native allocation waiters after an operation or actual stream owner is released.
+        /// </summary>
+        private void SignalAllocationCapacityLocked()
+        {
+            TaskCompletionSource? previous = m_allocationCapacity;
+            m_allocationCapacity = null;
+            previous?.TrySetResult();
         }
 
         /// <summary>
@@ -653,7 +915,20 @@ namespace Opc.Ua.Bindings.Native
             private Action? m_release = owner.LeaveOperation;
         }
 
-        private readonly INativeQuicCredentialProvider m_provider;
+        private readonly INativeQuicCredentialProvider? m_provider;
+
+        /// <summary>The application credential lease, absent for transport-only TLS.</summary>
+        private readonly NativeQuicCredentialLease? m_credentials;
+
+        /// <summary>The strict application-mTLS observations, absent for transport-only TLS.</summary>
+        private readonly NativeQuicPeerEvidence? m_peer;
+
+        /// <summary>The transport-only observations, absent for application-mTLS.</summary>
+        private NativeQuicTlsEvidence? m_tlsPeer;
+
+        /// <summary>The host's independent credential and trust-policy invalidation signal.</summary>
+        private readonly CancellationToken m_invalidated;
+
         private readonly ArrayOf<ByteString> m_chain;
         private readonly TimeProvider m_clock;
         private readonly DateTimeOffset m_peerExpiresAt;
@@ -663,6 +938,10 @@ namespace Opc.Ua.Bindings.Native
         private readonly SemaphoreSlim m_datagramWriter = new(1, 1);
         private readonly TaskCompletionSource m_completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private TaskCompletionSource m_idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>The lazy notification shared by bounded stream-allocation waiters.</summary>
+        private TaskCompletionSource? m_allocationCapacity;
+
         private Task m_closeMonitor = Task.CompletedTask;
         private Task m_policyMonitor = Task.CompletedTask;
         private int m_streamReservations;

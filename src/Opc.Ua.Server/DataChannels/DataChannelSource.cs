@@ -17,6 +17,8 @@ namespace Opc.Ua.Server.DataChannels
     /// Declares one exact application resource and its independently enforced admission policy.
     /// A source can be used without publishing an AddressSpace or creating a Session.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelSource
     {
         /// <summary>
@@ -259,6 +261,8 @@ namespace Opc.Ua.Server.DataChannels
     /// <summary>
     /// Application-specific permission checks, in addition to mandatory model and Session checks.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelSourcePolicy
     {
         /// <summary>
@@ -273,6 +277,8 @@ namespace Opc.Ua.Server.DataChannels
     /// <summary>
     /// Immutable inputs to a source policy, with a defensive descriptor snapshot.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelSourceAccess
     {
         /// <summary>
@@ -330,6 +336,8 @@ namespace Opc.Ua.Server.DataChannels
     /// <summary>
     /// Explicit application allow-list policy for a resource. Session node permissions still apply.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelApplicationPolicy : IDataChannelSourcePolicy
     {
         /// <summary>

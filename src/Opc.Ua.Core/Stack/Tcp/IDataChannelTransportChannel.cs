@@ -32,6 +32,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// A UASC transport supporting explicitly selected dedicated or shared flow profiles.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelTransportChannel : ITransportChannel, ISecureChannel
     {
         /// <summary>

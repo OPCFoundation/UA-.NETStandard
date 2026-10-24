@@ -105,47 +105,23 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         /// <summary>
-        /// Keeps JSON payload bytes and optional headers intact with queue expiry disabled.
+        /// Rejects the JSON PubSub mapping for every data-channel carrier.
         /// </summary>
         [Test]
-        public async Task JsonWhitespaceEscapesAndOptionalHeadersAreNeverReencoded(
+        public void JsonPayloadIsNotADataChannelPubSubEncoding(
             [Values] DataChannelCarrierKind carrier)
         {
-            const string json = /*lang=json,strict*/ """
-                { "MessageId":"exact-17", "MessageType":"ua-data", "PublisherId":"73001",
-                  "WriterGroupName":"WG 42", "ReplyTo":["urn:test:pubsub:reply"],
-                  "Messages":[{"DataSetWriterId":1001,"SequenceNumber":27,
-                    "Timestamp":"2026-10-16T12:34:56Z","MessageType":"ua-keyframe",
-                    "Payload":{"Text":{"UaType":12,"Value":"kept \u03a9"}}}] }
-                """;
-            var bytes = ByteString.From(System.Text.Encoding.UTF8.GetBytes(json));
-            await using TransportPair pair = await TransportPair.CreateAsync(
-                carrier, DataChannelProfiles.JsonPayload).ConfigureAwait(false);
-
-            await pair.Sender.SendAsync(bytes.Memory).ConfigureAwait(false);
-            await using IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
-                TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
-            Assert.That(await receiver.MoveNextAsync().ConfigureAwait(false), Is.True);
-
-            Assert.Multiple(() =>
-            {
-                Assert.That(receiver.Current.Payload.Span.SequenceEqual(bytes.Span), Is.True);
-                Assert.That(pair.Core.LeftCarrier.Payloads.Single(), Is.EqualTo(bytes));
-                Assert.That(pair.Sender.Channel!.Parameters.AllowQueueExpiry, Is.False);
-                Assert.That(pair.Receiver.Channel!.Parameters.AllowQueueExpiry, Is.False);
-                Assert.That(pair.Receiver.EncodingProfileUri, Is.EqualTo(Profiles.PubSubMqttJsonTransport));
-                Assert.That(pair.Receiver.PayloadProtocol, Is.EqualTo(DataChannelProfiles.JsonPayload));
-                Assert.That(pair.Receiver.TransportProfileUri,
-                    Is.EqualTo(DataChannelPubSubConfiguration.GetTransportProfile(carrier)));
-                Assert.That(receiver.Current.Topic, Is.Null);
-            });
+            Assert.That(
+                () => DataChannelPubSubConfigurationTests.CreateConnection(
+                    carrier, DataChannelProfiles.JsonPayload),
+                Throws.TypeOf<NotSupportedException>().With.Message.Contains("requires a UADP"));
         }
 
         [Test]
         public async Task ReceiveCreditRemainsOwnedUntilTheConsumerFinishesEvenAfterClose()
         {
             await using TransportPair pair = await TransportPair.CreateAsync().ConfigureAwait(false);
-            var bytes = ByteString.From(new byte[] { 1, 2, 3, 4, 5 });
+            var bytes = ByteString.From(CreateUadpPayload(8, 5));
             await pair.Sender.SendAsync(bytes.Memory).ConfigureAwait(false);
             IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
@@ -153,7 +129,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             {
                 Assert.That(await receiver.MoveNextAsync().ConfigureAwait(false), Is.True);
                 Assert.That(pair.Core.RightBudget.Usage.Messages, Is.EqualTo(1));
-                Assert.That(pair.Core.RightBudget.Usage.BufferedBytes, Is.GreaterThanOrEqualTo(bytes.Length + 17));
+                Assert.That(pair.Core.RightBudget.Usage.BufferedBytes, Is.GreaterThanOrEqualTo(bytes.Length));
 
                 await pair.Receiver.CloseAsync().ConfigureAwait(false);
 
@@ -175,7 +151,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         public async Task CancelledReceiveReleasesThePreviousMessageAndAllowsANewConsumer()
         {
             await using TransportPair pair = await TransportPair.CreateAsync().ConfigureAwait(false);
-            await pair.Sender.SendAsync(new byte[] { 7 }).ConfigureAwait(false);
+            byte[] firstPayload = CreateUadpPayload(8, 7);
+            await pair.Sender.SendAsync(firstPayload).ConfigureAwait(false);
             using var cancellation = new CancellationTokenSource();
             IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
                 cancellation.Token).GetAsyncEnumerator();
@@ -191,11 +168,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(pair.Core.RightBudget.Usage.Messages, Is.Zero);
                 Assert.That(pair.Receiver.IsConnected, Is.True);
             });
-            await pair.Sender.SendAsync(new byte[] { 8 }).ConfigureAwait(false);
+            byte[] secondPayload = CreateUadpPayload(8, 8);
+            await pair.Sender.SendAsync(secondPayload).ConfigureAwait(false);
             await using IAsyncEnumerator<PubSubTransportFrame> next = pair.Receiver.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
             Assert.That(await next.MoveNextAsync().ConfigureAwait(false), Is.True);
-            Assert.That(next.Current.Payload.ToArray(), Is.EqualTo(new byte[] { 8 }));
+            Assert.That(next.Current.Payload.ToArray(), Is.EqualTo(secondPayload));
         }
 
         [Test]
@@ -206,7 +184,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             parameters.MaxReceiveBytes = 512;
             await using TransportPair pair = await TransportPair.CreateAsync(parameters: parameters)
                 .ConfigureAwait(false);
-            byte[] boundary = [.. Enumerable.Range(0, 128).Select(index => (byte)index)];
+            byte[] boundary = CreateUadpPayload(128);
 
             await pair.Sender.SendAsync(boundary).ConfigureAwait(false);
             await using IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
@@ -231,7 +209,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             parameters.MaxReceiveBytes = 145;
             await using TransportPair pair = await TransportPair.CreateAsync(
                 parameters: parameters, options: new DataChannelOptions { MaxQueueMessages = 1 }).ConfigureAwait(false);
-            byte[] payload = new byte[128];
+            byte[] payload = CreateUadpPayload(128);
             await pair.Sender.SendAsync(payload).ConfigureAwait(false);
             IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
@@ -310,21 +288,16 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         /// </summary>
         [Test]
         public async Task NativeDatagramPayloadsUseTheRealCoreDatagramPath(
-            [Values(DataChannelCarrierKind.Quic, DataChannelCarrierKind.WebTransport)] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+            [Values(DataChannelCarrierKind.Quic, DataChannelCarrierKind.WebTransport)] DataChannelCarrierKind carrier)
         {
-            DataChannelParametersDataType parameters = DataChannelPubSubConfigurationTests.CreateParameters(protocol);
+            DataChannelParametersDataType parameters = DataChannelPubSubConfigurationTests.CreateParameters();
             parameters.Delivery = DataChannelDeliveryMode.Datagram;
             parameters.MaxMessageSize = 512;
             parameters.MaxReceiveBytes = 2048;
             parameters.MaxRate = 1000;
             await using TransportPair pair = await TransportPair.CreateAsync(
-                carrier, protocol, parameters).ConfigureAwait(false);
-            ByteString payload = protocol == DataChannelProfiles.UadpPayload
-                ? await DataChannelPubSubTestData.EncodeUadpAsync(false).ConfigureAwait(false)
-                : ByteString.From(System.Text.Encoding.UTF8.GetBytes(
-                    /*lang=json,strict*/
-                                         """{"MessageId":"datagram","MessageType":"ua-data","Messages":[]}"""));
+                carrier, DataChannelProfiles.UadpPayload, parameters).ConfigureAwait(false);
+            ByteString payload = await DataChannelPubSubTestData.EncodeUadpAsync(false).ConfigureAwait(false);
             await pair.Sender.SendAsync(payload.Memory).ConfigureAwait(false);
             await using IAsyncEnumerator<PubSubTransportFrame> receiver = pair.Receiver.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
@@ -355,7 +328,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 core.Right.CarrierKind, acceptor, PubSubTransportDirection.Send, parameters);
             await Task.WhenAll(subscriber.OpenAsync().AsTask(), publisher.OpenAsync().AsTask()).ConfigureAwait(false);
 
-            await publisher.SendAsync(new byte[] { 4, 2 }).ConfigureAwait(false);
+            byte[] payload = CreateUadpPayload(8, 4);
+            await publisher.SendAsync(payload).ConfigureAwait(false);
             await using IAsyncEnumerator<PubSubTransportFrame> receiver = subscriber.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator();
             Assert.That(await receiver.MoveNextAsync().ConfigureAwait(false), Is.True);
@@ -363,8 +337,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             {
                 Assert.That(OnlyChannel(core.Right).IsLocalOpener, Is.False);
                 Assert.That(core.Right.Identity.Peer.IsTransportInitiator, Is.False);
-                Assert.That(receiver.Current.Payload.ToArray(), Is.EqualTo(new byte[] { 4, 2 }));
-                Assert.That(core.RightCarrier.Payloads.Single(), Is.EqualTo(ByteString.From(new byte[] { 4, 2 })));
+                Assert.That(receiver.Current.Payload.ToArray(), Is.EqualTo(payload));
+                Assert.That(core.RightCarrier.Payloads.Single(), Is.EqualTo(ByteString.From(payload)));
             });
         }
 
@@ -376,14 +350,15 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await using TransportPair pair = await TransportPair.CreateAsync(parameters: parameters).ConfigureAwait(false);
             DataChannel outgoing = pair.Sender.Channel!;
             DataChannel incoming = pair.Receiver.Channel!;
-            await pair.Sender.SendAsync(new byte[] { 8, 4, 2 }).ConfigureAwait(false);
+            byte[] payload = CreateUadpPayload(8, 8);
+            await pair.Sender.SendAsync(payload).ConfigureAwait(false);
             Assert.That(await outgoing.EndAsync(TestContext.CurrentContext.CancellationToken).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             await using (IAsyncEnumerator<PubSubTransportFrame> messages = pair.Receiver.ReceiveAsync(
                 TestContext.CurrentContext.CancellationToken).GetAsyncEnumerator())
             {
                 Assert.That(await messages.MoveNextAsync().ConfigureAwait(false), Is.True);
-                Assert.That(messages.Current.Payload.ToArray(), Is.EqualTo(new byte[] { 8, 4, 2 }));
+                Assert.That(messages.Current.Payload.ToArray(), Is.EqualTo(payload));
                 Assert.That(await messages.MoveNextAsync().ConfigureAwait(false), Is.False);
             }
             Assert.Multiple(() =>
@@ -478,9 +453,13 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 DataChannelPubSubConfigurationTests.CreateParameters()).ConfigureAwait(false);
             await using DataChannel receiver = (await core.Right.AcceptAsync().ConfigureAwait(false))!;
             var provider = new SingleFlowProvider(new DataChannelPubSubFlow(sender, core.Left.CarrierKind));
+            DataChannelParametersDataType mismatched =
+                DataChannelPubSubConfigurationTests.CreateParameters();
+            mismatched.MaxMessageSize /= 2;
+            mismatched.MaxReceiveBytes /= 2;
             await using DataChannelPubSubTransport transport = CreateTransport(
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send,
-                DataChannelPubSubConfigurationTests.CreateParameters(DataChannelProfiles.JsonPayload));
+                mismatched);
 
             DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(
                 async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
@@ -607,7 +586,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 core.Left.CarrierKind, provider, PubSubTransportDirection.Send);
             await transport.OpenAsync().ConfigureAwait(false);
             Assert.That(transport.MaxNetworkMessageSize, Is.EqualTo(256));
-            await transport.SendAsync(new byte[256]).ConfigureAwait(false);
+            await transport.SendAsync(CreateUadpPayload(256)).ConfigureAwait(false);
             using DataChannelMessage? message = await receiver.ReadAsync(
                 TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
             Assert.That(message!.Length, Is.EqualTo(256));
@@ -724,31 +703,31 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         [Test]
-        public async Task ExactResourceAndProtocolRoutingDoesNotStealAnotherConnectionsFlow()
+        public async Task ExactResourceRoutingDoesNotStealAnotherConnectionsFlow()
         {
             await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
             await using var provider = new DataChannelContextPubSubFlowProvider(core.Right, false);
-            var jsonRequest = new DataChannelPubSubFlowRequest(DataChannelPubSubConfigurationTests.CreateConnection(
-                protocol: DataChannelProfiles.JsonPayload, resource: "urn:test:pubsub:json"));
-            var uadpRequest = new DataChannelPubSubFlowRequest(DataChannelPubSubConfigurationTests.CreateConnection(
-                resource: "urn:test:pubsub:uadp"));
-            Task<DataChannelPubSubFlow> json = provider.OpenAsync(jsonRequest).AsTask();
-            Task<DataChannelPubSubFlow> uadp = provider.OpenAsync(uadpRequest).AsTask();
+            var firstRequest = new DataChannelPubSubFlowRequest(DataChannelPubSubConfigurationTests.CreateConnection(
+                resource: "urn:test:pubsub:first"));
+            var secondRequest = new DataChannelPubSubFlowRequest(DataChannelPubSubConfigurationTests.CreateConnection(
+                resource: "urn:test:pubsub:second"));
+            Task<DataChannelPubSubFlow> first = provider.OpenAsync(firstRequest).AsTask();
+            Task<DataChannelPubSubFlow> second = provider.OpenAsync(secondRequest).AsTask();
 
-            await using DataChannel uadpSender = await core.Left.OpenAsync(uadpRequest.Parameters)
+            await using DataChannel firstSender = await core.Left.OpenAsync(firstRequest.Parameters)
                 .ConfigureAwait(false);
-            await using DataChannel jsonSender = await core.Left.OpenAsync(jsonRequest.Parameters)
+            await using DataChannel secondSender = await core.Left.OpenAsync(secondRequest.Parameters)
                 .ConfigureAwait(false);
-            await using DataChannelPubSubFlow jsonReceiver = await json.ConfigureAwait(false);
-            await using DataChannelPubSubFlow uadpReceiver = await uadp.ConfigureAwait(false);
+            await using DataChannelPubSubFlow firstReceiver = await first.ConfigureAwait(false);
+            await using DataChannelPubSubFlow secondReceiver = await second.ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(jsonReceiver.Channel.ChannelId, Is.EqualTo(jsonSender.ChannelId));
-                Assert.That(uadpReceiver.Channel.ChannelId, Is.EqualTo(uadpSender.ChannelId));
-                Assert.That(jsonReceiver.Channel.ChannelId, Is.Not.EqualTo(uadpReceiver.Channel.ChannelId));
-                Assert.That(jsonReceiver.Channel.Parameters.Protocol, Is.EqualTo(DataChannelProfiles.JsonPayload));
-                Assert.That(uadpReceiver.Channel.Parameters.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
+                Assert.That(firstReceiver.Channel.ChannelId, Is.EqualTo(firstSender.ChannelId));
+                Assert.That(secondReceiver.Channel.ChannelId, Is.EqualTo(secondSender.ChannelId));
+                Assert.That(firstReceiver.Channel.ChannelId, Is.Not.EqualTo(secondReceiver.Channel.ChannelId));
+                Assert.That(firstReceiver.Channel.Parameters.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
+                Assert.That(secondReceiver.Channel.Parameters.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
             });
         }
 
@@ -773,7 +752,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             await first.OpenAsync().ConfigureAwait(false);
             await second.OpenAsync().ConfigureAwait(false);
             await first.CloseAsync().ConfigureAwait(false);
-            await second.SendAsync(new byte[] { 5, 4, 3 }).ConfigureAwait(false);
+            byte[] payload = CreateUadpPayload(8, 5);
+            await second.SendAsync(payload).ConfigureAwait(false);
             using DataChannelMessage? message = await secondReceiver.ReadAsync(
                 TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
 
@@ -784,7 +764,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(core.Left.IsReady, Is.True);
                 Assert.That(core.Right.IsReady, Is.True);
                 Assert.That(core.LeftBudget.Usage.Flows, Is.EqualTo(1));
-                Assert.That(message!.Payload, Is.EqualTo(ByteString.From(new byte[] { 5, 4, 3 })));
+                Assert.That(message!.Payload, Is.EqualTo(ByteString.From(payload)));
             });
         }
 
@@ -947,6 +927,30 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             return channels[0];
         }
 
+        /// <summary>
+        /// Creates a minimally routed type-0 UADP message while preserving the requested byte length.
+        /// </summary>
+        private static byte[] CreateUadpPayload(int length, byte marker = 0)
+        {
+            if (length < 7)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+
+            byte[] payload = [.. Enumerable.Range(0, length).Select(index => (byte)index)];
+            payload[0] = 0x91;
+            payload[1] = 0x02;
+            payload[2] = 42;
+            payload[3] = 0;
+            payload[4] = 0;
+            payload[5] = 0;
+            if (length > 6)
+            {
+                payload[6] = marker;
+            }
+            return payload;
+        }
+
         private sealed class SingleFlowProvider(DataChannelPubSubFlow flow) : IDataChannelPubSubFlowProvider
         {
             public ValueTask<DataChannelPubSubFlow> OpenAsync(
@@ -1084,6 +1088,276 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
             private readonly DataChannelContextPubSubFlowProvider m_senderProvider;
             private readonly DataChannelContextPubSubFlowProvider m_receiverProvider;
+        }
+
+        [Test]
+        public async Task AcquiredReceiveFlowOwnsItsPublisherRouteUntilDisposed()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Right, false);
+            PubSubConnectionDataType connection = CreateReceiveConnection(
+                DataChannelCarrierKind.SharedUasc, "urn:test:pubsub:receive", 73001u);
+            connection.ReaderGroups[0].DataSetReaders[0].DataSetWriterId = 34;
+            connection.ReaderGroups[0].DataSetReaders =
+            [
+                .. connection.ReaderGroups[0].DataSetReaders,
+                new DataSetReaderDataType { PublisherId = new Variant(73002u), DataSetWriterId = 35 },
+                new DataSetReaderDataType { PublisherId = Variant.Null, DataSetWriterId = 103 }
+            ];
+            var request = new DataChannelPubSubFlowRequest(connection);
+            Task<DataChannelPubSubFlow> acquisition = provider.OpenAsync(
+                request, TestContext.CurrentContext.CancellationToken).AsTask();
+            await using DataChannel sender = await core.Left.OpenAsync(
+                request.Parameters,
+                cancellationToken: TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+            DataChannelPubSubFlow received = await acquisition.ConfigureAwait(false);
+
+            await using (received.ConfigureAwait(false))
+            {
+                foreach (Variant publisherId in request.InboundPublisherIds)
+                {
+                    DataChannelException? conflict = Assert.Throws<DataChannelException>(() =>
+                        core.Right.RegisterUascPublisherRoute("urn:test:pubsub:replacement", publisherId));
+                    Assert.That(conflict!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+                }
+
+                ByteString payload = ByteString.From(
+                    [0x91, 0x02, 0x29, 0x1d, 0x01, 0x00, 0xde, 0xad]);
+                await sender.SendAsync(payload,
+                    cancellationToken: TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                using DataChannelMessage? message = await received.Channel.ReadAsync(
+                    TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(received.Channel.ChannelId, Is.EqualTo(sender.ChannelId));
+                    Assert.That(message, Is.Not.Null);
+                    Assert.That(message!.Payload, Is.EqualTo(payload));
+                    Assert.That(message.MessageId, Is.EqualTo(1));
+                });
+
+                ByteString metadataResponse = ByteString.FromHexString("918208291d01000201002200dead");
+                await sender.SendAsync(metadataResponse,
+                    cancellationToken: TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                using DataChannelMessage? metadataMessage = await received.Channel.ReadAsync(
+                    TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(metadataMessage, Is.Not.Null);
+                    Assert.That(metadataMessage!.Payload, Is.EqualTo(metadataResponse));
+                    Assert.That(metadataMessage.MessageId, Is.EqualTo(2));
+                });
+
+                await received.DisposeAsync().ConfigureAwait(false);
+                await received.DisposeAsync().ConfigureAwait(false);
+                using IDisposable replacement = core.Right.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:replacement", new Variant(73001u));
+                using IDisposable secondReplacement = core.Right.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:replacement", new Variant(73002u));
+                using IDisposable wildcardReplacement = core.Right.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:replacement", Variant.Null);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(received.Channel.State, Is.EqualTo(DataChannelState.Closed));
+                    Assert.That(core.Right.IsReady, Is.True);
+                    Assert.That(core.RightBudget.Usage.Flows, Is.Zero);
+                });
+            }
+        }
+
+        [Test]
+        public async Task FailedReceiveFlowAcquisitionReleasesItsPublisherRoutes()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
+            core.LeftAuthorizer.Deny = true;
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Left, true);
+            PubSubConnectionDataType connection = CreateReceiveConnection(
+                DataChannelCarrierKind.SharedUasc, "urn:test:pubsub:denied", 73001u);
+            connection.ReaderGroups[0].DataSetReaders =
+            [
+                .. connection.ReaderGroups[0].DataSetReaders,
+                new DataSetReaderDataType { PublisherId = new Variant(73002u) },
+                new DataSetReaderDataType { PublisherId = Variant.Null }
+            ];
+            var request = new DataChannelPubSubFlowRequest(connection);
+
+            DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                await provider.OpenAsync(request, TestContext.CurrentContext.CancellationToken)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            using IDisposable replacement = core.Left.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", new Variant(73001u));
+            using IDisposable secondReplacement = core.Left.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", new Variant(73002u));
+            using IDisposable wildcardReplacement = core.Left.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", Variant.Null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+                Assert.That(core.Left.Channels, Is.Empty);
+                Assert.That(core.LeftBudget.Usage.Flows, Is.Zero);
+                Assert.That(core.LeftBudget.Usage.Operations, Is.Zero);
+                Assert.That(core.Left.IsReady, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task CancelledReceiveFlowAcquisitionReleasesItsPublisherRoutes()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Right, false);
+            PubSubConnectionDataType connection = CreateReceiveConnection(
+                DataChannelCarrierKind.SharedUasc, "urn:test:pubsub:cancelled", 73001u);
+            connection.ReaderGroups[0].DataSetReaders =
+            [
+                .. connection.ReaderGroups[0].DataSetReaders,
+                new DataSetReaderDataType { PublisherId = new Variant(73002u) },
+                new DataSetReaderDataType { PublisherId = Variant.Null }
+            ];
+            var request = new DataChannelPubSubFlowRequest(connection);
+            using var cancellation = new CancellationTokenSource();
+            Task<DataChannelPubSubFlow> acquisition = provider.OpenAsync(request, cancellation.Token).AsTask();
+
+            // Registration runs synchronously before OpenAsync waits for an accepted flow.
+            Assert.That(acquisition.IsCompleted, Is.False);
+            foreach (Variant publisherId in request.InboundPublisherIds)
+            {
+                DataChannelException? conflict = Assert.Throws<DataChannelException>(() =>
+                    core.Right.RegisterUascPublisherRoute("urn:test:pubsub:replacement", publisherId));
+                Assert.That(conflict!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+            }
+
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            Assert.That(() => acquisition, Throws.InstanceOf<OperationCanceledException>());
+            using IDisposable replacement = core.Right.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", new Variant(73001u));
+            using IDisposable secondReplacement = core.Right.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", new Variant(73002u));
+            using IDisposable wildcardReplacement = core.Right.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", Variant.Null);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(core.Right.Channels, Is.Empty);
+                Assert.That(core.Right.IsReady, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task SenderOnlyRequestDoesNotRegisterAReceivePublisherRoute()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Right, false);
+            PubSubConnectionDataType connection = DataChannelPubSubConfigurationTests.CreateConnection(
+                direction: PubSubTransportDirection.Send,
+                resource: "urn:test:pubsub:sender-only");
+            var request = new DataChannelPubSubFlowRequest(connection);
+            using var cancellation = new CancellationTokenSource();
+            Task<DataChannelPubSubFlow> acquisition = provider.OpenAsync(request, cancellation.Token).AsTask();
+
+            using IDisposable independentRoute = core.Right.RegisterUascPublisherRoute(
+                "urn:test:pubsub:independent", connection.PublisherId);
+            using IDisposable independentWildcard = core.Right.RegisterUascPublisherRoute(
+                "urn:test:pubsub:independent", Variant.Null);
+            // Empty inbound IDs prove absence of routes, not the necessity of the send-direction guard.
+            await cancellation.CancelAsync().ConfigureAwait(false);
+            Assert.That(() => acquisition, Throws.InstanceOf<OperationCanceledException>());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.Direction, Is.EqualTo(PubSubTransportDirection.Send));
+                Assert.That(request.InboundPublisherIds, Is.Empty);
+                Assert.That(core.Right.IsReady, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task NonUascReceiveFlowAcquiresWithoutRegisteringUascPublisherRoutes()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync(
+                DataChannelCarrierKind.Quic).ConfigureAwait(false);
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Left, true);
+            var request = new DataChannelPubSubFlowRequest(CreateReceiveConnection(
+                DataChannelCarrierKind.Quic, "urn:test:pubsub:quic", 73001u));
+
+            await using DataChannelPubSubFlow flow = await provider.OpenAsync(
+                request, TestContext.CurrentContext.CancellationToken).ConfigureAwait(false);
+            await using DataChannel remote = (await core.Right.AcceptAsync(
+                TestContext.CurrentContext.CancellationToken).ConfigureAwait(false))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(flow.Channel.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(flow.Channel.CarrierKind, Is.EqualTo(DataChannelCarrierKind.Quic));
+                Assert.That(remote.ChannelId, Is.EqualTo(flow.Channel.ChannelId));
+                Assert.That(core.Left.IsReady, Is.True);
+                Assert.That(core.Right.IsReady, Is.True);
+            });
+        }
+
+        private static PubSubConnectionDataType CreateReceiveConnection(
+            DataChannelCarrierKind carrier,
+            string resource,
+            uint publisherId)
+        {
+            PubSubConnectionDataType connection = DataChannelPubSubConfigurationTests.CreateConnection(
+                carrier, direction: PubSubTransportDirection.Receive, resource: resource);
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType { PublisherId = new Variant(publisherId) }
+                    ]
+                }
+            ];
+            return connection;
+        }
+
+        [Test]
+        public async Task PartiallyRegisteredReceiveFlowAcquisitionReleasesOnlyItsPublisherRoutes()
+        {
+            await using DataChannelTestPair core = await DataChannelTestPair.CreateAsync().ConfigureAwait(false);
+            await using var provider = new DataChannelContextPubSubFlowProvider(core.Left, true);
+            PubSubConnectionDataType connection = CreateReceiveConnection(
+                DataChannelCarrierKind.SharedUasc, "urn:test:pubsub:partial", 73001u);
+            connection.ReaderGroups[0].DataSetReaders =
+            [
+                .. connection.ReaderGroups[0].DataSetReaders,
+                new DataSetReaderDataType { PublisherId = Variant.Null },
+                new DataSetReaderDataType { PublisherId = new Variant(73002u) }
+            ];
+            var request = new DataChannelPubSubFlowRequest(connection);
+
+            using (core.Left.RegisterUascPublisherRoute("urn:test:pubsub:independent", new Variant(73002u)))
+            {
+                DataChannelException? exception = await Assert.ThrowsAsync<DataChannelException>(async () =>
+                    await provider.OpenAsync(request, TestContext.CurrentContext.CancellationToken)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+                using IDisposable firstReplacement = core.Left.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:replacement", new Variant(73001u));
+                using IDisposable wildcardReplacement = core.Left.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:replacement", Variant.Null);
+                DataChannelException? conflict = Assert.Throws<DataChannelException>(() =>
+                    core.Left.RegisterUascPublisherRoute("urn:test:pubsub:replacement", new Variant(73002u)));
+                using IDisposable independentReference = core.Left.RegisterUascPublisherRoute(
+                    "urn:test:pubsub:independent", new Variant(73002u));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+                    Assert.That(conflict!.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+                    Assert.That(core.LeftAuthorizer.Requests, Is.Empty);
+                    Assert.That(core.Left.Channels, Is.Empty);
+                    Assert.That(core.LeftBudget.Usage.Flows, Is.Zero);
+                    Assert.That(core.LeftBudget.Usage.Operations, Is.Zero);
+                    Assert.That(core.Left.IsReady, Is.True);
+                });
+            }
+
+            using IDisposable finalReplacement = core.Left.RegisterUascPublisherRoute(
+                "urn:test:pubsub:replacement", new Variant(73002u));
         }
     }
 }

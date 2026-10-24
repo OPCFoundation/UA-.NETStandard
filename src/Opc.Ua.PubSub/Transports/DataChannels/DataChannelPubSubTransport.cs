@@ -40,6 +40,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// Carries each complete, already encoded NetworkMessage unchanged on an independently authorized Core flow.
     /// Part 14 encoding, security, chunking and metadata remain in the existing PubSub runtime.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelPubSubTransport : IPubSubTransport, IPubSubEncodingTransport
     {
         /// <summary>
@@ -53,7 +55,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             m_request = request ?? throw new ArgumentNullException(nameof(request));
             m_flowProvider = flowProvider ?? throw new ArgumentNullException(nameof(flowProvider));
             m_timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
-            TransportProfileUri = DataChannelPubSubConfiguration.GetTransportProfile(request.CarrierKind);
+            TransportProfileUri = request.Connection.TransportProfileUri ??
+                throw new ArgumentException("The connection transport profile is missing.", nameof(request));
             m_parameters = request.Parameters;
         }
 

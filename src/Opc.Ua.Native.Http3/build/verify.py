@@ -182,7 +182,7 @@ def binary(rid):
     digest, records = source_digest()
     receipt = {
         "schema_version": 1, "rid": rid, "asset": path.relative_to(ROOT / "artifacts").as_posix(),
-        "sha256": sha(data), "bytes": len(data), "abi": 1, "operation_revision": 2,
+        "sha256": sha(data), "bytes": len(data), "abi": 1, "operation_revision": 3,
         "source_digest": digest, "source_inputs": records, "inspection": inspected,
         "public_tool_inputs": "build/public-inputs.json", "distribution_approved": False,
         "remaining_release_gates": ["signing", "final-hash product SCA/VEX", "advertised minimum-host execution"],

@@ -6,7 +6,7 @@ authentication provider. Core, ordinary Client/Server, and base PubSub do not de
 on it. No Go runtime is embedded or linked here.
 
 The managed WebTransport binding must separately use the one native QUIC runtime,
-the stack's certificate manager, actual peer application verification, and asynchronous
+the host's certificate-store policy, actual transport verification, and asynchronous
 transport pumps. A native operation succeeding means a state transition occurred,
 **not** that a queued send reached the transport.
 
@@ -26,8 +26,21 @@ symbol requirement is not a minimum-host execution test.
 Use `include/opcua_http3.h` and `docs/ABI.md`. Check ABI/layouts before creation.
 Pass an explicit immutable authority/resource/Origin/application-protocol policy,
 resource limits, actual authenticated transport facts and externally allocated stream IDs.
-One application pair and one CONNECT lifetime are pinned to each TLS connection;
+One selected transport policy and one CONNECT lifetime are pinned to each TLS connection;
 cross-origin/application pooling and 0-RTT CONNECT are forbidden.
+
+ABI1/operation revision3 accepts distinct 80-byte transport-facts contracts. Facts version1
+retains the application-mTLS gate. Facts version2 requires explicitly selected server-authenticated
+TLS without asserting mutual application authentication. Neither permits omitting confirmed h3,
+datagrams or exact reset09 evidence, and neither replaces UASC application authentication.
+This extension alone does not establish an actual browser/UASC baseline.
+
+The 224-byte configuration has two explicit versions: configuration1 requires exact nonempty
+application-subprotocol negotiation; configuration2 requires an empty protocol and omits those
+request/response headers. Configuration2 refuses offered/selected private protocols and HTTP
+Cookie/Authorization/Proxy-Authorization credentials. It needs no fabricated application-pair
+tag: zero is valid before independent UASC authentication. Both modes retain exact configured
+authority, path/query and Origin checks; there is no automatic fallback between them.
 
 All calls are serialized, nonblocking and callback-free. Buffers belong to the caller.
 Polling a write leases a token: command 20 must acknowledge actual cumulative accepted

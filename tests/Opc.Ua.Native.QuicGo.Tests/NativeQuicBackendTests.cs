@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -59,8 +60,130 @@ namespace Opc.Ua.Native.QuicGo.Tests
             int checks = await NativeQuicLiveScenario.RunAsync(backend, passControlToken: passControlToken,
                 cancelLifetimeFirst: cancelLifetimeFirst, lateErrorCode: lateErrorCode)
                 .ConfigureAwait(false);
-            Assert.That(checks, Is.EqualTo(22));
+            Assert.That(checks, Is.EqualTo(24));
             NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Actual managed-to-native TLS distinguishes verified server transport from application authentication.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ServerAuthenticatedTlsHasNoClientCertificateOrApplicationPeerEvidenceAsync()
+        {
+            using var credentials = new TestCredentials();
+            var backend = new NativeQuicBackend(m_library);
+            NativeQuicListenerHandle listener = default;
+            NativeQuicConnectionHandle client = default;
+            NativeQuicConnectionHandle server = default;
+            try
+            {
+                NativeQuicCompletion listening = await backend.ListenAsync(
+                    NativeQuicOptions.ForServerAuthenticatedTls("127.0.0.1:0", "h3", credentials.TlsServer))
+                    .ConfigureAwait(false);
+                listener = listening.Listener;
+                Assert.That(listening.Status, Is.EqualTo(NativeQuicStatus.Success));
+                NativeQuicCompletion address = await backend.ListenerAsync(
+                    listener, NativeQuicListenerOperation.Address, NativeQuicRequest.Default).ConfigureAwait(false);
+                Assert.That(address.Status, Is.EqualTo(NativeQuicStatus.Success));
+                Task<NativeQuicCompletion> accepting = backend.ListenerAsync(
+                    listener, NativeQuicListenerOperation.Accept, new NativeQuicRequest(TimeSpan.FromSeconds(5)))
+                    .AsTask();
+                NativeQuicCompletion connected = await backend.ConnectAsync(
+                    NativeQuicOptions.ForServerAuthenticatedTls(
+                        Encoding.UTF8.GetString(address.Payload.Span), "h3", credentials.TlsClient, "localhost"))
+                    .ConfigureAwait(false);
+                client = connected.Connection;
+                NativeQuicCompletion accepted = await accepting.ConfigureAwait(false);
+                server = accepted.Connection;
+                Assert.That(connected.Status, Is.EqualTo(NativeQuicStatus.Success));
+                Assert.That(accepted.Status, Is.EqualTo(NativeQuicStatus.Success));
+                NativeQuicTlsEvidence local = await backend.GetTlsEvidenceAsync(client).ConfigureAwait(false);
+                NativeQuicTlsEvidence remote = await backend.GetTlsEvidenceAsync(server).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(local.IsClient, Is.True);
+                    Assert.That(remote.IsClient, Is.False);
+                    Assert.That(local.HandshakeConfirmed && remote.HandshakeConfirmed, Is.True);
+                    Assert.That(local.LocalCertificateUsed, Is.False);
+                    Assert.That(remote.LocalCertificateUsed, Is.True);
+                    Assert.That(local.VerifiedCertificateCount, Is.EqualTo(2));
+                    Assert.That(remote.VerifiedCertificateCount, Is.Zero);
+                    Assert.That(local.CertificateSha256,
+                        Is.EqualTo(new ByteString(SHA256.HashData(credentials.Server.CertificateDer.Span))));
+                    Assert.That(local.SpkiSha256, Is.EqualTo(credentials.ServerPeer.SpkiSha256));
+                    Assert.That(remote.CertificateSha256, Is.EqualTo(new ByteString(new byte[32])));
+                    Assert.That(remote.SpkiSha256, Is.EqualTo(new ByteString(new byte[32])));
+                    Assert.That(local.ApplicationProtocol, Is.EqualTo("h3"));
+                    Assert.That(remote.ApplicationProtocol, Is.EqualTo("h3"));
+                    Assert.That(local.LocalDatagramsEnabled && local.PeerDatagramsEnabled, Is.True);
+                    Assert.That(remote.LocalResetStreamAt09 && remote.PeerResetStreamAt09, Is.True);
+                });
+                await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                    await backend.GetPeerEvidenceAsync(client).ConfigureAwait(false)).ConfigureAwait(false);
+                await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                    await backend.GetPeerEvidenceAsync(server).ConfigureAwait(false)).ConfigureAwait(false);
+                NativeQuicCompletion absentClient = await backend.ConnectionAsync(
+                    server, NativeQuicConnectionOperation.Certificate, NativeQuicRequest.Default).ConfigureAwait(false);
+                Assert.That(absentClient.Status, Is.EqualTo(NativeQuicStatus.Invalid));
+            }
+            finally
+            {
+                if (client.Value != 0)
+                {
+                    await backend.ConnectionAsync(
+                        client, NativeQuicConnectionOperation.Release, NativeQuicRequest.Default)
+                        .ConfigureAwait(false);
+                }
+                if (server.Value != 0)
+                {
+                    await backend.ConnectionAsync(
+                        server, NativeQuicConnectionOperation.Release, NativeQuicRequest.Default)
+                        .ConfigureAwait(false);
+                }
+                if (listener.Value != 0)
+                {
+                    await backend.ListenerAsync(listener, NativeQuicListenerOperation.Close, NativeQuicRequest.Default)
+                        .ConfigureAwait(false);
+                }
+            }
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Runs the transport-only TLS stream, datagram and ownership path also compiled into NativeAOT.
+        /// </summary>
+        [Test]
+        public async Task ServerAuthenticatedTlsLiveScenarioAlsoUsesActualNetworkAsync()
+        {
+            var backend = new NativeQuicBackend(m_library);
+            int checks = await NativeQuicTlsLiveScenario.RunAsync(backend).ConfigureAwait(false);
+            Assert.That(checks, Is.EqualTo(8));
+            NativeQuicResourceAssertions.AreReleased(await backend.GetCountsAsync().ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Credential selection cannot silently switch between application-mTLS and transport-only admission.
+        /// </summary>
+        [Test]
+        public void NativeTlsOptionsRequireExplicitMatchingCredentials()
+        {
+            using var credentials = new TestCredentials();
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<ArgumentException>(() =>
+                    NativeQuicOptions.ForServerAuthenticatedTls("127.0.0.1:0", "h3", credentials.Server));
+                Assert.Throws<ArgumentException>(() =>
+                    new NativeQuicOptions("127.0.0.1:0", "h3", credentials.TlsServer, [credentials.ClientPeer]));
+                Assert.Throws<ArgumentOutOfRangeException>(() => NativeQuicCredentials.ForTlsClient(default));
+                Assert.Throws<ArgumentOutOfRangeException>(() =>
+                    NativeQuicCredentials.ForTlsClient(new ByteString(new byte[16385])));
+                Assert.That(credentials.TlsClient.ApplicationUri, Is.Empty);
+                Assert.That(credentials.TlsClient.CertificateDer.IsEmpty, Is.True);
+                Assert.That(credentials.TlsClient.PrivateKey, Is.Null);
+                Assert.That(credentials.TlsServer.ApplicationUri, Is.Empty);
+                Assert.That(credentials.TlsServer.TrustRootsDer.IsEmpty, Is.True);
+            });
         }
 
         /// <summary>
@@ -275,5 +398,6 @@ namespace Opc.Ua.Native.QuicGo.Tests
         {
             Assert.Throws<InvalidDataException>(() => new NativeQuicPeerEvidence(new ByteString(new byte[size])));
         }
+
     }
 }

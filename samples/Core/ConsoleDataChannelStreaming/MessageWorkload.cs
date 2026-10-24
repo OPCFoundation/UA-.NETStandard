@@ -115,10 +115,11 @@ namespace ConsoleDataChannelStreaming
                         throw new InvalidOperationException(
                             "The source emitted an unexpected complete-message length.");
                     }
+                    ByteString transportMessage = harness.FrameApplicationPayload(message);
                     DataChannelResult result;
                     do
                     {
-                        result = await harness.Source.SendAsync(message, cancellationToken: failure.Token)
+                        result = await harness.Source.SendAsync(transportMessage, cancellationToken: failure.Token)
                             .ConfigureAwait(false);
                         if (result == DataChannelResult.WouldBlock)
                         {
@@ -160,15 +161,17 @@ namespace ConsoleDataChannelStreaming
                     {
                         break;
                     }
-                    if (count >= options.Count || !message.Payload.Span.SequenceEqual(messageFactory(count).Span))
+                    ByteString applicationPayload = harness.UnframeApplicationPayload(message.Payload);
+                    if (count >= options.Count ||
+                        !applicationPayload.Span.SequenceEqual(messageFactory(count).Span))
                     {
                         throw new InvalidOperationException("The receiver observed corrupt, reordered or extra bytes.");
                     }
-                    hash.AppendData(message.Payload.Span);
-                    bytes += message.Payload.Length;
+                    hash.AppendData(applicationPayload.Span);
+                    bytes += applicationPayload.Length;
                     if (receive != null)
                     {
-                        await receive(count, message.Payload, failure.Token).ConfigureAwait(false);
+                        await receive(count, applicationPayload, failure.Token).ConfigureAwait(false);
                     }
                     count++;
                     if (count == options.Count / 2)

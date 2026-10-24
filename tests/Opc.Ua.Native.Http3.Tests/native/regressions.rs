@@ -40,7 +40,7 @@ fn facts(role: u32) -> TransportFacts {
         handshake_confirmed: 1,
         mutual_tls_authenticated: 1,
         alpn_is_h3: 1,
-        reserved: 0,
+        authentication_policy: 0,
     }
 }
 
@@ -258,6 +258,46 @@ fn exact_reset09_and_authenticated_transport_facts_fail_closed() {
             new_peer(bad).is_err(),
             "invalid capability partition {change}"
         );
+    }
+}
+
+#[test]
+fn transport_only_tls_facts_are_explicit_and_preserve_legacy_mutual_tls_admission() {
+    for role in 0..=1 {
+        let legacy = facts(role);
+        assert!(new_peer(legacy).is_ok());
+        let mut transport = legacy;
+        transport.abi_version = 2;
+        transport.authentication_policy = 1;
+        transport.mutual_tls_authenticated = 0;
+        assert!(new_peer(transport).is_ok());
+
+        let mut missing_legacy_authentication = legacy;
+        missing_legacy_authentication.mutual_tls_authenticated = 0;
+        assert!(new_peer(missing_legacy_authentication).is_err());
+        for change in 0..14 {
+            let mut bad = transport;
+            match change {
+                0 => bad.abi_version = 1,
+                1 => bad.abi_version = 3,
+                2 => bad.authentication_policy = 0,
+                3 => bad.authentication_policy = 2,
+                4 => bad.role = 2,
+                5 => bad.mutual_tls_authenticated = 1,
+                6 => bad.mutual_tls_authenticated = 2,
+                7 => bad.handshake_confirmed = 0,
+                8 => bad.alpn_is_h3 = 0,
+                9 => bad.local_max_datagram = 0,
+                10 => bad.peer_max_datagram = 0,
+                11 => bad.reliable_reset_parameter = 0x17f7586d2cb571,
+                12 => bad.reliable_reset_frame = 0x21,
+                _ => bad.peer_reset_parameter_empty = 0,
+            }
+            assert!(
+                new_peer(bad).is_err(),
+                "transport-only policy role{role}, invalid partition{change}"
+            );
+        }
     }
 }
 

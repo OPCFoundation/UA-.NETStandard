@@ -36,6 +36,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Distinguishes admission, staged revision authorization and continuing permission.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public enum DataChannelAuthorizationPurpose
     {
         /// <summary>
@@ -57,6 +59,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// A confirmed context binding, with both peer challenges and verified carrier identities.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelContextIdentity
     {
         /// <summary>
@@ -112,6 +116,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Inputs for resource-specific admission on either peer. No Session or Server runtime is required.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelAuthorizationRequest
     {
         /// <summary>
@@ -190,6 +196,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Resource-specific admission result. A successful result must explicitly return admitted parameters.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelAuthorization
     {
         /// <summary>
@@ -260,6 +268,8 @@ namespace Opc.Ua.DataChannels
     /// Implementations must deny unmatched resources and revalidate continuing permission.
     /// Loss of a control connection alone is not Session closure or authorization revocation.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelAuthorizer
     {
         /// <summary>

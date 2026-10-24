@@ -38,6 +38,8 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Installs UASC flow connection creation without changing ordinary endpoint dispatch.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class UascDataChannelBuilderExtensions
     {
         /// <summary>

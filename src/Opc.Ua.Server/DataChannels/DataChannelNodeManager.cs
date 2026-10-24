@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -218,58 +219,77 @@ namespace Opc.Ua.Server.DataChannels
             List<Variant> output,
             CancellationToken cancellationToken)
         {
+            ServiceResult result;
+            ManagerCallAudit? previousAudit = m_callAudit.Value;
+            var callAudit = new ManagerCallAudit();
+            m_callAudit.Value = callAudit;
             try
             {
                 ISession session = GetSession(context) ??
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 if (objectId != ObjectIds.DataChannelManager)
                 {
-                    return StatusCodes.BadMethodInvalid;
+                    result = StatusCodes.BadMethodInvalid;
                 }
-                output.Clear();
-                if (method.NodeId == MethodIds.DataChannelManager_OpenDataChannel &&
-                    input.Count == 4 && input[0].TryGetValue(out uint openId) &&
-                    input[1].TryGetValue(out NodeId sourceId) &&
-                    input[2].TryGetStructure<DataChannelBindingDataType>(out DataChannelBindingDataType? binding) &&
-                    binding != null &&
-                    input[3].TryGetStructure<DataChannelParametersDataType>(
-                        out DataChannelParametersDataType? parameters) && parameters != null)
+                else
                 {
-                    DataChannelGrantDataType grant = await m_provider.OpenAsync(
-                        session, openId, sourceId, binding, parameters, cancellationToken).ConfigureAwait(false);
-                    output.Add(Variant.FromStructure(grant));
-                    return ServiceResult.Good;
+                    output.Clear();
+                    if (method.NodeId == MethodIds.DataChannelManager_OpenDataChannel &&
+                        input.Count == 4 && input[0].TryGetValue(out uint openId) &&
+                        input[1].TryGetValue(out NodeId sourceId) &&
+                        input[2].TryGetStructure<DataChannelBindingDataType>(
+                            out DataChannelBindingDataType? binding) &&
+                        binding != null &&
+                        input[3].TryGetStructure<DataChannelParametersDataType>(
+                            out DataChannelParametersDataType? parameters) && parameters != null)
+                    {
+                        DataChannelGrantDataType grant = await m_provider.OpenAsync(
+                            session, openId, sourceId, binding, parameters, cancellationToken).ConfigureAwait(false);
+                        output.Add(Variant.FromStructure(grant));
+                        result = ServiceResult.Good;
+                    }
+                    else if (method.NodeId == MethodIds.DataChannelManager_ModifyDataChannel &&
+                        input.Count == 4 && input[0].TryGetValue(out uint modifyId) &&
+                        input[1].TryGetValue(out uint operationId) && input[2].TryGetValue(out uint revision) &&
+                        input[3].TryGetStructure<DataChannelParametersDataType>(
+                            out DataChannelParametersDataType? proposed) && proposed != null)
+                    {
+                        DataChannelStatusDataType status = await m_provider.ModifyAsync(
+                            session, modifyId, operationId, revision, proposed, cancellationToken)
+                            .ConfigureAwait(false);
+                        output.Add(Variant.FromStructure(status));
+                        result = MethodResult(status.Result);
+                    }
+                    else if (method.NodeId == MethodIds.DataChannelManager_CloseDataChannel &&
+                        input.Count == 2 && input[0].TryGetValue(out uint closeId) &&
+                        input[1].TryGetValue(out bool discard))
+                    {
+                        DataChannelStatusDataType status = await m_provider.CloseAsync(
+                            session, closeId, discard, cancellationToken).ConfigureAwait(false);
+                        output.Add(Variant.FromStructure(status));
+                        result = MethodResult(status.Result);
+                    }
+                    else
+                    {
+                        result = StatusCodes.BadInvalidArgument;
+                    }
                 }
-                if (method.NodeId == MethodIds.DataChannelManager_ModifyDataChannel &&
-                    input.Count == 4 && input[0].TryGetValue(out uint modifyId) &&
-                    input[1].TryGetValue(out uint operationId) && input[2].TryGetValue(out uint revision) &&
-                    input[3].TryGetStructure<DataChannelParametersDataType>(
-                        out DataChannelParametersDataType? proposed) && proposed != null)
-                {
-                    DataChannelStatusDataType status = await m_provider.ModifyAsync(
-                        session, modifyId, operationId, revision, proposed, cancellationToken).ConfigureAwait(false);
-                    output.Add(Variant.FromStructure(status));
-                    return MethodResult(status.Result);
-                }
-                if (method.NodeId == MethodIds.DataChannelManager_CloseDataChannel &&
-                    input.Count == 2 && input[0].TryGetValue(out uint closeId) &&
-                    input[1].TryGetValue(out bool discard))
-                {
-                    DataChannelStatusDataType status = await m_provider.CloseAsync(
-                        session, closeId, discard, cancellationToken).ConfigureAwait(false);
-                    output.Add(Variant.FromStructure(status));
-                    return MethodResult(status.Result);
-                }
-                return StatusCodes.BadInvalidArgument;
             }
             catch (ServiceResultException exception)
             {
-                return exception.Result;
+                result = exception.Result;
             }
             catch (DataChannelException exception)
             {
-                return DataChannelControlModel.ToStatusCode(exception.Result);
+                result = DataChannelControlModel.ToStatusCode(exception.Result);
             }
+            finally
+            {
+                callAudit.Complete();
+                m_callAudit.Value = previousAudit;
+            }
+            ReportManagerCallAudit(context, method, input, [.. output], result.StatusCode, callAudit.Record);
+            return result;
         }
 
         /// <summary>
@@ -284,14 +304,84 @@ namespace Opc.Ua.Server.DataChannels
             CancellationToken cancellationToken)
         {
             ISession? session = GetSession(context);
-            OnAudit(new DataChannelControlAudit(
+            var audit = new DataChannelControlAudit(
                 method.BrowseName.Name ?? string.Empty, ExpandedNodeId.Null, string.Empty,
                 session?.ClientApplicationUri ?? string.Empty, Guid.Empty, 0, 0,
                 session?.Id ?? NodeId.Null, 0, 0,
                 error.StatusCode == StatusCodes.BadUserAccessDenied
                     ? DataChannelResult.NotAuthorized
-                    : DataChannelResult.InvalidArgument));
+                    : DataChannelResult.InvalidArgument);
+            ReportManagerCallAudit(context, method, input, [], error.StatusCode, audit);
             return default;
+        }
+
+        /// <summary>
+        /// Emits the fieldless Method audit and its privileged, EventId-correlated operation outcome.
+        /// </summary>
+        private void ReportManagerCallAudit(
+            ISystemContext context,
+            MethodState method,
+            ArrayOf<Variant> input,
+            ArrayOf<Variant> output,
+            StatusCode status,
+            DataChannelControlAudit? operation)
+        {
+            if (!Server.Auditing)
+            {
+                return;
+            }
+            AuditDataChannelEventState audit = context.CreateInstanceOfAuditDataChannelEventType();
+            audit.Initialize(context, null, EventSeverity.Low,
+                new LocalizedText($"Data channel {method.BrowseName.Name}: {status}."),
+                StatusCode.IsGood(status), m_clock.GetUtcNow().UtcDateTime);
+            audit.SourceNode!.Value = ObjectIds.DataChannelManager;
+            audit.SourceName!.Value = "Attribute/Call";
+            audit.MethodId!.Value = method.NodeId;
+            audit.InputArguments!.Value = RedactAuditArguments(method.NodeId, input, status);
+            audit.AddStatusCodeId(context, default);
+            audit.StatusCodeId!.Value = status;
+            audit.AddOutputArguments(context, default);
+            audit.OutputArguments!.Value = method.NodeId == MethodIds.DataChannelManager_OpenDataChannel
+                ? [.. Enumerable.Repeat(Variant.Null, output.Count)] : output;
+            audit.ClientAuditEntryId!.Value = context.AuditEntryId ?? string.Empty;
+            audit.ClientUserId!.Value =
+                (context as ISessionSystemContext)?.UserIdentity?.DisplayName ?? string.Empty;
+            QueueEvent(audit, CanReceiveAudit);
+            operation ??= new DataChannelControlAudit(
+                method.BrowseName.Name ?? string.Empty, ExpandedNodeId.Null, string.Empty,
+                string.Empty, Guid.Empty, 0, 0, GetSession(context)?.Id ?? NodeId.Null, 0, 0,
+                StatusCode.IsGood(status) ? DataChannelResult.Good : DataChannelResult.InvalidArgument);
+            ReportOperationEvent(operation, audit.EventId!.Value, audit.Status!.Value, audit.ClientUserId.Value);
+        }
+
+        /// <summary>
+        /// Preserves method argument positions while removing binding material and unauthorized flow identifiers.
+        /// </summary>
+        internal static ArrayOf<Variant> RedactAuditArguments(
+            NodeId methodId,
+            ArrayOf<Variant> input,
+            StatusCode statusCode)
+        {
+            List<Variant> arguments = [];
+            foreach (Variant argument in input)
+            {
+                arguments.Add(argument);
+            }
+            if (methodId == MethodIds.DataChannelManager_OpenDataChannel && arguments.Count > 2)
+            {
+                arguments[2] = Variant.Null;
+            }
+            else if (StatusCode.IsBad(statusCode) &&
+                (statusCode == StatusCodes.BadUserAccessDenied || statusCode == StatusCodes.BadNodeIdUnknown))
+            {
+                int identifierIndex = methodId == MethodIds.DataChannelManager_ModifyDataChannel ? 0
+                    : methodId == MethodIds.DataChannelManager_CloseDataChannel ? 0 : -1;
+                if (identifierIndex >= 0 && identifierIndex < arguments.Count)
+                {
+                    arguments[identifierIndex] = Variant.Null;
+                }
+            }
+            return [.. arguments];
         }
 
         /// <summary>
@@ -487,31 +577,57 @@ namespace Opc.Ua.Server.DataChannels
         /// </summary>
         private void OnAudit(DataChannelControlAudit audit)
         {
+            if (m_callAudit.Value is { IsCompleted: false } call &&
+                audit.Operation is "OpenDataChannel" or "ModifyDataChannel" or "CloseDataChannel")
+            {
+                call.Record = audit;
+                return;
+            }
             if (!Server.Auditing)
             {
                 return;
             }
-            AuditDataChannelEventState state = SystemContext.CreateInstanceOfAuditDataChannelEventType();
+            ReportOperationEvent(audit, default, audit.Result == DataChannelResult.Good, string.Empty);
+        }
+
+        /// <summary>
+        /// Reports privileged operation metadata without manufacturing a Method Call for autonomous actions.
+        /// </summary>
+        private void ReportOperationEvent(
+            DataChannelControlAudit audit, ByteString auditEventId, bool succeeded, string clientUserId)
+        {
+            DataChannelOperationEventState state = SystemContext.CreateInstanceOfDataChannelOperationEventType();
+            bool discloseFlow = audit.Result is not
+                (DataChannelResult.NotAuthorized or DataChannelResult.UnknownChannel);
             state.Initialize(
                 SystemContext, null, EventSeverity.Low,
                 new LocalizedText(
                     $"Data channel {audit.Operation}: peer={audit.PeerApplicationUri}; " +
-                    $"resource={audit.ResourceUri}; operation={audit.OperationId}."),
-                audit.Result == DataChannelResult.Good, m_clock.GetUtcNow().UtcDateTime);
+                    $"resource={(discloseFlow ? audit.ResourceUri : string.Empty)}; operation={audit.OperationId}."));
             state.SourceNode!.Value = ObjectIds.DataChannelManager;
             state.SourceName!.Value = "DataChannel/" + audit.Operation;
             state.SessionId!.Value = audit.SessionId;
-            state.ChannelId!.Value = audit.ChannelId;
-            state.ContextId!.Value = audit.ContextId;
-            state.Generation!.Value = audit.Generation;
+            state.ChannelId!.Value = discloseFlow ? audit.ChannelId : 0;
+            state.ContextId!.Value = discloseFlow ? audit.ContextId : Guid.Empty;
+            state.Generation!.Value = discloseFlow ? audit.Generation : 0;
             state.Operation!.Value = audit.Operation;
-            state.Revision!.Value = audit.Revision;
+            state.Revision!.Value = discloseFlow ? audit.Revision : 0;
             state.Result!.Value = audit.Result;
             state.DataChannelSourceNodeId!.Value =
-                ExpandedNodeId.ToNodeId(audit.SourceNodeId, Server.NamespaceUris);
-            QueueEvent(state, static session =>
-                session.Activated && !session.IsClosing && !session.HasExpired &&
-                session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin));
+                discloseFlow ? ExpandedNodeId.ToNodeId(audit.SourceNodeId, Server.NamespaceUris) : NodeId.Null;
+            state.ClientUserId!.Value = clientUserId;
+            state.ActionSucceeded!.Value = succeeded;
+            state.AuditEventId!.Value = auditEventId;
+            QueueEvent(state, CanReceiveAudit);
+        }
+
+        /// <summary>
+        /// Restricts both correlated records before event field selection and publication.
+        /// </summary>
+        private static bool CanReceiveAudit(ISession session)
+        {
+            return session.Activated && !session.IsClosing && !session.HasExpired &&
+                session.EffectiveIdentity.GrantedRoleIds.Contains(ObjectIds.WellKnownRole_SecurityAdmin);
         }
 
         /// <summary>
@@ -601,6 +717,33 @@ namespace Opc.Ua.Server.DataChannels
             Count
         }
 
+        /// <summary>
+        /// Holds the provider outcome within one asynchronous manager Call.
+        /// </summary>
+        private sealed class ManagerCallAudit
+        {
+            /// <summary>
+            /// Gets whether inherited execution contexts must stop attributing autonomous work to this Call.
+            /// </summary>
+            internal bool IsCompleted => Volatile.Read(ref m_completed) != 0;
+
+            /// <summary>
+            /// Gets or sets the operation metadata reported by the provider.
+            /// </summary>
+            internal DataChannelControlAudit? Record { get; set; }
+
+            /// <summary>
+            /// Ends the Call scope before its correlated records are published.
+            /// </summary>
+            internal void Complete()
+            {
+                Volatile.Write(ref m_completed, 1);
+            }
+
+            /// <summary>Tracks scope completion across inherited execution contexts.</summary>
+            private int m_completed;
+        }
+
         private const string kRuntimeNamespace = "urn:opcfoundation.org:ua:server:datachannels";
         private const string kMetadataNamespace = "http://opcfoundation.org/UA/DataChannel/";
         private readonly ServerDataChannelProvider m_provider;
@@ -609,6 +752,7 @@ namespace Opc.Ua.Server.DataChannels
         private readonly Channel<IFilterTarget> m_events;
         private readonly CancellationTokenSource m_lifetime = new();
         private readonly Dictionary<NodeId, DataChannelSource> m_sourceNodes = [];
+        private readonly AsyncLocal<ManagerCallAudit?> m_callAudit = new();
         private Task m_publisher = Task.CompletedTask;
         private int m_stopped;
     }

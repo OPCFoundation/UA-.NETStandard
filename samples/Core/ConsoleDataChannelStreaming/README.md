@@ -6,10 +6,12 @@ draft's three Services, frame flags, delivery modes and direct-manager mode.
 Identifiers remain provisional; this is not a conformance or performance guarantee.
 
 `StreamingHarness` composes production carrier factories. `MessageWorkload` uses
-only `DataChannel.SendAsync`, owned `DataChannelMessage` instances, live revision,
-and directional `END`. The same workload serves all four carriers and the audio
-sample. There is no sample wire codec, transport registry, readiness shortcut or
-fallback transport.
+`DataChannel.SendAsync`, owned `DataChannelMessage` instances, live revision,
+and directional `END`. The same opaque application workload serves all four
+carriers and the audio sample. UASC uses the amended UADP type-3 opaque profile
+with its minimal PublisherId header; native carriers use the complete opaque
+message profile. The harness does not add a private payload format, transport
+registry, readiness shortcut or fallback transport.
 
 ## Build and finite runs
 
@@ -46,7 +48,8 @@ role reversal, not reverse-transport UASC, whose ambiguous shared combination is
 not offered by the sample.
 
 All messages use Ordered delivery, Confidential protection, no queue expiry, one
-exact opaque resource and explicit finite bounds. `--size` accepts 4–32768 bytes.
+exact opaque resource and explicit finite bounds. `--size` accepts 4–32768
+application bytes; UASC's message bound includes the seven-byte UADP header.
 The first four bytes are a little-endian sample counter, not an OPC UA payload
 standard. Every received byte and decoded counter is checked. A transient
 `WouldBlock` send or `END` result is retried through the same public facade under

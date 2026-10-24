@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync(FlowLoopback.Parameters(
                 DataChannelDirection.AcceptorToOpener, maxMessage: 495, receiveBytes: 512)).ConfigureAwait(false);
-            ByteString payload = new(new byte[495]);
+            ByteString payload = FlowLoopback.UadpPayload(new ByteString(new byte[488]));
             Assert.That(await flow.Remote.SendAsync(payload).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using (DataChannelMessage? first = await flow.Local.ReadAsync().ConfigureAwait(false))
             {
@@ -95,7 +95,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await update.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             Assert.That(await oldData.ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
-            Assert.That(await flow.Remote.SendAsync(ByteString.Empty).AsTask()
+            Assert.That(await flow.Remote.SendAsync(FlowLoopback.UadpPayload(ByteString.Empty)).AsTask()
                 .WaitAsync(TimeSpan.FromSeconds(2)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? current = await flow.Local.ReadAsync().ConfigureAwait(false);
             Assert.That(current!.Revision, Is.EqualTo(2));
@@ -116,9 +116,11 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             FlowPair flow = await pair.OpenAsync(FlowLoopback.Parameters(
                 delivery: delivery, rate: delivery == DataChannelDeliveryMode.Datagram ? 100000 : 0))
                 .ConfigureAwait(false);
-            Assert.That(await flow.Local.SendAsync(new ByteString(new byte[] { 1 })).ConfigureAwait(false),
+            ByteString firstPayload = FlowLoopback.TestPayload(kind, new ByteString(new byte[] { 1 }));
+            ByteString secondPayload = FlowLoopback.TestPayload(kind, new ByteString(new byte[] { 2 }));
+            Assert.That(await flow.Local.SendAsync(firstPayload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            Assert.That(await flow.Remote.SendAsync(new ByteString(new byte[] { 2 })).ConfigureAwait(false),
+            Assert.That(await flow.Remote.SendAsync(secondPayload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? oldAtAcceptor = await flow.Remote.ReadAsync().ConfigureAwait(false);
             using DataChannelMessage? oldAtOpener = await flow.Local.ReadAsync().ConfigureAwait(false);
@@ -136,9 +138,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Assert.That(flow.Remote.Parameters.MaxMessageSize, Is.EqualTo(128));
                 Assert.That(flow.Remote.Parameters.Priority, Is.EqualTo(7));
                 Assert.That(oldAtAcceptor!.Revision, Is.EqualTo(1));
-                Assert.That(oldAtAcceptor.Payload[0], Is.EqualTo(1));
+                Assert.That(oldAtAcceptor.Payload.ToArray(), Is.EqualTo(firstPayload.ToArray()));
                 Assert.That(oldAtOpener!.Revision, Is.EqualTo(1));
-                Assert.That(oldAtOpener.Payload[0], Is.EqualTo(2));
+                Assert.That(oldAtOpener.Payload.ToArray(), Is.EqualTo(secondPayload.ToArray()));
             });
             CapturedFlowWrite localCommit = pair.InitiatorCarrier.Writes.First(
                 write => TestFlowCarrier.Operation(write, kind) == FlowOperation.Commit);
@@ -147,12 +149,17 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             FlowRecord localRecord = TestFlowCarrier.Record(localCommit, kind);
             FlowRecord remoteRecord = TestFlowCarrier.Record(remoteCommit, kind);
             Assert.That(((FlowCommit)FlowControlCodec.Decode(in localRecord, new FlowCodecLimits())).LastOldMessageId,
-                Is.EqualTo(1));
+                Is.EqualTo(delivery == DataChannelDeliveryMode.Datagram ? 1u : 0u));
             Assert.That(((FlowCommit)FlowControlCodec.Decode(in remoteRecord, new FlowCodecLimits())).LastOldMessageId,
-                Is.EqualTo(1));
-            Assert.That(await flow.Local.SendAsync(new ByteString(new byte[129])).ConfigureAwait(false),
+                Is.EqualTo(delivery == DataChannelDeliveryMode.Datagram ? 1u : 0u));
+            int payloadHeaderSize = FlowLoopback.TestPayload(kind, ByteString.Empty).Length;
+            ByteString oversizedPayload = FlowLoopback.TestPayload(
+                kind, new ByteString(new byte[129 - payloadHeaderSize]));
+            ByteString exactPayload = FlowLoopback.TestPayload(
+                kind, new ByteString(new byte[128 - payloadHeaderSize]));
+            Assert.That(await flow.Local.SendAsync(oversizedPayload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.TooLarge));
-            Assert.That(await flow.Local.SendAsync(new ByteString(new byte[128])).ConfigureAwait(false),
+            Assert.That(await flow.Local.SendAsync(exactPayload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? current = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(current!.Revision, Is.EqualTo(2));

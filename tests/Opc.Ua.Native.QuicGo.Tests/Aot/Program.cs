@@ -35,5 +35,7 @@ if (expectIncompatible)
 }
 int checks = await NativeQuicLiveScenario.RunAsync(backend,
     static name => Console.WriteLine("PASS " + name)).ConfigureAwait(false);
+checks += await NativeQuicTlsLiveScenario.RunAsync(backend,
+    static name => Console.WriteLine("PASS " + name)).ConfigureAwait(false);
 Console.WriteLine($"PASS {checks} actual native managed checks; all ownership released.");
 return 0;

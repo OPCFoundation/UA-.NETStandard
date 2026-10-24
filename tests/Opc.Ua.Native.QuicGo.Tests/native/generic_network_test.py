@@ -35,7 +35,7 @@ class Peer(c.Structure):
 class Config(c.Structure):
     _fields_ = [("size", U32), ("timeout_ms", U32), ("address", Span), ("alpn", Span),
                 ("identity", Identity), ("peers", c.POINTER(Peer)), ("peer_count", U32),
-                ("stream_limit", U32), ("idle_timeout_ms", U32), ("reserved", U32)]
+                ("stream_limit", U32), ("idle_timeout_ms", U32), ("authentication_policy", U32)]
 
 
 class Request(c.Structure):
@@ -61,7 +61,7 @@ class Info(c.Structure):
         ("certificate_sha256", U8 * 32), ("spki_sha256", U8 * 32),
         ("alpn", U8 * 256), ("application_uri", U8 * 512)]
     _fields_ += [("handshake_confirmed", U32), ("mutual_tls_authenticated", U32),
-                 ("local_certificate_used", U32), ("reserved", U32)]
+                 ("local_certificate_used", U32), ("authentication_policy", U32)]
 
 
 class Counts(c.Structure):
@@ -124,7 +124,8 @@ class Driver:
         result = Result(size=c.sizeof(Result))
         return self.poll(operation, c.byref(result), None, 0) == 1
 
-    def configuration(self, pki, local, peers, address, overrides=None, timeout=3000, alpn=b"h3"):
+    def configuration(self, pki, local, peers, address, overrides=None, timeout=3000, alpn=b"h3",
+                      authentication_policy=0):
         storage = []
 
         def span(value):
@@ -136,13 +137,20 @@ class Driver:
         values = dict(zip((f[0] for f in Identity._fields_), [
             identity["cert"], b"", identity["key"], pki["root"], identity["uri"].encode(),
             b"" if local == 1 else b"localhost"]))
+        if authentication_policy == 1:
+            values["local_uri"] = b""
+            if local == 1:
+                values["trust_roots_der"] = b""
+            else:
+                for field in ("certificate_der", "issuer_chain_der", "private_key_pkcs8"):
+                    values[field] = b""
         values.update(overrides or {})
         material = Identity(**{k: span(v) for k, v in values.items()})
         rules = (Peer * len(peers))(*[
             Peer(span(pki["identities"][i]["uri"].encode()), span(pki["identities"][i]["spki"])) for i in peers])
         storage.append(rules)
         config = Config(c.sizeof(Config), timeout, span(address.encode()), span(alpn),
-                        material, rules, len(peers), 32, 60000, 0)
+                        material, rules if peers else None, len(peers), 32, 60000, authentication_policy)
         return config, storage
 
     def create(self, listening, config, storage, wipe=True):
@@ -221,10 +229,10 @@ class Driver:
         _, address = await self.execute(1, listener, 4)
         return listener, address.decode()
 
-    async def connect_client(self, pki, listener, address, identity=0, **kwargs):
+    async def connect_client(self, pki, listener, address, identity=0, peers=(1,), **kwargs):
         status, accept = self.begin(1, listener, 3)
         assert status == 0
-        config, storage = self.configuration(pki, identity, (1,), address, **kwargs)
+        config, storage = self.configuration(pki, identity, peers, address, **kwargs)
         status, operation = self.create(False, config, storage)
         assert status == 0
         client, _ = await self.finish(operation)
@@ -264,7 +272,7 @@ async def main(args):
     d = Driver(args.library)
     try:
         abi = Abi(size=c.sizeof(Abi))
-        assert d.abi(c.byref(abi)) == 0 and abi.version == 4 and abi.pointer_size == 8
+        assert d.abi(c.byref(abi)) == 0 and abi.version == 7 and abi.pointer_size == 8
         for name, structure in (("config", Config), ("request", Request), ("result", Result),
                                 ("info", Info), ("counts", Counts)):
             assert getattr(abi, name + "_size") == c.sizeof(structure)
@@ -278,7 +286,7 @@ async def main(args):
             assert d.create(True, config, storage)[0] == -1
         for field, value in (("timeout_ms", 0), ("timeout_ms", 60001), ("stream_limit", 0),
                              ("stream_limit", 33), ("idle_timeout_ms", 999), ("idle_timeout_ms", 600001),
-                             ("peer_count", 33), ("reserved", 1), ("size", 0)):
+                             ("peer_count", 33), ("authentication_policy", 2), ("size", 0)):
             config, storage = d.configuration(pki, 1, (0,), "127.0.0.1:0")
             setattr(config, field, value)
             assert d.create(True, config, storage)[0] == -1, field
@@ -294,7 +302,7 @@ async def main(args):
             assert info.tls_version == 0x304 and info.is_client == role and info.handshake_complete == 1
             assert info.used_0rtt == info.resumed == 0 and info.verified_chain_length == 2
             assert info.handshake_confirmed == info.mutual_tls_authenticated == 1
-            assert info.local_certificate_used == 1 and info.reserved == 0
+            assert info.local_certificate_used == 1 and info.authentication_policy == 0
             assert (info.datagrams_local, info.datagrams_remote, info.reset09_local, info.reset09_remote) == (1, 1, 1, 1)
             assert info.local_max_datagram_frame_size == info.peer_max_datagram_frame_size == 16383
             assert bytes(info.alpn[:info.alpn_length]) == b"h3"

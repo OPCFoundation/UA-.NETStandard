@@ -48,8 +48,44 @@ namespace Opc.Ua.Bindings
             {
                 DataChannelProfiles.DedicatedUasc => DataChannelCarrierKind.DedicatedUasc,
                 DataChannelProfiles.SharedUasc => DataChannelCarrierKind.SharedUasc,
+                DataChannelProfiles.UascQuic => DataChannelCarrierKind.QuicUasc,
+                DataChannelProfiles.UascWebTransport => DataChannelCarrierKind.WebTransportUasc,
                 _ => null
             };
+        }
+
+        /// <summary>
+        /// Identifies explicitly selected Part 31/32 UASC baseline profiles.
+        /// </summary>
+        internal static bool IsReliableStreamProfile(string? profile)
+        {
+            return profile is DataChannelProfiles.UascQuic or DataChannelProfiles.UascWebTransport;
+        }
+
+        /// <summary>
+        /// Refuses selecting a native baseline on a TCP, WSS or generic unnegotiated byte transport.
+        /// </summary>
+        internal static void ValidateTransportProfile(string? profile, IUaSCByteTransportFactory factory)
+        {
+            if (IsReliableStreamProfile(profile) &&
+                (factory is not IUaSCTransportProfile evidence || evidence.TransportProfileUri != profile))
+            {
+                throw Unsupported();
+            }
+        }
+
+        /// <summary>
+        /// Requires the baseline HEL endpoint to match its configured authority and resource exactly.
+        /// </summary>
+        internal static bool MatchesReliableStreamEndpoint(Uri url, EndpointDescription endpoint)
+        {
+            string scheme = endpoint.TransportProfileUri == DataChannelProfiles.UascQuic ? "opc.quic" : "https";
+            return IsReliableStreamProfile(endpoint.TransportProfileUri) &&
+                url.Scheme == scheme && url.UserInfo.Length == 0 &&
+                url.Fragment.Length == 0 &&
+                Uri.TryCreate(endpoint.EndpointUrl, UriKind.Absolute, out Uri? expected) &&
+                expected.Scheme == scheme && expected.Equals(url) &&
+                expected.UserInfo.Length == 0 && expected.Fragment.Length == 0;
         }
 
         /// <summary>
@@ -100,6 +136,15 @@ namespace Opc.Ua.Bindings
             bool allowIntegrity)
         {
             DataChannelCarrierKind? kind = GetKind(endpoint?.TransportProfileUri);
+            if (IsReliableStreamProfile(endpoint?.TransportProfileUri))
+            {
+                if (!MatchesReliableStreamEndpoint(url, endpoint!))
+                {
+                    throw Unsupported();
+                }
+                ValidateProtection(endpoint!.SecurityMode, endpoint.SecurityPolicyUri, allowIntegrity: false);
+                return factory == null ? null : kind;
+            }
             if (!kind.HasValue)
             {
                 if (IsFlowResource(url) ||

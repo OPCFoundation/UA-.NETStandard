@@ -50,7 +50,7 @@ namespace Opc.Ua.Bindings.Native
         /// <summary>
         /// Gets whether the actual native transport role created this stream.
         /// </summary>
-        public bool IsLocal => (StreamId & 1) == (Connection.Peer.IsClient ? 0UL : 1UL);
+        public bool IsLocal => (StreamId & 1) == (Connection.IsClient ? 0UL : 1UL);
 
         /// <summary>
         /// Gets whether admission to this stream has closed.
@@ -132,9 +132,18 @@ namespace Opc.Ua.Bindings.Native
                     {
                         return null;
                     }
-                    return await Connection.Backend.StreamAsync(
+                    NativeQuicCompletion sent = await Connection.Backend.StreamAsync(
                         Handle, NativeQuicStreamOperation.Send, request,
                         tryCommit == null ? linked.Token : CancellationToken.None).ConfigureAwait(false);
+                    if ((flags & 1) != 0 && sent.NativeStatus == NativeQuicStatus.Success &&
+                        sent.BytesTransferred == payload.Length)
+                    {
+                        lock (m_gate)
+                        {
+                            m_sendFinished = true;
+                        }
+                    }
+                    return sent;
                 }
                 finally
                 {
@@ -171,6 +180,7 @@ namespace Opc.Ua.Bindings.Native
                 if (m_reset == null)
                 {
                     m_resetting = true;
+                    m_sendFinished = false;
                     m_reset = new TaskCompletionSource<NativeQuicCompletion>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
                     signal = m_activeSend?.CancelAsync(errorCode) ?? Task.CompletedTask;
@@ -286,7 +296,12 @@ namespace Opc.Ua.Bindings.Native
                     idle = m_activeOperations == 0 ? Task.CompletedTask : m_idle.Task;
                 }
                 await idle.ConfigureAwait(false);
-                if (!Connection.IsClosed && (IsBidirectional || IsLocal))
+                bool graceful;
+                lock (m_gate)
+                {
+                    graceful = m_sendFinished && !m_resetting;
+                }
+                if (!Connection.IsClosed && !graceful && (IsBidirectional || IsLocal))
                 {
                     NativeQuicCompletion reset = await NativeQuicConnection.DrainCleanupAdmissionAsync(
                         () => Connection.Backend.StreamAsync(
@@ -297,7 +312,7 @@ namespace Opc.Ua.Bindings.Native
                 }
                 NativeQuicCompletion released = await NativeQuicConnection.DrainCleanupAdmissionAsync(
                     () => Connection.Backend.StreamAsync(
-                        Handle, NativeQuicStreamOperation.Release,
+                        Handle, graceful ? NativeQuicStreamOperation.ReleaseGracefully : NativeQuicStreamOperation.Release,
                         new NativeQuicRequest(Connection.Settings.OperationTimeout)),
                     Connection.Settings.OperationTimeout).ConfigureAwait(false);
                 NativeQuicConnection.RequireSuccess(released);
@@ -418,6 +433,9 @@ namespace Opc.Ua.Bindings.Native
         private NativeQuicCancellation? m_activeSend;
         private bool m_closing;
         private bool m_resetting;
+
+        /// <summary>Whether FIN completed without an explicit send reset.</summary>
+        private bool m_sendFinished;
         private int m_activeOperations;
     }
 }

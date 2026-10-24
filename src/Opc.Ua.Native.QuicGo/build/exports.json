@@ -1,6 +1,6 @@
 {
-  "abi": 4,
-  "operation_revision": 3,
+  "abi": 7,
+  "operation_revision": 7,
   "production_exports": [
     "opcua_quic_abi",
     "opcua_quic_listen_begin",

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -134,21 +135,30 @@ namespace Opc.Ua.DataChannels
             }
             FlowRevision revision = flow.Revisions[flow.SendRevision];
             if (payload.Length > revision.Parameters.MaxMessageSize ||
-                payload.Length > m_carrier.MaxRecordSize - 13 ||
-                (flow.IsDatagram && payload.Length > m_carrier.MaxDatagramSize - 17))
+                (IsNative && payload.Length > m_carrier.MaxRecordSize - 13) ||
+                (flow.IsDatagram && payload.Length > (flow.DirectLane != null
+                    ? DirectDatagramCapacity - DirectDatagramCodec.HeaderSize : m_carrier.MaxDatagramSize - 17)))
             {
                 return DataChannelResult.TooLarge;
+            }
+            if (!IsNative && !IsSupportedUascPayload(flow, payload))
+            {
+                return DataChannelResult.InvalidArgument;
             }
             if (flow.LastDataId == uint.MaxValue)
             {
                 return ResetLocked(flow, DataChannelResult.InvalidState);
             }
             int cost = checked(payload.Length + DataOverhead(flow));
-            if (!TryReserveMessageLocked(flow, revision, cost, true))
+            int storageCost = checked(payload.Length +
+                (IsNative ? 13 + (flow.IsDatagram ? 4 : 0) :
+                    flow.DirectLane != null ? DataOverhead(flow) : 0));
+            if (!TryReserveMessageLocked(flow, revision, cost, true, storageCost: storageCost))
             {
                 mayWait = true;
                 return DataChannelResult.WouldBlock;
             }
+
             uint id = ++flow.LastDataId;
             var record = new FlowRecord(FlowRecordKind.Data, flow.SendRevision, id, payload);
             try
@@ -162,15 +172,21 @@ namespace Opc.Ua.DataChannels
                     Record = record,
                     PayloadLength = payload.Length,
                     Cost = cost,
+                    StorageCost = storageCost,
                     QueuedAt = m_clock.GetTimestamp(),
                     TimeToLive = timeToLive,
                     Cancellation = cancellationToken,
                     PreviousControl = flow.LastControlWrite
                 };
                 EncodeWriteLocked(item);
-                // Record.Body must not retain the caller's mutable backing storage.
-                item.Record = FlowRecordCodec.DecodeExact(
-                    item.Encoded[(!IsNative || flow.IsDatagram ? 4 : 0)..], m_codecLimits);
+                if (!IsNative && flow.DirectLane == null)
+                {
+                    item.Encoded = item.Encoded.Copy();
+                }
+                item.Record = IsNative
+                    ? FlowRecordCodec.DecodeExact(item.Encoded[(flow.IsDatagram ? 4 : 0)..], m_codecLimits)
+                    : new FlowRecord(FlowRecordKind.Data, record.Revision, record.MessageId,
+                        flow.DirectLane != null ? item.Encoded[DataOverhead(flow)..] : item.Encoded);
                 flow.Outgoing.AddLast(item);
                 WakeLocked();
                 ArmTimerLocked();
@@ -178,9 +194,32 @@ namespace Opc.Ua.DataChannels
             }
             catch
             {
-                ReleaseMessageLocked(flow, revision.Number, cost, true);
+                ReleaseMessageLocked(flow, revision.Number, cost, true, storageCost);
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Validates the visible UADP message class against the explicitly selected UASC payload profile.
+        /// </summary>
+        private static bool IsSupportedUascPayload(FlowState flow, ByteString payload)
+        {
+            UadpNetworkMessageHeader header;
+            try
+            {
+                header = UadpApplicationPayloadHeaderCodec.DecodePublisherHeader(payload);
+            }
+            catch (FlowCodecException)
+            {
+                return false;
+            }
+            return header.NetworkMessageType switch
+            {
+                0 or 1 or 2 => flow.Parameters.Protocol == DataChannelProfiles.UadpPayload,
+                3 => flow.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
+                    DataChannelProfiles.UadpOpaqueApplicationPayload,
+                _ => false
+            };
         }
 
         /// <summary>
@@ -220,7 +259,7 @@ namespace Opc.Ua.DataChannels
                 }
             }
             int bodyLength = FlowControlCodec.GetEncodedBodyLength(control, revision, id, m_codecLimits);
-            int cost = checked((bodyLength + (IsNative ? 13 : 17)) * (control is FlowCommit ? 4 : 2));
+            int cost = checked((bodyLength + (IsNative ? 13 : sizeof(uint) * 2)) * (control is FlowCommit ? 4 : 2));
             if (!TryReserveReceiveControlLocked(cost))
             {
                 discard?.Invoke();
@@ -269,15 +308,37 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Uses only the common codec for complete carrier payloads.
+        /// Uses the carrier-specific codec for complete application messages.
         /// </summary>
         private void EncodeWriteLocked(FlowWriteItem item)
         {
             FlowRecord record = item.Record;
-            if (!IsNative)
+            if (IsDirectDatagramWrite(item))
             {
-                item.Encoded = FlowCarrierCodec.EncodeUascPayload(
-                    m_wireCarrier, item.ChannelId, in record, m_codecLimits, out uint requestId);
+                FlowState datagramFlow = item.Flow!;
+                if (!m_directAssociations.TryGetUsable(datagramFlow, true, out var association))
+                {
+                    throw new DataChannelException(DataChannelResult.InvalidState);
+                }
+                item.Encoded = DirectDatagramCodec.Encode(
+                    association.Token, record.Revision, record.MessageId, record.Body,
+                    m_codecLimits, DirectDatagramCapacity);
+            }
+            else if (IsDirectWrite(item))
+            {
+                item.Encoded = item.IsData
+                    ? DirectDeliveryFrameCodec.EncodeData(record.Body, m_codecLimits)
+                    : DirectDeliveryFrameCodec.EncodeBarrier(
+                        item.Control!, record.Revision, record.MessageId, m_codecLimits);
+            }
+            else if (!IsNative)
+            {
+                item.Encoded = UascFlowMessageCodec.Encode(
+                    m_wireCarrier,
+                    item.ChannelId,
+                    in record,
+                    m_codecLimits,
+                    out uint requestId);
                 item.RequestId = requestId;
             }
             else if (item.Path == DataChannelPath.Datagram)
@@ -476,7 +537,7 @@ namespace Opc.Ua.DataChannels
             {
                 return false;
             }
-            if (IsShared && (flow.SendCredit < item.Cost || m_sendConnectionCredit < item.Cost))
+            if (UsesFlowCredit(flow) && (flow.SendCredit < item.Cost || m_sendConnectionCredit < item.Cost))
             {
                 flow.CreditStalls++;
                 return false;
@@ -534,7 +595,39 @@ namespace Opc.Ua.DataChannels
                 () => CommitWrite(item));
             try
             {
-                result = await m_carrier.SendAsync(write, m_shutdown.Token).ConfigureAwait(false);
+                if (IsDirectDatagramWrite(item))
+                {
+                    result = await ((IDataChannelDirectDatagramProvider)m_carrier)
+                        .SendDirectDatagramAsync(write, m_shutdown.Token).ConfigureAwait(false);
+                }
+                else if (IsDirectWrite(item))
+                {
+                    FlowDirectLane lane = item.Flow!.DirectLane!;
+                    using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                        m_shutdown.Token, lane.Shutdown.Token);
+                    Stream stream = await lane.Sender.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                    if (!write.TryCommit())
+                    {
+                        result = write.Result;
+                    }
+                    else
+                    {
+                        if (item.Control?.Operation == FlowOperation.End &&
+                            stream is IDataChannelDirectStreamCompletion completion)
+                        {
+                            await completion.CompleteWritesAsync(item.Encoded, linked.Token).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await stream.WriteAsync(item.Encoded.Memory, linked.Token).ConfigureAwait(false);
+                        }
+                        result = DataChannelResult.Good;
+                    }
+                }
+                else
+                {
+                    result = await m_carrier.SendAsync(write, m_shutdown.Token).ConfigureAwait(false);
+                }
                 if (result == DataChannelResult.Good && !write.IsCommitted)
                 {
                     invalidCarrierCommit = write.Result == DataChannelResult.Good;
@@ -602,7 +695,7 @@ namespace Opc.Ua.DataChannels
                     ReleaseWriteLocked(item, result);
                     if (item.Committed && result != DataChannelResult.Good)
                     {
-                        if (!IsNative ||
+                        if ((!IsNative && !IsDirectWrite(item) && !IsDirectDatagramWrite(item)) ||
                             item.Path == DataChannelPath.Management ||
                             result == DataChannelResult.SecurityFailure)
                         {
@@ -676,7 +769,7 @@ namespace Opc.Ua.DataChannels
                         flow.QueueExpiryDrops++;
                         return DataChannelResult.Timeout;
                     }
-                    if (IsShared && (flow.SendCredit < item.Cost || m_sendConnectionCredit < item.Cost))
+                    if (UsesFlowCredit(flow) && (flow.SendCredit < item.Cost || m_sendConnectionCredit < item.Cost))
                     {
                         return DataChannelResult.WouldBlock;
                     }
@@ -684,12 +777,13 @@ namespace Opc.Ua.DataChannels
                     {
                         return DataChannelResult.WouldBlock;
                     }
-                    if (IsShared)
+                    if (UsesFlowCredit(flow))
                     {
                         flow.SendCredit -= (uint)item.Cost;
                         m_sendConnectionCredit -= (uint)item.Cost;
                     }
-                    flow.LastSentDataId = item.Record.MessageId;
+                    flow.LastSentDataId = flow.DirectLane != null && !flow.IsDatagram
+                        ? checked(flow.LastSentDataId + 1) : item.Record.MessageId;
                 }
                 DataChannelResult result = item.CommitAction?.Invoke() ?? DataChannelResult.Good;
                 if (result == DataChannelResult.Good)
@@ -708,7 +802,25 @@ namespace Opc.Ua.DataChannels
             return item.IsData ||
                 item.Control!.Operation is FlowOperation.Open or FlowOperation.Accept or
                     FlowOperation.Ready or FlowOperation.Prepare or FlowOperation.AcceptUpdate or
-                    FlowOperation.Commit or FlowOperation.Credit;
+                    FlowOperation.Commit or FlowOperation.Credit or FlowOperation.Associate or
+                    FlowOperation.AssociateAck;
+        }
+
+        /// <summary>
+        /// Only payload and directional ordered barriers use the actual admitted stream.
+        /// </summary>
+        private static bool IsDirectWrite(FlowWriteItem item)
+        {
+            return item.Flow is { DirectLane: not null, IsDatagram: false } &&
+                (item.IsData || item.Control is FlowCommit or FlowSignal { Operation: FlowOperation.End });
+        }
+
+        /// <summary>
+        /// Direct datagrams carry only DATA; their controls remain on secured management.
+        /// </summary>
+        private static bool IsDirectDatagramWrite(FlowWriteItem item)
+        {
+            return item.IsData && item.Flow is { DirectLane: not null, IsDatagram: true };
         }
 
         /// <summary>
@@ -727,7 +839,7 @@ namespace Opc.Ua.DataChannels
             }
             if (item.IsData)
             {
-                ReleaseMessageLocked(item.Flow!, item.Record.Revision, item.Cost, true);
+                ReleaseMessageLocked(item.Flow!, item.Record.Revision, item.Cost, true, item.StorageCost);
             }
             else if (item.ControlReserved)
             {
@@ -744,15 +856,15 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private void GrantCreditLocked(FlowState flow)
         {
-            if (!flow.MayReceive || flow.RemoteEnded || flow.IsTerminal || !flow.Ready)
+            if (!UsesFlowCredit(flow) || !flow.MayReceive || flow.RemoteEnded || flow.IsTerminal || !flow.Ready)
             {
                 return;
             }
             FlowRevision revision = flow.Revisions[flow.ReceiveRevision];
             uint available = (uint)Math.Max(0, revision.Parameters.MaxReceiveBytes - flow.ReceiveBytes);
             uint connectionAvailable = (uint)Math.Max(0, m_options.MaxContextBytes - m_receiveBytes);
-            uint threshold = Math.Max(flow.LastCreditGrant / 2, revision.Parameters.MaxMessageSize + 17);
-            uint connectionThreshold = Math.Max(m_lastConnectionGrant / 2, revision.Parameters.MaxMessageSize + 17);
+            uint threshold = Math.Max(flow.LastCreditGrant / 2, revision.Parameters.MaxMessageSize);
+            uint connectionThreshold = Math.Max(m_lastConnectionGrant / 2, revision.Parameters.MaxMessageSize);
             uint channelGrant = flow.ReceiveCredit < threshold && available > flow.ReceiveCredit
                 ? available - flow.ReceiveCredit : 0;
             uint connectionGrant = m_receiveConnectionCredit < connectionThreshold &&
@@ -795,7 +907,7 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private void ReplenishConnectionCreditLocked()
         {
-            if (!IsShared || m_identity == null || m_flows.Count == 0)
+            if (!UsesUascCredit || m_identity == null || m_flows.Count == 0)
             {
                 return;
             }

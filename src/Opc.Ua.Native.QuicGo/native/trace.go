@@ -107,11 +107,19 @@ func (t *trace) RecordEvent(event qlogwriter.Event) {
 	switch e := event.(type) {
 	case qlog.ParametersSet:
 		if string(e.Initiator) == "remote" {
-			t.remoteMax, t.remote09, t.peerSeen = uint64(e.MaxDatagramFrameSize), e.ResetStreamAt09, true
+			t.remoteMax = 0
+			if e.MaxDatagramFrameSize > 0 {
+				t.remoteMax = uint64(e.MaxDatagramFrameSize)
+			}
+			t.remote09, t.peerSeen = e.ResetStreamAt09, true
 		} else if string(e.Initiator) == "local" {
 			// The pinned native emitter, separately golden-tested, emits empty TP1d.
 			// Only the REMOTE fact uses the exact-receipt overlay, not legacy support.
-			t.localMax, t.local09, t.localSeen = uint64(e.MaxDatagramFrameSize), e.EnableResetStreamAt, true
+			t.localMax = 0
+			if e.MaxDatagramFrameSize > 0 {
+				t.localMax = uint64(e.MaxDatagramFrameSize)
+			}
+			t.local09, t.localSeen = e.EnableResetStreamAt, true
 		}
 	case qlog.PacketSent:
 		t.packet(true, e.Frames)

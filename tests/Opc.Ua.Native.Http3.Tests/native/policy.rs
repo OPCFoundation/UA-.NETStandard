@@ -148,7 +148,7 @@ fn configuration_versions_roles_sessions_origins_and_allocator_ids_fail_closed()
     ] {
         let mut config = configuration(0);
         match index {
-            0 => config.abi_version = 2,
+            0 => config.abi_version = 3,
             1 => config.struct_size -= 1,
             2 => config.origin_policy = 3,
             3 => config.maximum_sessions = 0,
@@ -390,7 +390,15 @@ fn caller_strings_and_tags_are_copied_at_creation_and_cannot_rebind_a_connection
 }
 
 fn raw_request(mut headers: Vec<Header>) -> Peer {
-    let mut server = peer(&configuration(1), facts(1));
+    raw_request_with_configuration(configuration(1), &mut headers, Some("opcua-flow/1"))
+}
+
+fn raw_request_with_configuration(
+    config: Config,
+    headers: &mut Vec<Header>,
+    protocol: Option<&str>,
+) -> Peer {
+    let mut server = peer(&config, facts(1));
     let mut client = ClientConnection::new(strict_settings(Role::Client, 8, 4096));
     client
         .set_webtransport_transport_verified(true, true)
@@ -407,11 +415,12 @@ fn raw_request(mut headers: Vec<Header>) -> Peer {
                 .unwrap();
         }
     }
-    let mut request = ConnectRequest::new("https", "plant.example:8443", "/ua/wt?resource=line-2")
-        .available_protocols(vec!["opcua-flow/1".into()])
-        .to_headers()
-        .unwrap();
-    request.append(&mut headers);
+    let mut request = ConnectRequest::new("https", "plant.example:8443", "/ua/wt?resource=line-2");
+    if let Some(protocol) = protocol {
+        request = request.available_protocols(vec![protocol.into()]);
+    }
+    let mut request = request.to_headers().unwrap();
+    request.append(headers);
     let id = client.send_request(&request, false).unwrap();
     let (bytes, _) = client.take_stream_data(id).unwrap();
     server.command(1, id, 0, 0, &bytes).unwrap();
@@ -500,7 +509,11 @@ fn valid_response_releases_buffered_streams_only_after_policy_establishment() {
 }
 
 fn rejected_response(headers: &[Header], expected: Code) {
-    let mut client = peer(&configuration(0), facts(0));
+    rejected_response_with_configuration(configuration(0), headers, expected);
+}
+
+fn rejected_response_with_configuration(config: Config, headers: &[Header], expected: Code) {
+    let mut client = peer(&config, facts(0));
     let mut server = ServerConnection::new(strict_settings(Role::Server, 8, 4096));
     server
         .set_webtransport_transport_verified(true, true)
@@ -567,6 +580,228 @@ fn rejected_response(headers: &[Header], expected: Code) {
         "cleanup acknowledgement must not resume protocol delivery"
     );
     assert_eq!(client.command(12, 0, 4, 0, &[]).unwrap_err().code, expected);
+}
+
+#[test]
+fn baseline_configuration_requires_explicit_version_without_a_private_subprotocol() {
+    let mut config = configuration(0);
+    config.application_protocol = Utf8::borrowed("");
+    assert_eq!(configuration_error(&config).code, Code::InvalidProtocol);
+    config.abi_version = 2;
+    config.application_pair_tag = 0;
+    unsafe { Policy::from_config(&config, &facts(0)) }.unwrap();
+    config.application_protocol = Utf8 {
+        data: std::ptr::null(),
+        length: 0,
+    };
+    unsafe { Policy::from_config(&config, &facts(0)) }.unwrap();
+    for value in ["opcua-flow/1", "opcua-uasc-draft", "white space", "\0"] {
+        config.application_protocol = Utf8::borrowed(value);
+        assert_eq!(configuration_error(&config).code, Code::InvalidProtocol);
+    }
+    config.application_protocol = Utf8::borrowed("");
+    for version in [0, 3, u32::MAX] {
+        config.abi_version = version;
+        assert_eq!(configuration_error(&config).code, Code::InvalidAbi);
+    }
+    config.abi_version = 1;
+    assert_eq!(
+        configuration_error(&config).code,
+        Code::InvalidTransportEvidence,
+        "legacy configuration still requires an application-pair correlation"
+    );
+}
+
+#[test]
+fn baseline_connect_without_application_subprotocol_carries_opaque_stream_bytes() {
+    for transport_only in [false, true] {
+        let mut client_config = configuration(0);
+        client_config.abi_version = 2;
+        client_config.application_protocol = Utf8::borrowed("");
+        let mut server_config = configuration(1);
+        server_config.abi_version = 2;
+        server_config.application_protocol = Utf8::borrowed("");
+        let mut client_facts = facts(0);
+        let mut server_facts = facts(1);
+        if transport_only {
+            for transport in [&mut client_facts, &mut server_facts] {
+                transport.abi_version = 2;
+                transport.authentication_policy = 1;
+                transport.mutual_tls_authenticated = 0;
+            }
+        }
+        let mut client = peer(&client_config, client_facts);
+        let mut server = peer(&server_config, server_facts);
+        pump(&mut client, &mut server);
+        client.command(10, 0, 0, 0, &[]).unwrap();
+        let pending = pump(&mut client, &mut server);
+        assert_eq!(
+            pending.iter().filter(|(_, event)| event.kind == 12).count(),
+            1
+        );
+        assert!(!pending.iter().any(|(_, event)| event.kind == 13));
+        server.command(11, 0, 200, 0, &[]).unwrap();
+        let connected = pump(&mut client, &mut server);
+        assert_eq!(
+            connected
+                .iter()
+                .filter(|(_, event)| event.kind == 13)
+                .count(),
+            2
+        );
+        client.command(12, 0, 4, 0, &[]).unwrap();
+        client.command(13, 4, 0, 0, b"\0baseline\xffbytes").unwrap();
+        let events = pump(&mut client, &mut server);
+        assert!(events.iter().any(|(side, event)| *side == 1
+            && event.kind == 15
+            && event.stream == 4
+            && event.data == b"\0baseline\xffbytes"));
+        server.command(13, 4, 0, 0, b"\xffreply\0").unwrap();
+        let events = pump(&mut client, &mut server);
+        assert!(events.iter().any(|(side, event)| *side == 0
+            && event.kind == 15
+            && event.stream == 4
+            && event.data == b"\xffreply\0"));
+    }
+}
+
+#[test]
+fn baseline_authority_path_query_and_origin_remain_mandatory() {
+    for (partition, expected) in [
+        (0, Code::AuthorityDenied),
+        (1, Code::PathDenied),
+        (2, Code::PathDenied),
+        (3, Code::OriginDenied),
+        (4, Code::OriginDenied),
+    ] {
+        let mut client_config = configuration(0);
+        client_config.abi_version = 2;
+        client_config.application_protocol = Utf8::borrowed("");
+        client_config.origin_policy = 2;
+        client_config.origin = Utf8::borrowed("https://controller.example");
+        match partition {
+            0 => client_config.authority = Utf8::borrowed("wrong.example:8443"),
+            1 => client_config.path = Utf8::borrowed("/other?resource=line-2"),
+            2 => client_config.path = Utf8::borrowed("/ua/wt?resource=other"),
+            3 => client_config.origin_policy = 0,
+            _ => client_config.origin = Utf8::borrowed("https://wrong.example"),
+        }
+        if partition == 3 {
+            client_config.origin = Utf8::borrowed("");
+        }
+        let mut server_config = configuration(1);
+        server_config.abi_version = 2;
+        server_config.application_protocol = Utf8::borrowed("");
+        server_config.origin_policy = 2;
+        server_config.origin = Utf8::borrowed("https://controller.example");
+        let (mut client, mut server) = pending(client_config, server_config);
+        let before = server.resource_snapshot();
+        let error = server.command(11, 0, 200, 0, &[]).unwrap_err();
+        assert_eq!((error.scope, error.code), (Scope::Session, expected));
+        assert_eq!(server.resource_snapshot(), before);
+        assert!(server.session_state().is_none());
+        server.command(11, 0, 403, 0, &[]).unwrap();
+        assert!(
+            !pump(&mut client, &mut server)
+                .iter()
+                .any(|(_, event)| event.kind == 13)
+        );
+    }
+}
+
+#[test]
+fn baseline_omits_http_credentials_and_refuses_private_or_duplicate_negotiation_headers() {
+    for (mut headers, expected) in [
+        (
+            vec![Header::new(b"cookie", b"test=value").unwrap()],
+            Code::PeerProtocol,
+        ),
+        (
+            vec![Header::new(b"authorization", b"Bearer test").unwrap()],
+            Code::PeerProtocol,
+        ),
+        (
+            vec![Header::new(b"proxy-authorization", b"Basic test").unwrap()],
+            Code::PeerProtocol,
+        ),
+        (
+            vec![Header::new(b"wt-available-protocols", b"\"opcua-flow/1\"").unwrap()],
+            Code::ApplicationProtocolDenied,
+        ),
+        (
+            vec![
+                Header::new(b"wt-available-protocols", b"\"a\"").unwrap(),
+                Header::new(b"wt-available-protocols", b"\"b\"").unwrap(),
+            ],
+            Code::PeerProtocol,
+        ),
+        (
+            vec![
+                Header::new(b"origin", b"https://a.example").unwrap(),
+                Header::new(b"origin", b"https://b.example").unwrap(),
+            ],
+            Code::PeerProtocol,
+        ),
+        (
+            vec![Header::new(b"sec-webtransport-http3-draft", b"draft02").unwrap()],
+            Code::UnsupportedDraft,
+        ),
+    ] {
+        let mut config = configuration(1);
+        config.abi_version = 2;
+        config.application_protocol = Utf8::borrowed("");
+        let mut server = raw_request_with_configuration(config, &mut headers, None);
+        let before = server.resource_snapshot();
+        let error = server.command(11, 0, 200, 0, &[]).unwrap_err();
+        assert_eq!((error.scope, error.code), (Scope::Session, expected));
+        assert_eq!(server.resource_snapshot(), before);
+        assert!(server.session_state().is_none());
+    }
+}
+
+#[test]
+fn baseline_client_rejects_unsolicited_selected_subprotocol_and_obsolete_headers() {
+    for extra in [
+        vec![Header::new(b"wt-protocol", b"\"opcua-flow/1\"").unwrap()],
+        vec![Header::new(b"wt-protocol", b"\"\"").unwrap()],
+        vec![
+            Header::new(b"wt-protocol", b"\"a\"").unwrap(),
+            Header::new(b"wt-protocol", b"\"b\"").unwrap(),
+        ],
+        vec![Header::new(b"sec-webtransport-http3-draft", b"draft02").unwrap()],
+    ] {
+        let mut config = configuration(0);
+        config.abi_version = 2;
+        config.application_protocol = Utf8::borrowed("");
+        let mut headers = vec![Header::new(b":status", b"200").unwrap()];
+        headers.extend(extra);
+        rejected_response_with_configuration(config, &headers, Code::ApplicationProtocolDenied);
+    }
+}
+
+#[test]
+fn baseline_and_legacy_subprotocol_policies_cannot_silently_fallback() {
+    for baseline_client in [false, true] {
+        let mut client_config = configuration(0);
+        let mut server_config = configuration(1);
+        let baseline = if baseline_client {
+            &mut client_config
+        } else {
+            &mut server_config
+        };
+        baseline.abi_version = 2;
+        baseline.application_protocol = Utf8::borrowed("");
+        let (mut client, mut server) = pending(client_config, server_config);
+        let error = server.command(11, 0, 200, 0, &[]).unwrap_err();
+        assert_eq!(error.code, Code::ApplicationProtocolDenied);
+        assert!(server.session_state().is_none());
+        server.command(11, 0, 403, 0, &[]).unwrap();
+        assert!(
+            !pump(&mut client, &mut server)
+                .iter()
+                .any(|(_, event)| event.kind == 13)
+        );
+    }
 }
 
 #[test]

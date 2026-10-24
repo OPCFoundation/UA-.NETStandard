@@ -74,6 +74,7 @@ type connection struct {
 	native                 *quic.Conn
 	trace                  *trace
 	peerURI                string
+	authenticationPolicy   uint32
 	client                 bool
 	handshakeConfirmed     bool
 	mutualTLSAuthenticated bool

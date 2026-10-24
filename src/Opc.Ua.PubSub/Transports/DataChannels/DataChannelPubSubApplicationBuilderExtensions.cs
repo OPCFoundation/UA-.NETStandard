@@ -36,11 +36,13 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Composes the real DataChannel transport into the existing non-DI PubSub builder.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelPubSubApplicationBuilderExtensions
     {
         /// <summary>
         /// Registers one carrier profile with an application-owned flow provider.
-        /// UseAllStandardEncoders supplies the ordinary UADP and JSON codecs.
+        /// UseAllStandardEncoders supplies the required UADP codec and other PubSub encoders.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         public static PubSubApplicationBuilder UseDataChannelTransport(

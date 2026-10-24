@@ -310,22 +310,29 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 ByteString payload = write.Payload.Copy();
                 if (write.IsData)
                 {
-                    int prefix = Kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc ||
-                        write.Path == DataChannelPath.Datagram
-                        ? 4 : 0;
-                    uint length = BinaryPrimitives.ReadUInt32LittleEndian(payload.Span[prefix..]);
-                    if (length + 4 != payload.Length - prefix || payload[prefix + 4] != 0)
+                    if (Kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                        DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
                     {
-                        throw new InvalidOperationException("The Core DATA record has an invalid boundary.");
+                        Payloads.Enqueue(payload);
                     }
-                    Payloads.Enqueue(payload[(prefix + 13)..].Copy());
+                    else
+                    {
+                        int prefix = write.Path == DataChannelPath.Datagram ? 4 : 0;
+                        uint length = BinaryPrimitives.ReadUInt32LittleEndian(payload.Span[prefix..]);
+                        if (length + 4 != payload.Length - prefix || payload[prefix + 4] != 0)
+                        {
+                            throw new InvalidOperationException("The Core DATA record has an invalid boundary.");
+                        }
+                        Payloads.Enqueue(payload[(prefix + 13)..].Copy());
+                    }
                 }
                 await m_records.Writer.WriteAsync(
-                    new Packet(write.Path, write.StreamId, write.RequestId, payload),
+                    new Packet(write.Path, write.StreamId, write.RequestId, payload, write.IsData),
                     CancellationToken.None).ConfigureAwait(false);
                 return DataChannelResult.Good;
             }
 
+            /// <summary>
             /// <inheritdoc/>
             public ValueTask CloseFlowAsync(
                 ulong streamId,
@@ -369,10 +376,15 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     await foreach (Packet packet in m_records.Reader.ReadAllAsync(m_stop.Token).ConfigureAwait(false))
                     {
                         DataChannelResult result;
-                        if (Kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc)
+                        if (Kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                            DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
                         {
                             result = await m_peer!.ReceiveUascAsync(
-                                (byte)'F', packet.RequestId, packet.Payload, m_stop.Token).ConfigureAwait(false);
+                                packet.IsData ? DataChannelUascMessageKind.Flo : DataChannelUascMessageKind.Flc,
+                                (byte)'F',
+                                packet.RequestId,
+                                packet.Payload,
+                                m_stop.Token).ConfigureAwait(false);
                         }
                         else if (packet.Path == DataChannelPath.Datagram)
                         {
@@ -398,7 +410,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             /// <summary>
             /// Owns one committed record until the peer has finished processing it.
             /// </summary>
-            private sealed record Packet(DataChannelPath Path, ulong StreamId, uint RequestId, ByteString Payload);
+            private sealed record Packet(
+                DataChannelPath Path,
+                ulong StreamId,
+                uint RequestId,
+                ByteString Payload,
+                bool IsData);
 
             private readonly Channel<Packet> m_records;
             private readonly CancellationTokenSource m_stop = new();

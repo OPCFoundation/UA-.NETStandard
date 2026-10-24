@@ -18,6 +18,8 @@ namespace Opc.Ua.Client.DataChannels
     /// Generated-proxy Session control for a separately authenticated flow context.
     /// All control operations use ordinary Call and preserve the data-path readiness/revision protocol.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelSessionControl
     {
         /// <summary>

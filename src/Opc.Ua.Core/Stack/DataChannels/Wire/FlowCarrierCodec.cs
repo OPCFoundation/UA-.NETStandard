@@ -69,62 +69,6 @@ namespace Opc.Ua.DataChannels.Wire
     internal static class FlowCarrierCodec
     {
         /// <summary>
-        /// Decodes a verified, unpadded FLO body for either explicitly selected UASC flow profile.
-        /// </summary>
-        /// <exception cref="FlowCodecException"></exception>
-        internal static FlowWireEnvelope DecodeUascPayload(
-            FlowCarrier carrier,
-            byte chunkType,
-            uint requestId,
-            ByteString plaintextBody,
-            FlowCodecLimits limits)
-        {
-            RequireUasc(carrier);
-            if (chunkType != (byte)'F')
-            {
-                throw new FlowCodecException(FlowCodecError.NonFinalUasc);
-            }
-            if (requestId != 0)
-            {
-                throw new FlowCodecException(FlowCodecError.RequestIdMismatch);
-            }
-            uint channelId = ReadChannel(plaintextBody);
-            plaintextBody = plaintextBody[4..];
-            FlowRecord record = FlowRecordCodec.DecodeExact(plaintextBody, limits);
-            FlowControl? control = record.Kind == FlowRecordKind.Control ?
-                FlowControlCodec.Decode(in record, limits) : null;
-            ValidateUasc(carrier, channelId, in record, control);
-            return new FlowWireEnvelope(channelId, record, control);
-        }
-
-        /// <summary>
-        /// Encodes a UASC flow body only and supplies its required RequestId, without applying any security.
-        /// </summary>
-        /// <exception cref="FlowCodecException"></exception>
-        internal static ByteString EncodeUascPayload(
-            FlowCarrier carrier,
-            uint channelId,
-            in FlowRecord record,
-            FlowCodecLimits limits,
-            out uint requestId)
-        {
-            RequireUasc(carrier);
-            int recordLength = FlowRecordCodec.GetEncodedLength(in record, limits);
-            FlowControl? control = record.Kind == FlowRecordKind.Control ?
-                FlowControlCodec.Decode(in record, limits) : null;
-            ValidateUasc(carrier, channelId, in record, control);
-            requestId = 0;
-            if (recordLength > int.MaxValue - 4)
-            {
-                throw new FlowCodecException(FlowCodecError.TooLarge);
-            }
-            byte[] bytes = new byte[checked(recordLength + 4)];
-            BinaryPrimitives.WriteUInt32LittleEndian(bytes, channelId);
-            FlowRecordCodec.Write(in record, bytes.AsSpan(4), limits);
-            return new ByteString(bytes);
-        }
-
-        /// <summary>
         /// Decodes exactly one native DATA datagram after native transport context framing has been removed.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
@@ -170,31 +114,6 @@ namespace Opc.Ua.DataChannels.Wire
         }
 
         /// <summary>
-        /// Checks dedicated addressing and CONTROL body/prefix consistency.
-        /// </summary>
-        /// <exception cref="FlowCodecException"></exception>
-        private static void ValidateUasc(
-            FlowCarrier carrier,
-            uint channelId,
-            in FlowRecord record,
-            FlowControl? control)
-        {
-            if (control != null)
-            {
-                FlowControlCodec.ValidateCarrier(control, carrier);
-                if (control.Flow != channelId)
-                {
-                    throw new FlowCodecException(FlowCodecError.InvalidFlow);
-                }
-            }
-            else if (record.Kind == FlowRecordKind.Data &&
-                (channelId == 0 || (carrier == FlowCarrier.DedicatedUasc && channelId != 1)))
-            {
-                throw new FlowCodecException(FlowCodecError.InvalidFlow);
-            }
-        }
-
-        /// <summary>
         /// Checks the datagram's permitted kind and address.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
@@ -221,18 +140,6 @@ namespace Opc.Ua.DataChannels.Wire
                 throw new FlowCodecException(FlowCodecError.Truncated);
             }
             return BinaryPrimitives.ReadUInt32LittleEndian(payload.Span);
-        }
-
-        /// <summary>
-        /// Requires an explicitly selected UASC flow profile.
-        /// </summary>
-        /// <exception cref="FlowCodecException"></exception>
-        private static void RequireUasc(FlowCarrier carrier)
-        {
-            if (carrier is not (FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc))
-            {
-                throw new FlowCodecException(FlowCodecError.CarrierMismatch);
-            }
         }
 
         /// <summary>

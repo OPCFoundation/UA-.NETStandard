@@ -32,10 +32,13 @@ namespace Opc.Ua.Server.DataChannels
             DataChannelResult result = DataChannelResult.NotAuthorized;
             SessionFlow? flow = null;
             DataChannelSource? source = null;
+            CancellationToken sourceRevocationToken = default;
             try
             {
                 ContextRegistration? registration = FindContext(request.Context.ContextId, request.Context.Generation);
-                if (registration == null || !Sources.TryGet(parameters.ResourceUri ?? string.Empty, out source))
+                if (registration == null ||
+                    !Sources.TryGetWithRevocation(
+                        parameters.ResourceUri ?? string.Empty, out source, out sourceRevocationToken))
                 {
                     return new DataChannelAuthorization(result);
                 }
@@ -133,13 +136,18 @@ namespace Opc.Ua.Server.DataChannels
                         flow.PendingOperation.Prepared = true;
                     }
                 }
+                CancellationToken revocationToken = flow?.RevocationToken ?? default;
+                if (flow == null && request.Mode == DataChannelAuthorizationMode.Configured)
+                {
+                    revocationToken = sourceRevocationToken;
+                }
                 return new DataChannelAuthorization(
                     result,
                     parameters,
                     source.SourceNodeId,
                     flow?.Session.Id ?? NodeId.Null,
                     flow == null ? null : GetSessionLifetime(flow.Session),
-                    flow?.RevocationToken ?? default);
+                    revocationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

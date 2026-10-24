@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using Opc.Ua;
 using Opc.Ua.DataChannels;
 using Opc.Ua.PubSub.Transports.DataChannels;
 
@@ -36,6 +37,8 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Adds independently selected flow carriers and payload mappings without native carrier dependencies.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelPubSubBuilderExtensions
     {
         /// <summary>
@@ -84,5 +87,70 @@ namespace Microsoft.Extensions.DependencyInjection
                 carrierKind, provider.GetRequiredKeyedService<IDataChannelPubSubFlowProvider>(carrierKind)));
             return builder;
         }
+
+        /// <summary>
+        /// Registers the optional UAFX PubSub-over-UASC binding with a caller-owned flow provider and local policy
+        /// resolver. The provider must route the configured resource over an existing shared UASC context.
+        /// </summary>
+        public static IPubSubBuilder AddUafxDataChannelTransport(
+            this IPubSubBuilder builder,
+            IDataChannelPubSubFlowProvider flowProvider,
+            Func<PubSubConnectionDataType, DataChannelParametersDataType> parametersResolver)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (flowProvider is null)
+            {
+                throw new ArgumentNullException(nameof(flowProvider));
+            }
+            if (parametersResolver is null)
+            {
+                throw new ArgumentNullException(nameof(parametersResolver));
+            }
+            builder.Services.AddPubSubTransportFactory(_ =>
+                new DataChannelPubSubTransportFactory(
+                    DataChannelCarrierKind.SharedUasc,
+                    flowProvider,
+                    DataChannelPubSubConfiguration.UafxTransportProfile,
+                    parametersResolver));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a DI-owned provider and local policy resolver for the optional UAFX PubSub-over-UASC binding.
+        /// </summary>
+        public static IPubSubBuilder AddUafxDataChannelTransport(
+            this IPubSubBuilder builder,
+            Func<IServiceProvider, IDataChannelPubSubFlowProvider> flowProviderFactory,
+            Func<IServiceProvider, PubSubConnectionDataType, DataChannelParametersDataType> parametersResolver)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (flowProviderFactory is null)
+            {
+                throw new ArgumentNullException(nameof(flowProviderFactory));
+            }
+            if (parametersResolver is null)
+            {
+                throw new ArgumentNullException(nameof(parametersResolver));
+            }
+            builder.Services.AddKeyedSingleton<IDataChannelPubSubFlowProvider>(
+                UafxProviderKey,
+                (provider, _) => flowProviderFactory(provider));
+            builder.Services.AddPubSubTransportFactory(provider =>
+                new DataChannelPubSubTransportFactory(
+                    DataChannelCarrierKind.SharedUasc,
+                    provider.GetRequiredKeyedService<IDataChannelPubSubFlowProvider>(
+                        UafxProviderKey),
+                    DataChannelPubSubConfiguration.UafxTransportProfile,
+                    connection => parametersResolver(provider, connection)));
+            return builder;
+        }
+
+        private const string UafxProviderKey = "UafxDataChannelPubSub";
     }
 }

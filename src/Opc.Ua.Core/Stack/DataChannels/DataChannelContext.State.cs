@@ -46,7 +46,7 @@ namespace Opc.Ua.DataChannels
         /// <exception cref="DataChannelException"></exception>
         private void Initialize()
         {
-            if (m_carrier.MaxRecordSize < 13 ||
+            if (m_carrier.MaxRecordSize < (IsNative ? FlowRecordCodec.HeaderSize : 1) ||
                 m_carrier.Identity == null ||
                 (IsNative && m_carrier.Identity.Protection != DataChannelProtectionMode.Confidential) ||
                 (m_carrier.Identity.Protection == DataChannelProtectionMode.Integrity && !m_options.AllowIntegrity) ||
@@ -111,14 +111,23 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Gets whether shared encoded-byte credit is required.
         /// </summary>
-        private bool IsShared => m_carrier.Kind == DataChannelCarrierKind.SharedUasc;
+        private bool UsesUascCredit => !IsNative;
+
+        /// <summary>
+        /// Direct lanes use transport backpressure rather than baseline additive FLO credit.
+        /// </summary>
+        private bool UsesFlowCredit(FlowState flow) => UsesUascCredit && flow.DirectLane == null;
 
         /// <summary>
         /// Gets the DATA cost in this delivery path.
         /// </summary>
         private int DataOverhead(FlowState flow)
         {
-            return 13 + (!IsNative || flow.IsDatagram ? 4 : 0);
+            if (flow.DirectLane != null)
+            {
+                return flow.IsDatagram ? DirectDatagramCodec.HeaderSize : DirectDeliveryFrameCodec.HeaderSize;
+            }
+            return IsNative ? 13 + (flow.IsDatagram ? 4 : 0) : 0;
         }
 
         /// <summary>
@@ -187,7 +196,7 @@ namespace Opc.Ua.DataChannels
                 ChannelId = flow.Id,
                 ContextId = m_contextId,
                 Generation = m_generation,
-                TransportStreamId = flow.StreamId,
+                TransportStreamId = 0,
                 SourceNodeId = flow.SourceNodeId,
                 SessionId = flow.SessionId,
                 State = flow.State,
@@ -339,20 +348,26 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Reserves actual encoded bytes and message bookkeeping before copying a body.
+        /// Reserves logical credit bytes and actual buffered bytes before copying a body.
         /// </summary>
         private bool TryReserveMessageLocked(
-            FlowState flow, FlowRevision revision, int cost, bool sending, bool applicationReserved = false)
+            FlowState flow,
+            FlowRevision revision,
+            int cost,
+            bool sending,
+            bool applicationReserved = false,
+            int? storageCost = null)
         {
+            int bufferCost = storageCost ?? cost;
             long bytes = sending ? revision.SendBytes : revision.ReceiveBytes;
             long contextBytes = sending ? m_sendBytes : m_receiveBytes;
             int messages = sending ? flow.SendMessages : flow.ReceiveMessages;
             int contextMessages = sending ? m_sendMessages : m_receiveMessages;
             if (cost > revision.Parameters.MaxReceiveBytes - bytes ||
-                cost > m_options.MaxContextBytes - contextBytes ||
+                bufferCost > m_options.MaxContextBytes - contextBytes ||
                 messages >= m_options.MaxQueueMessages ||
                 contextMessages >= m_options.MaxContextMessages ||
-                (!applicationReserved && !m_budget.TryReserveMessage(cost)))
+                (!applicationReserved && !m_budget.TryReserveMessage(bufferCost)))
             {
                 return false;
             }
@@ -361,7 +376,7 @@ namespace Opc.Ua.DataChannels
                 revision.SendBytes += cost;
                 flow.SendBytes += cost;
                 flow.SendMessages++;
-                m_sendBytes += cost;
+                m_sendBytes += bufferCost;
                 m_sendMessages++;
             }
             else
@@ -369,7 +384,7 @@ namespace Opc.Ua.DataChannels
                 revision.ReceiveBytes += cost;
                 flow.ReceiveBytes += cost;
                 flow.ReceiveMessages++;
-                m_receiveBytes += cost;
+                m_receiveBytes += bufferCost;
                 m_receiveMessages++;
             }
             return true;
@@ -378,15 +393,21 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Releases one exact DATA reservation, including an application-held old revision.
         /// </summary>
-        private void ReleaseMessageLocked(FlowState flow, uint revisionNumber, int cost, bool sending)
+        private void ReleaseMessageLocked(
+            FlowState flow,
+            uint revisionNumber,
+            int cost,
+            bool sending,
+            int? storageCost = null)
         {
+            int bufferCost = storageCost ?? cost;
             FlowRevision revision = flow.Revisions[revisionNumber];
             if (sending)
             {
                 revision.SendBytes -= cost;
                 flow.SendBytes -= cost;
                 flow.SendMessages--;
-                m_sendBytes -= cost;
+                m_sendBytes -= bufferCost;
                 m_sendMessages--;
             }
             else
@@ -394,14 +415,14 @@ namespace Opc.Ua.DataChannels
                 revision.ReceiveBytes -= cost;
                 flow.ReceiveBytes -= cost;
                 flow.ReceiveMessages--;
-                m_receiveBytes -= cost;
+                m_receiveBytes -= bufferCost;
                 m_receiveMessages--;
             }
-            m_budget.Release(FlowResource.BufferedBytes, cost);
+            m_budget.Release(FlowResource.BufferedBytes, bufferCost);
             m_budget.Release(FlowResource.Message, 1);
             RetireRevisionsLocked(flow);
             PulseCapacityLocked();
-            if (!sending && IsShared && flow.Ready && !flow.IsTerminal)
+            if (!sending && UsesFlowCredit(flow) && flow.Ready && !flow.IsTerminal)
             {
                 GrantCreditLocked(flow);
             }
@@ -411,11 +432,11 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Releases application ownership without racing closure or a revision transition.
         /// </summary>
-        private void ReleaseReceived(FlowState flow, uint revision, int cost)
+        private void ReleaseReceived(FlowState flow, uint revision, int cost, int storageCost)
         {
             lock (m_gate)
             {
-                ReleaseMessageLocked(flow, revision, cost, false);
+                ReleaseMessageLocked(flow, revision, cost, false, storageCost);
             }
         }
 
@@ -482,6 +503,8 @@ namespace Opc.Ua.DataChannels
             flow.LocalEnded = true;
             flow.RemoteEnded = true;
             flow.Ready = false;
+            flow.UascStreamingPublisherIds = default;
+            m_directAssociations.Retire(flow);
             if (m_pings.Remove(flow.Id, out FlowPing? ping))
             {
                 m_budget.Release(FlowResource.Probe, 1);
@@ -550,6 +573,7 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private void ReleaseContextReservationLocked()
         {
+            m_directAssociations.Clear();
             m_controlHeadroom?.Dispose();
             if (m_contextReserved)
             {
@@ -575,6 +599,7 @@ namespace Opc.Ua.DataChannels
             m_closed = true;
             m_closeResult = result;
             m_closedNotification = true;
+            m_uascPublisherRoutes.Clear();
             foreach (FlowState flow in m_flows.Values.ToArray())
             {
                 TerminateFlowLocked(flow, result == DataChannelResult.Good ? DataChannelResult.Closed : result);
@@ -605,6 +630,7 @@ namespace Opc.Ua.DataChannels
             m_accepted.Clear();
             ReleaseContextReservationLocked();
             m_ready.TrySetResult(result == DataChannelResult.Good ? DataChannelResult.Closed : result);
+            CompleteDirectBindingLocked(result == DataChannelResult.Good ? DataChannelResult.Closed : result);
             m_acceptChanged.Complete();
             PulseCapacityLocked();
             m_timer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -690,6 +716,14 @@ namespace Opc.Ua.DataChannels
             await CloseCoreAsync(DataChannelResult.Closed, CancellationToken.None).ConfigureAwait(false);
             await m_scheduler.ConfigureAwait(false);
             await m_ingressTask.ConfigureAwait(false);
+            if (m_directBindingTask != null)
+            {
+                await m_directBindingTask.ConfigureAwait(false);
+            }
+            if (m_directDatagramTask != null)
+            {
+                await m_directDatagramTask.ConfigureAwait(false);
+            }
             while (true)
             {
                 Task wait;
@@ -740,7 +774,6 @@ namespace Opc.Ua.DataChannels
 
         private readonly Lock m_gate = new();
         private static readonly ByteString s_zeroChallenge = new(new byte[32]);
-
         private static readonly FlowCodecLimits s_containerInspectionLimits =
             new(int.MaxValue - FlowRecordCodec.HeaderSize, int.MaxValue - FlowRecordCodec.HeaderSize, int.MaxValue);
 
@@ -754,6 +787,7 @@ namespace Opc.Ua.DataChannels
         private readonly Queue<DataChannelStateChangedEventArgs> m_stateNotifications = [];
         private readonly Queue<CancellationTokenRegistration> m_retiredRevocations = [];
         private readonly Dictionary<uint, FlowPing> m_pings = [];
+        private readonly List<UascPublisherRoute> m_uascPublisherRoutes = [];
         private readonly TaskCompletionSource<DataChannelResult> m_ready = FlowState.NewCompletion();
         private TaskSignal m_work = new();
         private TaskSignal m_capacityChanged = new();
@@ -804,7 +838,6 @@ namespace Opc.Ua.DataChannels
         private bool m_helloSent;
         private bool m_helloReceived;
         private bool m_managementBusy;
-        private bool m_dedicatedUsed;
         private bool m_closed;
         private bool m_disposed;
         private bool m_carrierCloseStarted;

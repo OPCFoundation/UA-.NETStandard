@@ -39,6 +39,8 @@ namespace Opc.Ua.PubSub.Server.DataChannels
     /// <summary>
     /// Resolves actual authorized server flows through the host's sole resource/protocol/carrier accept router.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class ServerDataChannelPubSubFlowProvider : IDataChannelPubSubFlowProvider
     {
         /// <summary>

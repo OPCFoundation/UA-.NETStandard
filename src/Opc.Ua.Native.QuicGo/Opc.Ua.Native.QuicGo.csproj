@@ -26,6 +26,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <ProjectReference Include="..\Opc.Ua.Types\Opc.Ua.Types.csproj" />
     <InternalsVisibleTo Include="Opc.Ua.Native.QuicGo.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Quic.Tests" />
   </ItemGroup>
   <ItemGroup>
     <None Include="NugetREADME.md" Pack="true" PackagePath="\" />

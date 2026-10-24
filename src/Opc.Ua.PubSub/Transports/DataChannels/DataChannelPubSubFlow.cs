@@ -37,6 +37,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Owns one flow and, optionally, a dedicated connector lifetime. Shared associations remain caller-owned.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelPubSubFlow : IAsyncDisposable
     {
         /// <summary>
@@ -56,6 +58,18 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
             CarrierKind = carrierKind;
             m_owner = owner;
+        }
+
+        /// <summary>
+        /// Transfers ownership of configured inbound route cleanup to this flow.
+        /// </summary>
+        internal DataChannelPubSubFlow(
+            DataChannel channel,
+            DataChannelCarrierKind carrierKind,
+            Action routeCleanup)
+            : this(channel, carrierKind, (IAsyncDisposable?)null)
+        {
+            m_routeCleanup = routeCleanup ?? throw new ArgumentNullException(nameof(routeCleanup));
         }
 
         /// <summary>
@@ -81,14 +95,22 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
             finally
             {
-                if (m_owner is not null)
+                try
                 {
-                    await m_owner.DisposeAsync().ConfigureAwait(false);
+                    m_routeCleanup?.Invoke();
+                }
+                finally
+                {
+                    if (m_owner is not null)
+                    {
+                        await m_owner.DisposeAsync().ConfigureAwait(false);
+                    }
                 }
             }
         }
 
         private readonly IAsyncDisposable? m_owner;
+        private Action? m_routeCleanup;
         private int m_disposed;
     }
 }

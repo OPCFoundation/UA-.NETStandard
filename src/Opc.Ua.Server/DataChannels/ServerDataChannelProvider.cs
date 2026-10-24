@@ -18,6 +18,8 @@ namespace Opc.Ua.Server.DataChannels
     /// Application-scoped source authorization and accepted-flow routing. Configured flows work
     /// independently of the optional Server model and Session-control attachment.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed partial class ServerDataChannelProvider :
         IDataChannelContextFactory,
         IDataChannelAcceptedFlowSource,
@@ -652,6 +654,8 @@ namespace Opc.Ua.Server.DataChannels
     /// <summary>
     /// A minimal audit record containing attribution and outcomes, never credential material.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed record DataChannelControlAudit(
         string Operation,
         ExpandedNodeId SourceNodeId,
@@ -668,6 +672,8 @@ namespace Opc.Ua.Server.DataChannels
     /// <summary>
     /// A recipient-scoped hint which neither allocates nor authorizes a channel.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelOffer
     {
         /// <summary>

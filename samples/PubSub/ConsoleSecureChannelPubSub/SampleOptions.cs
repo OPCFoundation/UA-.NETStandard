@@ -50,11 +50,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
         internal bool Shared { get; init; }
 
         /// <summary>
-        /// Gets whether the independently negotiated payload is JSON rather than UADP.
-        /// </summary>
-        internal bool Json { get; init; }
-
-        /// <summary>
         /// Gets whether the ordinary Session grants each flow and revision.
         /// </summary>
         internal bool SessionAuthorization { get; init; }
@@ -130,18 +125,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                         break;
                     case "--reverse":
                         options = options with { Reverse = true };
-                        break;
-                    case "--encoding":
-                        string encoding = Value(args, ref index, option);
-                        options = options with
-                        {
-                            Json = encoding switch
-                            {
-                                "uadp" => false,
-                                "json" => true,
-                                _ => throw new ArgumentException("--encoding must be uadp or json.")
-                            }
-                        };
                         break;
                     case "--authorization":
                         string authorization = Value(args, ref index, option);

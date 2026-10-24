@@ -39,15 +39,15 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
     internal static class SampleConfiguration
     {
         /// <summary>
-        /// Builds the descriptor with opener-relative direction and an independently selected payload.
+        /// Builds the UADP descriptor with opener-relative direction.
         /// </summary>
         internal static DataChannelParametersDataType Parameters(SampleOptions options)
         {
             return new DataChannelParametersDataType
             {
                 ResourceUri = Resource,
-                Protocol = options.Json ? DataChannelProfiles.JsonPayload : DataChannelProfiles.UadpPayload,
-                ContentType = options.Json ? "application/json" : "application/opcua+uadp",
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = "application/opcua+uadp",
                 Direction = options.Reverse
                     ? DataChannelDirection.OpenerToAcceptor
                     : DataChannelDirection.AcceptorToOpener,
@@ -79,9 +79,9 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                     {
                         group.WithWriterGroupId(WriterGroupId)
                             .WithPublishingInterval(50)
-                            .WithMessageSettings(GroupSettings(options));
-                        AddWriter(group, options, TelemetryDataSet, TelemetryWriterId);
-                        AddWriter(group, options, OtherDataSet, OtherWriterId);
+                            .WithMessageSettings(GroupSettings());
+                        AddWriter(group, TelemetryDataSet, TelemetryWriterId);
+                        AddWriter(group, OtherDataSet, OtherWriterId);
                     });
                 }
                 else
@@ -89,13 +89,13 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                     connection.AddReaderGroup("Readers", group =>
                     {
                         group.WithMaxNetworkMessageSize(65536);
-                        AddReader(group, options, TelemetryReader, TelemetryDataSet, PublisherId,
+                        AddReader(group, TelemetryReader, TelemetryDataSet, PublisherId,
                             WriterGroupId, TelemetryWriterId);
-                        AddReader(group, options, OtherReader, OtherDataSet, PublisherId,
+                        AddReader(group, OtherReader, OtherDataSet, PublisherId,
                             WriterGroupId, OtherWriterId);
-                        AddReader(group, options, WrongWriterReader, TelemetryDataSet, PublisherId,
+                        AddReader(group, WrongWriterReader, TelemetryDataSet, PublisherId,
                             WriterGroupId, 999);
-                        AddReader(group, options, WrongPublisherReader, TelemetryDataSet, 999,
+                        AddReader(group, WrongPublisherReader, TelemetryDataSet, 999,
                             WriterGroupId, TelemetryWriterId);
                     });
                 }
@@ -113,7 +113,7 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
         }
 
         /// <summary>
-        /// Specifies stable field names, types and metadata version for both codecs.
+        /// Specifies stable field names, types and metadata version.
         /// </summary>
         private static void Fields(PublishedDataSetBuilder dataSet)
         {
@@ -129,7 +129,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
         /// </summary>
         private static void AddWriter(
             WriterGroupBuilder group,
-            SampleOptions options,
             string dataSet,
             ushort writerId)
         {
@@ -138,7 +137,7 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                 .WithDataSetWriterId(writerId)
                 .WithKeyFrameCount(1)
                 .WithFieldContentMask(DataSetFieldContentMask.RawData)
-                .WithMessageSettings(WriterSettings(options)));
+                .WithMessageSettings(WriterSettings()));
         }
 
         /// <summary>
@@ -146,7 +145,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
         /// </summary>
         private static void AddReader(
             ReaderGroupBuilder group,
-            SampleOptions options,
             string readerName,
             string dataSet,
             ushort publisherId,
@@ -159,49 +157,39 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                 .WithFieldContentMask(DataSetFieldContentMask.RawData)
                 .WithMirrorSubscribedDataSet(readerName)
                 .WithDataSetMetaData(dataSet, Fields)
-                .WithMessageSettings(ReaderSettings(options)));
+                .WithMessageSettings(ReaderSettings()));
         }
 
         /// <summary>
         /// Uses the encoder's existing NetworkMessage header model.
         /// </summary>
-        private static IEncodeable GroupSettings(SampleOptions options)
+        private static UadpWriterGroupMessageDataType GroupSettings()
         {
-            return options.Json
-                ? new JsonWriterGroupMessageDataType { NetworkMessageContentMask = (uint)JsonNetworkMask }
-                : new UadpWriterGroupMessageDataType
-                {
-                    DataSetOrdering = DataSetOrderingType.AscendingWriterId,
-                    NetworkMessageContentMask = (uint)UadpNetworkMask
-                };
+            return new UadpWriterGroupMessageDataType
+            {
+                DataSetOrdering = DataSetOrderingType.AscendingWriterId,
+                NetworkMessageContentMask = (uint)UadpNetworkMask
+            };
         }
 
         /// <summary>
         /// Carries writer identity, sequence and metadata version in the existing codec.
         /// </summary>
-        private static IEncodeable WriterSettings(SampleOptions options)
+        private static UadpDataSetWriterMessageDataType WriterSettings()
         {
-            return options.Json
-                ? new JsonDataSetWriterMessageDataType { DataSetMessageContentMask = (uint)JsonDataSetMask }
-                : new UadpDataSetWriterMessageDataType { DataSetMessageContentMask = (uint)UadpDataSetMask };
+            return new UadpDataSetWriterMessageDataType { DataSetMessageContentMask = (uint)UadpDataSetMask };
         }
 
         /// <summary>
         /// Selects the matching metadata-driven decoder settings.
         /// </summary>
-        private static IEncodeable ReaderSettings(SampleOptions options)
+        private static UadpDataSetReaderMessageDataType ReaderSettings()
         {
-            return options.Json
-                ? new JsonDataSetReaderMessageDataType
-                {
-                    NetworkMessageContentMask = (uint)JsonNetworkMask,
-                    DataSetMessageContentMask = (uint)JsonDataSetMask
-                }
-                : new UadpDataSetReaderMessageDataType
-                {
-                    NetworkMessageContentMask = (uint)UadpNetworkMask,
-                    DataSetMessageContentMask = (uint)UadpDataSetMask
-                };
+            return new UadpDataSetReaderMessageDataType
+            {
+                NetworkMessageContentMask = (uint)UadpNetworkMask,
+                DataSetMessageContentMask = (uint)UadpDataSetMask
+            };
         }
 
         /// <summary>The exact allow-listed application resource.</summary>
@@ -260,16 +248,5 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
             UadpDataSetMessageContentMask.MajorVersion |
             UadpDataSetMessageContentMask.MinorVersion;
 
-        /// <summary>Complete headers used by the standard JSON encoder.</summary>
-        private const JsonNetworkMessageContentMask JsonNetworkMask =
-            JsonNetworkMessageContentMask.NetworkMessageHeader |
-            JsonNetworkMessageContentMask.PublisherId |
-            JsonNetworkMessageContentMask.DataSetMessageHeader;
-
-        /// <summary>Versioned JSON DataSetMessage headers.</summary>
-        private const JsonDataSetMessageContentMask JsonDataSetMask =
-            JsonDataSetMessageContentMask.DataSetWriterId |
-            JsonDataSetMessageContentMask.SequenceNumber |
-            JsonDataSetMessageContentMask.MetaDataVersion;
     }
 }

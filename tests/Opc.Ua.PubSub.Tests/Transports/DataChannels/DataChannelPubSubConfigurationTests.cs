@@ -37,6 +37,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.DataChannels;
 using Opc.Ua.PubSub.Application;
+using Opc.Ua.PubSub.Connections;
 using Opc.Ua.PubSub.Configuration;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Transports;
@@ -52,14 +53,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
     public sealed class DataChannelPubSubConfigurationTests
     {
         /// <summary>
-        /// Accepts each supported carrier and payload combination with queue expiry disabled.
+        /// Accepts UADP on each supported carrier without an address or Session.
         /// </summary>
         [Test]
-        public void EveryCarrierAcceptsBothPubSubProtocolsWithoutAnAddressOrSession(
-            [Values] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+        public void EveryCarrierAcceptsUadpWithoutAnAddressOrSession([Values] DataChannelCarrierKind carrier)
         {
-            PubSubConnectionDataType connection = CreateConnection(carrier, protocol);
+            PubSubConnectionDataType connection = CreateConnection(carrier);
             var request = new DataChannelPubSubFlowRequest(connection);
             var validator = new PubSubConfigurationValidator(
                 [DataChannelPubSubConfiguration.GetTransportProfile(carrier)]);
@@ -73,7 +72,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             {
                 Assert.That(result.IsValid, Is.True);
                 Assert.That(request.CarrierKind, Is.EqualTo(carrier));
-                Assert.That(request.Parameters.Protocol, Is.EqualTo(protocol));
+                Assert.That(request.Parameters.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
                 Assert.That(request.Parameters.AllowQueueExpiry, Is.False);
                 Assert.That(BitConverter.DoubleToInt64Bits(request.Parameters.MaxRate), Is.Zero);
                 Assert.That(connection.Address.IsNull, Is.True);
@@ -82,6 +81,14 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     connection.TransportProfileUri, out DataChannelCarrierKind actual), Is.True);
                 Assert.That(actual, Is.EqualTo(carrier));
             });
+        }
+
+        [Test]
+        public void JsonPayloadIsRejectedForPubSubDataChannels([Values] DataChannelCarrierKind carrier)
+        {
+            Assert.That(
+                () => CreateConnection(carrier, DataChannelProfiles.JsonPayload),
+                Throws.TypeOf<NotSupportedException>().With.Message.Contains("requires a UADP"));
         }
 
         [Test]
@@ -132,19 +139,440 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             });
         }
 
+        [TestCase("opc.tcp://uafx.example:4840")]
+        [TestCase("opc.wss://uafx.example:443")]
+        public void UafxConfigurationUsesStandardProfileAndKeepsLocalFlowPolicyOutOfPubSubConfig(string endpoint)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection(endpoint);
+            connection.ConnectionProperties =
+            [
+                new KeyValuePair { Key = new QualifiedName("unrelated"), Value = new Variant(9) },
+                new KeyValuePair
+                {
+                    Key = new QualifiedName(DataChannelPubSubConfiguration.ParametersProperty),
+                    Value = new Variant(new ExtensionObject(CreateParameters()))
+                }
+            ];
+            DataChannelParametersDataType parameters = CreateUafxParameters();
+
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, parameters);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(connection.TransportProfileUri,
+                    Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                Assert.That(connection.ConnectionProperties, Has.Count.EqualTo(1));
+                Assert.That(connection.ConnectionProperties[0].Key.Name, Is.EqualTo("unrelated"));
+                Assert.That(connection.Address.TryGetValue(out NetworkAddressUrlDataType? address), Is.True);
+                Assert.That(address!.Url, Is.EqualTo(endpoint));
+                Assert.That(DataChannelPubSubConfiguration.TryGetCarrierKind(
+                    connection.TransportProfileUri, out _), Is.False);
+                Assert.That(new PubSubConfigurationValidator(
+                    [DataChannelPubSubConfiguration.UafxTransportProfile]).Validate(
+                        new PubSubConfigurationDataType { Connections = [connection] }).IsValid, Is.True);
+            });
+
+            var provider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                provider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ => parameters);
+            IPubSubTransport transport = factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(transport.TransportProfileUri,
+                    Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                Assert.That(((IPubSubEncodingTransport)transport).EncodingProfileUri,
+                    Is.EqualTo(Profiles.PubSubUdpUadpTransport));
+            });
+            provider.VerifyNoOtherCalls();
+        }
+
+        [TestCase(DataChannelProfiles.JsonPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Confidential, false)]
+        [TestCase(DataChannelProfiles.UadpAvApplicationPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Confidential, false)]
+        [TestCase(DataChannelProfiles.UadpOpaqueApplicationPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Confidential, false)]
+        [TestCase(DataChannelProfiles.UadpPayload, "application/opcua+uadp",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Confidential, false)]
+        [TestCase(DataChannelProfiles.UadpPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Datagram, DataChannelProtectionMode.Confidential, false)]
+        [TestCase(DataChannelProfiles.UadpPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Integrity, false)]
+        [TestCase(DataChannelProfiles.UadpPayload, "application/octet-stream",
+            DataChannelDeliveryMode.Ordered, DataChannelProtectionMode.Confidential, true)]
+        public void UafxConfigurationRejectsNonconformingLocalFlowPolicy(
+            string protocol,
+            string contentType,
+            DataChannelDeliveryMode delivery,
+            DataChannelProtectionMode protection,
+            bool allowQueueExpiry)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            DataChannelParametersDataType parameters = CreateUafxParameters();
+            parameters.Protocol = protocol;
+            parameters.ContentType = contentType;
+            parameters.Delivery = delivery;
+            parameters.Protection = protection;
+            parameters.AllowQueueExpiry = allowQueueExpiry;
+
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, parameters),
+                Throws.TypeOf<NotSupportedException>());
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [Test]
+        public void UafxConfigurationRejectsMessageSettingsFromOtherModels()
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType
+                {
+                    Name = "writer",
+                    MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType())
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>());
+
+            connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType
+                {
+                    Name = "writer",
+                    DataSetWriters =
+                    [
+                        new DataSetWriterDataType
+                        {
+                            Name = "dataWriter",
+                            MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType())
+                        }
+                    ]
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>());
+
+            connection = CreateUafxConnection();
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    Name = "reader",
+                    MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType())
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>());
+
+            connection = CreateUafxConnection();
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    Name = "reader",
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType
+                        {
+                            Name = "dataReader",
+                            MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType())
+                        }
+                    ]
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>());
+        }
+
+        [Test]
+        public void UafxConfigurationAcceptsStandardUadpMessageSettings()
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType
+                {
+                    Name = "writer",
+                    MaxNetworkMessageSize = 65536,
+                    MessageSettings = new ExtensionObject(new UadpWriterGroupMessageDataType()),
+                    DataSetWriters =
+                    [
+                        new DataSetWriterDataType
+                        {
+                            Name = "dataWriter",
+                            MessageSettings = new ExtensionObject(new UadpDataSetWriterMessageDataType())
+                        }
+                    ]
+                }
+            ];
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    Name = "reader",
+                    MaxNetworkMessageSize = 65536,
+                    MessageSettings = new ExtensionObject(new ReaderGroupMessageDataType()),
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType
+                        {
+                            Name = "dataReader",
+                            MessageSettings = new ExtensionObject(new UadpDataSetReaderMessageDataType())
+                        }
+                    ]
+                }
+            ];
+
+            Assert.That(
+                DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Is.SameAs(connection));
+        }
+
+        [Test]
+        public void UafxFlowRequestPreservesTypedReaderAssociations()
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    MaxNetworkMessageSize = 65536,
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = new Variant(73001u),
+                            WriterGroupId = 17,
+                            DataSetWriterId = 101
+                        },
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = new Variant("73001"),
+                            WriterGroupId = 18,
+                            DataSetWriterId = 102
+                        }
+                    ]
+                }
+            ];
+            DataChannelParametersDataType localParameters = CreateUafxParameters();
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, localParameters);
+            DataChannelParametersDataType validatedParameters =
+                DataChannelPubSubConfiguration.GetUafxParameters(connection, _ => localParameters);
+            var request = new DataChannelPubSubFlowRequest(connection, validatedParameters);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.CarrierKind, Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+                Assert.That(request.Direction, Is.EqualTo(PubSubTransportDirection.Receive));
+                Assert.That(request.InboundPublisherIds.ToArray(), Is.EqualTo(new[]
+                {
+                    new Variant(73001u),
+                    new Variant("73001")
+                }));
+                Assert.That(request.InboundAssociations.ToArray(), Is.EqualTo(new[]
+                {
+                    new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 0),
+                    new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 2),
+                    new DataChannelPubSubRoute(new Variant("73001"), 18, 102, 0),
+                    new DataChannelPubSubRoute(new Variant("73001"), 18, 102, 2)
+                }));
+            });
+        }
+
+        [TestCase("opc.quic://uafx.example:4840")]
+        [TestCase("https://uafx.example:443")]
+        public void UafxConfigurationRejectsUnsupportedEndpointSchemes(string endpoint)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection(endpoint);
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.ArgumentException);
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [Test]
+        public void UafxConfigurationRejectsMissingEndpointAddress()
+        {
+            PubSubConnectionDataType connection = CreateConnection();
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.ArgumentException);
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [Test]
+        public void UafxConfigurationRejectsConnectionTransportSettings()
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.TransportSettings = new ExtensionObject(new UadpWriterGroupMessageDataType());
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<NotSupportedException>());
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [TestCase(0u, true)]
+        [TestCase(0u, false)]
+        [TestCase(65537u, true)]
+        [TestCase(65537u, false)]
+        public void UafxConfigurationRejectsUnboundedOrOversizedWriterGroups(
+            uint maxNetworkMessageSize,
+            bool enabled)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType
+                {
+                    Name = "writer",
+                    Enabled = enabled,
+                    MaxNetworkMessageSize = maxNetworkMessageSize
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [TestCase(0u, true)]
+        [TestCase(0u, false)]
+        [TestCase(65537u, true)]
+        [TestCase(65537u, false)]
+        public void UafxConfigurationRejectsUnboundedOrOversizedReaderGroups(
+            uint maxNetworkMessageSize,
+            bool enabled)
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    Name = "reader",
+                    Enabled = enabled,
+                    MaxNetworkMessageSize = maxNetworkMessageSize
+                }
+            ];
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+            Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.SharedUasc));
+        }
+
+        [Test]
+        public void UafxConfigurationAcceptsExactFiniteGroupMessageBounds()
+        {
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            connection.WriterGroups =
+            [
+                new WriterGroupDataType { Name = "writer", Enabled = true, MaxNetworkMessageSize = 65536 }
+            ];
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType { Name = "reader", Enabled = true, MaxNetworkMessageSize = 65536 }
+            ];
+
+            Assert.That(
+                () => DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters()),
+                Throws.Nothing);
+            Assert.That(connection.TransportProfileUri,
+                Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+        }
+
+        [Test]
+        public async Task UafxLocalPolicyIsSnapshottedOnceForTheConnection()
+        {
+            var flowProvider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            int resolverCalls = 0;
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                flowProvider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ =>
+                {
+                    resolverCalls++;
+                    DataChannelParametersDataType parameters = CreateUafxParameters();
+                    parameters.ResourceUri = resolverCalls == 1 ? "urn:test:first" : "urn:test:changed";
+                    return parameters;
+                });
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, CreateUafxParameters());
+
+            await using IPubSubTransport first = factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+            await using IPubSubTransport second = factory.Create(
+                connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(resolverCalls, Is.EqualTo(1));
+                Assert.That(((IPubSubEncodingTransport)first).MaxNetworkMessageSize, Is.EqualTo(65536));
+                Assert.That(((IPubSubEncodingTransport)second).MaxNetworkMessageSize, Is.EqualTo(65536));
+            });
+            flowProvider.VerifyNoOtherCalls();
+        }
+
+        [Test]
+        public async Task UafxLocalBindingResolvesPubSubEncodingWithoutAddingConfigurationFields()
+        {
+            var flowProvider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            DataChannelParametersDataType localParameters = CreateUafxParameters();
+            PubSubConnectionDataType connection = CreateUafxConnection();
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, localParameters);
+            PubSubConfigurationDataType configuration = new()
+            {
+                Connections = [connection]
+            };
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                flowProvider.Object,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ => localParameters);
+
+            await using IPubSubApplication application = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+                .UseConfiguration(configuration)
+                .AddTransportFactory(factory)
+                .UseAllStandardEncoders()
+                .Build();
+
+            PubSubConnection runtimeConnection = (PubSubConnection)application.Connections[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(runtimeConnection.TransportProfileUri,
+                    Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                Assert.That(runtimeConnection.EncodingProfileUri, Is.EqualTo(Profiles.PubSubUdpUadpTransport));
+                Assert.That((runtimeConnection.Configuration.ConnectionProperties.ToArray() ?? []).Any(
+                    property => property.Key == new QualifiedName(DataChannelPubSubConfiguration.ParametersProperty)),
+                    Is.False);
+            });
+            flowProvider.VerifyNoOtherCalls();
+        }
+
         [Test]
         public void ReconfigurationReplacesOnlyTheFlowProperty()
         {
             PubSubConnectionDataType connection = CreateConnection();
             DataChannelPubSubConfiguration.Configure(connection, DataChannelCarrierKind.Quic,
-                CreateParameters(DataChannelProfiles.JsonPayload));
+                CreateParameters());
 
             Assert.Multiple(() =>
             {
                 Assert.That(connection.ConnectionProperties, Has.Count.EqualTo(1));
                 Assert.That(connection.TransportProfileUri, Is.EqualTo(DataChannelProfiles.Quic));
                 Assert.That(DataChannelPubSubConfiguration.GetParameters(connection).Protocol,
-                    Is.EqualTo(DataChannelProfiles.JsonPayload));
+                    Is.EqualTo(DataChannelProfiles.UadpPayload));
             });
         }
 
@@ -153,11 +581,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         /// </summary>
         [Test]
         public void QueueExpiryRequiresAPayloadAwarePublisherPolicy(
-            [Values] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+            [Values] DataChannelCarrierKind carrier)
         {
-            PubSubConnectionDataType connection = CreateConnection(carrier, protocol);
-            DataChannelParametersDataType parameters = CreateParameters(protocol, "urn:test:pubsub:unsafe");
+            PubSubConnectionDataType connection = CreateConnection(carrier);
+            DataChannelParametersDataType parameters = CreateParameters(
+                DataChannelProfiles.UadpPayload, "urn:test:pubsub:unsafe");
             parameters.AllowQueueExpiry = true;
 
             Assert.That(() => DataChannelPubSubConfiguration.Configure(connection, carrier, parameters),
@@ -169,7 +597,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(parameters.AllowQueueExpiry, Is.True);
                 Assert.That(retained.AllowQueueExpiry, Is.False);
                 Assert.That(retained.ResourceUri, Is.EqualTo("urn:test:pubsub:data"));
-                Assert.That(retained.Protocol, Is.EqualTo(protocol));
+                Assert.That(retained.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
                 Assert.That(connection.TransportProfileUri,
                     Is.EqualTo(DataChannelPubSubConfiguration.GetTransportProfile(carrier)));
             });
@@ -180,11 +608,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         /// </summary>
         [Test]
         public void ImportedQueueExpiryCannotBypassConfigurationValidation(
-            [Values] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+            [Values] DataChannelCarrierKind carrier)
         {
-            PubSubConnectionDataType connection = CreateConnection(carrier, protocol);
-            DataChannelParametersDataType parameters = CreateParameters(protocol);
+            PubSubConnectionDataType connection = CreateConnection(carrier);
+            DataChannelParametersDataType parameters = CreateParameters();
             parameters.AllowQueueExpiry = true;
             connection.ConnectionProperties =
             [
@@ -212,7 +639,6 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         [TestCase(DataChannelProfiles.UadpPayload)]
-        [TestCase(DataChannelProfiles.JsonPayload)]
         public void ExistingXmlConfigurationRoundTripRetainsTheTypedFlowDescriptor(string protocol)
         {
             PubSubConnectionDataType connection = CreateConnection(protocol: protocol);
@@ -238,7 +664,6 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         [TestCase(DataChannelProfiles.UadpPayload)]
-        [TestCase(DataChannelProfiles.JsonPayload)]
         public async Task StandaloneXmlStoreLoadsFlowConfigurationWithoutASession(string protocol)
         {
             string path = Path.Combine(TestContext.CurrentContext.WorkDirectory,
@@ -285,7 +710,7 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
         [TestCase(0u, 32u)]
         [TestCase(uint.MaxValue, uint.MaxValue)]
-        [TestCase(16u, 32u)]
+        [TestCase(16u, 15u)]
         public void SharedFlowRejectsInvalidOrInsufficientReceiveBounds(uint maxMessageSize, uint maxReceiveBytes)
         {
             DataChannelParametersDataType parameters = CreateParameters();
@@ -298,10 +723,10 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         /// <summary>
-        /// Includes ChannelId for both UASC carriers and native datagrams, but not native ordered records.
+        /// Includes the carrier envelope for native records and datagrams; UASC carries the body unchanged.
         /// </summary>
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, DataChannelDeliveryMode.Ordered, 33u)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, DataChannelDeliveryMode.Ordered, 33u)]
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, DataChannelDeliveryMode.Ordered, 16u)]
+        [TestCase(DataChannelCarrierKind.SharedUasc, DataChannelDeliveryMode.Ordered, 16u)]
         [TestCase(DataChannelCarrierKind.Quic, DataChannelDeliveryMode.Ordered, 29u)]
         [TestCase(DataChannelCarrierKind.WebTransport, DataChannelDeliveryMode.Ordered, 29u)]
         [TestCase(DataChannelCarrierKind.Quic, DataChannelDeliveryMode.Datagram, 33u)]
@@ -326,6 +751,8 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
 
         [TestCase(DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(DataChannelCarrierKind.SharedUasc)]
+        [TestCase(DataChannelCarrierKind.QuicUasc)]
+        [TestCase(DataChannelCarrierKind.WebTransportUasc)]
         public void UascRejectsDatagramDelivery(DataChannelCarrierKind carrier)
         {
             DataChannelParametersDataType parameters = CreateParameters();
@@ -518,31 +945,18 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             Assert.That(validator.Validate(configuration).IsValid, Is.False);
         }
 
-        [TestCase(DataChannelProfiles.UadpPayload)]
-        [TestCase(DataChannelProfiles.JsonPayload)]
-        public void ExplicitMessageSettingsMustAgreeWithThePayload(string protocol)
+        [Test]
+        public void JsonMessageSettingsAreRejectedForUadpFlows()
         {
-            PubSubConnectionDataType connection = CreateConnection(protocol: protocol);
+            PubSubConnectionDataType connection = CreateConnection();
             connection.WriterGroups =
             [
                 new WriterGroupDataType
                 {
-                    MessageSettings = protocol == DataChannelProfiles.JsonPayload
-                        ? new ExtensionObject(new UadpWriterGroupMessageDataType())
-                        : new ExtensionObject(new JsonWriterGroupMessageDataType())
+                    MessageSettings = new ExtensionObject(new JsonWriterGroupMessageDataType())
                 }
             ];
             Assert.That(() => DataChannelPubSubConfiguration.GetParameters(connection), Throws.ArgumentException);
-        }
-
-        [TestCase(MessageSecurityMode.Sign)]
-        [TestCase(MessageSecurityMode.SignAndEncrypt)]
-        public void JsonDoesNotSilentlyDowngradeConfiguredMessageSecurity(MessageSecurityMode mode)
-        {
-            PubSubConnectionDataType connection = CreateConnection(protocol: DataChannelProfiles.JsonPayload);
-            connection.ReaderGroups = [new ReaderGroupDataType { SecurityMode = mode }];
-            Assert.That(() => DataChannelPubSubConfiguration.GetParameters(connection),
-                Throws.TypeOf<NotSupportedException>());
         }
 
         [Test]
@@ -603,6 +1017,54 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
         }
 
         [Test]
+        public async Task UafxDependencyInjectionRegistersStandardProfileAndResolvesLocalPolicy()
+        {
+            var services = new ServiceCollection();
+            var sharedFlowProvider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            var uafxFlowProvider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
+            sharedFlowProvider
+                .Setup(provider => provider.OpenAsync(
+                    It.IsAny<DataChannelPubSubFlowRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DataChannelPubSubFlow>(
+                    Task.FromException<DataChannelPubSubFlow>(new InvalidOperationException("shared provider"))));
+            uafxFlowProvider
+                .Setup(provider => provider.OpenAsync(
+                    It.IsAny<DataChannelPubSubFlowRequest>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<DataChannelPubSubFlow>(
+                    Task.FromException<DataChannelPubSubFlow>(new InvalidOperationException("UAFX provider"))));
+            DataChannelParametersDataType localParameters = CreateUafxParameters();
+            services.AddOpcUa().AddPubSub(pubsub => pubsub
+                .AddDataChannelTransport(DataChannelCarrierKind.SharedUasc, _ => sharedFlowProvider.Object)
+                .AddUafxDataChannelTransport(_ => uafxFlowProvider.Object, (_, _) => localParameters));
+
+            await using (ServiceProvider provider = services.BuildServiceProvider())
+            {
+                IPubSubTransportFactory factory = provider.GetServices<IPubSubTransportFactory>()
+                    .Single(item => item.TransportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile);
+                PubSubConnectionDataType connection = CreateUafxConnection();
+                DataChannelPubSubConfiguration.ConfigureUafx(connection, localParameters);
+                await using IPubSubTransport transport = factory.Create(
+                    connection, NUnitTelemetryContext.Create(), TimeProvider.System);
+                InvalidOperationException? failure = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await transport.OpenAsync().ConfigureAwait(false)).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(factory.TransportProfileUri,
+                        Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                    Assert.That(transport.TransportProfileUri,
+                        Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                    Assert.That(((IPubSubEncodingTransport)transport).EncodingProfileUri,
+                        Is.EqualTo(Profiles.PubSubUdpUadpTransport));
+                    Assert.That(failure!.Message, Is.EqualTo("UAFX provider"));
+                });
+            }
+            sharedFlowProvider.VerifyNoOtherCalls();
+            uafxFlowProvider.Verify(provider => provider.OpenAsync(
+                It.IsAny<DataChannelPubSubFlowRequest>(), It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        [Test]
         public void FactoryRejectsWrongCarrierAndNullDependencies()
         {
             var provider = new Mock<IDataChannelPubSubFlowProvider>(MockBehavior.Strict);
@@ -612,6 +1074,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(() => new DataChannelPubSubTransportFactory((DataChannelCarrierKind)99, provider.Object),
                     Throws.TypeOf<ArgumentOutOfRangeException>());
                 Assert.That(() => new DataChannelPubSubTransportFactory(DataChannelCarrierKind.SharedUasc, null!),
+                    Throws.ArgumentNullException);
+                Assert.That(() => new DataChannelPubSubTransportFactory(
+                    DataChannelCarrierKind.SharedUasc,
+                    provider.Object,
+                    DataChannelPubSubConfiguration.UafxTransportProfile,
+                    null!),
                     Throws.ArgumentNullException);
                 Assert.That(() => factory.Create(CreateConnection(DataChannelCarrierKind.Quic),
                     NUnitTelemetryContext.Create(), TimeProvider.System), Throws.ArgumentException);
@@ -667,6 +1135,21 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             };
         }
 
+        private static PubSubConnectionDataType CreateUafxConnection(
+            string endpoint = "opc.tcp://uafx.example:4840")
+        {
+            PubSubConnectionDataType connection = CreateConnection();
+            connection.Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = endpoint });
+            return connection;
+        }
+
+        private static DataChannelParametersDataType CreateUafxParameters()
+        {
+            DataChannelParametersDataType parameters = CreateParameters();
+            parameters.ContentType = DataChannelPubSubConfiguration.UafxContentType;
+            return parameters;
+        }
+
         private static void Configure(DataChannelParametersDataType parameters)
         {
             DataChannelPubSubConfiguration.Configure(
@@ -689,6 +1172,185 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 IsDisposed = true;
                 return default;
             }
+        }
+
+        [Test]
+        public void FlowRequestSnapshotsDistinctReaderPublisherIdsInFirstSeenOrder()
+        {
+            PubSubConnectionDataType connection = CreateConnection(
+                direction: PubSubTransportDirection.Receive);
+            var firstReader = new DataSetReaderDataType { PublisherId = new Variant(73001u) };
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    DataSetReaders =
+                    [
+                        firstReader,
+                        new DataSetReaderDataType { PublisherId = new Variant(73001u) },
+                        new DataSetReaderDataType { PublisherId = new Variant("73001") },
+                        new DataSetReaderDataType { PublisherId = Variant.Null },
+                        new DataSetReaderDataType { PublisherId = Variant.Null }
+                    ]
+                }
+            ];
+
+            var request = new DataChannelPubSubFlowRequest(connection);
+            firstReader.PublisherId = new Variant(999u);
+            connection.ReaderGroups[0].DataSetReaders =
+            [
+                new DataSetReaderDataType { PublisherId = new Variant(1000u) }
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.Direction, Is.EqualTo(PubSubTransportDirection.Receive));
+                Assert.That(request.InboundPublisherIds.ToArray(), Is.EqualTo(new[]
+                {
+                    new Variant(73001u),
+                    new Variant("73001"),
+                    Variant.Null
+                }));
+                Assert.That(connection.ReaderGroups[0].DataSetReaders[0].PublisherId,
+                    Is.EqualTo(new Variant(1000u)));
+            });
+        }
+
+        /// <summary>
+        /// Snapshots distinct writer associations and detaches them from mutable reader configuration.
+        /// </summary>
+        [Test]
+        public void FlowRequestSnapshotsReaderWriterAssociations()
+        {
+            PubSubConnectionDataType connection = CreateConnection(
+                direction: PubSubTransportDirection.Receive);
+            var firstReader = new DataSetReaderDataType
+            {
+                PublisherId = new Variant(73001u),
+                WriterGroupId = 17,
+                DataSetWriterId = 101
+            };
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    DataSetReaders =
+                    [
+                        firstReader,
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = new Variant(73001u),
+                            WriterGroupId = 17,
+                            DataSetWriterId = 102
+                        },
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = new Variant(73001u),
+                            WriterGroupId = 18,
+                            DataSetWriterId = 101
+                        },
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = new Variant(73001u),
+                            WriterGroupId = 17,
+                            DataSetWriterId = 101
+                        },
+                        new DataSetReaderDataType
+                        {
+                            PublisherId = Variant.Null,
+                            DataSetWriterId = 103
+                        }
+                    ]
+                }
+            ];
+
+            var request = new DataChannelPubSubFlowRequest(connection);
+            firstReader.PublisherId = new Variant(999u);
+            firstReader.WriterGroupId = 99;
+            firstReader.DataSetWriterId = 999;
+            connection.ReaderGroups = [];
+
+            Assert.That(request.InboundAssociations.ToArray(), Is.EqualTo(new[]
+            {
+                new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 0),
+                new DataChannelPubSubRoute(new Variant(73001u), 17, 101, 2),
+                new DataChannelPubSubRoute(new Variant(73001u), 17, 102, 0),
+                new DataChannelPubSubRoute(new Variant(73001u), 17, 102, 2),
+                new DataChannelPubSubRoute(new Variant(73001u), 18, 101, 0),
+                new DataChannelPubSubRoute(new Variant(73001u), 18, 101, 2),
+                new DataChannelPubSubRoute(Variant.Null, null, 103, 0),
+                new DataChannelPubSubRoute(Variant.Null, null, 103, 2)
+            }));
+        }
+
+        [Test]
+        public void FlowRequestSnapshotsPublisherIdsAcrossReaderGroups()
+        {
+            PubSubConnectionDataType connection = CreateConnection(
+                direction: PubSubTransportDirection.Receive);
+            var laterReader = new DataSetReaderDataType { PublisherId = new Variant(73002u) };
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType { PublisherId = new Variant(73001u) },
+                        new DataSetReaderDataType { PublisherId = Variant.Null }
+                    ]
+                },
+                new ReaderGroupDataType
+                {
+                    DataSetReaders =
+                    [
+                        new DataSetReaderDataType { PublisherId = new Variant(73001u) },
+                        laterReader,
+                        new DataSetReaderDataType { PublisherId = Variant.Null },
+                        new DataSetReaderDataType { PublisherId = new Variant("73001") }
+                    ]
+                }
+            ];
+
+            var request = new DataChannelPubSubFlowRequest(connection);
+            laterReader.PublisherId = new Variant(999u);
+            connection.ReaderGroups = [];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.InboundPublisherIds.ToArray(), Is.EqualTo(new[]
+                {
+                    new Variant(73001u), Variant.Null, new Variant(73002u), new Variant("73001")
+                }));
+                Assert.That(request.Direction, Is.EqualTo(PubSubTransportDirection.Receive));
+                Assert.That(connection.ReaderGroups, Is.Empty);
+                Assert.That(laterReader.PublisherId, Is.EqualTo(new Variant(999u)));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void FlowRequestSnapshotsEmptyPublisherIdsWithOrWithoutReaderGroup(bool hasReaderGroup)
+        {
+            PubSubConnectionDataType connection = CreateConnection(
+                direction: hasReaderGroup ? PubSubTransportDirection.Receive : PubSubTransportDirection.None);
+            var request = new DataChannelPubSubFlowRequest(connection);
+
+            connection.ReaderGroups =
+            [
+                new ReaderGroupDataType
+                {
+                    DataSetReaders = [new DataSetReaderDataType { PublisherId = new Variant(73001u) }]
+                }
+            ];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(request.InboundPublisherIds, Is.Empty);
+                Assert.That(request.Direction, Is.EqualTo(
+                    hasReaderGroup ? PubSubTransportDirection.Receive : PubSubTransportDirection.None));
+                Assert.That(connection.ReaderGroups[0].DataSetReaders[0].PublisherId,
+                    Is.EqualTo(new Variant(73001u)));
+            });
         }
     }
 }

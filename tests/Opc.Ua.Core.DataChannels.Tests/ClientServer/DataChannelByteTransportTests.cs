@@ -664,6 +664,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.ClientServer
         {
             DataChannelParametersDataType parameters = FlowLoopback.Parameters();
             parameters.ResourceUri = DataChannelProfiles.ClientServerResource;
+            parameters.Protocol = DataChannelProfiles.OpaquePayload;
+            parameters.ContentType = "application/octet-stream";
             switch (modifiedField)
             {
                 case null:

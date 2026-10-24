@@ -29,7 +29,8 @@ func (j *operation) run() {
 	}()
 	prefix := j.request.kind == C.UQG_STREAM_SEND && j.request.flags&C.UQG_SEND_RELIABLE_BOUNDARY != 0
 	cleanup := j.request.kind == C.UQG_LISTENER_CLOSE || j.request.kind == C.UQG_CONNECTION_CLOSE ||
-		j.request.kind == C.UQG_CONNECTION_RELEASE || j.request.kind == C.UQG_STREAM_RELEASE
+		j.request.kind == C.UQG_CONNECTION_RELEASE || j.request.kind == C.UQG_STREAM_RELEASE ||
+		j.request.kind == C.UQG_STREAM_RELEASE_GRACEFUL
 	if j.ctx.Err() != nil && !prefix && !cleanup {
 		result.status = errorStatus(j.ctx.Err())
 		return
@@ -56,7 +57,12 @@ func (j *operation) connectionOperation(result *C.uqg_result) []byte {
 	case C.UQG_CONNECTION_INFO:
 		return c.information(result)
 	case C.UQG_CONNECTION_CERTIFICATE:
-		chain := c.native.ConnectionState().TLS.VerifiedChains[0]
+		chains := c.native.ConnectionState().TLS.VerifiedChains
+		if len(chains) == 0 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		chain := chains[0]
 		if int(j.request.index) >= len(chain) {
 			result.status = C.UQG_INVALID
 			return nil
@@ -67,6 +73,58 @@ func (j *operation) connectionOperation(result *C.uqg_result) []byte {
 			return nil
 		}
 		return append([]byte(nil), data...)
+	case C.UQG_CONNECTION_EXPORTER:
+		context := j.data
+		if len(context) != 32 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		tlsState := c.native.ConnectionState().TLS
+		key, err := tlsState.ExportKeyingMaterial("EXPORTER-OPCUA-QUIC-DRAFT", context, 32)
+		if err != nil || len(key) != 32 {
+			clear(key)
+			result.status = C.UQG_CAPABILITY
+			return nil
+		}
+		return key
+	case C.UQG_CONNECTION_EXPORTER_CUSTOM:
+		if len(j.data) < 3 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		labelLength := int(j.data[0])
+		if labelLength == 0 || len(j.data) < 1+labelLength+2 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		offset := 1 + labelLength
+		contextLength := int(j.data[offset])
+		offset++
+		if len(j.data) != offset+contextLength+1 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		outputLength := int(j.data[len(j.data)-1])
+		if outputLength == 0 {
+			result.status = C.UQG_INVALID
+			return nil
+		}
+		for _, character := range j.data[1 : 1+labelLength] {
+			if character < 0x20 || character > 0x7e {
+				result.status = C.UQG_INVALID
+				return nil
+			}
+		}
+		label := string(j.data[1 : 1+labelLength])
+		context := j.data[offset : offset+contextLength]
+		tlsState := c.native.ConnectionState().TLS
+		key, err := tlsState.ExportKeyingMaterial(label, context, outputLength)
+		if err != nil || len(key) != outputLength {
+			clear(key)
+			result.status = C.UQG_CAPABILITY
+			return nil
+		}
+		return key
 	case C.UQG_STREAM_OPEN, C.UQG_STREAM_ACCEPT:
 		j.createStream(result)
 	case C.UQG_DATAGRAM_SEND:
@@ -126,7 +184,10 @@ func (c *connection) information(result *C.uqg_result) []byte {
 	state := c.native.ConnectionState()
 	info := C.uqg_connection_info{
 		size: C.sizeof_uqg_connection_info, tls_version: C.uint32_t(state.TLS.Version),
-		verified_chain_length: C.uint32_t(len(state.TLS.VerifiedChains[0])),
+		authentication_policy: C.uint32_t(c.authenticationPolicy),
+	}
+	if len(state.TLS.VerifiedChains) != 0 {
+		info.verified_chain_length = C.uint32_t(len(state.TLS.VerifiedChains[0]))
 	}
 	if state.TLS.HandshakeComplete {
 		info.handshake_complete = 1
@@ -165,21 +226,25 @@ func (c *connection) information(result *C.uqg_result) []byte {
 		info.reset09_remote = 1
 	}
 	c.trace.mu.Unlock()
-	var tooLarge *quic.DatagramTooLargeError
-	// Native SendDatagram rejects before queue admission; this never sends a probe.
-	if err := c.native.SendDatagram(make([]byte, C.UQG_MAX_PAYLOAD)); errors.As(err, &tooLarge) {
-		info.maximum_datagram_payload = C.uint32_t(tooLarge.MaxDatagramPayloadSize)
-	} else {
-		result.status = errorStatus(err)
-		if err == nil {
-			result.status = C.UQG_INTERNAL
+	if state.SupportsDatagrams.Local && state.SupportsDatagrams.Remote {
+		var tooLarge *quic.DatagramTooLargeError
+		// Native SendDatagram rejects before queue admission; this never sends a probe.
+		if err := c.native.SendDatagram(make([]byte, C.UQG_MAX_PAYLOAD)); errors.As(err, &tooLarge) {
+			info.maximum_datagram_payload = C.uint32_t(tooLarge.MaxDatagramPayloadSize)
+		} else {
+			result.status = errorStatus(err)
+			if err == nil {
+				result.status = C.UQG_INTERNAL
+			}
+			return nil
 		}
-		return nil
 	}
-	leaf := state.TLS.VerifiedChains[0][0]
-	certHash, keyHash := sha256.Sum256(leaf.Raw), sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
-	copy(unsafe.Slice((*byte)(unsafe.Pointer(&info.certificate_sha256[0])), 32), certHash[:])
-	copy(unsafe.Slice((*byte)(unsafe.Pointer(&info.spki_sha256[0])), 32), keyHash[:])
+	if len(state.TLS.VerifiedChains) != 0 && len(state.TLS.VerifiedChains[0]) != 0 {
+		leaf := state.TLS.VerifiedChains[0][0]
+		certHash, keyHash := sha256.Sum256(leaf.Raw), sha256.Sum256(leaf.RawSubjectPublicKeyInfo)
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&info.certificate_sha256[0])), 32), certHash[:])
+		copy(unsafe.Slice((*byte)(unsafe.Pointer(&info.spki_sha256[0])), 32), keyHash[:])
+	}
 	protocol := []byte(state.TLS.NegotiatedProtocol)
 	uri := []byte(c.peerURI)
 	if len(protocol) > len(info.alpn) || len(uri) > len(info.application_uri) {
@@ -342,9 +407,13 @@ func (j *operation) streamOperation(result *C.uqg_result) []byte {
 		} else {
 			result.final_size = C.uint64_t(e.sentOffset)
 		}
-	case C.UQG_STREAM_RELEASE:
+	case C.UQG_STREAM_RELEASE, C.UQG_STREAM_RELEASE_GRACEFUL:
 		if s.send != nil {
-			s.send.CancelWrite(quic.StreamErrorCode(j.request.error_code))
+			if j.request.kind == C.UQG_STREAM_RELEASE_GRACEFUL {
+				streamError(result, s.send.Close())
+			} else {
+				s.send.CancelWrite(quic.StreamErrorCode(j.request.error_code))
+			}
 		}
 		if s.receive != nil {
 			s.receive.CancelRead(quic.StreamErrorCode(j.request.error_code))

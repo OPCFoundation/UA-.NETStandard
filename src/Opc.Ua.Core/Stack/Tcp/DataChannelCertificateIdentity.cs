@@ -37,6 +37,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Produces consistent key evidence from an already validated application certificate.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelCertificateIdentity
     {
         /// <summary>

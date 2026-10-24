@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,62 +38,69 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Decodes one verified UASC plaintext container through the sole carrier codec.
+        /// Receives one UASC FLO or FLC application body after carrier authentication.
         /// </summary>
         private async ValueTask<DataChannelResult> ReceiveUascCoreAsync(
+            DataChannelUascMessageKind kind,
             byte chunkType,
             uint requestId,
             ByteString plaintext,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken = default)
         {
             if (IsNative)
             {
                 return DataChannelResult.Unsupported;
             }
-            bool controlReserved = plaintext.Length < 17 || plaintext.Span[8] != (byte)FlowRecordKind.Data;
-            int controlCost = controlReserved ? checked(3 * plaintext.Length) : 0;
-            if (controlReserved)
+            try
             {
+                UascFlowMessage message = UascFlowMessageCodec.Decode(
+                    m_wireCarrier, kind, chunkType, requestId, plaintext, m_codecLimits);
+                if (message.Control is { } control)
+                {
+                    return await ReceiveControlAsync(
+                        control,
+                        message.Record,
+                        DataChannelPath.Management,
+                        0,
+                        cancellationToken).ConfigureAwait(false);
+                }
+
+                FlowWireEnvelope envelope;
                 lock (m_gate)
                 {
                     if (m_closed)
                     {
                         return DataChannelResult.Closed;
                     }
-                    if (!TryReserveReceiveControlLocked(controlCost))
+                    DataChannelResult route = CreateUascDataEnvelopeLocked(
+                        message.ApplicationBody, out envelope);
+                    if (route != DataChannelResult.Good)
                     {
-                        return DataChannelResult.WouldBlock;
+                        return route;
                     }
+                    if (!m_flows.TryGetValue(envelope.ChannelId, out FlowState? flow) ||
+                        flow.LastRoutedDataId == uint.MaxValue)
+                    {
+                        return DataChannelResult.InvalidState;
+                    }
+                    envelope = new FlowWireEnvelope(
+                        flow.Id,
+                        new FlowRecord(
+                            FlowRecordKind.Data,
+                            flow.ReceiveRevision,
+                            ++flow.LastRoutedDataId,
+                            envelope.Record.Body),
+                        null);
                 }
-            }
-            try
-            {
-                FlowWireEnvelope envelope = FlowCarrierCodec.DecodeUascPayload(
-                    m_wireCarrier, chunkType, requestId, plaintext, m_codecLimits);
-                if (envelope.Control != null)
-                {
-                    return await ReceiveControlAsync(
-                        envelope.Control, envelope.Record, DataChannelPath.Flow, 0, cancellationToken)
-                        .ConfigureAwait(false);
-                }
-                return await ReceiveDataAsync(envelope.ChannelId, envelope.Record, false, cancellationToken)
-                    .ConfigureAwait(false);
+                return await ReceiveDataAsync(
+                    envelope.ChannelId, envelope.Record, false, cancellationToken).ConfigureAwait(false);
             }
             catch (FlowCodecException exception)
             {
-                uint channelId = plaintext.Length >= 4
-                    ? BinaryPrimitives.ReadUInt32LittleEndian(plaintext.Span) : 1;
-                return await CodecFailureAsync(
-                    exception, channelId, true, HasTrustedUascContainer(exception, plaintext)).ConfigureAwait(false);
-            }
-            finally
-            {
-                if (controlReserved)
+                lock (m_gate)
                 {
-                    lock (m_gate)
-                    {
-                        ReleaseReceiveControlLocked(controlCost);
-                    }
+                    CloseLocked(FlowModel.FromWire(exception.Status));
+                    return FlowModel.FromWire(exception.Status);
                 }
             }
         }
@@ -107,6 +113,10 @@ namespace Opc.Ua.DataChannels
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (!IsNative && HasSelectedDirectStreams)
+            {
+                return await ReceiveDirectDatagramAsync(datagram, cancellationToken).ConfigureAwait(false);
+            }
             if (!IsNative || m_carrier.MaxDatagramSize == 0)
             {
                 return DataChannelResult.Unsupported;
@@ -133,7 +143,8 @@ namespace Opc.Ua.DataChannels
             uint channelId,
             FlowRecord record,
             bool datagram,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            DirectDeliveryFrame? directFrame = null)
         {
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken, m_shutdown.Token);
@@ -178,17 +189,23 @@ namespace Opc.Ua.DataChannels
                             flow.AdmissionDrops++;
                             return DataChannelResult.WouldBlock;
                         }
-                        if (IsShared && (flow.ReceiveCredit < cost || m_receiveConnectionCredit < cost))
+                        if (UsesFlowCredit(flow) && (flow.ReceiveCredit < cost || m_receiveConnectionCredit < cost))
                         {
                             return ResetLocked(flow, DataChannelResult.InvalidState);
                         }
                         wait = m_capacityChanged.Task;
                         applicationWait = m_budget.CapacityChanged;
-                        if (TryReserveMessageLocked(flow, revision!, cost, false))
+                        if (TryReserveMessageLocked(
+                            flow, revision!, cost, false, applicationReserved: directFrame.HasValue))
                         {
                             try
                             {
-                                return DeliverDataLocked(flow, record, record.Body.Copy(), cost, datagram);
+                                if (directFrame is { } owned)
+                                {
+                                    owned.TransferMessageReservation();
+                                }
+                                return DeliverDataLocked(
+                                    flow, record, directFrame.HasValue ? record.Body : record.Body.Copy(), cost, datagram);
                             }
                             catch
                             {
@@ -201,13 +218,13 @@ namespace Opc.Ua.DataChannels
                             flow.AdmissionDrops++;
                             return DataChannelResult.WouldBlock;
                         }
-                        if (IsShared)
+                        if (UsesFlowCredit(flow))
                         {
                             return ResetLocked(flow, DataChannelResult.WouldBlock);
                         }
                     }
                 }
-                if (IsNative)
+                if (IsNative || directFrame.HasValue)
                 {
                     await Task.WhenAny(wait, applicationWait).WaitAsync(linked.Token).ConfigureAwait(false);
                 }
@@ -284,9 +301,11 @@ namespace Opc.Ua.DataChannels
             FlowRecord record,
             ByteString ownedBody,
             int cost,
-            bool datagram)
+            bool datagram,
+            int? storageCost = null)
         {
-            if (IsShared)
+            int bufferCost = storageCost ?? cost;
+            if (UsesFlowCredit(flow))
             {
                 flow.ReceiveCredit -= (uint)cost;
                 m_receiveConnectionCredit -= (uint)cost;
@@ -306,7 +325,7 @@ namespace Opc.Ua.DataChannels
                 {
                     if (queued)
                     {
-                        ReleaseReceived(flow, record.Revision, cost);
+                        ReleaseReceived(flow, record.Revision, cost, bufferCost);
                     }
                 });
             try
@@ -322,7 +341,7 @@ namespace Opc.Ua.DataChannels
             }
             flow.ReadChanged.Complete();
             flow.ReadChanged = new TaskSignal();
-            if (IsShared)
+            if (UsesFlowCredit(flow))
             {
                 GrantCreditLocked(flow);
             }
@@ -609,7 +628,7 @@ namespace Opc.Ua.DataChannels
             try
             {
                 FlowControl control = FlowControlCodec.Decode(in record, m_codecLimits);
-                FlowControlCodec.ValidateCarrier(control, m_wireCarrier);
+                FlowControlCodec.ValidateCarrier(control, m_wireCarrier, uascBaseline: !IsNative);
                 if (input.Provisional &&
                     (control is not FlowOpen initial || initial.Stream != streamId))
                 {
@@ -815,7 +834,6 @@ namespace Opc.Ua.DataChannels
         {
             return m_identity == null ||
                 channelId == 0 ||
-                (uasc && m_carrier.Kind == DataChannelCarrierKind.DedicatedUasc && channelId > 1) ||
                 (uasc &&
                     (!trustedContainer ||
                         exception.Error is
@@ -824,8 +842,7 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Distinguishes an exact but locally oversized record from an unusable declared length.
-        /// This second bounded view borrows storage and never decodes CONTROL or allocates a body.
+        /// Determines whether a legacy addressed UASC container remains trustworthy after a size error.
         /// </summary>
         private static bool HasTrustedUascContainer(FlowCodecException exception, ByteString plaintext)
         {
@@ -858,7 +875,7 @@ namespace Opc.Ua.DataChannels
             ulong streamId,
             CancellationToken cancellationToken)
         {
-            FlowControlCodec.ValidateCarrier(control, m_wireCarrier);
+            FlowControlCodec.ValidateCarrier(control, m_wireCarrier, uascBaseline: !IsNative);
             lock (m_gate)
             {
                 if (m_closed)
@@ -875,6 +892,11 @@ namespace Opc.Ua.DataChannels
                     return DataChannelResult.InvalidState;
                 }
             }
+            if (control is FlowBinding ||
+                control is FlowOutcome { Operation: FlowOperation.Status, Flow: 0 })
+            {
+                return await ReceiveDirectBindingAsync(control, record, cancellationToken).ConfigureAwait(false);
+            }
             if (control is FlowOpen open)
             {
                 if (IsNative && path == DataChannelPath.Flow && streamId != open.Stream)
@@ -886,6 +908,10 @@ namespace Opc.Ua.DataChannels
             if (control is FlowPrepare prepare)
             {
                 return await ReceivePrepareAsync(prepare, record, cancellationToken).ConfigureAwait(false);
+            }
+            if (control is FlowAssociation association)
+            {
+                return await ReceiveDirectAssociationAsync(association, record).ConfigureAwait(false);
             }
             lock (m_gate)
             {
@@ -905,6 +931,11 @@ namespace Opc.Ua.DataChannels
                     control.Operation is FlowOperation.AcceptUpdate or FlowOperation.Commit or
                         FlowOperation.Ack or FlowOperation.AbortUpdate or FlowOperation.Status)
                 {
+                    if (flow.DirectLane != null && !flow.IsDatagram &&
+                        control is FlowCommit && path != DataChannelPath.Flow)
+                    {
+                        return DataChannelResult.InvalidState;
+                    }
                     if (IsNative &&
                         control.Operation is FlowOperation.Commit or FlowOperation.Ack &&
                         (path != DataChannelPath.Flow || streamId != flow.StreamId))
@@ -939,6 +970,7 @@ namespace Opc.Ua.DataChannels
                     if (flow.IsLocalOpener ||
                         flow.State != DataChannelState.Opening ||
                         flow.Revisions.Count == 0 ||
+                        (flow.DirectLane != null && !m_directAssociations.CanBecomeReady(flow)) ||
                         (IsNative && (path != DataChannelPath.Flow || streamId != flow.StreamId)))
                     {
                         return DataChannelResult.InvalidState;
@@ -956,6 +988,7 @@ namespace Opc.Ua.DataChannels
                         case FlowSignal { Operation: FlowOperation.End } when flow != null:
                             if (!flow.Ready ||
                                 flow.RemoteEnded ||
+                                (flow.DirectLane != null && !flow.IsDatagram && path != DataChannelPath.Flow) ||
                                 (IsNative && (path != DataChannelPath.Flow || streamId != flow.StreamId)))
                             {
                                 return DataChannelResult.InvalidState;
@@ -996,7 +1029,7 @@ namespace Opc.Ua.DataChannels
         /// </summary>
         private DataChannelResult ReceiveCreditLocked(FlowState? flow, FlowCredit credit, uint revision)
         {
-            if (!IsShared ||
+            if (!UsesUascCredit || (flow != null && !UsesFlowCredit(flow)) ||
                 (flow == null && (revision != 0 || credit.ChannelCredit != 0)) ||
                 (flow != null && (!flow.Ready || revision != flow.SendRevision)))
             {

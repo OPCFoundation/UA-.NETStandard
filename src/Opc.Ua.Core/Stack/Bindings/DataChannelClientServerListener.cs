@@ -41,6 +41,8 @@ namespace Opc.Ua.Bindings
     /// Hosts ordinary UASC Services on explicitly supplied native lanes without opening any socket.
     /// Accepting connections and routing unrelated resources remain the native host's responsibility.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelClientServerListener : ITransportListener
     {
         /// <summary>
@@ -457,6 +459,8 @@ namespace Opc.Ua.Bindings
     /// <summary>
     /// Owns one accepted UASC lane. Closing it never closes the shared native context.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelClientServerLane : IAsyncDisposable
     {
         /// <summary>

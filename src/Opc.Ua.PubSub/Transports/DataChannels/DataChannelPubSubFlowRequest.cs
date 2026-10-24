@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using Opc.Ua.DataChannels;
 
 namespace Opc.Ua.PubSub.Transports.DataChannels
@@ -35,21 +36,49 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Describes the carrier, resource and PubSub direction required by one connection.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelPubSubFlowRequest
     {
         /// <summary>
         /// Takes a validated snapshot of a connection's flow configuration.
         /// </summary>
         public DataChannelPubSubFlowRequest(PubSubConnectionDataType connection)
+            : this(connection, GetConfiguredParameters(connection))
+        {
+        }
+
+        /// <summary>
+        /// Takes a validated snapshot of a connection and its locally resolved flow policy.
+        /// </summary>
+        internal DataChannelPubSubFlowRequest(
+            PubSubConnectionDataType connection,
+            DataChannelParametersDataType parameters)
         {
             if (connection is null)
             {
                 throw new ArgumentNullException(nameof(connection));
             }
-            m_parameters = DataChannelPubSubConfiguration.GetParameters(connection);
-            _ = DataChannelPubSubConfiguration.TryGetCarrierKind(
-                connection.TransportProfileUri, out DataChannelCarrierKind carrierKind);
-            CarrierKind = carrierKind;
+            if (parameters is null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
+            if (connection.TransportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile)
+            {
+                CarrierKind = DataChannelCarrierKind.SharedUasc;
+            }
+            else if (DataChannelPubSubConfiguration.TryGetCarrierKind(
+                connection.TransportProfileUri, out DataChannelCarrierKind carrierKind))
+            {
+                DataChannelPubSubConfiguration.ValidateParameters(parameters, carrierKind);
+                CarrierKind = carrierKind;
+            }
+            else
+            {
+                throw new ArgumentException(
+                    "The connection does not select a DataChannel carrier.", nameof(connection));
+            }
+            m_parameters = DataChannelPubSubConfiguration.CopyParameters(parameters);
             Connection = connection;
             PubSubTransportDirection direction = PubSubTransportDirection.None;
             if (connection.WriterGroups.Count > 0)
@@ -61,6 +90,34 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 direction |= PubSubTransportDirection.Receive;
             }
             Direction = direction;
+            var inboundPublisherIds = new List<Variant>();
+            var inboundAssociations = new List<DataChannelPubSubRoute>();
+            foreach (ReaderGroupDataType group in connection.ReaderGroups)
+            {
+                foreach (DataSetReaderDataType reader in group.DataSetReaders)
+                {
+                    Variant publisherId = reader.PublisherId;
+                    if (!inboundPublisherIds.Exists(existing => existing.Equals(publisherId)))
+                    {
+                        inboundPublisherIds.Add(publisherId);
+                    }
+                    ushort? writerGroupId = reader.WriterGroupId == 0 ? null : reader.WriterGroupId;
+                    foreach (byte networkMessageType in DataChannelPubSubRoute.NetworkMessageTypes)
+                    {
+                        var association = new DataChannelPubSubRoute(
+                            publisherId,
+                            writerGroupId,
+                            reader.DataSetWriterId,
+                            networkMessageType);
+                        if (!inboundAssociations.Contains(association))
+                        {
+                            inboundAssociations.Add(association);
+                        }
+                    }
+                }
+            }
+            InboundPublisherIds = new ArrayOf<Variant>(inboundPublisherIds.ToArray());
+            InboundAssociations = new ArrayOf<DataChannelPubSubRoute>(inboundAssociations.ToArray());
         }
 
         /// <summary>
@@ -84,6 +141,47 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
         /// </summary>
         public PubSubTransportDirection Direction { get; }
 
+        /// <summary>
+        /// Gets the distinct configured PublisherIds used to route inbound UADP FLO messages.
+        /// A null element represents a configured wildcard reader.
+        /// </summary>
+        public ArrayOf<Variant> InboundPublisherIds { get; }
+
+        /// <summary>
+        /// Gets the distinct configured inbound UADP source, writer and NetworkMessageType associations.
+        /// </summary>
+        internal ArrayOf<DataChannelPubSubRoute> InboundAssociations { get; }
+
+        private static DataChannelParametersDataType GetConfiguredParameters(
+            PubSubConnectionDataType connection)
+        {
+            if (connection is null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            return DataChannelPubSubConfiguration.GetParameters(connection);
+        }
+
         private readonly DataChannelParametersDataType m_parameters;
+    }
+
+    /// <summary>
+    /// Identifies one configured PubSub data reader for UASC flow routing.
+    /// </summary>
+    /// <param name="PublisherId">The expected PublisherId, or null for a wildcard reader.</param>
+    /// <param name="WriterGroupId">The expected WriterGroupId, or null when any group is accepted.</param>
+    /// <param name="DataSetWriterId">The expected DataSetWriterId.</param>
+    /// <param name="NetworkMessageType">The expected NetworkMessageType.</param>
+    internal readonly record struct DataChannelPubSubRoute(
+        Variant PublisherId,
+        ushort? WriterGroupId,
+        ushort DataSetWriterId,
+        byte NetworkMessageType)
+    {
+        internal static ReadOnlySpan<byte> NetworkMessageTypes =>
+            [DataSetNetworkMessageType, DiscoveryResponseNetworkMessageType];
+
+        private const byte DataSetNetworkMessageType = 0;
+        private const byte DiscoveryResponseNetworkMessageType = 2;
     }
 }

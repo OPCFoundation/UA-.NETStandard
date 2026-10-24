@@ -51,7 +51,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         {
             await using var pair = new FlowLoopback(kind);
             await pair.StartAsync().ConfigureAwait(false);
-            if (kind != DataChannelCarrierKind.DedicatedUasc)
+            if (kind is DataChannelCarrierKind.Quic or DataChannelCarrierKind.WebTransport)
             {
                 await pair.OpenAsync().ConfigureAwait(false);
             }
@@ -66,8 +66,10 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             };
             Task recheck = pair.Initiator.RecheckAuthorizationAsync().AsTask();
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            ByteString firstPayload = FlowLoopback.TestPayload(
+                kind, new ByteString(new byte[] { 12, 34 }));
             Task<DataChannelResult> pending = flow.Local.SendWithAdmissionAsync(
-                new ByteString(new byte[] { 12, 34 })).AsTask();
+                firstPayload).AsTask();
             try
             {
                 Assert.That(await flow.Local.SendAsync(ByteString.Empty).ConfigureAwait(false),
@@ -90,12 +92,13 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await pending.ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? first = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(first!.MessageId, Is.EqualTo(1));
-            Assert.That(first.Payload.ToArray(), Is.EqualTo(new byte[] { 12, 34 }));
-            Assert.That(await flow.Local.SendWithAdmissionAsync(new ByteString("8"u8.ToArray()))
+            Assert.That(first.Payload.ToArray(), Is.EqualTo(firstPayload.ToArray()));
+            ByteString secondPayload = FlowLoopback.TestPayload(kind, new ByteString("8"u8.ToArray()));
+            Assert.That(await flow.Local.SendWithAdmissionAsync(secondPayload)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? second = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(second!.MessageId, Is.EqualTo(2));
-            Assert.That(second.Payload.ToArray(), Is.EqualTo("8"u8.ToArray()));
+            Assert.That(second.Payload.ToArray(), Is.EqualTo(secondPayload.ToArray()));
             await FlowLoopback.EventuallyAsync(() => pair.InitiatorBudget.Usage.Messages == 0).ConfigureAwait(false);
             Assert.That(pair.InitiatorBudget.Usage.Messages, Is.Zero);
         }
@@ -115,10 +118,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
             pair.InitiatorCarrier.GateAfterDelivery = write => write.IsData;
-            Task<DataChannelResult> first = flow.Local.SendAsync(new ByteString(new byte[] { 1 })).AsTask();
+            ByteString firstPayload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 1 }));
+            ByteString secondPayload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 2 }));
+            Task<DataChannelResult> first = flow.Local.SendAsync(firstPayload).AsTask();
             await pair.InitiatorCarrier.Delivered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             Task<DataChannelResult> pending = flow.Local.SendWithAdmissionAsync(
-                new ByteString(new byte[] { 2 })).AsTask();
+                secondPayload).AsTask();
             try
             {
                 Assert.Multiple(() =>
@@ -126,12 +131,12 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                     Assert.That(pending.IsCompleted, Is.False);
                     Assert.That(flow.Local.StateData.LastDataId, Is.EqualTo(1));
                     Assert.That(pair.InitiatorBudget.Usage.Messages, Is.EqualTo(1));
-                    Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(18));
+                    Assert.That(pair.InitiatorBudget.Usage.BufferedBytes, Is.EqualTo(firstPayload.Length));
                 });
                 // Free the receiver's single slot before testing admission of another sender-owned message.
                 using DataChannelMessage? received = await flow.Remote.ReadAsync().ConfigureAwait(false);
                 Assert.That(received!.MessageId, Is.EqualTo(1));
-                Assert.That(received.Payload.ToArray(), Is.EqualTo(new byte[] { 1 }));
+                Assert.That(received.Payload.ToArray(), Is.EqualTo(firstPayload.ToArray()));
             }
             finally
             {
@@ -142,7 +147,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? last = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(last!.MessageId, Is.EqualTo(2));
-            Assert.That(last.Payload.ToArray(), Is.EqualTo(new byte[] { 2 }));
+            Assert.That(last.Payload.ToArray(), Is.EqualTo(secondPayload.ToArray()));
         }
 
         [TestCase(false)]
@@ -164,19 +169,23 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await FlowLoopback.EventuallyAsync(() => budget.Usage.Messages == 0).ConfigureAwait(false);
             first.InitiatorCarrier.GateBefore = write => write.IsData;
             int heldCount = byteLimit ? 1 : 16 - (2 * DataChannelApplicationBudget.ControlHeadroomMessages);
-            Task<DataChannelResult>[] held = [.. Enumerable.Range(0, heldCount).Select(_ => occupied.Local.SendAsync(ByteString.Empty).AsTask())];
+            ByteString heldPayload = FlowLoopback.UadpPayload(new ByteString(new byte[] { 0x01 }));
+            Task<DataChannelResult>[] held = [.. Enumerable.Range(0, heldCount)
+                .Select(_ => occupied.Local.SendAsync(heldPayload).AsTask())];
             await first.InitiatorCarrier.BeforeEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             DataChannelApplicationBudget.DataChannelCarrierReservation? lease = null;
             if (byteLimit)
             {
                 Assert.That(budget.TryReserveCarrier(
-                    4096 - 17 - (2 * DataChannelApplicationBudget.ControlHeadroomBytes), 0, 0, out lease), Is.True);
+                    4096 - heldPayload.Length - (2 * DataChannelApplicationBudget.ControlHeadroomBytes),
+                    0, 0, out lease), Is.True);
             }
             using (lease)
             {
                 var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                ByteString waitingPayload = FlowLoopback.UadpPayload(new ByteString("\t"u8.ToArray()));
                 Task<DataChannelResult> pending = waiting.Local.SendWithAdmissionAsync(
-                    new ByteString("\t"u8.ToArray()), cancellation.Token).AsTask();
+                    waitingPayload, cancellation.Token).AsTask();
                 try
                 {
                     Assert.That(pending.IsCompleted, Is.False);
@@ -208,7 +217,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             }
             using DataChannelMessage? delivered = await waiting.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(delivered!.MessageId, Is.EqualTo(1));
-            Assert.That(delivered.Payload.ToArray(), Is.EqualTo("\t"u8.ToArray()));
+            Assert.That(delivered.Payload.ToArray(), Is.EqualTo(
+                FlowLoopback.UadpPayload(new ByteString("\t"u8.ToArray())).ToArray()));
         }
 
         [TestCase(17, 2)]
@@ -267,7 +277,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
                 await recheck.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 cancellation.Dispose();
             }
-            Assert.That(await flow.Local.SendWithAdmissionAsync(ByteString.Empty).ConfigureAwait(false),
+            Assert.That(await flow.Local.SendWithAdmissionAsync(FlowLoopback.UadpPayload(ByteString.Empty))
+                .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? delivered = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(delivered!.MessageId, Is.EqualTo(1));
@@ -330,7 +341,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(await flow.Local.SendWithAdmissionAsync(new ByteString(new byte[257])).AsTask()
                 .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.EqualTo(DataChannelResult.TooLarge));
             Assert.That(flow.Local.StateData.LastDataId, Is.Zero);
-            Assert.That(await flow.Local.SendWithAdmissionAsync(ByteString.Empty).ConfigureAwait(false),
+            Assert.That(await flow.Local.SendWithAdmissionAsync(FlowLoopback.UadpPayload(ByteString.Empty))
+                .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? delivered = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.That(delivered!.MessageId, Is.EqualTo(1));

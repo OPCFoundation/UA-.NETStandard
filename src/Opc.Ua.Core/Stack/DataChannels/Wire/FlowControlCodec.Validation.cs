@@ -38,7 +38,7 @@ namespace Opc.Ua.DataChannels.Wire
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="FlowCodecException"></exception>
-        internal static void ValidateCarrier(FlowControl control, FlowCarrier carrier)
+        internal static void ValidateCarrier(FlowControl control, FlowCarrier carrier, bool uascBaseline = false)
         {
             if (control is null)
             {
@@ -49,24 +49,27 @@ namespace Opc.Ua.DataChannels.Wire
             {
                 throw new FlowCodecException(FlowCodecError.CarrierMismatch);
             }
-            if (control is FlowCredit && carrier != FlowCarrier.SharedUasc)
+            if (control is FlowCredit && !uascBaseline &&
+                carrier is not (FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc))
             {
                 throw new FlowCodecException(FlowCodecError.CarrierMismatch);
             }
-            if (carrier == FlowCarrier.DedicatedUasc && control.Flow > 1)
+            if (control is FlowBinding or FlowAssociation &&
+                (!uascBaseline || carrier is not (FlowCarrier.Quic or FlowCarrier.WebTransport)))
             {
-                throw new FlowCodecException(FlowCodecError.InvalidFlow);
+                throw new FlowCodecException(FlowCodecError.CarrierMismatch);
             }
             switch (control)
             {
                 case FlowOpen open:
-                    ValidateAssociation(open.Stream, open.Parameters, carrier);
+                    ValidateAssociation(open.Stream, open.Parameters, carrier, uascBaseline);
                     break;
                 case FlowAccept accept:
-                    ValidateAssociation(accept.Stream, accept.Parameters, carrier);
+                    ValidateAssociation(accept.Stream, accept.Parameters, carrier, uascBaseline);
                     break;
-                case FlowPrepare prepare when carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc:
-                    ValidateLimits(prepare.Limits, FlowRecordCodec.HeaderSize + 4);
+                case FlowPrepare prepare when uascBaseline ||
+                    carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc:
+                    ValidateLimits(prepare.Limits, 0);
                     break;
             }
         }
@@ -86,14 +89,16 @@ namespace Opc.Ua.DataChannels.Wire
             bool connection = control.Flow == 0;
             if (connection &&
                 control.Operation is not
-                    (FlowOperation.Hello or FlowOperation.Credit or FlowOperation.Ping or FlowOperation.Pong))
+                    (FlowOperation.Hello or FlowOperation.Credit or FlowOperation.Ping or FlowOperation.Pong or
+                    FlowOperation.Status or FlowOperation.Bind))
             {
                 throw new FlowCodecException(FlowCodecError.InvalidFlow);
             }
             bool validRevision = control.Operation switch
             {
-                FlowOperation.Hello => revision == 0,
+                FlowOperation.Hello or FlowOperation.Bind => revision == 0,
                 FlowOperation.Open or FlowOperation.Accept or FlowOperation.Ready => revision == 1,
+                FlowOperation.Associate or FlowOperation.AssociateAck => revision >= 1,
                 FlowOperation.Prepare or FlowOperation.AcceptUpdate or FlowOperation.Commit or
                     FlowOperation.Ack or FlowOperation.AbortUpdate => revision >= 2,
                 _ => connection ? revision == 0 : revision >= 1
@@ -119,10 +124,31 @@ namespace Opc.Ua.DataChannels.Wire
                     ValidateParameters(accept.Parameters);
                     break;
                 case FlowPrepare prepare:
-                    ValidateLimits(prepare.Limits, FlowRecordCodec.HeaderSize);
+                    ValidateLimits(prepare.Limits, 0);
                     break;
                 case FlowCredit credit when connection && credit.ChannelCredit != 0:
                     throw new FlowCodecException(FlowCodecError.InvalidFlow);
+                case FlowBinding binding:
+                    if (binding.Role > 1)
+                    {
+                        throw new FlowCodecException(FlowCodecError.InvalidEnumeration);
+                    }
+                    if (binding.TranscriptDigest.IsNull || binding.TranscriptDigest.Length != 32 ||
+                        binding.Proof.IsNull || binding.Proof.Length != 32)
+                    {
+                        throw new FlowCodecException(FlowCodecError.InvalidChallenge);
+                    }
+                    break;
+                case FlowAssociation association:
+                    if (association.Flow == 0 || association.Token == Guid.Empty)
+                    {
+                        throw new FlowCodecException(FlowCodecError.InvalidFlow);
+                    }
+                    if (association.Direction > 1)
+                    {
+                        throw new FlowCodecException(FlowCodecError.InvalidEnumeration);
+                    }
+                    break;
                 case FlowOutcome outcome:
                     FlowWireNames.Status(outcome.Status);
                     break;
@@ -180,9 +206,7 @@ namespace Opc.Ua.DataChannels.Wire
             {
                 throw new FlowCodecException(FlowCodecError.InvalidDescriptor);
             }
-            int overhead = FlowRecordCodec.HeaderSize +
-                (parameters.Delivery == FlowWireDelivery.Datagram ? 4 : 0);
-            ValidateLimits(parameters.Limits, overhead);
+            ValidateLimits(parameters.Limits, 0);
         }
 
         /// <summary>
@@ -209,23 +233,33 @@ namespace Opc.Ua.DataChannels.Wire
         /// Checks carrier-static association rules, leaving native ownership to the carrier.
         /// </summary>
         /// <exception cref="FlowCodecException"></exception>
-        private static void ValidateAssociation(ulong stream, FlowWireParameters parameters, FlowCarrier carrier)
+        private static void ValidateAssociation(
+            ulong stream, FlowWireParameters parameters, FlowCarrier carrier, bool uascBaseline)
         {
-            if (carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc)
+            if (uascBaseline || carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc)
             {
                 if (stream != 0)
                 {
                     throw new FlowCodecException(FlowCodecError.InvalidStream);
                 }
-                if (parameters.Delivery != FlowWireDelivery.Ordered)
+                if (parameters.Delivery != FlowWireDelivery.Ordered &&
+                    (carrier is not (FlowCarrier.Quic or FlowCarrier.WebTransport) ||
+                        parameters.Protection != FlowWireProtection.Confidential))
                 {
                     throw new FlowCodecException(FlowCodecError.CarrierMismatch);
                 }
-                ValidateLimits(parameters.Limits, FlowRecordCodec.HeaderSize + 4);
+                ValidateLimits(parameters.Limits,
+                    parameters.Delivery == FlowWireDelivery.Datagram ? DirectDatagramCodec.HeaderSize : 0);
             }
             else if (parameters.Protection != FlowWireProtection.Confidential)
             {
                 throw new FlowCodecException(FlowCodecError.CarrierMismatch);
+            }
+            else
+            {
+                int overhead = FlowRecordCodec.HeaderSize +
+                    (parameters.Delivery == FlowWireDelivery.Datagram ? 4 : 0);
+                ValidateLimits(parameters.Limits, overhead);
             }
         }
     }

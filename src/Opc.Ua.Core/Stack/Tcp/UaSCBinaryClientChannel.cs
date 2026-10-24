@@ -160,7 +160,7 @@ namespace Opc.Ua.Bindings
             m_requestedSecurityPolicyUri = endpoint.SecurityPolicyUri;
             m_url = new Uri(endpoint.EndpointUrl);
             m_dataChannelKind = UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri);
-            if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
+            if (FlowModel.SharesServices(m_dataChannelKind))
             {
                 m_dataChannelReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
@@ -182,6 +182,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new InvalidOperationException("Flow configuration cannot change on an open connection.");
             }
+            UascDataChannelEndpoint.ValidateTransportProfile(EndpointDescription?.TransportProfileUri, m_transportFactory);
             m_dataChannelKind = UascDataChannelEndpoint.Validate(
                 m_url!, EndpointDescription, factory, allowIntegrity);
             if (m_dataChannelKind.HasValue)
@@ -434,7 +435,7 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadServiceUnsupported,
                     "A dedicated data endpoint does not accept ordinary Service requests.");
             }
-            if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
+            if (FlowModel.SharesServices(m_dataChannelKind))
             {
                 if (State == TcpChannelState.Closed)
                 {
@@ -1109,9 +1110,8 @@ namespace Opc.Ua.Bindings
             ArraySegment<byte> messageChunk,
             CancellationToken ct)
         {
-            if (TcpMessageType.IsType(messageType, TcpMessageType.Flow) ||
-                (m_dataChannelKind == DataChannelCarrierKind.DedicatedUasc &&
-                    TcpMessageType.IsType(messageType, TcpMessageType.Message)))
+            if (TcpMessageType.IsType(messageType, TcpMessageType.FlowData) ||
+                TcpMessageType.IsType(messageType, TcpMessageType.FlowControl))
             {
                 return ProcessDataChannelMessage(messageType, messageChunk, false);
             }
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Bindings
                 TcpMessageType.IsType(messageType, TcpMessageType.Close))
             {
                 if (TcpMessageType.IsType(messageType, TcpMessageType.Message) &&
-                    m_dataChannelKind == DataChannelCarrierKind.SharedUasc &&
+                    FlowModel.SharesServices(m_dataChannelKind) &&
                     DataChannels?.IsReady != true)
                 {
                     ForceReconnect(ServiceResult.Create(
@@ -1529,7 +1529,7 @@ namespace Opc.Ua.Bindings
                     true,
                     out bool limitsExceeded);
 
-                if (m_dataChannelKind == DataChannelCarrierKind.SharedUasc)
+                if (FlowModel.SharesServices(m_dataChannelKind))
                 {
                     buffers = encoded.Chunks;
                     if (!BeginWriteSymmetricMessage(encoded, operation))

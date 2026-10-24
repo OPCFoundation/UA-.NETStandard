@@ -17,6 +17,8 @@ namespace Opc.Ua.Client.DataChannels
     /// Independently authorizes the opener's resource policy and the grant returned by its participating
     /// control Server. A grant never replaces application authorization on this peer.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class SessionDataChannelAuthorizer : IDataChannelAuthorizer, IAsyncDisposable
     {
         /// <summary>

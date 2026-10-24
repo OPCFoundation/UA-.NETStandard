@@ -1,5 +1,5 @@
 /* Copyright (c) OPC Foundation. Licensed under the MIT License.
- * Production Sans-I/O ABI 1 / operation revision 2. No QUIC/TLS or callbacks.
+ * Production Sans-I/O ABI 1 / operation revision 3. No QUIC/TLS or callbacks.
  */
 #ifndef OPCUA_HTTP3_H
 #define OPCUA_HTTP3_H
@@ -18,7 +18,7 @@ typedef struct opcua_http3_utf8 {
 
 /* 80 bytes. Assertions supplied ONLY by the real authenticated transport backend. */
 typedef struct opcua_http3_transport_facts {
-    uint32_t abi_version; /* 1 */
+    uint32_t abi_version; /* facts1: application-mTLS; facts2: server-authenticated transport TLS */
     uint32_t role; /* 0 client, 1 server */
     uint64_t local_max_datagram;
     uint64_t peer_max_datagram;
@@ -29,9 +29,9 @@ typedef struct opcua_http3_transport_facts {
     uint32_t local_reset_parameter_empty; /* 1 */
     uint32_t peer_reset_parameter_empty; /* 1 */
     uint32_t handshake_confirmed; /* 1, never 0-RTT */
-    uint32_t mutual_tls_authenticated; /* 1, host validated expected applications */
+    uint32_t mutual_tls_authenticated; /* facts1: 1; facts2: 0, no invented application identity */
     uint32_t alpn_is_h3; /* 1 */
-    uint32_t reserved; /* 0 */
+    uint32_t authentication_policy; /* facts1: 0; facts2: 1; actual immutable QUIC policy */
 } opcua_http3_transport_facts;
 
 typedef struct opcua_http3_limits {
@@ -52,19 +52,19 @@ typedef struct opcua_http3_limits {
 /* 224 bytes on accepted x64 RIDs. No zero/default endpoint or trust policy. */
 typedef struct opcua_http3_config {
     uint32_t struct_size; /* sizeof(opcua_http3_config) */
-    uint32_t abi_version; /* 1 */
+    uint32_t abi_version; /* 1: explicit subprotocol; 2: baseline without subprotocol negotiation */
     uint32_t origin_policy; /* 0 absent-only; 1 absent or exact; 2 required exact */
     uint32_t maximum_sessions; /* exactly 1 for connection lifetime */
     opcua_http3_utf8 authority; /* canonical ASCII host[:port] or [IPv6][:port] */
     opcua_http3_utf8 path; /* exact absolute URI resource, optional query */
     opcua_http3_utf8 origin; /* empty for mode0; otherwise exact https://authority */
-    opcua_http3_utf8 application_protocol; /* nonempty identifier */
+    opcua_http3_utf8 application_protocol; /* config1: nonempty identifier; config2: empty */
     uint64_t control_stream; /* already allocated, distinct local QUIC uni IDs */
     uint64_t encoder_stream;
     uint64_t decoder_stream;
     uint64_t connect_stream; /* reserved client bidi0, even on server */
     uint64_t connection_tag; /* nonzero external correlation; NOT authentication */
-    uint64_t application_pair_tag; /* nonzero external correlation; NOT authentication */
+    uint64_t application_pair_tag; /* config1: nonzero; config2: zero allowed before UASC auth; NOT authentication */
     opcua_http3_limits limits;
 } opcua_http3_config;
 

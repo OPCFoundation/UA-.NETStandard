@@ -99,6 +99,38 @@ namespace Opc.Ua.Native.QuicGo.Tests
                     clientEvidence.PeerMaximumDatagramFrameSize == 16383 &&
                     serverEvidence.LocalMaximumDatagramFrameSize == 16383,
                     "VerifiedApplicationEvidenceAndExactTransportFacts");
+                byte[] exporterContext = SHA256.HashData("OPC UA QUIC exporter test"u8);
+                NativeQuicCompletion invalidExporterContext = await backend.ConnectionAsync(
+                    client,
+                    NativeQuicConnectionOperation.ExportKeyingMaterial,
+                    new NativeQuicRequest(TimeSpan.FromSeconds(5), new ByteString(exporterContext.AsMemory(1))))
+                    .ConfigureAwait(false);
+                Check(invalidExporterContext.Status == NativeQuicStatus.Invalid,
+                    "ExporterRejectsInvalidTranscriptDigestLength");
+                NativeQuicCompletion clientExporter = await backend.ConnectionAsync(
+                    client,
+                    NativeQuicConnectionOperation.ExportKeyingMaterial,
+                    new NativeQuicRequest(TimeSpan.FromSeconds(5), new ByteString(exporterContext)))
+                    .ConfigureAwait(false);
+                NativeQuicCompletion serverExporter = await backend.ConnectionAsync(
+                    server,
+                    NativeQuicConnectionOperation.ExportKeyingMaterial,
+                    new NativeQuicRequest(TimeSpan.FromSeconds(5), new ByteString(exporterContext)))
+                    .ConfigureAwait(false);
+                byte[] differentExporterContext = SHA256.HashData("different QUIC exporter context"u8);
+                NativeQuicCompletion differentExporter = await backend.ConnectionAsync(
+                    client,
+                    NativeQuicConnectionOperation.ExportKeyingMaterial,
+                    new NativeQuicRequest(TimeSpan.FromSeconds(5), new ByteString(differentExporterContext)))
+                    .ConfigureAwait(false);
+                Check(clientExporter.Status == NativeQuicStatus.Success &&
+                    serverExporter.Status == NativeQuicStatus.Success &&
+                    clientExporter.Payload.Length == 32 &&
+                    serverExporter.Payload.Equals(clientExporter.Payload) &&
+                    differentExporter.Status == NativeQuicStatus.Success &&
+                    HasExporterLength(differentExporter.Payload) &&
+                    !differentExporter.Payload.Equals(clientExporter.Payload),
+                    "ConnectionExporterMatchesAcrossRolesAndBindsContext");
                 NativeQuicCompletion certificate = await backend.ConnectionAsync(client,
                     NativeQuicConnectionOperation.Certificate,
                     new NativeQuicRequest(TimeSpan.FromSeconds(5), certificateIndex: 1)).ConfigureAwait(false);
@@ -316,6 +348,27 @@ namespace Opc.Ua.Native.QuicGo.Tests
         }
 
         /// <summary>
+        /// Asserts actual native success without hiding failures behind wrapper tasks.
+        /// </summary>
+        /// <exception cref="InvalidDataException"></exception>
+        internal static void Success(NativeQuicCompletion result)
+        {
+            if (result.Status != NativeQuicStatus.Success)
+            {
+                throw new InvalidDataException(
+                    $"Native operation failed: {result.Status}, native={result.NativeStatus}.");
+            }
+        }
+
+        /// <summary>
+        /// Checks the fixed exporter output size without coupling it to another result's flow state.
+        /// </summary>
+        private static bool HasExporterLength(ByteString value)
+        {
+            return value.Length == 32;
+        }
+
+        /// <summary>
         /// Distinguishes actual peer STOP from local context cancellation through the AOT-safe interface.
         /// </summary>
         /// <exception cref="InvalidDataException"></exception>
@@ -421,17 +474,5 @@ namespace Opc.Ua.Native.QuicGo.Tests
             }
         }
 
-        /// <summary>
-        /// Asserts actual native success without hiding failures behind wrapper tasks.
-        /// </summary>
-        /// <exception cref="InvalidDataException"></exception>
-        private static void Success(NativeQuicCompletion result)
-        {
-            if (result.Status != NativeQuicStatus.Success)
-            {
-                throw new InvalidDataException(
-                    $"Native operation failed: {result.Status}, native={result.NativeStatus}.");
-            }
-        }
     }
 }

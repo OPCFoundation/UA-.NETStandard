@@ -57,7 +57,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                         """
                         ConsoleSecureChannelPubSub [demo|setup|server|client]
                           --shared                       Services + PubSub on one authenticated UASC transport
-                          --encoding uadp|json           Independently negotiated payload (default uadp)
                           --authorization configured|session
                           --reverse                      Client publishes; server subscribes
                           --count 4..1000                Samples per writer (default 8)
@@ -69,7 +68,7 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
 
                         No arguments provisions two owned, explicitly trusted identities and runs real sockets.
                         Separate processes require setup and OPCUA_SAMPLE_KEY_PASSWORD (16+ characters).
-                        The same encoding, authorization, role and count options must be used for both processes.
+                        The same authorization, role and count options must be used for both processes.
                         """);
                     return 0;
                 }

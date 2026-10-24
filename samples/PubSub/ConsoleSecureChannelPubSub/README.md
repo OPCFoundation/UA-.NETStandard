@@ -5,8 +5,9 @@ an authenticated, encrypted UASC connection. It needs no MQTT broker, UDP
 bridge, native QUIC library, external OPC UA server, or permissive certificate
 callback.
 
-The sample uses the [OPC 10000-28 binary CONTROL/FLO revision](../../../docs/DataChannels.md).
-UADP and JSON remain complete Part 14 DATA payloads. Queue expiry stays disabled;
+The sample uses the [Data Channels CONTROL/FLO protocol](../../../docs/DataChannels.md)
+and carries complete UADP NetworkMessages as DATA payloads. JSON PubSub is not
+supported by this mapping. Queue expiry stays disabled;
 the adapter refuses it without a Publisher dependency/recovery policy.
 
 ## Run
@@ -34,9 +35,6 @@ response is not readiness.
 Useful variants:
 
 ```powershell
-# JSON is negotiated as a payload protocol, not inferred from the carrier profile.
-dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --encoding json
-
 # Real Read and monitored Publish traffic on the SAME authenticated connection.
 dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared
 
@@ -44,10 +42,10 @@ dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:Custom
 dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --authorization session
 
 # Reverse the application roles, not the transport's connect direction.
-dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --reverse --encoding json
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --reverse
 
 # Combine all selections and retain non-secret validation evidence.
-dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --encoding json --authorization session --reverse --count 12 --result .git\testagent\pubsub-result.json
+dotnet run --project samples\PubSub\ConsoleSecureChannelPubSub --property:CustomTestTarget=net10.0 -- --shared --authorization session --reverse --count 12 --result .git\testagent\pubsub-result.json
 ```
 
 Every run has a finite `--count` (default 8, minimum 4) and `--timeout` (default
@@ -62,11 +60,10 @@ alternate-transport fallback.
   `Counter`, Boolean `Toggle`, and Double `Temperature`, with metadata version
   `1.0`. The two readers receive distinct, changing values. Unmatched
   PublisherId and DataSetWriterId readers receive nothing.
-- UADP and JSON use the existing standard encoders, metadata registry, writers,
-  readers and sinks. A complete encoded NetworkMessage is a complete flow
-  payload. There is no new NetworkMessage wrapper, flow-ID substitution,
-  custom encoder, or decode/re-encode bridge. JSON has no UADP numeric
-  WriterGroupId header; the sample does not invent one.
+- UADP uses the existing standard encoder, metadata registry, writers, readers
+  and sinks. A complete encoded NetworkMessage is a complete flow payload.
+  There is no new NetworkMessage wrapper, flow-ID substitution, custom encoder,
+  or decode/re-encode bridge.
 - The existing metadata publisher's announcements are retained, so the total
   NetworkMessage count can exceed `--count`. Finite progress observes the
   standard WriterGroup's completed data publishing cycles, not raw packet

@@ -35,6 +35,8 @@ namespace Opc.Ua.Native.QuicGo.Tests
             Server = new NativeQuicCredentials(
                 new ByteString(m_server.RawData), default, m_serverSigning,
                 new ByteString(m_root.RawData), ServerUri);
+            TlsClient = NativeQuicCredentials.ForTlsClient(new ByteString(m_root.RawData));
+            TlsServer = NativeQuicCredentials.ForTlsServer(new ByteString(m_server.RawData), default, m_serverSigning);
             ClientPeer = new NativeQuicPeer(ClientUri,
                 new ByteString(SHA256.HashData(m_clientKey.ExportSubjectPublicKeyInfo())));
             ServerPeer = new NativeQuicPeer(ServerUri,
@@ -50,6 +52,16 @@ namespace Opc.Ua.Native.QuicGo.Tests
         /// Gets server credentials.
         /// </summary>
         internal NativeQuicCredentials Server { get; }
+
+        /// <summary>
+        /// Gets transport-only server trust without any client certificate or private key.
+        /// </summary>
+        internal NativeQuicCredentials TlsClient { get; }
+
+        /// <summary>
+        /// Gets server TLS signing material without client authorization or an application URI.
+        /// </summary>
+        internal NativeQuicCredentials TlsServer { get; }
 
         /// <summary>
         /// Gets the expected authenticated client.

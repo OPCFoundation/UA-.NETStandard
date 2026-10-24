@@ -33,7 +33,7 @@ using Opc.Ua.Bindings;
 namespace Opc.Ua.Core.DataChannels.Tests
 {
     /// <summary>
-    /// Preserves UACP message classification independently of the replaced flow record codec.
+    /// Preserves UACP message classification for the distinct FLO and FLC identifiers.
     /// </summary>
     [TestFixture]
     [Category("DataChannels")]
@@ -41,7 +41,7 @@ namespace Opc.Ua.Core.DataChannels.Tests
     public sealed class DataChannelMessageTypeTests
     {
         /// <summary>
-        /// Rejects fragmented or aborted STR before any body can enter the UASC abort parser.
+        /// Accepts only final FLO and FLC chunks.
         /// </summary>
         [TestCase(TcpMessageType.Final, true)]
         [TestCase(TcpMessageType.Intermediate, false)]
@@ -50,7 +50,8 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [TestCase(0xFF000000u, false)]
         public void OnlyTheFinalStreamChunkTypeIsValid(uint chunkType, bool expected)
         {
-            Assert.That(TcpMessageType.IsValid(TcpMessageType.Flow | chunkType), Is.EqualTo(expected));
+            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowData | chunkType), Is.EqualTo(expected));
+            Assert.That(TcpMessageType.IsValid(TcpMessageType.FlowControl | chunkType), Is.EqualTo(expected));
         }
 
         /// <summary>

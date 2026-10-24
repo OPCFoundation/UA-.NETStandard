@@ -37,6 +37,8 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Connects PubSub to a server's registered real accepted-flow router.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(Opc.Ua.DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = Opc.Ua.DataChannelFeature.ExperimentalUrlFormat)]
     public static class ServerDataChannelPubSubBuilderExtensions
     {
         /// <summary>

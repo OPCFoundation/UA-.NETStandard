@@ -2,9 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Threading.Channels;
 using Opc.Ua.Bindings.Native;
 using Opc.Ua.DataChannels;
 using Opc.Ua.Native.QuicGo;
@@ -28,7 +30,9 @@ namespace Opc.Ua.Bindings
             Uri endpointUrl,
             WebTransportDataChannelOptions options,
             IWebTransportConnectAuthorizer? authorizer,
-            TimeProvider clock)
+            TimeProvider clock,
+            bool uascBaseline = false,
+            Func<Uri, CancellationToken, ValueTask<bool>>? baselineAuthorizer = null)
         {
             NativeConnection = native;
             m_handle = handle;
@@ -36,13 +40,17 @@ namespace Opc.Ua.Bindings
             EndpointUrl = endpointUrl;
             m_options = options;
             m_authorizer = authorizer;
+            m_uascBaseline = uascBaseline;
+            m_baselineAuthorizer = baselineAuthorizer;
             m_clock = clock;
             m_lifetime = m_shutdown.Token;
             m_streamSends = new SemaphoreSlim(options.ConcurrentStreamSends, options.ConcurrentStreamSends);
-            Identity = new DataChannelPeerIdentity(
-                native.Credentials.Credentials.ApplicationUri, native.Peer.ApplicationUri,
-                native.Credentials.LocalKeyThumbprint, native.Peer.SpkiSha256,
-                DataChannelProtectionMode.Confidential, native.Peer.IsClient);
+            m_identity = uascBaseline
+                ? null
+                : new DataChannelPeerIdentity(
+                    native.Credentials.Credentials.ApplicationUri, native.Peer.ApplicationUri,
+                    native.Credentials.LocalKeyThumbprint, native.Peer.SpkiSha256,
+                    DataChannelProtectionMode.Confidential, native.Peer.IsClient);
         }
 
         /// <summary>
@@ -58,6 +66,11 @@ namespace Opc.Ua.Bindings
         public NativeQuicConnection NativeConnection { get; }
 
         /// <summary>
+        /// Gets the CONNECT stream identifier used as the WebTransport Session ID by this baseline.
+        /// </summary>
+        internal ulong UascBaselineSessionId => 0;
+
+        /// <summary>
         /// Gets the exact native data endpoint, not a discovery or Session endpoint.
         /// </summary>
         public Uri EndpointUrl { get; }
@@ -71,7 +84,8 @@ namespace Opc.Ua.Bindings
         public DataChannelCarrierKind Kind => DataChannelCarrierKind.WebTransport;
 
         /// <inheritdoc/>
-        public DataChannelPeerIdentity Identity { get; }
+        public DataChannelPeerIdentity Identity => m_identity ??
+            throw new InvalidOperationException("The WebTransport baseline has no UASC-authenticated identity yet.");
 
         /// <inheritdoc/>
         public int MaxRecordSize => m_options.MaxRecordSize;
@@ -117,7 +131,7 @@ namespace Opc.Ua.Bindings
                 options.Validate();
                 WebTransportEndpoint.Address(endpointUrl, false);
                 ValidateEvidence(connection.Peer);
-                if (!connection.Peer.IsClient && connectAuthorizer == null)
+                if (!connection.IsClient && connectAuthorizer == null)
                 {
                     throw new InvalidOperationException("Explicit CONNECT authorization is required.");
                 }
@@ -134,7 +148,7 @@ namespace Opc.Ua.Bindings
                     throw new DataChannelException(DataChannelResult.WouldBlock);
                 }
                 NativeQuicStream? connect = null;
-                if (connection.Peer.IsClient)
+                if (connection.IsClient)
                 {
                     connect = await connection.OpenStreamAsync(cancellationToken: linked.Token).ConfigureAwait(false);
                     if (connect.StreamId != 0 || !connect.IsLocal || !connect.IsBidirectional)
@@ -159,10 +173,11 @@ namespace Opc.Ua.Bindings
                 }
                 carrier.StartIngress();
                 await carrier.m_established.Task.WaitAsync(linked.Token).ConfigureAwait(false);
-                if (connection.Peer.IsClient)
+                if (connection.IsClient)
                 {
                     await carrier.OpenWebTransportStreamAsync(true, linked.Token).ConfigureAwait(false);
                 }
+
                 await carrier.m_managementReady.Task.WaitAsync(linked.Token).ConfigureAwait(false);
                 carrier.m_context = contextFactory.Create(carrier);
                 carrier.m_attached.TrySetResult();
@@ -187,6 +202,124 @@ namespace Opc.Ua.Bindings
                 reservation?.Dispose();
             }
         }
+
+        /// <summary>
+        /// Establishes an HTTP/3 WebTransport session as a carrier for the ordinary UACP/UASC byte stream.
+        /// The server authorizer is required; TLS evidence is never converted to an application identity.
+        /// </summary>
+        internal static async ValueTask<WebTransportDataChannelConnection> EstablishUascBaselineAsync(
+            NativeQuicConnection connection,
+            NativeHttp3Library http3Library,
+            DataChannelApplicationBudget applicationBudget,
+            Uri endpointUrl,
+            WebTransportDataChannelOptions options,
+            Func<Uri, CancellationToken, ValueTask<bool>>? connectAuthorizer = null,
+            TimeProvider? timeProvider = null,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(connection);
+            WebTransportDataChannelConnection? carrier = null;
+            DataChannelCarrierReservation? reservation = null;
+            Http3Handle? handle = null;
+            try
+            {
+                ArgumentNullException.ThrowIfNull(http3Library);
+                ArgumentNullException.ThrowIfNull(applicationBudget);
+                ArgumentNullException.ThrowIfNull(options);
+                options.Validate();
+                WebTransportEndpoint.HttpsAddress(endpointUrl);
+                NativeQuicTlsEvidence peer = connection.TlsPeer;
+                if (!peer.IsClient && connectAuthorizer == null)
+                {
+                    throw new InvalidOperationException(
+                        "A WebTransport baseline listener requires explicit CONNECT authorization.");
+                }
+                TimeProvider clock = timeProvider ?? TimeProvider.System;
+                using var deadline = new CancellationTokenSource(options.EstablishmentTimeout, clock);
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken, deadline.Token);
+                await http3Library.ValidateAsync(linked.Token).ConfigureAwait(false);
+                if (!applicationBudget.TryReserveCarrier(
+                    options.ReservedBytes, 7 + options.MaxPendingStreams,
+                    options.Native.MaxPendingOperations + options.MaxHostJobs, out reservation))
+                {
+                    throw new DataChannelException(DataChannelResult.WouldBlock);
+                }
+
+                NativeQuicStream? connect = null;
+                if (peer.IsClient)
+                {
+                    connect = await connection.OpenStreamAsync(cancellationToken: linked.Token)
+                        .ConfigureAwait(false);
+                    if (connect.StreamId != 0 || !connect.IsLocal || !connect.IsBidirectional)
+                    {
+                        throw new DataChannelException(DataChannelResult.SecurityFailure);
+                    }
+                }
+                NativeQuicStream control = await connection.OpenStreamAsync(true, linked.Token)
+                    .ConfigureAwait(false);
+                NativeQuicStream encoder = await connection.OpenStreamAsync(true, linked.Token)
+                    .ConfigureAwait(false);
+                NativeQuicStream decoder = await connection.OpenStreamAsync(true, linked.Token)
+                    .ConfigureAwait(false);
+                handle = CreateBaselinePeer(connection, endpointUrl, options, control, encoder, decoder);
+                carrier = new WebTransportDataChannelConnection(
+                    connection, handle, reservation, endpointUrl, options, null, clock,
+                    uascBaseline: true, baselineAuthorizer: connectAuthorizer);
+                handle = null;
+                reservation = null;
+                carrier.AddPhysicalStream(control);
+                carrier.AddPhysicalStream(encoder);
+                carrier.AddPhysicalStream(decoder);
+                if (connect != null)
+                {
+                    carrier.AddPhysicalStream(connect);
+                }
+                carrier.StartIngress();
+                await carrier.m_established.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                if (peer.IsClient)
+                {
+                    ulong streamId = await carrier.OpenWebTransportStreamAsync(false, linked.Token)
+                        .ConfigureAwait(false);
+                    StreamState stream;
+                    lock (carrier.m_gate)
+                    {
+                        stream = carrier.GetActualStreamLocked(streamId);
+                    }
+                    carrier.AttachBaselineStream(stream);
+                }
+                await carrier.m_baselineReady.Task.WaitAsync(linked.Token).ConfigureAwait(false);
+                return carrier;
+            }
+            catch
+            {
+                if (carrier != null)
+                {
+                    await carrier.DisposeAsync().ConfigureAwait(false);
+                }
+                else
+                {
+                    handle?.Dispose();
+                    handle = null;
+                    reservation?.Dispose();
+                    reservation = null;
+                    await connection.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+            finally
+            {
+                handle?.Dispose();
+                reservation?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Returns the established WebTransport stream carrying ordinary UACP bytes.
+        /// </summary>
+        internal Stream UascBaselineByteStream => m_uascBaseline && m_baselineStream != null
+            ? m_baselineStream
+            : throw new InvalidOperationException("The UASC baseline stream is not established.");
 
         /// <inheritdoc/>
         public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
@@ -225,6 +358,7 @@ namespace Opc.Ua.Bindings
                 m_channels.Add(channelId, state);
                 state.Bound.TrySetResult();
                 m_pendingStreams--;
+                state.PendingBinding = false;
                 return ValueTask.FromResult(true);
             }
         }
@@ -410,13 +544,14 @@ namespace Opc.Ua.Bindings
                 {
                     lock (m_gate)
                     {
-                        if (m_management != null || !native.IsLocal || !NativeConnection.Peer.IsClient)
+                        if (m_management != null || !native.IsLocal || !NativeConnection.IsClient)
                         {
                             throw new DataChannelException(DataChannelResult.InvalidState);
                         }
                         m_management = stream;
                         stream.Bound.TrySetResult();
                         m_pendingStreams--;
+                        stream.PendingBinding = false;
                     }
                 }
                 await RetryCommandAsync(12, 0, native.StreamId, default, linked.Token).ConfigureAwait(false);
@@ -472,9 +607,16 @@ namespace Opc.Ua.Bindings
                 m_failure = error ?? new DataChannelException(result);
                 m_established.TrySetException(m_failure);
                 m_managementReady.TrySetException(m_failure);
+                m_baselineReady.TrySetException(m_failure);
                 m_attached.TrySetCanceled();
+                foreach (TaskCompletionSource<Stream> admission in m_directStreamAdmissions.Values)
+                {
+                    admission.TrySetException(m_failure);
+                }
+                m_directStreamAdmissions.Clear();
                 foreach (StreamState stream in m_streams.Values)
                 {
+                    stream.ByteStream?.CompleteInput(result);
                     stream.PrefixComplete.TrySetException(m_failure);
                     stream.PendingSend?.Completion.TrySetResult(result);
                     stream.ResetComplete.TrySetCanceled();
@@ -541,6 +683,13 @@ namespace Opc.Ua.Bindings
                     {
                         cleanupFailure ??= new WebTransportException("HTTP/3 host ownership did not drain.");
                     }
+                    m_baselineStream?.Dispose();
+                    foreach (StreamState stream in m_streams.Values)
+                    {
+                        stream.ByteStream?.Dispose();
+                    }
+                    m_baselineStream = null;
+                    m_queuedStreamBytes = 0;
                     m_handle.Dispose();
                     m_reservation.Dispose();
                     foreach (StreamState stream in m_streams.Values)
@@ -582,14 +731,18 @@ namespace Opc.Ua.Bindings
             if (!stream.Retired)
             {
                 stream.Retired = true;
-                if (stream.ChannelId == 0 && stream.Stream.IsBidirectional && stream.Stream.StreamId != 0)
+                stream.DirectTokenPrefix = null;
+                stream.DirectTokenPrefixLength = 0;
+                if (stream.PendingBinding)
                 {
                     m_pendingStreams--;
+                    stream.PendingBinding = false;
                 }
                 else if (stream.ChannelId != 0)
                 {
                     m_channels.Remove(stream.ChannelId);
                 }
+                stream.ByteStream?.CompleteInput(DataChannelResult.Closed);
                 PulseLocked();
             }
         }
@@ -652,6 +805,26 @@ namespace Opc.Ua.Bindings
             internal uint ChannelId { get; set; }
 
             /// <summary>
+            /// Whether this actual stream still owns a provisional-admission slot.
+            /// </summary>
+            internal bool PendingBinding { get; set; }
+
+            /// <summary>
+            /// Actual baseline or token-bound direct byte-stream owner.
+            /// </summary>
+            internal WebTransportByteStream? ByteStream { get; set; }
+
+            /// <summary>
+            /// Bounded incomplete UA Binary association-token preface.
+            /// </summary>
+            internal byte[]? DirectTokenPrefix { get; set; }
+
+            /// <summary>
+            /// Bytes retained in the incomplete token preface.
+            /// </summary>
+            internal int DirectTokenPrefixLength { get; set; }
+
+            /// <summary>
             /// Validated local registration or peer WT association.
             /// </summary>
             internal bool Associated { get; set; }
@@ -690,6 +863,11 @@ namespace Opc.Ua.Bindings
             /// Actual received-reset evidence, shared by the read and independent reset observer.
             /// </summary>
             internal NativeQuicCompletion? PeerReset { get; set; }
+
+            /// <summary>
+            /// Gets or sets whether the current final byte-stream write must survive local reset.
+            /// </summary>
+            internal bool RetainWrites { get; set; }
 
             /// <summary>
             /// Actual peer STOP evidence, which may win a simultaneous send-side reset.
@@ -796,6 +974,9 @@ namespace Opc.Ua.Bindings
         private readonly DataChannelCarrierReservation m_reservation;
         private readonly WebTransportDataChannelOptions m_options;
         private readonly IWebTransportConnectAuthorizer? m_authorizer;
+        private readonly Func<Uri, CancellationToken, ValueTask<bool>>? m_baselineAuthorizer;
+        private readonly DataChannelPeerIdentity? m_identity;
+        private readonly bool m_uascBaseline;
         private readonly TimeProvider m_clock;
         private readonly CancellationTokenSource m_shutdown = new();
         private readonly CancellationToken m_lifetime;
@@ -808,6 +989,8 @@ namespace Opc.Ua.Bindings
         private readonly Dictionary<ulong, SendLease> m_leases = [];
         private readonly Dictionary<long, Task> m_jobs = [];
         private readonly TaskCompletionSource m_established = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource m_baselineReady =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         private readonly TaskCompletionSource m_managementReady =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -821,11 +1004,22 @@ namespace Opc.Ua.Bindings
         private TaskCompletionSource m_changed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private DataChannelContext? m_context;
         private StreamState? m_management;
+        private StreamState? m_baselineStreamState;
+        private WebTransportByteStream? m_baselineStream;
+
+        /// <summary>Pending single-use tokens awaiting actual peer stream objects.</summary>
+        private readonly Dictionary<Guid, TaskCompletionSource<Stream>> m_directStreamAdmissions = [];
+
+        /// <summary>Nonreusable tokens retained until this CONNECT session is disposed.</summary>
+        private readonly HashSet<Guid> m_directStreamTokens = [];
         private PendingSend? m_datagramSend;
         private Exception? m_failure;
         private DataChannelResult m_closeResult;
         private long m_nextJob;
         private long m_hostBytes;
+
+        /// <summary>Aggregate retained baseline and direct input charged to the carrier reservation.</summary>
+        private long m_queuedStreamBytes;
         private int m_pendingStreams;
         private int m_reservedBidirectional;
         private bool m_closing;

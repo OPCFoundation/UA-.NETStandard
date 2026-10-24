@@ -57,8 +57,8 @@ namespace Opc.Ua.Native.QuicGo
     }
 
     /// <summary>
-    /// Explicit application certificate and trust snapshot, normally supplied by a certificate-manager provider.
-    /// No system store, certificate generation, anonymous policy or implicit key export is attempted.
+    /// Explicit role-specific certificate and trust snapshot supplied by a certificate-manager provider.
+    /// No system store, certificate generation or implicit key export is attempted.
     /// </summary>
     public sealed class NativeQuicCredentials
     {
@@ -71,17 +71,35 @@ namespace Opc.Ua.Native.QuicGo
             NativeQuicPrivateKey privateKey,
             ByteString trustRootsDer,
             string applicationUri)
+            : this(certificateDer, issuerChainDer, privateKey, trustRootsDer, applicationUri, transportOnly: false)
         {
-            ArgumentNullException.ThrowIfNull(privateKey);
-            ValidateBlob(certificateDer, true, nameof(certificateDer));
+        }
+
+        /// <summary>
+        /// Creates a role-specific immutable credential snapshot without inventing an application identity.
+        /// </summary>
+        private NativeQuicCredentials(
+            ByteString certificateDer,
+            ByteString issuerChainDer,
+            NativeQuicPrivateKey? privateKey,
+            ByteString trustRootsDer,
+            string applicationUri,
+            bool transportOnly)
+        {
+            if (!transportOnly)
+            {
+                ArgumentNullException.ThrowIfNull(privateKey);
+                ValidateUri(applicationUri);
+            }
+            ValidateBlob(certificateDer, !transportOnly || privateKey is not null, nameof(certificateDer));
             ValidateBlob(issuerChainDer, false, nameof(issuerChainDer));
-            ValidateBlob(trustRootsDer, true, nameof(trustRootsDer));
-            ValidateUri(applicationUri);
+            ValidateBlob(trustRootsDer, !transportOnly || privateKey is null, nameof(trustRootsDer));
             CertificateDer = new ByteString(certificateDer.Span.ToArray());
             IssuerChainDer = new ByteString(issuerChainDer.Span.ToArray());
             TrustRootsDer = new ByteString(trustRootsDer.Span.ToArray());
             PrivateKey = privateKey;
             ApplicationUri = applicationUri;
+            IsTransportOnly = transportOnly;
         }
 
         /// <summary>
@@ -100,14 +118,40 @@ namespace Opc.Ua.Native.QuicGo
         public ByteString TrustRootsDer { get; }
 
         /// <summary>
-        /// Gets the exact local application URI, required to appear in the leaf SAN.
+        /// Gets the exact local application URI for application-mTLS; empty for transport-only TLS.
         /// </summary>
         public string ApplicationUri { get; }
 
         /// <summary>
+        /// Gets whether application authentication is deliberately left to the independent UASC layer.
+        /// </summary>
+        public bool IsTransportOnly { get; }
+
+        /// <summary>
         /// Gets the caller-owned key capability.
         /// </summary>
-        internal NativeQuicPrivateKey PrivateKey { get; }
+        internal NativeQuicPrivateKey? PrivateKey { get; }
+
+        /// <summary>
+        /// Creates explicit server trust for a TLS client that has no client certificate or signing key.
+        /// Normal chain, lifetime, EKU and hostname validation remain mandatory.
+        /// </summary>
+        public static NativeQuicCredentials ForTlsClient(ByteString trustRootsDer)
+        {
+            return new NativeQuicCredentials(default, default, null, trustRootsDer, string.Empty, transportOnly: true);
+        }
+
+        /// <summary>
+        /// Creates server TLS credentials without requesting client certificates or authorizing applications.
+        /// The certificate and key must be supplied by the host's certificate-store provider.
+        /// </summary>
+        public static NativeQuicCredentials ForTlsServer(
+            ByteString certificateDer, ByteString issuerChainDer, NativeQuicPrivateKey privateKey)
+        {
+            ArgumentNullException.ThrowIfNull(privateKey);
+            return new NativeQuicCredentials(
+                certificateDer, issuerChainDer, privateKey, default, string.Empty, transportOnly: true);
+        }
 
         /// <summary>
         /// Validates the structural URI policy before native SAN verification.
@@ -182,6 +226,20 @@ namespace Opc.Ua.Native.QuicGo
             NativeQuicCredentials credentials,
             ArrayOf<NativeQuicPeer> allowedPeers,
             string serverName = "")
+            : this(address, applicationProtocol, credentials, allowedPeers, serverName, transportOnly: false)
+        {
+        }
+
+        /// <summary>
+        /// Validates a mutually exclusive authentication-policy snapshot before native admission.
+        /// </summary>
+        private NativeQuicOptions(
+            string address,
+            string applicationProtocol,
+            NativeQuicCredentials credentials,
+            ArrayOf<NativeQuicPeer> allowedPeers,
+            string serverName,
+            bool transportOnly)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(address);
             ArgumentException.ThrowIfNullOrWhiteSpace(applicationProtocol);
@@ -193,7 +251,13 @@ namespace Opc.Ua.Native.QuicGo
             {
                 throw new ArgumentOutOfRangeException(nameof(address), "Native endpoint text bounds exceeded.");
             }
-            if (allowedPeers.Count is < 1 or > 32)
+            if (credentials.IsTransportOnly != transportOnly)
+            {
+                throw new ArgumentException(
+                    "Credentials must match the explicitly selected TLS policy.", nameof(credentials));
+            }
+            if ((transportOnly && allowedPeers.Count != 0) ||
+                (!transportOnly && allowedPeers.Count is < 1 or > 32))
             {
                 throw new ArgumentOutOfRangeException(nameof(allowedPeers));
             }
@@ -206,6 +270,7 @@ namespace Opc.Ua.Native.QuicGo
             Credentials = credentials;
             AllowedPeers = new ArrayOf<NativeQuicPeer>(allowedPeers.Span.ToArray().AsMemory());
             ServerName = serverName;
+            AuthenticationPolicy = transportOnly ? 1u : 0u;
         }
 
         /// <summary>
@@ -234,6 +299,11 @@ namespace Opc.Ua.Native.QuicGo
         public string ServerName { get; }
 
         /// <summary>
+        /// Gets the immutable ABI5 policy discriminator; zero retains application-pair mutual TLS.
+        /// </summary>
+        internal uint AuthenticationPolicy { get; }
+
+        /// <summary>
         /// Gets the finite creation deadline in milliseconds (1..60000).
         /// </summary>
         public uint TimeoutMilliseconds { get; init; } = 30000;
@@ -247,5 +317,28 @@ namespace Opc.Ua.Native.QuicGo
         /// Gets the transport idle deadline (1000..600000 milliseconds).
         /// </summary>
         public uint IdleTimeoutMilliseconds { get; init; } = 60000;
+
+        /// <summary>
+        /// Creates explicitly selected server-authenticated TLS options. A connector requires a hostname
+        /// and ForTlsClient credentials; a listener requires ForTlsServer credentials and no hostname.
+        /// This policy provides no application identity or authorization; UASC must establish those independently.
+        /// </summary>
+        public static NativeQuicOptions ForServerAuthenticatedTls(
+            string address,
+            string applicationProtocol,
+            NativeQuicCredentials credentials,
+            string serverName = "",
+            uint timeoutMilliseconds = 30000,
+            uint streamLimit = 32,
+            uint idleTimeoutMilliseconds = 60000)
+        {
+            return new NativeQuicOptions(
+                address, applicationProtocol, credentials, default, serverName, transportOnly: true)
+            {
+                TimeoutMilliseconds = timeoutMilliseconds,
+                StreamLimit = streamLimit,
+                IdleTimeoutMilliseconds = idleTimeoutMilliseconds
+            };
+        }
     }
 }

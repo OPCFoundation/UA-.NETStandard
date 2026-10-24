@@ -37,6 +37,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Resolves a ready, independently authorized flow without coupling PubSub to a carrier package or Session.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelPubSubFlowProvider
     {
         /// <summary>
@@ -51,6 +53,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Optionally acquires a fresh Session-bound grant through the application's existing model-control API.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelPubSubGrantProvider
     {
         /// <summary>

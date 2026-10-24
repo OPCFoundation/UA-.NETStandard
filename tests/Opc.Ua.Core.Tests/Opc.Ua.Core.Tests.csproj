@@ -30,6 +30,7 @@
   <ItemGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <!-- SharedKestrelHostTests uses HostBuilder which is in Microsoft.Extensions.Hosting. -->
     <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Bindings.Quic\Opc.Ua.Bindings.Quic.csproj" />
   </ItemGroup>
   <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <DefineConstants>$(DefineConstants);HAS_KESTREL_TCP_LISTENER</DefineConstants>

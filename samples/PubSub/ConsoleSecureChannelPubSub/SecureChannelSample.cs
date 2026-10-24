@@ -163,7 +163,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
                         FlowEndpoint = flowEndpoint,
                         ControlEndpoint = needServices ? controlEndpoint : string.Empty,
                         Shared = options.Shared,
-                        Json = options.Json,
                         SessionAuthorization = options.SessionAuthorization,
                         Reverse = options.Reverse,
                         Count = options.Count

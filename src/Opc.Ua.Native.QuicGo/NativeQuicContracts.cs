@@ -74,7 +74,7 @@ namespace Opc.Ua.Native.QuicGo
     /// </summary>
     public enum NativeQuicListenerOperation
     {
-        /// <summary>Accept a mutually authenticated connection.</summary>
+        /// <summary>Accept a connection admitted under the listener's explicit TLS authentication policy.</summary>
         Accept = 3,
 
         /// <summary>Read the bound numeric endpoint as UTF8 bytes.</summary>
@@ -114,7 +114,17 @@ namespace Opc.Ua.Native.QuicGo
         WaitClosed = 17,
 
         /// <summary>Release a connection after releasing its streams and referencing operations.</summary>
-        Release = 18
+        Release = 18,
+
+        /// <summary>
+        /// Export the Part 31 direct-binding key using a 32-byte transcript digest.
+        /// </summary>
+        ExportKeyingMaterial = 19,
+
+        /// <summary>
+        /// Export caller-selected bounded keying material for a transport-defined context.
+        /// </summary>
+        ExportCustomKeyingMaterial = 30
     }
 
     /// <summary>
@@ -172,7 +182,13 @@ namespace Opc.Ua.Native.QuicGo
         /// Observe the first authenticated peer STOP_SENDING independently of local send cancellation.
         /// Success reports the actual peer error and stream identity without reset metadata or payload.
         /// </summary>
-        WaitPeerStopped = 29
+        WaitPeerStopped = 29,
+
+        /// <summary>
+        /// Releases the handle after FIN without abandoning outstanding send bytes.
+        /// The connection retains retransmission ownership; no referencing operations may remain.
+        /// </summary>
+        ReleaseGracefully = 31
     }
 
     /// <summary>

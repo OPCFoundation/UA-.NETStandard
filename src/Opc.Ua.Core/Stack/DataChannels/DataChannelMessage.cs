@@ -36,6 +36,8 @@ namespace Opc.Ua.DataChannels
     /// One complete application message. Disposal releases its encoded-byte and message-count
     /// reservation exactly once; a reset does not steal a message already handed to a reader.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelMessage : IDisposable
     {
         /// <summary>

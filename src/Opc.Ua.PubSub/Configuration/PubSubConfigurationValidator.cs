@@ -798,7 +798,8 @@ namespace Opc.Ua.PubSub.Configuration
 
         private static (string Scheme, string Description)[] SchemesForProfile(string profile)
         {
-            if (profile is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc)
+            if (profile is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
+                DataChannelPubSubConfiguration.UafxTransportProfile)
             {
                 return [("opc.tcp://", "UASC TCP"), ("opc.wss://", "UASC binary WebSocket")];
             }

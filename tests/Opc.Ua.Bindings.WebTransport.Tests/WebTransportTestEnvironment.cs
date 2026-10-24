@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -136,6 +137,41 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         /// Gets the server certificate-manager bridge.
         /// </summary>
         internal NativeQuicCertificateProvider ServerCredentials => m_serverCredentials!;
+
+        /// <summary>
+        /// Gets explicit server-authenticated TLS credentials for a baseline-only connection.
+        /// </summary>
+        internal NativeQuicCredentials TlsServerCredentials
+        {
+            get
+            {
+                if (m_tlsServerCredentials == null)
+                {
+                    using RSA rsa = m_serverCertificate!.GetRSAPrivateKey() ??
+                        throw new InvalidOperationException("The test server certificate must have an RSA key.");
+                    byte[] exported = rsa.ExportPkcs8PrivateKey();
+                    try
+                    {
+                        m_tlsServerKey = new NativeQuicPrivateKey(exported);
+                        m_tlsServerCredentials = NativeQuicCredentials.ForTlsServer(
+                            new ByteString(m_serverCertificate.RawData),
+                            new ByteString(m_root!.RawData),
+                            m_tlsServerKey);
+                    }
+                    finally
+                    {
+                        CryptographicOperations.ZeroMemory(exported);
+                    }
+                }
+                return m_tlsServerCredentials;
+            }
+        }
+
+        /// <summary>
+        /// Gets trust-only client credentials that never request a client certificate.
+        /// </summary>
+        internal NativeQuicCredentials TlsClientCredentials =>
+            NativeQuicCredentials.ForTlsClient(new ByteString(m_root!.RawData));
 
         /// <summary>
         /// Loads exact caller-selected reviewed assets; missing assets fail rather than skip native acceptance.
@@ -293,6 +329,8 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         {
             m_clientCredentials?.Dispose();
             m_serverCredentials?.Dispose();
+            m_tlsServerKey?.Dispose();
+            m_serverCertificate?.Dispose();
             await ClientManager.DisposeAsync().ConfigureAwait(false);
             await ServerManager.DisposeAsync().ConfigureAwait(false);
             m_root?.Dispose();
@@ -327,6 +365,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                 ObjectTypeIds.RsaSha256ApplicationCertificateType, client, issuers).ConfigureAwait(false);
             await ServerManager.UpdateApplicationCertificateAsync(
                 ObjectTypeIds.RsaSha256ApplicationCertificateType, server, issuers).ConfigureAwait(false);
+            m_serverCertificate = server.AddRef();
             m_clientCredentials = new NativeQuicCertificateProvider(ClientManager,
                 new NativeQuicCertificateOptions(ClientUri, ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     [new NativeQuicPeer(ServerUri, NativeQuicCertificateProvider.GetPublicKeySha256(server))]));
@@ -389,8 +428,11 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
                         parameters.Delivery == DataChannelDeliveryMode.Ordered &&
                         parameters.Protection == DataChannelProtectionMode.Confidential &&
                         !parameters.AllowQueueExpiry);
+                bool protocol = parameters.Protocol is DataChannelProfiles.OpaquePayload or
+                    DataChannelProfiles.UadpPayload or DataChannelProfiles.UadpAvApplicationPayload or
+                    DataChannelProfiles.UadpOpaqueApplicationPayload;
                 return ValueTask.FromResult(request.Mode == DataChannelAuthorizationMode.Configured &&
-                    resource && parameters.Protocol == DataChannelProfiles.OpaquePayload
+                    resource && protocol
                     ? new DataChannelAuthorization(DataChannelResult.Good, parameters)
                     : new DataChannelAuthorization(DataChannelResult.NotAuthorized));
             }
@@ -412,6 +454,9 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
 
         private readonly InMemoryStoreProvider m_stores = new();
         private Certificate? m_root;
+        private Certificate? m_serverCertificate;
+        private NativeQuicPrivateKey? m_tlsServerKey;
+        private NativeQuicCredentials? m_tlsServerCredentials;
         private NativeQuicCertificateProvider? m_clientCredentials;
         private NativeQuicCertificateProvider? m_serverCredentials;
     }

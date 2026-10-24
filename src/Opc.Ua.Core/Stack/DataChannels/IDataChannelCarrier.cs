@@ -37,6 +37,8 @@ namespace Opc.Ua.DataChannels
     /// Creates and optionally registers an unstarted context using application-scoped providers.
     /// The caller attaches ingress before starting HELLO and owns the returned context lifetime.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelContextFactory
     {
         /// <summary>
@@ -48,6 +50,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Identifies an explicitly selected version-one carrier.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public enum DataChannelCarrierKind
     {
         /// <summary>
@@ -68,12 +72,24 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Mutually authenticated WebTransport over HTTP/3.
         /// </summary>
-        WebTransport
+        WebTransport,
+
+        /// <summary>
+        /// Part 31 QUIC carrying protected FLO/FLC on the reliable UASC baseline.
+        /// </summary>
+        QuicUasc,
+
+        /// <summary>
+        /// Part 32 WebTransport carrying protected FLO/FLC on the reliable UASC baseline.
+        /// </summary>
+        WebTransportUasc
     }
 
     /// <summary>
     /// Identifies the real carrier path used for an encoded record.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public enum DataChannelPath
     {
         /// <summary>
@@ -96,6 +112,8 @@ namespace Opc.Ua.DataChannels
     /// Adapts an already authenticated, explicitly selected carrier. Implementations must not
     /// report unsupported datagrams, stream associations or authentication as successful.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelCarrier
     {
         /// <summary>
@@ -109,7 +127,8 @@ namespace Opc.Ua.DataChannels
         DataChannelPeerIdentity Identity { get; }
 
         /// <summary>
-        /// Gets the complete common-record capacity after outer headers, security and the FLO ChannelId prefix.
+        /// Gets the complete native record capacity or the UASC FLO/FLC application-body capacity,
+        /// after carrier headers and security overhead.
         /// </summary>
         int MaxRecordSize { get; }
 
@@ -166,6 +185,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Carries verified application/key evidence, not untrusted HELLO claims.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelPeerIdentity
     {
         /// <summary>
@@ -232,6 +253,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// An encoded write with an atomic pre-security admission cut-off.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelWrite
     {
         /// <summary>

@@ -53,6 +53,25 @@ namespace Opc.Ua.Server.DataChannels
                 snapshot.SetChildValue(
                     QualifiedName.From(BrowseNames.ClientUserId), NodeClass.Variable, audit.ClientUserId!.Value);
             }
+            if (state is AuditUpdateMethodEventState method)
+            {
+                snapshot.SetChildValue(
+                    QualifiedName.From(BrowseNames.MethodId), NodeClass.Variable, method.MethodId!.Value);
+                snapshot.SetChildValue(
+                    QualifiedName.From(BrowseNames.InputArguments), NodeClass.Variable, method.InputArguments!.Value);
+                if (method.StatusCodeId != null)
+                {
+                    snapshot.SetChildValue(
+                        QualifiedName.From(BrowseNames.StatusCodeId), NodeClass.Variable, method.StatusCodeId.Value);
+                }
+                if (method.OutputArguments != null)
+                {
+                    snapshot.SetChildValue(
+                        QualifiedName.From(BrowseNames.OutputArguments),
+                        NodeClass.Variable,
+                        method.OutputArguments.Value);
+                }
+            }
             s_scopes.Add(snapshot, new DataChannelEventScope(visible));
             return snapshot;
         }
@@ -73,7 +92,7 @@ namespace Opc.Ua.Server.DataChannels
                 state = snapshot.Handle as BaseEventState;
             }
             return state is not (DataChannelOfferedEventState or DataChannelStateChangeEventState or
-                AuditDataChannelEventState);
+                AuditDataChannelEventState or DataChannelOperationEventState);
         }
 
         private static readonly ConditionalWeakTable<IFilterTarget, DataChannelEventScope> s_scopes = new();

@@ -36,6 +36,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
     /// <summary>
     /// Configures a complete-message PubSub flow independently of its carrier and publisher identifiers.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelPubSubConfiguration
     {
         /// <summary>
@@ -69,6 +71,39 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 Value = new Variant(new ExtensionObject(CopyParameters(parameters)))
             });
             connection.TransportProfileUri = profile;
+            connection.ConnectionProperties = new ArrayOf<KeyValuePair>(properties.ToArray());
+            return connection;
+        }
+
+        /// <summary>
+        /// Configures the optional UAFX mapping over an existing shared UASC context.
+        /// </summary>
+        /// <remarks>
+        /// This selects the standard PubSub-over-UASC profile and validates the
+        /// binding-specific transport, payload, protection and address constraints.
+        /// It does not provision peer authorization or install Part 81 configuration.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        public static PubSubConnectionDataType ConfigureUafx(
+            PubSubConnectionDataType connection,
+            DataChannelParametersDataType parameters)
+        {
+            if (connection is null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            ValidateUafxBinding(connection, parameters);
+            var properties = new List<KeyValuePair>();
+            foreach (KeyValuePair property in connection.ConnectionProperties)
+            {
+                if (property.Key != new QualifiedName(ParametersProperty))
+                {
+                    properties.Add(property);
+                }
+            }
+            connection.TransportProfileUri = UafxTransportProfile;
             connection.ConnectionProperties = new ArrayOf<KeyValuePair>(properties.ToArray());
             return connection;
         }
@@ -114,7 +149,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     "The DataChannelParameters connection property is missing.", nameof(connection));
             }
             ValidateParameters(result, carrierKind);
-            ValidateMessageSettings(connection, result.Protocol);
+            ValidateMessageSettings(connection);
             return CopyParameters(result);
         }
 
@@ -130,12 +165,14 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 DataChannelCarrierKind.SharedUasc => DataChannelProfiles.SharedUasc,
                 DataChannelCarrierKind.Quic => DataChannelProfiles.Quic,
                 DataChannelCarrierKind.WebTransport => DataChannelProfiles.WebTransport,
+                DataChannelCarrierKind.QuicUasc => DataChannelProfiles.UascQuic,
+                DataChannelCarrierKind.WebTransportUasc => DataChannelProfiles.UascWebTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(carrierKind))
             };
         }
 
         /// <summary>
-        /// Recognizes the four exact flow profiles without inferring a codec from their names.
+        /// Recognizes the exact flow and reliable-baseline profiles without inferring a codec from their names.
         /// </summary>
         public static bool TryGetCarrierKind(string? profile, out DataChannelCarrierKind carrierKind)
         {
@@ -153,6 +190,12 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                 case DataChannelProfiles.WebTransport:
                     carrierKind = DataChannelCarrierKind.WebTransport;
                     return true;
+                case DataChannelProfiles.UascQuic:
+                    carrierKind = DataChannelCarrierKind.QuicUasc;
+                    return true;
+                case DataChannelProfiles.UascWebTransport:
+                    carrierKind = DataChannelCarrierKind.WebTransportUasc;
+                    return true;
                 default:
                     carrierKind = default;
                     return false;
@@ -160,7 +203,7 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
         }
 
         /// <summary>
-        /// Maps only supported PubSub payload protocols to the existing codec registry.
+        /// Maps the required UADP payload protocol to the existing codec registry.
         /// </summary>
         /// <exception cref="NotSupportedException"></exception>
         internal static string GetEncodingProfile(string? protocol)
@@ -168,8 +211,8 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             return protocol switch
             {
                 DataChannelProfiles.UadpPayload => Profiles.PubSubUdpUadpTransport,
-                DataChannelProfiles.JsonPayload => Profiles.PubSubMqttJsonTransport,
-                _ => throw new NotSupportedException("The selected flow payload is not a supported PubSub encoding.")
+                _ => throw new NotSupportedException(
+                    "PubSub over Data Channels requires a UADP NetworkMessage payload.")
             };
         }
 
@@ -239,12 +282,15 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     "The flow descriptor contains an invalid discriminator.", nameof(parameters));
             }
             if (parameters.Delivery == DataChannelDeliveryMode.Datagram &&
-                carrierKind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc)
+                carrierKind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                    DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc)
             {
                 throw new NotSupportedException("UASC flow carriers do not support datagrams.");
             }
-            uint overhead = carrierKind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc ||
-                parameters.Delivery == DataChannelDeliveryMode.Datagram ? 17u : 13u;
+            uint overhead = carrierKind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc
+                ? 0u
+                : parameters.Delivery == DataChannelDeliveryMode.Datagram ? 17u : 13u;
             if (parameters.MaxMessageSize == 0 ||
                 parameters.MaxMessageSize > int.MaxValue ||
                 parameters.MaxReceiveBytes < (ulong)parameters.MaxMessageSize + overhead ||
@@ -255,29 +301,25 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(parameters),
-                    "Message and receive limits must admit a complete record; datagrams require a finite rate.");
+                    "Message and receive limits must match the carrier; datagrams require a finite rate.");
             }
         }
 
         /// <summary>
-        /// Rejects explicit message settings from the other codec instead of silently ignoring them.
+        /// Rejects JSON-specific message settings instead of silently ignoring them on the UADP mapping.
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
-        private static void ValidateMessageSettings(PubSubConnectionDataType connection, string? protocol)
+        private static void ValidateMessageSettings(PubSubConnectionDataType connection)
         {
-            bool json = protocol == DataChannelProfiles.JsonPayload;
             foreach (WriterGroupDataType group in connection.WriterGroups)
             {
-                ValidateSecurity(group.SecurityMode, json);
-                if ((json && group.MessageSettings.TryGetValue(out UadpWriterGroupMessageDataType? _)) ||
-                    (!json && group.MessageSettings.TryGetValue(out JsonWriterGroupMessageDataType? _)))
+                if (group.MessageSettings.TryGetValue(out JsonWriterGroupMessageDataType? _))
                 {
                     throw new ArgumentException("WriterGroup message settings disagree with the flow payload.");
                 }
                 foreach (DataSetWriterDataType writer in group.DataSetWriters)
                 {
-                    if ((json && writer.MessageSettings.TryGetValue(out UadpDataSetWriterMessageDataType? _)) ||
-                        (!json && writer.MessageSettings.TryGetValue(out JsonDataSetWriterMessageDataType? _)))
+                    if (writer.MessageSettings.TryGetValue(out JsonDataSetWriterMessageDataType? _))
                     {
                         throw new ArgumentException("DataSetWriter message settings disagree with the flow payload.");
                     }
@@ -285,12 +327,9 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
             foreach (ReaderGroupDataType group in connection.ReaderGroups)
             {
-                ValidateSecurity(group.SecurityMode, json);
                 foreach (DataSetReaderDataType reader in group.DataSetReaders)
                 {
-                    ValidateSecurity(reader.SecurityMode, json);
-                    if ((json && reader.MessageSettings.TryGetValue(out UadpDataSetReaderMessageDataType? _)) ||
-                        (!json && reader.MessageSettings.TryGetValue(out JsonDataSetReaderMessageDataType? _)))
+                    if (reader.MessageSettings.TryGetValue(out JsonDataSetReaderMessageDataType? _))
                     {
                         throw new ArgumentException("DataSetReader message settings disagree with the flow payload.");
                     }
@@ -298,19 +337,133 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
             }
         }
 
-        /// <summary>
-        /// Keeps the existing UADP-only message-security implementation fail-closed on JSON flows.
-        /// </summary>
-        /// <exception cref="NotSupportedException"></exception>
-        private static void ValidateSecurity(MessageSecurityMode mode, bool json)
+        private static void ValidateUafxBinding(
+            PubSubConnectionDataType connection,
+            DataChannelParametersDataType parameters)
         {
-            if (json && mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt)
+            ValidateParameters(parameters, DataChannelCarrierKind.SharedUasc);
+            ValidateMessageSettings(connection);
+            ValidateUafxMessageSettings(connection);
+            if (parameters.Protocol != DataChannelProfiles.UadpPayload ||
+                parameters.ContentType != UafxContentType ||
+                parameters.Delivery != DataChannelDeliveryMode.Ordered ||
+                parameters.Protection != DataChannelProtectionMode.Confidential ||
+                parameters.AllowQueueExpiry)
             {
-                throw new NotSupportedException("The existing PubSub message-security mapping requires UADP.");
+                throw new NotSupportedException(
+                    "The UAFX binding requires ordered confidential UADP with application/octet-stream content.");
             }
+            ValidateUafxMessageBounds(connection, parameters.MaxMessageSize);
+            if (!connection.TransportSettings.IsNull)
+            {
+                throw new NotSupportedException(
+                    "The UAFX PubSub-over-UASC mapping requires null connection TransportSettings.");
+            }
+            if (!connection.Address.TryGetValue(out NetworkAddressUrlDataType? address) ||
+                address is null ||
+                !Uri.TryCreate(address.Url, UriKind.Absolute, out Uri? endpoint) ||
+                endpoint.Scheme is not ("opc.tcp" or "opc.wss"))
+            {
+                throw new ArgumentException(
+                    "The UAFX binding requires an opc.tcp or opc.wss NetworkAddressUrlDataType.",
+                    nameof(connection));
+            }
+        }
+
+        private static void ValidateUafxMessageBounds(
+            PubSubConnectionDataType connection,
+            uint maxMessageSize)
+        {
+            foreach (WriterGroupDataType group in connection.WriterGroups)
+            {
+                if (group.MaxNetworkMessageSize == 0 || group.MaxNetworkMessageSize > maxMessageSize)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(connection),
+                        $"WriterGroup '{group.Name}' must have a finite MaxNetworkMessageSize " +
+                        $"no greater than the local UAFX flow limit ({maxMessageSize} bytes).");
+                }
+            }
+            foreach (ReaderGroupDataType group in connection.ReaderGroups)
+            {
+                if (group.MaxNetworkMessageSize == 0 || group.MaxNetworkMessageSize > maxMessageSize)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(connection),
+                        $"ReaderGroup '{group.Name}' must have a finite MaxNetworkMessageSize " +
+                        $"no greater than the local UAFX flow limit ({maxMessageSize} bytes).");
+                }
+            }
+        }
+
+        private static void ValidateUafxMessageSettings(PubSubConnectionDataType connection)
+        {
+            foreach (WriterGroupDataType group in connection.WriterGroups)
+            {
+                if (!group.MessageSettings.IsNull &&
+                    !group.MessageSettings.TryGetValue(out UadpWriterGroupMessageDataType? _))
+                {
+                    throw new NotSupportedException(
+                        $"WriterGroup '{group.Name}' must use UADP WriterGroup message settings.");
+                }
+                foreach (DataSetWriterDataType writer in group.DataSetWriters)
+                {
+                    if (!writer.MessageSettings.IsNull &&
+                        !writer.MessageSettings.TryGetValue(out UadpDataSetWriterMessageDataType? _))
+                    {
+                        throw new NotSupportedException(
+                            $"DataSetWriter '{writer.Name}' must use UADP DataSetWriter message settings.");
+                    }
+                }
+            }
+            foreach (ReaderGroupDataType group in connection.ReaderGroups)
+            {
+                if (!group.MessageSettings.IsNull &&
+                    !group.MessageSettings.TryGetValue(out ReaderGroupMessageDataType? _))
+                {
+                    throw new NotSupportedException(
+                        $"ReaderGroup '{group.Name}' must use standard ReaderGroup message settings.");
+                }
+                foreach (DataSetReaderDataType reader in group.DataSetReaders)
+                {
+                    if (!reader.MessageSettings.IsNull &&
+                        !reader.MessageSettings.TryGetValue(out UadpDataSetReaderMessageDataType? _))
+                    {
+                        throw new NotSupportedException(
+                            $"DataSetReader '{reader.Name}' must use UADP DataSetReader message settings.");
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Resolves and validates the locally provisioned flow policy for a UAFX PubSub connection.
+        /// </summary>
+        internal static DataChannelParametersDataType GetUafxParameters(
+            PubSubConnectionDataType connection,
+            Func<PubSubConnectionDataType, DataChannelParametersDataType> parametersResolver)
+        {
+            if (connection is null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            if (parametersResolver is null)
+            {
+                throw new ArgumentNullException(nameof(parametersResolver));
+            }
+            DataChannelParametersDataType parameters = parametersResolver(connection) ??
+                throw new InvalidOperationException("The UAFX local binding returned no flow parameters.");
+            ValidateUafxBinding(connection, parameters);
+            return CopyParameters(parameters);
         }
 
         /// <summary>The connection property containing the generated flow descriptor.</summary>
         public const string ParametersProperty = "DataChannelParameters";
+
+        /// <summary>The standard PubSub-over-UASC profile used by the UAFX binding.</summary>
+        public const string UafxTransportProfile = DataChannelProfiles.PubSubUasc;
+
+        /// <summary>The required content type for the UAFX UADP binding.</summary>
+        public const string UafxContentType = "application/octet-stream";
     }
 }

@@ -2,7 +2,7 @@
 
 `include\opcua_http3.h` is authoritative. The only exports are the nine symbols
 in `build\exports.json`; no feasibility/fixture exports or identities are present.
-`opcua_http3_abi_version()` is **1**, `opcua_http3_api_revision()` is **2**.
+`opcua_http3_abi_version()` is **1**, `opcua_http3_api_revision()` is **3**.
 The operation revision retains the adopted lease/cancellation/final-size contract.
 The production `create` signature is new and deliberately cannot load the old proof DLL.
 
@@ -25,12 +25,21 @@ reflection, cross-allocator frees, or hidden asynchronous jobs are involved.
 The **real companion QUIC backend** must supply:
 
 - confirmed TLS 1.3, ALPN `h3`, no 0-RTT CONNECT;
-- validated mutual TLS and expected OPC UA application identities using the stack's
-  certificate manager/validation policy;
+- the explicitly selected TLS authentication policy described below, using the host's
+  certificate-store and validation policy;
 - both nonzero QUIC DATAGRAM transport parameters;
 - actual reset09 TP `0x1d` with empty local and peer values, and frame `0x24`.
 
 The native state engine does not manufacture or independently authenticate these facts.
+Facts version1 retains application-pair mTLS: `mutual_tls_authenticated=1` and
+`authentication_policy=0`. Facts version2 explicitly selects server-authenticated transport
+TLS: `mutual_tls_authenticated=0` and `authentication_policy=1`. Both occupy the same
+80 bytes; the former reserved final field is the policy discriminator. Unknown versions,
+mixed policies, invented mutual authentication and missing transport capabilities fail closed.
+Version2 facts must originate from the actual transport-only backend observations, not
+from relabelling application-mTLS facts. Neither contract substitutes for UASC application
+authentication, authorization or exporter proof.
+
 The nonzero connection/application-pair tags are immutable host correlation identifiers,
 not certificate evidence. A state test with synthetic facts is not network evidence.
 The two `initial_max_*` fields retain their 80-byte-layout positions but are explicitly
@@ -42,21 +51,32 @@ Creation requires explicit, validated UTF8 policy:
 - an exact ASCII authority (lowercase DNS or IPv6, optional nonzero port);
 - an exact absolute URI path, optionally including query, without fragments/control bytes;
 - Origin mode **absent only**, **absent or exact**, or **required exact HTTPS origin**;
-- exactly one nonempty application-protocol identifier;
+- configuration version1: exactly one nonempty application-protocol identifier;
+- configuration version2: an empty application protocol, explicitly omitting private
+  application-subprotocol negotiation for the reliable baseline;
 - exactly **one CONNECT/session lifetime**, even after rejection or closure;
 - finite local limits and three distinct, already allocated local uni stream IDs.
 
 Strings are validated before allocation and copied during creation. No pointer is retained.
-There is no default authority, resource, origin, credential, identity or application protocol.
+There is no default authority, resource, origin, credential, identity or inferred application protocol.
 The server must explicitly accept/reject CONNECT. Acceptance rechecks exact authority,
 path, Origin and offered protocol; duplicates and obsolete negotiation headers cannot
 bypass policy. Only status 200 establishes this profile. Client success requires an
-explicit, exact `WT-Protocol` selection. Event 23 reports a non-success HTTP status.
+explicit, exact `WT-Protocol` selection in configuration1. Configuration2 emits neither
+`WT-Available-Protocols` nor `WT-Protocol`, refuses offered/selected subprotocols and rejects
+Cookie, Authorization and Proxy-Authorization request headers. Its exact authority, path/query,
+Origin, draft and transport-capability checks remain mandatory; it does not bypass application
+authentication in the independent UASC layer. A configuration1 caller cannot silently fall back
+to configuration2. Configuration2 requires the actual external connection tag but does not
+require an application-pair tag; zero expresses the absence of a UASC-authenticated application
+pair at CONNECT establishment. Configuration1 retains its nonzero application-pair tag gate.
+Both configuration versions are independent of the transport-facts version
+and retain the same 224-byte layout. Event 23 reports a non-success HTTP status.
 There is no redirect following, origin pooling, second session, or protocol fallback.
 
 ## Stream allocator cooperation
 
-Use a fresh dedicated TLS connection for the application pair. Reserve actual client
+Use a fresh dedicated TLS connection for the selected transport policy. Reserve actual client
 bidirectional stream **0** exclusively for CONNECT before allocating client data streams.
 The maintained HTTP3 engine allocates CONNECT zero internally; production checks that
 the host reserved the same identifier. This is an explicit integration constraint, not

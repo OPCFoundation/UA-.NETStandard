@@ -53,23 +53,40 @@ func validURI(s string) bool {
 }
 
 func validateConfig(c *C.uqg_config, client bool) (uint64, bool) {
-	if c == nil || c.size != C.sizeof_uqg_config || c.reserved != 0 ||
+	if c == nil || c.size != C.sizeof_uqg_config || c.authentication_policy > C.UQG_SERVER_AUTHENTICATED_TLS ||
 		c.timeout_ms == 0 || c.timeout_ms > 60000 || c.stream_limit == 0 || c.stream_limit > 32 ||
 		c.idle_timeout_ms < 1000 || c.idle_timeout_ms > 600000 ||
-		c.peer_count == 0 || c.peer_count > C.UQG_MAX_PEERS || c.peers == nil ||
+		c.peer_count > C.UQG_MAX_PEERS ||
 		!validBytes(c.address, 512, true) || !validBytes(c.alpn, 255, true) {
+		return 0, false
+	}
+	transportOnly := c.authentication_policy == C.UQG_SERVER_AUTHENTICATED_TLS
+	if (!transportOnly && (c.peer_count == 0 || c.peers == nil)) ||
+		(transportOnly && (c.peer_count != 0 || c.peers != nil)) {
 		return 0, false
 	}
 	m := &c.identity
 	blobs := []C.uqg_bytes{m.certificate_der, m.issuer_chain_der, m.private_key_pkcs8, m.trust_roots_der}
 	total := uint64(c.address.length) + uint64(c.alpn.length) + uint64(m.local_uri.length) + uint64(m.server_name.length)
 	for i, blob := range blobs {
-		if !validBytes(blob, 16384, i != 1) {
+		required := i != 1
+		if transportOnly {
+			required = (!client && (i == 0 || i == 2)) || (client && i == 3)
+			if !required && i != 1 && blob.length != 0 {
+				return 0, false
+			}
+			if client && i == 1 && blob.length != 0 {
+				return 0, false
+			}
+		}
+		if !validBytes(blob, 16384, required) {
 			return 0, false
 		}
 		total += uint64(blob.length)
 	}
-	if !validBytes(m.local_uri, 512, true) || !validBytes(m.server_name, 253, client) {
+	if !validBytes(m.local_uri, 512, !transportOnly) ||
+		!validBytes(m.server_name, 253, client) ||
+		(transportOnly && (m.local_uri.length != 0 || (!client && m.server_name.length != 0))) {
 		return 0, false
 	}
 	for _, peer := range unsafe.Slice(c.peers, int(c.peer_count)) {
@@ -83,7 +100,8 @@ func validateConfig(c *C.uqg_config, client bool) (uint64, bool) {
 }
 
 func copyConfig(c *C.uqg_config) (*configuration, bool) {
-	cfg := &configuration{streamLimit: uint32(c.stream_limit), idleTimeout: uint32(c.idle_timeout_ms)}
+	cfg := &configuration{streamLimit: uint32(c.stream_limit), idleTimeout: uint32(c.idle_timeout_ms),
+		authenticationPolicy: uint32(c.authentication_policy)}
 	m := &c.identity
 	var ok bool
 	if cfg.address, ok = text(c.address); !ok {
@@ -92,7 +110,8 @@ func copyConfig(c *C.uqg_config) (*configuration, bool) {
 	if cfg.alpn, ok = text(c.alpn); !ok {
 		return nil, false
 	}
-	if cfg.identity.localURI, ok = text(m.local_uri); !ok || !validURI(cfg.identity.localURI) {
+	if cfg.identity.localURI, ok = text(m.local_uri); !ok ||
+		(cfg.authenticationPolicy == C.UQG_APPLICATION_MTLS && !validURI(cfg.identity.localURI)) {
 		return nil, false
 	}
 	if cfg.identity.serverName, ok = text(m.server_name); !ok {
@@ -155,7 +174,7 @@ func opcua_quic_abi(abi *C.uqg_abi) C.int32_t {
 	if abi == nil || abi.size != C.sizeof_uqg_abi {
 		return C.UQG_INVALID
 	}
-	*abi = C.uqg_abi{size: C.sizeof_uqg_abi, version: 4, pointer_size: C.uint32_t(unsafe.Sizeof(uintptr(0))),
+	*abi = C.uqg_abi{size: C.sizeof_uqg_abi, version: 7, pointer_size: C.uint32_t(unsafe.Sizeof(uintptr(0))),
 		config_size: C.sizeof_uqg_config, request_size: C.sizeof_uqg_request,
 		result_size: C.sizeof_uqg_result, info_size: C.sizeof_uqg_connection_info, counts_size: C.sizeof_uqg_counts}
 	return C.UQG_OK
@@ -179,8 +198,20 @@ func validRequest(r *C.uqg_request) bool {
 		uint64(r.error_code) >= 1<<62 {
 		return false
 	}
-	if r.kind != C.UQG_STREAM_SEND && r.kind != C.UQG_DATAGRAM_SEND && r.payload.length != 0 {
-		return false
+	switch r.kind {
+	case C.UQG_STREAM_SEND, C.UQG_DATAGRAM_SEND:
+	case C.UQG_CONNECTION_EXPORTER:
+		if r.payload.length != 32 {
+			return false
+		}
+	case C.UQG_CONNECTION_EXPORTER_CUSTOM:
+		if r.payload.length == 0 {
+			return false
+		}
+	default:
+		if r.payload.length != 0 {
+			return false
+		}
 	}
 	if (r.kind == C.UQG_STREAM_READ && r.capacity == 0) || (r.kind != C.UQG_STREAM_READ && r.capacity != 0) {
 		return false
@@ -225,7 +256,8 @@ func beginResource(id uint64, category uint32, r *C.uqg_request, out *C.uqg_oper
 	case 2:
 		j.connection = registry.connections[id]
 		if j.connection == nil || j.connection.released.Load() ||
-			r.kind < C.UQG_CONNECTION_INFO || r.kind > C.UQG_CONNECTION_RELEASE {
+			r.kind < C.UQG_CONNECTION_INFO ||
+			r.kind > C.UQG_CONNECTION_EXPORTER && r.kind != C.UQG_CONNECTION_EXPORTER_CUSTOM {
 			return C.UQG_INVALID
 		}
 		if r.kind == C.UQG_CONNECTION_RELEASE {
@@ -247,7 +279,8 @@ func beginResource(id uint64, category uint32, r *C.uqg_request, out *C.uqg_oper
 	case 3:
 		j.stream = registry.streams[id]
 		if j.stream == nil || j.stream.released.Load() ||
-			r.kind < C.UQG_STREAM_SEND || r.kind > C.UQG_STREAM_PEER_STOPPED {
+			r.kind < C.UQG_STREAM_SEND ||
+			r.kind > C.UQG_STREAM_PEER_STOPPED && r.kind != C.UQG_STREAM_RELEASE_GRACEFUL {
 			return C.UQG_INVALID
 		}
 		j.connection = j.stream.connection
@@ -262,7 +295,8 @@ func beginResource(id uint64, category uint32, r *C.uqg_request, out *C.uqg_oper
 		if r.kind == C.UQG_STREAM_RESET {
 			j.key.group = C.UQG_STREAM_SEND
 		}
-		if r.kind == C.UQG_STREAM_RELEASE && referencingJobs(j, nil, j.stream) {
+		if (r.kind == C.UQG_STREAM_RELEASE || r.kind == C.UQG_STREAM_RELEASE_GRACEFUL) &&
+			referencingJobs(j, nil, j.stream) {
 			return C.UQG_BUSY
 		}
 	default:
@@ -274,7 +308,7 @@ func beginResource(id uint64, category uint32, r *C.uqg_request, out *C.uqg_oper
 	j.data = copyBytes(r.payload)
 	if r.kind == C.UQG_CONNECTION_RELEASE {
 		j.connection.released.Store(true)
-	} else if r.kind == C.UQG_STREAM_RELEASE {
+	} else if r.kind == C.UQG_STREAM_RELEASE || r.kind == C.UQG_STREAM_RELEASE_GRACEFUL {
 		j.stream.released.Store(true)
 	} else if r.kind == C.UQG_LISTENER_CLOSE {
 		j.listener.closed.Store(true)

@@ -99,6 +99,33 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
                 case "control_status":
                     return SharedControl(new FlowOutcome(FlowOperation.Status, 1, FlowWireStatus.WouldBlock),
                         1, 46, "010000000f00000001010000002e000000", "0e010000000a");
+                case "control_bind":
+                    return new Definition(FlowCarrier.Quic, false, 0, 0, 48,
+                        "53000000010000000030000000",
+                        "0f0020000000" +
+                        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" +
+                        "20000000" +
+                        "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+                        null,
+                        new FlowBinding(0,
+                            ByteString.FromHexString(
+                                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"),
+                            ByteString.FromHexString(
+                                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")));
+                case "control_associate":
+                    return new Definition(FlowCarrier.Quic, false, 1, 1, 49,
+                        "1f000000010100000031000000",
+                        "10010000000033221111554477668899aabbccddeeff",
+                        null,
+                        new FlowAssociation(FlowOperation.Associate, 1, 0,
+                            new Guid("11112233-4455-6677-8899-aabbccddeeff")));
+                case "control_associate-ack":
+                    return new Definition(FlowCarrier.Quic, false, 1, 1, 50,
+                        "1f000000010100000032000000",
+                        "11010000000033221111554477668899aabbccddeeff",
+                        null,
+                        new FlowAssociation(FlowOperation.AssociateAck, 1, 0,
+                            new Guid("11112233-4455-6677-8899-aabbccddeeff")));
                 case "session_open":
                     return new Definition(FlowCarrier.Quic, false, 1, 1, 47,
                         "a100000001010000002f000000",

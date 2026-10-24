@@ -5,8 +5,8 @@
   xmlns:ua="http://opcfoundation.org/UA/"
   xmlns:dc="http://opcfoundation.org/UA/DataChannel/"
   TargetNamespace="http://opcfoundation.org/UA/DataChannel/"
-  TargetVersion="2.0.0"
-  TargetPublicationDate="2026-10-14T00:00:00Z">
+  TargetVersion="0.3.0"
+  TargetPublicationDate="2026-10-21T00:00:00Z">
   <opc:Namespaces>
     <opc:Namespace
       Name="DataChannelMetadata"
@@ -49,7 +49,7 @@
         AccessLevel="Read">
         <opc:Description>Value or operation for NamespaceVersion.</opc:Description>
         <opc:DefaultValue>
-          <uax:String>2.0.0</uax:String>
+          <uax:String>0.3.0</uax:String>
         </opc:DefaultValue>
       </opc:Property>
       <opc:Property
@@ -62,7 +62,7 @@
         AccessLevel="Read">
         <opc:Description>Value or operation for NamespacePublicationDate.</opc:Description>
         <opc:DefaultValue>
-          <uax:DateTime>2026-10-14T00:00:00Z</uax:DateTime>
+          <uax:DateTime>2026-10-21T00:00:00Z</uax:DateTime>
         </opc:DefaultValue>
       </opc:Property>
       <opc:Property

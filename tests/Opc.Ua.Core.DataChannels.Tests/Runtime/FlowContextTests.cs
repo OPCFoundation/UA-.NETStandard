@@ -77,7 +77,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
             byte[] source = [1, 2, 0, 255];
-            DataChannelResult sent = await flow.Local.SendAsync(new ByteString(source))
+            ByteString payload = FlowLoopback.TestPayload(kind, new ByteString(source));
+            byte[] expected = payload.ToArray();
+            DataChannelResult sent = await flow.Local.SendAsync(payload)
                 .AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             source[0] = 99;
             using DataChannelMessage? received = await flow.Remote.ReadAsync().ConfigureAwait(false);
@@ -85,7 +87,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             {
                 Assert.That(sent, Is.EqualTo(DataChannelResult.Good));
                 Assert.That(received, Is.Not.Null);
-                Assert.That(received!.Payload.ToArray(), Is.EqualTo(new byte[] { 1, 2, 0, 255 }));
+                Assert.That(received!.Payload.ToArray(), Is.EqualTo(expected));
                 Assert.That(received.Revision, Is.EqualTo(1));
                 Assert.That(received.MessageId, Is.EqualTo(1));
                 Assert.That(flow.Local.State, Is.EqualTo(DataChannelState.Open));
@@ -112,24 +114,23 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(flow.Remote.IsLocalOpener, Is.False);
             Assert.That(await flow.Remote.SendAsync(ByteString.Empty).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.InvalidState));
-            Assert.That(await flow.Local.SendAsync(ByteString.Empty).ConfigureAwait(false),
+            ByteString payload = FlowLoopback.TestPayload(kind, ByteString.Empty);
+            Assert.That(await flow.Local.SendAsync(payload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? message = await flow.Remote.ReadAsync().ConfigureAwait(false);
-            Assert.That(message!.Length, Is.Zero);
+            Assert.That(message!.Length, Is.EqualTo(payload.Length));
             Assert.That(message.MessageId, Is.EqualTo(1));
         }
 
         [Test]
-        public async Task DedicatedFlowCanBeOpenedByTransportAcceptorOnlyOnce()
+        public async Task DedicatedAcceptorAllocatesEvenFlowIdentifiers()
         {
             await using var pair = new FlowLoopback(DataChannelCarrierKind.DedicatedUasc);
             await pair.StartAsync().ConfigureAwait(false);
             FlowPair flow = await pair.OpenAsync(fromInitiator: false).ConfigureAwait(false);
-            Assert.That(flow.Local.ChannelId, Is.EqualTo(1));
-            await flow.Local.ResetAsync().ConfigureAwait(false);
-            DataChannelException? exception = Assert.Throws<DataChannelException>(
-                () => pair.Acceptor.ReserveChannelId());
-            Assert.That(exception!.Result, Is.EqualTo(DataChannelResult.InvalidState));
+            Assert.That(flow.Local.ChannelId, Is.EqualTo(2));
+            uint next = pair.Acceptor.ReserveChannelId();
+            Assert.That(next, Is.EqualTo(4));
         }
 
         [Test]

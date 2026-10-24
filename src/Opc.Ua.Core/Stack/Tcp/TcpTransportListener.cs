@@ -472,6 +472,13 @@ namespace Opc.Ua.Bindings
             CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
+            foreach (EndpointDescription endpoint in settings.Descriptions ?? [])
+            {
+                if (UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri))
+                {
+                    throw UascDataChannelEndpoint.Unsupported();
+                }
+            }
             Initialize(baseAddress, settings, callback);
             Start();
             return default;
@@ -481,7 +488,12 @@ namespace Opc.Ua.Bindings
         /// Initializes the ordinary UASC dispatcher for externally accepted byte transports, without binding a socket.
         /// The caller owns the external accept loop and must close its transports asynchronously when required.
         /// </summary>
-        internal void OpenExternal(
+        /// <remarks>
+        /// External transport hosts must validate their endpoint, negotiated protocol and connection/session
+        /// limits before handing streams to this listener. This dispatcher still authenticates the application
+        /// through OPN; successful external transport establishment does not authenticate a UASC application.
+        /// </remarks>
+        public void OpenExternal(
             Uri baseAddress,
             TransportListenerSettings settings,
             ITransportListenerCallback callback)
@@ -1443,7 +1455,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ArgumentNullException">The transport factory is null.</exception>
         /// <exception cref="ArgumentOutOfRangeException">The buffer size is outside the listener limits.</exception>
         /// <exception cref="ServiceResultException">Admission was refused or the listener is shutting down.</exception>
-        internal TcpListenerChannel AcceptTransport(
+        public TcpListenerChannel AcceptTransport(
             IUaSCByteTransportFactory factory,
             ICertificateValidatorEx certificateValidator,
             int maxBufferSize)
@@ -1465,6 +1477,10 @@ namespace Opc.Ua.Bindings
             bool reserved = false;
             try
             {
+                foreach (EndpointDescription endpoint in m_descriptions ?? [])
+                {
+                    UascDataChannelEndpoint.ValidateTransportProfile(endpoint.TransportProfileUri, factory);
+                }
                 transport = factory.Create(m_bufferManager, maxBufferSize, m_telemetry);
                 if (m_admission == null ||
                     !m_admission.TryAcquire(transport.RemoteEndpoint, out lease, TryReclaimUnusedChannel))

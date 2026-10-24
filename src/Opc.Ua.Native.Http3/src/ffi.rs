@@ -44,7 +44,7 @@ pub extern "C" fn opcua_http3_abi_version() -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn opcua_http3_api_revision() -> u32 {
-    2
+    3
 }
 
 /// # Safety
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn opcua_http3_layout(out: *mut Layout, size: usize) -> i3
         *out = Layout {
             struct_size: size_of::<Layout>() as u32,
             abi_version: 1,
-            api_revision: 2,
+            api_revision: 3,
             pointer_size: size_of::<usize>() as u32,
             facts_size: size_of::<TransportFacts>() as u32,
             config_size: size_of::<Config>() as u32,

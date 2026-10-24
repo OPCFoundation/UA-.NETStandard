@@ -28,11 +28,13 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.DataChannels;
+using Opc.Ua.DataChannels.Wire;
 
 namespace Opc.Ua.Bindings
 {
@@ -62,11 +64,15 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Gets the explicitly attached data context, or null on ordinary endpoints.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public DataChannelContext? DataChannels => m_dataChannels;
 
         /// <summary>
         /// Reports a carrier-scoped flow protocol failure without exposing peer payloads.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public event Action<DataChannelResult>? DataChannelProtocolFault;
 
         /// <summary>
@@ -74,6 +80,8 @@ namespace Opc.Ua.Bindings
         /// serialization; this method does not reacquire Gate and never starts network traffic.
         /// Call the returned context's StartAsync outside Gate after ingress has been attached.
         /// </summary>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public DataChannelContext AttachDataChannels(
             DataChannelCarrierKind kind,
             DataChannelPeerIdentity identity,
@@ -93,7 +101,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="identity"/> is <c>null</c>.</exception>
         /// <exception cref="DataChannelException"></exception>
-        /// <exception cref="NotSupportedException"></exception>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public DataChannelContext AttachDataChannels(
             DataChannelCarrierKind kind,
             DataChannelPeerIdentity identity,
@@ -108,7 +117,7 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-            if (kind is not (DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc))
+            if (!FlowModel.IsUasc(kind))
             {
                 throw new DataChannelException(DataChannelResult.Unsupported);
             }
@@ -124,11 +133,6 @@ namespace Opc.Ua.Bindings
             {
                 throw new DataChannelException(DataChannelResult.SecurityFailure);
             }
-            if (kind == DataChannelCarrierKind.SharedUasc && identity.IsTransportInitiator != isUascInitiator)
-            {
-                throw new NotSupportedException(
-                    "Reversed shared-UASC roles need a specified protected context-selection exchange before first HELLO.");
-            }
             var carrier = new UascDataChannelCarrier(this, kind, identity);
             DataChannelContext context = factory.Create(carrier);
             if (context == null || !context.UsesCarrier(carrier))
@@ -142,13 +146,15 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
-        /// Gets exact complete-record capacity using the same cipher-block arithmetic as UASC encoding.
-        /// The common record header is included; FLO ChannelId and UASC security overhead are excluded.
+        /// Gets the maximum UASC flow body after security headers and footer are excluded.
+        /// UASC security headers and signatures are excluded.
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
+        [System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+            UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
         public int GetMaxDataChannelRecordSize(DataChannelCarrierKind kind)
         {
-            if (kind is not (DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc))
+            if (!FlowModel.IsUasc(kind))
             {
                 throw new ArgumentOutOfRangeException(nameof(kind));
             }
@@ -162,8 +168,7 @@ namespace Opc.Ua.Bindings
             int available = maxPlainTextSize -
                 SymmetricSignatureSize -
                 TcpMessageLimits.SequenceHeaderSize -
-                paddingCountSize -
-                4;
+                paddingCountSize;
             return Math.Max(0, available);
         }
 
@@ -177,8 +182,9 @@ namespace Opc.Ua.Bindings
             bool isRequest)
         {
             DataChannelContext? context = m_dataChannels;
+            uint flowMessageType = messageType & TcpMessageType.MessageTypeMask;
             if (context == null ||
-                (messageType & TcpMessageType.MessageTypeMask) != TcpMessageType.Flow ||
+                flowMessageType is not (TcpMessageType.FlowData or TcpMessageType.FlowControl) ||
                 SecurityMode == MessageSecurityMode.None)
             {
                 OnDataChannelProtocolFault(DataChannelResult.Unsupported);
@@ -194,7 +200,12 @@ namespace Opc.Ua.Bindings
                     return false;
                 }
                 context.QueueVerifiedUasc(
-                    (byte)(messageType >> 24), requestId, new ByteString(body.AsMemory()));
+                    flowMessageType == TcpMessageType.FlowData
+                        ? DataChannelUascMessageKind.Flo
+                        : DataChannelUascMessageKind.Flc,
+                    (byte)(messageType >> 24),
+                    requestId,
+                    new ByteString(body.AsMemory()));
             }
             catch (Exception exception) when (
                 exception is ServiceResultException or ArgumentException or CryptographicException)
@@ -223,7 +234,7 @@ namespace Opc.Ua.Bindings
             {
                 return DataChannelResult.Unsupported;
             }
-            int maximum = GetMaxDataChannelRecordSize(m_dataChannelKind) + 4;
+            int maximum = GetMaxDataChannelRecordSize(m_dataChannelKind);
             if (write.Payload.Length > maximum)
             {
                 return DataChannelResult.TooLarge;
@@ -253,7 +264,7 @@ namespace Opc.Ua.Bindings
                     using (await Gate.EnterAsync(cancellationToken).ConfigureAwait(false))
                     {
                         EncodedSymmetricMessage message = EncodeSymmetricMessage(
-                            TcpMessageType.Flow,
+                            write.IsData ? TcpMessageType.FlowData : TcpMessageType.FlowControl,
                             write.RequestId,
                             encoded,
                             m_dataChannelIsUascInitiator,
@@ -411,13 +422,66 @@ namespace Opc.Ua.Bindings
         private sealed class UascDataChannelCarrier(
             UaSCUaBinaryChannel channel,
             DataChannelCarrierKind kind,
-            DataChannelPeerIdentity identity) : IDataChannelCarrier
+            DataChannelPeerIdentity identity) : IDataChannelCarrier, IDataChannelDirectBindingProvider,
+                IDataChannelDirectStreamProvider, IDataChannelDirectDatagramProvider
         {
             public DataChannelCarrierKind Kind => kind;
             public DataChannelPeerIdentity Identity => identity;
             public int MaxRecordSize => channel.GetMaxDataChannelRecordSize(kind);
             public int MaxDatagramSize => 0;
             public ulong ManagementStreamId => 0;
+            public bool IsAvailable => DirectBindingProvider?.IsAvailable == true;
+            public string TransportProfileUri => DirectBindingProvider?.TransportProfileUri ?? string.Empty;
+            public string Capability => DirectBindingProvider?.Capability ?? string.Empty;
+            public string Authority => DirectBindingProvider?.Authority ?? string.Empty;
+            public string Path => DirectBindingProvider?.Path ?? string.Empty;
+            public bool AreDirectStreamsAvailable =>
+                DirectBindingProvider is IDataChannelDirectStreamProvider { AreDirectStreamsAvailable: true };
+
+            public int MaxDirectDatagramSize => DirectBindingProvider is IDataChannelDirectDatagramProvider provider
+                ? provider.MaxDirectDatagramSize : 0;
+
+            public ValueTask<DataChannelResult> SendDirectDatagramAsync(
+                DataChannelWrite write,
+                CancellationToken cancellationToken = default)
+            {
+                return DirectBindingProvider is IDataChannelDirectDatagramProvider provider
+                    ? provider.SendDirectDatagramAsync(write, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            public ValueTask<ByteString> ReceiveDirectDatagramAsync(CancellationToken cancellationToken = default)
+            {
+                return DirectBindingProvider is IDataChannelDirectDatagramProvider provider
+                    ? provider.ReceiveDirectDatagramAsync(cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            public ValueTask<Stream> OpenDirectStreamAsync(
+                Guid associationToken,
+                CancellationToken cancellationToken = default)
+            {
+                return DirectBindingProvider is IDataChannelDirectStreamProvider provider
+                    ? provider.OpenDirectStreamAsync(associationToken, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            public ValueTask<Stream> AcceptDirectStreamAsync(
+                Guid associationToken,
+                CancellationToken cancellationToken = default)
+            {
+                return DirectBindingProvider is IDataChannelDirectStreamProvider provider
+                    ? provider.AcceptDirectStreamAsync(associationToken, cancellationToken)
+                    : throw new DataChannelException(DataChannelResult.Unsupported);
+            }
+
+            public ValueTask<ByteString> ExportKeyingMaterialAsync(
+                ByteString transcriptDigest,
+                CancellationToken cancellationToken = default)
+            {
+                return DirectBindingProvider?.ExportKeyingMaterialAsync(transcriptDigest, cancellationToken) ??
+                    throw new DataChannelException(DataChannelResult.Unsupported);
+            }
 
             public ValueTask<ulong> OpenStreamAsync(CancellationToken cancellationToken = default)
             {
@@ -456,6 +520,9 @@ namespace Opc.Ua.Bindings
                     StatusCodes.BadSecureChannelClosed, "The authenticated data context was closed."));
                 return default;
             }
+
+            private IDataChannelDirectBindingProvider? DirectBindingProvider =>
+                channel.Transport as IDataChannelDirectBindingProvider;
         }
 
         private readonly SequenceNumberBudget m_sequenceBudget;

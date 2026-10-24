@@ -27,7 +27,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
         /// <summary>
         /// Builds the source, authenticated identities and Session metadata seams.
         /// </summary>
-        private DataChannelControlTestContext()
+        private DataChannelControlTestContext(ArrayOf<ExpandedNodeId> contentNodeIds)
         {
             Telemetry = NUnitTelemetryContext.Create();
             Clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
@@ -47,9 +47,11 @@ namespace Opc.Ua.Server.Tests.DataChannels
             Source = new DataChannelSource(ResourceUri, SourcePolicy)
             {
                 SourceNodeId = new ExpandedNodeId(400u, "urn:control-tests:source"),
+                ContentNodeIds = contentNodeIds,
                 SupportedDirections = [DataChannelDirection.OpenerToAcceptor,
                     DataChannelDirection.AcceptorToOpener, DataChannelDirection.Duplex],
-                ContentType = "application/octet-stream",
+                SupportedProtocols = [DataChannelProfiles.UadpPayload],
+                ContentType = "application/opcua+uadp",
                 MaxMessageSize = 2048,
                 MaxReceiveBytes = 8192,
                 MaxFlows = 4
@@ -150,9 +152,10 @@ namespace Opc.Ua.Server.Tests.DataChannels
         /// <summary>
         /// Establishes two actual common-runtime contexts through their HELLO exchange.
         /// </summary>
-        internal static async Task<DataChannelControlTestContext> CreateAsync()
+        internal static async Task<DataChannelControlTestContext> CreateAsync(
+            ArrayOf<ExpandedNodeId> contentNodeIds = default)
         {
-            var fixture = new DataChannelControlTestContext();
+            var fixture = new DataChannelControlTestContext(contentNodeIds);
             try
             {
                 fixture.Pair = await DataChannelControlTestPair.CreateAsync(
@@ -178,8 +181,8 @@ namespace Opc.Ua.Server.Tests.DataChannels
             return new DataChannelParametersDataType
             {
                 ResourceUri = ResourceUri,
-                Protocol = DataChannelProfiles.OpaquePayload,
-                ContentType = "application/octet-stream",
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = "application/opcua+uadp",
                 Direction = direction,
                 Delivery = DataChannelDeliveryMode.Ordered,
                 Protection = DataChannelProtectionMode.Confidential,
@@ -187,6 +190,20 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 MaxReceiveBytes = 4096,
                 Priority = 1
             };
+        }
+
+        /// <summary>
+        /// Encodes an ordinary UADP application message with an unsigned PublisherId.
+        /// </summary>
+        internal static ByteString UadpPayload(ByteString body)
+        {
+            var networkMessage = new byte[7 + body.Length];
+            networkMessage[0] = 0x91;
+            networkMessage[1] = 0x82;
+            networkMessage[2] = 0;
+            networkMessage[3] = 42;
+            body.Span.CopyTo(networkMessage.AsSpan(7));
+            return new ByteString(networkMessage);
         }
 
         /// <summary>
@@ -388,12 +405,15 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 DataChannelWrite write, CancellationToken cancellationToken = default)
             {
                 ByteString payload = write.Payload.Copy();
+                DataChannelUascMessageKind kind = write.IsData
+                    ? DataChannelUascMessageKind.Flo
+                    : DataChannelUascMessageKind.Flc;
                 if (!await Peer.m_incoming.Writer.WaitToWriteAsync(cancellationToken).ConfigureAwait(false) ||
                     !write.TryCommit())
                 {
                     return DataChannelResult.Closed;
                 }
-                return Peer.m_incoming.Writer.TryWrite((write.RequestId, payload))
+                return Peer.m_incoming.Writer.TryWrite((kind, write.RequestId, payload))
                     ? DataChannelResult.Good : DataChannelResult.WouldBlock;
             }
 
@@ -419,15 +439,17 @@ namespace Opc.Ua.Server.Tests.DataChannels
             {
                 while (await m_incoming.Reader.WaitToReadAsync().ConfigureAwait(false))
                 {
-                    while (m_incoming.Reader.TryRead(out (uint RequestId, ByteString Payload) value))
+                    while (m_incoming.Reader.TryRead(
+                        out (DataChannelUascMessageKind Kind, uint RequestId, ByteString Payload) value))
                     {
-                        await context.ReceiveUascAsync((byte)'F', value.RequestId, value.Payload).ConfigureAwait(false);
+                        await context.ReceiveUascAsync(
+                            value.Kind, (byte)'F', value.RequestId, value.Payload).ConfigureAwait(false);
                     }
                 }
             }
 
-            private readonly Channel<(uint RequestId, ByteString Payload)> m_incoming =
-                Channel.CreateBounded<(uint, ByteString)>(new BoundedChannelOptions(256)
+            private readonly Channel<(DataChannelUascMessageKind Kind, uint RequestId, ByteString Payload)> m_incoming =
+                Channel.CreateBounded<(DataChannelUascMessageKind, uint, ByteString)>(new BoundedChannelOptions(256)
                 {
                     SingleReader = true,
                     SingleWriter = true,

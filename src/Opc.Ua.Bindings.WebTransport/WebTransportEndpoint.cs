@@ -7,10 +7,36 @@ using System.Net;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Validates native-only endpoints and preserves exact CONNECT authority/path policy.
+    /// Validates browser and native endpoints and preserves exact CONNECT authority/resource policy.
     /// </summary>
     internal static class WebTransportEndpoint
     {
+        /// <summary>
+        /// Validates a canonical HTTPS URL for browser-facing CONNECT authority and resource policy.
+        /// </summary>
+        internal static string HttpsAddress(Uri endpoint)
+        {
+            ArgumentNullException.ThrowIfNull(endpoint);
+            if (!endpoint.IsAbsoluteUri || endpoint.Scheme != Uri.UriSchemeHttps ||
+                endpoint.UserInfo.Length != 0 || endpoint.Fragment.Length != 0 ||
+                endpoint.Host.Length == 0)
+            {
+                throw new ArgumentException(
+                    "An explicit HTTPS authority and resource are required.", nameof(endpoint));
+            }
+            string original = endpoint.OriginalString;
+            if (original.Contains('\\', StringComparison.Ordinal) ||
+                original.Contains('\r', StringComparison.Ordinal) ||
+                original.Contains('\n', StringComparison.Ordinal) ||
+                !string.Equals(original, endpoint.AbsoluteUri, StringComparison.Ordinal))
+            {
+                throw new ArgumentException(
+                    "The HTTPS endpoint must be canonical and must not require URI normalization.",
+                    nameof(endpoint));
+            }
+            return endpoint.Authority;
+        }
+
         /// <summary>
         /// Rejects ambiguous/default paths, alternate transports, credentials and URI normalization tricks.
         /// </summary>

@@ -1,15 +1,18 @@
 // Copyright (c) OPC Foundation. Licensed under the OPC Foundation MIT License 1.00.
 
 using System;
+using System.Security.Authentication;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Native.QuicGo;
+using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua.Bindings.Native
 {
     /// <summary>
-    /// Owns a supplied-identity native listener. Closing it drains accept operations but leaves accepted peers alive.
+    /// Owns a native listener under an explicitly selected TLS policy.
+    /// Closing it drains accept operations but leaves accepted peers alive.
     /// This helper does not reserve or interpret any flow or HTTP/3 stream.
     /// </summary>
     public sealed class NativeQuicListener : IAsyncDisposable
@@ -26,13 +29,33 @@ namespace Opc.Ua.Bindings.Native
             string applicationProtocol,
             NativeQuicConnectionSettings settings,
             TimeProvider clock)
+            : this(
+                backend, handle, address, applicationProtocol,
+                credentials.ExpiresAt, settings, clock, credentials.Invalidated)
         {
-            m_backend = backend;
             m_provider = provider;
             m_credentials = credentials;
+        }
+
+        /// <summary>
+        /// Shares bounded listener ownership independently of application-pair authentication.
+        /// </summary>
+        private NativeQuicListener(
+            INativeQuicBackend backend,
+            NativeQuicListenerHandle handle,
+            string address,
+            string applicationProtocol,
+            DateTimeOffset expiresAt,
+            NativeQuicConnectionSettings settings,
+            TimeProvider clock,
+            CancellationToken credentialsInvalidated)
+        {
+            m_backend = backend;
             m_handle = handle;
             Address = address;
             m_applicationProtocol = applicationProtocol;
+            m_expiresAt = expiresAt;
+            m_invalidated = credentialsInvalidated;
             m_settings = settings;
             m_clock = clock;
             m_lifetime = m_shutdown.Token;
@@ -111,8 +134,72 @@ namespace Opc.Ua.Bindings.Native
         }
 
         /// <summary>
-        /// Returns a mutually authenticated connection after additional stack certificate validation.
-        /// Its independent public credential lease survives disposal of this listener.
+        /// Starts server-authenticated TLS without requesting client certificates or application identities.
+        /// Credentials and signing-key ownership remain with the host; native creation copies the key.
+        /// The invalidation signal independently closes this listener and its accepted connections.
+        /// </summary>
+        public static async ValueTask<NativeQuicListener> ListenTlsAsync(
+            INativeQuicBackend backend,
+            NativeQuicCredentials credentials,
+            string address,
+            string applicationProtocol,
+            NativeQuicConnectionSettings? settings = null,
+            TimeProvider? timeProvider = null,
+            CancellationToken credentialsInvalidated = default,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(backend);
+            ArgumentNullException.ThrowIfNull(credentials);
+            if (!credentials.IsTransportOnly || credentials.CertificateDer.IsEmpty)
+            {
+                throw new ArgumentException(
+                    "Explicit transport-only server credentials are required.", nameof(credentials));
+            }
+            settings ??= new NativeQuicConnectionSettings();
+            settings.Validate();
+            TimeProvider clock = timeProvider ?? TimeProvider.System;
+            using Certificate certificate = Certificate.FromRawData(credentials.CertificateDer.Span.ToArray());
+            DateTimeOffset expiresAt = new(certificate.NotAfter.ToUniversalTime());
+            if (expiresAt <= clock.GetUtcNow())
+            {
+                throw new AuthenticationException("The transport server certificate has expired.");
+            }
+            NativeQuicOptions options = NativeQuicConnection.CreateTlsOptions(
+                address, applicationProtocol, credentials, string.Empty, settings);
+            using var deadline = new CancellationTokenSource(settings.HandshakeTimeout, clock);
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken, credentialsInvalidated, deadline.Token);
+            NativeQuicListenerHandle handle = default;
+            try
+            {
+                linked.Token.ThrowIfCancellationRequested();
+                NativeQuicCompletion result = await backend.ListenAsync(options, linked.Token).ConfigureAwait(false);
+                handle = result.Listener;
+                NativeQuicConnection.RequireSuccess(result);
+                NativeQuicCompletion endpoint = await backend.ListenerAsync(
+                    handle, NativeQuicListenerOperation.Address,
+                    new NativeQuicRequest(settings.OperationTimeout), linked.Token).ConfigureAwait(false);
+                NativeQuicConnection.RequireSuccess(endpoint);
+                linked.Token.ThrowIfCancellationRequested();
+                var listener = new NativeQuicListener(
+                    backend, handle, Encoding.UTF8.GetString(endpoint.Payload.Span), applicationProtocol,
+                    expiresAt, settings, clock, credentialsInvalidated);
+                handle = default;
+                return listener;
+            }
+            finally
+            {
+                if (handle.Value != 0)
+                {
+                    await CloseUnestablishedAsync(backend, handle, settings.OperationTimeout).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns a connection under this listener's explicit TLS policy, after its required validation.
+        /// Application-mTLS credential leases and transport-only evidence remain distinct.
+        /// Accepted connections survive disposal of this listener.
         /// </summary>
         public async ValueTask<NativeQuicConnection> AcceptAsync(CancellationToken cancellationToken = default)
         {
@@ -128,7 +215,7 @@ namespace Opc.Ua.Bindings.Native
                 m_idle = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             }
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken, m_lifetime, m_credentials.Invalidated);
+                cancellationToken, m_lifetime, m_invalidated);
             NativeQuicConnectionHandle handle = default;
             try
             {
@@ -169,12 +256,18 @@ namespace Opc.Ua.Bindings.Native
             NativeQuicConnectionHandle handle,
             CancellationToken cancellationToken)
         {
-            using NativeQuicCredentialLease credentials = m_credentials.Fork();
             using var deadline = new CancellationTokenSource(m_settings.HandshakeTimeout, m_clock);
             using var validation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
-            return await NativeQuicConnection.AuthenticateAsync(
-                m_backend, m_provider, credentials, handle, m_applicationProtocol, false,
-                m_settings, m_clock, validation.Token).ConfigureAwait(false);
+            if (m_credentials is not null && m_provider is not null)
+            {
+                using NativeQuicCredentialLease credentials = m_credentials.Fork();
+                return await NativeQuicConnection.AuthenticateAsync(
+                    m_backend, m_provider, credentials, handle, m_applicationProtocol, false,
+                    m_settings, m_clock, validation.Token).ConfigureAwait(false);
+            }
+            return await NativeQuicConnection.AuthenticateTlsAsync(
+                m_backend, handle, m_applicationProtocol, false, m_expiresAt,
+                m_settings, m_clock, m_invalidated, validation.Token).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -207,10 +300,10 @@ namespace Opc.Ua.Bindings.Native
             try
             {
                 using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                    m_lifetime, m_credentials.Invalidated);
+                    m_lifetime, m_invalidated);
                 while (!linked.IsCancellationRequested)
                 {
-                    TimeSpan delay = m_credentials.ExpiresAt - m_clock.GetUtcNow();
+                    TimeSpan delay = m_expiresAt - m_clock.GetUtcNow();
                     if (delay <= TimeSpan.Zero)
                     {
                         break;
@@ -267,7 +360,7 @@ namespace Opc.Ua.Bindings.Native
                 }
                 await idle.ConfigureAwait(false);
                 await m_policyMonitor.ConfigureAwait(false);
-                m_credentials.Dispose();
+                m_credentials?.Dispose();
                 m_shutdown.Dispose();
                 m_completion.TrySetResult();
             }
@@ -278,8 +371,15 @@ namespace Opc.Ua.Bindings.Native
         }
 
         private readonly INativeQuicBackend m_backend;
-        private readonly INativeQuicCredentialProvider m_provider;
-        private readonly NativeQuicCredentialLease m_credentials;
+        private readonly INativeQuicCredentialProvider? m_provider;
+        private readonly NativeQuicCredentialLease? m_credentials;
+
+        /// <summary>The local certificate or application policy's expiry boundary.</summary>
+        private readonly DateTimeOffset m_expiresAt;
+
+        /// <summary>The host's independent credential and trust-policy invalidation signal.</summary>
+        private readonly CancellationToken m_invalidated;
+
         private readonly NativeQuicListenerHandle m_handle;
         private readonly string m_applicationProtocol;
         private readonly NativeQuicConnectionSettings m_settings;

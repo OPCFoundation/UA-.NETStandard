@@ -110,6 +110,17 @@ namespace Opc.Ua.DataChannels
         internal bool FlowReserved { get; set; }
         internal bool OpeningOperationReserved { get; set; }
         internal bool Ready { get; set; }
+
+        /// <summary>
+        /// Gets or sets the immutable typed receive associations admitted before shared-UASC streaming READY.
+        /// </summary>
+        internal ArrayOf<Variant> UascStreamingPublisherIds { get; set; }
+
+        /// <summary>
+        /// Gets or sets the selected authenticated ordered direct-lane owner.
+        /// </summary>
+        internal FlowDirectLane? DirectLane { get; set; }
+
         internal bool LocalEnded { get; set; }
         internal bool RemoteEnded { get; set; }
         internal bool Draining { get; set; }
@@ -135,6 +146,7 @@ namespace Opc.Ua.DataChannels
         internal uint LastDataId { get; set; }
         internal uint LastSentDataId { get; set; }
         internal uint LastReceivedDataId { get; set; }
+        internal uint LastRoutedDataId { get; set; }
         internal uint LastControlId { get; set; }
         internal uint PeerControlId { get; set; }
         internal uint LastOperationId { get; set; }
@@ -244,6 +256,7 @@ namespace Opc.Ua.DataChannels
         internal uint RequestId { get; set; }
         internal uint ChannelId { get; init; }
         internal int Cost { get; set; }
+        internal int StorageCost { get; init; }
         internal int PayloadLength { get; init; }
         internal long QueuedAt { get; init; }
         internal TimeSpan? TimeToLive { get; init; }

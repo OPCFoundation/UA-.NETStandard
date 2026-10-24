@@ -32,13 +32,34 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Provisional version-one carrier and payload identifiers, independently selected.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelProfiles
     {
+        /// <summary>
+        /// Part 31 reliable UACP/UASC baseline transport profile.
+        /// </summary>
+        public const string UascQuic = "http://opcfoundation.org/UA-Profile/Transport/uasc-quic-draft";
+
+        /// <summary>
+        /// Part 32 reliable UACP/UASC WebTransport baseline profile.
+        /// </summary>
+        public const string UascWebTransport =
+            "http://opcfoundation.org/UA-Profile/Transport/uasc-webtransport-draft";
+
+        /// <summary>
+        /// Part 31 baseline ALPN, independent of the superseded native flow protocol.
+        /// </summary>
+        public const string UascQuicAlpn = "opcua-uasc-draft";
+
         /// <summary>Dedicated FLO/UASC transport profile.</summary>
         public const string DedicatedUasc = "http://opcfoundation.org/UA-Profile/Transport/flow-uasc-v1";
 
         /// <summary>Shared FLO/UASC transport profile.</summary>
         public const string SharedUasc = "http://opcfoundation.org/UA-Profile/Transport/flow-shared-uasc-v1";
+
+        /// <summary>Part 14 PubSub-over-UASC transport profile used by the optional UAFX binding.</summary>
+        public const string PubSubUasc = "http://opcfoundation.org/UA-Profile/Transport/pubsub-uasc";
 
         /// <summary>Native QUIC transport profile.</summary>
         public const string Quic = "http://opcfoundation.org/UA-Profile/Transport/flow-quic-v1";
@@ -46,14 +67,26 @@ namespace Opc.Ua.DataChannels
         /// <summary>Native WebTransport transport profile.</summary>
         public const string WebTransport = "http://opcfoundation.org/UA-Profile/Transport/flow-webtransport-v1";
 
+        /// <summary>Explicitly selected WebTransport direct-delivery capability.</summary>
+        public const string WebTransportDirectCapability = "webtransport-direct-draft";
+
+        /// <summary>Explicitly selected QUIC direct-delivery capability.</summary>
+        public const string QuicDirectCapability = "quic-direct-draft";
+
         /// <summary>Explicit dedicated UASC endpoint resource.</summary>
         public const string DedicatedResource = "/flow/v1/dedicated";
 
         /// <summary>Explicit shared UASC endpoint resource.</summary>
         public const string SharedResource = "/flow/v1/shared";
 
-        /// <summary>Complete Part 14 UADP NetworkMessage payloads.</summary>
+        /// <summary>Complete ordinary UADP data and discovery NetworkMessage payloads.</summary>
         public const string UadpPayload = "urn:opcfoundation:ua:flow:payload:uadp:1";
+
+        /// <summary>Minimal UADP A/V application-payload NetworkMessages.</summary>
+        public const string UadpAvApplicationPayload = "urn:opcfoundation:proposal:uadp:av";
+
+        /// <summary>Minimal UADP opaque application-payload NetworkMessages.</summary>
+        public const string UadpOpaqueApplicationPayload = "urn:opcfoundation:proposal:uadp:opaque";
 
         /// <summary>Complete Part 14 JSON NetworkMessage payloads.</summary>
         public const string JsonPayload = "urn:opcfoundation:ua:flow:payload:json:1";
@@ -69,5 +102,13 @@ namespace Opc.Ua.DataChannels
 
         /// <summary>HTTP/3 ALPN; WebTransport additionally requires its specified CONNECT/settings.</summary>
         public const string WebTransportAlpn = "h3";
+
+        /// <summary>
+        /// Returns whether a payload protocol carries a UADP NetworkMessage.
+        /// </summary>
+        internal static bool IsUadpPayloadProtocol(string? protocol)
+        {
+            return protocol is UadpPayload or UadpAvApplicationPayload or UadpOpaqueApplicationPayload;
+        }
     }
 }

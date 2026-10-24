@@ -24,8 +24,9 @@ use error::{Code, Failure, Scope, argument_error};
 use send::SendBook;
 pub use send::{MAX_OUTPUT_BYTES, MAX_PENDING_SENDS};
 
-/// Actual transport evidence from one fresh, confirmed, authenticated QUIC connection.
-/// The 80-byte layout is compatible with the adopted operation-revision-2 interface.
+/// Actual transport evidence from one fresh, confirmed QUIC connection.
+/// Version 1 requires application-pair mTLS; version 2 requires explicit server-authenticated TLS.
+/// Neither version substitutes transport authentication for UASC application authentication.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct TransportFacts {
@@ -42,15 +43,18 @@ pub struct TransportFacts {
     pub handshake_confirmed: u32,
     pub mutual_tls_authenticated: u32,
     pub alpn_is_h3: u32,
-    pub reserved: u32,
+    pub authentication_policy: u32,
 }
 
 impl TransportFacts {
     pub fn validate(&self) -> Result<(), Failure> {
-        if self.abi_version != 1 || self.role > 1 || self.reserved != 0 {
+        if !(1..=2).contains(&self.abi_version)
+            || self.role > 1
+            || self.authentication_policy != self.abi_version - 1
+        {
             return Err(Failure::config(
                 Code::InvalidAbi,
-                "invalid facts version, role or reserved field",
+                "invalid facts version, role or authentication policy",
             ));
         }
         if self.local_max_datagram == 0
@@ -62,12 +66,12 @@ impl TransportFacts {
             || self.local_reset_parameter_empty != 1
             || self.peer_reset_parameter_empty != 1
             || self.handshake_confirmed != 1
-            || self.mutual_tls_authenticated != 1
+            || self.mutual_tls_authenticated != u32::from(self.abi_version == 1)
             || self.alpn_is_h3 != 1
         {
             return Err(Failure::config(
                 Code::InvalidTransportEvidence,
-                "confirmed authenticated h3, datagrams and exact reset09 evidence required",
+                "confirmed h3, selected TLS authentication, datagrams and exact reset09 evidence required",
             ));
         }
         if self.initial_max_bidi == 0
@@ -177,7 +181,7 @@ pub struct ResourceSnapshot {
     pub revision: u64,
 }
 
-/// Serialized, nonblocking state for one immutable application pair and one CONNECT lifetime.
+/// Serialized, nonblocking state for one immutable transport policy and one CONNECT lifetime.
 pub struct Peer {
     http: HttpPeer,
     facts: TransportFacts,
@@ -745,8 +749,10 @@ impl Peer {
             ));
         }
         self.admit_send(self.policy.limits.header_bytes as usize, 2)?;
-        let mut request = ConnectRequest::new("https", &self.policy.authority, &self.policy.path)
-            .available_protocols(vec![self.policy.application_protocol.clone()]);
+        let mut request = ConnectRequest::new("https", &self.policy.authority, &self.policy.path);
+        if !self.policy.application_protocol.is_empty() {
+            request = request.available_protocols(vec![self.policy.application_protocol.clone()]);
+        }
         if self.policy.origin_policy != OriginPolicy::AbsentOnly {
             request = request.origin(&self.policy.origin);
         }
@@ -1071,6 +1077,20 @@ impl Peer {
                     .wire(ErrorCode::MessageError.code()));
             }
         }
+        if self.policy.application_protocol.is_empty()
+            && self.headers.iter().any(|header| {
+                matches!(
+                    header.name(),
+                    b"cookie" | b"authorization" | b"proxy-authorization"
+                )
+            })
+        {
+            return Err(denied(
+                Code::PeerProtocol,
+                "baseline CONNECT requires omitted HTTP credentials",
+            )
+            .wire(ErrorCode::MessageError.code()));
+        }
         if self
             .headers
             .iter()
@@ -1112,7 +1132,12 @@ impl Peer {
         if !origin_ok {
             return Err(denied(Code::OriginDenied, "CONNECT Origin is not allowed"));
         }
-        if request.available_protocols != [self.policy.application_protocol.as_str()] {
+        let protocol_ok = if self.policy.application_protocol.is_empty() {
+            request.available_protocols.is_empty()
+        } else {
+            request.available_protocols == [self.policy.application_protocol.as_str()]
+        };
+        if !protocol_ok {
             return Err(denied(
                 Code::ApplicationProtocolDenied,
                 "exact configured application protocol required",
@@ -1146,7 +1171,7 @@ impl Peer {
         self.admit_send(self.policy.limits.header_bytes as usize, 3)?;
         let mut headers =
             vec![Header::new(b":status", status.to_string().as_bytes()).map_err(argument_error)?];
-        if status == 200 {
+        if status == 200 && !self.policy.application_protocol.is_empty() {
             headers.push(
                 Header::new(
                     b"wt-protocol",
@@ -1187,9 +1212,13 @@ impl Peer {
                 .iter()
                 .filter(|header| header.name() == b"wt-protocol")
                 .collect();
-            let expected = format!("\"{}\"", self.policy.application_protocol);
-            if protocol.len() != 1
-                || protocol[0].value() != expected.as_bytes()
+            let protocol_ok = if self.policy.application_protocol.is_empty() {
+                protocol.is_empty()
+            } else {
+                protocol.len() == 1
+                    && protocol[0].value() == format!("\"{}\"", self.policy.application_protocol).as_bytes()
+            };
+            if !protocol_ok
                 || self
                     .headers
                     .iter()

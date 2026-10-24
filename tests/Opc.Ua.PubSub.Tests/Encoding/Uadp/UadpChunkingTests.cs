@@ -364,6 +364,29 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        public void Reassemble_TimeoutUsesMonotonicTimeInsteadOfWallClock()
+        {
+            var start = new DateTimeOffset(2026, 6, 15, 0, 0, 0, TimeSpan.Zero);
+            var clock = new AdjustableTimeProvider(start);
+            var reassembler = new UadpReassembler(
+                new UadpReassemblerOptions { ChunkTimeout = TimeSpan.FromSeconds(1) },
+                clock);
+            var publisherId = PublisherId.FromByte(1);
+
+            Assert.That(
+                reassembler.TryAddChunk(publisherId, 0, BuildChunk(1, 0, 8, 4), out _),
+                Is.False);
+
+            clock.SetUtcNow(start.AddDays(1));
+            Assert.That(reassembler.Sweep(), Is.Zero);
+
+            clock.SetUtcNow(start.AddDays(-1));
+            clock.Advance(TimeSpan.FromSeconds(1) + TimeSpan.FromTicks(1));
+            Assert.That(reassembler.Sweep(), Is.EqualTo(1));
+            Assert.That(reassembler.PendingCount, Is.Zero);
+        }
+
+        [Test]
         public void Reassemble_MalformedChunkRejected()
         {
             var reassembler = new UadpReassembler();
@@ -745,6 +768,40 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
                 WriterGroupId = 3,
                 DataSetMessages = [CreateDataSetMessage(21, fieldBytes)]
             };
+        }
+
+        private sealed class AdjustableTimeProvider : TimeProvider
+        {
+            private DateTimeOffset m_utcNow;
+            private long m_timestamp;
+
+            public AdjustableTimeProvider(DateTimeOffset utcNow)
+            {
+                m_utcNow = utcNow;
+            }
+
+            public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+            public override DateTimeOffset GetUtcNow()
+            {
+                return m_utcNow;
+            }
+
+            public override long GetTimestamp()
+            {
+                return m_timestamp;
+            }
+
+            public void SetUtcNow(DateTimeOffset utcNow)
+            {
+                m_utcNow = utcNow;
+            }
+
+            public void Advance(TimeSpan elapsed)
+            {
+                m_timestamp += elapsed.Ticks;
+                m_utcNow += elapsed;
+            }
         }
 
         private static UadpDataSetMessage CreateDataSetMessage(ushort writerId, int fieldBytes)

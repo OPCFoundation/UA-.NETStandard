@@ -219,7 +219,14 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal bool HasDataChannelEndpoints => m_endpointCandidates.Exists(endpoint =>
             endpoint.TransportProfileUri is DataChannelProfiles.DedicatedUasc or DataChannelProfiles.SharedUasc or
-                DataChannelProfiles.Quic or DataChannelProfiles.WebTransport);
+                DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
+                UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri));
+
+        /// <summary>
+        /// Gets whether HEL selected a Part 31/32 endpoint requiring confidential UASC independently of PubSub.
+        /// </summary>
+        internal bool IsReliableStreamBaseline => m_endpointCandidates.Exists(endpoint =>
+            UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri));
 
         /// <summary>
         /// Optional decorator applied to the byte transport when the channel
@@ -260,6 +267,10 @@ namespace Opc.Ua.Bindings
 
             m_endpointCandidates.RemoveAll(endpoint =>
             {
+                if (UascDataChannelEndpoint.IsReliableStreamProfile(endpoint.TransportProfileUri))
+                {
+                    return !UascDataChannelEndpoint.MatchesReliableStreamEndpoint(url, endpoint);
+                }
                 DataChannelCarrierKind? candidate = UascDataChannelEndpoint.GetKind(endpoint.TransportProfileUri);
                 if (candidate != kind ||
                     endpoint.TransportProfileUri is DataChannelProfiles.Quic or DataChannelProfiles.WebTransport ||
@@ -276,7 +287,10 @@ namespace Opc.Ua.Bindings
             {
                 return false;
             }
-            SelectedDataChannelKind = kind;
+            SelectedDataChannelKind = IsReliableStreamBaseline
+                ? DataChannelFactory == null ? null :
+                    UascDataChannelEndpoint.GetKind(m_endpointCandidates[0].TransportProfileUri)
+                : kind;
             return true;
         }
 

@@ -57,6 +57,9 @@ namespace Opc.Ua.DataChannels.Wire
                 FlowOperation.Ping => "ping",
                 FlowOperation.Pong => "pong",
                 FlowOperation.Status => "status",
+                FlowOperation.Bind => "bind",
+                FlowOperation.Associate => "associate",
+                FlowOperation.AssociateAck => "associate-ack",
                 _ => throw new FlowCodecException(FlowCodecError.UnknownOperation)
             };
         }
@@ -84,6 +87,9 @@ namespace Opc.Ua.DataChannels.Wire
                 "ping" => FlowOperation.Ping,
                 "pong" => FlowOperation.Pong,
                 "status" => FlowOperation.Status,
+                "bind" => FlowOperation.Bind,
+                "associate" => FlowOperation.Associate,
+                "associate-ack" => FlowOperation.AssociateAck,
                 _ => throw new FlowCodecException(FlowCodecError.UnknownOperation)
             };
         }

@@ -39,6 +39,8 @@ namespace Opc.Ua.DataChannels
     /// Owns one explicitly selected authenticated data context. Configured flows have no
     /// Session dependency; optional Session policy is injected through the same admission seam.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed partial class DataChannelContext : IAsyncDisposable
     {
         /// <summary>
@@ -68,7 +70,8 @@ namespace Opc.Ua.DataChannels
             m_codecLimits = new FlowCodecLimits(
                 options.MaxMessageSize,
                 options.MaxControlBytes,
-                carrier.MaxRecordSize);
+                IsNative ? carrier.MaxRecordSize : checked(carrier.MaxRecordSize + FlowRecordCodec.HeaderSize));
+            m_directAssociations = new FlowDirectAssociationRegistry(options.MaxStreamHistory, budget);
             Initialize();
         }
 
@@ -163,6 +166,8 @@ namespace Opc.Ua.DataChannels
         /// Establishes and authorizes a flow, returning only after its opener has sent READY.
         /// Pass a reserved ChannelId when obtaining a Session grant before OPEN.
         /// </summary>
+        /// <exception cref="DataChannelException">The flow was refused or direct binding timed out.</exception>
+        /// <exception cref="OperationCanceledException">The caller cancelled flow establishment.</exception>
         public ValueTask<DataChannel> OpenAsync(
             DataChannelParametersDataType parameters,
             DataChannelAuthorizationMode authorization = DataChannelAuthorizationMode.Configured,
@@ -182,16 +187,21 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
-        /// Receives one authenticated final FLO plaintext body. It borrows input until return
-        /// and retains only owned complete-message storage. Security sequencing stays in UASC.
+        /// Receives one authenticated final FLO or FLC application body. It borrows input until return
+        /// and retains owned complete-message storage.
         /// </summary>
         public ValueTask<DataChannelResult> ReceiveUascAsync(
+            DataChannelUascMessageKind kind,
             byte chunkType,
             uint requestId,
             ByteString verifiedPlaintext,
             CancellationToken cancellationToken = default)
         {
-            return ReceiveUascCoreAsync(chunkType, requestId, verifiedPlaintext, cancellationToken);
+            if (kind is not (DataChannelUascMessageKind.Flo or DataChannelUascMessageKind.Flc))
+            {
+                return new ValueTask<DataChannelResult>(DataChannelResult.Unsupported);
+            }
+            return ReceiveUascCoreAsync(kind, chunkType, requestId, verifiedPlaintext, cancellationToken);
         }
 
         /// <summary>
@@ -313,6 +323,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// A generated status snapshot captured at an actual flow state transition.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelStateChangedEventArgs
     {
         /// <summary>

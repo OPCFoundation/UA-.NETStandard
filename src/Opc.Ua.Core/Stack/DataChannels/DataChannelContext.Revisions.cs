@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -297,6 +298,10 @@ namespace Opc.Ua.DataChannels
                 QueueControlLocked(
                     new FlowSignal(FlowOperation.AcceptUpdate, flow.Id),
                     update.Revision, update.Id, DataChannelPath.Management, flow: flow);
+                if (flow.DirectLane != null && (!flow.MaySend || !flow.MayReceive))
+                {
+                    TryQueueCommitLocked(flow, update);
+                }
                 return DataChannelResult.Good;
             }
         }
@@ -356,6 +361,7 @@ namespace Opc.Ua.DataChannels
                         return DataChannelResult.InvalidState;
                     }
                     update.Accepted = true;
+                    PulseCapacityLocked();
                     return TryQueueCommitLocked(flow, update);
                 case FlowCommit commit:
                     if (!update.Accepted ||
@@ -367,7 +373,7 @@ namespace Opc.Ua.DataChannels
                     {
                         if (flow.IsDatagram
                             ? commit.LastOldMessageId < flow.LastReceivedDataId
-                            : commit.LastOldMessageId != flow.LastReceivedDataId)
+                            : commit.LastOldMessageId != 0)
                         {
                             return DataChannelResult.InvalidArgument;
                         }
@@ -383,7 +389,8 @@ namespace Opc.Ua.DataChannels
                     }
                     return DataChannelResult.Good;
                 case FlowSignal { Operation: FlowOperation.Ack }:
-                    if (!update.LocalBarrier)
+                    if (!update.LocalBarrier &&
+                        (flow.DirectLane == null || flow.MaySend || !update.Accepted))
                     {
                         return DataChannelResult.InvalidState;
                     }
@@ -406,6 +413,10 @@ namespace Opc.Ua.DataChannels
                 return DataChannelResult.InvalidState;
             }
             if (update.CommitQueued || update.LocalBarrier)
+            {
+                return DataChannelResult.Good;
+            }
+            if (flow.DirectLane != null && !flow.MaySend && !update.RemoteBarrier)
             {
                 return DataChannelResult.Good;
             }
@@ -435,6 +446,10 @@ namespace Opc.Ua.DataChannels
             }
             update.CommitQueued = true;
             update.Result = DataChannelResult.Good;
+            if (flow.DirectLane != null && !flow.MaySend)
+            {
+                return CommitLocalLocked(flow, update);
+            }
             QueueControlLocked(
                 new FlowCommit(flow.Id, uint.MaxValue),
                 update.Revision,
@@ -465,7 +480,7 @@ namespace Opc.Ua.DataChannels
             {
                 return;
             }
-            uint lastOld = update.LocalBarrier ? update.LocalLastOld : flow.LastSentDataId;
+            uint lastOld = update.LocalBarrier ? update.LocalLastOld : flow.IsDatagram ? flow.LastSentDataId : 0;
             var commit = new FlowCommit(flow.Id, lastOld);
             item.Control = commit;
             item.Record = FlowControlCodec.Encode(commit, update.Revision, update.Id, m_codecLimits);
@@ -488,7 +503,7 @@ namespace Opc.Ua.DataChannels
             }
             FlowRevision old = flow.Revisions[flow.SendRevision];
             FlowRevision next = flow.Revisions[update.Revision];
-            update.LocalLastOld = flow.LastSentDataId;
+            update.LocalLastOld = flow.IsDatagram ? flow.LastSentDataId : 0;
             update.LocalBarrier = true;
             old.SendActive = false;
             next.SendActive = true;
@@ -513,11 +528,23 @@ namespace Opc.Ua.DataChannels
                     {
                         throw new InvalidOperationException("An owned flow record lost its writable backing storage.");
                     }
-                    FlowRecordCodec.Write(in record, storage.AsSpan()[4..], m_codecLimits);
+                    if (flow.DirectLane != null)
+                    {
+                        BinaryPrimitives.WriteUInt32LittleEndian(
+                            storage.AsSpan()[DirectDatagramCodec.AssociationTokenSize..], update.Revision);
+                    }
+                    else
+                    {
+                        FlowRecordCodec.Write(in record, storage.AsSpan()[4..], m_codecLimits);
+                    }
                     item.Record = record;
                     old.SendBytes -= item.Cost;
                     next.SendBytes += item.Cost;
                 }
+            }
+            if (flow.DirectLane != null && !flow.MayReceive && !update.RemoteBarrier)
+            {
+                CommitRemoteLocked(flow, update, 0);
             }
             if (update.RemoteBarrier)
             {
@@ -551,7 +578,7 @@ namespace Opc.Ua.DataChannels
             flow.ReceiveCredit = 0;
             update.RemoteLastOld = lastOldMessageId;
             update.RemoteBarrier = true;
-            if (IsShared)
+            if (UsesFlowCredit(flow))
             {
                 GrantCreditLocked(flow);
             }
@@ -610,7 +637,7 @@ namespace Opc.Ua.DataChannels
         {
             if (update.Committed)
             {
-                if (update.LocalBarrier && !update.Acknowledged)
+                if (update.LocalBarrier && !update.Acknowledged && (flow.DirectLane == null || flow.MaySend))
                 {
                     QueueControlLocked(
                         new FlowCommit(flow.Id, update.LocalLastOld),

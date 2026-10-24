@@ -34,9 +34,29 @@ using System.Threading.Tasks;
 namespace Opc.Ua.DataChannels
 {
     /// <summary>
+    /// Identifies the UASC application-message identifier accepted by the data-channel API.
+    /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+    public enum DataChannelUascMessageKind
+    {
+        /// <summary>
+        /// One complete application DATA body.
+        /// </summary>
+        Flo,
+
+        /// <summary>
+        /// One protected flow-control message.
+        /// </summary>
+        Flc
+    }
+
+    /// <summary>
     /// A ready, independently authorized complete-message flow. The owning context handles
     /// association, readiness, revisions, resource accounting and carrier selection.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannel : IAsyncDisposable
     {
         /// <summary>

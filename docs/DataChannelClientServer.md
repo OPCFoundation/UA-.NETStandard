@@ -1,9 +1,23 @@
 # Optional Client/Server lane on native data channels
 
-**Experimental.** Complete WebTransport lane acceptance remains blocked by
-the [peer-STOP reliable-header limitation](DataChannels.md#current-limitations).
-The private native-policy candidate is not adopted. This guide describes the
-implemented composition, not certification or an unqualified two-carrier result.
+**Experimental legacy composition.** Complete WebTransport lane acceptance
+remains blocked by the
+[peer-STOP reliable-header limitation](DataChannels.md#current-limitations).
+This guide describes the current separately selected Client/Server lane, not
+the current Part 31/32 baseline. Those drafts carry UACP/UASC Services on the
+reliable transport baseline; the implementation below has not yet been
+reworked to that contract.
+
+For the separate managed Part 31 baseline, use
+[`QuicUascTransport`](../src/Opc.Ua.Bindings.Quic/NugetREADME.md#part-31-reliable-uasc-baseline).
+It carries UACP/UASC directly on the reliable stream and does not use this
+reserved resource, outer flow authorization or nested lane. The WebTransport
+native HTTPS UASC baseline and explicitly selected
+[`NativeQuicUascTransport`](../src/Opc.Ua.Bindings.Quic/NugetREADME.md#explicit-native-part-31-baseline-and-direct-delivery)
+are separate paths. Their TLS identity is not used as the UASC application
+identity. Native QUIC/WebTransport direct delivery uses protected binding and
+token admission, not this nested lane. Browser interoperability and full
+conformance remain separate evidence gates.
 
 Native QUIC and WebTransport data contexts do not require a UA SecureChannel,
 Session, or AddressSpace. An application that also needs ordinary Client/Server
@@ -17,9 +31,9 @@ MessageChunk, including HEL, ACK, OPN, MSG, CLO, or ERR. Normal UASC chunking,
 security sequencing, request correlation, buffer ownership, and Session
 processing remain in the existing stack.
 
-This implementation follows the OPC 10000-28 draft's optional native lane and
-its OPC 10000-6 transport text,
-`OPCF-Members/OPC10000-Core@673b3cfde6b2c8d6510d5b598dec1180c0add205`,
+This implementation follows the superseded OPC 10000-28 draft's optional
+native lane and its OPC 10000-6 transport text,
+`OPCF-Members/OPC10000-Core@726c91572a4e5725e114115cf0f69ab8cc2a6b0f`,
 `source/data-channels/OPC-UA-Part6-Data-Channel-Transport.md`,
 “Native peer binding and connection lifetime” and “Optional Client/Server lane.”
 

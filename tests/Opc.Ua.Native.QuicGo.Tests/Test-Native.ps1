@@ -64,6 +64,11 @@ if (!$Linux) {
         --peer-server $peer `
         --output (Join-Path $out 'network-tests.json') | Tee-Object -FilePath (Join-Path $out 'network-tests.log')
     if ($LASTEXITCODE -ne 0) { throw 'Generic production QUIC tests failed.' }
+    python (Join-Path $PSScriptRoot 'native\server_tls_test.py') `
+        --library (Join-Path $assets 'opcua_quic_go.dll') --fixture $fixture `
+        --output (Join-Path $out 'server-tls-tests.json') |
+        Tee-Object -FilePath (Join-Path $out 'server-tls-tests.log')
+    if ($LASTEXITCODE -ne 0) { throw 'Server-authenticated TLS tests failed.' }
     return
 }
 $pins = Get-Content (Join-Path $production 'build\native-pins.json') -Raw | ConvertFrom-Json
@@ -74,8 +79,9 @@ $stage = Join-Path $out 'container-input'
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item $fixture,$wire,$peer,(Join-Path $assets 'libopcua_quic_go.so'),`
     (Join-Path $PSScriptRoot 'native\generic_network_test.py'),`
-    (Join-Path $PSScriptRoot 'native\peer_stop_regression.py') $stage -Force
-$command = 'mkdir -p /validation/results /validation/work && chmod +x /validation/identity-fixture /validation/wire-tests /validation/capability-server && timeout -k 5s 40s /validation/wire-tests -test.v -test.timeout=30s > /validation/results/wire-tests.log && timeout -k 5s 120s python3 /validation/generic_network_test.py --library /validation/libopcua_quic_go.so --fixture /validation/identity-fixture --peer-server /validation/capability-server --output /validation/results/network-tests.json'
+    (Join-Path $PSScriptRoot 'native\peer_stop_regression.py'),`
+    (Join-Path $PSScriptRoot 'native\server_tls_test.py') $stage -Force
+$command = 'mkdir -p /validation/results /validation/work && chmod +x /validation/identity-fixture /validation/wire-tests /validation/capability-server && timeout -k 5s 40s /validation/wire-tests -test.v -test.timeout=30s > /validation/results/wire-tests.log && timeout -k 5s 120s python3 /validation/generic_network_test.py --library /validation/libopcua_quic_go.so --fixture /validation/identity-fixture --peer-server /validation/capability-server --output /validation/results/network-tests.json && timeout -k 5s 45s python3 /validation/server_tls_test.py --library /validation/libopcua_quic_go.so --fixture /validation/identity-fixture --output /validation/results/server-tls-tests.json'
 $container = podman create --pull=never --network=none --cap-drop=all --security-opt=no-new-privileges `
     --ulimit core=0 --memory=512m --cpus=1 --env PYTHONDONTWRITEBYTECODE=1 --env TMPDIR=/validation/work `
     --entrypoint /bin/sh $image -c $command

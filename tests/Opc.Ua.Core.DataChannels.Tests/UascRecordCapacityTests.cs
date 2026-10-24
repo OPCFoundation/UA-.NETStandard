@@ -37,7 +37,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.DataChannels.Tests
 {
     /// <summary>
-    /// Keeps the cipher-block boundary regression using complete common records rather than old frame deadlines.
+    /// Keeps the cipher-block boundary regression using complete UASC flow bodies rather than old frame deadlines.
     /// </summary>
     [TestFixture]
     [Category("DataChannels")]
@@ -46,17 +46,17 @@ namespace Opc.Ua.Core.DataChannels.Tests
         [TestCase(SecurityPolicies.Basic256Sha256)]
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
-        public void AdvertisedRecordCapacityIncludesExactCipherBlockAndCarrierOverhead(string policy)
+        public void AdvertisedBodyCapacityIncludesExactCipherBlockAndCarrierOverhead(string policy)
         {
             using var channel = new CapacityChannel(policy);
 
             Assert.Multiple(() =>
             {
                 Assert.That(channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.DedicatedUasc),
-                    Is.EqualTo(65459),
-                    "65535-byte buffer: header, CBC rounding, sequence, MAC, pad count and FLO ChannelId.");
+                    Is.EqualTo(65463),
+                    "65535-byte buffer: security overhead only; FLO adds no flow-record envelope.");
                 Assert.That(channel.GetMaxDataChannelRecordSize(DataChannelCarrierKind.SharedUasc),
-                    Is.EqualTo(65459), "Both FLO profiles reserve four bytes for ChannelId.");
+                    Is.EqualTo(65463), "Both FLO profiles carry the complete application body.");
             });
         }
 

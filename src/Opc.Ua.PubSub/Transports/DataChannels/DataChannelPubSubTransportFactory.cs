@@ -28,14 +28,30 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.CompilerServices;
 using Opc.Ua.DataChannels;
 
 namespace Opc.Ua.PubSub.Transports.DataChannels
 {
     /// <summary>
+    /// Resolves validated local flow policy for a PubSub connection without serializing it into PubSub config.
+    /// </summary>
+    internal interface IDataChannelPubSubConfigurationProvider
+    {
+        /// <summary>
+        /// Returns the local flow policy associated with the selected connection.
+        /// </summary>
+        DataChannelParametersDataType GetParameters(PubSubConnectionDataType connection);
+    }
+
+    /// <summary>
     /// Creates complete-message PubSub transports over one selected DataChannel carrier profile.
     /// </summary>
-    public sealed class DataChannelPubSubTransportFactory : IPubSubTransportFactory
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
+    public sealed class DataChannelPubSubTransportFactory :
+        IPubSubTransportFactory,
+        IDataChannelPubSubConfigurationProvider
     {
         /// <summary>
         /// Selects a carrier and the application-owned provider of actual ready flows.
@@ -43,9 +59,47 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
         public DataChannelPubSubTransportFactory(
             DataChannelCarrierKind carrierKind,
             IDataChannelPubSubFlowProvider flowProvider)
+            : this(
+                carrierKind,
+                flowProvider,
+                DataChannelPubSubConfiguration.GetTransportProfile(carrierKind),
+                parametersResolver: null)
         {
-            TransportProfileUri = DataChannelPubSubConfiguration.GetTransportProfile(carrierKind);
+        }
+
+        /// <summary>
+        /// Creates a factory with an explicit profile and local binding resolver.
+        /// </summary>
+        /// <param name="carrierKind">The underlying DataChannel carrier.</param>
+        /// <param name="flowProvider">Provider that opens ready flows.</param>
+        /// <param name="transportProfileUri">The exact PubSub transport profile to register.</param>
+        /// <param name="parametersResolver">
+        /// Resolves the stable, locally provisioned flow policy for each connection.
+        /// </param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        public DataChannelPubSubTransportFactory(
+            DataChannelCarrierKind carrierKind,
+            IDataChannelPubSubFlowProvider flowProvider,
+            string transportProfileUri,
+            Func<PubSubConnectionDataType, DataChannelParametersDataType>? parametersResolver)
+        {
+            _ = DataChannelPubSubConfiguration.GetTransportProfile(carrierKind);
+            if (transportProfileUri != DataChannelPubSubConfiguration.GetTransportProfile(carrierKind) &&
+                !(carrierKind == DataChannelCarrierKind.SharedUasc &&
+                    transportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile))
+            {
+                throw new ArgumentException(
+                    "The selected transport profile does not match the carrier.", nameof(transportProfileUri));
+            }
+            if (transportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile &&
+                parametersResolver is null)
+            {
+                throw new ArgumentNullException(nameof(parametersResolver));
+            }
+            TransportProfileUri = transportProfileUri;
             m_flowProvider = flowProvider ?? throw new ArgumentNullException(nameof(flowProvider));
+            m_parametersResolver = parametersResolver;
         }
 
         /// <inheritdoc/>
@@ -75,9 +129,34 @@ namespace Opc.Ua.PubSub.Transports.DataChannels
                     "The factory and connection select different carriers.", nameof(connection));
             }
             return new DataChannelPubSubTransport(
-                new DataChannelPubSubFlowRequest(connection), m_flowProvider, timeProvider);
+                new DataChannelPubSubFlowRequest(connection, GetParameters(connection)),
+                m_flowProvider,
+                timeProvider);
+        }
+
+        DataChannelParametersDataType IDataChannelPubSubConfigurationProvider.GetParameters(
+            PubSubConnectionDataType connection) => GetParameters(connection);
+
+        private DataChannelParametersDataType GetParameters(PubSubConnectionDataType connection)
+        {
+            if (TransportProfileUri == DataChannelPubSubConfiguration.UafxTransportProfile)
+            {
+                Func<PubSubConnectionDataType, DataChannelParametersDataType> resolver = m_parametersResolver ??
+                    throw new InvalidOperationException("The UAFX local binding resolver is not configured.");
+                DataChannelParametersDataType parameters = m_uafxParameterSnapshots.GetValue(
+                    connection,
+                    key => new Lazy<DataChannelParametersDataType>(
+                        () => DataChannelPubSubConfiguration.GetUafxParameters(key, resolver),
+                        System.Threading.LazyThreadSafetyMode.ExecutionAndPublication)).Value;
+                return DataChannelPubSubConfiguration.CopyParameters(parameters);
+            }
+            return DataChannelPubSubConfiguration.GetParameters(connection);
         }
 
         private readonly IDataChannelPubSubFlowProvider m_flowProvider;
+        private readonly Func<PubSubConnectionDataType, DataChannelParametersDataType>? m_parametersResolver;
+        private readonly ConditionalWeakTable<
+            PubSubConnectionDataType,
+            Lazy<DataChannelParametersDataType>> m_uafxParameterSnapshots = new();
     }
 }

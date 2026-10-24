@@ -10,6 +10,104 @@ pub mod support;
 use support::{configuration, facts};
 
 #[test]
+fn ffi_baseline_configuration_is_explicit_and_independent_of_transport_authentication() {
+    for role in 0..=1 {
+        for transport_only in [false, true] {
+            let mut config = configuration(role);
+            config.abi_version = 2;
+            config.application_pair_tag = 0;
+            config.application_protocol = Utf8 {
+                data: std::ptr::null(),
+                length: 0,
+            };
+            let mut transport = facts(role);
+            if transport_only {
+                transport.abi_version = 2;
+                transport.authentication_policy = 1;
+                transport.mutual_tls_authenticated = 0;
+            }
+            let mut error = ErrorInfo::default();
+            let mut handle = std::ptr::null_mut();
+            unsafe {
+                assert_eq!(
+                    opcua_http3_create(&transport, &config, &mut handle, &mut error),
+                    0
+                );
+                assert!(!handle.is_null());
+                opcua_http3_destroy(handle);
+            }
+            for (version, protocol, expected) in [
+                (1, "", Code::InvalidProtocol),
+                (2, "opcua-flow/1", Code::InvalidProtocol),
+                (3, "", Code::InvalidAbi),
+            ] {
+                config.abi_version = version;
+                config.application_pair_tag = if version == 1 { 19 } else { 0 };
+                config.application_protocol = Utf8::borrowed(protocol);
+                handle = std::ptr::dangling_mut();
+                unsafe {
+                    assert_eq!(
+                        opcua_http3_create(&transport, &config, &mut handle, &mut error),
+                        -2
+                    );
+                }
+                assert!(handle.is_null());
+                assert_eq!(
+                    (error.scope, error.code),
+                    (Scope::Configuration as u32, expected as u32)
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn ffi_transport_only_facts_require_the_explicit_version_and_authentication_policy() {
+    for role in 0..=1 {
+        let config = configuration(role);
+        let mut transport = facts(role);
+        transport.abi_version = 2;
+        transport.authentication_policy = 1;
+        transport.mutual_tls_authenticated = 0;
+        let mut error = ErrorInfo::default();
+        let mut handle = std::ptr::null_mut();
+        unsafe {
+            assert_eq!(
+                opcua_http3_create(&transport, &config, &mut handle, &mut error),
+                0
+            );
+            assert!(!handle.is_null());
+            opcua_http3_destroy(handle);
+        }
+        for change in 0..3 {
+            let mut bad = transport;
+            match change {
+                0 => bad.abi_version = 1,
+                1 => bad.authentication_policy = 0,
+                _ => bad.mutual_tls_authenticated = 1,
+            }
+            handle = std::ptr::dangling_mut();
+            unsafe {
+                assert_eq!(
+                    opcua_http3_create(&bad, &config, &mut handle, &mut error),
+                    -2
+                );
+            }
+            assert!(handle.is_null());
+            assert_eq!(error.scope, Scope::Configuration as u32);
+            assert_eq!(
+                error.code,
+                if change == 2 {
+                    Code::InvalidTransportEvidence as u32
+                } else {
+                    Code::InvalidAbi as u32
+                }
+            );
+        }
+    }
+}
+
+#[test]
 fn ffi_buffers_are_caller_owned_retryable_and_checked() {
     let config = configuration(0);
     let mut error = ErrorInfo::default();
@@ -27,7 +125,7 @@ fn ffi_buffers_are_caller_owned_retryable_and_checked() {
         );
         assert!(!handle.is_null());
         assert_eq!(opcua_http3_abi_version(), 1);
-        assert_eq!(opcua_http3_api_revision(), 2);
+        assert_eq!(opcua_http3_api_revision(), 3);
         let mut resources = ResourceSnapshot::default();
         assert_eq!(opcua_http3_resource_snapshot(handle, &mut resources), 0);
         assert_eq!(
@@ -126,7 +224,7 @@ fn layout_query_matches_blittable_sizes_and_rejects_mismatches() {
     }
     assert_eq!(
         (layout.abi_version, layout.api_revision, layout.pointer_size),
-        (1, 2, 8)
+        (1, 3, 8)
     );
     assert_eq!(size_of::<TransportFacts>(), 80);
     assert_eq!(size_of::<EventHeader>(), 48);

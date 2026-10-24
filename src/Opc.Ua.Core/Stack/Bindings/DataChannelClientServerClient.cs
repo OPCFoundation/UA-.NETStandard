@@ -38,6 +38,8 @@ namespace Opc.Ua.Bindings
     /// Explicitly opens ordinary Client/Server Services on a borrowed native context.
     /// Native-only applications never need to register or invoke this service.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelClientServerClient
     {
         /// <summary>
@@ -55,6 +57,8 @@ namespace Opc.Ua.Bindings
     /// Composes the reserved flow with the existing UACP/UASC pipeline, without a TCP bridge.
     /// Inner signed application certificates must match the native peer URI and key.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelClientServerClient : IDataChannelClientServerClient
     {
         /// <summary>

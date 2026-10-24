@@ -40,6 +40,7 @@ using System.Net.Security;
 using System.Net.WebSockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
@@ -47,8 +48,13 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
 using Opc.Ua.DataChannels;
+using Opc.Ua.DataChannels.Wire;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
+#if NET8_0_OR_GREATER
+using System.Net.Quic;
+using System.Runtime.Versioning;
+#endif
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
@@ -58,11 +64,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
     [TestFixture]
     [Category("DataChannelSockets")]
     [NonParallelizable]
+#if NET8_0
+    [RequiresPreviewFeatures("The real managed QUIC baseline uses System.Net.Quic on .NET 8.")]
+#endif
     public sealed class UascDataChannelSocketTests
     {
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.SharedUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.QuicUasc)]
+        [TestCase(CarrierTransport.ReliableStream, DataChannelCarrierKind.WebTransportUasc)]
 #if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
         [TestCase(CarrierTransport.KestrelTcp, DataChannelCarrierKind.DedicatedUasc)]
         [TestCase(CarrierTransport.KestrelTcp, DataChannelCarrierKind.SharedUasc)]
         [TestCase(CarrierTransport.Wss, DataChannelCarrierKind.DedicatedUasc)]
@@ -81,20 +95,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
             await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
 
-            ByteString payload = new(new byte[] { 0, 1, 0xFE, 0xFF, 0, 0x7F });
+            ByteString payload = UadpPayload(new ByteString(new byte[] { 0, 1, 0xFE, 0xFF, 0, 0x7F }));
             Assert.That(
                 await outgoing.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
             Assert.That(received.Payload, Is.EqualTo(payload));
             Assert.That(
-                await incoming.SendAsync(ByteString.Empty, cancellationToken: harness.Token).ConfigureAwait(false),
+                await incoming.SendAsync(UadpPayload(ByteString.Empty), cancellationToken: harness.Token)
+                    .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage empty = (await outgoing.ReadAsync(harness.Token).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(empty.Payload.Length, Is.Zero);
+                Assert.That(empty.Payload.ToArray(), Is.EqualTo(UadpPayload(ByteString.Empty).ToArray()));
                 Assert.That(connection.Context.CarrierKind, Is.EqualTo(kind));
                 Assert.That(connection.SecureChannelId, Is.Not.Zero);
                 Assert.That(remote.CarrierKind, Is.EqualTo(kind));
@@ -113,10 +128,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(outgoing.ChannelId, Is.EqualTo(1));
                 Assert.That(connection.Services, Is.Null);
-                DataChannelException refusal = (await Assert.ThrowsAsync<DataChannelException>(async () =>
-                    await connection.Context.OpenAsync(Parameters(), cancellationToken: harness.Token)
-                        .ConfigureAwait(false)).ConfigureAwait(false))!;
-                Assert.That(refusal.Result, Is.EqualTo(DataChannelResult.InvalidState));
+                await using DataChannel nextOutgoing = await connection.Context.OpenAsync(
+                    Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+                await using DataChannel nextIncoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+                Assert.That(nextOutgoing.ChannelId, Is.EqualTo(3));
             }
             else
             {
@@ -131,26 +146,228 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(await incoming.ReadAsync(harness.Token).ConfigureAwait(false), Is.Null);
         }
 
-        [Test]
+        /// <summary>
+        /// Real TCP Reverse Connect preserves physical context roles and independent UASC encryption roles.
+        /// </summary>
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.Duplex, false)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.OpenerToAcceptor, false)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.AcceptorToOpener, false)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.Duplex, false)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.OpenerToAcceptor, false)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.AcceptorToOpener, false)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.Duplex, true)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.OpenerToAcceptor, true)]
+        [TestCase(MessageSecurityMode.SignAndEncrypt, DataChannelDirection.AcceptorToOpener, true)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.Duplex, true)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.OpenerToAcceptor, true)]
+        [TestCase(MessageSecurityMode.Sign, DataChannelDirection.AcceptorToOpener, true)]
         [CancelAfter(60000)]
-        public async Task SharedCreditExhaustionDoesNotBlockServicesControlsOrAnotherFlowAsync()
+        public async Task ReverseTcpKeepsPhysicalRolesIndependentOfUascAndFlowRolesAsync(
+            MessageSecurityMode securityMode,
+            DataChannelDirection direction,
+            bool streaming)
         {
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc).ConfigureAwait(false);
+                CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc,
+                mode: securityMode, reverse: true).ConfigureAwait(false);
+            string protocol = streaming
+                ? DataChannelProfiles.UadpOpaqueApplicationPayload : DataChannelProfiles.UadpPayload;
+            harness.ClientFactory.PayloadProtocol = protocol;
+            harness.ServerFactory.PayloadProtocol = protocol;
+            await using UascDataChannelConnection connection =
+                await harness.ConnectReverseAsync().ConfigureAwait(false);
+            DataChannelContext server = await harness.ServerFactory.Created.Task
+                .WaitAsync(harness.Token).ConfigureAwait(false);
+            await server.WaitForReadyAsync(harness.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(server.Identity.Peer.IsTransportInitiator, Is.True);
+                Assert.That(connection.Context.Identity.Peer.IsTransportInitiator, Is.False);
+                Assert.That(server.Identity.ContextId, Is.EqualTo(connection.Context.Identity.ContextId));
+                Assert.That(server.Identity.Generation, Is.EqualTo(connection.Context.Identity.Generation));
+                Assert.That(server.Identity.LocalChallenge, Is.EqualTo(connection.Context.Identity.PeerChallenge));
+                Assert.That(server.Identity.PeerChallenge, Is.EqualTo(connection.Context.Identity.LocalChallenge));
+                Assert.That(server.Identity.LocalChallenge.IsEmpty, Is.False);
+                Assert.That(server.Identity.PeerChallenge.IsEmpty, Is.False);
+                Assert.That(server.Identity.Peer.PeerApplicationUri, Is.EqualTo(SocketHarness.ClientUri));
+                Assert.That(connection.Context.Identity.Peer.PeerApplicationUri, Is.EqualTo(SocketHarness.ServerUri));
+                Assert.That(connection.Context.Identity.Peer.Protection,
+                    Is.EqualTo(securityMode == MessageSecurityMode.Sign
+                        ? DataChannelProtectionMode.Integrity
+                        : DataChannelProtectionMode.Confidential));
+            });
+            IServiceResponse before = await connection.Services!.SendRequestAsync(Read(501), harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(before.ResponseHeader.RequestHandle, Is.EqualTo(501));
+            using IDisposable clientRoute = connection.Context.RegisterUascPublisherRoute(
+                SocketHarness.Resource, new Variant(42u));
+            using IDisposable serverRoute = server.RegisterUascPublisherRoute(SocketHarness.Resource, new Variant(42u));
+            foreach (bool serverOpens in new[] { true, false })
+            {
+                DataChannelContext opener = serverOpens ? server : connection.Context;
+                DataChannelContext acceptor = serverOpens ? connection.Context : server;
+                DataChannelParametersDataType parameters = Parameters();
+                parameters.Protocol = protocol;
+                parameters.ContentType = streaming ? "application/octet-stream" : "application/opcua+uadp";
+                parameters.Protection = connection.Context.Identity.Peer.Protection;
+                parameters.Direction = direction;
+                await using DataChannel outgoing = await opener.OpenAsync(
+                    parameters, cancellationToken: harness.Token).ConfigureAwait(false);
+                await using DataChannel incoming = await AcceptAsync(acceptor, harness.Token).ConfigureAwait(false);
+                Assert.That(outgoing.ChannelId, Is.EqualTo(serverOpens ? 1u : 2u));
+                if (streaming)
+                {
+                    DataChannelException failure = (await Assert.ThrowsAsync<DataChannelException>(async () =>
+                        await opener.OpenAsync(parameters, cancellationToken: harness.Token)
+                            .ConfigureAwait(false)).ConfigureAwait(false))!;
+                    Assert.That(failure.Result, Is.EqualTo(DataChannelResult.InvalidArgument));
+                }
+                ByteString payload = streaming
+                    ? UadpApplicationPayloadHeaderCodec.Encode(
+                        new Variant(42u), ByteString.FromHexString("00feff7f"), 128)
+                    : UadpPayload(ByteString.FromHexString("00feff7f"));
+                if (direction != DataChannelDirection.AcceptorToOpener)
+                {
+                    Assert.That(await outgoing.SendAsync(
+                        payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.Good));
+                    using DataChannelMessage received =
+                        (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
+                    Assert.That(received.Payload, Is.EqualTo(payload));
+                }
+                if (direction != DataChannelDirection.OpenerToAcceptor)
+                {
+                    Assert.That(await incoming.SendAsync(
+                        payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.Good));
+                    using DataChannelMessage received =
+                        (await outgoing.ReadAsync(harness.Token).ConfigureAwait(false))!;
+                    Assert.That(received.Payload, Is.EqualTo(payload));
+                }
+                DataChannelParametersDataType updated = outgoing.Parameters;
+                updated.MaxMessageSize = 128;
+                Assert.That(await outgoing.UpdateAsync(updated, cancellationToken: harness.Token).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.Good));
+                Assert.That(outgoing.Revision, Is.EqualTo(2u));
+                DataChannel sender = direction == DataChannelDirection.AcceptorToOpener ? incoming : outgoing;
+                DataChannel receiver = direction == DataChannelDirection.AcceptorToOpener ? outgoing : incoming;
+                Assert.That(await sender.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                    Is.EqualTo(DataChannelResult.Good));
+                using (DataChannelMessage received = (await receiver.ReadAsync(harness.Token).ConfigureAwait(false))!)
+                {
+                    Assert.That(received.Payload, Is.EqualTo(payload));
+                    Assert.That(received.Revision, Is.EqualTo(2u));
+                }
+                IServiceResponse during = await connection.Services.SendRequestAsync(
+                    Read(serverOpens ? 502u : 503u), harness.Token).ConfigureAwait(false);
+                Assert.That(during.ResponseHeader.RequestHandle, Is.EqualTo(serverOpens ? 502u : 503u));
+                if (direction != DataChannelDirection.AcceptorToOpener)
+                {
+                    Assert.That(await outgoing.EndAsync(harness.Token).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.Good));
+                    Assert.That(await incoming.ReadAsync(harness.Token).ConfigureAwait(false), Is.Null);
+                }
+                if (direction != DataChannelDirection.OpenerToAcceptor)
+                {
+                    Assert.That(await incoming.EndAsync(harness.Token).ConfigureAwait(false),
+                        Is.EqualTo(DataChannelResult.Good));
+                    Assert.That(await outgoing.ReadAsync(harness.Token).ConfigureAwait(false), Is.Null);
+                }
+            }
+            IServiceResponse after = await connection.Services.SendRequestAsync(Read(504), harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(after.ResponseHeader.RequestHandle, Is.EqualTo(504));
+            Assert.That(harness.ServiceRequests, Is.EqualTo(4));
+            await connection.CloseAsync(harness.Token).ConfigureAwait(false);
+            await server.DisposeAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(harness.ClientFactory.Budget.Usage, Is.Default);
+                Assert.That(harness.ServerFactory.Budget.Usage, Is.Default);
+            });
+        }
+
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
+        [CancelAfter(60000)]
+        public async Task SharedUascRoutesLiveUadpPublisherIdsToTheirConfiguredFlowsAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                transport, kind).ConfigureAwait(false);
+            await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
+            DataChannelContext remote = await harness.ServerFactory.Created.Task
+                .WaitAsync(harness.Token).ConfigureAwait(false);
+            DataChannelParametersDataType firstParameters = Parameters();
+            firstParameters.ResourceUri = UadpFirstResource;
+            firstParameters.Protocol = DataChannelProfiles.UadpPayload;
+            firstParameters.AllowQueueExpiry = false;
+            DataChannelParametersDataType secondParameters = Parameters();
+            secondParameters.ResourceUri = UadpSecondResource;
+            secondParameters.Protocol = DataChannelProfiles.UadpPayload;
+            secondParameters.AllowQueueExpiry = false;
+            await using DataChannel firstSender = await connection.Context.OpenAsync(
+                firstParameters, cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel firstReceiver = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            await using DataChannel secondSender = await connection.Context.OpenAsync(
+                secondParameters, cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel secondReceiver = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            using IDisposable firstRoute = remote.RegisterUascPublisherRoute(UadpFirstResource, new Variant(17u));
+            using IDisposable secondRoute = remote.RegisterUascPublisherRoute(UadpSecondResource, new Variant(42u));
+            ByteString firstPayload = ByteString.FromHexString("910211000000dead");
+            ByteString secondPayload = ByteString.FromHexString("91022a000000beef");
+
+            Assert.That(await firstSender.SendAsync(firstPayload, cancellationToken: harness.Token)
+                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage firstMessage = (await firstReceiver.ReadAsync(harness.Token)
+                .ConfigureAwait(false))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstMessage.Payload, Is.EqualTo(firstPayload));
+                Assert.That(firstReceiver.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(secondReceiver.GetDiagnostics().MessagesReceived, Is.Zero);
+                Assert.That(remote.IsReady, Is.True);
+            });
+
+            Assert.That(await secondSender.SendAsync(secondPayload, cancellationToken: harness.Token)
+                .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage secondMessage = (await secondReceiver.ReadAsync(harness.Token)
+                .ConfigureAwait(false))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(secondMessage.Payload, Is.EqualTo(secondPayload));
+                Assert.That(firstReceiver.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(secondReceiver.GetDiagnostics().MessagesReceived, Is.EqualTo(1));
+                Assert.That(connection.Context.IsReady, Is.True);
+            });
+            IServiceResponse service = await connection.Services!.SendRequestAsync(Read(117), harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(service.ResponseHeader.RequestHandle, Is.EqualTo(117));
+        }
+
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
+        [CancelAfter(60000)]
+        public async Task SharedCreditExhaustionDoesNotBlockServicesOrControlsAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                transport, kind).ConfigureAwait(false);
             await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
             DataChannelContext remote = await harness.ServerFactory.Created.Task
                 .WaitAsync(harness.Token).ConfigureAwait(false);
             DataChannelParametersDataType small = Parameters();
             small.MaxMessageSize = 15;
-            small.MaxReceiveBytes = 32;
+            small.MaxReceiveBytes = 15;
             await using DataChannel stalled = await connection.Context.OpenAsync(
                 small, cancellationToken: harness.Token).ConfigureAwait(false);
             await using DataChannel stalledPeer = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
-            await using DataChannel independent = await connection.Context.OpenAsync(
-                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
-            await using DataChannel independentPeer = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
 
-            ByteString fullWindow = new(new byte[15]);
+            ByteString fullWindow = UadpPayload(new ByteString(new byte[8]));
             Assert.That(
                 await stalled.SendAsync(fullWindow, cancellationToken: harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
@@ -164,12 +381,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(42));
             Assert.That(await connection.Context.PingAsync(harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            Assert.That(
-                await independent.SendAsync(new ByteString(new byte[] { 9 }), cancellationToken: harness.Token)
-                    .ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.Good));
-            using DataChannelMessage other = (await independentPeer.ReadAsync(harness.Token).ConfigureAwait(false))!;
-            Assert.That(other.Payload.ToArray(), Is.EqualTo(new byte[] { 9 }));
             if (blocked.IsCompleted)
             {
                 Assert.That(await blocked.ConfigureAwait(false), Is.EqualTo(DataChannelResult.WouldBlock));
@@ -181,16 +392,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     await blocked.WaitAsync(harness.Token).ConfigureAwait(false)).ConfigureAwait(false);
             }
             Assert.That(connection.Context.IsReady, Is.True);
-            Assert.That(held.Payload, Is.EqualTo(fullWindow));
+            Assert.That(held.Payload.ToArray(), Is.EqualTo(fullWindow.ToArray()));
         }
 
-        [Test]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.DedicatedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
-        public async Task ADiscoveredButUntrustedCertificateCannotCreateAClientContextAsync()
+        public async Task ADiscoveredButUntrustedCertificateCannotCreateAClientContextAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp,
-                DataChannelCarrierKind.DedicatedUasc,
+                transport,
+                kind,
                 trustServer: false).ConfigureAwait(false);
 
             ServiceResultException failure = (await Assert.CatchAsync<ServiceResultException>(async () =>
@@ -201,12 +416,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(harness.ServiceRequests, Is.Zero);
         }
 
-        [Test]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
-        public async Task ExpectedApplicationMismatchCannotCreateAClientContextAsync()
+        public async Task ExpectedApplicationMismatchCannotCreateAClientContextAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc).ConfigureAwait(false);
+                transport, kind).ConfigureAwait(false);
 
             ServiceResultException failure = (await Assert.CatchAsync<ServiceResultException>(async () =>
                 await harness.ConnectAsync("urn:opcfoundation:tests:wrong-server").ConfigureAwait(false))
@@ -280,25 +499,32 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(connection.Context.Identity.ContextId, Is.EqualTo(contextId));
                 Assert.That(harness.ServerFactory.Contexts, Has.Count.EqualTo(1));
             });
+            int headerLength = UadpPayload(ByteString.Empty).Length;
+            ByteString maximumMessage = UadpPayload(new ByteString(new byte[1024 - headerLength]));
             Assert.That(
-                await outgoing.SendAsync(new ByteString(new byte[1024]), cancellationToken: harness.Token)
+                await outgoing.SendAsync(maximumMessage, cancellationToken: harness.Token)
                     .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage message = (await incoming.ReadAsync(harness.Token)
                 .ConfigureAwait(false))!;
-            Assert.That(message.Payload.Length, Is.EqualTo(1024));
+            Assert.That(message.Payload.Length, Is.EqualTo(maximumMessage.Length));
             Assert.That(
-                await outgoing.SendAsync(new ByteString(new byte[1025]), cancellationToken: harness.Token)
+                await outgoing.SendAsync(UadpPayload(new ByteString(new byte[1025 - headerLength])),
+                    cancellationToken: harness.Token)
                     .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.TooLarge));
         }
 
-        [Test]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
-        public async Task UnknownConfiguredResourceIsRefusedWithoutAffectingSharedServicesAsync()
+        public async Task UnknownConfiguredResourceIsRefusedWithoutAffectingSharedServicesAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc).ConfigureAwait(false);
+                transport, kind).ConfigureAwait(false);
             await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
             DataChannelParametersDataType parameters = Parameters();
             parameters.ResourceUri = "urn:opcfoundation:tests:not-authorized";
@@ -314,34 +540,30 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(88));
         }
 
-        [Test]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
-        public async Task ResettingOneSharedFlowPreservesServicesAndAnotherFlowAsync()
+        public async Task ResettingOneSharedFlowPreservesSharedServicesAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc).ConfigureAwait(false);
+                transport, kind).ConfigureAwait(false);
             await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
             DataChannelContext remote = await harness.ServerFactory.Created.Task
                 .WaitAsync(harness.Token).ConfigureAwait(false);
             await using DataChannel reset = await connection.Context.OpenAsync(
                 Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
             await using DataChannel resetPeer = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
-            await using DataChannel surviving = await connection.Context.OpenAsync(
-                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
-            await using DataChannel survivingPeer = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
             uint channelId = connection.SecureChannelId;
 
             await reset.ResetAsync(DataChannelResult.InvalidArgument, harness.Token).ConfigureAwait(false);
-            Assert.That(await surviving.SendAsync(
-                new ByteString(new byte[] { 0x33 }), cancellationToken: harness.Token).ConfigureAwait(false),
-                Is.EqualTo(DataChannelResult.Good));
-            using DataChannelMessage message = (await survivingPeer.ReadAsync(harness.Token).ConfigureAwait(false))!;
             IServiceResponse service = await connection.Services!.SendRequestAsync(Read(77), harness.Token)
                 .ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                Assert.That(message.Payload.ToArray(), Is.EqualTo(new byte[] { 0x33 }));
                 Assert.That(service.ResponseHeader.RequestHandle, Is.EqualTo(77));
                 Assert.That(connection.SecureChannelId, Is.EqualTo(channelId));
                 Assert.That(connection.Context.IsReady, Is.True);
@@ -387,9 +609,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(openedByServer.IsLocalOpener, Is.True);
                 Assert.That(acceptedByClient.IsLocalOpener, Is.False);
                 Assert.That(openedByServer.ChannelId,
-                    Is.EqualTo(kind == DataChannelCarrierKind.DedicatedUasc ? 1u : 2u));
+                    Is.EqualTo(2u));
             });
-            ByteString payload = new(new byte[] { 0x80, 0x81 });
+            ByteString payload = UadpPayload(new ByteString(new byte[] { 0x80, 0x81 }));
             Assert.That(
                 await openedByServer.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
@@ -398,20 +620,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(received.Payload, Is.EqualTo(payload));
         }
 
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, 8118)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, 8118)]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.DedicatedUasc)]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
         public async Task MaximumNegotiatedRecordUsesOneEncryptedFinalChunkAsync(
-            DataChannelCarrierKind kind,
-            int maximumPayload)
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
-            await using SocketHarness harness = await SocketHarness.StartAsync(CarrierTransport.Tcp, kind)
+            await using SocketHarness harness = await SocketHarness.StartAsync(transport, kind)
                 .ConfigureAwait(false);
             harness.ServerFactory.MaxMessageSize = 65536;
             harness.ClientFactory.MaxMessageSize = 65536;
             using ProbeClientChannel client = await harness.ConnectProbeAsync().ConfigureAwait(false);
             DataChannelContext remote = await harness.ServerFactory.Created.Task
                 .WaitAsync(harness.Token).ConfigureAwait(false);
+            int maximumPayload = client.GetMaxDataChannelRecordSize(kind);
             DataChannelParametersDataType parameters = Parameters();
             parameters.MaxMessageSize = 65536;
             parameters.MaxReceiveBytes = 131072;
@@ -421,9 +646,12 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(outgoing.Parameters.MaxMessageSize, Is.EqualTo(maximumPayload));
             Assert.That(await client.DataChannels.PingAsync(harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            byte[] payload = Enumerable.Range(0, maximumPayload).Select(index => (byte)(index % 256)).ToArray();
+            int headerLength = UadpPayload(ByteString.Empty).Length;
+            byte[] payload = Enumerable.Range(0, maximumPayload - headerLength)
+                .Select(index => (byte)(index % 256)).ToArray();
+            ByteString networkMessage = UadpPayload(new ByteString(payload));
 
-            Assert.That(await outgoing.SendAsync(new ByteString(payload), cancellationToken: harness.Token)
+            Assert.That(await outgoing.SendAsync(networkMessage, cancellationToken: harness.Token)
                 .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
             byte[] chunk = client.WireChunks.Last(value =>
@@ -432,18 +660,265 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             Assert.Multiple(() =>
             {
-                Assert.That(received.Payload.ToArray(), Is.EqualTo(payload));
+                Assert.That(received.Payload.ToArray(), Is.EqualTo(networkMessage.ToArray()));
                 Assert.That(chunk, Has.Length.EqualTo(8192));
                 Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(chunk), Is.EqualTo(0x464F4C46u));
                 Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(4)), Is.EqualTo(8192));
             });
             Assert.That(await outgoing.SendAsync(
-                new ByteString(new byte[maximumPayload + 1]), cancellationToken: harness.Token).ConfigureAwait(false),
+                UadpPayload(new ByteString(new byte[maximumPayload + 1 - headerLength])),
+                cancellationToken: harness.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.TooLarge));
             Assert.That(client.DataChannels.IsReady, Is.True);
         }
 
 #if NET8_0_OR_GREATER
+        /// <summary>
+        /// A successful QUIC handshake cannot authorize a HEL naming another baseline endpoint.
+        /// </summary>
+        [TestCase("authority")]
+        [TestCase("port")]
+        [TestCase("path")]
+        [TestCase("query")]
+        [TestCase("scheme")]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicBaselineRejectsSubstitutedHelloEndpointAsync(string mismatch)
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+
+            StatusCode error = await harness.SendQuicHelloWithEndpointMismatchAsync(mismatch).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(error, Is.EqualTo(StatusCodes.BadTcpEndpointUrlInvalid));
+                Assert.That(harness.ClientFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServerFactory.Contexts, Is.Empty);
+                Assert.That(harness.ServiceRequests, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Reconnect cannot claim the existing baseline again or reverse its fixed transport roles.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicBaselineCannotBeReclaimedAfterOpnAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+            await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                await harness.ReclaimQuicClientStreamAsync().ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.Throws<InvalidOperationException>(() => harness.CreateClientFromAcceptedQuicBaseline());
+
+            IServiceResponse response = await connection.Services!.SendRequestAsync(Read(325), harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(325));
+            Assert.That(connection.Context.IsReady, Is.True);
+        }
+
+        /// <summary>
+        /// Losing the physical QUIC association closes both contexts and does not preserve flow readiness.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicConnectionLossRetiresBothFlowContextsAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+            await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
+            DataChannelContext local = connection.Context;
+            DataChannelContext remote = await harness.ServerFactory.Created.Task
+                .WaitAsync(harness.Token).ConfigureAwait(false);
+            await using DataChannel outgoing = await connection.Context.OpenAsync(
+                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            var localClosed = new TaskCompletionSource<DataChannelResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var remoteClosed = new TaskCompletionSource<DataChannelResult>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            local.Closed += result => localClosed.TrySetResult(result);
+            remote.Closed += result => remoteClosed.TrySetResult(result);
+
+            await harness.CloseQuicClientAsync().ConfigureAwait(false);
+            await localClosed.Task.WaitAsync(harness.Token).ConfigureAwait(false);
+            await remoteClosed.Task.WaitAsync(harness.Token).ConfigureAwait(false);
+
+            Assert.That(local.IsReady, Is.False);
+            Assert.That(remote.IsReady, Is.False);
+            ServiceResultException missing = Assert.Throws<ServiceResultException>(() => _ = connection.Context)!;
+            Assert.That(missing.StatusCode, Is.EqualTo(StatusCodes.BadNotConnected));
+            await Assert.CatchAsync<ServiceResultException>(async () =>
+                await connection.Services!.SendRequestAsync(Read(326), harness.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Both directions preserve ordinary UASC continuation/final chunks on the real QUIC baseline.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicServicesBaselineReassemblesChunkedRequestsAndResponsesAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc, enableDataChannels: false)
+                .ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync(enableDataChannels: false)
+                .ConfigureAwait(false);
+            ReadRequest request = Read(322);
+            request.NodesToRead = new ArrayOf<ReadValueId>(Enumerable.Range(0, 2048)
+                .Select(_ => new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.NodeId })
+                .ToArray().AsMemory());
+
+            IServiceResponse response = await client.SendRequestAsync(request, 10000, harness.Token)
+                .ConfigureAwait(false);
+
+            Assert.That(response, Is.TypeOf<ReadResponse>());
+            var read = (ReadResponse)response;
+            Assert.Multiple(() =>
+            {
+                Assert.That(read.ResponseHeader.RequestHandle, Is.EqualTo(322));
+                Assert.That(read.Results.Count, Is.EqualTo(request.NodesToRead.Count));
+                foreach (DataValue result in read.Results.Span)
+                {
+                    Assert.That(result.WrappedValue, Is.EqualTo(new Variant(ObjectIds.Server)));
+                }
+                Assert.That(client.WireChunks.Any(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) == TcpMessageType.MessageIntermediate), Is.True);
+                Assert.That(client.WireChunks.Any(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) == TcpMessageType.MessageFinal), Is.True);
+                Assert.That(client.Recorder.Transport!.ReceivedChunks.Any(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) == TcpMessageType.MessageIntermediate), Is.True);
+                Assert.That(client.Recorder.Transport!.ReceivedChunks.Any(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) == TcpMessageType.MessageFinal), Is.True);
+                Assert.That(harness.ServiceRequests, Is.EqualTo(1));
+                Assert.That(client.DataChannels, Is.Null);
+            });
+            IServiceResponse following = await client.SendRequestAsync(Read(323), 10000, harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(following.ResponseHeader.RequestHandle, Is.EqualTo(323));
+        }
+
+        /// <summary>
+        /// An authenticated MSG abort discards its partial request, not the baseline or subsequent Services.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicServicesBaselineAbortsPartialRequestWithoutClosingAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc, enableDataChannels: false)
+                .ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync(enableDataChannels: false)
+                .ConfigureAwait(false);
+            int capacity = client.GetMaxDataChannelRecordSize(DataChannelCarrierKind.QuicUasc);
+            byte[] partialAndAbort = new byte[capacity + 8];
+            BinaryPrimitives.WriteUInt32LittleEndian(
+                partialAndAbort.AsSpan(capacity), StatusCodes.BadRequestCancelledByClient.Code);
+
+            await client.SendAuthenticatedBodyAsync(
+                TcpMessageType.Message, 777, partialAndAbort, abort: true, harness.Token).ConfigureAwait(false);
+            IServiceResponse following = await client.SendRequestAsync(Read(324), 10000, harness.Token)
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(following.ResponseHeader.RequestHandle, Is.EqualTo(324));
+                Assert.That(harness.ServiceRequests, Is.EqualTo(1), "The aborted request must never be dispatched.");
+                Assert.That(client.WireChunks.Any(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) == TcpMessageType.MessageIntermediate), Is.True);
+                Assert.That(client.WireChunks.Count(chunk =>
+                    BinaryPrimitives.ReadUInt32LittleEndian(chunk) ==
+                        (TcpMessageType.Message | TcpMessageType.Abort)), Is.EqualTo(1));
+                Assert.That(client.DataChannels, Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// Proves the Part 31 Services baseline without a Data Channel factory, Session or model.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicServicesBaselineDoesNotCreateAnOptionalDataContextAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc, enableDataChannels: false)
+                .ConfigureAwait(false);
+            using ProbeClientChannel client = await harness.ConnectProbeAsync(enableDataChannels: false)
+                .ConfigureAwait(false);
+            IServiceResponse response = await client.SendRequestAsync(Read(321), 10000, harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(321));
+            Assert.That(client.DataChannels, Is.Null);
+            Assert.That(harness.ServiceRequests, Is.EqualTo(1));
+            Assert.That(harness.ClientFactory.Contexts, Is.Empty);
+            Assert.That(harness.ServerFactory.Contexts, Is.Empty);
+            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(client.WireChunks.First()),
+                Is.EqualTo(TcpMessageType.Hello));
+            await client.CloseAsync(1000, harness.Token).ConfigureAwait(false);
+            Assert.That(
+                BinaryPrimitives.ReadUInt32LittleEndian(client.WireChunks.Last()) & TcpMessageType.MessageTypeMask,
+                Is.EqualTo(TcpMessageType.Close));
+        }
+
+        /// <summary>
+        /// Unavailable QUIC exporter binding refuses direct delivery without disabling baseline FLO or Services.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicExporterUnavailablePreservesBaselineFlowsAndServicesAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc).ConfigureAwait(false);
+            await using UascDataChannelConnection connection = await harness.ConnectAsync().ConfigureAwait(false);
+            DataChannelContext local = connection.Context;
+            DataChannelContext remote = await harness.ServerFactory.Created.Task
+                .WaitAsync(harness.Token).ConfigureAwait(false);
+
+            DataChannelResult[] bindingResults = await Task.WhenAll(
+                local.WaitForDirectBindingAsync(harness.Token).AsTask(),
+                remote.WaitForDirectBindingAsync(harness.Token).AsTask()).ConfigureAwait(false);
+            Assert.That(bindingResults, Is.All.EqualTo(DataChannelResult.Unsupported));
+            Assert.That(local.IsReady && remote.IsReady, Is.True);
+
+            await using DataChannel outgoing = await local.OpenAsync(
+                Parameters(), cancellationToken: harness.Token).ConfigureAwait(false);
+            await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
+            ByteString payload = UadpPayload(new ByteString(new byte[] { 0x01, 0xFE, 0x7F }));
+            Assert.That(
+                await outgoing.SendAsync(payload, cancellationToken: harness.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage received = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
+            Assert.That(received.Payload, Is.EqualTo(payload));
+
+            IServiceResponse response = await connection.Services!.SendRequestAsync(Read(327), harness.Token)
+                .ConfigureAwait(false);
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(327));
+            Assert.That(local.IsReady && remote.IsReady, Is.True);
+        }
+
+        /// <summary>
+        /// Exercises listener-side rejection even when a client bypasses its local profile validation.
+        /// </summary>
+        [Test]
+        [CancelAfter(60000)]
+        public async Task ManagedQuicListenerRejectsIntegrityOnlyOpnWithoutADataContextAsync()
+        {
+            await using SocketHarness harness = await SocketHarness.StartAsync(
+                CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc, enableDataChannels: false)
+                .ConfigureAwait(false);
+            ServiceResultException failure = (await Assert.CatchAsync<ServiceResultException>(async () =>
+                await harness.ConnectProbeAsync(
+                    confirmProfile: false, requestedMode: MessageSecurityMode.Sign, enableDataChannels: false)
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
+            Assert.That(failure.StatusCode, Is.Not.EqualTo(StatusCodes.Good));
+            Assert.That(harness.ServerFactory.Contexts, Is.Empty);
+            Assert.That(harness.ClientFactory.Contexts, Is.Empty);
+            Assert.That(harness.ServiceRequests, Is.Zero);
+        }
+
         [TestCase(Profiles.OpcUaWsSubProtocolUaJson)]
         [TestCase(Profiles.OpcUaWsSubProtocolOpenApi)]
         [CancelAfter(60000)]
@@ -492,23 +967,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.RequestId)]
         [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.RequestId)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.TruncatedRecord)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.TruncatedRecord)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.Abort)]
         [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.Abort)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.Intermediate)]
         [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.Intermediate)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.ServiceEnvelope)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.ServiceEnvelope)]
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.TruncatedControl)]
+        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.TruncatedControl)]
+        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.LegacyFlc)]
+        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.LegacyFlc)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.WrongMessageType)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.OrdinaryService)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.OldStreamMessage)]
         [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.OldStreamMessage)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.MissingChannelId)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.MissingChannelId)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.MultipleRecords)]
-        [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.MultipleRecords)]
-        [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.InvalidDedicatedAddress)]
         [TestCase(DataChannelCarrierKind.DedicatedUasc, InvalidFlowChunk.Signature)]
         [TestCase(DataChannelCarrierKind.SharedUasc, InvalidFlowChunk.Signature)]
         [CancelAfter(60000)]
@@ -534,27 +1004,26 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             var closed = new TaskCompletionSource<DataChannelResult>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             remote.Closed += result => closed.TrySetResult(result);
-            uint messageType = TcpMessageType.Flow;
+            uint messageType = TcpMessageType.FlowData;
             uint requestId = 0;
-            const int prefix = 4;
             int completeBodySize = fault == InvalidFlowChunk.Intermediate
-                ? client.GetMaxDataChannelRecordSize(kind) + prefix
-                : prefix + 13;
-            byte[] record = new byte[completeBodySize + (fault == InvalidFlowChunk.Intermediate ? 16 : 0)];
-            BinaryPrimitives.WriteUInt32LittleEndian(record, outgoing.ChannelId);
-            BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(prefix), (uint)(completeBodySize - prefix - 4));
-            BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(prefix + 5), 1);
-            BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(prefix + 9), 1);
+                ? client.GetMaxDataChannelRecordSize(kind) + 16
+                : 4;
+            byte[] body = [0x91, 0x80, 0x0C, 0x01];
+            if (fault == InvalidFlowChunk.Intermediate)
+            {
+                body = new byte[completeBodySize];
+            }
             switch (fault)
             {
                 case InvalidFlowChunk.RequestId:
                     requestId = 99;
                     break;
-                case InvalidFlowChunk.TruncatedRecord:
-                    record = [1, 2, 3];
+                case InvalidFlowChunk.TruncatedControl:
+                    body = new byte[8];
                     break;
-                case InvalidFlowChunk.ServiceEnvelope:
-                    record = BinaryEncoder.EncodeMessage(Read(123), ServiceMessageContext.Create(harness.Telemetry));
+                case InvalidFlowChunk.LegacyFlc:
+                    messageType = TcpMessageType.FlowControl;
                     break;
                 case InvalidFlowChunk.WrongMessageType:
                     messageType = TcpMessageType.Message;
@@ -562,19 +1031,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 case InvalidFlowChunk.OrdinaryService:
                     messageType = TcpMessageType.Message;
                     requestId = 123;
-                    record = BinaryEncoder.EncodeMessage(Read(123), ServiceMessageContext.Create(harness.Telemetry));
                     break;
                 case InvalidFlowChunk.OldStreamMessage:
                     messageType = 0x00525453;
-                    break;
-                case InvalidFlowChunk.MissingChannelId:
-                    record = record.AsSpan(prefix).ToArray();
-                    break;
-                case InvalidFlowChunk.MultipleRecords:
-                    record = record.Concat(record.Skip(prefix)).ToArray();
-                    break;
-                case InvalidFlowChunk.InvalidDedicatedAddress:
-                    BinaryPrimitives.WriteUInt32LittleEndian(record, 3);
                     break;
                 case InvalidFlowChunk.Signature:
                     client.Recorder.Transport!.CorruptNextSecuredChunk();
@@ -585,25 +1044,43 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             try
             {
                 await client.SendAuthenticatedBodyAsync(
-                    messageType, requestId, record, fault == InvalidFlowChunk.Abort, harness.Token)
+                    messageType, requestId, body, fault == InvalidFlowChunk.Abort, harness.Token)
                     .ConfigureAwait(false);
             }
             catch (ServiceResultException)
             {
                 // The peer may close after the first authenticated non-final chunk.
             }
-            DataChannelResult result = await closed.Task.WaitAsync(TimeSpan.FromSeconds(10), harness.Token)
-                .ConfigureAwait(false);
-
-            Assert.Multiple(() =>
+            bool serviceMessageOnDedicated = kind == DataChannelCarrierKind.DedicatedUasc &&
+                fault is InvalidFlowChunk.WrongMessageType or InvalidFlowChunk.OrdinaryService;
+            if (serviceMessageOnDedicated)
             {
-                Assert.That(result, Is.Not.EqualTo(DataChannelResult.Good));
-                Assert.That(remote.IsReady, Is.False);
-                Assert.That(remote.Channels.IsEmpty, Is.True);
-                Assert.That(incoming.GetDiagnostics().MessagesReceived, Is.Zero,
-                    "Even a complete first DATA record in a non-final chunk must not be admitted.");
-                Assert.That(harness.ServiceRequests, Is.Zero);
-            });
+                ByteString followup = UadpPayload(ByteString.Empty);
+                Assert.That(await incoming.SendAsync(followup, cancellationToken: harness.Token)
+                    .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+                using DataChannelMessage received = (await outgoing.ReadAsync(harness.Token).ConfigureAwait(false))!;
+                Assert.That(received.Payload.ToArray(), Is.EqualTo(followup.ToArray()));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(remote.IsReady, Is.True);
+                    Assert.That(incoming.GetDiagnostics().MessagesReceived, Is.Zero);
+                    Assert.That(harness.ServiceRequests, Is.Zero);
+                });
+            }
+            else
+            {
+                DataChannelResult result = await closed.Task.WaitAsync(TimeSpan.FromSeconds(10), harness.Token)
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result, Is.Not.EqualTo(DataChannelResult.Good));
+                    Assert.That(remote.IsReady, Is.False);
+                    Assert.That(remote.Channels.IsEmpty, Is.True);
+                    Assert.That(incoming.GetDiagnostics().MessagesReceived, Is.Zero,
+                        "Even a complete first DATA record in a non-final chunk must not be admitted.");
+                    Assert.That(harness.ServiceRequests, Is.Zero);
+                });
+            }
         }
 
         [Test]
@@ -712,20 +1189,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "Certificate lifetime is a transport obligation even before resource admission or a Session exists.");
         }
 
-        [Test]
+        [TestCase(CarrierTransport.Tcp, DataChannelCarrierKind.SharedUasc)]
+#if NET8_0_OR_GREATER
+        [TestCase(CarrierTransport.ManagedQuic, DataChannelCarrierKind.QuicUasc)]
+#endif
         [CancelAfter(60000)]
-        public async Task SharedServicesAndFlowsRemainOrderedAcrossRealTokenRenewalAsync()
+        public async Task SharedServicesAndFlowsRemainOrderedAcrossRealTokenRenewalAsync(
+            CarrierTransport transport, DataChannelCarrierKind kind)
         {
+            MessageSecurityMode mode = transport == CarrierTransport.Tcp
+                ? MessageSecurityMode.Sign : MessageSecurityMode.SignAndEncrypt;
             await using SocketHarness harness = await SocketHarness.StartAsync(
-                CarrierTransport.Tcp,
-                DataChannelCarrierKind.SharedUasc,
-                mode: MessageSecurityMode.Sign).ConfigureAwait(false);
+                transport, kind, mode: mode).ConfigureAwait(false);
             var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
             using ProbeClientChannel client = await harness.ConnectProbeAsync(clock: clock).ConfigureAwait(false);
             DataChannelContext remote = await harness.ServerFactory.Created.Task
                 .WaitAsync(harness.Token).ConfigureAwait(false);
             DataChannelParametersDataType parameters = Parameters();
-            parameters.Protection = DataChannelProtectionMode.Integrity;
+            parameters.Protection = mode == MessageSecurityMode.Sign
+                ? DataChannelProtectionMode.Integrity : DataChannelProtectionMode.Confidential;
             await using DataChannel outgoing = await client.DataChannels!.OpenAsync(
                 parameters, cancellationToken: harness.Token).ConfigureAwait(false);
             await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
@@ -745,22 +1227,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             uint renewedToken = await renewed.Task.WaitAsync(harness.Token).ConfigureAwait(false);
             Assert.That(renewedToken, Is.Not.EqualTo(originalToken));
 
+            ByteString payload = UadpPayload(new ByteString(new byte[] { 4, 5, 6 }));
             Assert.That(
-                await outgoing.SendAsync(new ByteString(new byte[] { 4, 5, 6 }), cancellationToken: harness.Token)
+                await outgoing.SendAsync(payload, cancellationToken: harness.Token)
                     .ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage message =
                 (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
             IServiceResponse after = await client.SendRequestAsync(Read(102), 10000, harness.Token)
                 .ConfigureAwait(false);
-            Assert.That(message.Payload.ToArray(), Is.EqualTo(new byte[] { 4, 5, 6 }));
+            Assert.That(message.Payload.ToArray(), Is.EqualTo(payload.ToArray()));
             Assert.That(after.ResponseHeader.RequestHandle, Is.EqualTo(102));
             Assert.That(client.DataChannels.IsReady, Is.True);
+            Assert.That(remote.IsReady, Is.True);
             await client.CloseAsync(1000, harness.Token).ConfigureAwait(false);
             Assert.That(
                 BinaryPrimitives.ReadUInt32LittleEndian(client.WireChunks.Last()) & TcpMessageType.MessageTypeMask,
                 Is.EqualTo(TcpMessageType.Close));
-            AssertWireSequence(client.WireChunks);
+            if (mode == MessageSecurityMode.Sign)
+            {
+                // Encrypted sequence headers are verified by the actual peer, not read as plaintext here.
+                AssertWireSequence(client.WireChunks);
+            }
         }
 
         /// <summary>
@@ -797,7 +1285,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 for (int index = 0; index < kMessagesPerKind; index++)
                 {
-                    ByteString payload = new(BitConverter.GetBytes(index));
+                    ByteString payload = UadpPayload(new ByteString(BitConverter.GetBytes(index)));
                     Assert.That(await outgoing.SendAsync(payload, cancellationToken: harness.Token)
                         .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
                     using DataChannelMessage message = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
@@ -842,7 +1330,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             int before = pool.Outstanding;
             int dataBefore = CountDataChunks(client.WireChunks);
             Task<DataChannelResult> expiring = outgoing.SendAsync(
-                new ByteString(new byte[] { 0xCA, 0xFE }), TimeSpan.FromSeconds(1), harness.Token).AsTask();
+                UadpPayload(new ByteString(new byte[] { 0xCA, 0xFE })),
+                TimeSpan.FromSeconds(1), harness.Token).AsTask();
             try
             {
                 while (pool.Outstanding <= before)
@@ -857,10 +1346,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(CountDataChunks(client.WireChunks),
                     Is.EqualTo(dataBefore));
                 Assert.That(await outgoing.SendAsync(
-                    new ByteString(new byte[] { 1 }), cancellationToken: harness.Token)
+                    UadpPayload(new ByteString(new byte[] { 1 })), cancellationToken: harness.Token)
                     .ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
                 using DataChannelMessage delivered = (await incoming.ReadAsync(harness.Token).ConfigureAwait(false))!;
-                Assert.That(delivered.Payload.ToArray(), Is.EqualTo(new byte[] { 1 }));
+                Assert.That(delivered.Payload.ToArray(),
+                    Is.EqualTo(UadpPayload(new ByteString(new byte[] { 1 })).ToArray()));
                 AssertWireSequence(client.WireChunks);
                 Assert.That(pool.DuplicateReturns, Is.Zero);
             }
@@ -888,9 +1378,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             await using DataChannel outgoing = await client.DataChannels!.OpenAsync(
                 parameters, cancellationToken: harness.Token).ConfigureAwait(false);
             await using DataChannel incoming = await AcceptAsync(remote, harness.Token).ConfigureAwait(false);
-            WriteBarrier barrier = client.Recorder.Transport!.PauseNext(TcpMessageType.Flow, dataOnly: true);
+            WriteBarrier barrier = client.Recorder.Transport!.PauseNext(TcpMessageType.FlowData, dataOnly: false);
             using var cancellation = new CancellationTokenSource();
-            ByteString payload = new(new byte[] { 0x12, 0x34, 0x56, 0x78 });
+            ByteString payload = UadpPayload(new ByteString(new byte[] { 0x12, 0x34, 0x56, 0x78 }));
             Task<DataChannelResult> sending = outgoing.SendAsync(payload, cancellationToken: cancellation.Token)
                 .AsTask();
             try
@@ -927,7 +1417,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             return chunks.Count(chunk =>
                 (BinaryPrimitives.ReadUInt32LittleEndian(chunk) & TcpMessageType.MessageTypeMask) ==
-                    TcpMessageType.Flow && chunk.Length > 32 && chunk[32] == 0);
+                    TcpMessageType.FlowData);
         }
 
         private static void AssertWireSequence(IEnumerable<byte[]> chunks)
@@ -942,7 +1432,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     asymmetricSincePrevious++;
                     continue;
                 }
-                if (type is not (TcpMessageType.Message or TcpMessageType.Flow or TcpMessageType.Close))
+                if (type is not (TcpMessageType.Message or TcpMessageType.FlowData or
+                    TcpMessageType.FlowControl or TcpMessageType.Close))
                 {
                     continue;
                 }
@@ -959,7 +1450,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// Authenticated outer chunks with invalid flow mapping fields.
+        /// Authenticated UASC chunks with invalid flow framing or carrier metadata.
         /// </summary>
         public enum InvalidFlowChunk
         {
@@ -968,9 +1459,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// </summary>
             RequestId,
             /// <summary>
-            /// An incomplete common record.
+            /// A FLO with a truncated ChannelId/common-record envelope.
             /// </summary>
-            TruncatedRecord,
+            TruncatedControl,
+            /// <summary>
+            /// The superseded FLC message identifier.
+            /// </summary>
+            LegacyFlc,
             /// <summary>
             /// An abort flag on a flow chunk.
             /// </summary>
@@ -980,9 +1475,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// </summary>
             Intermediate,
             /// <summary>
-            /// A Service envelope where a raw flow record is required.
-            /// </summary>
-            ServiceEnvelope,
             /// <summary>
             /// MSG instead of FLO on a dedicated endpoint.
             /// </summary>
@@ -996,17 +1488,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// </summary>
             OldStreamMessage,
             /// <summary>
-            /// A common record without its mandatory FLO ChannelId prefix.
-            /// </summary>
-            MissingChannelId,
-            /// <summary>
-            /// More than one common record in a single FLO body.
-            /// </summary>
-            MultipleRecords,
-            /// <summary>
-            /// A dedicated address other than management zero or flow one.
-            /// </summary>
-            InvalidDedicatedAddress,
             /// <summary>
             /// A tampered authenticated-security footer.
             /// </summary>
@@ -1018,10 +1499,21 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// </summary>
         public enum CarrierTransport
         {
+#if NET8_0_OR_GREATER
+            /// <summary>
+            /// Real managed QUIC with the Part 31 UASC baseline profile and ALPN.
+            /// </summary>
+            ManagedQuic,
+#endif
             /// <summary>
             /// Raw TCP sockets.
             /// </summary>
             Tcp,
+
+            /// <summary>
+            /// Externally established streams feeding the shared UACP/UASC adapter on both endpoints.
+            /// </summary>
+            ReliableStream,
 
             /// <summary>
             /// Kestrel's TCP connection pipeline.
@@ -1039,8 +1531,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             return new DataChannelParametersDataType
             {
                 ResourceUri = SocketHarness.Resource,
-                Protocol = DataChannelProfiles.OpaquePayload,
-                ContentType = "application/octet-stream",
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = "application/opcua+uadp",
                 Direction = DataChannelDirection.Duplex,
                 Delivery = DataChannelDeliveryMode.Ordered,
                 Protection = DataChannelProtectionMode.Confidential,
@@ -1051,6 +1543,17 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 AllowQueueExpiry = true
             };
         }
+
+        private static ByteString UadpPayload(ByteString body)
+        {
+            byte[] networkMessage = UadpApplicationPayloadHeaderCodec.Encode(
+                new Variant(42u), body, int.MaxValue).ToArray();
+            networkMessage[2] = 0;
+            return new ByteString(networkMessage);
+        }
+
+        private const string UadpFirstResource = "urn:opcfoundation:tests:publisher-first";
+        private const string UadpSecondResource = "urn:opcfoundation:tests:publisher-second";
 
         private static ReadRequest Read(uint handle)
         {
@@ -1101,12 +1604,33 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_configuration.MaxBufferSize = 8192;
                 m_configuration.SecurityTokenLifetime = tokenLifetime;
                 m_configuration.ChannelLifetime = 60000;
-                string scheme = transport == CarrierTransport.Wss ? Utils.UriSchemeOpcWss : Utils.UriSchemeOpcTcp;
-                int port = GetFreePort();
-                m_baseUrl = new Uri($"{scheme}://localhost:{port}/");
-                string resource = kind == DataChannelCarrierKind.DedicatedUasc
-                    ? DataChannelProfiles.DedicatedResource
-                    : DataChannelProfiles.SharedResource;
+                string scheme = kind switch
+                {
+                    DataChannelCarrierKind.QuicUasc => "opc.quic",
+                    DataChannelCarrierKind.WebTransportUasc => "https",
+                    _ => transport == CarrierTransport.Wss ? Utils.UriSchemeOpcWss : Utils.UriSchemeOpcTcp
+                };
+                int port = transport switch
+                {
+#if NET8_0_OR_GREATER
+                    CarrierTransport.ManagedQuic => 0,
+#endif
+                    _ => GetFreePort()
+                };
+                string host = "localhost";
+#if NET8_0_OR_GREATER
+                if (transport == CarrierTransport.ManagedQuic)
+                {
+                    host = "127.0.0.1";
+                }
+#endif
+                m_baseUrl = new Uri($"{scheme}://{host}:{port}/");
+                string resource = kind switch
+                {
+                    DataChannelCarrierKind.DedicatedUasc => DataChannelProfiles.DedicatedResource,
+                    DataChannelCarrierKind.SharedUasc => DataChannelProfiles.SharedResource,
+                    _ => "/uasc"
+                };
                 m_url = new Uri(m_baseUrl, resource);
                 m_listener = transport switch
                 {
@@ -1157,7 +1681,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bool trustServer = true,
                 MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt,
                 TimeSpan? certificateLifetime = null,
-                int tokenLifetime = 60000)
+                int tokenLifetime = 60000,
+                bool enableDataChannels = true,
+                bool reverse = false)
             {
                 var harness = new SocketHarness(transport, kind, mode, certificateLifetime, tokenLifetime);
                 try
@@ -1176,26 +1702,65 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                                 {
                                     RequestHandle = request.RequestHeader.RequestHandle
                                 },
-                                Results = [new DataValue(new Variant(ObjectIds.Server))]
+                                Results = request is ReadRequest read
+                                    ? new ArrayOf<DataValue>(Enumerable.Range(0, read.NodesToRead.Count)
+                                        .Select(_ => new DataValue(new Variant(ObjectIds.Server)))
+                                        .ToArray().AsMemory())
+                                    : [new DataValue(new Variant(ObjectIds.Server))]
                             });
                         });
-                    await harness.m_listener.OpenAsync(
-                        harness.m_baseUrl,
-                        new TransportListenerSettings
-                        {
-                            Descriptions = [harness.CreateEndpoint()],
-                            Configuration = harness.m_configuration,
-                            CertificateValidator = harness.m_serverCertificates,
-                            ServerCertificates = harness.m_serverCertificates,
-                            NamespaceUris = new NamespaceTable(),
-                            Factory = EncodeableFactory.Create(),
-                            DataChannels = harness.ServerFactory,
-                            AllowDataChannelIntegrity = mode == MessageSecurityMode.Sign,
-                            HttpsMutualTls = true,
-                            MaxChannelCount = 16
-                        },
-                        callback.Object,
-                        harness.Token).ConfigureAwait(false);
+                    var settings = new TransportListenerSettings
+                    {
+                        Descriptions = [harness.CreateEndpoint()],
+                        Configuration = harness.m_configuration,
+                        CertificateValidator = harness.m_serverCertificates,
+                        ServerCertificates = harness.m_serverCertificates,
+                        NamespaceUris = new NamespaceTable(),
+                        Factory = EncodeableFactory.Create(),
+                        DataChannels = enableDataChannels ? harness.ServerFactory : null,
+                        AllowDataChannelIntegrity = mode == MessageSecurityMode.Sign,
+                        HttpsMutualTls = true,
+                        MaxChannelCount = 16
+                    };
+                    if (transport == CarrierTransport.ReliableStream)
+                    {
+                        ((TcpTransportListener)harness.m_listener).OpenExternal(
+                            harness.m_baseUrl, settings, callback.Object);
+                        harness.m_streamListener = new TcpListener(IPAddress.Loopback, harness.m_baseUrl.Port);
+                        harness.m_streamListener.Start();
+                        harness.m_streamAccept = harness.AcceptReliableStreamAsync();
+                    }
+#if NET8_0_OR_GREATER
+                    else if (transport == CarrierTransport.ManagedQuic && CanUseQuic)
+                    {
+                        harness.m_tlsIdentity = harness.ServerCertificate.AsX509Certificate2();
+                        harness.m_quicListener = await new QuicUascTransport().ListenAsync(
+                            harness.m_url,
+                            new SslServerAuthenticationOptions
+                            {
+                                ApplicationProtocols = [new SslApplicationProtocol(DataChannelProfiles.UascQuicAlpn)],
+                                ServerCertificate = harness.m_tlsIdentity,
+                                ClientCertificateRequired = false
+                            },
+                            harness.Token).ConfigureAwait(false);
+                        harness.m_url = harness.m_quicListener.EndpointUrl;
+                        harness.m_baseUrl = new UriBuilder(harness.m_url) { Path = "/", Query = string.Empty }.Uri;
+                        settings.Descriptions = [harness.CreateEndpoint()];
+                        ((TcpTransportListener)harness.m_listener).OpenExternal(
+                            harness.m_baseUrl, settings, callback.Object);
+                        harness.m_streamAccept = harness.AcceptQuicStreamAsync();
+                    }
+                    else if (transport == CarrierTransport.ManagedQuic)
+                    {
+                        Assert.Ignore("The real managed QUIC runtime is unavailable.");
+                    }
+#endif
+                    else
+                    {
+                        await harness.m_listener.OpenAsync(
+                            reverse ? harness.m_url : harness.m_baseUrl,
+                            settings, callback.Object, harness.Token).ConfigureAwait(false);
+                    }
                     return harness;
                 }
                 catch
@@ -1208,18 +1773,28 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Opens the selected flow endpoint through the public client factory.
             /// </summary>
-            public ValueTask<UascDataChannelConnection> ConnectAsync(string? expectedServerUri = null)
+            public async ValueTask<UascDataChannelConnection> ConnectAsync(string? expectedServerUri = null)
             {
                 EndpointDescription endpoint = CreateEndpoint();
                 if (expectedServerUri != null)
                 {
                     endpoint.Server.ApplicationUri = expectedServerUri;
                 }
-                ITransportChannelFactory transportFactory = m_transport == CarrierTransport.Wss
-                    ? new OpcWssTransportChannelFactory()
-                    : new TcpTransportChannelFactory();
+                ITransportChannelFactory transportFactory = m_transport switch
+                {
+                    CarrierTransport.ReliableStream => new ReliableStreamChannelFactory(m_url.Scheme),
+                    CarrierTransport.Wss => new OpcWssTransportChannelFactory(),
+                    _ => new TcpTransportChannelFactory()
+                };
+#if NET8_0_OR_GREATER
+                if (m_transport == CarrierTransport.ManagedQuic && CanUseQuic)
+                {
+                    m_quicClient = await ConnectQuicClientAsync().ConfigureAwait(false);
+                    transportFactory = m_quicClient;
+                }
+#endif
                 var client = new UascDataChannelClient(transportFactory, Telemetry);
-                return client.ConnectAsync(
+                return await client.ConnectAsync(
                     m_url,
                     new TransportChannelSettings
                     {
@@ -1233,7 +1808,57 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         DataChannels = ClientFactory,
                         AllowDataChannelIntegrity = m_mode == MessageSecurityMode.Sign
                     },
-                    Token);
+                    Token).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Takes a real RHE handoff without opening a second outbound client connection.
+            /// </summary>
+            public async ValueTask<UascDataChannelConnection> ConnectReverseAsync()
+            {
+                var waiting = new TaskCompletionSource<ITransportWaitingConnection>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                m_listener.ConnectionStatusChanged += (_, args) =>
+                {
+                    if (ServiceResult.IsBad(args.ChannelStatus))
+                    {
+                        waiting.TrySetException(new ServiceResultException(args.ChannelStatus));
+                    }
+                };
+                m_reverseHost = new ReverseConnectHost(Telemetry);
+                m_reverseHost.CreateListener(
+                    new Uri($"opc.tcp://localhost:{GetFreePort()}/"),
+                    (_, args) =>
+                    {
+                        args.Accepted = true;
+                        waiting.TrySetResult(args);
+                        return Task.CompletedTask;
+                    },
+                    (_, args) =>
+                    {
+                        if (ServiceResult.IsBad(args.ChannelStatus))
+                        {
+                            waiting.TrySetException(new ServiceResultException(args.ChannelStatus));
+                        }
+                    });
+                await m_reverseHost.OpenAsync(Token).ConfigureAwait(false);
+                m_listener.CreateReverseConnection(m_reverseHost.Url!, 10000);
+                ITransportWaitingConnection accepted = await waiting.Task.WaitAsync(Token).ConfigureAwait(false);
+                Assert.That(accepted.ServerUri, Is.EqualTo(ServerUri));
+                Assert.That(accepted.EndpointUrl, Is.EqualTo(m_url));
+                var client = new UascDataChannelClient(new TcpTransportChannelFactory(), Telemetry);
+                return await client.ConnectAsync(accepted, new TransportChannelSettings
+                {
+                    Description = CreateEndpoint(),
+                    Configuration = m_configuration,
+                    ClientCertificate = m_clientCertificate.AddRef(),
+                    ServerCertificate = ServerCertificate.AddRef(),
+                    CertificateValidator = m_clientCertificates,
+                    NamespaceUris = new NamespaceTable(),
+                    Factory = EncodeableFactory.Create(),
+                    DataChannels = ClientFactory,
+                    AllowDataChannelIntegrity = m_mode == MessageSecurityMode.Sign
+                }, Token).ConfigureAwait(false);
             }
 
             /// <summary>
@@ -1243,7 +1868,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bool confirmProfile = true,
                 TimeProvider? clock = null,
                 MessageSecurityMode? requestedMode = null,
-                ArrayPool<byte>? pool = null)
+                ArrayPool<byte>? pool = null,
+                bool enableDataChannels = true)
             {
                 EndpointDescription endpoint = CreateEndpoint();
                 if (requestedMode.HasValue)
@@ -1267,7 +1893,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     ChannelLifetime = 60000
                 };
                 var wire = new ConcurrentQueue<byte[]>();
-                var recorder = new RecordingTransportFactory(wire);
+                IUaSCByteTransportFactory? physicalTransport = null;
+#if NET8_0_OR_GREATER
+                if (m_transport == CarrierTransport.ManagedQuic && CanUseQuic)
+                {
+                    m_quicClient = await ConnectQuicClientAsync().ConfigureAwait(false);
+                    physicalTransport = m_quicClient;
+                }
+#endif
+                var recorder = new RecordingTransportFactory(wire, physicalTransport);
                 var client = new ProbeClientChannel(
                     pool == null
                         ? new BufferManager("flow-probe", 8192, Telemetry)
@@ -1284,7 +1918,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     if (confirmProfile)
                     {
-                        client.ConfigureDataChannels(ClientFactory, m_mode == MessageSecurityMode.Sign);
+                        client.ConfigureDataChannels(
+                            enableDataChannels ? ClientFactory : null, m_mode == MessageSecurityMode.Sign);
                     }
                     await client.ConnectAsync(m_url, 10000, Token).ConfigureAwait(false);
                     return client;
@@ -1349,6 +1984,116 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
 #if NET8_0_OR_GREATER
             /// <summary>
+            /// Sends a real, framed HEL over independently validated TLS while substituting only its endpoint.
+            /// </summary>
+            public async Task<StatusCode> SendQuicHelloWithEndpointMismatchAsync(string mismatch)
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                var endpoint = new UriBuilder(m_url);
+                switch (mismatch)
+                {
+                    case "authority":
+                        endpoint.Host = "not-configured.example";
+                        break;
+                    case "port":
+                        endpoint.Port = m_url.Port == 4840 ? 4841 : 4840;
+                        break;
+                    case "path":
+                        endpoint.Path = "/not-configured";
+                        break;
+                    case "query":
+                        endpoint.Query = "not-configured=1";
+                        break;
+                    case "scheme":
+                        endpoint.Scheme = "opc.tcp";
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(mismatch));
+                }
+                byte[] url = Encoding.UTF8.GetBytes(endpoint.Uri.AbsoluteUri);
+                byte[] hello = new byte[32 + url.Length];
+                BinaryPrimitives.WriteUInt32LittleEndian(hello, TcpMessageType.Hello);
+                BinaryPrimitives.WriteUInt32LittleEndian(hello.AsSpan(4), (uint)hello.Length);
+                BinaryPrimitives.WriteUInt32LittleEndian(hello.AsSpan(12), 8192);
+                BinaryPrimitives.WriteUInt32LittleEndian(hello.AsSpan(16), 8192);
+                BinaryPrimitives.WriteUInt32LittleEndian(hello.AsSpan(20), 65536);
+                BinaryPrimitives.WriteUInt32LittleEndian(hello.AsSpan(24), 8);
+                BinaryPrimitives.WriteInt32LittleEndian(hello.AsSpan(28), url.Length);
+                url.CopyTo(hello, 32);
+                m_quicClient = await ConnectQuicClientAsync().ConfigureAwait(false);
+                var buffers = new BufferManager("quic-hello", 8192, Telemetry);
+                IUaSCByteTransport transport = m_quicClient.Create(buffers, 8192, Telemetry);
+                try
+                {
+                    await transport.ConnectAsync(m_url, Token).ConfigureAwait(false);
+                    await transport.SendChunkAsync(hello.AsMemory(), Token).ConfigureAwait(false);
+                    ArraySegment<byte> response = await transport.ReceiveChunkAsync(Token).ConfigureAwait(false);
+                    try
+                    {
+                        Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(response.AsSpan()),
+                            Is.EqualTo(TcpMessageType.Error));
+                        return new StatusCode(BinaryPrimitives.ReadUInt32LittleEndian(response.AsSpan(8)));
+                    }
+                    finally
+                    {
+                        buffers.ReturnBuffer(response.Array, nameof(SendQuicHelloWithEndpointMismatchAsync));
+                    }
+                }
+                finally
+                {
+                    transport.Close();
+                }
+            }
+
+            /// <summary>
+            /// Tries to reuse the real, already claimed initiator stream through the public byte-factory path.
+            /// </summary>
+            public async ValueTask ReclaimQuicClientStreamAsync()
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                IUaSCByteTransport transport = m_quicClient!.Create(
+                    new BufferManager("quic-reclaim", 8192, Telemetry), 8192, Telemetry);
+                try
+                {
+                    await transport.ConnectAsync(m_url, Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    transport.Close();
+                }
+            }
+
+            /// <summary>
+            /// Tries to reverse the accepted baseline's role through the public channel-factory path.
+            /// </summary>
+            public ITransportChannel CreateClientFromAcceptedQuicBaseline()
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                return m_quicServer!.Create(Telemetry);
+            }
+
+            /// <summary>
+            /// Closes the physical initiator owner without sending a graceful UASC CLO.
+            /// </summary>
+            public ValueTask CloseQuicClientAsync()
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                return m_quicClient!.DisposeAsync();
+            }
+
+            /// <summary>
             /// Opens TLS with a previously store-validated exact server certificate, for WebSocket negative tests.
             /// </summary>
             public async Task<RawWebSocket> OpenRawWebSocketAsync(string protocol)
@@ -1384,8 +2129,47 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
+                if (m_streamAccept != null)
+                {
+                    m_deadline.Cancel();
+                    m_streamListener?.Stop();
+                    try
+                    {
+                        await m_streamAccept.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (Token.IsCancellationRequested)
+                    {
+                        // Listener shutdown cancels a pending external accept.
+                    }
+                    catch (SocketException) when (Token.IsCancellationRequested)
+                    {
+                        // Stopping the listener interrupts the physical accept.
+                    }
+                }
                 await m_listener.CloseAsync().ConfigureAwait(false);
                 await m_listener.DisposeAsync().ConfigureAwait(false);
+                if (m_reverseHost != null)
+                {
+                    await m_reverseHost.DisposeAsync().ConfigureAwait(false);
+                }
+#if NET8_0_OR_GREATER
+                if (CanUseQuic)
+                {
+                    if (m_quicListener != null)
+                    {
+                        await m_quicListener.DisposeAsync().ConfigureAwait(false);
+                    }
+                    if (m_quicClient != null)
+                    {
+                        await m_quicClient.DisposeAsync().ConfigureAwait(false);
+                    }
+                    if (m_quicServer != null)
+                    {
+                        await m_quicServer.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                m_tlsIdentity?.Dispose();
+#endif
                 foreach (DataChannelContext context in ClientFactory.Contexts.Concat(ServerFactory.Contexts))
                 {
                     await context.DisposeAsync().ConfigureAwait(false);
@@ -1400,6 +2184,75 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Directory.Delete(m_pkiRoot, true);
                 }
             }
+
+            /// <summary>
+            /// Attaches one external stream to the ordinary authenticated UASC dispatcher.
+            /// </summary>
+            private async Task AcceptReliableStreamAsync()
+            {
+                Socket socket = await m_streamListener!.AcceptSocketAsync().WaitAsync(Token).ConfigureAwait(false);
+                var stream = new NetworkStream(socket, ownsSocket: true);
+                try
+                {
+                    ((TcpTransportListener)m_listener).AcceptTransport(
+                        new AcceptedStreamFactory(stream, CreateEndpoint().TransportProfileUri ?? string.Empty),
+                        m_serverCertificates, m_configuration.MaxBufferSize);
+                }
+                catch
+                {
+                    stream.Dispose();
+                    throw;
+                }
+            }
+
+#if NET8_0_OR_GREATER
+            /// <summary>
+            /// Requires actual managed QUIC support rather than substituting a socket or fake stream.
+            /// </summary>
+            [SupportedOSPlatformGuard("windows")]
+            [SupportedOSPlatformGuard("linux")]
+            [SupportedOSPlatformGuard("osx")]
+            private static bool CanUseQuic =>
+                (OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()) &&
+                QuicConnection.IsSupported && QuicListener.IsSupported;
+
+            /// <summary>
+            /// Attaches the one real QUIC baseline directly to the ordinary UASC listener.
+            /// </summary>
+            private async Task AcceptQuicStreamAsync()
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                m_quicServer = await m_quicListener!.AcceptAsync(Token).ConfigureAwait(false);
+                ((TcpTransportListener)m_listener).AcceptTransport(
+                    m_quicServer, m_serverCertificates, m_configuration.MaxBufferSize);
+            }
+
+            /// <summary>
+            /// Uses an exact TLS test certificate pin independently of the UASC application trust store.
+            /// </summary>
+            private async Task<QuicUascConnection> ConnectQuicClientAsync()
+            {
+                if (!CanUseQuic)
+                {
+                    throw new PlatformNotSupportedException();
+                }
+                return await new QuicUascTransport().ConnectAsync(
+                    m_url,
+                    new SslClientAuthenticationOptions
+                    {
+                        TargetHost = m_url.DnsSafeHost,
+                        ApplicationProtocols = [new SslApplicationProtocol(DataChannelProfiles.UascQuicAlpn)],
+                        RemoteCertificateValidationCallback = (_, certificate, _, errors) =>
+                            certificate != null &&
+                            errors is SslPolicyErrors.None or SslPolicyErrors.RemoteCertificateChainErrors &&
+                            certificate.GetRawCertData().AsSpan().SequenceEqual(ServerCertificate.RawData)
+                    },
+                    Token).ConfigureAwait(false);
+            }
+#endif
 
             private async Task ConfigureCertificatesAsync(bool trustServer)
             {
@@ -1435,9 +2288,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return new EndpointDescription
                 {
                     EndpointUrl = m_url.AbsoluteUri,
-                    TransportProfileUri = m_kind == DataChannelCarrierKind.DedicatedUasc
-                        ? DataChannelProfiles.DedicatedUasc
-                        : DataChannelProfiles.SharedUasc,
+                    TransportProfileUri = m_kind switch
+                    {
+                        DataChannelCarrierKind.DedicatedUasc => DataChannelProfiles.DedicatedUasc,
+                        DataChannelCarrierKind.SharedUasc => DataChannelProfiles.SharedUasc,
+                        DataChannelCarrierKind.QuicUasc => DataChannelProfiles.UascQuic,
+                        DataChannelCarrierKind.WebTransportUasc => DataChannelProfiles.UascWebTransport,
+                        _ => throw new ArgumentOutOfRangeException(nameof(m_kind))
+                    },
                     SecurityMode = m_mode,
                     SecurityPolicyUri = SecurityPolicies.Basic256Sha256,
                     ServerCertificate = new ByteString(ServerCertificate.RawData),
@@ -1481,15 +2339,83 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             private readonly DataChannelCarrierKind m_kind;
             private readonly MessageSecurityMode m_mode;
             private readonly string m_pkiRoot;
-            private readonly Uri m_url;
-            private readonly Uri m_baseUrl;
+            private Uri m_url;
+            private Uri m_baseUrl;
             private readonly ITransportListener m_listener;
             private readonly Certificate m_clientCertificate;
             private readonly CertificateManager m_serverCertificates;
             private readonly CertificateManager m_clientCertificates;
             private readonly EndpointConfiguration m_configuration;
             private readonly CancellationTokenSource m_deadline = new(TimeSpan.FromSeconds(45));
+            private TcpListener? m_streamListener;
+            private Task? m_streamAccept;
+            private ReverseConnectHost? m_reverseHost;
+#if NET8_0_OR_GREATER
+            private QuicUascListener? m_quicListener;
+            private QuicUascConnection? m_quicClient;
+            private QuicUascConnection? m_quicServer;
+            private X509Certificate2? m_tlsIdentity;
+#endif
             private int m_serviceRequests;
+        }
+
+        /// <summary>
+        /// Connects through the public stream factory without a Data Channel or native management exchange.
+        /// </summary>
+        private sealed class ReliableStreamChannelFactory(string scheme) : ITransportChannelFactory
+        {
+            /// <inheritdoc/>
+            public string UriScheme => scheme;
+
+            /// <inheritdoc/>
+            public ITransportChannel Create(ITelemetryContext telemetry)
+            {
+                return new UaSCUaBinaryTransportChannel(
+                    new UascStreamByteTransportFactory(ConnectAsync, "Test-Reliable-Stream", scheme switch
+                    {
+                        "opc.quic" => DataChannelProfiles.UascQuic,
+                        "https" => DataChannelProfiles.UascWebTransport,
+                        _ => string.Empty
+                    }), telemetry);
+            }
+
+            /// <summary>
+            /// Supplies a real network stream solely for shared-adapter and protected UASC composition evidence.
+            /// </summary>
+            private static async ValueTask<Stream> ConnectAsync(Uri endpoint, CancellationToken ct)
+            {
+                var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                try
+                {
+                    await socket.ConnectAsync(new DnsEndPoint(endpoint.Host, endpoint.Port), ct).ConfigureAwait(false);
+                    return new NetworkStream(socket, ownsSocket: true);
+                }
+                catch
+                {
+                    socket.Dispose();
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Transfers an accepted stream into the listener's own buffer and security ownership.
+        /// </summary>
+        private sealed class AcceptedStreamFactory(Stream stream, string profile) :
+            IUaSCByteTransportFactory, IUaSCTransportProfile
+        {
+            /// <inheritdoc/>
+            public string Implementation => "Test-Reliable-Stream";
+
+            /// <inheritdoc/>
+            public string TransportProfileUri => profile;
+
+            /// <inheritdoc/>
+            public IUaSCByteTransport Create(
+                BufferManager bufferManager, int receiveBufferSize, ITelemetryContext telemetry)
+            {
+                return new UascStreamByteTransport(stream, bufferManager, receiveBufferSize, Implementation);
+            }
         }
 
         /// <summary>
@@ -1527,6 +2453,16 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// Gets the number of resource-policy checks.
             /// </summary>
             public int Authorizations => Volatile.Read(ref m_authorizations);
+
+            /// <summary>
+            /// Gets the application budget to verify release after physical context closure.
+            /// </summary>
+            public DataChannelApplicationBudget Budget => m_budget;
+
+            /// <summary>
+            /// Gets or sets the explicitly configured protocol for the primary resource.
+            /// </summary>
+            public string PayloadProtocol { get; set; } = DataChannelProfiles.UadpPayload;
 
             /// <summary>
             /// Gets or sets the explicitly controlled runtime clock for deadline tests.
@@ -1569,8 +2505,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 bool allowed = request.Context.Peer.PeerApplicationUri == m_peerUri &&
                     request.Context.Peer.PeerKeyThumbprint == m_peerKey &&
                     request.Mode == DataChannelAuthorizationMode.Configured &&
-                    parameters.ResourceUri == SocketHarness.Resource &&
-                    parameters.Protocol == DataChannelProfiles.OpaquePayload &&
+                    ((parameters.ResourceUri == SocketHarness.Resource &&
+                        parameters.Protocol == PayloadProtocol) ||
+                        (parameters.ResourceUri is UadpFirstResource or UadpSecondResource &&
+                            parameters.Protocol == DataChannelProfiles.UadpPayload)) &&
                     parameters.Delivery == DataChannelDeliveryMode.Ordered &&
                     parameters.Protection == (m_allowIntegrity
                         ? DataChannelProtectionMode.Integrity
@@ -1677,7 +2615,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// Observes each real TCP submission without altering or coalescing chunks.
         /// </summary>
-        private sealed class RecordingTransportFactory(ConcurrentQueue<byte[]> chunks) : IUaSCByteTransportFactory
+        private sealed class RecordingTransportFactory(
+            ConcurrentQueue<byte[]> chunks,
+            IUaSCByteTransportFactory? physicalTransport = null) : IUaSCByteTransportFactory, IUaSCTransportProfile
         {
             /// <summary>
             /// Gets the actual observed socket transport after connection creation.
@@ -1685,14 +2625,19 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public RecordingTransport? Transport { get; private set; }
 
             /// <inheritdoc/>
-            public string Implementation => "Recorded UA-TCP";
+            public string Implementation => "Recorded " + (physicalTransport?.Implementation ?? "UA-TCP");
+
+            /// <inheritdoc/>
+            public string TransportProfileUri =>
+                (physicalTransport as IUaSCTransportProfile)?.TransportProfileUri ?? string.Empty;
 
             /// <inheritdoc/>
             public IUaSCByteTransport Create(
                 BufferManager bufferManager, int receiveBufferSize, ITelemetryContext telemetry)
             {
                 Transport = new RecordingTransport(
-                    new TcpByteTransportFactory(telemetry).Create(bufferManager, receiveBufferSize, telemetry),
+                    (physicalTransport ?? new TcpByteTransportFactory(telemetry))
+                        .Create(bufferManager, receiveBufferSize, telemetry),
                     chunks);
                 return Transport;
             }
@@ -1716,6 +2661,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             /// <inheritdoc/>
             public string Implementation => inner.Implementation;
+
+            /// <summary>
+            /// Gets immutable received UACP chunks before their security headers are consumed.
+            /// </summary>
+            public ConcurrentQueue<byte[]> ReceivedChunks { get; } = new();
 
             /// <summary>
             /// Pauses one selected write after security commitment but before actual socket submission.
@@ -1774,14 +2724,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     offset += buffer.Count;
                 }
                 await WaitAtBarrierAsync(chunk, ct).ConfigureAwait(false);
-                chunks.Enqueue(chunk);
+                int recorded = 0;
+                while (recorded < chunk.Length)
+                {
+                    int size = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(recorded + 4)));
+                    Assert.That(size, Is.InRange(9, chunk.Length - recorded));
+                    chunks.Enqueue(chunk.AsSpan(recorded, size).ToArray());
+                    recorded += size;
+                }
                 await inner.SendChunkAsync(buffers, ct).ConfigureAwait(false);
             }
 
             /// <inheritdoc/>
-            public ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
+            public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
             {
-                return inner.ReceiveChunkAsync(ct);
+                ArraySegment<byte> chunk = await inner.ReceiveChunkAsync(ct).ConfigureAwait(false);
+                ReceivedChunks.Enqueue(chunk.ToArray());
+                return chunk;
             }
 
             /// <inheritdoc/>

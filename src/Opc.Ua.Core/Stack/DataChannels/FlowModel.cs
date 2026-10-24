@@ -209,10 +209,28 @@ namespace Opc.Ua.DataChannels
             {
                 DataChannelCarrierKind.DedicatedUasc => FlowCarrier.DedicatedUasc,
                 DataChannelCarrierKind.SharedUasc => FlowCarrier.SharedUasc,
-                DataChannelCarrierKind.Quic => FlowCarrier.Quic,
-                DataChannelCarrierKind.WebTransport => FlowCarrier.WebTransport,
+                DataChannelCarrierKind.Quic or DataChannelCarrierKind.QuicUasc => FlowCarrier.Quic,
+                DataChannelCarrierKind.WebTransport or DataChannelCarrierKind.WebTransportUasc => FlowCarrier.WebTransport,
                 _ => throw new ArgumentOutOfRangeException(nameof(value))
             };
+        }
+
+        /// <summary>
+        /// Identifies carriage through the authenticated UASC writer rather than direct native records.
+        /// </summary>
+        internal static bool IsUasc(DataChannelCarrierKind kind)
+        {
+            return kind is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc;
+        }
+
+        /// <summary>
+        /// Identifies UASC baselines that also carry ordinary Service messages.
+        /// </summary>
+        internal static bool SharesServices(DataChannelCarrierKind? kind)
+        {
+            return kind is DataChannelCarrierKind.SharedUasc or
+                DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc;
         }
 
         /// <summary>

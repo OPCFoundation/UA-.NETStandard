@@ -191,7 +191,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
             DataChannel configured = await test.Pair.Client.OpenAsync(
                 DataChannelControlTestContext.Parameters(), cancellationToken: deadline.Token).ConfigureAwait(false);
             DataChannel configuredAcceptor = (await test.Provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             if (cause == "close")
             {
@@ -276,7 +276,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
             DataChannel configured = await test.Pair.Client.OpenAsync(
                 DataChannelControlTestContext.Parameters(), cancellationToken: deadline.Token).ConfigureAwait(false);
             DataChannel accepted = (await test.Provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             test.Closing = true;
             test.Expired = true;
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(accepted.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(accepted.GetStatus().SessionId.IsNull, Is.True);
             });
-            var payload = ByteString.From([11, 12]);
+            ByteString payload = DataChannelControlTestContext.UadpPayload(ByteString.From([11, 12]));
             Assert.That(await configured.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage received = (await accepted.ReadAsync(deadline.Token).ConfigureAwait(false))!;
@@ -362,7 +362,7 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 DataChannelControlTestContext.Parameters(), DataChannelAuthorizationMode.Session,
                 grant.GrantId, id, deadline.Token).ConfigureAwait(false);
             DataChannel acceptor = (await test.Provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             return (opener, acceptor);
         }

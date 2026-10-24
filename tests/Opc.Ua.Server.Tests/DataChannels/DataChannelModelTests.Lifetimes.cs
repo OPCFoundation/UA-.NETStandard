@@ -68,16 +68,55 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 pair.Client, SourceId, DataChannelControlTestContext.Parameters(), deadline.Token)
                 .ConfigureAwait(false);
             DataChannel dependent = (await m_provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             DataChannel configured = await pair.Client.OpenAsync(
-                DataChannelControlTestContext.Parameters(), cancellationToken: deadline.Token).ConfigureAwait(false);
+                DataChannelControlTestContext.Parameters(DataChannelDirection.AcceptorToOpener),
+                cancellationToken: deadline.Token).ConfigureAwait(false);
             DataChannel independent = (await m_provider.AcceptAsync(
-                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.OpaquePayload,
+                DataChannelControlTestContext.ResourceUri, DataChannelProfiles.UadpPayload,
                 DataChannelCarrierKind.SharedUasc, deadline.Token).ConfigureAwait(false))!;
             uint subscription = await CreateDataSubscriptionAsync(m_session).ConfigureAwait(false);
             await m_session.DeleteSubscriptionsAsync(null, [subscription], deadline.Token).ConfigureAwait(false);
             Assert.That(authorized.State, Is.EqualTo(DataChannelState.Open));
+            NodeId sessionId = m_session.SessionId;
+            string controlChannelId = ServerSession.SecureChannelId;
+            await m_session.TransportChannel.CloseAsync(deadline.Token).ConfigureAwait(false);
+            await m_provider.RecheckAuthorizationAsync(deadline.Token).ConfigureAwait(false);
+            DateTime lastContact = ServerSession.ClientLastContactTime;
+            ByteString payload = DataChannelControlTestContext.UadpPayload(ByteString.From([71, 72, 73]));
+            Assert.That(await authorized.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using (DataChannelMessage interruptedMessage =
+                (await dependent.ReadAsync(deadline.Token).ConfigureAwait(false))!)
+            {
+                Assert.That(interruptedMessage.Payload, Is.EqualTo(payload));
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerSession.Activated, Is.True);
+                Assert.That(ServerSession.ClientLastContactTime, Is.EqualTo(lastContact),
+                    "Data traffic must not refresh the control Session's timeout.");
+                Assert.That(authorized.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(dependent.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(configured.State, Is.EqualTo(DataChannelState.Open));
+            });
+            await m_session.ReconnectAsync(null, null, deadline.Token).ConfigureAwait(false);
+            await m_provider.RecheckAuthorizationAsync(deadline.Token).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_session.SessionId, Is.EqualTo(sessionId));
+                Assert.That(ServerSession.SecureChannelId, Is.Not.EqualTo(controlChannelId));
+                Assert.That(authorized.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(dependent.State, Is.EqualTo(DataChannelState.Open));
+            });
+            Assert.That(await authorized.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            using (DataChannelMessage reactivatedMessage =
+                (await dependent.ReadAsync(deadline.Token).ConfigureAwait(false))!)
+            {
+                Assert.That(reactivatedMessage.Payload, Is.EqualTo(payload));
+            }
             await m_session.CloseAsync(5000, true, deadline.Token).ConfigureAwait(false);
             await m_provider.RecheckAuthorizationAsync(deadline.Token).ConfigureAwait(false);
             Assert.Multiple(() =>
@@ -88,10 +127,9 @@ namespace Opc.Ua.Server.Tests.DataChannels
                 Assert.That(independent.State, Is.EqualTo(DataChannelState.Open));
                 Assert.That(pair.Server.IsReady, Is.True);
             });
-            ByteString payload = ByteString.From([71, 72, 73]);
-            Assert.That(await configured.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
+            Assert.That(await independent.SendAsync(payload, cancellationToken: deadline.Token).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
-            using DataChannelMessage received = (await independent.ReadAsync(deadline.Token).ConfigureAwait(false))!;
+            using DataChannelMessage received = (await configured.ReadAsync(deadline.Token).ConfigureAwait(false))!;
             Assert.That(received.Payload, Is.EqualTo(payload));
         }
 

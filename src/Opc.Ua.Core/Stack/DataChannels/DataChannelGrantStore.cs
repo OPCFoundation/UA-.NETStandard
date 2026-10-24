@@ -38,6 +38,8 @@ namespace Opc.Ua.DataChannels
     /// Bounded, single-use monotonic grant storage for an injected Session authorizer.
     /// Session permission checks and staged-update authorization remain with that provider.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelGrantStore : IDisposable
     {
         /// <summary>

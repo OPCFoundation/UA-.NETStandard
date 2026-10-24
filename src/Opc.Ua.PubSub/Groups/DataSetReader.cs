@@ -42,6 +42,7 @@ namespace Opc.Ua.PubSub.Groups
     /// inbound <see cref="PubSubDataSetMessage"/>s by
     /// (DataSetWriterId, PublisherId, WriterGroupId) and routes the
     /// payload to the configured <see cref="ISubscribedDataSetSink"/>.
+    /// Keep-alive messages update reader status without applying fields.
     /// </summary>
     /// <remarks>
     /// Implements the DataSetReader contract from
@@ -51,7 +52,11 @@ namespace Opc.Ua.PubSub.Groups
     public sealed class DataSetReader : IDataSetReader
     {
         private readonly ILogger<DataSetReader> m_logger;
+        private readonly Lock m_receiveGate = new();
         private long m_lastReceivedTicks;
+        private uint? m_lastSequenceNumber;
+        private int m_sequenceNumberBits;
+        private bool m_hasReceivedMessage;
 
         /// <summary>
         /// Initializes a new <see cref="DataSetReader"/>.
@@ -96,7 +101,6 @@ namespace Opc.Ua.PubSub.Groups
                 string.IsNullOrEmpty(Name) ? $"reader-{DataSetWriterId}" : Name,
                 PubSubComponentKind.DataSetReader,
                 m_logger);
-            m_lastReceivedTicks = timeProvider.GetTimestamp();
         }
 
         /// <inheritdoc/>
@@ -205,7 +209,8 @@ namespace Opc.Ua.PubSub.Groups
         }
 
         /// <summary>
-        /// Applies <paramref name="dataSetMessage"/> to the sink.
+        /// Processes a received <paramref name="dataSetMessage"/> and applies
+        /// its fields to the sink unless it is a keep-alive.
         /// </summary>
         /// <param name="dataSetMessage">Inbound message.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
@@ -218,12 +223,18 @@ namespace Opc.Ua.PubSub.Groups
             {
                 throw new ArgumentNullException(nameof(dataSetMessage));
             }
-            Interlocked.Exchange(ref m_lastReceivedTicks, TimeProvider.GetTimestamp());
             if (State.State == PubSubState.Disabled)
             {
                 return;
             }
-            _ = State.TryMarkOperational();
+            if (RecordReceivedMessage(dataSetMessage))
+            {
+                _ = State.TryMarkOperational();
+            }
+            if (dataSetMessage.MessageType == PubSubDataSetMessageType.KeepAlive)
+            {
+                return;
+            }
             try
             {
                 await Sink.WriteAsync([.. dataSetMessage.Fields], cancellationToken)
@@ -241,8 +252,8 @@ namespace Opc.Ua.PubSub.Groups
         }
 
         /// <summary>
-        /// Returns <see langword="true"/> if no message has been received
-        /// within <see cref="MessageReceiveTimeout"/>.
+        /// Returns <see langword="true"/> if no new DataSetMessage has been
+        /// received within <see cref="MessageReceiveTimeout"/>.
         /// </summary>
         public bool IsReceiveTimedOut()
         {
@@ -250,9 +261,71 @@ namespace Opc.Ua.PubSub.Groups
             {
                 return false;
             }
-            long elapsedTicks = TimeProvider.GetTimestamp() - Interlocked.Read(ref m_lastReceivedTicks);
+            long elapsedTicks;
+            lock (m_receiveGate)
+            {
+                if (!m_hasReceivedMessage)
+                {
+                    return false;
+                }
+                elapsedTicks = TimeProvider.GetTimestamp() - m_lastReceivedTicks;
+            }
             TimeSpan elapsed = TimeProvider.GetElapsedTime(0, elapsedTicks);
-            return elapsed > MessageReceiveTimeout;
+            return elapsed >= MessageReceiveTimeout;
+        }
+
+        private bool RecordReceivedMessage(PubSubDataSetMessage dataSetMessage)
+        {
+            int sequenceNumberBits = dataSetMessage switch
+            {
+                Encoding.Uadp.UadpDataSetMessage uadp
+                    when (uadp.ContentMask & UadpDataSetMessageContentMask.SequenceNumber) != 0 => 16,
+                Encoding.Json.JsonDataSetMessage json
+                    when (json.ContentMask & JsonDataSetMessageContentMask.SequenceNumber) != 0 => 32,
+                _ => 0
+            };
+
+            lock (m_receiveGate)
+            {
+                bool isNew = sequenceNumberBits == 0 ||
+                    dataSetMessage.MessageType == PubSubDataSetMessageType.KeepAlive;
+                if (sequenceNumberBits == 0)
+                {
+                    m_lastSequenceNumber = null;
+                    m_sequenceNumberBits = 0;
+                }
+                else
+                {
+                    uint sequenceNumber = sequenceNumberBits == 16
+                        ? dataSetMessage.SequenceNumber & ushort.MaxValue
+                        : dataSetMessage.SequenceNumber;
+                    if (!m_lastSequenceNumber.HasValue || m_sequenceNumberBits != sequenceNumberBits)
+                    {
+                        isNew = true;
+                        m_lastSequenceNumber = sequenceNumber;
+                        m_sequenceNumberBits = sequenceNumberBits;
+                    }
+                    else
+                    {
+                        uint mask = sequenceNumberBits == 16 ? ushort.MaxValue : uint.MaxValue;
+                        // Accept forward progress across wraparound, but not duplicates or stale messages.
+                        uint increment = unchecked(sequenceNumber - m_lastSequenceNumber.Value) & mask;
+                        uint halfRange = sequenceNumberBits == 16 ? 0x8000u : 0x80000000u;
+                        if (increment > 0 && increment < halfRange)
+                        {
+                            isNew = true;
+                            m_lastSequenceNumber = sequenceNumber;
+                        }
+                    }
+                }
+
+                if (isNew)
+                {
+                    m_lastReceivedTicks = TimeProvider.GetTimestamp();
+                    m_hasReceivedMessage = true;
+                }
+                return isNew;
+            }
         }
     }
 

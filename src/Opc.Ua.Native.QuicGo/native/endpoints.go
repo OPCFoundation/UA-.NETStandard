@@ -8,6 +8,7 @@ import "C"
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/netip"
@@ -152,36 +153,46 @@ func (j *operation) connect(result *C.uqg_result) {
 func (j *operation) saveConnection(native *quic.Conn, trace *trace,
 	config *configuration, client bool, result *C.uqg_result) {
 	state := native.ConnectionState()
-	uri, err := authorizedPeer(state.TLS, config.identity.peers)
+	transportOnly := config.authenticationPolicy == C.UQG_SERVER_AUTHENTICATED_TLS
+	var uri string
+	var err error
+	if !transportOnly {
+		uri, err = authorizedPeer(state.TLS, config.identity.peers)
+	} else if client {
+		_, err = verifiedPeer(state.TLS)
+	} else if state.TLS.Version != tls.VersionTLS13 ||
+		len(state.TLS.PeerCertificates) != 0 || len(state.TLS.VerifiedChains) != 0 {
+		err = errors.New("transport-only server must not authenticate a client certificate")
+	}
 	trace.mu.Lock()
-	facts := trace.localSeen && trace.peerSeen && trace.local09 && trace.remote09 &&
-		trace.localMax > 0 && trace.remoteMax > 0 && !trace.overflow
+	facts := trace.localSeen && trace.peerSeen && !trace.overflow
+	requiredCapabilities := trace.local09 && trace.remote09 && trace.localMax > 0 && trace.remoteMax > 0 &&
+		state.SupportsDatagrams.Local && state.SupportsDatagrams.Remote
 	trace.mu.Unlock()
 	if err != nil || !state.TLS.HandshakeComplete || state.Used0RTT || state.TLS.DidResume {
 		_ = native.CloseWithError(1, "unverified application identity")
 		result.status = C.UQG_AUTHENTICATION
 		return
 	}
-	if !facts || !state.SupportsDatagrams.Local || !state.SupportsDatagrams.Remote {
+	if !facts || (!transportOnly && !requiredCapabilities) {
 		_ = native.CloseWithError(1, "required transport capabilities unavailable")
 		result.status = C.UQG_CAPABILITY
 		return
 	}
 	confirmed := false
 	localCertificateUsed := trace.localCertificateSelected.Load() && state.TLS.HandshakeComplete
-	if !localCertificateUsed {
+	if localCertificateUsed != (!client || !transportOnly) {
 		_ = native.CloseWithError(1, "configured local certificate was not used")
 		result.status = C.UQG_AUTHENTICATION
 		return
 	}
 	if client {
-		if !trace.clientCertificateRequested.Load() {
+		if !transportOnly && !trace.clientCertificateRequested.Load() {
 			_ = native.CloseWithError(1, "server did not request the configured client identity")
 			result.status = C.UQG_AUTHENTICATION
 			return
 		}
-		// TLS completion follows successful client Certificate/CertificateVerify/Finished
-		// generation. Authenticated HANDSHAKE_DONE proves the server processed that flight.
+		// Authenticated HANDSHAKE_DONE proves the server processed the TLS client flight.
 		select {
 		case <-j.ctx.Done():
 			_ = native.CloseWithError(1, "handshake confirmation deadline")
@@ -194,8 +205,7 @@ func (j *operation) saveConnection(native *quic.Conn, trace *trace,
 			confirmed = true
 		}
 	} else {
-		// quic-go closes this channel only after server handleHandshakeComplete has
-		// called handleHandshakeConfirmed, following RequireAndVerifyClientCert.
+		// Native server completion confirms the selected TLS authentication policy.
 		select {
 		case <-native.HandshakeComplete():
 			confirmed = state.TLS.HandshakeComplete
@@ -203,11 +213,11 @@ func (j *operation) saveConnection(native *quic.Conn, trace *trace,
 		}
 	}
 	if !confirmed || native.Context().Err() != nil {
-		_ = native.CloseWithError(1, "confirmed mutual authentication required")
+		_ = native.CloseWithError(1, "confirmed TLS authentication required")
 		result.status = C.UQG_AUTHENTICATION
 		return
 	}
-	mutual := confirmed && state.TLS.HandshakeComplete && len(state.TLS.VerifiedChains) != 0 &&
+	mutual := !transportOnly && confirmed && state.TLS.HandshakeComplete && len(state.TLS.VerifiedChains) != 0 &&
 		localCertificateUsed && (!client || trace.clientCertificateRequested.Load())
 	registry.Lock()
 	if len(registry.connections) < C.UQG_MAX_CONNECTIONS && j.ctx.Err() == nil &&
@@ -218,6 +228,7 @@ func (j *operation) saveConnection(native *quic.Conn, trace *trace,
 				id: id, native: native, trace: trace, peerURI: uri, client: client,
 				handshakeConfirmed: confirmed, mutualTLSAuthenticated: mutual,
 				localCertificateUsed: localCertificateUsed,
+				authenticationPolicy: config.authenticationPolicy,
 			}
 			result.connection.value = C.uint64_t(id)
 			registry.Unlock()

@@ -37,6 +37,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Opens explicitly selected UASC data contexts without requiring a Session.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IUascDataChannelClient
     {
         /// <summary>
@@ -47,11 +49,22 @@ namespace Opc.Ua.DataChannels
             Uri endpointUrl,
             TransportChannelSettings settings,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Authenticates a Reverse Connect handoff and completes protected profile confirmation.
+        /// The returned connection owns the handed-off transport and its context.
+        /// </summary>
+        ValueTask<UascDataChannelConnection> ConnectAsync(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings,
+            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
     /// Uses a per-host transport binding registry for raw TCP, Kestrel TCP peers or binary WSS.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class UascDataChannelClient : IUascDataChannelClient
     {
         /// <summary>
@@ -72,10 +85,35 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <inheritdoc/>
-        public async ValueTask<UascDataChannelConnection> ConnectAsync(
+        public ValueTask<UascDataChannelConnection> ConnectAsync(
             Uri endpointUrl,
             TransportChannelSettings settings,
             CancellationToken cancellationToken = default)
+        {
+            return ConnectCoreAsync(endpointUrl, null, settings, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<UascDataChannelConnection> ConnectAsync(
+            ITransportWaitingConnection connection,
+            TransportChannelSettings settings,
+            CancellationToken cancellationToken = default)
+        {
+            if (connection == null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            return ConnectCoreAsync(connection.EndpointUrl, connection, settings, cancellationToken);
+        }
+
+        /// <summary>
+        /// Selects a binding and verifies a ready context after the ordinary or reverse UASC handshake.
+        /// </summary>
+        private async ValueTask<UascDataChannelConnection> ConnectCoreAsync(
+            Uri endpointUrl,
+            ITransportWaitingConnection? connection,
+            TransportChannelSettings settings,
+            CancellationToken cancellationToken)
         {
             if (endpointUrl == null)
             {
@@ -91,6 +129,17 @@ namespace Opc.Ua.DataChannels
                 settings.Description,
                 settings.DataChannels,
                 settings.AllowDataChannelIntegrity) ?? throw UascDataChannelEndpoint.Unsupported();
+            if (connection != null &&
+                (string.IsNullOrEmpty(connection.ServerUri) ||
+                    !string.Equals(
+                        connection.ServerUri, settings.Description?.Server.ApplicationUri, StringComparison.Ordinal) ||
+                    !Uri.TryCreate(settings.Description?.EndpointUrl, UriKind.Absolute, out Uri? expectedEndpoint) ||
+                    !endpointUrl.Equals(expectedEndpoint)))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The reverse connection does not identify the selected server endpoint.");
+            }
 
             ITransportChannel transport = m_bindings.CreateChannel(endpointUrl.Scheme, m_telemetry) ??
                 throw UascDataChannelEndpoint.Unsupported();
@@ -100,7 +149,14 @@ namespace Opc.Ua.DataChannels
                 {
                     throw UascDataChannelEndpoint.Unsupported();
                 }
-                await dataTransport.OpenAsync(endpointUrl, settings, cancellationToken).ConfigureAwait(false);
+                if (connection == null)
+                {
+                    await dataTransport.OpenAsync(endpointUrl, settings, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await dataTransport.OpenAsync(connection, settings, cancellationToken).ConfigureAwait(false);
+                }
                 if (dataTransport.DataChannels?.IsReady != true || dataTransport.DataChannels.CarrierKind != kind)
                 {
                     throw new ServiceResultException(
@@ -137,6 +193,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Owns a confirmed UASC data connection and, for shared mode, its ordinary Service channel.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class UascDataChannelConnection : IAsyncDisposable
     {
         /// <summary>
@@ -164,7 +222,7 @@ namespace Opc.Ua.DataChannels
         /// <summary>
         /// Gets the same ordinary Service transport for shared mode, or null for dedicated mode.
         /// </summary>
-        public ITransportChannel? Services => m_kind == DataChannelCarrierKind.SharedUasc ? m_transport : null;
+        public ITransportChannel? Services => FlowModel.SharesServices(m_kind) ? m_transport : null;
 
         /// <summary>
         /// Closes the authenticated transport and all its flows, preserving writer-owned buffers.

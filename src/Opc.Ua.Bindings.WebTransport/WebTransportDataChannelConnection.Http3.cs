@@ -46,26 +46,124 @@ namespace Opc.Ua.Bindings
         {
             NativeQuicPeerEvidence peer = connection.Peer;
             ValidateEvidence(peer);
+            return CreatePeer(
+                connection,
+                endpoint,
+                options,
+                control,
+                encoder,
+                decoder,
+                new Http3Facts
+                {
+                    Abi = 1,
+                    Role = peer.IsClient ? 0u : 1u,
+                    LocalDatagram = peer.LocalMaximumDatagramFrameSize,
+                    PeerDatagram = peer.PeerMaximumDatagramFrameSize,
+                    ResetParameter = NativeQuicPeerEvidence.ResetStreamAt09TransportParameter,
+                    ResetFrame = NativeQuicPeerEvidence.ResetStreamAt09FrameType,
+                    InitialBidi = (ulong)options.InitialBidirectionalStreams,
+                    InitialData = (ulong)options.InitialReceiveBytes,
+                    LocalResetEmpty = peer.LocalResetStreamAt09 ? 1u : 0u,
+                    PeerResetEmpty = peer.PeerResetStreamAt09 ? 1u : 0u,
+                    Confirmed = peer.HandshakeConfirmed ? 1u : 0u,
+                    MutualAuthentication = peer.MutualTlsAuthenticated ? 1u : 0u,
+                    H3 = peer.ApplicationProtocol == DataChannelProfiles.WebTransportAlpn ? 1u : 0u
+                },
+                configurationVersion: 1,
+                applicationProtocol: DataChannelProfiles.QuicAlpn,
+                applicationPairTag: connection.Handle.Value);
+        }
+
+        /// <summary>
+        /// Creates baseline HTTP/3 state from actual TLS-only observations, without an application identity.
+        /// </summary>
+        internal static Http3Handle CreateBaselinePeer(
+            NativeQuicConnection connection,
+            Uri endpoint,
+            WebTransportDataChannelOptions options,
+            NativeQuicStream control,
+            NativeQuicStream encoder,
+            NativeQuicStream decoder)
+        {
+            ArgumentNullException.ThrowIfNull(connection);
+            ArgumentNullException.ThrowIfNull(options);
+            ArgumentNullException.ThrowIfNull(control);
+            ArgumentNullException.ThrowIfNull(encoder);
+            ArgumentNullException.ThrowIfNull(decoder);
+            options.Validate();
+            WebTransportEndpoint.HttpsAddress(endpoint);
+            if (!IsCriticalStream(connection, control) ||
+                !IsCriticalStream(connection, encoder) ||
+                !IsCriticalStream(connection, decoder) ||
+                control.StreamId == encoder.StreamId ||
+                control.StreamId == decoder.StreamId ||
+                encoder.StreamId == decoder.StreamId)
+            {
+                throw new ArgumentException(
+                    "Three distinct, local unidirectional HTTP/3 streams from this connection are required.");
+            }
+            NativeQuicTlsEvidence peer = connection.TlsPeer;
+            if (!peer.HandshakeComplete || !peer.HandshakeConfirmed || peer.Used0Rtt || peer.Resumed ||
+                peer.TlsVersion != 0x304 || peer.ApplicationProtocol != DataChannelProfiles.WebTransportAlpn ||
+                !peer.LocalResetStreamAt09 || !peer.PeerResetStreamAt09 ||
+                !peer.LocalDatagramsEnabled || !peer.PeerDatagramsEnabled ||
+                peer.LocalMaximumDatagramFrameSize == 0 || peer.PeerMaximumDatagramFrameSize == 0 ||
+                peer.MaximumDatagramPayload <= 1 ||
+                (peer.IsClient && (peer.LocalCertificateUsed || peer.VerifiedCertificateCount == 0)) ||
+                (!peer.IsClient && (!peer.LocalCertificateUsed || peer.VerifiedCertificateCount != 0)))
+            {
+                throw new AuthenticationException("Confirmed server-authenticated h3 transport evidence is required.");
+            }
+            return CreatePeer(
+                connection,
+                endpoint,
+                options,
+                control,
+                encoder,
+                decoder,
+                new Http3Facts
+                {
+                    Abi = 2,
+                    Role = peer.IsClient ? 0u : 1u,
+                    LocalDatagram = peer.LocalMaximumDatagramFrameSize,
+                    PeerDatagram = peer.PeerMaximumDatagramFrameSize,
+                    ResetParameter = NativeQuicPeerEvidence.ResetStreamAt09TransportParameter,
+                    ResetFrame = NativeQuicPeerEvidence.ResetStreamAt09FrameType,
+                    InitialBidi = (ulong)options.InitialBidirectionalStreams,
+                    InitialData = (ulong)options.InitialReceiveBytes,
+                    LocalResetEmpty = peer.LocalResetStreamAt09 ? 1u : 0u,
+                    PeerResetEmpty = peer.PeerResetStreamAt09 ? 1u : 0u,
+                    Confirmed = peer.HandshakeConfirmed ? 1u : 0u,
+                    MutualAuthentication = 0,
+                    H3 = 1,
+                    AuthenticationPolicy = 1
+                },
+                configurationVersion: 2,
+                applicationProtocol: string.Empty,
+                applicationPairTag: 0);
+        }
+
+        private static bool IsCriticalStream(NativeQuicConnection connection, NativeQuicStream stream)
+        {
+            return ReferenceEquals(stream.Connection, connection) && stream.IsLocal && !stream.IsBidirectional;
+        }
+
+        private static unsafe Http3Handle CreatePeer(
+            NativeQuicConnection connection,
+            Uri endpoint,
+            WebTransportDataChannelOptions options,
+            NativeQuicStream control,
+            NativeQuicStream encoder,
+            NativeQuicStream decoder,
+            Http3Facts facts,
+            uint configurationVersion,
+            string applicationProtocol,
+            ulong applicationPairTag)
+        {
             byte[] authority = Encoding.UTF8.GetBytes(endpoint.Authority);
             byte[] path = Encoding.UTF8.GetBytes(endpoint.PathAndQuery);
             byte[] origin = Encoding.UTF8.GetBytes(options.Origin ?? string.Empty);
-            byte[] protocol = Encoding.UTF8.GetBytes(DataChannelProfiles.QuicAlpn);
-            var facts = new Http3Facts
-            {
-                Abi = 1,
-                Role = peer.IsClient ? 0u : 1u,
-                LocalDatagram = peer.LocalMaximumDatagramFrameSize,
-                PeerDatagram = peer.PeerMaximumDatagramFrameSize,
-                ResetParameter = NativeQuicPeerEvidence.ResetStreamAt09TransportParameter,
-                ResetFrame = NativeQuicPeerEvidence.ResetStreamAt09FrameType,
-                InitialBidi = (ulong)options.InitialBidirectionalStreams,
-                InitialData = (ulong)options.InitialReceiveBytes,
-                LocalResetEmpty = peer.LocalResetStreamAt09 ? 1u : 0u,
-                PeerResetEmpty = peer.PeerResetStreamAt09 ? 1u : 0u,
-                Confirmed = peer.HandshakeConfirmed ? 1u : 0u,
-                MutualAuthentication = peer.MutualTlsAuthenticated ? 1u : 0u,
-                H3 = peer.ApplicationProtocol == DataChannelProfiles.WebTransportAlpn ? 1u : 0u
-            };
+            byte[] protocol = Encoding.UTF8.GetBytes(applicationProtocol);
             fixed (
                 byte* authorityPointer = authority,
                 pathPointer = path,
@@ -75,7 +173,7 @@ namespace Opc.Ua.Bindings
                 var configuration = new Http3Configuration
                 {
                     Size = 224,
-                    Abi = 1,
+                    Abi = configurationVersion,
                     OriginPolicy = (uint)options.OriginPolicy,
                     Sessions = 1,
                     Authority = new Http3Utf8 { Data = authorityPointer, Length = (nuint)authority.Length },
@@ -87,7 +185,7 @@ namespace Opc.Ua.Bindings
                     Decoder = decoder.StreamId,
                     Connect = 0,
                     ConnectionTag = connection.Handle.Value,
-                    PairTag = connection.Handle.Value,
+                    PairTag = applicationPairTag,
                     Limits = new Http3Limits
                     {
                         Input = 65536,
@@ -217,7 +315,8 @@ namespace Opc.Ua.Bindings
                 }
                 if (status == 2)
                 {
-                    if (metadata.Length > (ulong)(m_options.MaxHostBufferedBytes - m_hostBytes))
+                    if (metadata.Length > (ulong)(m_options.MaxHostBufferedBytes - m_hostBytes -
+                        m_queuedStreamBytes))
                     {
                         return;
                     }
@@ -294,7 +393,7 @@ namespace Opc.Ua.Bindings
                         stopped.StopAction = StartJobLocked(() => StopNativeReceiveAsync(stopped, metadata.Arg));
                         break;
                     case 10:
-                        if (NativeConnection.Peer.IsClient && !m_connectStarted)
+                        if (NativeConnection.IsClient && !m_connectStarted)
                         {
                             m_connectStarted = true;
                             StartJobLocked(StartConnectAsync);
@@ -303,6 +402,16 @@ namespace Opc.Ua.Bindings
                     case 11:
                         break;
                     case 12:
+                        if (m_uascBaseline)
+                        {
+                            if (NativeConnection.IsClient || m_authorizationStarted)
+                            {
+                                throw new WebTransportException("Unexpected or repeated CONNECT authorization.");
+                            }
+                            m_authorizationStarted = true;
+                            StartJobLocked(AuthorizeBaselineConnectAsync);
+                            break;
+                        }
                         if (NativeConnection.Peer.IsClient || m_authorizationStarted)
                         {
                             throw new WebTransportException("Unexpected or repeated CONNECT authorization.");
@@ -328,6 +437,24 @@ namespace Opc.Ua.Bindings
                         {
                             throw new WebTransportException("Input is not associated with this WebTransport session.");
                         }
+                        if (m_uascBaseline)
+                        {
+                            if (!ReferenceEquals(incoming, m_baselineStreamState))
+                            {
+                                Task directPrevious = incoming.ReceiveTail;
+                                incoming.ReceiveTail = StartJobLocked(
+                                    () => DeliverDirectStreamAsync(incoming, directPrevious, metadata, payload),
+                                    payload.Length);
+                                retained = true;
+                                break;
+                            }
+                            Task baselinePrevious = incoming.ReceiveTail;
+                            incoming.ReceiveTail = StartJobLocked(
+                                () => DeliverBaselineAsync(incoming, baselinePrevious, metadata, payload),
+                                payload.Length);
+                            retained = true;
+                            break;
+                        }
                         Task previous = incoming.ReceiveTail;
                         incoming.ReceiveTail = StartJobLocked(
                             () => DeliverCoreAsync(incoming, previous, metadata, payload), payload.Length);
@@ -339,6 +466,14 @@ namespace Opc.Ua.Bindings
                         if (!interrupted.Associated || metadata.Session != 0)
                         {
                             throw new WebTransportException("A reset selected an unassociated WebTransport stream.");
+                        }
+                        if (m_uascBaseline && !ReferenceEquals(interrupted, m_baselineStreamState) &&
+                            (metadata.Kind == 22 && !interrupted.Stream.IsLocal ||
+                                metadata.Kind == 21 && interrupted.Stream.IsLocal))
+                        {
+                            // Direct streams use only the opener's send direction. Closure of the unused
+                            // reverse half must not abandon retained bytes in the active direction.
+                            break;
                         }
                         StartJobLocked(() => NotifyStreamFailureAsync(interrupted, MapPeerReset(metadata.Arg)));
                         break;
@@ -415,6 +550,17 @@ namespace Opc.Ua.Bindings
                 await sends.ConfigureAwait(false);
                 // Let the peer receive the final response and close; establishment's finite deadline
                 // tears down a peer that does not close. This connection can never accept another CONNECT.
+            }
+        }
+
+        private async ValueTask AuthorizeBaselineConnectAsync()
+        {
+            bool allowed = m_baselineAuthorizer != null &&
+                await m_baselineAuthorizer(EndpointUrl, m_lifetime).ConfigureAwait(false);
+            await RetryCommandAsync(11, 0, allowed ? 200UL : 403UL, default, m_lifetime).ConfigureAwait(false);
+            if (!allowed)
+            {
+                RequestClose(DataChannelResult.NotAuthorized);
             }
         }
 

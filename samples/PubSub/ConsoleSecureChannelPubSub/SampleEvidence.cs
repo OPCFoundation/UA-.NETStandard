@@ -244,11 +244,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
         public bool Shared { get; init; }
 
         /// <summary>
-        /// Gets the requested independent payload.
-        /// </summary>
-        public bool Json { get; init; }
-
-        /// <summary>
         /// Gets the selected grant route.
         /// </summary>
         public bool SessionAuthorization { get; init; }
@@ -311,7 +306,6 @@ namespace Quickstarts.ConsoleSecureChannelPubSub
             ServerReady ready = JsonSerializer.Deserialize(json, EvidenceJsonContext.Default.ServerReady) ??
                 throw new InvalidDataException("The server readiness file is empty.");
             if (ready.Shared != options.Shared ||
-                ready.Json != options.Json ||
                 ready.SessionAuthorization != options.SessionAuthorization ||
                 ready.Reverse != options.Reverse ||
                 ready.Count != options.Count)

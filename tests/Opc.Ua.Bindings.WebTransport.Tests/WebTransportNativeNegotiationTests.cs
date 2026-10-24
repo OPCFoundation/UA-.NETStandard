@@ -43,7 +43,7 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(Http3Native.AbiVersion(), Is.EqualTo(1));
-                Assert.That(Http3Native.ApiRevision(), Is.EqualTo(2));
+                Assert.That(Http3Native.ApiRevision(), Is.EqualTo(3));
                 Assert.That(layout.Size, Is.EqualTo(40));
                 Assert.That(layout.PointerSize, Is.EqualTo(8));
                 Assert.That(layout.FactsSize, Is.EqualTo(80));

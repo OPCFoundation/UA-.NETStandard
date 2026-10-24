@@ -45,9 +45,6 @@ using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Transports.DataChannels;
 using Opc.Ua.Server.DataChannels;
 using Opc.Ua.Tests;
-using PubSubJsonDataSetMessage = Opc.Ua.PubSub.Encoding.Json.JsonDataSetMessage;
-using PubSubJsonEncoder = Opc.Ua.PubSub.Encoding.Json.JsonEncoder;
-using PubSubJsonNetworkMessage = Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpEncoder = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
 using UadpNetworkMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpNetworkMessage;
@@ -91,13 +88,15 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
             Assert.That(source.Validate(parameters), Is.EqualTo(DataChannelResult.Unsupported));
         }
 
+        /// <summary>
+        /// Preserves complete UADP bytes on the exact configured carrier without Session authorization.
+        /// </summary>
         [Test]
         public async Task RegisteredServerFlowsUseTheExactCarrierAndPayloadWithoutSessions(
-            [Values] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+            [Values] DataChannelCarrierKind carrier)
         {
             CancellationToken cancellationToken = TestContext.CurrentContext.CancellationToken;
-            PubSubConnectionDataType configuration = CreateConnection(carrier, protocol);
+            PubSubConnectionDataType configuration = CreateConnection(carrier);
             var policy = new ConfiguredPolicy();
             var sources = new DataChannelSourceRegistry();
             sources.Register(PubSubDataChannelSource.Create(configuration, policy));
@@ -114,7 +113,7 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                 DataChannelPubSubConfiguration.GetParameters(configuration),
                 cancellationToken: cancellationToken).ConfigureAwait(false);
             await opening.ConfigureAwait(false);
-            ByteString expected = await EncodeAsync(protocol).ConfigureAwait(false);
+            ByteString expected = await EncodeAsync().ConfigureAwait(false);
             Assert.That(await sender.SendAsync(expected, cancellationToken: cancellationToken).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             await using IAsyncEnumerator<PubSubTransportFrame> messages = receiver.ReceiveAsync(
@@ -132,6 +131,181 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                 Assert.That(policy.Accesses, Is.Not.Empty);
                 Assert.That(policy.Accesses.All(access => access.Session is null), Is.True);
                 Assert.That(budget.Usage.Flows, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public async Task UafxPubSubUsesLocalServerPolicyAndStandardPubSubUascProfile()
+        {
+            CancellationToken cancellationToken = TestContext.CurrentContext.CancellationToken;
+            PubSubConnectionDataType configuration = CreateConnection(DataChannelCarrierKind.SharedUasc);
+            configuration.Address = new ExtensionObject(
+                new NetworkAddressUrlDataType { Url = "opc.tcp://uafx.example:4840" });
+            configuration.ReaderGroups[0].MaxNetworkMessageSize = 65536;
+            var parameters = new DataChannelParametersDataType
+            {
+                ResourceUri = "urn:test:pubsub:server",
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = DataChannelPubSubConfiguration.UafxContentType,
+                Direction = DataChannelDirection.OpenerToAcceptor,
+                Delivery = DataChannelDeliveryMode.Ordered,
+                Protection = DataChannelProtectionMode.Confidential,
+                MaxMessageSize = 65536,
+                MaxReceiveBytes = 262144
+            };
+            var policy = new ConfiguredPolicy();
+            var sources = new DataChannelSourceRegistry();
+            sources.Register(PubSubDataChannelSource.CreateUafx(configuration, parameters, policy));
+
+            await using var server = new ServerDataChannelProvider(
+                sources, new DataChannelOptions(), new DataChannelApplicationBudget(),
+                TimeProvider.System, NUnitTelemetryContext.Create());
+            await using ContextPair contexts = await ContextPair.CreateAsync(
+                server, DataChannelCarrierKind.SharedUasc, cancellationToken).ConfigureAwait(false);
+            var flows = new ServerDataChannelPubSubFlowProvider(server);
+            var factory = new DataChannelPubSubTransportFactory(
+                DataChannelCarrierKind.SharedUasc,
+                flows,
+                DataChannelPubSubConfiguration.UafxTransportProfile,
+                _ => parameters);
+            await using IPubSubTransport receiver = factory.Create(
+                configuration, NUnitTelemetryContext.Create(), TimeProvider.System);
+            Task opening = receiver.OpenAsync(cancellationToken).AsTask();
+            await using DataChannel sender = await contexts.Client.OpenAsync(
+                parameters, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await opening.ConfigureAwait(false);
+            ByteString expected = await EncodeAsync().ConfigureAwait(false);
+            Assert.That(await sender.SendAsync(expected, cancellationToken: cancellationToken).ConfigureAwait(false),
+                Is.EqualTo(DataChannelResult.Good));
+            await using IAsyncEnumerator<PubSubTransportFrame> messages = receiver.ReceiveAsync(
+                cancellationToken).GetAsyncEnumerator();
+            Assert.That(await messages.MoveNextAsync().ConfigureAwait(false), Is.True);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(receiver.TransportProfileUri,
+                    Is.EqualTo(DataChannelPubSubConfiguration.UafxTransportProfile));
+                Assert.That(messages.Current.Payload.Span.SequenceEqual(expected.Span), Is.True);
+                Assert.That(contexts.Server.Channels, Has.Count.EqualTo(1));
+                Assert.That(contexts.Server.Channels[0].CarrierKind, Is.EqualTo(DataChannelCarrierKind.SharedUasc));
+                Assert.That(contexts.Server.Channels[0].GetStatus().SessionId.IsNull, Is.True);
+                Assert.That(policy.Accesses, Is.Not.Empty);
+                Assert.That(policy.Accesses.All(access => access.Session is null), Is.True);
+                Assert.That(configuration.ConnectionProperties.IsEmpty, Is.True);
+            });
+        }
+
+        [Test]
+        public async Task ConfiguredUafxSourceRevocationIsScopedAcrossRemovalAndPolicyChange()
+        {
+            CancellationToken cancellationToken = TestContext.CurrentContext.CancellationToken;
+            PubSubConnectionDataType firstConfiguration = CreateUafxConnection(
+                "urn:test:pubsub:revoked", out DataChannelParametersDataType firstParameters);
+            PubSubConnectionDataType secondConfiguration = CreateUafxConnection(
+                "urn:test:pubsub:survivor", out DataChannelParametersDataType secondParameters);
+            var policy = new ConfiguredPolicy();
+            var sources = new DataChannelSourceRegistry();
+            DataChannelSource firstSource = PubSubDataChannelSource.CreateUafx(
+                firstConfiguration, firstParameters, policy);
+            DataChannelSource secondSource = PubSubDataChannelSource.CreateUafx(
+                secondConfiguration, secondParameters, policy);
+            sources.Register(firstSource);
+            sources.Register(secondSource);
+
+            await using var server = new ServerDataChannelProvider(
+                sources, new DataChannelOptions(), new DataChannelApplicationBudget(),
+                TimeProvider.System, NUnitTelemetryContext.Create());
+            await using ContextPair contexts = await ContextPair.CreateAsync(
+                server, DataChannelCarrierKind.SharedUasc, cancellationToken).ConfigureAwait(false);
+            await using DataChannel revoked = await contexts.Client.OpenAsync(
+                firstParameters, cancellationToken: cancellationToken).ConfigureAwait(false);
+            await using DataChannel survivor = await contexts.Client.OpenAsync(
+                secondParameters, cancellationToken: cancellationToken).ConfigureAwait(false);
+            DataChannel revokedReceiver = (contexts.Server.Channels.ToArray() ?? []).Single(
+                channel => channel.ChannelId == revoked.ChannelId);
+            DataChannel survivorReceiver = (contexts.Server.Channels.ToArray() ?? []).Single(
+                channel => channel.ChannelId == survivor.ChannelId);
+            var revokedState = new TaskCompletionSource<DataChannelState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            revoked.StateChanged += notification =>
+            {
+                if (notification.Status.State != DataChannelState.Open)
+                {
+                    revokedState.TrySetResult(notification.Status.State);
+                }
+            };
+
+            Assert.That(sources.Unregister(firstSource.ResourceUri), Is.True);
+            DataChannelState terminalState = await revokedState.Task
+                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            ByteString expected = await EncodeAsync().ConfigureAwait(false);
+            Assert.That(await survivor.SendAsync(
+                expected, cancellationToken: cancellationToken).ConfigureAwait(false), Is.EqualTo(DataChannelResult.Good));
+            using DataChannelMessage received = (await survivorReceiver.ReadAsync(cancellationToken)
+                .ConfigureAwait(false))!;
+            sources.Register(firstSource);
+            await using DataChannel reopened = await contexts.Client.OpenAsync(
+                firstParameters, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var policyRevokedState = new TaskCompletionSource<DataChannelState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            reopened.StateChanged += notification =>
+            {
+                if (notification.Status.State != DataChannelState.Open)
+                {
+                    policyRevokedState.TrySetResult(notification.Status.State);
+                }
+            };
+            Assert.That(sources.RevokeConfiguredFlows(firstSource.ResourceUri), Is.True);
+            DataChannelState policyTerminalState = await policyRevokedState.Task
+                .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(sources.TryGet(firstSource.ResourceUri, out DataChannelSource? registered), Is.True);
+            await using DataChannel reauthorized = await contexts.Client.OpenAsync(
+                firstParameters, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(terminalState, Is.Not.EqualTo(DataChannelState.Open));
+                Assert.That(revoked.State, Is.Not.EqualTo(DataChannelState.Open));
+                Assert.That(survivor.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(reopened.State, Is.Not.EqualTo(DataChannelState.Open));
+                Assert.That(policyTerminalState, Is.Not.EqualTo(DataChannelState.Open));
+                Assert.That(registered, Is.SameAs(firstSource));
+                Assert.That(reauthorized.State, Is.EqualTo(DataChannelState.Open));
+                Assert.That(contexts.Server.IsReady, Is.True);
+                Assert.That(received.Payload, Is.EqualTo(expected));
+                Assert.That(revokedReceiver.State, Is.Not.EqualTo(DataChannelState.Open));
+            });
+        }
+
+        /// <summary>
+        /// Refuses the obsolete JSON mapping without changing the admitted UADP source configuration.
+        /// </summary>
+        [Test]
+        public void JsonPayloadIsRejectedWithoutChangingTheServerSource(
+            [Values] DataChannelCarrierKind carrier)
+        {
+            PubSubConnectionDataType configuration = CreateConnection(carrier);
+            string? originalProfile = configuration.TransportProfileUri;
+            ArrayOf<KeyValuePair> originalProperties = configuration.ConnectionProperties;
+            DataChannelParametersDataType parameters = DataChannelPubSubConfiguration.GetParameters(configuration);
+            parameters.Protocol = DataChannelProfiles.JsonPayload;
+            parameters.ContentType = "application/json";
+
+            Assert.That(() => DataChannelPubSubConfiguration.Configure(configuration, carrier, parameters),
+                Throws.TypeOf<NotSupportedException>());
+            var policy = new ConfiguredPolicy();
+            DataChannelSource source = PubSubDataChannelSource.Create(configuration, policy);
+            DataChannelParametersDataType retained = DataChannelPubSubConfiguration.GetParameters(configuration);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(configuration.TransportProfileUri, Is.EqualTo(originalProfile));
+                Assert.That(configuration.ConnectionProperties, Is.EqualTo(originalProperties));
+                Assert.That(retained.Protocol, Is.EqualTo(DataChannelProfiles.UadpPayload));
+                Assert.That(retained.ContentType, Is.EqualTo("application/opcua+uadp"));
+                Assert.That(source.SupportedProtocols, Is.EqualTo(new[] { DataChannelProfiles.UadpPayload }));
+                Assert.That(source.Validate(retained), Is.EqualTo(DataChannelResult.Good));
+                Assert.That(policy.Accesses, Is.Empty);
             });
         }
 
@@ -217,9 +391,10 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
             });
         }
 
-        private static PubSubConnectionDataType CreateConnection(
-            DataChannelCarrierKind carrier,
-            string protocol = DataChannelProfiles.UadpPayload)
+        /// <summary>
+        /// Creates a bounded UADP reader configuration for the selected carrier.
+        /// </summary>
+        private static PubSubConnectionDataType CreateConnection(DataChannelCarrierKind carrier)
         {
             return DataChannelPubSubConfiguration.Configure(
                 new PubSubConnectionDataType
@@ -231,9 +406,8 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                 new DataChannelParametersDataType
                 {
                     ResourceUri = "urn:test:pubsub:server",
-                    Protocol = protocol,
-                    ContentType = protocol == DataChannelProfiles.JsonPayload
-                        ? "application/json" : "application/opcua+uadp",
+                    Protocol = DataChannelProfiles.UadpPayload,
+                    ContentType = "application/opcua+uadp",
                     Direction = DataChannelDirection.OpenerToAcceptor,
                     Delivery = DataChannelDeliveryMode.Ordered,
                     Protection = DataChannelProtectionMode.Confidential,
@@ -242,32 +416,47 @@ namespace Opc.Ua.PubSub.Server.Tests.DataChannels
                 });
         }
 
-        private static async ValueTask<ByteString> EncodeAsync(string protocol)
+        private static PubSubConnectionDataType CreateUafxConnection(
+            string resourceUri,
+            out DataChannelParametersDataType parameters)
+        {
+            parameters = new DataChannelParametersDataType
+            {
+                ResourceUri = resourceUri,
+                Protocol = DataChannelProfiles.UadpPayload,
+                ContentType = DataChannelPubSubConfiguration.UafxContentType,
+                Direction = DataChannelDirection.OpenerToAcceptor,
+                Delivery = DataChannelDeliveryMode.Ordered,
+                Protection = DataChannelProtectionMode.Confidential,
+                MaxMessageSize = 65536,
+                MaxReceiveBytes = 262144
+            };
+            var connection = new PubSubConnectionDataType
+            {
+                Name = "UafxRevocation",
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = "opc.tcp://uafx.example:4840"
+                }),
+                ReaderGroups = [new ReaderGroupDataType { MaxNetworkMessageSize = parameters.MaxMessageSize }]
+            };
+            return DataChannelPubSubConfiguration.ConfigureUafx(connection, parameters);
+        }
+
+        /// <summary>
+        /// Encodes a complete independent UADP message for byte-preservation assertions.
+        /// </summary>
+        private static async ValueTask<ByteString> EncodeAsync()
         {
             ArrayOf<DataSetField> fields = [new DataSetField { Name = "Value", Value = new Variant(42) }];
-            INetworkMessageEncoder encoder;
-            PubSubNetworkMessage message;
-            if (protocol == DataChannelProfiles.JsonPayload)
+            var encoder = new UadpEncoder();
+            var message = new UadpNetworkMessage
             {
-                encoder = new PubSubJsonEncoder();
-                message = new PubSubJsonNetworkMessage
-                {
-                    MessageId = "server-router",
-                    PublisherId = PublisherId.FromString("server-test"),
-                    DataSetMessages = [new PubSubJsonDataSetMessage { DataSetWriterId = 999, Fields = fields }]
-                };
-            }
-            else
-            {
-                encoder = new UadpEncoder();
-                message = new UadpNetworkMessage
-                {
-                    PublisherId = PublisherId.FromUInt32(70000),
-                    ContentMask = UadpNetworkMessageContentMask.PublisherId |
-                        UadpNetworkMessageContentMask.PayloadHeader,
-                    DataSetMessages = [new UadpDataSetMessage { DataSetWriterId = 999, Fields = fields }]
-                };
-            }
+                PublisherId = PublisherId.FromUInt32(70000),
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                DataSetMessages = [new UadpDataSetMessage { DataSetWriterId = 999, Fields = fields }]
+            };
             var context = new PubSubNetworkMessageContext(
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()), new DataSetMetaDataRegistry(),
                 new PubSubDiagnostics(PubSubDiagnosticsLevel.High), TimeProvider.System);

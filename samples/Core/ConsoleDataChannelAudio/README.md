@@ -8,8 +8,10 @@ No media codec, packetization protocol or new OPC UA payload standard is introdu
 
 The exact application resource identifies **44100 Hz, signed 16-bit little-endian,
 mono PCM**. Its ContentType is `application/octet-stream`, not `audio/L16`:
-registered L16 has big-endian sample order. Message boundaries always preserve
-whole PCM samples, including when a message crosses the repeating melody boundary.
+registered L16 has big-endian sample order. UASC carries each complete PCM unit
+in the amended minimal UADP type-3 opaque profile; native carriers carry the raw
+opaque unit. Message boundaries always preserve whole PCM samples, including when
+a message crosses the repeating melody boundary.
 For durations not exactly representable at 44100 Hz, each message's sample count
 rounds down; reported byte counts are the actual produced/received sample counts.
 

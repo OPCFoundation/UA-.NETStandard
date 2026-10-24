@@ -2199,7 +2199,8 @@ namespace Opc.Ua.Server
                         context,
                         notifications,
                         maxNotificationsPerPublish,
-                        out bool overflowEventDue);
+                        out bool overflowEventDue,
+                        m_server.EventManager);
 
                     // with discardOldest FALSE it follows the events queued before the loss.
                     if (overflowEventDue)

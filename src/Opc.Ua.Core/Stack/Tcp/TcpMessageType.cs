@@ -108,14 +108,19 @@ namespace Opc.Ua.Bindings
         public const uint Error = 0x46525245;
 
         /// <summary>
-        /// A chunk carrying one complete flow record and its ChannelId.
+        /// A final chunk carrying one unchanged UADP NetworkMessage.
         /// </summary>
-        /// <remarks>
-        /// Experimental. OPC 10000-28 uses FLO for both dedicated and shared
-        /// UASC flow profiles. A FLO is always final and carries exactly one
-        /// common record; ordinary MSG remains a separate Service message.
-        /// </remarks>
-        public const uint Flow = 0x004F4C46;
+        public const uint FlowData = 0x004F4C46;
+
+        /// <summary>
+        /// The legacy flow message identifier, equal to FLO.
+        /// </summary>
+        public const uint Flow = FlowData;
+
+        /// <summary>
+        /// A final chunk carrying one typed flow-control message.
+        /// </summary>
+        public const uint FlowControl = 0x00434C46;
 
         /// <summary>
         /// Returns true if the message type is equal to the expected type.
@@ -165,13 +170,9 @@ namespace Opc.Ua.Bindings
                         case Open:
                         case Close:
                             return true;
-                        case Flow:
-                            // A data channel frame is a single chunk and
-                            // is never a Message abort, so 'F' is the only
-                            // acceptable chunk type. Accepting 'A' would
-                            // let the 6.7.3 abort parser read a 32 bit
-                            // string length out of the attacker
-                            // controlled stream header bytes.
+                        case FlowData:
+                        case FlowControl:
+                            // FLO and FLC are single final protected chunks, never Message aborts.
                             return chunkTypeMask == Final;
                         default:
                             return false;

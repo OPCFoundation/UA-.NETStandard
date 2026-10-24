@@ -49,27 +49,47 @@ namespace Opc.Ua.DataChannels.Wire
             }
             var reader = new FlowBinaryReader(record.Body.Span);
             byte opcode = reader.Byte();
-            if (opcode > (byte)FlowOperation.Status)
+            if (opcode > (byte)FlowOperation.AssociateAck)
             {
                 throw new FlowCodecException(FlowCodecError.UnknownOperation);
             }
             var operation = (FlowOperation)opcode;
-            FlowControl control = operation switch
+            FlowControl control;
+            if (operation == FlowOperation.Hello)
             {
-                FlowOperation.Hello => ReadHello(ref reader),
-                FlowOperation.Open => ReadOpen(ref reader),
-                FlowOperation.Accept => new FlowAccept(
-                    reader.UInt32(), reader.UInt64(), ReadParameters(ref reader)),
-                FlowOperation.Prepare => new FlowPrepare(reader.UInt32(), ReadLimits(ref reader)),
-                FlowOperation.Commit => new FlowCommit(reader.UInt32(), reader.UInt32()),
-                FlowOperation.Credit => new FlowCredit(reader.UInt32(), reader.UInt32(), reader.UInt32()),
-                FlowOperation.Ping or FlowOperation.Pong =>
-                    new FlowProbe(operation, reader.UInt32(), reader.UInt64()),
-                FlowOperation.Reset or FlowOperation.Status =>
-                    new FlowOutcome(operation, reader.UInt32(),
-                        (FlowWireStatus)reader.Discriminator((byte)FlowWireStatus.WouldBlock)),
-                _ => new FlowSignal(operation, reader.UInt32())
-            };
+                control = ReadHello(ref reader);
+            }
+            else if (operation == FlowOperation.Bind)
+            {
+                control = new FlowBinding(reader.Byte(), reader.Challenge(), reader.Challenge());
+            }
+            else if (operation == FlowOperation.Open)
+            {
+                control = ReadOpen(ref reader);
+            }
+            else if (operation is FlowOperation.Associate or FlowOperation.AssociateAck)
+            {
+                control = new FlowAssociation(
+                    operation, reader.UInt32(), reader.Byte(), reader.Guid());
+            }
+            else
+            {
+                uint flow = reader.UInt32();
+                control = operation switch
+                {
+                    FlowOperation.Accept => new FlowAccept(
+                        flow, reader.UInt64(), ReadParameters(ref reader)),
+                    FlowOperation.Prepare => new FlowPrepare(flow, ReadLimits(ref reader)),
+                    FlowOperation.Commit => new FlowCommit(flow, reader.UInt32()),
+                    FlowOperation.Credit => new FlowCredit(flow, reader.UInt32(), reader.UInt32()),
+                    FlowOperation.Ping or FlowOperation.Pong =>
+                        new FlowProbe(operation, flow, reader.UInt64()),
+                    FlowOperation.Reset or FlowOperation.Status =>
+                        new FlowOutcome(operation, flow,
+                            (FlowWireStatus)reader.Discriminator((byte)FlowWireStatus.WouldBlock)),
+                    _ => new FlowSignal(operation, flow)
+                };
+            }
             reader.RequireEnd();
             Validate(control, record.Revision, record.MessageId);
             return control;
@@ -190,6 +210,13 @@ namespace Opc.Ua.DataChannels.Wire
                 writer.UInt32(hello.MaxFlows);
                 return;
             }
+            if (control is FlowBinding binding)
+            {
+                writer.Byte(binding.Role);
+                writer.Challenge(binding.TranscriptDigest);
+                writer.Challenge(binding.Proof);
+                return;
+            }
             writer.UInt32(control.Flow);
             switch (control)
             {
@@ -215,6 +242,10 @@ namespace Opc.Ua.DataChannels.Wire
                 case FlowCredit credit:
                     writer.UInt32(credit.ChannelCredit);
                     writer.UInt32(credit.ConnectionCredit);
+                    break;
+                case FlowAssociation association:
+                    writer.Byte(association.Direction);
+                    writer.Guid(association.Token);
                     break;
                 case FlowProbe probe:
                     writer.UInt64(probe.Timestamp);

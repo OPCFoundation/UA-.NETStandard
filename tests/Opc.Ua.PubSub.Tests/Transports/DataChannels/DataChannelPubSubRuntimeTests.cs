@@ -65,10 +65,9 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
     {
         [Test]
         public Task PublisherSubscriberRuntimePreservesIdsMetadataAndMultiwriterBytes(
-            [Values] DataChannelCarrierKind carrier,
-            [Values(DataChannelProfiles.UadpPayload, DataChannelProfiles.JsonPayload)] string protocol)
+            [Values] DataChannelCarrierKind carrier)
         {
-            return VerifyRuntimeAsync(carrier, protocol, MessageSecurityMode.None);
+            return VerifyRuntimeAsync(carrier, DataChannelProfiles.UadpPayload, MessageSecurityMode.None);
         }
 
         [TestCase(MessageSecurityMode.Sign)]
@@ -100,7 +99,14 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     new DataChannelPubSubFlow(channel, DataChannelCarrierKind.SharedUasc)));
             var source = new TestSource("TelemetryA", "alpha");
             PubSubConfigurationDataType configuration = CreatePublisherConfiguration(
-                DataChannelCarrierKind.SharedUasc, DataChannelProfiles.JsonPayload, MessageSecurityMode.None);
+                DataChannelCarrierKind.SharedUasc, DataChannelProfiles.UadpPayload, MessageSecurityMode.None);
+            PubSubConnectionDataType configuredConnection = configuration.Connections[0];
+            DataChannelParametersDataType requested = DataChannelPubSubConfiguration.GetParameters(
+                configuredConnection);
+            requested.MaxMessageSize /= 2;
+            requested.MaxReceiveBytes /= 2;
+            DataChannelPubSubConfiguration.Configure(
+                configuredConnection, DataChannelCarrierKind.SharedUasc, requested);
             await using IPubSubApplication application = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .UseConfiguration(configuration)
                 .UseAllStandardEncoders()
@@ -352,6 +358,15 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
             ByteString[] sent = [.. publishingFactory.Transport!.Sent];
             ByteString[] received = [.. subscribingFactory.Transport!.Received];
             ByteString[] commonRecordBodies = [.. core.LeftCarrier.Payloads];
+            bool hasConfiguredUascPublisherRouting = protocol == DataChannelProfiles.UadpPayload &&
+                carrier is DataChannelCarrierKind.DedicatedUasc or DataChannelCarrierKind.SharedUasc or
+                    DataChannelCarrierKind.QuicUasc or DataChannelCarrierKind.WebTransportUasc;
+            ByteString[] rejectedPublisherMessages = hasConfiguredUascPublisherRouting
+                ? [.. sent.Where(IsUnexpectedPublisherMessage)]
+                : [];
+            ByteString[] expectedDelivered = hasConfiguredUascPublisherRouting
+                ? [.. sent.Where(frame => !IsUnexpectedPublisherMessage(frame))]
+                : sent;
             var firstKey = new DataSetMetaDataKey(PublisherId.FromString(PublisherName), 0, 1001, Uuid.Empty, 1);
             var secondKey = new DataSetMetaDataKey(PublisherId.FromString(PublisherName), 0, 1002, Uuid.Empty, 1);
             Assert.Multiple(() =>
@@ -366,8 +381,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     Assert.That(sent, Has.Length.EqualTo(4),
                         "Two metadata messages, one filtered announcement and one data message.");
                 }
-                Assert.That(received, Is.EqualTo(sent),
-                    "The exact transport send and receive byte sequences must agree.");
+                Assert.That(rejectedPublisherMessages, Has.Length.EqualTo(
+                    hasConfiguredUascPublisherRouting ? 1 : 0),
+                    "The configured UADP association rejects the unconfigured PublisherId.");
+                Assert.That(received, Is.EqualTo(expectedDelivered),
+                    "Admitted NetworkMessages must arrive byte-for-byte unchanged.");
                 Assert.That(commonRecordBodies, Is.EqualTo(sent),
                     "No payload envelope may be added inside a Core DATA record.");
                 Assert.That(first.Count, Is.EqualTo(1));
@@ -400,7 +418,11 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                 Assert.That(core.RightAuthorizer.Requests.All(
                     request => request.Mode == DataChannelAuthorizationMode.Configured),
                     Is.True);
-                Assert.That(core.LeftCarrier.Failures, Is.Empty);
+                Assert.That(core.LeftCarrier.Failures, Is.EqualTo(
+                    rejectedPublisherMessages.Length == 0
+                        ? Array.Empty<DataChannelResult>()
+                        : [DataChannelResult.UnknownChannel]),
+                    "Only the deliberately unmatched UADP PublisherId is rejected.");
                 Assert.That(core.RightCarrier.Failures, Is.Empty);
             });
             if (protocol == DataChannelProfiles.UadpPayload)
@@ -605,6 +627,12 @@ namespace Opc.Ua.PubSub.Tests.Transports.DataChannels
                     DataSetMetaData = metadata,
                     StatusCode = StatusCodes.Good
                 };
+        }
+
+        private static bool IsUnexpectedPublisherMessage(ByteString networkMessage)
+        {
+                return UadpDecoder.TryReadPrefix(networkMessage.Memory, out UadpPrefixInfo prefix) &&
+                    prefix.PublisherId == PublisherId.FromString("unexpected");
         }
 
         private sealed class TestSource(string name, string label) : IPublishedDataSetSource

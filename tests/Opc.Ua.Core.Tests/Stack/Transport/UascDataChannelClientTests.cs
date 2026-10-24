@@ -142,8 +142,67 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             transport.Verify(value => value.Dispose(), Times.Once);
         }
 
+        /// <summary>
+        /// Rejects untrusted RHE substitution before creating or claiming a transport.
+        /// </summary>
+        [TestCase("urn:foreign:server", "opc.tcp://localhost:4840/flow/v1/shared")]
+        [TestCase("", "opc.tcp://localhost:4840/flow/v1/shared")]
+        [TestCase("urn:selected:server", "opc.tcp://foreign:4840/flow/v1/shared")]
+        [TestCase("urn:selected:server", "opc.tcp://localhost:4841/flow/v1/shared")]
+        public async Task ReverseHandoffMustMatchSelectedServerAndEndpoint(string serverUri, string url)
+        {
+            var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
+            var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
+            var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
+            TransportChannelSettings settings = CreateSettings(endpoint, DataChannelProfiles.SharedUasc);
+            settings.Description!.Server.ApplicationUri = "urn:selected:server";
+            var waiting = new Mock<ITransportWaitingConnection>(MockBehavior.Strict);
+            waiting.SetupGet(value => value.EndpointUrl).Returns(new Uri(url));
+            waiting.SetupGet(value => value.ServerUri).Returns(serverUri);
+
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ConnectAsync(waiting.Object, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            registry.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
+        /// A reverse open must confirm the same authenticated context and must not open a new outbound connection.
+        /// </summary>
         [Test]
-        public async Task DependencyInjectionKeepsTransportRegistriesIsolatedBetweenHosts()
+        public async Task ReverseHandoffWithoutConfirmedContextIsDisposedWithoutOutboundFallback()
+        {
+            var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
+            TransportChannelSettings settings = CreateSettings(endpoint, DataChannelProfiles.SharedUasc);
+            settings.Description!.Server.ApplicationUri = "urn:selected:server";
+            var waiting = new Mock<ITransportWaitingConnection>();
+            waiting.SetupGet(value => value.EndpointUrl).Returns(endpoint);
+            waiting.SetupGet(value => value.ServerUri).Returns("urn:selected:server");
+            var transport = new Mock<IDataChannelTransportChannel>(MockBehavior.Strict);
+            transport.Setup(value => value.OpenAsync(waiting.Object, settings, It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            transport.SetupGet(value => value.DataChannels).Returns((DataChannelContext?)null);
+            transport.Setup(value => value.Dispose());
+            var registry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
+            registry.Setup(value => value.CreateChannel(Utils.UriSchemeOpcTcp, It.IsAny<ITelemetryContext>()))
+                .Returns(transport.Object);
+            var client = new UascDataChannelClient(registry.Object, NUnitTelemetryContext.Create());
+
+            ServiceResultException failure = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ConnectAsync(waiting.Object, settings).ConfigureAwait(false)).ConfigureAwait(false))!;
+
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            transport.Verify(value => value.OpenAsync(
+                waiting.Object, settings, It.IsAny<CancellationToken>()), Times.Once);
+            transport.VerifyGet(value => value.DataChannels, Times.Once);
+            transport.Verify(value => value.Dispose(), Times.Once);
+            transport.VerifyNoOtherCalls();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DependencyInjectionKeepsTransportRegistriesIsolatedBetweenHosts(bool reverse)
         {
             var firstRegistry = new Mock<ITransportBindingRegistry>();
             var secondRegistry = new Mock<ITransportBindingRegistry>(MockBehavior.Strict);
@@ -160,10 +219,23 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             IUascDataChannelClient firstClient = first.GetRequiredService<IUascDataChannelClient>();
             IUascDataChannelClient secondClient = second.GetRequiredService<IUascDataChannelClient>();
             var endpoint = new Uri("opc.tcp://localhost:4840/flow/v1/shared");
+            TransportChannelSettings settings = CreateSettings(endpoint, DataChannelProfiles.SharedUasc);
+            settings.Description!.Server.ApplicationUri = "urn:selected:server";
+            var waiting = new Mock<ITransportWaitingConnection>();
+            waiting.SetupGet(value => value.EndpointUrl).Returns(endpoint);
+            waiting.SetupGet(value => value.ServerUri).Returns("urn:selected:server");
 
             await Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await firstClient.ConnectAsync(endpoint, CreateSettings(endpoint, DataChannelProfiles.SharedUasc))
-                    .ConfigureAwait(false)).ConfigureAwait(false);
+            {
+                if (reverse)
+                {
+                    await firstClient.ConnectAsync(waiting.Object, settings).ConfigureAwait(false);
+                }
+                else
+                {
+                    await firstClient.ConnectAsync(endpoint, settings).ConfigureAwait(false);
+                }
+            }).ConfigureAwait(false);
 
             Assert.That(firstClient, Is.Not.SameAs(secondClient));
             firstRegistry.Verify(value => value.CreateChannel(

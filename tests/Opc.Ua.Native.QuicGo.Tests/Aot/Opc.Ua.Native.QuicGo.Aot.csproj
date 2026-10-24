@@ -10,5 +10,6 @@
     <ProjectReference Include="..\..\..\src\Opc.Ua.Native.QuicGo\Opc.Ua.Native.QuicGo.csproj" />
     <Compile Include="..\TestCredentials.cs" Link="TestCredentials.cs" />
     <Compile Include="..\NativeQuicLiveScenario.cs" Link="NativeQuicLiveScenario.cs" />
+    <Compile Include="..\NativeQuicTlsLiveScenario.cs" Link="NativeQuicTlsLiveScenario.cs" />
   </ItemGroup>
 </Project>

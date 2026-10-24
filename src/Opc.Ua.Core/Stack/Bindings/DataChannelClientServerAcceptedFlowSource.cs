@@ -36,6 +36,8 @@ namespace Opc.Ua.DataChannels
     /// Routes ready, authorized flows without competing consumers of a context's accept queue.
     /// A returned flow transfers ownership to the consumer; its context remains borrowed.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public interface IDataChannelAcceptedFlowSource
     {
         /// <summary>

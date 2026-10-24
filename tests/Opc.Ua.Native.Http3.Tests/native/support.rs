@@ -40,7 +40,7 @@ pub fn facts(role: u32) -> TransportFacts {
         handshake_confirmed: 1,
         mutual_tls_authenticated: 1,
         alpn_is_h3: 1,
-        reserved: 0,
+        authentication_policy: 0,
     }
 }
 

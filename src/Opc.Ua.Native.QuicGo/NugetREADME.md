@@ -7,8 +7,10 @@ reuses this runtime rather than loading another Go image.
 
 The backend uses pinned quic-go **0.64.0**, Go **1.27.2** and Zig **0.17.0**, with three
 hash-pinned exact-reset-09 observation overlays and a STOP_SENDING reliable-prefix policy
-overlay. TLS 1.3 with supplied mutual application identities, real RFC9221 datagrams and
-exact peer TP `0x1d` are mandatory. There is no transport downgrade or generated/system-trust fallback.
+overlay. TLS 1.3, real RFC9221 datagrams and exact peer TP `0x1d` are mandatory.
+The default policy requires supplied mutual application identities. ABI5 introduced an explicitly
+selected server-authenticated transport TLS for independent UASC application authentication.
+There is no transport downgrade or generated/system-trust fallback.
 
 ## Managed use
 
@@ -64,6 +66,31 @@ ABI4 adds `WaitPeerStopped`, which observes an actual authenticated peer STOP_SE
 even if local cancellation happened first. The older `WaitStopped` observes the first
 send-context cause and is not sufficient for crossed shutdown. Actual STOP and reset
 evidence remain distinct; no final/reliable size is invented for a STOP.
+
+ABI6 preserves that default and adds a separate server-authenticated TLS policy
+and bounded custom-label TLS exporter support:
+
+```csharp
+var trust = NativeQuicCredentials.ForTlsClient(serverTrustRoots);
+var options = NativeQuicOptions.ForServerAuthenticatedTls(
+    "localhost:4843", "h3", trust, "localhost");
+NativeQuicCompletion connected = await backend.ConnectAsync(options, cancellationToken);
+if (connected.Status != NativeQuicStatus.Success)
+{
+    throw new IOException($"Native TLS connection failed: {connected.Status}");
+}
+NativeQuicTlsEvidence evidence = await backend.GetTlsEvidenceAsync(connected.Connection, cancellationToken);
+```
+
+The client supplies no certificate, signing key or application URI. The server uses
+`ForTlsServer(certificate, intermediates, key)` with the same explicit options factory;
+it does not request client certificates or admit application identities. Server chain,
+lifetime, usage and hostname checks remain mandatory. `GetPeerEvidenceAsync` refuses
+these connections; TLS transport facts cannot authorize flows or replace UASC certificate
+and key-possession authentication. This primitive alone is not a browser/WebTransport
+baseline implementation. The managed loader requires ABI7; restart with rebuilt
+assets. ABI7 adds graceful stream-handle release after FIN; ordinary Release
+remains abortive.
 
 The pinned QUIC overlay preserves an established reliable prefix when peer STOP_SENDING
 requires a reset, and does not downgrade a reset that already owns the send direction.

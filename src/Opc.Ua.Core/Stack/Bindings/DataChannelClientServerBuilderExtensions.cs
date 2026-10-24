@@ -37,6 +37,8 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <summary>
     /// Explicit native Client/Server composition without installing a native backend or enabling a Session/model.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelClientServerBuilderExtensions
     {
         /// <summary>

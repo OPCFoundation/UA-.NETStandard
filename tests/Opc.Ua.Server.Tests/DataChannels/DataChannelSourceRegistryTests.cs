@@ -138,6 +138,23 @@ namespace Opc.Ua.Server.Tests.DataChannels
         }
 
         [Test]
+        public void RevokeConfiguredFlowsKeepsTheSourceRegisteredAndRejectsUnknownResources()
+        {
+            DataChannelSource source = Source("urn:source:one");
+            var registry = new DataChannelSourceRegistry();
+            registry.Register(source);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(registry.RevokeConfiguredFlows(source.ResourceUri), Is.True);
+                Assert.That(registry.TryGet(source.ResourceUri, out DataChannelSource? retained), Is.True);
+                Assert.That(retained, Is.SameAs(source));
+                Assert.That(registry.RevokeConfiguredFlows("urn:source:missing"), Is.False);
+                Assert.That(() => registry.RevokeConfiguredFlows(null!), Throws.ArgumentNullException);
+            });
+        }
+
+        [Test]
         public void DescriptorRejectsUnknownEnumsAndBoundsContentTypeByUtf8Bytes()
         {
             DataChannelSource source = Source("urn:source:one");

@@ -10424,8 +10424,13 @@
     </opc:Children>
   </opc:ObjectType>
 
-  <opc:ObjectType SymbolicName="ua:AuditDataChannelEventType" PartNo="3" BaseType="ua:AuditSessionEventType" PreserveExplicitNodes="true">
+  <opc:ObjectType SymbolicName="ua:AuditDataChannelEventType" PartNo="3" BaseType="ua:AuditUpdateMethodEventType" PreserveExplicitNodes="true">
     <opc:Description>Model contract for AuditDataChannelEventType.</opc:Description>
+    <opc:RolePermissions Name="AuditEventDefaultPermissions" />
+  </opc:ObjectType>
+
+  <opc:ObjectType SymbolicName="ua:DataChannelOperationEventType" PartNo="3" BaseType="ua:BaseEventType" PreserveExplicitNodes="true">
+    <opc:Description>Privileged data-channel operation outcome and audit correlation.</opc:Description>
     <opc:Children>
       <opc:Property
         SymbolicName="ua:ChannelId"
@@ -10490,7 +10495,24 @@
         AccessLevel="Read">
         <opc:Description>Value or operation for DataChannelSourceNodeId.</opc:Description>
       </opc:Property>
+      <opc:Property SymbolicName="ua:SessionId" ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType" DataType="ua:NodeId" ValueRank="Scalar" AccessLevel="Read">
+        <opc:Description>The calling Session identifier, when applicable.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:ClientUserId" ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType" DataType="ua:String" ValueRank="Scalar" AccessLevel="Read">
+        <opc:Description>The attributed calling user without credentials.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:ActionSucceeded" ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType" DataType="ua:Boolean" ValueRank="Scalar" AccessLevel="Read">
+        <opc:Description>Whether the manager Call succeeded.</opc:Description>
+      </opc:Property>
+      <opc:Property SymbolicName="ua:AuditEventId" ModellingRule="Mandatory"
+        TypeDefinition="ua:PropertyType" DataType="ua:ByteString" ValueRank="Scalar" AccessLevel="Read">
+        <opc:Description>The corresponding Method audit EventId, when present.</opc:Description>
+      </opc:Property>
     </opc:Children>
+    <opc:RolePermissions Name="AuditEventDefaultPermissions" />
   </opc:ObjectType>
 
   <opc:ObjectType SymbolicName="ua:DataChannelOfferedEventType" PartNo="3" BaseType="ua:BaseEventType" PreserveExplicitNodes="true">

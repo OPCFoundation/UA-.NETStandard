@@ -112,24 +112,24 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Both UASC profiles use the same explicit ChannelId envelope and zero RequestId.
+        /// Both UASC profiles carry the unchanged FLO application body with zero RequestId.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void UascProfilesUseAnIdenticalFlowPayload(bool shared)
+        public void UascProfilesUseAnIdenticalFloPayload(bool shared)
         {
             FlowCarrier carrier = shared ? FlowCarrier.SharedUasc : FlowCarrier.DedicatedUasc;
             var record = new FlowRecord(
-                FlowRecordKind.Data, 1, 1, ByteString.FromHexString("aa"));
+                FlowRecordKind.Data, 1, 1, ByteString.FromHexString("0100"));
 
-            ByteString encoded = FlowCarrierCodec.EncodeUascPayload(
+            ByteString encoded = UascFlowMessageCodec.Encode(
                 carrier, 1, in record, new FlowCodecLimits(), out uint requestId);
 
             Assert.Multiple(() =>
             {
                 Assert.That(requestId, Is.Zero);
-                Assert.That(encoded.ToArray(),
-                    Is.EqualTo(ByteString.FromHexString("010000000a000000000100000001000000aa").ToArray()));
+                Assert.That(encoded.ToHexString().ToLowerInvariant(),
+                    Is.EqualTo("0100"));
             });
         }
     }

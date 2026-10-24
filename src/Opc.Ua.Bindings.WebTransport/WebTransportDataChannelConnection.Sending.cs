@@ -149,6 +149,11 @@ namespace Opc.Ua.Bindings
             Http3Event metadata = lease.Metadata;
             bool datagram = metadata.Kind == 2;
             bool prefix = (metadata.Flags & 2) != 0;
+            bool retainWrites;
+            lock (m_gate)
+            {
+                retainWrites = stream?.RetainWrites == true;
+            }
             bool fin = (metadata.Flags & 1) != 0;
             bool critical = !datagram && (stream!.Stream.StreamId == 0 ||
                 !stream.Stream.IsBidirectional || ReferenceEquals(stream, m_management));
@@ -173,7 +178,7 @@ namespace Opc.Ua.Bindings
                 while (true)
                 {
                     int length = Math.Min(65536, lease.Payload.Length - offset);
-                    uint flags = prefix ? 2u : 0u;
+                    uint flags = prefix || retainWrites ? 2u : 0u;
                     if (fin && offset + length == lease.Payload.Length)
                     {
                         flags |= 1;

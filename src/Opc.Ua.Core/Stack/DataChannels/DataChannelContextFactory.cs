@@ -35,6 +35,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Directly constructible factory sharing admission, clocks and policy across authenticated carriers.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelContextFactory : IDataChannelContextFactory
     {
         /// <summary>
@@ -70,6 +72,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Registers common flow services without installing or advertising a carrier implementation.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class DataChannelBuilderExtensions
     {
         /// <summary>

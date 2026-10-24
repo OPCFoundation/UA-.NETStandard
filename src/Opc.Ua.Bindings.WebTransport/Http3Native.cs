@@ -11,7 +11,7 @@ using Microsoft.Win32.SafeHandles;
 namespace Opc.Ua.Bindings
 {
     /// <summary>
-    /// Blittable production ABI1/revision2 declarations. All handle calls are serialized by their owner.
+    /// Blittable production ABI1/revision3 declarations. All handle calls are serialized by their owner.
     /// </summary>
     internal static partial class Http3Native
     {
@@ -20,9 +20,9 @@ namespace Opc.Ua.Bindings
         /// </summary>
         internal static void ValidateLayout()
         {
-            if (AbiVersion() != 1 || ApiRevision() != 2 ||
+            if (AbiVersion() != 1 || ApiRevision() != 3 ||
                 Layout(out Http3Layout layout, 40) != 0 ||
-                layout.Size != 40 || layout.Abi != 1 || layout.Revision != 2 || layout.PointerSize != 8 ||
+                layout.Size != 40 || layout.Abi != 1 || layout.Revision != 3 || layout.PointerSize != 8 ||
                 layout.FactsSize != 80 || layout.ConfigurationSize != 224 || layout.EventSize != 48 ||
                 layout.ErrorSize != 48 || layout.ResourceSize != 64 || layout.Reserved != 0 ||
                 Marshal.SizeOf<Http3Facts>() != 80 || Marshal.SizeOf<Http3Configuration>() != 224 ||
@@ -211,8 +211,8 @@ namespace Opc.Ua.Bindings
         /// <summary>Actually negotiated h3.</summary>
         internal uint H3;
 
-        /// <summary>Reserved, zero.</summary>
-        internal uint Reserved;
+        /// <summary>Facts1: application-mTLS zero; facts2: server-authenticated TLS one.</summary>
+        internal uint AuthenticationPolicy;
     }
 
     /// <summary>
@@ -316,7 +316,7 @@ namespace Opc.Ua.Bindings
         /// <summary>External nonzero connection correlation.</summary>
         internal ulong ConnectionTag;
 
-        /// <summary>External nonzero application-pair correlation, not authentication.</summary>
+        /// <summary>Config1 nonzero application-pair correlation; config2 may be zero before UASC authentication.</summary>
         internal ulong PairTag;
 
         /// <summary>Finite local limits.</summary>

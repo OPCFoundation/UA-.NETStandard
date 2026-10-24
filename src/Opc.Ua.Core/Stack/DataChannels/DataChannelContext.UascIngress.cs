@@ -28,8 +28,8 @@
  * ======================================================================*/
 
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.DataChannels.Wire;
@@ -39,12 +39,16 @@ namespace Opc.Ua.DataChannels
     public sealed partial class DataChannelContext
     {
         /// <summary>
-        /// Bridges the synchronous UASC receive callback without blocking Service dispatch on application reads.
-        /// HELLO is processed synchronously so a following shared MSG sees the confirmed profile.
+        /// Queues one verified FLO body after UASC security and sequence checks.
+        /// ChannelId selects the flow; configured UADP source/writer routes remain an authorization check.
         /// </summary>
-        internal void QueueVerifiedUasc(byte chunkType, uint requestId, ByteString borrowedPlaintext)
+        internal void QueueVerifiedUasc(
+            DataChannelUascMessageKind kind,
+            byte chunkType,
+            uint requestId,
+            ByteString borrowedPlaintext)
         {
-            bool isData = borrowedPlaintext.Length >= 17 && borrowedPlaintext.Span[8] == (byte)FlowRecordKind.Data;
+            bool isData = kind == DataChannelUascMessageKind.Flo;
             int cost = checked(borrowedPlaintext.Length * (isData ? 1 : 3));
             lock (m_gate)
             {
@@ -54,16 +58,7 @@ namespace Opc.Ua.DataChannels
                 }
                 if (!(isData ? TryReserveUascDataLocked(cost) : TryReserveReceiveControlLocked(cost)))
                 {
-                    uint channelId = borrowedPlaintext.Length >= 4
-                        ? BinaryPrimitives.ReadUInt32LittleEndian(borrowedPlaintext.Span) : 0;
-                    if (isData && m_flows.TryGetValue(channelId, out FlowState? flow))
-                    {
-                        ResetLocked(flow, DataChannelResult.WouldBlock);
-                    }
-                    else
-                    {
-                        CloseLocked(DataChannelResult.WouldBlock);
-                    }
+                    CloseLocked(DataChannelResult.WouldBlock);
                     return;
                 }
             }
@@ -71,17 +66,36 @@ namespace Opc.Ua.DataChannels
             try
             {
                 ByteString owned = borrowedPlaintext.Copy();
-                FlowWireEnvelope envelope = FlowCarrierCodec.DecodeUascPayload(
-                    m_wireCarrier, chunkType, requestId, owned, m_codecLimits);
+                UascFlowMessage message = UascFlowMessageCodec.Decode(
+                    m_wireCarrier, kind, chunkType, requestId, owned, m_codecLimits);
+                FlowWireEnvelope envelope;
                 lock (m_gate)
                 {
+                    if (m_closed)
+                    {
+                        return;
+                    }
+                    if (isData)
+                    {
+                        DataChannelResult route = CreateUascDataEnvelopeLocked(
+                            message.ApplicationBody, out envelope);
+                        if (route != DataChannelResult.Good)
+                        {
+                            CloseLocked(route);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        envelope = new FlowWireEnvelope(
+                            message.ChannelId,
+                            message.Record,
+                            message.Control);
+                    }
+
                     if (envelope.Control is FlowHello hello)
                     {
                         ReceiveHelloLocked(hello, envelope.Record.MessageId);
-                        return;
-                    }
-                    if (m_closed)
-                    {
                         return;
                     }
                     m_uascIngress.Enqueue(new UascIngress(envelope, cost, isData, m_clock.GetTimestamp()));
@@ -97,22 +111,7 @@ namespace Opc.Ua.DataChannels
             {
                 lock (m_gate)
                 {
-                    uint channelId = borrowedPlaintext.Length >= 4
-                        ? BinaryPrimitives.ReadUInt32LittleEndian(borrowedPlaintext.Span) : 1;
-                    DataChannelResult result = FlowModel.FromWire(exception.Status);
-                    if (IsFatalCodecFailureLocked(
-                        exception, channelId, true, HasTrustedUascContainer(exception, borrowedPlaintext)))
-                    {
-                        CloseLocked(result);
-                    }
-                    else if (m_flows.TryGetValue(channelId, out FlowState? flow))
-                    {
-                        ResetLocked(flow, result);
-                    }
-                    else
-                    {
-                        RefuseLocked(channelId, 1, result);
-                    }
+                    CloseLocked(FlowModel.FromWire(exception.Status));
                 }
             }
             finally
@@ -138,6 +137,154 @@ namespace Opc.Ua.DataChannels
         }
 
         /// <summary>
+        /// Validates the selected flow against any configured UADP association.
+        /// </summary>
+        private DataChannelResult CreateUascDataEnvelopeLocked(
+            ByteString applicationBody,
+            out FlowWireEnvelope envelope)
+        {
+            envelope = default;
+            UadpNetworkMessageHeader networkMessageHeader;
+            try
+            {
+                networkMessageHeader = UadpApplicationPayloadHeaderCodec.DecodePublisherHeader(applicationBody);
+            }
+            catch (FlowCodecException)
+            {
+                return DataChannelResult.InvalidArgument;
+            }
+
+            string? resourceUri = null;
+            bool typedStreaming = networkMessageHeader.NetworkMessageType == 3 &&
+                FlowModel.SharesServices(m_carrier.Kind);
+            if (!typedStreaming && m_uascPublisherRoutes.Count > 0)
+            {
+                DataChannelResult routeResult = ResolveUascPublisherRoute(networkMessageHeader, out resourceUri);
+                if (routeResult != DataChannelResult.Good)
+                {
+                    return routeResult;
+                }
+            }
+
+            FlowState? target = null;
+            foreach (FlowState flow in m_flows.Values)
+            {
+                if (!flow.Ready || flow.IsTerminal || !flow.MayReceive || flow.IsDatagram || flow.DirectLane != null ||
+                    !DataChannelProfiles.IsUadpPayloadProtocol(flow.Parameters.Protocol) ||
+                    (typedStreaming && !flow.UascStreamingPublisherIds.Contains(networkMessageHeader.PublisherId)) ||
+                    (resourceUri != null && !string.Equals(
+                        flow.Parameters.ResourceUri, resourceUri, StringComparison.Ordinal)))
+                {
+                    continue;
+                }
+                bool messageTypeSupported = networkMessageHeader.NetworkMessageType switch
+                {
+                    0 or 1 or 2 => flow.Parameters.Protocol == DataChannelProfiles.UadpPayload,
+                    3 => flow.Parameters.Protocol is DataChannelProfiles.UadpAvApplicationPayload or
+                        DataChannelProfiles.UadpOpaqueApplicationPayload,
+                    _ => false
+                };
+                if (!messageTypeSupported)
+                {
+                    continue;
+                }
+                if (target != null)
+                {
+                    return DataChannelResult.InvalidState;
+                }
+                target = flow;
+            }
+            if (target == null)
+            {
+                return DataChannelResult.UnknownChannel;
+            }
+
+            var record = new FlowRecord(FlowRecordKind.Data, 0, 0, applicationBody);
+            envelope = new FlowWireEnvelope(target.Id, record, null);
+            return DataChannelResult.Good;
+        }
+
+        /// <summary>
+        /// Resolves one complete visible UADP source/writer association to exactly one resource.
+        /// </summary>
+        private DataChannelResult ResolveUascPublisherRoute(
+            UadpNetworkMessageHeader header,
+            out string? resourceUri)
+        {
+            resourceUri = null;
+            List<UascPublisherRoute> candidates = [.. m_uascPublisherRoutes.Where(route =>
+                route.PublisherId.Equals(header.PublisherId) || route.PublisherId.IsNull)];
+            if (!header.PublisherId.IsNull &&
+                candidates.Exists(route => route.PublisherId.Equals(header.PublisherId)))
+            {
+                candidates.RemoveAll(route => route.PublisherId.IsNull);
+            }
+            List<UascPublisherRoute> exactTypeRoutes = [.. candidates.Where(route =>
+                route.NetworkMessageType == header.NetworkMessageType)];
+            if (exactTypeRoutes.Count > 0)
+            {
+                candidates = exactTypeRoutes;
+            }
+            else
+            {
+                candidates.RemoveAll(static route => route.NetworkMessageType.HasValue);
+            }
+            if (header.WriterGroupId is ushort writerGroupId)
+            {
+                List<UascPublisherRoute> exactGroupRoutes = [.. candidates.Where(route =>
+                    route.WriterGroupId == writerGroupId)];
+                if (exactGroupRoutes.Count > 0)
+                {
+                    candidates = exactGroupRoutes;
+                }
+                else
+                {
+                    candidates.RemoveAll(route => route.WriterGroupId.HasValue);
+                }
+            }
+            HashSet<string>? matchingResources = null;
+            if (header.DataSetWriterIds.Length == 0)
+            {
+                matchingResources = candidates
+                    .Select(static route => route.ResourceUri)
+                    .ToHashSet(StringComparer.Ordinal);
+            }
+            else
+            {
+                foreach (ushort dataSetWriterId in header.DataSetWriterIds)
+                {
+                    List<UascPublisherRoute> exactWriterRoutes = [.. candidates.Where(route =>
+                        route.DataSetWriterId == dataSetWriterId)];
+                    List<UascPublisherRoute> matchingWriterRoutes = exactWriterRoutes.Count > 0
+                        ? exactWriterRoutes
+                        : [.. candidates.Where(static route => !route.DataSetWriterId.HasValue)];
+                    HashSet<string> writerResources = matchingWriterRoutes
+                        .Select(static route => route.ResourceUri)
+                        .ToHashSet(StringComparer.Ordinal);
+                    if (matchingResources is null)
+                    {
+                        matchingResources = writerResources;
+                    }
+                    else
+                    {
+                        matchingResources.IntersectWith(writerResources);
+                    }
+                }
+            }
+
+            if (matchingResources is null || matchingResources.Count == 0)
+            {
+                return DataChannelResult.UnknownChannel;
+            }
+            if (matchingResources.Count != 1)
+            {
+                return DataChannelResult.InvalidState;
+            }
+            resourceUri = matchingResources.Single();
+            return DataChannelResult.Good;
+        }
+
+        /// <summary>
         /// Drains bounded owned plaintext while keeping original receive-loop buffers independent.
         /// </summary>
         private async Task RunUascIngressAsync()
@@ -158,7 +305,7 @@ namespace Opc.Ua.DataChannels
                 {
                     if (item.Envelope.Control is { } control)
                     {
-                        await ReceiveControlAsync(control, item.Envelope.Record, DataChannelPath.Flow, 0,
+                        await ReceiveControlAsync(control, item.Envelope.Record, DataChannelPath.Management, 0,
                             m_shutdown.Token).ConfigureAwait(false);
                     }
                     else
@@ -205,33 +352,52 @@ namespace Opc.Ua.DataChannels
                     {
                         return RefuseLocked(item.Envelope.ChannelId, record.Revision, DataChannelResult.UnknownChannel);
                     }
+                    if (record.Revision == 0)
+                    {
+                        if (flow.LastRoutedDataId == uint.MaxValue)
+                        {
+                            return ResetLocked(flow, DataChannelResult.InvalidState);
+                        }
+                        record = new FlowRecord(
+                            FlowRecordKind.Data,
+                            flow.ReceiveRevision,
+                            ++flow.LastRoutedDataId,
+                            record.Body);
+                    }
                     DataChannelResult valid = ValidateDataLocked(
                         flow, record.Revision, record.MessageId, record.Body.Length, false, out FlowRevision? revision);
                     if (valid == DataChannelResult.Good)
                     {
-                        if (IsShared && (flow.ReceiveCredit < item.Cost || m_receiveConnectionCredit < item.Cost))
+                        int dataCost = checked(record.Body.Length + DataOverhead(flow));
+                        if (UsesUascCredit && (flow.ReceiveCredit < dataCost || m_receiveConnectionCredit < dataCost))
                         {
                             return ResetLocked(flow, DataChannelResult.InvalidState);
                         }
-                        if (TryReserveMessageLocked(flow, revision!, item.Cost, false, applicationReserved: true))
+                        if (TryReserveMessageLocked(
+                            flow,
+                            revision!,
+                            dataCost,
+                            false,
+                            applicationReserved: true,
+                            storageCost: item.Cost))
                         {
                             m_uascDataBytes -= item.Cost;
                             m_uascDataMessages--;
                             item.DataTransferred = true;
                             try
                             {
-                                return DeliverDataLocked(flow, record, record.Body, item.Cost, false);
+                                return DeliverDataLocked(flow, record, record.Body, dataCost, false, item.Cost);
                             }
                             catch
                             {
-                                ReleaseMessageLocked(flow, record.Revision, item.Cost, false);
+                                ReleaseMessageLocked(flow, record.Revision, dataCost, false, item.Cost);
                                 throw;
                             }
                         }
                     }
                     else if (valid != DataChannelResult.WouldBlock)
                     {
-                        return valid;
+                        return ResetLocked(flow, valid);
                     }
                     wait = m_capacityChanged.Task;
                 }

@@ -5,7 +5,10 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.DataChannels;
 
@@ -184,6 +187,96 @@ namespace Opc.Ua.Server.Tests.DataChannels
                         .ConfigureAwait(false))!;
                 Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
             }
+        }
+
+        /// <summary>
+        /// Every represented content Node independently gates grants and redemption in the requested direction.
+        /// </summary>
+        [TestCase(DataChannelDirection.OpenerToAcceptor, 0, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.OpenerToAcceptor, 1, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.OpenerToAcceptor, 0, PermissionType.Write)]
+        [TestCase(DataChannelDirection.OpenerToAcceptor, 1, PermissionType.Write)]
+        [TestCase(DataChannelDirection.AcceptorToOpener, 0, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.AcceptorToOpener, 1, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.AcceptorToOpener, 0, PermissionType.Read)]
+        [TestCase(DataChannelDirection.AcceptorToOpener, 1, PermissionType.Read)]
+        [TestCase(DataChannelDirection.Duplex, 0, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.Duplex, 1, PermissionType.Browse)]
+        [TestCase(DataChannelDirection.Duplex, 0, PermissionType.Read)]
+        [TestCase(DataChannelDirection.Duplex, 1, PermissionType.Read)]
+        [TestCase(DataChannelDirection.Duplex, 0, PermissionType.Write)]
+        [TestCase(DataChannelDirection.Duplex, 1, PermissionType.Write)]
+        public async Task SourceCannotBypassAnyRepresentedContentsDirectionalPermissions(
+            DataChannelDirection direction,
+            int deniedContent,
+            PermissionType required)
+        {
+            ArrayOf<ExpandedNodeId> contentIds =
+            [
+                new ExpandedNodeId(501u, "urn:control-tests:source"),
+                new ExpandedNodeId(502u, "urn:control-tests:source")
+            ];
+            await using DataChannelControlTestContext test =
+                await DataChannelControlTestContext.CreateAsync(contentIds).ConfigureAwait(false);
+            var contents = new NodeMetadata[contentIds.Count];
+            for (int index = 0; index < contentIds.Count; index++)
+            {
+                NodeId nodeId = ExpandedNodeId.ToNodeId(contentIds[index], test.NamespaceUris);
+                var metadata = new NodeMetadata(nodeId, nodeId)
+                {
+                    NodeClass = NodeClass.Variable,
+                    RolePermissions =
+                    [
+                        new RolePermissionType
+                        {
+                            RoleId = ObjectIds.WellKnownRole_Anonymous,
+                            Permissions = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write)
+                        }
+                    ]
+                };
+                contents[index] = metadata;
+                test.Master.Setup(value => value.GetManagerHandleAsync(nodeId, It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<(object?, IAsyncNodeManager?)>((nodeId, test.NodeManager.Object)));
+                test.NodeManager.Setup(value => value.GetPermissionMetadataAsync(
+                    It.IsAny<OperationContext>(), nodeId, It.IsAny<BrowseResultMask>(),
+                    It.IsAny<Dictionary<NodeId, Variant[]>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                    .Returns(() => new ValueTask<NodeMetadata?>(metadata));
+            }
+
+            uint allowed = (uint)(PermissionType.Browse | PermissionType.Read | PermissionType.Write);
+            contents[deniedContent].RolePermissions[0].Permissions = allowed & ~(uint)required;
+            uint channelId = test.Pair.Client.ReserveChannelId();
+            DataChannelParametersDataType parameters = DataChannelControlTestContext.Parameters(direction);
+            ServiceResultException error = (await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await test.Provider.OpenAsync(
+                    test.Session.Object, channelId, test.SourceNodeId, test.Binding(), parameters)
+                    .ConfigureAwait(false)).ConfigureAwait(false))!;
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            contents[deniedContent].RolePermissions[0].Permissions = allowed;
+            DataChannelGrantDataType grant = await test.Provider.OpenAsync(
+                test.Session.Object, channelId, test.SourceNodeId, test.Binding(), parameters).ConfigureAwait(false);
+            contents[deniedContent].RolePermissions[0].Permissions = allowed & ~(uint)required;
+            DataChannelAuthorization denied = await test.Provider.AuthorizeAsync(
+                test.Redemption(grant, parameters: parameters))
+                .ConfigureAwait(false);
+            Assert.That(denied.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+
+            contents[deniedContent].RolePermissions[0].Permissions = allowed;
+            DataChannelAuthorization authorized = await test.Provider.AuthorizeAsync(
+                test.Redemption(grant, parameters: parameters))
+                .ConfigureAwait(false);
+            DataChannelAuthorization replay = await test.Provider.AuthorizeAsync(
+                test.Redemption(grant, parameters: parameters))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(authorized.Result, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(authorized.SourceNodeId, Is.EqualTo(test.Source.SourceNodeId));
+                Assert.That(authorized.SessionId, Is.EqualTo(test.Session.Object.Id));
+                Assert.That(authorized.Parameters!.Direction, Is.EqualTo(direction));
+                Assert.That(replay.Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+            });
         }
 
         [TestCase(false)]

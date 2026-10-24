@@ -11,7 +11,12 @@ $target = Join-Path $context 'src\Opc.Ua.Native.Http3'
 $tests = Join-Path $context 'tests\Opc.Ua.Native.Http3.Tests\native'
 $pins = Get-Content (Join-Path $root 'build\public-inputs.json') -Raw | ConvertFrom-Json
 $image = & podman image inspect $pins.linux.image --format '{{.Id}}'
-if ($LASTEXITCODE -ne 0 -or $image -ne $pins.linux.image_id) {
+if ($LASTEXITCODE -ne 0) {
+    throw 'The accepted public Rust Linux image must already be cached; no implicit pull is allowed.'
+}
+$image = ($image.Trim() -replace '^sha256:', '').ToLowerInvariant()
+$pinnedImage = ($pins.linux.image_id.Trim() -replace '^sha256:', '').ToLowerInvariant()
+if ($image -notmatch '^[0-9a-f]{64}$' -or $image -ne $pinnedImage) {
     throw 'The accepted public Rust Linux image must already be cached; no implicit pull is allowed.'
 }
 Push-Location $root

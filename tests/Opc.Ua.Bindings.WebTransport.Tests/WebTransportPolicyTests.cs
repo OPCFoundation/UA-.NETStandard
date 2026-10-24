@@ -62,6 +62,33 @@ namespace Opc.Ua.Bindings.WebTransport.Tests
         }
 
         /// <summary>
+        /// Accepts canonical HTTPS browser authorities and preserves the configured path and query separately.
+        /// </summary>
+        [TestCase("https://example.test/ua/wt?resource=pubsub", "example.test", "/ua/wt?resource=pubsub")]
+        [TestCase("https://example.test:8443/ua/wt?resource=pubsub",
+            "example.test:8443", "/ua/wt?resource=pubsub")]
+        [TestCase("https://[2001:db8::1]:8443/ua/wt", "[2001:db8::1]:8443", "/ua/wt")]
+        public void HttpsEndpointPreservesAuthorityAndResource(string address, string authority, string resource)
+        {
+            Uri endpoint = new(address);
+            Assert.That(WebTransportEndpoint.HttpsAddress(endpoint), Is.EqualTo(authority));
+            Assert.That(endpoint.PathAndQuery, Is.EqualTo(resource));
+        }
+
+        /// <summary>
+        /// Rejects non-HTTPS, credential-bearing and noncanonical browser endpoint URLs.
+        /// </summary>
+        [TestCase("opc.wt://example.test/ua/wt")]
+        [TestCase("http://example.test/ua/wt")]
+        [TestCase("https://user@example.test/ua/wt")]
+        [TestCase("https://example.test/ua/wt#fragment")]
+        [TestCase("https://example.test/a/../ua/wt")]
+        public void HttpsEndpointRejectsForeignOrAmbiguousUri(string address)
+        {
+            Assert.Throws<ArgumentException>(() => WebTransportEndpoint.HttpsAddress(new Uri(address)));
+        }
+
+        /// <summary>
         /// Preserves exact path/query and uses the real allocated port for ephemeral listeners.
         /// </summary>
         [Test]

@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-/* ABI 4. x64, natural alignment (8), Cdecl. Never pass a Go pointer to C.
+/* ABI 7. x64, natural alignment (8), Cdecl. Never pass a Go pointer to C.
  * Handles are monotonic, type-checked, and never recycled in this process.
  * The library MUST remain loaded for the lifetime of the process. */
 typedef struct { uint64_t value; } uqg_listener;
@@ -38,22 +38,37 @@ enum uqg_kind {
     UQG_DATAGRAM_SEND = 14, UQG_DATAGRAM_RECEIVE = 15,
     UQG_CONNECTION_CLOSE = 16, UQG_CONNECTION_WAIT_CLOSED = 17,
     UQG_CONNECTION_RELEASE = 18,
+    UQG_CONNECTION_EXPORTER = 19,
+    UQG_CONNECTION_EXPORTER_CUSTOM = 30,
     UQG_STREAM_SEND = 20, UQG_STREAM_READ = 21,
     UQG_STREAM_RESET = 22, UQG_STREAM_RESET_SENT = 23,
     UQG_STREAM_STOP = 24, UQG_STREAM_WAIT_STOPPED = 25,
     UQG_STREAM_SENT_OFFSET = 26, UQG_STREAM_RELEASE = 27,
-    UQG_STREAM_RESET_RECEIVED = 28, UQG_STREAM_PEER_STOPPED = 29
+    UQG_STREAM_RESET_RECEIVED = 28, UQG_STREAM_PEER_STOPPED = 29,
+    UQG_STREAM_RELEASE_GRACEFUL = 31
 };
 enum {
     UQG_UNIDIRECTIONAL = 1, UQG_SEND_FIN = 1, UQG_SEND_RELIABLE_BOUNDARY = 2,
     UQG_READ_DATA = 0, UQG_READ_FIN = 1, UQG_READ_RESET = 2
 };
+enum uqg_authentication_policy {
+    UQG_APPLICATION_MTLS = 0,
+    UQG_SERVER_AUTHENTICATED_TLS = 1
+};
 
 /* Each DER/key bundle <=16384 bytes, <=16 certificates. No files, system trust,
  * generated identity, PEM interpretation, hardware-key fallback or key callback.
  * PKCS8: unencrypted two-prime RSA2048..4096 or ECDSA P256/P384/P521.
- * local_uri must be an exact URI SAN. server_name is required for connectors.
- * An exporter unable to supply this key capability MUST refuse the operation. */
+ * Application-mTLS policy requires local_uri to be an exact URI SAN.
+ * Server-authenticated policy requires empty local_uri and no peer allowlist:
+ * connector supplies only trust_roots_der and server_name; listener supplies
+ * certificate_der, optional issuer_chain_der and private_key_pkcs8.
+ * server_name is required for connectors. No client certificate selector is installed.
+ * An exporter unable to supply a required key MUST refuse the operation.
+ * CONNECTION_EXPORTER accepts exactly a 32-byte context and returns the 32-byte
+ * TLS exporter output for EXPORTER-OPCUA-QUIC-DRAFT.
+ * CONNECTION_EXPORTER_CUSTOM accepts [labelLength:8][label][contextLength:8]
+ * [context][outputLength:8] and returns the requested TLS exporter output. */
 typedef struct {
     uqg_bytes certificate_der;
     uqg_bytes issuer_chain_der;
@@ -80,10 +95,10 @@ typedef struct {
     uqg_bytes alpn;               /* 1..255 UTF8 bytes, exact, no negotiation fallback */
     uqg_identity identity;
     uqg_peer *peers;
-    uint32_t peer_count;          /* 1..32 */
+    uint32_t peer_count;          /* application-mTLS: 1..32; server-authenticated: 0, peers=NULL */
     uint32_t stream_limit;        /* 1..32 incoming streams per direction */
     uint32_t idle_timeout_ms;     /* 1000..600000 */
-    uint32_t reserved;
+    uint32_t authentication_policy; /* enum uqg_authentication_policy */
 } uqg_config;
 
 /* Irrelevant fields must be zero. All inputs are copied before begin returns.
@@ -149,7 +164,7 @@ typedef struct {
                                     server: completed native post-client-auth handshake */
     uint32_t mutual_tls_authenticated; /* supplied local certificate used and peer verified */
     uint32_t local_certificate_used; /* actual selection followed by completed/confirmed handshake */
-    uint32_t reserved; /* zero */
+    uint32_t authentication_policy; /* actual immutable admitted policy; no application identity for policy1 */
 } uqg_connection_info;
 
 typedef struct {
@@ -195,6 +210,10 @@ int32_t opcua_quic_counts(uqg_counts *counts);
  * STOP and CONNECTION_CLOSE may interrupt it. Close != release for connections;
  * release requires all children and referencing jobs to have been released.
  * Closing a listener leaves accepted connections alive.
+ * STREAM_RELEASE_GRACEFUL closes the sending direction with FIN, cancels only
+ * the unused receive direction, and releases the handle without CancelWrite.
+ * The connection retains outstanding data/FIN until acknowledged or connection
+ * closure. No referencing operation may remain; ordinary RELEASE is abortive.
  * STREAM_RESET_RECEIVED observes actual peer reset metadata independently of Read
  * and Write. It consumes no stream bytes and does not mean the reliable prefix
  * has already reached the application. It is distinct from peer STOP_SENDING.

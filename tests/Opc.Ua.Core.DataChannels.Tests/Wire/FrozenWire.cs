@@ -121,7 +121,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             limits ??= new FlowCodecLimits();
             if (Carrier is FlowCarrier.DedicatedUasc or FlowCarrier.SharedUasc)
             {
-                return FlowCarrierCodec.DecodeUascPayload(Carrier, (byte)'F', 0, Bytes, limits);
+                throw new InvalidOperationException("UASC messages use UascFlowMessageCodec directly.");
             }
             if (Datagram)
             {
@@ -138,7 +138,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         }
 
         /// <summary>
-        /// Enumerates one independently authored canonical body for each of the fifteen operations.
+        /// Enumerates one independently authored canonical body for each of the eighteen operations.
         /// </summary>
         internal static IEnumerable<string> ControlNames()
         {
@@ -157,6 +157,9 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
             yield return "control_ping";
             yield return "control_pong";
             yield return "control_status";
+            yield return "control_bind";
+            yield return "control_associate";
+            yield return "control_associate-ack";
         }
 
         /// <summary>
@@ -164,7 +167,7 @@ namespace Opc.Ua.Core.DataChannels.Tests.Wire
         /// </summary>
         internal static IEnumerable<string> DataNames()
         {
-            foreach (string carrier in new[] { "dedicated-uasc", "shared-uasc", "quic", "webtransport" })
+            foreach (string carrier in new[] { "quic", "webtransport" })
             {
                 foreach (string body in new[] { "opaque", "uadp", "json" })
                 {

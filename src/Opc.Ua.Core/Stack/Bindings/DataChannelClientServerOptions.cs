@@ -36,6 +36,8 @@ namespace Opc.Ua.Bindings
     /// Finite reservations for an explicitly enabled native Client/Server lane.
     /// These limits are additional to the native context's application-wide budget.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed record DataChannelClientServerOptions
     {
         /// <summary>

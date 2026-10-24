@@ -134,6 +134,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
         [TestCase("peerChallenge")]
         [TestCase("channel")]
         [TestCase("parameters")]
+        [TestCase("resource")]
+        [TestCase("direction")]
         public async Task GrantRejectsEveryChangedBindingWithoutConsumingTheOwnersGrant(string changed)
         {
             await using var pair = new FlowLoopback();
@@ -163,6 +165,14 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             {
                 parameters.MaxMessageSize--;
             }
+            else if (changed == "resource")
+            {
+                parameters.ResourceUri = "urn:other:resource";
+            }
+            else if (changed == "direction")
+            {
+                parameters.Direction = DataChannelDirection.OpenerToAcceptor;
+            }
             var request = new DataChannelAuthorizationRequest(
                 changedContext, changed == "channel" ? 3u : 1u,
                 false, DataChannelAuthorizationMode.Session, (Guid)grant.GrantId,
@@ -170,6 +180,19 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             Assert.That(store.Redeem(request).Result, Is.EqualTo(DataChannelResult.NotAuthorized));
             Assert.That(store.TryGetGrant((Guid)grant.GrantId, out _), Is.True);
             Assert.That(pair.AcceptorBudget.Usage.Grants, Is.EqualTo(1));
+            var owner = new DataChannelAuthorizationRequest(
+                context, 1, false, DataChannelAuthorizationMode.Session, (Guid)grant.GrantId,
+                DataChannelAuthorizationPurpose.Open, 1, 0, FlowLoopback.Parameters());
+            DataChannelAuthorization accepted = store.Redeem(owner);
+            Assert.Multiple(() =>
+            {
+                Assert.That(accepted.Result, Is.EqualTo(DataChannelResult.Good));
+                Assert.That(accepted.SourceNodeId, Is.EqualTo(new ExpandedNodeId(1u)));
+                Assert.That(accepted.SessionId, Is.EqualTo(new NodeId(2u)));
+                Assert.That(store.TryGetGrant((Guid)grant.GrantId, out _), Is.False);
+                Assert.That(store.Redeem(owner).Result, Is.EqualTo(DataChannelResult.NotAuthorized));
+                Assert.That(pair.AcceptorBudget.Usage.Grants, Is.Zero);
+            });
         }
 
         [Test]
@@ -181,7 +204,8 @@ namespace Opc.Ua.Core.DataChannels.Tests.Runtime
             FlowPair flow = await pair.OpenAsync().ConfigureAwait(false);
             store.RevokeSession(new NodeId(1u));
             store.RevokeContext(pair.Acceptor.Identity.ContextId);
-            Assert.That(await flow.Local.SendAsync(ByteString.Empty).ConfigureAwait(false),
+            ByteString payload = FlowLoopback.UadpPayload(ByteString.Empty);
+            Assert.That(await flow.Local.SendAsync(payload).ConfigureAwait(false),
                 Is.EqualTo(DataChannelResult.Good));
             using DataChannelMessage? received = await flow.Remote.ReadAsync().ConfigureAwait(false);
             Assert.Multiple(() =>

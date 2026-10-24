@@ -46,6 +46,8 @@ namespace Opc.Ua.Bindings
     /// exactly one DATA payload; chunk coalescing, nested FLO carriage and queue expiry are unavailable.
     /// Use asynchronous disposal to await flow reset and observe any closure failure.
     /// </remarks>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelByteTransport :
         IUaSCByteTransport,
         IUaSCByteTransportLimits,
@@ -341,7 +343,8 @@ namespace Opc.Ua.Bindings
             }
             uint messageType = BinaryPrimitives.ReadUInt32LittleEndian(chunk);
             if (!TcpMessageType.IsValid(messageType) ||
-                (messageType & TcpMessageType.MessageTypeMask) == TcpMessageType.Flow)
+                (messageType & TcpMessageType.MessageTypeMask) is
+                    TcpMessageType.FlowData or TcpMessageType.FlowControl)
             {
                 throw new ServiceResultException(
                     StatusCodes.BadTcpMessageTypeInvalid,

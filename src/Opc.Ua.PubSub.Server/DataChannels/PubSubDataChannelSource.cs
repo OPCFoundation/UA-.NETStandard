@@ -36,6 +36,8 @@ namespace Opc.Ua.PubSub.Server.DataChannels
     /// <summary>
     /// Projects one configured PubSub flow into the server's existing independently authorized resource model.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public static class PubSubDataChannelSource
     {
         /// <summary>
@@ -58,6 +60,53 @@ namespace Opc.Ua.PubSub.Server.DataChannels
                 throw new ArgumentOutOfRangeException(nameof(maximumFlows));
             }
             DataChannelParametersDataType parameters = DataChannelPubSubConfiguration.GetParameters(connection);
+            return CreateSource(parameters, policy, maximumFlows, sourceNodeId, contentNodeIds);
+        }
+
+        /// <summary>
+        /// Creates an exact UAFX source declaration from the local binding policy without serializing it into PubSub
+        /// configuration. Register it with DataChannelSourceRegistry before accepting connections.
+        /// </summary>
+        /// <param name="connection">The PubSub connection using the standard PubSub-over-UASC profile.</param>
+        /// <param name="localParameters">The preprovisioned local flow policy for this connection.</param>
+        /// <param name="policy">The policy that authorizes actual peer contexts and flows.</param>
+        /// <param name="maximumFlows">The finite number of admitted flows.</param>
+        /// <param name="sourceNodeId">The optional model source identifier.</param>
+        /// <param name="contentNodeIds">The optional model content identifiers.</param>
+        /// <exception cref="ArgumentException"></exception>
+        /// <exception cref="ArgumentNullException"></exception>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static DataChannelSource CreateUafx(
+            PubSubConnectionDataType connection,
+            DataChannelParametersDataType localParameters,
+            IDataChannelSourcePolicy policy,
+            int maximumFlows = 16,
+            ExpandedNodeId sourceNodeId = default,
+            ArrayOf<ExpandedNodeId> contentNodeIds = default)
+        {
+            if (connection is null)
+            {
+                throw new ArgumentNullException(nameof(connection));
+            }
+            if (policy is null)
+            {
+                throw new ArgumentNullException(nameof(policy));
+            }
+            if (maximumFlows is < 1 or > 128)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximumFlows));
+            }
+            DataChannelPubSubConfiguration.ConfigureUafx(connection, localParameters);
+            return CreateSource(localParameters, policy, maximumFlows, sourceNodeId, contentNodeIds);
+        }
+
+        private static DataChannelSource CreateSource(
+            DataChannelParametersDataType parameters,
+            IDataChannelSourcePolicy policy,
+            int maximumFlows,
+            ExpandedNodeId sourceNodeId,
+            ArrayOf<ExpandedNodeId> contentNodeIds)
+        {
             string resource = parameters.ResourceUri ?? throw new ArgumentException("The flow resource is missing.");
             string protocol = parameters.Protocol ?? throw new ArgumentException("The flow protocol is missing.");
             string contentType = parameters.ContentType ??

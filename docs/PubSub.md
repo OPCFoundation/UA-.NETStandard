@@ -102,7 +102,12 @@ A production deployment obtains its keys from a
 [Security Key Service](#security-key-service-sks).
 `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
 appear when no matching message arrives for five seconds, for example before
-the publisher starts. The reader resumes when messages arrive.
+the publisher starts. The timeout starts when the reader first becomes
+Operational. A new keep-alive refreshes it; when a DataSetMessage carries a
+sequence number, only forward sequence progress counts. Without a sequence
+number, each received DataSetMessage counts. The reader resumes after a new
+DataSetMessage, and keep-alive messages update status without being written to
+the application sink.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
 address. On one computer, the subscriber can miss multicast messages because
@@ -261,7 +266,11 @@ Filters honoured: `PublisherId`, `WriterGroupId`, `DataSetWriterId`,
 `DataSetClassId`, `MessageReceiveTimeout`.
 `DataSetClassId` mismatches are rejected before the message reaches the
 sink. `MessageReceiveTimeout > 0` moves the reader to `PubSubState.Error`
-when no matching message arrives within the configured idle window.
+when no new matching DataSetMessage arrives within the configured idle window.
+The window starts when the reader becomes Operational. Sequence-numbered
+messages must advance their sequence; keep-alive messages always refresh the
+window, and messages without a sequence number each count as new. Keep-alive
+messages update reader status but are not forwarded to the sink.
 
 WriterGroup and DataSetWriter message settings control the emitted header masks,
 including data, event, and keep-alive messages. Publisher/writer identities,

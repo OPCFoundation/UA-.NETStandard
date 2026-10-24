@@ -34,6 +34,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// Finite local bounds and monotonic deadlines for a version-one flow context.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed record DataChannelOptions
     {
         /// <summary>
@@ -173,6 +175,8 @@ namespace Opc.Ua.DataChannels
     /// <summary>
     /// A bounded protocol outcome at an application-facing asynchronous boundary.
     /// </summary>
+    [global::System.Diagnostics.CodeAnalysis.Experimental(DataChannelFeature.ExperimentalDiagnosticId,
+        UrlFormat = DataChannelFeature.ExperimentalUrlFormat)]
     public sealed class DataChannelException : Exception
     {
         /// <summary>

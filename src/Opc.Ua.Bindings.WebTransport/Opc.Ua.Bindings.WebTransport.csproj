@@ -14,6 +14,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
   </PropertyGroup>
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Diagnostics.CodeAnalysis.ExperimentalAttribute">
+      <_Parameter1>DataChannels</_Parameter1>
+      <UrlFormat>https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/DataChannels.md</UrlFormat>
+    </AssemblyAttribute>
+  </ItemGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageId>$(PackageId).Debug</PackageId>
   </PropertyGroup>

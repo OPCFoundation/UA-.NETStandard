@@ -3,7 +3,7 @@ upstream/** -text
 patches/** -text
 notices/** -text
 # Native compilation receipts must describe identical source bytes on Windows and Linux.
-src/** -text
+src/** -text whitespace=cr-at-eol
 Cargo.toml -text
 Cargo.lock -text
 build/*.json text eol=lf
