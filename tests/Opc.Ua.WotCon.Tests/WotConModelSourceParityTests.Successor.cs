@@ -49,8 +49,8 @@ namespace Opc.Ua.WotCon.Tests
         /// <param name="fileName">The file name used by this test case.</param>
         /// <param name="digest">The expected digest of the input file.</param>
         [TestCase(RegistryNodeSet, "4440d08f46039108a3c8a67bdd22727f189f7c1a28b7473100c4be28249ee660")]
-        [TestCase(ConnectivityNodeSet, "5013519a6cb0b047459f23aaf95fbf4ca3ac2d2d8e9351ba50c853b94b5ed2cc")]
-        [TestCase(ConnectivityCsv, "66603011dbb48b0be6b160ed423a98a6eeb5aa57ed690a9f6529a34f52cbd2b1")]
+        [TestCase(ConnectivityNodeSet, "22e98295d2da1e329d605beeac3970ec81736ec3433779e24db97552275da5b5")]
+        [TestCase(ConnectivityCsv, "7004c59b9c2919c0aad613313f1b55733cb70d282e3afbd53fd87973e728c864")]
         public void TheSuccessorInputsMatchTheReviewedGeneratedArtifacts(string fileName, string digest)
         {
             string text = System.IO.File.ReadAllText(FindModel(fileName))
@@ -69,10 +69,10 @@ namespace Opc.Ua.WotCon.Tests
                 .GetCustomAttributes<ModelDependencyAttribute>()
                 .Single(attribute => attribute.ModelUri == ConnectivityNamespace);
 
-            Assert.That(model.Version, Is.EqualTo("1.1"));
+            Assert.That(model.Version, Is.EqualTo("1.1.1"));
             Assert.That(DateTimeOffset.Parse(
                 model.PublicationDate!, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal),
-                Is.EqualTo(new DateTimeOffset(2026, 9, 21, 0, 0, 0, TimeSpan.Zero)));
+                Is.EqualTo(new DateTimeOffset(2026, 10, 24, 0, 0, 0, TimeSpan.Zero)));
         }
 
         /// <summary>
