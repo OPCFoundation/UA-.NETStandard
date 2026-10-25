@@ -538,20 +538,6 @@ namespace Opc.Ua.Server
             return new ValueTask<ServiceResult>(result);
         }
 
-        /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
-            IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            ServiceResult result;
-            using (BeginNodeManagerOperation())
-            {
-                result = AttachMonitoredItemForLifecycle(monitoredItem);
-            }
-            return new ValueTask<ServiceResult>(result);
-        }
-
         private ServiceResult ValidateMonitoredItemForLifecycle(IMonitoredItem monitoredItem)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||

@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests
                         ServiceResult.Good));
 
                 ServiceResult restoreResult = await owner.Lifecycle
-                    .RecoverMonitoredItemAsync(item)
+                    .AttachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> restored = await owner.Lifecycle
                     .GetMonitoredItemsSnapshotAsync([node.NodeId])
@@ -1032,8 +1032,8 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(current.DetachCount, Is.EqualTo(1));
+                Assert.That(current.AttachCount, Is.Zero);
                 Assert.That(replacement.AttachCount, Is.Zero);
-                Assert.That(current.RestoreCount, Is.Zero);
             });
         }
 
@@ -1148,8 +1148,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(detachException.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
                 Assert.That(current.DetachCount, Is.EqualTo(2));
+                Assert.That(current.AttachCount, Is.Zero);
                 Assert.That(replacement.AttachCount, Is.EqualTo(1));
-                Assert.That(current.RestoreCount, Is.Zero);
             });
 
             rejectSecond = false;
@@ -1159,8 +1159,8 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(current.DetachCount, Is.EqualTo(3));
+                Assert.That(current.AttachCount, Is.Zero);
                 Assert.That(replacement.AttachCount, Is.EqualTo(2));
-                Assert.That(current.RestoreCount, Is.Zero);
             });
         }
 
@@ -1385,7 +1385,7 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(replacement.AttachCount, Is.Zero);
                 Assert.That(current.DetachCount, Is.Zero);
-                Assert.That(current.RestoreCount, Is.Zero);
+                Assert.That(current.AttachCount, Is.Zero);
             });
         }
 
@@ -2563,14 +2563,9 @@ namespace Opc.Ua.Server.Tests
             public Func<IMonitoredItem, ServiceResult> DetachCallback { get; set; } =
                 static _ => ServiceResult.Good;
 
-            public Func<IMonitoredItem, ServiceResult> RestoreCallback { get; set; } =
-                static _ => ServiceResult.Good;
-
             public int AttachCount { get; private set; }
 
             public int DetachCount { get; private set; }
-
-            public int RestoreCount { get; private set; }
 
             public ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
                 IReadOnlyCollection<NodeId>? nodeIds = null,
@@ -2613,14 +2608,6 @@ namespace Opc.Ua.Server.Tests
             {
                 AttachCount++;
                 return new ValueTask<ServiceResult>(AttachCallback(monitoredItem));
-            }
-
-            public ValueTask<ServiceResult> RecoverMonitoredItemAsync(
-                IMonitoredItem monitoredItem,
-                CancellationToken cancellationToken = default)
-            {
-                RestoreCount++;
-                return new ValueTask<ServiceResult>(RestoreCallback(monitoredItem));
             }
         }
 

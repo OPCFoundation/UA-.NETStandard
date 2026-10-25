@@ -139,7 +139,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task LifecycleValidationAndRecoveryReadAsyncValueOutsideRegistrySemaphoreAsync(bool samplingGroups)
+        public async Task LifecycleValidationAndAdoptionReadAsyncValueOutsideRegistrySemaphoreAsync(bool samplingGroups)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queues, new FakeTimeProvider());
@@ -167,7 +167,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 ServiceResult validation = await lifecycle.CanAttachMonitoredItemAsync(item, cancellation.Token)
                     .ConfigureAwait(false);
-                ServiceResult recovered = await lifecycle.RecoverMonitoredItemAsync(item, cancellation.Token)
+                ServiceResult recovered = await lifecycle.AttachMonitoredItemAsync(item, cancellation.Token)
                     .ConfigureAwait(false);
                 Queue<MonitoredItemNotification> notifications = Drain(item);
 

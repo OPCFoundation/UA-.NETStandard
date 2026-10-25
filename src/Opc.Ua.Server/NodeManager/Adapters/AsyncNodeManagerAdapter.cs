@@ -202,17 +202,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
-            IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
-        {
-            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.RecoverMonitoredItemAsync(monitoredItem, cancellationToken)
-                : new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNotSupported));
-        }
-
-        /// <inheritdoc/>
         public ValueTask AddReferencesAsync(
             IDictionary<NodeId, IList<IReference>> references,
             CancellationToken cancellationToken = default)

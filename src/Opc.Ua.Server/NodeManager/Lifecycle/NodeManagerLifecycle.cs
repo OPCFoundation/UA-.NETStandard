@@ -1476,14 +1476,6 @@ namespace Opc.Ua.Server
                 return new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
             }
-
-            public ValueTask<ServiceResult> RecoverMonitoredItemAsync(
-                IMonitoredItem monitoredItem,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<ServiceResult>(
-                    new ServiceResult(StatusCodes.BadNotSupported));
-            }
         }
 
         private sealed class RegistrationState

@@ -685,7 +685,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Read", "Write", "HistoryRead", "HistoryUpdate", "Call", "CallAsync",
                 "CreateMonitoredItems", "RestoreMonitoredItems", "ModifyMonitoredItems", "DeleteMonitoredItems",
                 "TransferMonitoredItems", "SetMonitoringMode", "SubscribeToEvents", "SubscribeToAllEvents",
-                "ConditionRefresh", "SessionActivated", "Snapshot", "CanAttach", "Attach", "Detach", "Recover",
+                "ConditionRefresh", "SessionActivated", "Snapshot", "CanAttach", "Attach", "Detach",
                 "Find", "FindPredefinedNode", "FindPredefinedNodeByType",
                 "GetManagerHandle", "GetNodeMetadata", "GetPermissionMetadata",
                 "TranslateBrowsePath", "Browse", "DeleteNode", "CreateNode", "CreateAddressSpace", "DeleteAddressSpace",
@@ -815,9 +815,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     break;
                 case "Detach":
                     await lifecycle.DetachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
-                    break;
-                case "Recover":
-                    await lifecycle.RecoverMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Find":
                     Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.Null);

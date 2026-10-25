@@ -901,16 +901,6 @@ namespace Opc.Ua.Server
                 cancellationToken);
         }
 
-        /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.RecoverMonitoredItemAsync(
-            IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken)
-        {
-            return AttachMonitoredItemAndNotifyAsync(
-                monitoredItem,
-                cancellationToken);
-        }
-
         private async ValueTask<ServiceResult> AttachMonitoredItemAndNotifyAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)

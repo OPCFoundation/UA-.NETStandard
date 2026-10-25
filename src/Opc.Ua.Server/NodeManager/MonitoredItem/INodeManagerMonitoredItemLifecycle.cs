@@ -70,8 +70,8 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Reports whether an existing MonitoredItem could attach to this NodeManager, which is
-        /// checked before anything is detached so that an incompatible reload is rejected while it
-        /// can still be rolled back.
+        /// checked before publication so that an incompatible reload is rejected before any
+        /// serving binding changes.
         /// </summary>
         /// <param name="monitoredItem">The MonitoredItem to test.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
@@ -99,18 +99,6 @@ namespace Opc.Ua.Server
         /// <param name="monitoredItem">The MonitoredItem to attach.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         ValueTask<ServiceResult> AttachMonitoredItemAsync(
-            IMonitoredItem monitoredItem,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Gives a detached MonitoredItem back to the NodeManager it came from after a lifecycle
-        /// operation failed. Rolling back means the operation is undone and the outgoing
-        /// generation stays in service, so the MonitoredItem has to keep working as if the reload
-        /// had never been started.
-        /// </summary>
-        /// <param name="monitoredItem">The MonitoredItem to recover.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        ValueTask<ServiceResult> RecoverMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
     }
