@@ -153,40 +153,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Retains the notification consumer while a lifecycle transition drains admitted snapshots.
-        /// </summary>
-        /// <returns>A retention handle, or null if the consumer is already disposed.</returns>
-        internal Action? RetainForLifecycleTransition()
-        {
-            lock (m_rebindLock)
-            {
-                if (m_disposed || m_disposePending)
-                {
-                    return null;
-                }
-                m_lifecycleRetentions++;
-                return ReleaseLifecycleRetention;
-            }
-        }
-
-        private void ReleaseLifecycleRetention()
-        {
-            bool dispose;
-            lock (m_rebindLock)
-            {
-                if (--m_lifecycleRetentions < 0)
-                {
-                    throw new InvalidOperationException("The monitored-node lifecycle retention was released twice.");
-                }
-                dispose = m_lifecycleRetentions == 0 && m_disposePending;
-            }
-            if (dispose)
-            {
-                Dispose();
-            }
-        }
-
-        /// <summary>
         /// Gets the non-owning identity of the generation currently bound to this monitored node.
         /// </summary>
         internal NodeManagerGenerationReference Generation { get; private set; } = null!;
@@ -2122,8 +2088,6 @@ namespace Opc.Ua.Server
         private readonly ConcurrentQueue<SemanticResample> m_pendingSemanticResamples = new();
         private bool m_disposed;
         private bool m_draining;
-        private int m_lifecycleRetentions;
-        private bool m_disposePending;
 
         /// <summary>
         /// Completes the notification writer and asynchronously waits for all queued
@@ -2177,10 +2141,11 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                if (m_lifecycleRetentions > 0)
+                if (disposing &&
+                    Generation.TryGetGeneration(out NodeManagerGeneration? generation) &&
+                    generation!.TryDeferDisposal(this))
                 {
                     m_draining = true;
-                    m_disposePending = true;
                     return;
                 }
                 m_disposed = true;

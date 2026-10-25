@@ -336,6 +336,7 @@ namespace Opc.Ua.Server
                         retired.Server, retired.NodeManager, target).ConfigureAwait(false);
                     retired.LateMonitoredItemsMigrated = true;
                 }
+                retired.Generation.DisposeRetiredResources();
                 if (await CleanupRetiredGenerationCoreAsync(retired.Server, retired.Host, retired)
                     .ConfigureAwait(false))
                 {
@@ -547,13 +548,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Detaches and destroys a retired NodeManager generation, returning <c>true</c>
-        /// once fully cleaned up. A shadow-reloaded generation that still owns active
-        /// monitored items or Browse continuations is left untouched (requests, continuation points, and
-        /// monitored items that already captured it keep working) and <c>false</c> is
-        /// returned so the caller retries cleanup on a later opportunity. An immediate
-        /// retirement instead invalidates owned monitored items before detachment; neither
-        /// policy deletes the client's subscription.
+        /// Destroys one quiescent retired generation after item handoff and notification finalization.
+        /// Invalidation preserves the client's subscription and monitored-item identities.
         /// </summary>
         /// <exception cref="InvalidOperationException">
         /// The retired generation still has undrained requests or active monitored items when detachment is attempted.

@@ -46,6 +46,75 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class GenerationReclaimerTests
     {
         /// <summary>
+        /// Consumer disposal uses the existing gate and remains observable and retryable at retirement.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredConsumerDisposalUsesGenerationDrainAndRetriesFailureAsync(bool failFirst)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var reclaimer = new GenerationReclaimer();
+            var context = new ReclamationContext();
+            var retired = context.CreateRetirement();
+            var completedResource = new Mock<IDisposable>();
+            var resource = new Mock<IDisposable>();
+            int attempts = 0;
+            var failure = new InvalidOperationException("Consumer disposal failed.");
+            resource.Setup(value => value.Dispose()).Callback(() =>
+            {
+                context.Host.Verify(value => value.DestroyAddressSpaceAsync(
+                    retired.NodeManager, It.IsAny<CancellationToken>()), Times.Never);
+                if (++attempts == 1 && failFirst)
+                {
+                    throw failure;
+                }
+            });
+
+            Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.False,
+                "An ordinary live consumer keeps its existing immediate disposal behavior.");
+            Assert.That(retired.Generation.Gate.TryEnter(out int admission), Is.True);
+            retired.Generation.Gate.Retire();
+            try
+            {
+                Assert.That(retired.Generation.TryDeferDisposal(completedResource.Object), Is.True);
+                Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.True);
+                Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.True,
+                    "Repeated disposal must transfer ownership only once.");
+                Assert.That(retired.Generation.DisposeRetiredResources, Throws.InvalidOperationException);
+                completedResource.Verify(value => value.Dispose(), Times.Never);
+                resource.Verify(value => value.Dispose(), Times.Never);
+            }
+            finally
+            {
+                retired.Generation.Gate.Exit(admission);
+            }
+
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            if (failFirst)
+            {
+                Exception cleanupFailure = await Assert.CatchAsync<Exception>(
+                    async () => await reclaimer.ReclaimReadyAsync().ConfigureAwait(false));
+                Exception retirementFailure = await Assert.CatchAsync<Exception>(
+                    async () => await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false));
+                Assert.That(cleanupFailure, Is.SameAs(failure));
+                Assert.That(retirementFailure, Is.SameAs(failure));
+                Assert.That(reclaimer.Contains(retired), Is.True);
+            }
+            await reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
+            if (!failFirst)
+            {
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(retired.Retirement.IsFaulted, Is.EqualTo(failFirst),
+                "The original retirement task retains its first failure even after successful cleanup retry.");
+            Assert.That(retired.Generation.TryDeferDisposal(resource.Object), Is.False);
+            completedResource.Verify(value => value.Dispose(), Times.Once);
+            resource.Verify(value => value.Dispose(), Times.Exactly(failFirst ? 2 : 1));
+            Assert.That(reclaimer.Contains(retired), Is.False);
+        }
+
+        /// <summary>
         /// An unrelated generation finishes while another generation is blocked in its drain or destruction callback.
         /// </summary>
         [TestCase(false)]
@@ -378,17 +447,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int drains = 0;
-            int retentionsReleased = 0;
             Func<CancellationToken, ValueTask>? drain = async ct =>
             {
                 Interlocked.Increment(ref drains);
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
             };
-            Action? releaseRetention = () => Interlocked.Increment(ref retentionsReleased);
             var current = new Mock<INodeManagerMonitoredItemLifecycle>();
-            current.Setup(value => value.TryRetainMonitoredNode(
-                item.Object.NodeId, out drain, out releaseRetention)).Returns(true);
+            current.Setup(value => value.GetNotificationDrain(item.Object.NodeId)).Returns(drain);
             retired.Transition = new NodeManagerLifecycle.MonitoredItemTransition(
                 retired.Server, current.Object, null, [], [item.Object], _ => true);
             Assert.That(
@@ -423,8 +489,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             }
             Assert.That(marks, Is.EqualTo(failFirst ? 2 : 1));
-            Assert.That(drains, Is.EqualTo(1), "Retry must not reacquire released source retentions.");
-            Assert.That(retentionsReleased, Is.EqualTo(1));
+            Assert.That(drains, Is.EqualTo(1), "Retry must not repeat completed notification fences.");
             Assert.That(reclaimer.Count, Is.Zero);
             Mock.Get(retired.NodeManager).As<IAsyncDisposable>().Verify(value => value.DisposeAsync(), Times.Once);
         }

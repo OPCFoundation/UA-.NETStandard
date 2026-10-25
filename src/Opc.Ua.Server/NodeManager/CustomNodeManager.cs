@@ -446,16 +446,13 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool INodeManagerMonitoredItemLifecycle.TryRetainMonitoredNode(
-            NodeId nodeId,
-            out Func<CancellationToken, ValueTask>? drain,
-            out Action? release)
+        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
         {
             using (BeginNodeManagerOperation())
             {
                 lock (Lock)
                 {
-                    return m_monitoredItemManager.TryRetainMonitoredNode(nodeId, out drain, out release);
+                    return m_monitoredItemManager.GetNotificationDrain(nodeId);
                 }
             }
         }

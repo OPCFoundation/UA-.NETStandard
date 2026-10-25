@@ -1278,13 +1278,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Every failed retirement attempt releases its source retention before a new transition is prepared.
+        /// A failed handoff preserves source ownership so the next retirement attempt can retry it.
         /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task RetirementHandoffFailureReleasesSourceRetentionBeforeRetryAsync(bool migrate, bool throws)
+        public async Task RetirementHandoffFailurePreservesSourceOwnershipForRetryAsync(bool migrate, bool throws)
         {
             var server = new Mock<IServerInternal>();
             var current = new Mock<IAsyncNodeManager>();
@@ -1302,11 +1302,6 @@ namespace Opc.Ua.Server.Tests
             item.SetupGet(value => value.SubscriptionCallback).Returns(subscription.Object);
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
             generation.MonitoredItems.TryAdd(item.Object, subscription.Object);
-            int released = 0;
-            Func<CancellationToken, ValueTask>? drain = static _ => default;
-            Action? release = () => released++;
-            source.Setup(value => value.TryRetainMonitoredNode(item.Object.NodeId, out drain, out release))
-                .Returns(true);
             source.Setup(value => value.DetachMonitoredItemAsync(item.Object, It.IsAny<CancellationToken>()))
                 .Returns(() => throws
                     ? throw new InvalidOperationException("Injected retirement handoff failure.")
@@ -1333,9 +1328,10 @@ namespace Opc.Ua.Server.Tests
                 {
                     Assert.That(failure, Is.TypeOf(
                         throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
-                    Assert.That(released, Is.EqualTo(attempt));
                     Assert.That(generation.MonitoredItems.ContainsKey(item.Object), Is.True);
                 });
+                source.Verify(value => value.DetachMonitoredItemAsync(
+                    item.Object, It.IsAny<CancellationToken>()), Times.Exactly(attempt));
             }
             target.Verify(value => value.AttachMonitoredItemAsync(
                 It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -2651,16 +2647,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             /// <summary>
-            /// Reports that this test lifecycle has no monitored-node consumer to retain.
+            /// Reports that this test lifecycle has no monitored-node notification consumer.
             /// </summary>
-            public bool TryRetainMonitoredNode(
-                NodeId nodeId,
-                out Func<CancellationToken, ValueTask>? drain,
-                out Action? release)
+            public Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId)
             {
-                drain = null;
-                release = null;
-                return false;
+                return null;
             }
 
             public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(

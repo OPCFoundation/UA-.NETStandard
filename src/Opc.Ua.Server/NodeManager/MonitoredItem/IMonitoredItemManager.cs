@@ -138,32 +138,20 @@ namespace Opc.Ua.Server
     internal static class MonitoredItemManagerLifecycleOperations
     {
         /// <summary>
-        /// Retains the notification consumer for a node owned by a monitored-item manager.
+        /// Captures a notification fence without acquiring another lifetime admission.
         /// </summary>
         /// <param name="manager">The monitored-item manager.</param>
         /// <param name="nodeId">The NodeId whose notifications must drain.</param>
-        /// <param name="drain">Waits for the retained node's pending notifications.</param>
-        /// <param name="release">Releases the retention acquired by this call.</param>
-        /// <returns><c>true</c> when the monitored node was retained.</returns>
-        internal static bool TryRetainMonitoredNode(
+        /// <returns>The consumer's fence, or null when the node has no consumer.</returns>
+        internal static Func<CancellationToken, ValueTask>? GetNotificationDrain(
             this IMonitoredItemManager manager,
-            NodeId nodeId,
-            out Func<CancellationToken, ValueTask>? drain,
-            out Action? release)
+            NodeId nodeId)
         {
             if (manager.MonitoredNodes.TryGetValue(nodeId, out MonitoredNode2? monitoredNode))
             {
-                release = monitoredNode.RetainForLifecycleTransition();
-                if (release is not null)
-                {
-                    drain = monitoredNode.WaitForPendingNotificationsAsync;
-                    return true;
-                }
+                return monitoredNode.WaitForPendingNotificationsAsync;
             }
-
-            drain = null;
-            release = null;
-            return false;
+            return null;
         }
 
         /// <summary>

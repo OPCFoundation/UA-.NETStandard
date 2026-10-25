@@ -577,17 +577,10 @@ namespace Opc.Ua.Server
                     server,
                     nodeManager,
                     CancellationToken.None).ConfigureAwait(false);
-            try
-            {
-                await monitoredItemTransition
-                    .AdoptAsync(CancellationToken.None)
-                    .ConfigureAwait(false);
-                monitoredItemTransition.MarkDeletedItems();
-            }
-            finally
-            {
-                monitoredItemTransition.ReleaseSourceRetentions();
-            }
+            await monitoredItemTransition
+                .AdoptAsync(CancellationToken.None)
+                .ConfigureAwait(false);
+            monitoredItemTransition.MarkDeletedItems();
         }
 
         /// <summary>
@@ -614,22 +607,15 @@ namespace Opc.Ua.Server
                     retired,
                     replacement,
                     CancellationToken.None).ConfigureAwait(false);
-            try
+            List<Exception> failures =
+                await monitoredItemTransition.AdoptAsync(
+                    CancellationToken.None).ConfigureAwait(false);
+            monitoredItemTransition.MarkDeletedItems();
+            if (failures.Count > 0)
             {
-                List<Exception> failures =
-                    await monitoredItemTransition.AdoptAsync(
-                        CancellationToken.None).ConfigureAwait(false);
-                monitoredItemTransition.MarkDeletedItems();
-                if (failures.Count > 0)
-                {
-                    throw new AggregateException(
-                        "Monitored items created during the reload could not be migrated.",
-                        failures);
-                }
-            }
-            finally
-            {
-                monitoredItemTransition.ReleaseSourceRetentions();
+                throw new AggregateException(
+                    "Monitored items created during the reload could not be migrated.",
+                    failures);
             }
         }
 
@@ -1191,25 +1177,19 @@ namespace Opc.Ua.Server
                 m_isOwnedBySubscription = isOwnedBySubscription;
                 m_terminal = terminal;
                 var sourceMonitoredNodeDrains = new List<Func<CancellationToken, ValueTask>>();
-                var sourceRetentions = new List<Action>();
-                var retainedNodeIds = new HashSet<NodeId>();
+                var sourceNodeIds = new HashSet<NodeId>();
                 foreach (IMonitoredItem monitoredItem in compatibleItems.Concat(deletedItems))
                 {
-                    if (!retainedNodeIds.Add(monitoredItem.NodeId))
+                    if (!sourceNodeIds.Add(monitoredItem.NodeId))
                     {
                         continue;
                     }
-                    if (m_current.TryRetainMonitoredNode(
-                        monitoredItem.NodeId,
-                        out Func<CancellationToken, ValueTask>? drain,
-                        out Action? retention))
+                    if (m_current.GetNotificationDrain(monitoredItem.NodeId) is { } drain)
                     {
-                        sourceMonitoredNodeDrains.Add(drain!);
-                        sourceRetentions.Add(retention!);
+                        sourceMonitoredNodeDrains.Add(drain);
                     }
                 }
                 m_sourceMonitoredNodeDrains = [.. sourceMonitoredNodeDrains];
-                m_sourceRetentions = [.. sourceRetentions];
             }
 
             /// <summary>
@@ -1219,21 +1199,15 @@ namespace Opc.Ua.Server
             /// <returns>A task that completes when the captured node consumers have drained.</returns>
             public async ValueTask WaitForPendingNotificationsAsync(CancellationToken ct)
             {
-                if (Volatile.Read(ref m_sourceRetentions) is null)
+                if (m_sourceNotificationsDrained)
                 {
                     return;
                 }
-                try
+                foreach (Func<CancellationToken, ValueTask> drain in m_sourceMonitoredNodeDrains)
                 {
-                    foreach (Func<CancellationToken, ValueTask> drain in m_sourceMonitoredNodeDrains)
-                    {
-                        await drain(ct).ConfigureAwait(false);
-                    }
+                    await drain(ct).ConfigureAwait(false);
                 }
-                finally
-                {
-                    ReleaseSourceRetentions();
-                }
+                m_sourceNotificationsDrained = true;
             }
 
             /// <summary>
@@ -1346,39 +1320,32 @@ namespace Opc.Ua.Server
             /// </summary>
             public void MarkDeletedItems()
             {
-                try
+                var failures = new List<Exception>();
+                foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
                 {
-                    var failures = new List<Exception>();
-                    foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
+                    if (!m_reconciledItems.Contains(monitoredItem) ||
+                        m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
                     {
-                        if (!m_reconciledItems.Contains(monitoredItem) ||
-                            m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                            lifecycle.Detach(m_server);
-                            ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(m_terminal);
-                            m_markedDeletedItems.Add(monitoredItem);
-                        }
-                        catch (Exception failure) when (failure is not OutOfMemoryException)
-                        {
-                            failures.Add(failure);
-                        }
+                        continue;
                     }
-                    if (failures.Count > 0)
+
+                    try
                     {
-                        throw new AggregateException(
-                            "One or more invalidated monitored items could not be marked deleted.",
-                            failures);
+                        var lifecycle = (IDetachableMonitoredItem)monitoredItem;
+                        lifecycle.Detach(m_server);
+                        ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(m_terminal);
+                        m_markedDeletedItems.Add(monitoredItem);
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        failures.Add(failure);
                     }
                 }
-                finally
+                if (failures.Count > 0)
                 {
-                    ReleaseSourceRetentions();
+                    throw new AggregateException(
+                        "One or more invalidated monitored items could not be marked deleted.",
+                        failures);
                 }
             }
 
@@ -1398,22 +1365,6 @@ namespace Opc.Ua.Server
                     lifecycle.ContainsMonitoredItem(monitoredItem);
             }
 
-            /// <summary>
-            /// Releases source-node retentions when publication was rejected before draining began.
-            /// </summary>
-            internal void ReleaseSourceRetentions()
-            {
-                Action[]? retentions = Interlocked.Exchange(ref m_sourceRetentions, null);
-                if (retentions is null)
-                {
-                    return;
-                }
-                foreach (Action retention in retentions)
-                {
-                    retention();
-                }
-            }
-
             private readonly IServerInternal m_server;
             private readonly INodeManagerMonitoredItemLifecycle m_current;
             private readonly INodeManagerMonitoredItemLifecycle? m_replacement;
@@ -1428,7 +1379,9 @@ namespace Opc.Ua.Server
             private readonly HashSet<IMonitoredItem> m_reconciledItems = new(MonitoredItemReferenceComparer.Instance);
             private readonly List<IMonitoredItem> m_failedItems = [];
             private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
-            private Action[]? m_sourceRetentions;
+
+            /// <summary>Whether the source consumers have already completed this transition's fences.</summary>
+            private bool m_sourceNotificationsDrained;
         }
 
         private sealed class UnsupportedMonitoredItemLifecycle :
@@ -1443,14 +1396,9 @@ namespace Opc.Ua.Server
                 return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
             }
 
-            public bool TryRetainMonitoredNode(
-                NodeId nodeId,
-                out Func<CancellationToken, ValueTask>? drain,
-                out Action? release)
+            public Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId)
             {
-                drain = null;
-                release = null;
-                return false;
+                return null;
             }
 
             public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
@@ -2097,33 +2045,6 @@ namespace Opc.Ua.Server
                     publishedSlots,
                     Task.WhenAll(retired.Select(item => item.Retirement)),
                     reconciliation.Ticket);
-            }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
-            {
-                var cleanupFailures = new List<Exception>();
-                foreach (MonitoredItemTransition transition in monitoredItemTransitions)
-                {
-                    try
-                    {
-                        if (!batch.IsCommitted)
-                        {
-                            transition.ReleaseSourceRetentions();
-                        }
-                    }
-                    catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
-                    {
-                        cleanupFailures.Add(cleanupFailure);
-                    }
-                }
-                if (cleanupFailures.Count > 0)
-                {
-                    var failuresWithOriginal = new List<Exception> { failure };
-                    failuresWithOriginal.AddRange(cleanupFailures);
-                    throw new AggregateException(
-                        "Batch completion failed and monitored-node notification cleanup also failed.",
-                        failuresWithOriginal);
-                }
-                throw;
             }
             finally
             {

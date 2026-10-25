@@ -356,6 +356,60 @@ namespace Opc.Ua.Server
             await Gate.WaitForDrainAsync().WaitAsync(cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Transfers a retired consumer's disposal to reclamation while admitted work can still use it.
+        /// </summary>
+        /// <param name="resource">The consumer that must outlive already-admitted work.</param>
+        /// <returns>Whether reclamation now owns disposal.</returns>
+        internal bool TryDeferDisposal(IDisposable resource)
+        {
+            lock (m_retirementResourcesLock)
+            {
+                if (m_retirementResourcesSealed ||
+                    Gate.State is not (NodeManagerGenerationState.Retiring or NodeManagerGenerationState.Aborted) ||
+                    Gate.WaitForDrainAsync().IsCompleted)
+                {
+                    return false;
+                }
+                m_retirementResources ??= [];
+                foreach (IDisposable current in m_retirementResources)
+                {
+                    if (ReferenceEquals(current, resource))
+                    {
+                        return true;
+                    }
+                }
+                m_retirementResources.Add(resource);
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Disposes retired consumers after the generation's existing epochs and gate have drained.
+        /// Failed resources remain owned for the next reclamation attempt.
+        /// </summary>
+        internal void DisposeRetiredResources()
+        {
+            IDisposable[] resources;
+            lock (m_retirementResourcesLock)
+            {
+                if (!IsQuiescent)
+                {
+                    throw new InvalidOperationException("Retired consumers cannot be disposed before quiescence.");
+                }
+                m_retirementResourcesSealed = true;
+                resources = m_retirementResources?.ToArray() ?? [];
+            }
+            foreach (IDisposable resource in resources)
+            {
+                resource.Dispose();
+                lock (m_retirementResourcesLock)
+                {
+                    m_retirementResources!.RemoveAt(0);
+                }
+            }
+        }
+
         /// <summary>Protects epoch registration, which occurs only while publishing views.</summary>
         private readonly Lock m_epochLock = new();
 
@@ -367,6 +421,15 @@ namespace Opc.Ua.Server
 
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;
+
+        /// <summary>Serializes cold-path disposal transfer with the reclamation handoff.</summary>
+        private readonly Lock m_retirementResourcesLock = new();
+
+        /// <summary>Consumers awaiting physical reclamation, not additional lifetime admissions.</summary>
+        private List<IDisposable>? m_retirementResources;
+
+        /// <summary>Whether reclamation has assumed exclusive responsibility for pending disposals.</summary>
+        private bool m_retirementResourcesSealed;
     }
 
     /// <summary>

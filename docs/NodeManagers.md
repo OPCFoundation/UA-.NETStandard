@@ -985,7 +985,11 @@ without a data-change status.
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.
-Physical retirement waits for those admissions to drain.
+Physical retirement waits for those admissions to drain. A retired monitored-node consumer
+remains usable by already-admitted reads and queued notifications until the same generation
+gate drains; reclamation then disposes it before destroying the address space. Notification
+fences order logical item finalization without acquiring a separate lifetime retention.
+Consumer disposal failures fault the retirement task and remain owned for cleanup retry.
 
 For runtime edits to a legacy `CustomNodeManager2`, await
 `((ILocalAddressSpaceSource)manager).CreateLocalAddressSpace().AddOrUpdateNodeAsync(node, ct)`.

@@ -52,10 +52,14 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A native sample carries its admission explicitly and cannot deliver into a replacement binding.
         /// </summary>
-        [TestCase(false, false)]
-        [TestCase(true, false)]
-        [TestCase(true, true)]
-        public async Task NativeSampleKeepsItsAdmissionWithoutAmbientSourceAsync(bool retire, bool rebind)
+        [TestCase(false, false, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(true, false, true)]
+        public async Task NativeSampleKeepsItsAdmissionWithoutAmbientSourceAsync(
+            bool retire,
+            bool rebind,
+            bool dispose)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
             using (queues)
@@ -107,7 +111,10 @@ namespace Opc.Ua.Server.Tests
                     0);
                 await using var monitored = new MonitoredNode2(manager.Object, server.Object, node);
                 monitored.Add((IDataChangeMonitoredItem2)item);
-                Task sample = monitored.QueueValueAsync(server.Object.DefaultSystemContext, node, item).AsTask();
+                Task sample = dispose
+                    ? monitored.OnMonitoredNodeChangedAsync(
+                        server.Object.DefaultSystemContext, node, NodeStateChangeMasks.Value).AsTask()
+                    : monitored.QueueValueAsync(server.Object.DefaultSystemContext, node, item).AsTask();
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
@@ -123,11 +130,16 @@ namespace Opc.Ua.Server.Tests
                             generation, new Mock<IAsyncNodeManager>().Object);
                         ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
                     }
+                    if (dispose)
+                    {
+                        monitored.Dispose();
+                    }
                 }
                 finally
                 {
                     release.TrySetResult(true);
                     await sample.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await monitored.WaitForPendingNotificationsAsync(CancellationToken.None).ConfigureAwait(false);
                 }
 
                 using var context = new OperationContext(item);

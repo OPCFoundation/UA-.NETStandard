@@ -57,16 +57,12 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Retains the monitored-node notification consumer for a node owned by this manager.
+        /// Captures a fence for notifications already queued on one node's consumer.
+        /// Consumer lifetime belongs to the generation, not this fence.
         /// </summary>
         /// <param name="nodeId">The NodeId whose notifications must drain.</param>
-        /// <param name="drain">Waits for the retained node's pending notifications.</param>
-        /// <param name="release">Releases the retention acquired by this call.</param>
-        /// <returns><c>true</c> when the monitored node was retained.</returns>
-        bool TryRetainMonitoredNode(
-            NodeId nodeId,
-            out Func<CancellationToken, ValueTask>? drain,
-            out Action? release);
+        /// <returns>The pending-notification fence, or null when no consumer exists.</returns>
+        Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId);
 
         /// <summary>
         /// Reports whether an existing MonitoredItem could attach to this NodeManager, which is
