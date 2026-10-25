@@ -382,12 +382,13 @@ namespace Opc.Ua.Server
         public ArrayOf<NodeManagerRegistration> Registrations { get; }
 
         /// <summary>
-        /// Gets the number of old generations whose cleanup actually completed.
+        /// Gets the number of old generations whose cleanup completed before this result was created.
         /// </summary>
         public uint Retired { get; }
 
         /// <summary>
-        /// Gets a post-commit failure, if any. It never denotes an aborted publication.
+        /// Gets a post-commit reconciliation failure, if any. It never denotes an aborted publication.
+        /// Physical cleanup failures are reported separately by <see cref="Retirement"/>.
         /// </summary>
         public Exception? CleanupFailure { get; }
 

@@ -318,23 +318,8 @@ namespace Opc.Ua.Server
             await using var preparedLifetime = prepared.ConfigureAwait(false);
             NodeManagerBatchResult result =
                 await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
-            Exception? failure = result.CleanupFailure;
-            if (result.Retirement.IsCompleted)
-            {
-                try
-                {
-                    await result.Retirement.ConfigureAwait(false);
-                }
-                catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
-                {
-                    failure ??= retirementFailure;
-                }
-            }
-            else
-            {
-                ObserveRetirement(result.Retirement);
-            }
-            if (failure is not null)
+            ObserveRetirement(result.Retirement);
+            if (result.CleanupFailure is { } failure)
             {
                 throw new NodeManagerRemovalCommittedException(registration, result, failure);
             }

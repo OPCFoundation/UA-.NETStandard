@@ -40,6 +40,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
+        /// Schedules a failed generation's retry without blocking a new candidate on its physical deletion.
+        /// </summary>
+        [Test]
+        public async Task PreparationDoesNotJoinQuiescentCleanupRetryAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                null, timeout.Token).ConfigureAwait(false);
+            var retryStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int attempts = 0;
+            RequireLifecycleValue(original).BeforeDeleteAddressSpaceAsync = async token =>
+            {
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    throw new SentinelException("First retirement attempt failed.");
+                }
+                retryStarted.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration)], null, timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult result = await removal.CommitAsync(_ => default, timeout.Token)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await Assert.ThatAsync(() => result.Retirement.WaitAsync(timeout.Token),
+                Throws.TypeOf<SentinelException>().With.Message.EqualTo("First retirement attempt failed."))
+                .ConfigureAwait(false);
+
+            Task<IPreparedNodeManagerBatch> preparing = lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                    303, _ => { }, kReadinessProbeNamespaceUri))], null, timeout.Token).AsTask();
+            try
+            {
+                await retryStarted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedNodeManagerBatch candidate = await preparing
+                    .WaitAsync(TimeSpan.FromSeconds(5), timeout.Token).ConfigureAwait(false);
+                Assert.That(candidate.IsCommitted, Is.False);
+                Assert.That(RequireLifecycleValue(original).DisposeCount, Is.Zero);
+                Assert.That(attempts, Is.EqualTo(2));
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await using IPreparedNodeManagerBatch candidate = await preparing.WaitAsync(timeout.Token)
+                    .ConfigureAwait(false);
+            }
+            await RequireLifecycleValue(original).DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(result.Retirement.IsFaulted, Is.True,
+                "Retrying cleanup must not replace the original publication's observable failure.");
+            Assert.That(RequireLifecycleValue(original).DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Returns the committed result without joining physical deletion even when the old view has no pins.
+        /// </summary>
+        /// <param name="replace">Whether to replace the generation instead of removing it.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublicationReturnsBeforeQuiescentPhysicalDeletionAsync(bool replace)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                null, timeout.Token).ConfigureAwait(false);
+            var deleting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            RequireLifecycleValue(original).BeforeDeleteAddressSpaceAsync = async token =>
+            {
+                deleting.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            NodeManagerBatchChange change = replace
+                ? NodeManagerBatchChange.Replace(registration,
+                    CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)
+                : NodeManagerBatchChange.Remove(registration, true);
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [change], null, timeout.Token).ConfigureAwait(false);
+            Task<NodeManagerBatchResult> publication = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
+            NodeManagerBatchResult result;
+            try
+            {
+                await deleting.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                result = await publication.WaitAsync(TimeSpan.FromSeconds(5), timeout.Token).ConfigureAwait(false);
+                Assert.That(prepared.IsCommitted, Is.True);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(result.Retirement.IsCompleted, Is.False);
+                Assert.That(RequireLifecycleValue(original).DisposeCount, Is.Zero);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await publication.WaitAsync(timeout.Token).ConfigureAwait(false);
+            }
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(RequireLifecycleValue(original).DisposeCount, Is.EqualTo(1));
+        }
+
+        /// <summary>
         /// Removes a real generation's contributed reference at publication, before physical deletion.
         /// </summary>
         [Test]

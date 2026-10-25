@@ -808,8 +808,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await releaseDelete.Task.WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                         using var nestedTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         nestedTimeout.CancelAfter(s_readinessTimeout);
-                        await lifecycle.RemoveAsync(RequireLifecycleValue(child), null, nestedTimeout.Token)
-                            .AsTask().WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
+                        await RemoveAndRetireAsync(lifecycle, RequireLifecycleValue(child), nestedTimeout.Token)
+                            .WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                     };
                 },
                 timeout.Token).WaitAsync(s_readinessTimeout).ConfigureAwait(false);
@@ -819,7 +819,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             uint subscriptionId = 0;
-            bool shadowRetired = false;
             Task? cleanupTask = null;
             Task<NodeManagerRegistration>? reloadTask = null;
             NodeManagerRegistration? replacement = null;
@@ -827,37 +826,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (cleanup == ReadinessCleanup.ShadowDrain)
                 {
-                    // The monitored item migrates to the replacement at commit, so the shadow reload drains and
-                    // destroys the retired generation itself instead of retaining it for the client's item.
+                    // The monitored item migrates at commit; the test separately awaits physical retirement.
                     (subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
                         services,
                         ReadinessNodeId(kModelNamespaceUri, kValueNodeId))
                         .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    reloadTask = RunWithoutExecutionContext(() => lifecycle.ShadowReloadAsync(
-                        original,
-                        CreateTrackingNodeManagementFactory(
-                            kGeneration2Value,
-                            manager => replacementManager = manager),
-                        timeout.Token).AsTask());
-                    shadowRetired = true;
-                    cleanupTask = reloadTask;
                 }
-                else if (cleanup == ReadinessCleanup.Reload)
+                reloadTask = RunWithoutExecutionContext(async () =>
                 {
-                    reloadTask = RunWithoutExecutionContext(() => lifecycle.ReloadAsync(
-                        original,
-                        CreateTrackingNodeManagementFactory(
-                            kGeneration2Value,
-                            manager => replacementManager = manager),
-                        null,
-                        timeout.Token).AsTask());
-                    cleanupTask = reloadTask;
-                }
-                else
-                {
-                    cleanupTask = RunWithoutExecutionContext(
-                        () => lifecycle.RemoveAsync(original, null, timeout.Token).AsTask());
-                }
+                    NodeManagerBatchChange change = cleanup == ReadinessCleanup.Remove
+                        ? NodeManagerBatchChange.Remove(original)
+                        : NodeManagerBatchChange.Replace(original, CreateTrackingNodeManagementFactory(
+                            kGeneration2Value, manager => replacementManager = manager));
+                    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                        [change], timeout.Token).ConfigureAwait(false);
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    await result.Retirement.WaitAsync(s_readinessTimeout, timeout.Token).ConfigureAwait(false);
+                    return cleanup == ReadinessCleanup.Remove ? original : result.Registrations[0];
+                });
+                cleanupTask = reloadTask;
 
                 await deleteEntered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                 Assert.That(cleanupTask.IsCompleted, Is.False);
@@ -924,14 +913,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await DeleteSubscriptionAsync(services, subscriptionId)
                             .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
                     }
-                    if (shadowRetired)
-                    {
-                        await parentManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    }
                 }
             }
 
-            if (reloadTask is not null)
+            if (reloadTask is not null && cleanup != ReadinessCleanup.Remove)
             {
                 replacement = await reloadTask.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             }
@@ -1118,8 +1103,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool synchronousFactory = false)
         {
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token)
-                .AsTask().WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, registration, timeout.Token)
+                .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             if (synchronousFactory)
             {
                 // The legacy sync facade does not own disposal of its underlying async

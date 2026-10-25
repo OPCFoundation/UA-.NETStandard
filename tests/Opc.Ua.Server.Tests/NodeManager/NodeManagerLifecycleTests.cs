@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration added = await m_server.NodeManagerLifecycle.AddAsync(
                     nestedFactory.Object, null, timeout.Token).ConfigureAwait(false);
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.Find(value => value.Id == added.Id), Is.Not.Null);
-                await m_server.NodeManagerLifecycle.RemoveAsync(added, null, timeout.Token).ConfigureAwait(false);
+                await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, added, timeout.Token).ConfigureAwait(false);
                 Assert.That(m_server.NodeManagerLifecycle.Registrations.Find(value => value.Id == added.Id), Is.Null);
             }
             if (stage == "SessionClosing")
@@ -283,8 +283,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
                 factory.Object, null, timeout.Token).ConfigureAwait(false);
 
-            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token).AsTask()
-                .WaitAsync(timeout.Token).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, registration, timeout.Token)
+                .ConfigureAwait(false);
 
             Assert.That(callbacks, Is.EqualTo(1));
             original.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
@@ -413,7 +413,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(current.Generation, Is.EqualTo(registration.Generation + 1));
                     Assert.That(result.Slots[0], Is.SameAs(current.Slot));
                     failPublication = false;
-                    await lifecycle.RemoveAsync(current, timeout.Token).ConfigureAwait(false);
+                    await RemoveAndRetireAsync(lifecycle, current, timeout.Token).ConfigureAwait(false);
                     candidateDisposal.Verify(value => value.Dispose(), Times.Once);
                 }
             }
@@ -4970,6 +4970,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(deleteReferenceCalls, Is.Zero,
                 "A committed replacement must not roll back its serving references.");
             NodeManagerBatchResult committed = RequireLifecycleValue(exception.Result);
+            await committed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             Assert.That(committed.Issues.ToList().Any(
                 issue => issue.Stage == NodeManagerReconciliationStage.References && issue.IsRetryable), Is.True);
 
@@ -4996,12 +4997,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await committed.RetryReconciliationAsync().ConfigureAwait(false);
             Assert.That(committed.Issues.ToList(), Is.Empty);
             failRollbackDelete = false;
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(retainedRegistration, null)
-                .ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(ownerRegistration, null)
-                .ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, retainedRegistration).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, ownerRegistration).ConfigureAwait(false);
 
             originalManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
@@ -5857,12 +5854,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await committed.RetryReconciliationAsync().ConfigureAwait(false);
             Assert.That(committed.Issues, Is.Empty);
             failDeleteReference = false;
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(retainedRegistration, null)
-                .ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(ownerRegistration, null)
-                .ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, retainedRegistration).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, ownerRegistration).ConfigureAwait(false);
 
             retainedManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
@@ -6050,6 +6043,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Is.True);
             // The reload committed at the view swap, so the original generation retires independently of the
             // failed post-commit reference reconciliation instead of being kept for a rollback.
+            await committed.Retirement.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             originalDisposable.Verify(manager => manager.Dispose(), Times.Once);
             replacementDisposable.Verify(manager => manager.Dispose(), Times.Never);
 
@@ -6057,12 +6051,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await committed.RetryReconciliationAsync().ConfigureAwait(false);
             Assert.That(committed.Issues, Is.Empty);
             failRollbackDelete = false;
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(retainedRegistration, null)
-                .ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(ownerRegistration, null)
-                .ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, retainedRegistration).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, ownerRegistration).ConfigureAwait(false);
 
             originalManager.Verify(
                 manager => manager.DeleteAddressSpaceAsync(
@@ -7357,6 +7347,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await state
                 .ClearChangeMasksAsync(server.DefaultSystemContext, includeChildren: false)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Explicitly joins teardown when a test asserts physical cleanup rather than publication alone.
+        /// </summary>
+        private static async Task RemoveAndRetireAsync(
+            INodeManagerLifecycle lifecycle,
+            NodeManagerRegistration registration,
+            CancellationToken cancellationToken = default)
+        {
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration)], cancellationToken).ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
+            await result.Retirement.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>

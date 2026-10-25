@@ -162,6 +162,14 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retries already-quiescent cleanup without making preparation join physical destruction callbacks.
+        /// </summary>
+        internal void RetryReady()
+        {
+            StartWorkers(onlyQuiescent: true);
+        }
+
+        /// <summary>
         /// Attempts already-quiescent generations, without waiting for unrelated drains or claimed cleanup.
         /// </summary>
         /// <param name="published">Newly retired records whose quiescent workers belong to this publication.</param>
@@ -330,6 +338,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
+                retired.Server.Telemetry.CreateLogger<GenerationReclaimer>().RetiredGenerationCleanupFailed(failure);
                 lock (m_sync)
                 {
                     retired.LastAttemptFailed = true;
@@ -337,9 +346,11 @@ namespace Opc.Ua.Server
                     {
                         retired.TransitionFinalization = null;
                     }
+                    // All callbacks have finished. Release the retry claim before exposing their failure,
+                    // so a preparation triggered by Retirement can immediately schedule the next attempt.
+                    retired.Worker = null;
+                    retired.FailRetirement(failure);
                 }
-                retired.FailRetirement(failure);
-                retired.Server.Telemetry.CreateLogger<GenerationReclaimer>().RetiredGenerationCleanupFailed(failure);
                 return failure;
             }
         }

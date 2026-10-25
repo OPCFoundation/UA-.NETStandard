@@ -1682,7 +1682,7 @@ namespace Opc.Ua.Server
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
                 }
-                await m_reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
+                m_reclaimer.RetryReady();
                 LifecycleWriter.Mutation mutation = await m_writer.BeginMutationAsync(cancellationToken)
                     .ConfigureAwait(false);
                 var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
@@ -2168,14 +2168,6 @@ namespace Opc.Ua.Server
                 // this operation never reacquires the writer after handing them off.
                 m_reclaimer.Activate(retired);
                 batch.Host.SetRetiredGenerationDrainObserver(ScheduleRetiredGenerationDrainCleanup);
-                try
-                {
-                    await m_reclaimer.ReclaimReadyAsync(retired).ConfigureAwait(false);
-                }
-                catch (Exception failure) when (failure is not OutOfMemoryException)
-                {
-                    reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Retirement, failure);
-                }
                 ScheduleRetiredGenerationDrainCleanup();
                 if (batch.Entries.Count != 0)
                 {

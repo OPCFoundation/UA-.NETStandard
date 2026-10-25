@@ -1085,8 +1085,10 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to
   discard its candidates.
-- `CommitAsync` returns after publication and reconciliation without waiting for requests already
-  pinned to a retired generation. `result.Retirement` completes when all generations retired by
+- `CommitAsync` returns after publication and reconciliation without waiting for physical deletion,
+  disposal, or requests pinned to a retired generation. This also applies when the retired generation
+  is already quiescent. Preparing another transaction never joins a retirement callback.
+  `result.Retirement` completes when all generations retired by
   that batch have been cleaned up, or faults if asynchronous cleanup fails; use it when the caller
   must await teardown. `result.Retired` counts generations already cleaned up when the result was
   created. `result.Revision` identifies the published routing view, and `result.Slots` contains the
@@ -1133,8 +1135,10 @@ Retirement remains independently owned by the reclaimer.
 Application state publication additionally requires its original routing revision: any newer committed
 unit supersedes an unfinished application callback, even if its original managers remain live.
 `IsRetryable` distinguishes callbacks this result can retry from cleanup owned elsewhere.
-Legacy monitored-item handoff failures and retirement failures remain explicit issues, but
-are not replayed against a retiring source; the existing handoff/reclaimer recovery paths own them.
+Legacy monitored-item handoff failures remain explicit issues, but are not replayed against a retiring
+source. Retirement failures fault `Retirement` and are logged by the reclaimer; they are not folded into
+the returned reconciliation snapshot. A later preparation schedules retryable quiescent cleanup without
+waiting for it. Shutdown joins any remaining cleanup.
 
 A throwing application publication callback may already have applied part of its prepared
 in-memory state. It **must be idempotent** if retried, must not repeat durable I/O, and must not
