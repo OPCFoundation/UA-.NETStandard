@@ -43,6 +43,90 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class GenerationReconcilerTests
     {
         /// <summary>
+        /// A failed committed bind preserves earlier successful records so recovery never replays their callbacks.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedCommittedBindingPreservesSuccessfulRecordsForRetryAsync(bool cancel)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var events = new EventManager(server.Object, 100, 100))
+            using (var context = new OperationContext(
+                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None))
+            {
+                server.SetupGet(value => value.EventManager).Returns(events);
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var reconciler = new GenerationReconciler(server.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Live);
+                var ids = new MonitoredItemIdFactory();
+                CreateAllEventsItem(events, manager.Object, context, ids);
+                CreateAllEventsItem(events, manager.Object, context, ids);
+                IEventMonitoredItem? successfulItem = null;
+                int subscriptions = 0;
+                bool reject = true;
+                manager.Setup(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), It.IsAny<IEventMonitoredItem>(),
+                    It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, uint _, IEventMonitoredItem item, bool unsubscribe,
+                        CancellationToken _) =>
+                    {
+                        if (!unsubscribe)
+                        {
+                            subscriptions++;
+                            if (subscriptions == 1)
+                            {
+                                successfulItem = item;
+                            }
+                            else if (reject)
+                            {
+                                if (cancel)
+                                {
+                                    throw new OperationCanceledException();
+                                }
+                                throw new InvalidOperationException("The later binding failed.");
+                            }
+                        }
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+
+                await Assert.ThatAsync(
+                    async () => await reconciler.BindAsync(generation, CancellationToken.None).ConfigureAwait(false),
+                    cancel
+                        ? Throws.TypeOf<OperationCanceledException>()
+                        : Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+
+                Assert.That(successfulItem, Is.Not.Null);
+                Assert.That(generation.EventBindings.ContainsKey(successfulItem!), Is.True);
+                manager.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), successfulItem!, true,
+                    It.IsAny<CancellationToken>()), Times.Never);
+                reject = false;
+                GenerationReconciler.Bindings recovered = await reconciler.BindAsync(
+                    generation, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(recovered.EventMonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(subscriptions, Is.EqualTo(3), "Only the failed binding may repeat.");
+                manager.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), successfulItem!, false,
+                    It.IsAny<CancellationToken>()), Times.Once);
+                await reconciler.ReleaseRetiredEventsAsync(generation, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(generation.EventBindings, Has.Count.EqualTo(2));
+                foreach (GenerationEventBindingRecord record in generation.EventBindings.Values)
+                {
+                    Assert.That(record.State, Is.EqualTo(GenerationEventBindingState.Removed));
+                }
+                manager.Verify(value => value.SubscribeToAllEventsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<uint>(), successfulItem!, true,
+                    It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
         /// Retirement rejects new bindings while keeping previously admitted records available for release.
         /// </summary>
         [TestCase(false)]
@@ -357,10 +441,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static IEventMonitoredItem CreateAllEventsItem(
             EventManager events,
             IAsyncNodeManager manager,
-            OperationContext context)
+            OperationContext context,
+            MonitoredItemIdFactory? ids = null)
         {
             return events.CreateMonitoredItem(
-                context, manager, null!, 1, new MonitoredItemIdFactory(), TimestampsToReturn.Both, 1000,
+                context, manager, null!, 1, ids ?? new MonitoredItemIdFactory(), TimestampsToReturn.Both, 1000,
                 new MonitoredItemCreateRequest
                 {
                     ItemToMonitor = new ReadValueId { NodeId = ObjectIds.Server, AttributeId = Attributes.EventNotifier },

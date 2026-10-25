@@ -51,7 +51,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Binds a generation to the currently active sessions and all-events monitored items.
+        /// Binds a committed generation to the currently active sessions and all-events monitored items.
+        /// Successful records remain authoritative if a later binding fails, allowing recovery without replay.
         /// </summary>
         /// <param name="generation">The generation to bind.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -61,59 +62,43 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             var bindings = new Bindings();
-            try
+            foreach (ISession session in m_server.SessionManager.GetSessions())
             {
-                foreach (ISession session in m_server.SessionManager.GetSessions())
+                if (generation.Gate.State != NodeManagerGenerationState.Live)
                 {
-                    if (generation.Gate.State != NodeManagerGenerationState.Live)
-                    {
-                        break;
-                    }
-                    if (!session.Activated || session.IsClosing)
-                    {
-                        continue;
-                    }
-
-                    SessionBinding? binding = await ActivateSessionAsync(
-                        generation, session, cancellationToken).ConfigureAwait(false);
-                    if (binding is not null)
-                    {
-                        bindings.Sessions[session.Id] = binding;
-                    }
+                    break;
+                }
+                if (!session.Activated || session.IsClosing)
+                {
+                    continue;
                 }
 
-                foreach (IEventMonitoredItem monitoredItem in m_server.EventManager.GetMonitoredItems())
+                SessionBinding? binding = await ActivateSessionAsync(
+                    generation, session, cancellationToken).ConfigureAwait(false);
+                if (binding is not null)
                 {
-                    if (generation.Gate.State != NodeManagerGenerationState.Live)
-                    {
-                        break;
-                    }
-                    if (!monitoredItem.MonitoringAllEvents)
-                    {
-                        continue;
-                    }
-
-                    if (await SubscribeToAllEventsAsync(
-                        generation, monitoredItem, cancellationToken).ConfigureAwait(false))
-                    {
-                        bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
-                    }
+                    bindings.Sessions[session.Id] = binding;
                 }
-                return bindings;
             }
-            catch (Exception failure) when (failure is not OutOfMemoryException)
+
+            foreach (IEventMonitoredItem monitoredItem in m_server.EventManager.GetMonitoredItems())
             {
-                try
+                if (generation.Gate.State != NodeManagerGenerationState.Live)
                 {
-                    await UnbindAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                    break;
                 }
-                catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
+                if (!monitoredItem.MonitoringAllEvents)
                 {
-                    throw new AggregateException(
-                        "NodeManager binding and cleanup both failed.", failure, cleanupFailure);
+                    continue;
                 }
-                throw;
+
+                if (await SubscribeToAllEventsAsync(
+                    generation, monitoredItem, cancellationToken).ConfigureAwait(false))
+                {
+                    bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
+                }
             }
+            return bindings;
         }
 
         /// <summary>
