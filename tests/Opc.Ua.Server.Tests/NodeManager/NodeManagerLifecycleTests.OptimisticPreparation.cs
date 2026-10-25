@@ -195,7 +195,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri);
-            Mock<INodeManagerMonitoredItemLifecycle> items = original.As<INodeManagerMonitoredItemLifecycle>();
+            original.As<INodeManagerMonitoredItemLifecycle>();
             original.As<INodeManagerReloadParticipant>()
                 .Setup(value => value.PrepareReloadAsync(
                     It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
@@ -256,8 +256,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(lifecycle.Revision, Is.EqualTo(RequireLifecycleValue(independentResult).Revision));
                 Assert.That(lifecycle.Registrations.ToList(), Does.Contain(initial.Registrations[0]));
             }
-            items.Verify(value => value.GetMonitoredItemsSnapshotAsync(
-                It.IsAny<IReadOnlyCollection<NodeId>?>(), It.IsAny<CancellationToken>()), Times.Never);
             incoming.Verify(value => value.CanAttachMonitoredItemAsync(
                 monitoredItem.Object, It.IsAny<CancellationToken>()), Times.Once);
 

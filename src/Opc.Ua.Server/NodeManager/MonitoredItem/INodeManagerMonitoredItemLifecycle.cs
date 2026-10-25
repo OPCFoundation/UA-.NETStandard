@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -46,16 +45,6 @@ namespace Opc.Ua.Server
     /// </summary>
     internal interface INodeManagerMonitoredItemLifecycle
     {
-        /// <summary>
-        /// Returns a stable snapshot of the MonitoredItems owned by this NodeManager, optionally
-        /// limited to the given Nodes.
-        /// </summary>
-        /// <param name="nodeIds">The Nodes to report, or <c>null</c> for all of them.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
-            IReadOnlyCollection<NodeId>? nodeIds = null,
-            CancellationToken cancellationToken = default);
-
         /// <summary>
         /// Captures a fence for notifications already queued on one node's consumer.
         /// Consumer lifetime belongs to the generation, not this fence.

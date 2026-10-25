@@ -136,8 +136,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(failure, Is.SameAs(injectedFailure));
                 }
 
-                IReadOnlyList<IMonitoredItem> snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> snapshot = manager.CaptureMonitoredItems();
                 Assert.Multiple(() =>
                 {
                     Assert.That(manager.NodeCount, Is.Zero);
@@ -162,7 +161,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(detachable.IsDeleted, Is.False);
                 Assert.That(detachable.IsDetached, Is.False);
                 Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
-                snapshot = await lifecycle.GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                snapshot = manager.CaptureMonitoredItems();
                 Assert.That(snapshot, Is.EqualTo(new IMonitoredItem[] { monitoredItem }));
                 monitoredItem.Publish(publishContext, notifications, new Queue<DiagnosticInfo>(), 10,
                     NullLogger.Instance);
@@ -691,6 +690,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets the number of nodes whose registration has completed.
             /// </summary>
             public int NodeCount => PredefinedNodes.Count;
+
+            /// <summary>
+            /// Captures native membership after the tested operation has completed.
+            /// </summary>
+            public IReadOnlyList<IMonitoredItem> CaptureMonitoredItems()
+            {
+                return [.. MonitoredItems.Values];
+            }
 
             /// <summary>
             /// Gets the signal raised when the selected registration reaches its pause.

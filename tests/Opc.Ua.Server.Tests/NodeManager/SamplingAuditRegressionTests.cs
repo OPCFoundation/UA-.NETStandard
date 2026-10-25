@@ -160,23 +160,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task SnapshotCapturesPlainManagerMembershipAsync()
+        public void NativeSnapshotRetainsCapturedMembership()
         {
-            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
-            using (queues)
-            {
-                var item = Mock.Of<IMonitoredItem>();
-                var membership = new ConcurrentDictionary<uint, IMonitoredItem>();
-                membership[1] = item;
-                var monitoredItems = new Mock<IMonitoredItemManager>();
-                monitoredItems.SetupGet(value => value.MonitoredItems).Returns(membership);
-                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
-                IReadOnlyList<IMonitoredItem> snapshot = await ((INodeManagerMonitoredItemLifecycle)manager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
-                membership.Clear();
+            var item = Mock.Of<IMonitoredItem>();
+            var membership = new ConcurrentDictionary<uint, IMonitoredItem>();
+            membership[1] = item;
+            var monitoredItems = new Mock<IMonitoredItemManager>();
+            monitoredItems.SetupGet(value => value.MonitoredItems).Returns(membership);
+            IReadOnlyList<IMonitoredItem> snapshot = monitoredItems.Object.CaptureMonitoredItems(null);
+            membership.Clear();
 
-                Assert.That(snapshot, Is.EqualTo(new[] { item }));
-            }
+            Assert.That(snapshot, Is.EqualTo(new[] { item }));
         }
 
         [Test]
@@ -199,11 +193,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                    Assert.That(async () =>
-                        await ((INodeManagerMonitoredItemLifecycle)manager)
-                            .GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false),
+                    Assert.That(() => ((INodeManagerMonitoredItemLifecycle)manager)
+                            .GetNotificationDrain(manager.RetainedNode.NodeId),
                         Throws.TypeOf<ObjectDisposedException>());
-                    monitoredItems.VerifyGet(value => value.MonitoredItems, Times.Never);
+                    monitoredItems.VerifyGet(value => value.MonitoredNodes, Times.Never);
                 }
                 finally
                 {
@@ -468,14 +461,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var monitoredItems = new Mock<IMonitoredItemManager>();
-                IReadOnlyList<IMonitoredItem> expectedSnapshot = [Mock.Of<IMonitoredItem>()];
-                monitoredItems.SetupGet(value => value.MonitoredItems)
+                monitoredItems.SetupGet(value => value.MonitoredNodes)
                     .Returns(() =>
                     {
                         entered.TrySetResult(true);
                         Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True);
-                        return new ConcurrentDictionary<uint, IMonitoredItem>(
-                            [new KeyValuePair<uint, IMonitoredItem>(1, expectedSnapshot[0])]);
+                        return [];
                     });
                 using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
                 manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
@@ -490,15 +481,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     workerFinishedDuringCleanup = workerFinished.Wait(TimeSpan.FromSeconds(5)));
                 DataValue[] values = [default];
                 ServiceResult[] errors = [ServiceResult.Good];
-                IReadOnlyList<IMonitoredItem>? snapshot = null;
-                var operation = Task.Run(async () =>
+                Func<CancellationToken, ValueTask>? notificationDrain = null;
+                var operation = Task.Run(() =>
                 {
                     try
                     {
                         if (lifecycleCall)
                         {
-                            snapshot = await ((INodeManagerMonitoredItemLifecycle)manager)
-                                .GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false);
+                            notificationDrain = ((INodeManagerMonitoredItemLifecycle)manager)
+                                .GetNotificationDrain(manager.RetainedNode.NodeId);
                         }
                         else
                         {
@@ -543,7 +534,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(manager.RetainedNodes, Is.Zero);
                     if (lifecycleCall)
                     {
-                        Assert.That(snapshot, Is.EqualTo(expectedSnapshot));
+                        Assert.That(notificationDrain, Is.Null);
+                        monitoredItems.VerifyGet(value => value.MonitoredNodes, Times.Once);
                     }
                     else
                     {
@@ -703,7 +695,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 "Read", "Write", "HistoryRead", "HistoryUpdate", "Call", "CallAsync",
                 "CreateMonitoredItems", "RestoreMonitoredItems", "ModifyMonitoredItems", "DeleteMonitoredItems",
                 "TransferMonitoredItems", "SetMonitoringMode", "SubscribeToEvents", "SubscribeToAllEvents",
-                "ConditionRefresh", "SessionActivated", "Snapshot", "CanAttach", "Attach", "Detach",
+                "ConditionRefresh", "SessionActivated", "NotificationDrain", "CanAttach", "Attach", "Detach",
                 "Find", "FindPredefinedNode", "FindPredefinedNodeByType",
                 "GetManagerHandle", "GetNodeMetadata", "GetPermissionMetadata",
                 "TranslateBrowsePath", "Browse", "DeleteNode", "CreateNode", "CreateAddressSpace", "DeleteAddressSpace",
@@ -822,8 +814,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 case "SessionActivated":
                     manager.SessionActivated(context, new NodeId(1));
                     break;
-                case "Snapshot":
-                    await lifecycle.GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false);
+                case "NotificationDrain":
+                    lifecycle.GetNotificationDrain(manager.RetainedNode.NodeId);
                     break;
                 case "CanAttach":
                     await lifecycle.CanAttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);

@@ -142,17 +142,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        ValueTask<IReadOnlyList<IMonitoredItem>>
-            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds,
-                CancellationToken cancellationToken)
-        {
-            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.GetMonitoredItemsSnapshotAsync(nodeIds, cancellationToken)
-                : new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
-        }
-
-        /// <inheritdoc/>
         Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
         {
             return (SyncNodeManager as INodeManagerMonitoredItemLifecycle)?.GetNotificationDrain(nodeId);

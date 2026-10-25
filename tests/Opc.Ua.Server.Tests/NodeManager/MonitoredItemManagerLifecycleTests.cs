@@ -355,8 +355,7 @@ namespace Opc.Ua.Server.Tests
 
                 await owner.AddNodeAsync(node).ConfigureAwait(false);
 
-                IReadOnlyList<IMonitoredItem> owned = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> owned = owner.CaptureMonitoredItems();
                 Assert.Multiple(() =>
                 {
                     Assert.That(state.IsDetached, Is.False);
@@ -412,18 +411,14 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult attachResult = await owner.Lifecycle
                     .AttachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
-                IReadOnlyList<IMonitoredItem> attached = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync([node.NodeId])
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> attached = owner.CaptureMonitoredItems();
                 object? attachedHandle = item.ManagerHandle;
                 bool ownedAfterAttach = owner.Owns(item.NodeManager);
 
                 ServiceResult detachResult = await owner.Lifecycle
                     .DetachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
-                IReadOnlyList<IMonitoredItem> detached = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> detached = owner.CaptureMonitoredItems();
                 bool wasDetached = itemLifecycle.IsDetached;
                 IAsyncNodeManager? detachedOwner = item.NodeManager;
                 object? detachedHandle = item.ManagerHandle;
@@ -436,9 +431,7 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult restoreResult = await owner.Lifecycle
                     .AttachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
-                IReadOnlyList<IMonitoredItem> restored = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync([node.NodeId])
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> restored = owner.CaptureMonitoredItems();
                 object? restoredHandle = item.ManagerHandle;
                 bool wasAttachedAfterRestore = !itemLifecycle.IsDetached;
                 bool ownedAfterRestore = owner.Owns(item.NodeManager);
@@ -657,9 +650,7 @@ namespace Opc.Ua.Server.Tests
                 ServiceResult detachResult = await owner.Lifecycle
                     .DetachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
-                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
 
                 Assert.Multiple(() =>
                 {
@@ -713,9 +704,7 @@ namespace Opc.Ua.Server.Tests
                         .AttachMonitoredItemAsync(item)
                         .ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>());
-                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
 
                 Assert.Multiple(() =>
                 {
@@ -778,9 +767,7 @@ namespace Opc.Ua.Server.Tests
                         .DetachMonitoredItemAsync(item)
                         .ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>());
-                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
 
                 Assert.Multiple(() =>
                 {
@@ -871,9 +858,7 @@ namespace Opc.Ua.Server.Tests
                     async () => await owner.DeleteNodeAsync(node.NodeId).ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>()
                         .With.Message.EqualTo("Injected removal callback failure."));
-                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
 
                 Assert.Multiple(() =>
                 {
@@ -954,8 +939,7 @@ namespace Opc.Ua.Server.Tests
                     }
                 }, Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
 
-                IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(owner.ContainsNode(root.NodeId), Is.False);
@@ -1146,8 +1130,7 @@ namespace Opc.Ua.Server.Tests
                         Throws.TypeOf<AggregateException>().With.InnerException.SameAs(deletionFailure))
                         .ConfigureAwait(false);
 
-                    IReadOnlyList<IMonitoredItem> remaining = await owner.Lifecycle
-                        .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                    IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(restorationCalls, Is.EqualTo(2));
@@ -1809,8 +1792,7 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(((AggregateException)failures[0]).Flatten().InnerExceptions,
                             Does.Contain(cleanupFailure));
                     }
-                    Assert.That(await owner.Lifecycle.GetMonitoredItemsSnapshotAsync(
-                        cancellationToken: timeout.Token).ConfigureAwait(false), Is.Empty);
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
                 }
                 finally
                 {
@@ -2738,8 +2720,7 @@ namespace Opc.Ua.Server.Tests
                             .ConfigureAwait(false);
                         Assert.That(detached.StatusCode, Is.EqualTo(StatusCodes.Good));
                     }
-                    IReadOnlyList<IMonitoredItem> snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
-                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    IReadOnlyList<IMonitoredItem> snapshot = owner.CaptureMonitoredItems();
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(snapshot, Has.Count.EqualTo(1));
@@ -2759,8 +2740,7 @@ namespace Opc.Ua.Server.Tests
                     transitions.Add(finalDetach);
                     ServiceResult finalResult = await finalDetach.WaitAsync(TimeSpan.FromSeconds(10))
                         .ConfigureAwait(false);
-                    snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
-                        .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    snapshot = owner.CaptureMonitoredItems();
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(finalResult.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -2917,8 +2897,7 @@ namespace Opc.Ua.Server.Tests
                             .ConfigureAwait(false);
                         Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                     }
-                    IReadOnlyList<IMonitoredItem> snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync()
-                        .ConfigureAwait(false);
+                    IReadOnlyList<IMonitoredItem> snapshot = owner.CaptureMonitoredItems();
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(snapshot, Is.EquivalentTo(new IMonitoredItem[] { eventItem, created }));
@@ -2932,7 +2911,7 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(lifecycle.IsDeleted, Is.False);
                         owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
                         bool deleted = await owner.DeleteNodeAsync(source.NodeId).ConfigureAwait(false);
-                        snapshot = await owner.Lifecycle.GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                        snapshot = owner.CaptureMonitoredItems();
                         using (Assert.EnterMultipleScope())
                         {
                             Assert.That(deleted, Is.True);
@@ -3272,13 +3251,6 @@ namespace Opc.Ua.Server.Tests
 
             public int DetachCount { get; private set; }
 
-            public ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds = null,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
-            }
-
             /// <summary>
             /// Reports that this test lifecycle has no monitored-node notification consumer.
             /// </summary>
@@ -3341,6 +3313,16 @@ namespace Opc.Ua.Server.Tests
             public ushort NamespaceIndex { get; }
 
             public ServerSystemContext SystemContext { get; }
+
+            /// <summary>
+            /// Captures native membership after the tested mutation has completed.
+            /// </summary>
+            public IReadOnlyList<IMonitoredItem> CaptureMonitoredItems()
+            {
+                return m_asyncManager is not null
+                    ? [.. m_asyncManager.MonitoredItems.Values]
+                    : [.. m_syncManager!.MonitoredItems.Values];
+            }
 
             public ValueTask AddNodeAsync(NodeState node)
             {

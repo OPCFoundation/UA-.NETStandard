@@ -4107,13 +4107,8 @@ namespace Opc.Ua.Server.Tests
             // the sync manager once allocated a fresh adapter per created item.
             Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
 
-            // The bound NodeManager must expose the monitored-item lifecycle; a double-wrapped
-            // adapter chain hides it and reports an empty snapshot.
             Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
-            IReadOnlyList<IMonitoredItem> snapshot =
-                await ((INodeManagerMonitoredItemLifecycle)monitoredItem.NodeManager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
-            Assert.That(snapshot, Does.Contain(monitoredItem));
+            Assert.That(manager.MonitoredItems[monitoredItem.Id], Is.SameAs(monitoredItem));
         }
 
         /// <summary>

@@ -430,8 +430,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
 
                 Assert.That(manager.UnsubscriptionCalls, Is.EqualTo(2));
-                Assert.That(await ((INodeManagerMonitoredItemLifecycle)manager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false), Is.Empty);
+                Assert.That(manager.MonitoredItemCount, Is.Zero);
                 foreach (BaseObjectState root in roots)
                 {
                     Assert.That(root.AreEventsMonitored, Is.False);
@@ -556,6 +555,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public int SubscriptionCalls { get; private set; }
 
             public int UnsubscriptionCalls { get; private set; }
+
+            /// <summary>
+            /// Gets native membership after the event subscription operation completes.
+            /// </summary>
+            public int MonitoredItemCount => MonitoredItems.Count;
 
             public async ValueTask RegisterRootAsync(BaseObjectState root)
             {

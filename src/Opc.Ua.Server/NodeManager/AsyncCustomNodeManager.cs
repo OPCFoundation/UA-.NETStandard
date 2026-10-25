@@ -820,19 +820,6 @@ namespace Opc.Ua.Server
             => m_monitoredItemManager.MonitoredItems;
 
         /// <inheritdoc/>
-        async ValueTask<IReadOnlyList<IMonitoredItem>>
-            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds,
-                CancellationToken cancellationToken)
-        {
-            using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
-            {
-                return m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
-            }
-        }
-
-        /// <inheritdoc/>
         Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
         {
             return m_monitoredItemManager.GetNotificationDrain(nodeId);

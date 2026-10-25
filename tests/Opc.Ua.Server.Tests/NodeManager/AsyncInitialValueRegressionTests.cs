@@ -44,7 +44,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         [TestCase(false)]
         [TestCase(true)]
-        public async Task PendingInitialReadAllowsAtomicMonitoredItemSnapshotAsync(bool samplingGroups)
+        public async Task PendingInitialReadAllowsIndependentRegistryMutationAsync(bool samplingGroups)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queues, new FakeTimeProvider());
@@ -104,18 +104,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using (TestableAsyncCustomNodeManager manager = CreateManager(server.Object, samplingGroups))
             {
                 BaseDataVariableState node = await AddVariableAsync(manager).ConfigureAwait(false);
+                BaseDataVariableState probeNode = await AddVariableAsync(manager, "RegistryProbe").ConfigureAwait(false);
                 using MonitoredItem item = await CreateItemAsync(manager, node, mode: MonitoringMode.Disabled)
                     .ConfigureAwait(false);
                 AttachSession(item);
-                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
                 int reads = 0;
                 node.OnReadValueAsync = async (_, _, _, _, ct) =>
                 {
                     reads++;
-                    IReadOnlyList<IMonitoredItem> snapshot = await lifecycle
-                        .GetMonitoredItemsSnapshotAsync(cancellationToken: ct).ConfigureAwait(false);
-                    Assert.That(snapshot, Has.Count.EqualTo(1));
-                    Assert.That(snapshot[0], Is.SameAs(item));
+                    await AssertRegistryMutationAsync(manager, probeNode, ct).ConfigureAwait(false);
+                    Assert.That(manager.MonitoredItems, Has.Count.EqualTo(1));
+                    Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
                     return CurrentValue(73);
                 };
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -147,6 +146,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using (TestableAsyncCustomNodeManager manager = CreateManager(server.Object, samplingGroups))
             {
                 BaseDataVariableState node = await AddVariableAsync(manager).ConfigureAwait(false);
+                BaseDataVariableState probeNode = await AddVariableAsync(manager, "RegistryProbe").ConfigureAwait(false);
                 node.OnReadValueAsync = (_, _, _, _, _) => new ValueTask<AttributeReadResult>(CurrentValue(1));
                 using MonitoredItem item = await CreateItemAsync(manager, node).ConfigureAwait(false);
                 AttachSession(item);
@@ -158,9 +158,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 node.OnReadValueAsync = async (_, _, _, _, ct) =>
                 {
                     reads++;
-                    IReadOnlyList<IMonitoredItem> snapshot = await lifecycle
-                        .GetMonitoredItemsSnapshotAsync(cancellationToken: ct).ConfigureAwait(false);
-                    Assert.That(snapshot, Is.Empty);
+                    await AssertRegistryMutationAsync(manager, probeNode, ct).ConfigureAwait(false);
+                    Assert.That(manager.MonitoredItems, Is.Empty);
                     return CurrentValue(73);
                 };
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -215,8 +214,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             try
             {
-                await ((INodeManagerMonitoredItemLifecycle)manager).GetMonitoredItemsSnapshotAsync()
-                    .ConfigureAwait(false);
+                await CreateItemResultAsync(manager, node).ConfigureAwait(false);
                 Assert.Fail("A disposed node manager must reject new operations.");
             }
             catch (ObjectDisposedException error)
@@ -240,8 +238,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                IReadOnlyList<IMonitoredItem> snapshot = await ((INodeManagerMonitoredItemLifecycle)manager)
-                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                IReadOnlyList<IMonitoredItem> snapshot = [.. manager.MonitoredItems.Values];
                 Assert.That(snapshot, Has.Count.EqualTo(1));
                 using var context = new OperationContext(
                     new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None);
@@ -272,6 +269,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             BaseDataVariableState node = await AddVariableAsync(manager).ConfigureAwait(false);
+            BaseDataVariableState probeNode = await AddVariableAsync(manager, "RegistryProbe").ConfigureAwait(false);
             node.OnReadValueAsync = async (_, _, _, _, ct) =>
             {
                 started.TrySetResult(true);
@@ -280,25 +278,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
 
             Task<MonitoredItem> create = CreateItemAsync(manager, node);
-            Task<IReadOnlyList<IMonitoredItem>>? snapshot = null;
+            Task? mutation = null;
             try
             {
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                snapshot = ((INodeManagerMonitoredItemLifecycle)manager)
-                    .GetMonitoredItemsSnapshotAsync().AsTask();
-                Assert.That(snapshot.IsCompleted, Is.True,
+                mutation = AssertRegistryMutationAsync(manager, probeNode, CancellationToken.None);
+                Assert.That(mutation.IsCompleted, Is.True,
                     "Provider I/O must not hold the monitored-item registry semaphore.");
             }
             finally
             {
                 release.TrySetResult(true);
                 using MonitoredItem item = await create.ConfigureAwait(false);
-                if (snapshot != null)
+                if (mutation != null)
                 {
-                    IReadOnlyList<IMonitoredItem> items = await snapshot.ConfigureAwait(false);
-                    Assert.That(items, Has.Count.EqualTo(1));
-                    Assert.That(items[0], Is.SameAs(item));
+                    await mutation.ConfigureAwait(false);
                 }
+                Assert.That(manager.MonitoredItems, Has.Count.EqualTo(1));
+                Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
             }
         }
 
@@ -359,12 +356,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return manager;
         }
 
-        private static async Task<BaseDataVariableState> AddVariableAsync(TestableAsyncCustomNodeManager manager)
+        private static async Task<BaseDataVariableState> AddVariableAsync(
+            TestableAsyncCustomNodeManager manager,
+            string name = "AsyncValue")
         {
             var node = new BaseDataVariableState(null)
             {
-                NodeId = new NodeId("AsyncValue", manager.NamespaceIndex),
-                BrowseName = new QualifiedName("AsyncValue", manager.NamespaceIndex),
+                NodeId = new NodeId(name, manager.NamespaceIndex),
+                BrowseName = new QualifiedName(name, manager.NamespaceIndex),
                 DataType = DataTypeIds.Int32,
                 ValueRank = ValueRanks.Scalar,
                 AccessLevel = AccessLevels.CurrentRead,
@@ -380,10 +379,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TestableAsyncCustomNodeManager manager,
             NodeState node,
             MonitoringMode mode = MonitoringMode.Reporting,
+            uint startId = 0,
             CancellationToken cancellationToken = default)
         {
             (ServiceResult error, MonitoredItem? item) = await CreateItemResultAsync(
-                manager, node, mode, cancellationToken).ConfigureAwait(false);
+                manager, node, mode, startId, cancellationToken).ConfigureAwait(false);
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(item, Is.Not.Null);
             return item;
@@ -393,6 +393,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TestableAsyncCustomNodeManager manager,
             NodeState node,
             MonitoringMode mode = MonitoringMode.Reporting,
+            uint startId = 0,
             CancellationToken cancellationToken = default)
         {
             var request = new MonitoredItemCreateRequest
@@ -412,10 +413,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var items = new List<IMonitoredItem> { null! };
             using var context = new OperationContext(
                 new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, CreateSession());
+            var ids = new MonitoredItemIdFactory();
+            ids.SetStartValue(startId);
             await manager.CreateMonitoredItemsAsync(
                 context, 1, 1000, TimestampsToReturn.Both, [request], errors, filterErrors, items,
-                false, new MonitoredItemIdFactory(), cancellationToken).ConfigureAwait(false);
+                false, ids, cancellationToken).ConfigureAwait(false);
             return (errors[0], items[0] as MonitoredItem);
+        }
+
+        private static async Task AssertRegistryMutationAsync(
+            TestableAsyncCustomNodeManager manager,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            using MonitoredItem probe = await CreateItemAsync(
+                manager, node, MonitoringMode.Disabled, startId: 100, cancellationToken).ConfigureAwait(false);
+            Assert.That(manager.MonitoredItems[probe.Id], Is.SameAs(probe));
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None);
+            var errors = new ServiceResult[1];
+            await manager.DeleteMonitoredItemsAsync(context, [probe], [false], errors, cancellationToken)
+                .ConfigureAwait(false);
+            Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(manager.MonitoredItems.ContainsKey(probe.Id), Is.False);
         }
 
         private static AttributeReadResult CurrentValue(int value)

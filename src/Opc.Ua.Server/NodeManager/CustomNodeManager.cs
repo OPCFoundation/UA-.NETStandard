@@ -416,24 +416,6 @@ namespace Opc.Ua.Server
             => m_monitoredItemManager.MonitoredItems;
 
         /// <inheritdoc/>
-        ValueTask<IReadOnlyList<IMonitoredItem>>
-            INodeManagerMonitoredItemLifecycle.GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds,
-                CancellationToken cancellationToken)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            IReadOnlyList<IMonitoredItem> snapshot;
-            using (BeginNodeManagerOperation())
-            {
-                lock (Lock)
-                {
-                    snapshot = m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
-                }
-            }
-            return new ValueTask<IReadOnlyList<IMonitoredItem>>(snapshot);
-        }
-
-        /// <inheritdoc/>
         Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
         {
             using (BeginNodeManagerOperation())

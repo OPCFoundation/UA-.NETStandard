@@ -1394,13 +1394,6 @@ namespace Opc.Ua.Server
         {
             public static UnsupportedMonitoredItemLifecycle Instance { get; } = new();
 
-            public ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId>? nodeIds = null,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
-            }
-
             public Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId)
             {
                 return null;
