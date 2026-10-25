@@ -1166,12 +1166,16 @@ namespace Opc.Ua.Server
             }
             else
             {
-                NodeManagerGeneration generation =
-                    NodeManagerGenerationRegistry.GetOrCreate(monitoredItem.NodeManager);
-                m_foreignItemGenerations ??= new Dictionary<IMonitoredItem, NodeManagerGeneration>(
+                NodeManagerGeneration? generation = monitoredItem.NodeManager is { } nodeManager
+                    ? NodeManagerGenerationRegistry.GetOrCreate(nodeManager)
+                    : null;
+                m_foreignItemGenerations ??= new Dictionary<IMonitoredItem, NodeManagerGeneration?>(
                     MonitoredItemReferenceComparer.Instance);
                 m_foreignItemGenerations.Add(monitoredItem, generation);
-                generation.MonitoredItems[monitoredItem] = this;
+                if (generation is not null)
+                {
+                    generation.MonitoredItems[monitoredItem] = this;
+                }
             }
             CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
@@ -1201,7 +1205,7 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The monitored item's subscription claim is unavailable.");
                 }
-                generation!.MonitoredItems.TryRemove(monitoredItem, out _);
+                generation?.MonitoredItems.TryRemove(monitoredItem, out _);
                 m_foreignItemGenerations.Remove(monitoredItem);
                 if (m_foreignItemGenerations.Count == 0)
                 {
@@ -1453,8 +1457,10 @@ namespace Opc.Ua.Server
                 {
                     continue;
                 }
-                IAsyncNodeManager owner = item.NodeManager;
-                object handle = item.ManagerHandle;
+                if (item.NodeManager is not { } owner || item.ManagerHandle is not { } handle)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
+                }
                 NodeMetadata? metadata = await owner.GetNodeMetadataAsync(
                     context, handle, BrowseResultMask.All, cancellationToken).ConfigureAwait(false);
                 if (metadata == null || !ReferenceEquals(owner, item.NodeManager) ||
@@ -4389,7 +4395,7 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
 
         /// <summary>Exact generation claims for items that do not manage their own generation binding.</summary>
-        private Dictionary<IMonitoredItem, NodeManagerGeneration>? m_foreignItemGenerations;
+        private Dictionary<IMonitoredItem, NodeManagerGeneration?>? m_foreignItemGenerations;
 
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;

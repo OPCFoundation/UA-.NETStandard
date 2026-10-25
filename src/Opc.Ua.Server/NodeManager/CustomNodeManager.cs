@@ -498,13 +498,14 @@ namespace Opc.Ua.Server
             {
                 MonitoredNode2? monitoredNode = null;
                 NodeState? eventSource = null;
+                NodeHandle? sourceHandle = monitoredItem.ManagerHandle as NodeHandle;
                 bool isEvent =
                     (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
                 if (isEvent &&
-                    monitoredItem.ManagerHandle is NodeHandle eventHandle)
+                    sourceHandle is not null)
                 {
-                    monitoredNode = eventHandle.MonitoredNode;
-                    eventSource = eventHandle.Node;
+                    monitoredNode = sourceHandle.MonitoredNode;
+                    eventSource = sourceHandle.Node;
                 }
 
                 (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
@@ -515,7 +516,8 @@ namespace Opc.Ua.Server
                     changed &&
                     isEvent &&
                     monitoredNode is not null &&
-                    eventSource is not null)
+                    eventSource is not null &&
+                    sourceHandle is not null)
                 {
                     try
                     {
@@ -525,8 +527,7 @@ namespace Opc.Ua.Server
                     catch (Exception ex) when (ex is not OutOfMemoryException)
                     {
                         var compensationFailures = new List<Exception>();
-                        var compensationHandle =
-                            (NodeHandle)monitoredItem.ManagerHandle;
+                        NodeHandle compensationHandle = sourceHandle;
                         (ServiceResult restoreResult, bool restored) =
                             lifecycle.AttachMonitoredItem(
                                 context,
@@ -917,7 +918,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="managerHandle">The handle to check.</param>
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
-        protected virtual NodeHandle? IsHandleInNamespace(object managerHandle)
+        protected virtual NodeHandle? IsHandleInNamespace(object? managerHandle)
         {
             if (managerHandle is not NodeHandle source)
             {
@@ -4981,7 +4982,10 @@ namespace Opc.Ua.Server
                         }
 
                         // get the refresh events.
-                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
+                        if (monitoredItem.ManagerHandle is NodeHandle handle)
+                        {
+                            nodesToRefresh.Add(handle.Node);
+                        }
                     }
                 }
 

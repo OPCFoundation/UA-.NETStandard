@@ -661,7 +661,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             IWotProjectionBindingRuntimeFactory? runtimeFactory = null,
             UANode[]? additionalNodes = null,
             Action<Func<ValueTask>>? configureReload = null,
-            bool migrateMonitoredItems = false)
+            bool useRuntimeNodeSet = false)
         {
             string directory = Path.Combine(Path.GetTempPath(), "wot-observe-" + Guid.NewGuid().ToString("N"));
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
@@ -679,7 +679,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Func<ValueTask> reload;
                 Func<ValueTask> remove;
                 WotProjectionDocument projection = CreateProjection(forms, dataType, valueRank, additionalNodes);
-                if (migrateMonitoredItems)
+                if (useRuntimeNodeSet)
                 {
                     var options = new RuntimeNodeSetOptions
                     {

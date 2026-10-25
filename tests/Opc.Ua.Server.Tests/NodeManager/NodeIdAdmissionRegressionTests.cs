@@ -144,8 +144,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(snapshot, Is.Empty);
                     Assert.That(detachable.IsDeleted, Is.True);
                     Assert.That(detachable.IsDetached, Is.True);
-                    Assert.That(monitoredItem.NodeManager, Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
-                    Assert.That(monitoredItem.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                    Assert.That(monitoredItem.NodeManager, Is.Null);
+                    Assert.That(monitoredItem.ManagerHandle, Is.Null);
                 });
                 using var publishContext = new OperationContext(monitoredItem);
                 var notifications = new Queue<MonitoredItemNotification>();

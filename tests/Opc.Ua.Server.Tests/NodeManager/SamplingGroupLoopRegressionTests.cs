@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using OperationContext context = CreateContext();
                 using var group = new SamplingGroup(
                     server.Object, manager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, manager.Object);
                 try
                 {
                     Assert.That(group.StartMonitoring(context, item.Object, null, initialValueQueued: true), Is.True);
@@ -142,9 +142,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var rates = new List<SamplingRateGroup> { new(1000, 1000, 4), new(3600000, 900000, 0) };
                 using var group = new SamplingGroup(
                     server.Object, nodeManager.Object, rates, context, 3600001);
-                Mock<ISampledDataChangeMonitoredItem> first = CreateItem(1, 3600001);
-                Mock<ISampledDataChangeMonitoredItem> second = CreateItem(2, 3600002);
-                Mock<ISampledDataChangeMonitoredItem> later = CreateItem(3, 5400000);
+                Mock<ISampledDataChangeMonitoredItem> first = CreateItem(1, 3600001, nodeManager.Object);
+                Mock<ISampledDataChangeMonitoredItem> second = CreateItem(2, 3600002, nodeManager.Object);
+                Mock<ISampledDataChangeMonitoredItem> later = CreateItem(3, 5400000, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, first.Object), Is.True);
                 Assert.That(group.StartMonitoring(context, second.Object), Is.True);
@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using OperationContext context = CreateContext();
                 var group = new SamplingGroup(
                     server.Object, nodeManager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, item.Object), Is.True);
                 Assert.That(group.ApplyChanges(), Is.False);
@@ -263,7 +263,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using OperationContext context = CreateContext();
                 var group = new SamplingGroup(
                     server.Object, nodeManager.Object, [new SamplingRateGroup(50, 50, 4)], context, 50);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 50, nodeManager.Object);
 
                 Assert.That(group.StartMonitoring(context, item.Object, null, initialValueQueued: true), Is.True);
                 Assert.That(group.ApplyChanges(), Is.False);
@@ -660,9 +660,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
-        private static Mock<ISampledDataChangeMonitoredItem> CreateItem(uint id, double samplingInterval)
+        private static Mock<ISampledDataChangeMonitoredItem> CreateItem(
+            uint id, double samplingInterval, IAsyncNodeManager nodeManager)
         {
             var item = new Mock<ISampledDataChangeMonitoredItem>();
+            var handle = new NodeHandle();
+            item.SetupGet(m => m.NodeManager).Returns(nodeManager);
+            item.SetupGet(m => m.ManagerHandle).Returns(handle);
             item.SetupGet(m => m.Id).Returns(id);
             item.SetupGet(m => m.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
             item.SetupGet(m => m.MonitoringMode).Returns(MonitoringMode.Reporting);
@@ -673,7 +677,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Setup(m => m.GetReadValueId()).Returns(() => new ReadValueId
             {
                 NodeId = new NodeId(id, 1),
-                AttributeId = Attributes.Value
+                AttributeId = Attributes.Value,
+                Handle = handle
             });
             return item;
         }

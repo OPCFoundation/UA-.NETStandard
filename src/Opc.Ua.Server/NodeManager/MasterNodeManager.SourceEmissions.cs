@@ -39,9 +39,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="nodeManager">The source node manager.</param>
         /// <returns><c>true</c> when the source generation is live.</returns>
-        internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager)
+        internal bool IsSourceEmissionAllowed(IAsyncNodeManager? nodeManager)
         {
-            return m_nodeManagers.Revision.TryGetGeneration(
+            return nodeManager is not null && m_nodeManagers.Revision.TryGetGeneration(
                     nodeManager,
                     out NodeManagerGeneration? generation) &&
                 generation!.Gate.State == NodeManagerGenerationState.Live;
@@ -57,11 +57,15 @@ namespace Opc.Ua.Server
         /// <returns>Whether the source accepted the operation.</returns>
         internal static bool TryCaptureItemEmission(
             IServerInternal server,
-            IAsyncNodeManager nodeManager,
+            IAsyncNodeManager? nodeManager,
             NodeManagerGenerationReference? generationReference,
             out SourceEmissionAdmission? emission)
         {
             emission = null;
+            if (nodeManager is null)
+            {
+                return false;
+            }
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
@@ -103,13 +107,17 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the generation accepted the emission.</returns>
         internal static bool TryCaptureSourceEmission(
             IServerInternal server,
-            IAsyncNodeManager nodeManager,
+            IAsyncNodeManager? nodeManager,
             out SourceEmissionAdmission? emission,
             NodeManagerGenerationReference? generationReference = null,
             bool isGlobalServerEventSink = false,
             ISystemContext? context = null)
         {
             emission = null;
+            if (nodeManager is null)
+            {
+                return false;
+            }
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
@@ -266,9 +274,10 @@ namespace Opc.Ua.Server
             {
                 emission = null;
                 MasterNodeManager? owner = Volatile.Read(ref m_owner);
-                return owner is not null &&
+                IAsyncNodeManager? nodeManager = item.NodeManager;
+                return owner is not null && nodeManager is not null &&
                     TryCapture(
-                        owner, item.NodeManager, (item as MonitoredItem)?.Generation,
+                        owner, nodeManager, (item as MonitoredItem)?.Generation,
                         item.MonitoringAllEvents, out emission);
             }
 

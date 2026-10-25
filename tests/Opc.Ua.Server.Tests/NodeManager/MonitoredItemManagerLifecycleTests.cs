@@ -54,6 +54,48 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A lost item belongs only to its stable slot, never an artificial Core binding.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnresolvedItemDropsManagerBindingWithoutCoreParking(bool hasCore)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                if (hasCore)
+                {
+                    server.SetupGet(value => value.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
+                }
+                else
+                {
+                    server.SetupGet(value => value.CoreNodeManager).Returns(() => null!);
+                }
+                var manager = new Mock<IAsyncNodeManager>();
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, manager.Object, new NodeHandle(), new NodeId("UnresolvedOwnership", 1));
+                var subscription = new Mock<ISubscription>();
+                item.SubscriptionCallback = subscription.Object;
+                ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
+                NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                Assert.That(original.MonitoredItems.ContainsKey(item), Is.True);
+
+                ((IDetachableMonitoredItem)item).Detach(server.Object);
+                ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(item.Generation, Is.Null);
+                    Assert.That(original.MonitoredItems.ContainsKey(item), Is.False);
+                    Assert.That(original.Slot.UnresolvedItems.ContainsKey(item), Is.True);
+                });
+                server.VerifyGet(value => value.CoreNodeManager, Times.Never);
+            }
+        }
+
+        /// <summary>
         /// Awaited legacy-manager edits recover only unresolved items in the same serving slot.
         /// </summary>
         [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
@@ -87,7 +129,8 @@ namespace Opc.Ua.Server.Tests
                 ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
                 uint id = item.Id;
                 uint clientHandle = item.ClientHandle;
-                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(
+                    (IAsyncNodeManager)owner.Lifecycle);
                 NodeManagerSlot slot = generation.Slot;
                 using MonitoredItem unrelated = CreateMonitoredItem(
                     server.Object, (IAsyncNodeManager)owner.Lifecycle, new NodeHandle(),
@@ -167,7 +210,7 @@ namespace Opc.Ua.Server.Tests
                 IReadOnlyList<IMonitoredItem> attached = await owner.Lifecycle
                     .GetMonitoredItemsSnapshotAsync([node.NodeId])
                     .ConfigureAwait(false);
-                object attachedHandle = item.ManagerHandle;
+                object? attachedHandle = item.ManagerHandle;
                 bool ownedAfterAttach = owner.Owns(item.NodeManager);
 
                 ServiceResult detachResult = await owner.Lifecycle
@@ -177,8 +220,8 @@ namespace Opc.Ua.Server.Tests
                     .GetMonitoredItemsSnapshotAsync()
                     .ConfigureAwait(false);
                 bool wasDetached = itemLifecycle.IsDetached;
-                IAsyncNodeManager detachedOwner = item.NodeManager;
-                object detachedHandle = item.ManagerHandle;
+                IAsyncNodeManager? detachedOwner = item.NodeManager;
+                object? detachedHandle = item.ManagerHandle;
 
                 Assert.DoesNotThrow(() =>
                     item.QueueValue(
@@ -191,7 +234,7 @@ namespace Opc.Ua.Server.Tests
                 IReadOnlyList<IMonitoredItem> restored = await owner.Lifecycle
                     .GetMonitoredItemsSnapshotAsync([node.NodeId])
                     .ConfigureAwait(false);
-                object restoredHandle = item.ManagerHandle;
+                object? restoredHandle = item.ManagerHandle;
                 bool wasAttachedAfterRestore = !itemLifecycle.IsDetached;
                 bool ownedAfterRestore = owner.Owns(item.NodeManager);
                 await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
@@ -210,9 +253,9 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(wasDetached, Is.True);
                     Assert.That(
                         detachedOwner,
-                        Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
+                        Is.Null);
                     Assert.That(owner.Owns(detachedOwner), Is.False);
-                    Assert.That(detachedHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                    Assert.That(detachedHandle, Is.Null);
                     Assert.That(detachedHandle, Is.Not.TypeOf<NodeHandle>());
                     Assert.That(restoreResult.StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(restored, Has.Count.EqualTo(1));
@@ -476,10 +519,10 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(node.AreEventsMonitored, Is.False);
                     Assert.That(
                         item.NodeManager,
-                        Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
+                        Is.Null);
                     Assert.That(
                         item.ManagerHandle,
-                        Is.SameAs(MonitoredItem.DetachedHandle));
+                        Is.Null);
                 });
             }
         }
@@ -993,10 +1036,10 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(recoverableLifecycle.IsDeleted, Is.True);
                     Assert.That(
                         recoverableItem.NodeManager,
-                        Is.SameAs(coreManager.Object));
+                        Is.Null);
                     Assert.That(
                         recoverableItem.ManagerHandle,
-                        Is.SameAs(MonitoredItem.DetachedHandle));
+                        Is.Null);
                 });
 
                 var deleteErrors = new List<ServiceResult> { ServiceResult.Good };
@@ -1822,7 +1865,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(itemLifecycle.IsDetached, Is.True);
                     Assert.That(
                         item.NodeManager,
-                        Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
+                        Is.Null);
                 });
             }
         }
@@ -2053,7 +2096,7 @@ namespace Opc.Ua.Server.Tests
                         : owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
                     transitions.Add(original);
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    object originalHandle = item.ManagerHandle;
+                    object? originalHandle = item.ManagerHandle;
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(original.IsCompleted, Is.False);
@@ -2079,7 +2122,7 @@ namespace Opc.Ua.Server.Tests
                     transitions.Add(replacement);
                     ServiceResult attached = await replacement.WaitAsync(TimeSpan.FromSeconds(10))
                         .ConfigureAwait(false);
-                    object replacementHandle = item.ManagerHandle;
+                    object? replacementHandle = item.ManagerHandle;
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -2135,8 +2178,8 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(finalResult.StatusCode, Is.EqualTo(StatusCodes.Good));
                         Assert.That(snapshot, Is.Empty);
                         Assert.That(lifecycle.IsDetached, Is.True);
-                        Assert.That(item.NodeManager, Is.SameAs(MonitoredItem.GetDetachedOwner(server.Object)));
-                        Assert.That(item.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                        Assert.That(item.NodeManager, Is.Null);
+                        Assert.That(item.ManagerHandle, Is.Null);
                         Assert.That(source.AreEventsMonitored, Is.False);
                         Assert.That(Volatile.Read(ref subscribeCalls), Is.EqualTo(2));
                         Assert.That(Volatile.Read(ref unsubscribeCalls), Is.EqualTo(2));
@@ -2526,7 +2569,7 @@ namespace Opc.Ua.Server.Tests
 
                     // The replacement must not be left sampling a disposed item.
                     Assert.That(replacement.DetachCount, Is.EqualTo(1));
-                    Assert.That(item.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
+                    Assert.That(item.ManagerHandle, Is.Null);
                 });
                 if (cleanupFailure == 1)
                 {
@@ -2720,7 +2763,7 @@ namespace Opc.Ua.Server.Tests
                     .AddOrUpdateNodeAsync(node);
             }
 
-            public bool Owns(IAsyncNodeManager nodeManager)
+            public bool Owns(IAsyncNodeManager? nodeManager)
             {
                 if (m_asyncManager != null)
                 {

@@ -982,6 +982,12 @@ its errors are reported on the committed result. A removed or incompatible NodeI
 NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.
 
+An unresolved item has no bound manager or node handle: `IMonitoredItem.NodeManager` and
+`IMonitoredItem.ManagerHandle` are nullable. Its subscription owns its identity and queues,
+and its original stable slot owns recovery; the Core manager is not a parking owner.
+Stack service dispatch handles unresolved modification, monitoring-mode changes and deletion
+locally rather than manufacturing a source binding.
+
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.

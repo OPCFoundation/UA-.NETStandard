@@ -71,11 +71,9 @@ namespace Opc.Ua.Server
         void BeginDetach();
 
         /// <summary>
-        /// Detaches the MonitoredItem from the NodeManager that owns it and parks it on the
-        /// server's long lived CoreNodeManager, which outlives every NodeManager that can be
-        /// retired, so the item keeps its identity and queue while it has no real owner.
+        /// Releases the current manager binding while preserving the item's stable slot and queues.
         /// </summary>
-        /// <param name="server">The server whose CoreNodeManager takes the item over.</param>
+        /// <param name="server">The server owning the item.</param>
         void Detach(IServerInternal server);
 
         /// <summary>

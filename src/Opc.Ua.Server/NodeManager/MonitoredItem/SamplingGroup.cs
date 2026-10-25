@@ -1006,7 +1006,13 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    readValueId.Handle = item.ManagerHandle;
+                    if (item.ManagerHandle is not { } handle)
+                    {
+                        m_enabled[ii] = false;
+                        readValueId.Processed = true;
+                        continue;
+                    }
+                    readValueId.Handle = handle;
                     object? itemOwner = (object?)item.Session ?? item.EffectiveIdentity;
                     if (first == null)
                     {

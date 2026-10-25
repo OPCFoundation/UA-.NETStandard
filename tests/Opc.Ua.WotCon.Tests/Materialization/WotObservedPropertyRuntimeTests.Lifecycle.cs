@@ -45,15 +45,16 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed partial class WotObservedPropertyRuntimeTests
     {
         /// <summary>
-        /// Verifies that retained monitored items use the correct source for the reload policy.
+        /// Both lifecycle hosts migrate the same client item to the replacement observation source.
         /// </summary>
-        /// <param name="migrateMonitoredItems">The migrate-monitored-items flag for this test case.</param>
+        /// <param name="useRuntimeNodeSet">Whether to use the runtime NodeSet host instead of the WoT host.</param>
         /// <param name="failedPreparation">The failed-preparation flag for this test case.</param>
         [TestCase(false, false)]
+        [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task RetainedMonitoredItemsUseTheCorrectSourceForTheReloadPolicy(
-            bool migrateMonitoredItems, bool failedPreparation)
+        public async Task ReloadPreservesMonitoredItemIdentityAndSwitchesObservationSourceAsync(
+            bool useRuntimeNodeSet, bool failedPreparation)
         {
             var mapping = new WotTargetMappingDescriptor(targetNodeId: "nsu=urn:wot-observe;s=Value");
             WotCompiledForm observe = WotProjectionBindingRuntimeTestHarness.Form(
@@ -130,13 +131,6 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     }
                     await reload!().AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
-                    if (!migrateMonitoredItems)
-                    {
-                        Assert.That(leases, Has.Count.EqualTo(1));
-                        first(new WotNotification(new DataValue(new Variant(43))));
-                        AssertInteger(await ReceiveAsync(values).ConfigureAwait(false), 43);
-                        return;
-                    }
                     Action<WotNotification> replacement = await observers.Reader.ReadAsync().AsTask()
                         .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                     Assert.That(item.Status.Id, Is.EqualTo(itemId), "The client retains its existing monitored item.");
@@ -158,7 +152,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     }
                 }
             }, runtimeFactory: factory, configureReload: callback => reload = callback,
-                migrateMonitoredItems: migrateMonitoredItems).ConfigureAwait(false);
+                useRuntimeNodeSet: useRuntimeNodeSet).ConfigureAwait(false);
         }
 
         /// <summary>

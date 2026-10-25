@@ -1131,19 +1131,23 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Foreign item cleanup releases the generation recorded when the subscription claimed it.
         /// </summary>
-        [TestCase("Item")]
-        [TestCase("Subscription")]
-        [TestCase("Dispose")]
-        public async Task ForeignItemCleanupUsesItsClaimedGenerationAsync(string cleanup)
+        [TestCase("Item", true)]
+        [TestCase("Subscription", true)]
+        [TestCase("Dispose", true)]
+        [TestCase("Item", false)]
+        [TestCase("Subscription", false)]
+        [TestCase("Dispose", false)]
+        public async Task ForeignItemCleanupUsesItsClaimedGenerationAsync(string cleanup, bool hasOwner)
         {
             using Subscription subscription = CreateSubscription();
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
-            IAsyncNodeManager currentManager = new Mock<IAsyncNodeManager>().Object;
-            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(currentManager);
+            IAsyncNodeManager originalManager = new Mock<IAsyncNodeManager>().Object;
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(originalManager);
+            IAsyncNodeManager? currentManager = hasOwner ? originalManager : null;
             Mock<IDataChangeMonitoredItem> item = CreateDataChangeMonitoredItem(7, 1, []);
             item.SetupGet(value => value.NodeManager).Returns(() => currentManager);
             await RegisterMonitoredItemsAsync(subscription, item.Object).ConfigureAwait(false);
-            Assert.That(original.MonitoredItems.ContainsKey(item.Object), Is.True);
+            Assert.That(original.MonitoredItems.ContainsKey(item.Object), Is.EqualTo(hasOwner));
             currentManager = new Mock<IAsyncNodeManager>().Object;
             NodeManagerGeneration other = NodeManagerGenerationRegistry.GetOrCreate(currentManager);
 
@@ -3094,14 +3098,8 @@ namespace Opc.Ua.Server.Tests
             Subscription subscription,
             params IMonitoredItem[] monitoredItems)
         {
-            IAsyncNodeManager? defaultOwner = null;
             foreach (IMonitoredItem monitoredItem in monitoredItems)
             {
-                if (monitoredItem.NodeManager is null)
-                {
-                    defaultOwner ??= new Mock<IAsyncNodeManager>().Object;
-                    Mock.Get(monitoredItem).SetupGet(value => value.NodeManager).Returns(defaultOwner);
-                }
                 _ = monitoredItem.GetCreateResult(out MonitoredItemCreateResult createResult);
                 if (createResult is null)
                 {

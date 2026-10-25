@@ -867,7 +867,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            object previousHandle = sampledMonitoredItem.ManagerHandle;
+            object? previousHandle = sampledMonitoredItem.ManagerHandle;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
                 context,
@@ -1497,7 +1497,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="managerHandle">The handle to check.</param>
         /// <returns>Non-null if the handle belongs to the node manager.</returns>
-        protected virtual NodeHandle? IsHandleInNamespace(object managerHandle)
+        protected virtual NodeHandle? IsHandleInNamespace(object? managerHandle)
         {
             if (managerHandle is not NodeHandle source)
             {
@@ -8343,7 +8343,10 @@ namespace Opc.Ua.Server
                         }
 
                         // get the refresh events.
-                        nodesToRefresh.Add(((NodeHandle)monitoredItem.ManagerHandle).Node);
+                        if (monitoredItem.ManagerHandle is NodeHandle handle)
+                        {
+                            nodesToRefresh.Add(handle.Node);
+                        }
                     }
                 }
 

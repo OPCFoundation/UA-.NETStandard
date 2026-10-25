@@ -291,6 +291,35 @@ namespace Opc.Ua.Server
             object managerHandle,
             IStoredMonitoredItem storedMonitoredItem,
             TimeProvider? timeProvider)
+            : this(
+                server, storedMonitoredItem, timeProvider,
+                nodeManager ?? throw new ArgumentNullException(nameof(nodeManager)), managerHandle)
+        {
+        }
+
+        /// <summary>
+        /// Restores an unresolved item without creating a synthetic manager binding.
+        /// </summary>
+        /// <param name="server">The server owning the persisted queues.</param>
+        /// <param name="storedMonitoredItem">The persisted item state.</param>
+        /// <param name="timeProvider">The optional time provider.</param>
+        internal MonitoredItem(
+            IServerInternal server,
+            IStoredMonitoredItem storedMonitoredItem,
+            TimeProvider? timeProvider = null)
+            : this(server, storedMonitoredItem, timeProvider, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Restores persisted queues with an optional real source binding.
+        /// </summary>
+        private MonitoredItem(
+            IServerInternal server,
+            IStoredMonitoredItem storedMonitoredItem,
+            TimeProvider? timeProvider,
+            IAsyncNodeManager? nodeManager,
+            object? managerHandle)
         {
             if (storedMonitoredItem == null)
             {
@@ -304,7 +333,14 @@ namespace Opc.Ua.Server
             Initialize();
 
             m_server = server;
-            NodeManager = nodeManager;
+            if (nodeManager is not null)
+            {
+                NodeManager = nodeManager;
+            }
+            else
+            {
+                m_slot = new NodeManagerSlot();
+            }
             ManagerHandle = managerHandle;
             SubscriptionId = storedMonitoredItem.SubscriptionId;
             Id = storedMonitoredItem.Id;
@@ -390,9 +426,9 @@ namespace Opc.Ua.Server
         private void Initialize()
         {
             m_server = null!;
-            m_nodeManager = null!;
+            m_nodeManager = null;
             Generation = null;
-            ManagerHandle = null!;
+            ManagerHandle = null;
             SubscriptionId = 0;
             Id = 0;
             NodeId = default;
@@ -416,9 +452,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The node manager that created the item.
+        /// The currently bound node manager, or null while the item is unresolved.
         /// </summary>
-        public IAsyncNodeManager NodeManager
+        public IAsyncNodeManager? NodeManager
         {
             get => m_nodeManager;
             private set
@@ -505,9 +541,9 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// The handle assigned by the node manager when it created the item.
+        /// The handle assigned by the bound node manager, or null while the item is unresolved.
         /// </summary>
-        public object ManagerHandle { get; private set; }
+        public object? ManagerHandle { get; private set; }
 
         /// <summary>
         /// The identifier for the subscription that owns the monitored item.
@@ -795,44 +831,18 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            IAsyncNodeManager owner = GetDetachedOwner(server);
-
             lock (m_lock)
             {
-                // Parking changes the dispatch owner, not the recovery slot.
-                NodeManagerSlot slot = m_slot;
-                NodeManager = owner;
-                m_slot = slot;
-                ManagerHandle = DetachedHandle;
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
+                {
+                    previous!.MonitoredItems.TryRemove(this, out _);
+                }
+                m_nodeManager = null;
+                Generation = null;
+                ManagerHandle = null;
                 SetDetachState(isDetached: true, m_isDeleted);
             }
         }
-
-        /// <summary>
-        /// Returns the long lived NodeManager that a detached MonitoredItem is parked on. The
-        /// CoreNodeManager is used because it outlives every NodeManager that can be retired.
-        /// </summary>
-        /// <param name="server">The server that owns the NodeManagers.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="server"/> is <c>null</c>.</exception>
-        /// <exception cref="InvalidOperationException">The server has no CoreNodeManager.</exception>
-        internal static IAsyncNodeManager GetDetachedOwner(IServerInternal server)
-        {
-            if (server is null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            return server.NodeManager?.CoreNodeManager ??
-                server.CoreNodeManager ??
-                throw new InvalidOperationException(
-                    "The server does not have a long lived CoreNodeManager for detached monitored items.");
-        }
-
-        /// <summary>
-        /// Gets the handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
-        /// detached item has no real Node behind it until it is attached again.
-        /// </summary>
-        internal static object DetachedHandle { get; } = new();
 
         /// <inheritdoc/>
         void IDetachableMonitoredItem.QueueNodeIdUnknown()
@@ -1017,15 +1027,19 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return new ReadValueId
+                var readValueId = new ReadValueId
                 {
                     NodeId = NodeId,
                     AttributeId = AttributeId,
                     IndexRange = m_indexRange,
                     ParsedIndexRange = m_parsedIndexRange,
-                    DataEncoding = DataEncoding,
-                    Handle = ManagerHandle
+                    DataEncoding = DataEncoding
                 };
+                if (ManagerHandle is { } handle)
+                {
+                    readValueId.Handle = handle;
+                }
+                return readValueId;
             }
         }
 
@@ -3547,7 +3561,7 @@ namespace Opc.Ua.Server
         private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
-        private IAsyncNodeManager m_nodeManager = null!;
+        private IAsyncNodeManager? m_nodeManager;
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;

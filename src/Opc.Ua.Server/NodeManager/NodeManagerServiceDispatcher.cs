@@ -2671,8 +2671,13 @@ namespace Opc.Ua.Server
         {
             if (!monitoredItem.MonitoringAllEvents)
             {
+                if (monitoredItem.ManagerHandle is not { } handle)
+                {
+                    return new ValueTask<ServiceResult>(
+                        unsubscribe ? ServiceResult.Good : StatusCodes.BadNodeIdUnknown);
+                }
                 return nodeManager.SubscribeToEventsAsync(
-                    context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+                    context, handle, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
             }
             if (!m_owner.TryGetCurrentGeneration(nodeManager, out NodeManagerGeneration? generation))
             {
@@ -2737,8 +2742,6 @@ namespace Opc.Ua.Server
                 }
                 var monitoredItem = new MonitoredItem(
                     Server,
-                    MonitoredItem.GetDetachedOwner(Server),
-                    MonitoredItem.DetachedHandle,
                     storedItem);
                 ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                 ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: true);
@@ -2772,8 +2775,6 @@ namespace Opc.Ua.Server
 
                 var monitoredItem = new MonitoredItem(
                     Server,
-                    MonitoredItem.GetDetachedOwner(Server),
-                    MonitoredItem.DetachedHandle,
                     storedItem);
                 var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                 lifecycle.Detach(Server);
@@ -3138,15 +3139,21 @@ namespace Opc.Ua.Server
                 // only subscribe to the node manager that owns the node.
                 else if (monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
                 {
-                    subscriptionResult = await DispatchEventSubscriptionAsync(
-                        monitoredItem.NodeManager,
-                        monitoredItem,
-                        (unsubscribe, ct) => monitoredItem.NodeManager.SubscribeToEventsAsync(
-                            context, monitoredItem.ManagerHandle, monitoredItem.SubscriptionId,
-                            monitoredItem, unsubscribe, ct),
-                        allEvents: false,
-                        unsubscribe: false,
-                        cancellationToken).ConfigureAwait(false);
+                    if (monitoredItem.NodeManager is { } owner && monitoredItem.ManagerHandle is { } handle)
+                    {
+                        subscriptionResult = await DispatchEventSubscriptionAsync(
+                            owner,
+                            monitoredItem,
+                            (unsubscribe, ct) => owner.SubscribeToEventsAsync(
+                                context, handle, monitoredItem.SubscriptionId, monitoredItem, unsubscribe, ct),
+                            allEvents: false,
+                            unsubscribe: false,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        subscriptionResult = StatusCodes.BadNodeIdUnknown;
+                    }
                 }
 
                 if (ServiceResult.IsBad(subscriptionResult))
@@ -3482,7 +3489,8 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IAsyncNodeManager owningNodeManager = monitoredItem.NodeManager;
+                IAsyncNodeManager? owningNodeManager = monitoredItem.NodeManager;
+                object? sourceHandle = monitoredItem.ManagerHandle;
                 processedItems[ii] = true;
                 ServiceResult result = ServiceResult.Good;
 
@@ -3534,19 +3542,20 @@ namespace Opc.Ua.Server
                         }
                     }
                     // only unsubscribe to the node manager that owns the node.
-                    else
+                    else if (owningNodeManager is not null && sourceHandle is not null)
                     {
                         result = await DispatchEventSubscriptionAsync(
                             owningNodeManager,
                             monitoredItem,
                             (unsubscribe, ct) => owningNodeManager.SubscribeToEventsAsync(
-                                context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, ct),
+                                context, sourceHandle, subscriptionId, monitoredItem, unsubscribe, ct),
                             allEvents: false,
                             unsubscribe: true,
                             CancellationToken.None).ConfigureAwait(false);
                     }
 
-                    retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
+                    retiredGenerationDrained |= owningNodeManager is not null &&
+                        !m_nodeManagers.Contains(owningNodeManager);
 
                     // success.
                     errors[ii] = result;
@@ -3717,7 +3726,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                IAsyncNodeManager owner = monitoredItems[ii].NodeManager;
+                IAsyncNodeManager? owner = monitoredItems[ii].NodeManager;
                 if (owner is null)
                 {
                     continue;
@@ -4579,9 +4588,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Logs an owner-dispatch exception and converts it to a monitored-item service error.
         /// </summary>
-        private ServiceResult GetMonitoredItemDispatchFailure(IAsyncNodeManager owner, Exception exception)
+        private ServiceResult GetMonitoredItemDispatchFailure(IAsyncNodeManager? owner, Exception exception)
         {
-            m_logger.MonitoredItemOwnerDispatchFailed(exception, owner.GetType().Name);
+            m_logger.MonitoredItemOwnerDispatchFailed(exception, owner?.GetType().Name ?? "Unresolved");
             return ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
                 "The node manager could not complete the monitored-item operation.");
         }

@@ -55,7 +55,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
 
-            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot.UnresolvedItems, Is.Empty);
+            Assert.That(GetBoundGeneration(item).Slot.UnresolvedItems, Is.Empty);
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration generation = GetBoundGeneration(item);
             var owner = new Mock<ISubscription>().Object;
             var binding = (IMonitoredItemGenerationBinding)item;
 
@@ -91,7 +91,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration original = GetBoundGeneration(item);
             NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
                 original, new Mock<IAsyncNodeManager>().Object);
             var owner = new Mock<ISubscription>().Object;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration original = GetBoundGeneration(item);
             NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
                 original, new Mock<IAsyncNodeManager>().Object);
             var owner = new Mock<ISubscription>().Object;
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration original = GetBoundGeneration(item);
             NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
                 original, new Mock<IAsyncNodeManager>().Object);
             var owner = new Mock<ISubscription>().Object;
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration generation = GetBoundGeneration(item);
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             var binding = (IMonitoredItemGenerationBinding)item;
@@ -193,8 +193,8 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
             using MonitoredItem item = CreateItem(server);
-            IAsyncNodeManager manager = item.NodeManager;
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            IAsyncNodeManager manager = generation.NodeManager;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
             server.Setup(value => value.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
             using MonitoredItem item = CreateItem(server);
-            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration original = GetBoundGeneration(item);
             NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
                 original, new Mock<IAsyncNodeManager>().Object);
             var owner = new Mock<ISubscription>().Object;
@@ -233,8 +233,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(original.Slot.UnresolvedItems, Has.Count.EqualTo(1));
             Assert.That(original.Slot.UnresolvedItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
             Assert.That(actualOwner, Is.SameAs(owner));
-            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot.UnresolvedItems, Is.Empty,
-                "A parking manager must never become the stable owner of the lost item.");
+            Assert.That(item.NodeManager, Is.Null, "A lost item has no synthetic parking manager.");
+            Assert.That(item.Generation, Is.Null);
 
             lifecycle.Rebind(replacement.NodeManager, new object());
 
@@ -251,7 +251,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             var binding = (IMonitoredItemGenerationBinding)item;
@@ -280,7 +280,8 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            NodeManagerSlot slot = generation.Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             var binding = (IMonitoredItemGenerationBinding)item;
@@ -305,7 +306,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(((IStoredMonitoredItemInvalidation)stored).IsTerminal, Is.True);
             using var restored = new MonitoredItem(
                 CreateServer(telemetry, queueFactory).Object,
-                item.NodeManager,
+                generation.NodeManager,
                 new object(),
                 stored,
                 null);
@@ -316,7 +317,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(slot.UnresolvedItems, Is.Empty);
             Assert.That(((IDetachableMonitoredItem)restored).TryBeginAttach(), Is.False);
             Assert.That(
-                () => ((IDetachableMonitoredItem)restored).Rebind(item.NodeManager, new object()),
+                () => ((IDetachableMonitoredItem)restored).Rebind(generation.NodeManager, new object()),
                 Throws.InvalidOperationException);
         }
 
@@ -400,7 +401,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
             var lifecycle = (IDetachableMonitoredItem)item;
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
@@ -427,7 +428,7 @@ namespace Opc.Ua.Server.Tests
             server.Setup(s => s.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
             using MonitoredItem item = CreateItem(server);
             var lifecycle = (IDetachableMonitoredItem)item;
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
 
             lifecycle.BeginDetach();
             Assert.That(slot.UnresolvedItems, Is.Empty);
@@ -454,7 +455,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
             var lifecycle = (IDetachableMonitoredItem)item;
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
@@ -507,13 +508,24 @@ namespace Opc.Ua.Server.Tests
                 stored,
                 null);
 
-            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             Assert.That(slot.UnresolvedItems, Is.Empty);
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
             Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.EqualTo(isDetached || isDeleted));
             Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(isDetached || isDeleted ? 1 : 0));
+        }
+
+        /// <summary>
+        /// Requires the exact live binding rather than manufacturing an owner for an unresolved item.
+        /// </summary>
+        private static NodeManagerGeneration GetBoundGeneration(MonitoredItem item)
+        {
+            Assert.That(item.Generation, Is.Not.Null);
+            Assert.That(item.Generation!.TryGetGeneration(out NodeManagerGeneration? generation), Is.True);
+            Assert.That(generation, Is.Not.Null);
+            return generation!;
         }
 
         private static MonitoredItemQueueFactory CreateQueueFactory(out ITelemetryContext telemetry)

@@ -45,7 +45,7 @@ namespace Opc.Ua.Server
         NotificationAuthorization? authorization) : IEventMonitoredItem
     {
         /// <inheritdoc/>
-        public IAsyncNodeManager NodeManager => item.NodeManager;
+        public IAsyncNodeManager? NodeManager => item.NodeManager;
 
         /// <inheritdoc/>
         public ISession Session => item.Session;
@@ -73,7 +73,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public object ManagerHandle => item.ManagerHandle;
+        public object? ManagerHandle => item.ManagerHandle;
 
         /// <inheritdoc/>
         public int MonitoredItemType => item.MonitoredItemType;

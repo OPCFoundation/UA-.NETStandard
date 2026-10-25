@@ -141,6 +141,12 @@ the lifecycle never silently reruns a factory or rebases its private namespace i
 
 See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 
+Unresolved monitored items are no longer parked on the Core manager. `IMonitoredItem.NodeManager`
+and `ManagerHandle` now return null when no source is bound. Custom item consumers must check
+these properties before invoking source operations, and must not use Core ownership or a shared
+sentinel handle to recognize a lost node. The subscription retains the item and its queues;
+the original stable slot retains recovery ownership until compatible adoption or client deletion.
+
 Condition-refresh callbacks now receive invocation-scoped `IEventMonitoredItem` targets rather than
 the subscription's original concrete item objects. Custom refresh implementations must use the
 interface properties and `QueueEvent` methods: replace casts to `MonitoredItem` and reference-identity

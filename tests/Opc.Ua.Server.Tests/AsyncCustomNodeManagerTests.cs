@@ -4094,7 +4094,7 @@ namespace Opc.Ua.Server.Tests
             if (m_managerType == AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter)
             {
                 // The sync CustomNodeManager2 binds items through an adapter wrapping it directly.
-                Assert.That(monitoredItem.NodeManager.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
+                Assert.That(monitoredItem.NodeManager?.SyncNodeManager, Is.SameAs(manager.SyncNodeManager));
             }
             else
             {
