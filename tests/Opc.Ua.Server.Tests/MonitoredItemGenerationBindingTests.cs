@@ -180,6 +180,11 @@ namespace Opc.Ua.Server.Tests
             item.Dispose();
 
             Assert.That(generation.MonitoredItems, Is.Empty);
+            Assert.That(binding.IsDisposed, Is.True);
+            ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                ((IDetachableMonitoredItem)item).Rebind(new Mock<IAsyncNodeManager>().Object, new object()));
+            Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+            Assert.That(item.NodeManager, Is.SameAs(generation.NodeManager));
             Assert.That(() => binding.BindSubscription(owner), Throws.TypeOf<ObjectDisposedException>());
             Assert.That(generation.MonitoredItems, Is.Empty);
         }
@@ -315,7 +320,7 @@ namespace Opc.Ua.Server.Tests
             restoredBinding.BindSubscription(owner);
             Assert.That(restoredBinding.IsTerminal, Is.True);
             Assert.That(slot.UnresolvedItems, Is.Empty);
-            Assert.That(((IDetachableMonitoredItem)restored).TryBeginAttach(), Is.False);
+            Assert.That(restoredBinding.IsDisposed, Is.False);
             Assert.That(
                 () => ((IDetachableMonitoredItem)restored).Rebind(generation.NodeManager, new object()),
                 Throws.InvalidOperationException);
@@ -358,8 +363,16 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(((IMonitoredItemGenerationBinding)item).IsTerminal, Is.False);
             var lifecycle = (IDetachableMonitoredItem)item;
-            Assert.That(lifecycle.TryBeginAttach(), Is.True);
-            Assert.That(lifecycle.EndAttach(), Is.True);
+            var replacement = new Mock<IAsyncNodeManager>().Object;
+            var handle = new object();
+            lifecycle.Rebind(replacement, handle);
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.NodeManager, Is.SameAs(replacement));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(lifecycle.IsDetached, Is.False);
+                Assert.That(lifecycle.IsDeleted, Is.False);
+            });
         }
 
         /// <summary>

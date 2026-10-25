@@ -1232,13 +1232,10 @@ namespace Opc.Ua.Server
                         continue;
                     }
 
-                    // Every MonitoredItem the server creates is detachable. A test double or
-                    // a foreign implementation that is not cannot take part in the reservation, so
-                    // it is handed over without one.
+                    var binding = monitoredItem as IMonitoredItemGenerationBinding;
                     var detachable = monitoredItem as IDetachableMonitoredItem;
-                    if (detachable?.TryBeginAttach() == false)
+                    if (binding is { IsDisposed: true } or { IsTerminal: true })
                     {
-                        // The item was deleted and disposed before the hand-over started.
                         continue;
                     }
 
@@ -1257,7 +1254,8 @@ namespace Opc.Ua.Server
                             }
                             throw new ServiceResultException(result);
                         }
-                        if (!compatible || m_replacement is null || !IsOwnedBySubscription(monitoredItem))
+                        if (!compatible || m_replacement is null ||
+                            binding?.IsDisposed == true || !IsOwnedBySubscription(monitoredItem))
                         {
                             m_reconciledItems.Add(monitoredItem);
                             continue;
@@ -1280,6 +1278,12 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
+                        catch (ServiceResultException ex) when (
+                            binding?.IsDisposed == true && ex.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
+                        {
+                            // Rebinding lost to client disposal; native adoption rolls its registration back.
+                            detachable?.Detach(m_server);
+                        }
                         catch (Exception ex) when (ex is not OutOfMemoryException)
                         {
                             MarkAttachFailure(monitoredItem);
@@ -1289,7 +1293,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        if (detachable is not null && !detachable.EndAttach() && attached)
+                        if (attached && (binding?.IsDisposed == true || !IsOwnedBySubscription(monitoredItem)))
                         {
                             // Client deletion during handoff must also stop replacement sampling.
                             try
@@ -1306,7 +1310,7 @@ namespace Opc.Ua.Server
                             {
                                 failures.Add(ex);
                             }
-                            detachable.Detach(m_server);
+                            detachable?.Detach(m_server);
                         }
                     }
                 }
@@ -1324,7 +1328,8 @@ namespace Opc.Ua.Server
                 foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
                 {
                     if (!m_reconciledItems.Contains(monitoredItem) ||
-                        m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
+                        m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem) ||
+                        monitoredItem is IMonitoredItemGenerationBinding { IsDisposed: true })
                     {
                         continue;
                     }

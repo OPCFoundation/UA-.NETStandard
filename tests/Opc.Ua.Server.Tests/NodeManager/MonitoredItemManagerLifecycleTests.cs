@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -1539,9 +1540,7 @@ namespace Opc.Ua.Server.Tests
             Mock<INodeManagerMonitoredItemLifecycle> target = replacement.As<INodeManagerMonitoredItemLifecycle>();
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(value => value.NodeId).Returns(new NodeId("RetainedFailure", 1));
-            Mock<IDetachableMonitoredItem> detachable = item.As<IDetachableMonitoredItem>();
-            detachable.Setup(value => value.TryBeginAttach()).Returns(true);
-            detachable.Setup(value => value.EndAttach()).Returns(true);
+            item.As<IDetachableMonitoredItem>();
             var subscription = new Mock<ISubscription>();
             subscription.As<ISubscriptionMonitoredItemLifecycle>()
                 .Setup(value => value.ContainsMonitoredItem(item.Object)).Returns(true);
@@ -1586,9 +1585,137 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// A failed source release relinquishes the reservation without calling the replacement.
         /// </summary>
+        /// <summary>
+        /// Client disposal is immediate and forbids queue use even while generation adoption is running.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task ReleaseFailureEndsTheAdoptionReservationAsync(bool throws)
+        public async Task ClientDisposalDoesNotWaitForAdoptionOrPermitLaterQueueUseAsync(bool disposeDuringRelease)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var queue = new Mock<IDataChangeMonitoredItemQueue>();
+                queue.SetupGet(value => value.QueueSize).Returns(10);
+                var queueFactory = new Mock<IMonitoredItemQueueFactory>();
+                queueFactory.Setup(value => value.CreateDataChangeQueue(false, It.IsAny<uint>()))
+                    .Returns(queue.Object);
+                server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(queueFactory.Object);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, new Mock<IAsyncNodeManager>().Object, new NodeHandle(), new NodeId("Dispose", 1));
+                bool queueDisposedInCallback = false;
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ =>
+                    {
+                        if (disposeDuringRelease)
+                        {
+                            DisposeInCallback();
+                        }
+                        return ServiceResult.Good;
+                    }
+                };
+                var replacement = new TestNodeManagerLifecycle
+                {
+                    AttachCallback = _ =>
+                    {
+                        DisposeInCallback();
+                        return ServiceResult.Good;
+                    }
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, replacement, [item], [], static _ => true);
+
+                Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(queueDisposedInCallback, Is.True);
+                    Assert.That(replacement.AttachCount, Is.EqualTo(disposeDuringRelease ? 0 : 1));
+                    Assert.That(replacement.DetachCount, Is.EqualTo(disposeDuringRelease ? 0 : 1));
+                });
+                queue.Verify(value => value.Dispose(), Times.Once);
+                queue.Verify(value => value.Enqueue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()), Times.Never);
+                queue.Verify(value => value.OverwriteLastValue(It.IsAny<DataValue>(), It.IsAny<ServiceResult>()),
+                    Times.Never);
+
+                void DisposeInCallback()
+                {
+                    item.Dispose();
+                    queueDisposedInCallback = queue.Invocations.Any(
+                        value => value.Method.Name == nameof(IDisposable.Dispose));
+                    item.QueueValue(new DataValue(new Variant(123)), null, ignoreFilters: true);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Client disposal inside native adoption rolls back registrations before clearing the disposed binding.
+        /// </summary>
+        [Test]
+        public async Task DisposedNativeAdoptionRollsBackItsPartialRegistrationAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>().Object;
+                using var manager = new MonitoredNodeMonitoredItemManager(nodeManager, server.Object);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("DisposeDuringNativeAdoption", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, nodeManager, new NodeHandle(node.NodeId, node), node.NodeId);
+                var binding = (IDetachableMonitoredItem)item;
+                var native = (IMonitoredItemManagerLifecycle)manager;
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
+                int cacheRemovals = 0;
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ =>
+                    {
+                        binding.Detach(server.Object);
+                        return ServiceResult.Good;
+                    }
+                };
+                var replacement = new TestNodeManagerLifecycle
+                {
+                    AttachCallback = _ => native.AttachMonitoredItem(
+                        context,
+                        new NodeHandle(node.NodeId, node),
+                        item,
+                        (_, _, value) =>
+                        {
+                            item.Dispose();
+                            return value;
+                        },
+                        (_, _) => cacheRemovals++).Result
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, replacement, [item], [], static _ => true);
+
+                Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(current.DetachCount, Is.EqualTo(1));
+                    Assert.That(replacement.AttachCount, Is.EqualTo(1));
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                    Assert.That(cacheRemovals, Is.EqualTo(1));
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDisposed, Is.True);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Source release failures preserve ownership and leave adoption retryable without an item reservation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReleaseFailurePreservesSourceOwnershipForSuccessfulRetryAsync(bool throws)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -1596,6 +1723,8 @@ namespace Opc.Ua.Server.Tests
             using (MonitoredItem item = CreateMonitoredItem(
                 server.Object, new Mock<IAsyncNodeManager>().Object, new object(), new NodeId("ReleaseFailure", 1)))
             {
+                IAsyncNodeManager originalOwner = item.NodeManager!;
+                object originalHandle = item.ManagerHandle!;
                 var current = new TestNodeManagerLifecycle
                 {
                     DetachCallback = _ => throws
@@ -1608,25 +1737,19 @@ namespace Opc.Ua.Server.Tests
 
                 Exception failure = await Assert.CatchAsync<Exception>(
                     async () => await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false));
-                var lifecycle = (IDetachableMonitoredItem)item;
-                bool reserved = lifecycle.TryBeginAttach();
-                try
+                Assert.Multiple(() =>
                 {
-                    Assert.Multiple(() =>
-                    {
-                        Assert.That(failure, Is.TypeOf(
-                            throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
-                        Assert.That(reserved, Is.True);
-                        Assert.That(replacement.AttachCount, Is.Zero);
-                    });
-                }
-                finally
-                {
-                    if (reserved)
-                    {
-                        lifecycle.EndAttach();
-                    }
-                }
+                    Assert.That(failure, Is.TypeOf(
+                        throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
+                    Assert.That(item.NodeManager, Is.SameAs(originalOwner));
+                    Assert.That(item.ManagerHandle, Is.SameAs(originalHandle));
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDisposed, Is.False);
+                    Assert.That(replacement.AttachCount, Is.Zero);
+                });
+                current.DetachCallback = _ => ServiceResult.Good;
+                Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+                Assert.That(current.DetachCount, Is.EqualTo(2));
+                Assert.That(replacement.AttachCount, Is.EqualTo(1));
             }
         }
 

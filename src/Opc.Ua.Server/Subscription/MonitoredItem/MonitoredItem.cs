@@ -737,36 +737,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool IDetachableMonitoredItem.TryBeginAttach()
+        bool IMonitoredItemGenerationBinding.IsDisposed
         {
-            lock (m_lock)
+            get
             {
-                if (m_isDisposed || m_isTerminal)
+                lock (m_lock)
                 {
-                    return false;
-                }
-
-                m_isAttaching = true;
-                return true;
-            }
-        }
-
-        /// <inheritdoc/>
-        bool IDetachableMonitoredItem.EndAttach()
-        {
-            lock (m_lock)
-            {
-                m_isAttaching = false;
-                if (!m_isDisposed)
-                {
-                    return true;
+                    return m_isDisposed;
                 }
             }
-
-            // The item was deleted and disposed while it was being handed to the replacement, so
-            // the teardown that Dispose deferred runs now and the caller has to undo the attach.
-            DisposeQueueHandlers();
-            return false;
         }
 
         /// <inheritdoc/>
@@ -861,6 +840,10 @@ namespace Opc.Ua.Server
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
+                }
                 if (m_isTerminal)
                 {
                     throw new InvalidOperationException("A terminal monitored item cannot be rebound.");
@@ -1607,6 +1590,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    return;
+                }
                 ISession? session = Session ?? context.Session;
                 if (!ReferenceEquals(context.Session, session) ||
                     !NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
@@ -1654,6 +1641,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    return;
+                }
                 if (!ReferenceEquals(session, Session) ||
                     !NotificationAuthorization.IsCurrent(session, authorization))
                 {
@@ -1715,6 +1706,10 @@ namespace Opc.Ua.Server
             }
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    return;
+                }
                 if ((sourceEmission ?? emission) is { Generation: var generation } &&
                     !IsBoundToGeneration(generation) &&
                     !(capturedSourceEmission && m_isDetached && ReferenceEquals(m_slot, generation.Slot)))
@@ -2161,6 +2156,10 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    return;
+                }
                 EnsureNotificationAuthorization();
                 if (!CanUseEventSource(admittedGeneration) ||
                     (!capturedSourceEmission && !CanQueueSourceEmission()))
@@ -2283,6 +2282,10 @@ namespace Opc.Ua.Server
             m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
+                if (m_isDisposed)
+                {
+                    return;
+                }
                 EnsureNotificationAuthorization();
                 if (!CanUseEventSource(admittedGeneration) ||
                     (!capturedSourceEmission && !CanQueueSourceEmission()))
@@ -3480,21 +3483,13 @@ namespace Opc.Ua.Server
                 }
                 m_valuePublication?.Complete(published: false);
                 SetDetachState(m_isDetached, m_isDeleted);
-
-                // A NodeManager reload may be handing this item to its replacement right now.
-                // Tearing the queues down underneath it would leave the replacement sampling a
-                // disposed item, so the teardown waits for the attach to report back.
-                if (m_isAttaching)
-                {
-                    return;
-                }
             }
 
             DisposeQueueHandlers();
         }
 
         /// <summary>
-        /// Releases the queues once no attach is in flight.
+        /// Releases the queues after disposal has forbidden further source deliveries.
         /// </summary>
         private void DisposeQueueHandlers()
         {
@@ -3612,7 +3607,6 @@ namespace Opc.Ua.Server
         /// <summary>Whether invalidation permanently forbids this item's adoption.</summary>
         private bool m_isTerminal;
 
-        private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;
         private IAsyncNodeManager? m_nodeManager;

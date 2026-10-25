@@ -45,22 +45,6 @@ namespace Opc.Ua.Server
         bool IsDeleted { get; }
 
         /// <summary>
-        /// Reserves the monitored item while it is handed to a NodeManager, so that a concurrent
-        /// delete cannot dispose it midway and leave the NodeManager sampling a disposed item.
-        /// </summary>
-        /// <returns><c>false</c> when the item has already been disposed.</returns>
-        bool TryBeginAttach();
-
-        /// <summary>
-        /// Ends the reservation taken by <see cref="TryBeginAttach"/>.
-        /// </summary>
-        /// <returns>
-        /// <c>true</c> when the item is still usable, <c>false</c> when it was disposed while the
-        /// attach was running, in which case the caller has to undo the attach.
-        /// </returns>
-        bool EndAttach();
-
-        /// <summary>
         /// Marks the monitored node as deleted and schedules the required status notification.
         /// </summary>
         void MarkNodeDeleted();

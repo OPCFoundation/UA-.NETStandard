@@ -991,6 +991,11 @@ Unresolved modification uses the server configuration's sampling and queue limit
 item's retained type/range metadata. Source-specific validation hooks resume only after adoption;
 Core-manager overrides do not supply policy for an item without a source.
 
+Client deletion disposes an item's queues immediately, without waiting for an in-flight handoff.
+Disposed items reject rebinding and source notifications, including already-admitted deliveries.
+If deletion wins during a replacement callback, reconciliation removes its late native registration;
+cleanup failures remain visible on the committed result.
+
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.

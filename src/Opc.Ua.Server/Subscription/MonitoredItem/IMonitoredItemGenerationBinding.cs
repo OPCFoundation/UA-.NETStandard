@@ -40,6 +40,11 @@ namespace Opc.Ua.Server
         bool IsTerminal { get; }
 
         /// <summary>
+        /// Gets whether the client has disposed the item and released its queues.
+        /// </summary>
+        bool IsDisposed { get; }
+
+        /// <summary>
         /// Reports the lost node once and optionally forbids future adoption.
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>
