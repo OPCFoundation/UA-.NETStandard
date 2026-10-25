@@ -1009,6 +1009,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string? title = null;
             string? baseUri = null;
             string? modelVersion = null;
+            string? instanceVersion = null;
             WoTValidationOutcomeDataType? validation = null;
             ImmutableArray<string>.Builder diagnostics = ImmutableArray.CreateBuilder<string>();
             bool parseFailed = false;
@@ -1046,6 +1047,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     versionElement.ValueKind == JsonValueKind.Object)
                 {
                     modelVersion = ReadString(versionElement, "model");
+                    instanceVersion = ReadString(versionElement, "instance");
                 }
             }
             catch (Exception ex) when (ex is JsonException or FormatException)
@@ -1142,8 +1144,13 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResourceVersion? current;
                 string versionId;
                 WotPublicationAssignment? assignment = null;
-                if (request.Kind == WoTDocumentKindEnum.ThingModel && parsedKind == WotDocumentKind.ThingModel)
+                if ((request.Kind == WoTDocumentKindEnum.ThingModel &&
+                        parsedKind == WotDocumentKind.ThingModel) ||
+                    (request.Kind == WoTDocumentKindEnum.ThingDescription &&
+                        parsedKind == WotDocumentKind.ThingDescription))
                 {
+                    string targetKind = request.Kind == WoTDocumentKindEnum.ThingDescription ? "td" : "tm";
+                    string? authoredVersion = targetKind == "td" ? instanceVersion : modelVersion;
                     string identity = documentId ?? resourceId;
                     WotResourceSnapshot resourceVersions = existing is null
                         ? new WotResourceSnapshot(identity, false, null, [])
@@ -1164,9 +1171,9 @@ namespace Opc.Ua.WotCon.Server.Registry
                     {
                         assignment = unchanged is null
                             ? WotVersionResolver.AssignPublishedVersion([resourceVersions], identity,
-                                explicitVersionId, modelVersion)
+                                explicitVersionId, modelVersion, targetKind, instanceVersion)
                             : new WotPublicationAssignment(unchanged.VersionId,
-                                unchanged.VersionId == modelVersion ? "authored" : "generated",
+                                unchanged.VersionId == authoredVersion ? "authored" : "generated",
                                 existing!.DefaultVersionId);
                     }
                     catch (WotVersionException exception)
@@ -1268,7 +1275,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     !string.Equals(current.DocumentId, documentId, StringComparison.Ordinal) ||
                     !string.Equals(current.Title, title, StringComparison.Ordinal) ||
                     !string.Equals(current.BaseUri, baseUri, StringComparison.Ordinal) ||
-                    !string.Equals(current.ModelVersion, modelVersion, StringComparison.Ordinal);
+                    !string.Equals(current.ModelVersion, modelVersion, StringComparison.Ordinal) ||
+                    !string.Equals(current.InstanceVersion, instanceVersion, StringComparison.Ordinal);
                 bool defaultChanged = existing is null ||
                     !string.Equals(
                         existing.DefaultVersionId,
@@ -1321,6 +1329,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                         Title = title,
                         BaseUri = baseUri,
                         ModelVersion = modelVersion,
+                        InstanceVersion = instanceVersion,
                         Dependencies = dependencies
                     };
                 }
@@ -1340,7 +1349,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                             title,
                             baseUri,
                             modelVersion,
-                            dependencies);
+                            dependencies,
+                            instanceVersion);
                 }
                 else
                 {

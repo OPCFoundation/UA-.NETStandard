@@ -388,7 +388,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResourceVersion? exact = resource.Versions.FirstOrDefault(candidate =>
                 WotDependencyGraph.VersionXid(resource, candidate) == target);
             WotResourceVersion? version = exact ?? resource.DefaultVersion;
-            if (exact is null && resource.Kind == WoTDocumentKindEnum.ThingModel &&
+            bool isThingModelReference = resource.Kind == WoTDocumentKindEnum.ThingModel &&
+                (reference.MinimumVersion is not null ||
+                    resource.Versions.All(candidate => WotSemanticVersion.TryParse(candidate.VersionId, out _)));
+            bool isThingDescriptionReference = resource.Kind == WoTDocumentKindEnum.ThingDescription &&
+                reference.Kind is "td-extends" or "td-subthing" or "td-ref" or
+                    "td:extends" or "td:subthing" or "td:ref";
+            if (exact is null && (isThingModelReference || isThingDescriptionReference) &&
                 (reference.MinimumVersion is not null ||
                     resource.Versions.All(candidate => WotSemanticVersion.TryParse(candidate.VersionId, out _))))
             {

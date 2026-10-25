@@ -1,0 +1,42 @@
+{
+  "description": "A prerelease TD floor admits in-range prereleases and excludes the next major.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:robot",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0-rc.1",
+      "versions": [
+        {
+          "versionid": "1.2.0-rc.2",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003c",
+          "version.instance": "1.2.0-rc.2"
+        },
+        {
+          "versionid": "1.3.0-rc.1",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003d",
+          "version.instance": "1.3.0-rc.1"
+        },
+        {
+          "versionid": "2.0.0-rc.1",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003e",
+          "version.instance": "2.0.0-rc.1"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-extends",
+    "target": "urn:example:thing:robot",
+    "minVersion": "1.2.0-rc.1"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:robot",
+      "versionid": "1.3.0-rc.1",
+      "contentdigest": "sha256:000000000000000000000000000000000000000000000000000000000000003d"
+    }
+  }
+}

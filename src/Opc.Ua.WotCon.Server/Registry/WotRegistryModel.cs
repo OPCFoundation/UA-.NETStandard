@@ -273,6 +273,11 @@ namespace Opc.Ua.WotCon.Server.Registry
         public string? ModelVersion { get; init; }
 
         /// <summary>
+        /// Gets the Thing Description <c>version.instance</c> value parsed from this Version.
+        /// </summary>
+        public string? InstanceVersion { get; init; }
+
+        /// <summary>
         /// Gets the immutable semantic dependency index for these exact bytes.
         /// Null denotes an older provider that has not supplied the index.
         /// </summary>
@@ -351,6 +356,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = Title,
                 BaseUri = BaseUri,
                 ModelVersion = ModelVersion,
+                InstanceVersion = InstanceVersion,
                 Dependencies = Dependencies,
                 DependencySnapshot = dependencySnapshot ?? DependencySnapshot,
                 LastDependencyAttempt = lastDependencyAttempt ?? LastDependencyAttempt
@@ -365,12 +371,14 @@ namespace Opc.Ua.WotCon.Server.Registry
         /// <param name="baseUri">The base URI.</param>
         /// <param name="modelVersion">The model version.</param>
         /// <param name="dependencies">The WoT resource dependencies.</param>
+        /// <param name="instanceVersion">The Thing Description instance version.</param>
         internal WotResourceVersion WithDocumentMetadata(
             string? documentId,
             string? title,
             string? baseUri,
             string? modelVersion,
-            WotResourceDependencies? dependencies = null)
+            WotResourceDependencies? dependencies = null,
+            string? instanceVersion = null)
         {
             return new WotResourceVersion(
                 VersionId,
@@ -390,6 +398,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = title,
                 BaseUri = baseUri,
                 ModelVersion = modelVersion,
+                InstanceVersion = instanceVersion,
                 Dependencies = dependencies ?? Dependencies,
                 DependencySnapshot = DependencySnapshot,
                 LastDependencyAttempt = LastDependencyAttempt

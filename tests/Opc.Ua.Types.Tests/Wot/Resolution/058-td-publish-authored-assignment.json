@@ -1,0 +1,30 @@
+{
+  "description": "A TD publication assigns versionid from SemVer version.instance.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:lamp-publish",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.2.0",
+      "versions": [
+        {
+          "versionid": "1.2.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000043",
+          "version.instance": "1.2.0"
+        }
+      ]
+    }
+  ],
+  "publish": {
+    "target": "urn:example:thing:lamp-publish",
+    "targetKind": "td",
+    "version.instance": "1.4.0"
+  },
+  "expect": {
+    "assigned": {
+      "versionid": "1.4.0",
+      "versionorigin": "authored",
+      "defaultversionid": "1.4.0"
+    }
+  }
+}

@@ -61,6 +61,8 @@ namespace Opc.Ua.Wot
         /// </summary>
         public bool IsPrerelease => m_prerelease is not null;
 
+        internal bool HasSameMajor(WotSemanticVersion other) => m_major == other.m_major;
+
         /// <summary>
         /// Parses a SemVer 2.0.0 string without build metadata and within Core's identifier limit.
         /// </summary>

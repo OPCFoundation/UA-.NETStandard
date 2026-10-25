@@ -56,9 +56,16 @@ class Version:
         return len(self.pre) < len(other.pre)
 
 
+TD_REFERENCE_KINDS = {"td-extends", "td-subthing", "td-ref"}
+
+
 def floor_for(case):
     reference = case["reference"]
     floor = reference.get("minVersion")
+    is_td = reference["kind"] in TD_REFERENCE_KINDS
+    expected_term = "td:minVersion" if is_td else "tm:minVersion"
+    if "floorTerm" in reference and not ("minVersion" in reference and reference["floorTerm"] == expected_term):
+        raise OutcomeError("invalid-floor")
     document = case.get("document", {})
     if reference["kind"] == "type" and document:
         links = document["typeLinks"]
@@ -113,35 +120,52 @@ def resolve(case):
             raise OutcomeError("not-found")
     else:
         floor = floor_for(case)
+        is_td = case["reference"]["kind"] in TD_REFERENCE_KINDS
+        upper = Version(f"{floor.core[0] + 1}.0.0") if is_td and floor is not None else None
         if resource["defaultversionsticky"]:
             selected = next((v for v in versions if v["versionid"] == resource["defaultversionid"]), None)
             if selected is None:
                 raise OutcomeError("not-found")
+            selected_version = Version(selected["versionid"])
+            if floor is not None and (selected_version < floor or (upper is not None and selected_version.core[0] >= upper.core[0])):
+                raise OutcomeError("unsatisfied")
         else:
-            eligible = [v for v in versions if not Version(v["versionid"]).pre
-                        or case.get("allowPrerelease", False) or (floor is not None and floor.pre)]
+            eligible = []
+            for version in versions:
+                candidate = Version(version["versionid"])
+                if candidate.pre and not case.get("allowPrerelease", False) and not (floor is not None and floor.pre):
+                    continue
+                if floor is not None and candidate < floor:
+                    continue
+                if upper is not None and candidate.core[0] >= upper.core[0]:
+                    continue
+                eligible.append(version)
             if not eligible:
                 raise OutcomeError("unsatisfied")
             selected = max(eligible, key=lambda v: Version(v["versionid"]))
-        if floor is not None and Version(selected["versionid"]) < floor:
+        selected_version = Version(selected["versionid"])
+        if floor is not None and selected_version < floor:
+            raise OutcomeError("unsatisfied")
+        if upper is not None and selected_version.core[0] >= upper.core[0]:
             raise OutcomeError("unsatisfied")
     return {"wotid": resource["wotid"], "versionid": selected["versionid"],
             "contentdigest": selected["contentdigest"], "origin": ORIGIN}
 
 
 def publish(case):
-    """Assign the TM Version id and compute Core's post-publication default."""
+    """Assign a TM or TD Version id and compute Core's post-publication default."""
     operation = case["publish"]
     resource = resource_for(case, operation["target"])
     supplied = operation.get("versionid")
     if supplied is not None and (not CORE_ID.fullmatch(supplied) or supplied in ("null", "request")):
         raise OutcomeError("invalid-version")
-    model = operation.get("version.model")
-    if model is not None and WITH_BUILD.fullmatch(model):
+    is_td = operation.get("targetKind", "tm") == "td"
+    document_version = operation.get("version.instance" if is_td else "version.model")
+    if document_version is not None and WITH_BUILD.fullmatch(document_version):
         raise OutcomeError("invalid-version")
-    if model is not None and SEMVER.fullmatch(model):
-        Version(model)
-        assigned, origin = model, "authored"
+    if document_version is not None and SEMVER.fullmatch(document_version):
+        Version(document_version)
+        assigned, origin = document_version, "authored"
     else:
         occupied = {v["versionid"].lower() for v in resource["versions"]}
         number = 1

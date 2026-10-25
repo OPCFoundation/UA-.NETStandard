@@ -175,11 +175,16 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         CollectSemanticLinks(document, property.Value, references);
                         break;
                     case "tm:extends":
+                    case "td:extends":
+                    case "td:subthing":
                     case "uav:componentOf":
                         AddSemanticTargets(document, element, property.Value, term, references);
                         break;
                     case "tm:ref":
                         AddSemanticTargets(document, element, property.Value, referenceKind, references);
+                        break;
+                    case "td:ref":
+                        AddSemanticTargets(document, element, property.Value, term, references);
                         break;
                     case "uav:dataTypeName":
                     case "uav:fieldDataTypeName":
@@ -341,7 +346,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     continue;
                 }
                 string term = SemanticTerm(document, relation.GetString()!, link);
-                if (term is "type" or "collection" or "item" or "tm:extends" or "tm:submodel" ||
+                if (term is "type" or "collection" or "item" or "tm:extends" or "tm:submodel" or
+                    "td:extends" or "td:subthing" ||
                     term.StartsWith("ua:", StringComparison.Ordinal) || IsContainmentRelation(term) ||
                     Uri.TryCreate(term, UriKind.Absolute, out _) ||
                     link.EnumerateObject().Any(member => SemanticTerm(document, member.Name, link) == "uav:refId"))
@@ -384,7 +390,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             references.Add(new WotResourceReference(raw, lookup, relation, IsOrderingReference(relation))
             {
-                RequiredVersion = relation is "tm:extends" or "tm:submodel" or "tm:ref" or "type" ||
+                RequiredVersion = relation is "tm:extends" or "tm:submodel" or "tm:ref" or "type" or
+                    "td:extends" or "td:subthing" or "td:ref" ||
                     relation == EventTypeRefType || relation == EventSelectClauseRefType
                     ? WotVersionedReference.GetRequiredVersion(document, carryingNode, relation) : null
             });
@@ -393,6 +400,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         private static bool IsOrderingReference(string relation)
         {
             return relation is "tm:extends" or "tm:submodel" or "type" or
+                "td:extends" or "td:subthing" or "td:ref" or
                 "ua:HasSubtype" or "ua:HasTypeDefinition" or "uav:projects" or
                 "uav:dataTypeSubtypeOf" or EventTypeRefType or EventSelectClauseRefType;
         }
@@ -406,7 +414,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             if (expanded.StartsWith(TdNamespace, StringComparison.Ordinal))
             {
-                return expanded[TdNamespace.Length..];
+                string local = expanded[TdNamespace.Length..];
+                return local is "extends" or "subthing" or "ref"
+                    ? "td:" + local
+                    : local;
             }
             if (expanded.StartsWith(BindingNamespace, StringComparison.Ordinal))
             {

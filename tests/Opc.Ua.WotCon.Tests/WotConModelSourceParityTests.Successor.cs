@@ -49,7 +49,7 @@ namespace Opc.Ua.WotCon.Tests
         /// <param name="fileName">The file name used by this test case.</param>
         /// <param name="digest">The expected digest of the input file.</param>
         [TestCase(RegistryNodeSet, "4440d08f46039108a3c8a67bdd22727f189f7c1a28b7473100c4be28249ee660")]
-        [TestCase(ConnectivityNodeSet, "5bef54bf50435c2077e4494510962d882f097bcac7af4a369024f33212d3a124")]
+        [TestCase(ConnectivityNodeSet, "a812ca1566c84a27609e20873d36dc66a8fc331c82a6d066c71f5f31382c8493")]
         [TestCase(ConnectivityCsv, "7004c59b9c2919c0aad613313f1b55733cb70d282e3afbd53fd87973e728c864")]
         public void TheSuccessorInputsMatchTheReviewedGeneratedArtifacts(string fileName, string digest)
         {

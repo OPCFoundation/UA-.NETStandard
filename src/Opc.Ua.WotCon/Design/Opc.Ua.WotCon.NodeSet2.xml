@@ -357,7 +357,7 @@
       <Reference ReferenceType="HasEncoding">ns=2;i=64520</Reference>
       <Reference ReferenceType="HasEncoding">ns=2;i=64521</Reference>
     </References>
-    <Definition Name="2:WoTDependencyDataType" StructureType="StructureWithOptionalFields"><Field Name="SourceXid" DataType="i=12"><Description>The xid of the dependent document.</Description></Field><Field Name="TargetXid" DataType="i=12"><Description>The origin-registry-relative xid of the pinned target Version; empty for unresolved or non-registry targets. Origin scope is carried separately in snapshot Targets.</Description></Field><Field Name="TargetUri" DataType="i=12"><Description>The raw href/URI of the dependency as authored in the document.</Description></Field><Field Name="RefType" DataType="i=12"><Description>The dependency kind (for example tm:extends, tm:ref, links.rel=type).</Description></Field><Field Name="Resolved" DataType="i=1"><Description>True if the dependency resolved to a pinned registry or catalog/provider document.</Description></Field><Field Name="RequiredVersion" DataType="i=12" IsOptional="true"><Description>The effective SemVer floor for this reference; absent when no floor applies.</Description></Field></Definition>
+    <Definition Name="2:WoTDependencyDataType" StructureType="StructureWithOptionalFields"><Field Name="SourceXid" DataType="i=12"><Description>The xid of the dependent document.</Description></Field><Field Name="TargetXid" DataType="i=12"><Description>The origin-registry-relative xid of the pinned target Version; empty for unresolved or non-registry targets. Origin scope is carried separately in snapshot Targets.</Description></Field><Field Name="TargetUri" DataType="i=12"><Description>The raw href/URI of the dependency as authored in the document.</Description></Field><Field Name="RefType" DataType="i=12"><Description>The dependency kind (for example tm:extends, tm:ref, td:extends, td:subthing, td:ref or links.rel=type).</Description></Field><Field Name="Resolved" DataType="i=1"><Description>True if the dependency resolved to a pinned registry or catalog/provider document.</Description></Field><Field Name="RequiredVersion" DataType="i=12" IsOptional="true"><Description>The effective SemVer floor for this reference; tm:minVersion applies to a TM target and td:minVersion to a TD-to-TD target. The target kind determines whether the floor has a next-major upper bound; absent when no floor applies.</Description></Field></Definition>
   </UADataType>
   <UAObject NodeId="ns=2;i=64520" BrowseName="Default Binary" ParentNodeId="ns=2;i=64046">
     <DisplayName>Default Binary</DisplayName>
@@ -3405,7 +3405,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64663" BrowseName="2:DocumentVersion" ParentNodeId="ns=2;i=64003" DataType="String" ValueRank="-1">
     <DisplayName>DocumentVersion</DisplayName>
-    <Description>The literal version.model value authored in this TD or TM, when present. It is not the registry VersionId.</Description>
+    <Description>The literal version.model value authored in a TM or version.instance value authored in a TD, when present. It is not the registry VersionId.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=80</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
@@ -3414,7 +3414,7 @@
   </UAVariable>
   <UAVariable NodeId="ns=2;i=64664" BrowseName="2:VersionOrigin" ParentNodeId="ns=2;i=64003" DataType="String" ValueRank="-1">
     <DisplayName>VersionOrigin</DisplayName>
-    <Description>The origin of this exact document Version: authored or generated. TM VersionOrigin is authored when VersionId equals a valid version.model, and generated when the registry assigns a fallback VersionId. Thing Description VersionIds use manual assignment and have authored origin.</Description>
+    <Description>The origin of this exact document Version: authored or generated. For either document kind, the origin is authored when VersionId equals the valid SemVer source member and generated when the registry assigns a fallback because the source value is absent or is not SemVer. Build metadata is invalid.</Description>
     <References>
       <Reference ReferenceType="HasModellingRule">i=78</Reference>
       <Reference ReferenceType="HasTypeDefinition">i=68</Reference>

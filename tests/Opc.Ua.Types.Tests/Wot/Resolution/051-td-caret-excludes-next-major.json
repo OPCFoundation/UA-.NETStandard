@@ -1,0 +1,36 @@
+{
+  "description": "A TD floor excludes candidates at the next major boundary.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:sensor",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0",
+      "versions": [
+        {
+          "versionid": "1.4.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000035",
+          "version.instance": "1.4.0"
+        },
+        {
+          "versionid": "2.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000036",
+          "version.instance": "2.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-extends",
+    "target": "urn:example:thing:sensor",
+    "minVersion": "1.4.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:sensor",
+      "versionid": "1.4.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000035"
+    }
+  }
+}

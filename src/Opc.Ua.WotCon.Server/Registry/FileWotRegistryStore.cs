@@ -978,7 +978,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 version.DocumentId is not null ||
                 version.Title is not null ||
                 version.BaseUri is not null ||
-                version.ModelVersion is not null) == true;
+                version.ModelVersion is not null ||
+                version.InstanceVersion is not null) == true;
             WotResourceVersion? committedVersion = null;
             if (dto.Versions is not null || dto.CommittedVersion is not null)
             {
@@ -1087,6 +1088,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                             : dto.Title,
                         BaseUri = version.BaseUri,
                         ModelVersion = version.ModelVersion,
+                        InstanceVersion = version.InstanceVersion,
                         Dependencies = FromDto(version.Dependencies, digestHex),
                         DependencySnapshot = FromDto(
                             version.DependencySnapshot, version.VersionId, committed: true, dependencyGraphs),
@@ -1322,6 +1324,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 Title = version.Title,
                 BaseUri = version.BaseUri,
                 ModelVersion = version.ModelVersion,
+                InstanceVersion = version.InstanceVersion,
                 Dependencies = ToDto(version.Dependencies),
                 DependencySnapshot = ToDto(version.DependencySnapshot, dependencyGraphs),
                 LastDependencyAttempt = ToDto(version.LastDependencyAttempt, dependencyGraphs)
@@ -3155,6 +3158,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the Thing Model <c>version.model</c> value.
             /// </summary>
             public string? ModelVersion { get; set; }
+
+            /// <summary>
+            /// Gets or sets the Thing Description <c>version.instance</c> value.
+            /// </summary>
+            public string? InstanceVersion { get; set; }
 
             /// <summary>
             /// Gets or sets the exact content's dependency metadata.

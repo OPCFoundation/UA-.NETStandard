@@ -1,0 +1,27 @@
+{
+  "description": "tm:minVersion is invalid on a TD-to-TD reference.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:oven",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.2.0",
+      "versions": [
+        {
+          "versionid": "1.2.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000048",
+          "version.instance": "1.2.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-ref",
+    "target": "urn:example:thing:oven",
+    "minVersion": "1.2.0",
+    "floorTerm": "tm:minVersion"
+  },
+  "expect": {
+    "error": "invalid-floor"
+  }
+}

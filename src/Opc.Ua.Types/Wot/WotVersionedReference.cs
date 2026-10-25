@@ -71,7 +71,14 @@ namespace Opc.Ua.Wot
             {
                 return null;
             }
-            string? floor = ReadFloor(carryingNode);
+            string expectedFloorTerm = IsTdReference(kind) ? "td:minVersion" : "tm:minVersion";
+            string wrongFloorTerm = expectedFloorTerm == "td:minVersion" ? "tm:minVersion" : "td:minVersion";
+            if (carryingNode.ValueKind == JsonValueKind.Object &&
+                carryingNode.TryGetProperty(wrongFloorTerm, out _))
+            {
+                throw new WotVersionException("invalid-floor");
+            }
+            string? floor = ReadFloor(carryingNode, expectedFloorTerm);
             if (kind == "type" && document.Kind == WotDocumentKind.ThingDescription)
             {
                 JsonElement[] links = document.Links.Where(link => ReadString(link, "rel") == "type").ToArray();
@@ -84,7 +91,11 @@ namespace Opc.Ua.Wot
                 }
                 foreach (JsonElement link in links)
                 {
-                    string? explicitFloor = ReadFloor(link);
+                    if (link.TryGetProperty("td:minVersion", out _))
+                    {
+                        throw new WotVersionException("invalid-floor");
+                    }
+                    string? explicitFloor = ReadFloor(link, "tm:minVersion");
                     if (explicitFloor is not null)
                     {
                         WotVersionResolver.ValidateFloor(explicitFloor);
@@ -105,6 +116,10 @@ namespace Opc.Ua.Wot
             }
             return floor;
         }
+
+        private static bool IsTdReference(string kind) =>
+            kind is "td-extends" or "td-subthing" or "td-ref" or
+                "td:extends" or "td:subthing" or "td:ref";
 
         /// <summary>
         /// Resolves through the additive contract, or verifies a legacy provider's selected document.
@@ -177,9 +192,9 @@ namespace Opc.Ua.Wot
             return versionId.Length > 0 && versionId.IndexOf('/', StringComparison.Ordinal) < 0;
         }
 
-        private static string? ReadFloor(JsonElement node)
+        private static string? ReadFloor(JsonElement node, string term)
         {
-            if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty("tm:minVersion", out JsonElement floor))
+            if (node.ValueKind != JsonValueKind.Object || !node.TryGetProperty(term, out JsonElement floor))
             {
                 return null;
             }

@@ -1,0 +1,42 @@
+{
+  "description": "A TD floor selects the highest eligible version below the next major.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:lamp",
+      "defaultversionsticky": false,
+      "defaultversionid": "2.0.0",
+      "versions": [
+        {
+          "versionid": "1.2.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000032",
+          "version.instance": "1.2.0"
+        },
+        {
+          "versionid": "1.7.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000033",
+          "version.instance": "1.7.0"
+        },
+        {
+          "versionid": "2.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000034",
+          "version.instance": "2.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-extends",
+    "target": "urn:example:thing:lamp",
+    "minVersion": "1.2.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:lamp",
+      "versionid": "1.7.0",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000033"
+    }
+  }
+}

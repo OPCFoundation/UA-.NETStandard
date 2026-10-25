@@ -1,0 +1,36 @@
+{
+  "description": "A td:subthing floor in major zero caps below 1.0.0.",
+  "registry": [
+    {
+      "wotid": "urn:example:thing:lighting",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.0.0",
+      "versions": [
+        {
+          "versionid": "0.9.4",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000041",
+          "version.instance": "0.9.4"
+        },
+        {
+          "versionid": "1.0.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000042",
+          "version.instance": "1.0.0"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "td-subthing",
+    "target": "urn:example:thing:lighting",
+    "minVersion": "0.8.0"
+  },
+  "expect": {
+    "result": {
+      "wotid": "urn:example:thing:lighting",
+      "versionid": "0.9.4",
+      "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000041"
+    }
+  }
+}

@@ -74,6 +74,26 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Assert.That(metadata.References[0].RequiredVersion, Is.EqualTo("1.2.0"));
         }
 
+        [TestCase("td:minVersion", "")]
+        [TestCase("tm:minVersion", "invalid-floor")]
+        public void ThingDescriptionReferenceUsesItsTargetFloorTerm(string floorTerm, string expectedError)
+        {
+            ByteString content = ByteString.From(Encoding.UTF8.GetBytes(
+                "{\"@context\":{\"td\":\"https://www.w3.org/2019/wot/td#\"}," +
+                "\"id\":\"urn:consumer\",\"links\":[{\"rel\":\"td:extends\"," +
+                "\"href\":\"urn:base\",\"" + floorTerm + "\":\"1.2.0\"}]}"));
+
+            WotResourceDependencies metadata = WotDependencyGraph.ReadMetadata(content, 64);
+
+            Assert.That(metadata.Error, expectedError.Length == 0
+                ? Is.Empty
+                : Does.Contain(expectedError));
+            if (expectedError.Length == 0)
+            {
+                Assert.That(metadata.References.ToList().Single().RequiredVersion, Is.EqualTo("1.2.0"));
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void DependencyOptionalFloorRoundTrips(bool present)
@@ -376,6 +396,65 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
         }
 
+        [Test]
+        public async Task ThingDescriptionPublicationUsesAndPersistsInstanceVersionAsync()
+        {
+            string root = Path.Combine(TestContext.CurrentContext.TestDirectory,
+                "td-instance-version-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                using (var store = new FileWotRegistryStore(root))
+                using (var service = new WotRegistryService(store))
+                {
+                    await service.InitializeAsync().ConfigureAwait(false);
+                    WotRegistryMutationResult result = await service.UpsertResourceAsync(
+                        ThingDescriptionRequest("2.3.4")).ConfigureAwait(false);
+
+                    Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                    WotResourceVersion version = result.Resource!.Versions.Single();
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(version.VersionId, Is.EqualTo("2.3.4"));
+                        Assert.That(version.ModelVersion, Is.EqualTo("1.2.0"));
+                        Assert.That(version.InstanceVersion, Is.EqualTo("2.3.4"));
+                    });
+                }
+
+                using var reloadStore = new FileWotRegistryStore(root);
+                using var reloaded = new WotRegistryService(reloadStore);
+                await reloaded.InitializeAsync().ConfigureAwait(false);
+                WotResourceVersion persisted = reloaded.Current
+                    .FindResource(WotRegistryGroups.ThingDescriptions, "consumer")!
+                    .Versions.Single();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(persisted.VersionId, Is.EqualTo("2.3.4"));
+                    Assert.That(persisted.ModelVersion, Is.EqualTo("1.2.0"));
+                    Assert.That(persisted.InstanceVersion, Is.EqualTo("2.3.4"));
+                });
+            }
+            finally
+            {
+                if (Directory.Exists(root))
+                {
+                    Directory.Delete(root, recursive: true);
+                }
+            }
+        }
+
+        [Test]
+        public async Task ThingDescriptionPublicationRejectsVersionIdThatDiffersFromInstanceVersionAsync()
+        {
+            using var service = new WotRegistryService();
+            WotUpsertResourceRequest request = ThingDescriptionRequest("2.3.4");
+            request.VersionId = "2.3.5";
+
+            WotRegistryMutationResult result = await service.UpsertResourceAsync(request).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected));
+            Assert.That(result.Diagnostics.Concat(new[] { result.Message }), Does.Contain("version-mismatch"));
+        }
+
         private static WotUpsertResourceRequest Consumer(string target, string floor)
         {
             return new WotUpsertResourceRequest
@@ -386,6 +465,20 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@type\":\"Thing\",\"id\":\"urn:consumer\",\"links\":[{\"rel\":\"tm:extends\"," +
                     "\"href\":\"" + target + "\",\"tm:minVersion\":\"" + floor + "\"}]}"))
+            };
+        }
+
+        private static WotUpsertResourceRequest ThingDescriptionRequest(string instanceVersion)
+        {
+            return new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "consumer",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(Encoding.UTF8.GetBytes(
+                    "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"]," +
+                    "\"@type\":\"Thing\",\"id\":\"urn:consumer\"," +
+                    "\"version\":{\"model\":\"1.2.0\",\"instance\":\"" + instanceVersion + "\"}}"))
             };
         }
 

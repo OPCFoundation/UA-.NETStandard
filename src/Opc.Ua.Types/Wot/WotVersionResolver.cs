@@ -40,7 +40,12 @@ namespace Opc.Ua.Wot
     /// <summary>
     /// A registry-independent snapshot of a Thing Model Version.
     /// </summary>
-    public sealed record WotVersionSnapshot(string VersionId, string VersionOrigin, string ContentDigest, string? ModelVersion = null);
+    public sealed record WotVersionSnapshot(
+        string VersionId,
+        string VersionOrigin,
+        string ContentDigest,
+        string? ModelVersion = null,
+        string? InstanceVersion = null);
 
     /// <summary>
     /// A registry-independent snapshot of a WoT Resource and its Versions.
@@ -51,7 +56,11 @@ namespace Opc.Ua.Wot
     /// <summary>
     /// A normalized WoT reference and its optional minimum version.
     /// </summary>
-    public sealed record WotReferenceRequest(string Kind, string Target, string? MinimumVersion = null);
+    public sealed record WotReferenceRequest(
+        string Kind,
+        string Target,
+        string? MinimumVersion = null,
+        string? FloorTerm = null);
 
     /// <summary>
     /// A normalized TD type link.
@@ -104,6 +113,10 @@ namespace Opc.Ua.Wot
             string origin, WotDocumentVersionContext? document = null, WotVersionPin? pin = null, bool allowPrerelease = false)
         {
 
+            if (resources.IsNull)
+            {
+                throw new ArgumentNullException(nameof(resources));
+            }
             if (reference is null)
             {
                 throw new ArgumentNullException(nameof(reference));
@@ -134,6 +147,7 @@ namespace Opc.Ua.Wot
             else
             {
                 var floor = GetFloor(reference, document);
+                bool capped = IsTdReference(reference.Kind) && floor is not null;
                 if (resource.DefaultVersionSticky)
                 {
                     selected = resource.Versions.ToList().FirstOrDefault(version =>
@@ -144,7 +158,8 @@ namespace Opc.Ua.Wot
                 {
                     var eligible = resource.Versions.ToList().Where(version =>
                         WotSemanticVersion.TryParse(version.VersionId, out var parsed) &&
-                        (!parsed!.IsPrerelease || allowPrerelease || floor?.IsPrerelease == true)).ToList();
+                        (!parsed!.IsPrerelease || allowPrerelease || floor?.IsPrerelease == true) &&
+                        IsInRange(parsed, floor, capped)).ToList();
                     if (eligible.Count == 0)
                     {
                         throw new WotVersionException("unsatisfied");
@@ -153,8 +168,8 @@ namespace Opc.Ua.Wot
                     selected = Highest(eligible);
                 }
 
-                if (floor is not null && (!WotSemanticVersion.TryParse(selected.VersionId, out var selectedVersion) ||
-                    selectedVersion!.CompareTo(floor) < 0))
+                if (!WotSemanticVersion.TryParse(selected.VersionId, out var selectedVersion) ||
+                    !IsInRange(selectedVersion!, floor, capped))
                 {
                     throw new WotVersionException("unsatisfied");
                 }
@@ -164,13 +179,23 @@ namespace Opc.Ua.Wot
         }
 
         /// <summary>
-        /// Assigns the version identifier and post-publication default for a Thing Model write.
+        /// Assigns the version identifier and post-publication default for a Thing Model or Thing Description write.
         /// </summary>
         public static WotPublicationAssignment AssignPublishedVersion(ArrayOf<WotResourceSnapshot> resources,
-            string target, string? suppliedVersionId = null, string? modelVersion = null)
+            string target,
+            string? suppliedVersionId = null,
+            string? modelVersion = null,
+            string targetKind = "tm",
+            string? instanceVersion = null)
         {
 
+            if (targetKind is not ("tm" or "td"))
+            {
+                throw new ArgumentException("The publication target kind must be tm or td.", nameof(targetKind));
+            }
+
             var resource = FindResource(resources, target);
+            string? documentVersion = targetKind == "td" ? instanceVersion : modelVersion;
             if (suppliedVersionId is not null && !IsCoreVersionId(suppliedVersionId))
             {
                 throw new WotVersionException("invalid-version");
@@ -178,19 +203,19 @@ namespace Opc.Ua.Wot
 
             string assigned;
             string origin;
-            if (modelVersion is not null && WotSemanticVersion.HasValidBuildMetadata(modelVersion))
+            if (documentVersion is not null && WotSemanticVersion.HasValidBuildMetadata(documentVersion))
             {
                 throw new WotVersionException("invalid-version");
             }
 
-            if (modelVersion is not null && WotSemanticVersion.TryParse(modelVersion, out _))
+            if (documentVersion is not null && WotSemanticVersion.TryParse(documentVersion, out _))
             {
-                assigned = modelVersion;
+                assigned = documentVersion;
                 origin = "authored";
             }
             else
             {
-                if (modelVersion is not null && WotSemanticVersion.IsSemVerSyntax(modelVersion))
+                if (documentVersion is not null && WotSemanticVersion.IsSemVerSyntax(documentVersion))
                 {
                     throw new WotVersionException("invalid-version");
                 }
@@ -223,6 +248,14 @@ namespace Opc.Ua.Wot
 
         private static WotSemanticVersion? GetFloor(WotReferenceRequest reference, WotDocumentVersionContext? document)
         {
+            string expectedTerm = IsTdReference(reference.Kind) ? "td:minVersion" : "tm:minVersion";
+            if (reference.FloorTerm is not null &&
+                (reference.MinimumVersion is null ||
+                    !string.Equals(reference.FloorTerm, expectedTerm, StringComparison.Ordinal)))
+            {
+                throw new WotVersionException("invalid-floor");
+            }
+
             string? floor = reference.MinimumVersion;
             if (reference.Kind == "type" && document is not null)
             {
@@ -259,6 +292,13 @@ namespace Opc.Ua.Wot
 
             return floor is null ? null : ParseFloor(floor);
         }
+
+        private static bool IsTdReference(string kind) =>
+            kind is "td-extends" or "td-subthing" or "td-ref" or
+                "td:extends" or "td:subthing" or "td:ref";
+
+        private static bool IsInRange(WotSemanticVersion candidate, WotSemanticVersion? floor, bool capped) =>
+            floor is null || candidate >= floor && (!capped || candidate.HasSameMajor(floor));
 
         internal static void ValidateFloor(string text) => _ = ParseFloor(text);
 

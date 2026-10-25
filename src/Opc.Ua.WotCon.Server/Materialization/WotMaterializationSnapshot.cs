@@ -653,8 +653,10 @@ namespace Opc.Ua.WotCon.Server.Materialization
             return new WotResourceSnapshot(resource.SourceId ?? resource.Xid,
                 resource.DefaultVersionSticky, resource.DefaultVersionId,
                 resource.Versions.Select(version => new WotVersionSnapshot(version.VersionId,
-                    version.ModelVersion == version.VersionId ? "authored" : "generated",
-                    "sha256:" + version.DigestHex, version.ModelVersion)).ToArrayOf());
+                    resource.Kind == WoTDocumentKindEnum.ThingDescription
+                        ? version.InstanceVersion == version.VersionId ? "authored" : "generated"
+                        : version.ModelVersion == version.VersionId ? "authored" : "generated",
+                    "sha256:" + version.DigestHex, version.ModelVersion, version.InstanceVersion)).ToArrayOf());
         }
 
         /// <summary>
@@ -728,9 +730,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     return target;
                 }
-                if (target.Kind == WoTDocumentKindEnum.ThingModel &&
+                bool isThingModelReference = target.Kind == WoTDocumentKindEnum.ThingModel &&
                     (reference.RequiredVersion is not null ||
-                        reference.RefType is "tm:extends" or "tm:submodel" or "tm:ref" or "type") &&
+                        reference.RefType is "tm:extends" or "tm:submodel" or "tm:ref" or "type");
+                bool isThingDescriptionReference = target.Kind == WoTDocumentKindEnum.ThingDescription &&
+                    reference.RefType is "td:extends" or "td:subthing" or "td:ref";
+                if ((isThingModelReference || isThingDescriptionReference) &&
                     (reference.RequiredVersion is not null ||
                         target.Versions.All(version => WotSemanticVersion.TryParse(version.VersionId, out _))))
                 {
@@ -738,7 +743,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     try
                     {
                         WotResolutionResult selected = WotVersionResolver.Resolve([resource],
-                            new WotReferenceRequest(reference.RefType, resource.WotId, reference.RequiredVersion),
+                            new WotReferenceRequest(
+                                reference.RefType,
+                                resource.WotId,
+                                reference.RequiredVersion,
+                                reference.RequiredVersion is null
+                                    ? null
+                                    : isThingDescriptionReference ? "td:minVersion" : "tm:minVersion"),
                             "urn:opcua:registry-snapshot");
                         return PinVersion(target, target.FindVersion(selected.VersionId)!);
                     }

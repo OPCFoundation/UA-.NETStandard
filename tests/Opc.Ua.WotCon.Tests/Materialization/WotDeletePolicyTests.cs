@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -350,6 +351,37 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(
                     InstanceResource()!.Diagnostics.Single(),
                     Does.Contain("force-deleted"));
+            });
+        }
+
+        [Test]
+        public async Task ForceDeleteIgnoresAnUnsatisfiedFloorOnAnUnrelatedReference()
+        {
+            await RegisterModelAsync();
+            await RegisterAsync(
+                WotRegistryGroups.ThingModels,
+                "tm-unrelated",
+                WoTDocumentKindEnum.ThingModel,
+                TestMaterialization.Tm("urn:tm-unrelated"));
+            JsonObject dependent = JsonNode.Parse(
+                TestMaterialization.Td("urn:td-a", extendsHrefs: "urn:tm-a"))!.AsObject();
+            dependent["links"]!.AsArray()[0]!.AsObject()["tm:minVersion"] = "2.0.0";
+            await RegisterAsync(
+                WotRegistryGroups.ThingDescriptions,
+                "td-a",
+                WoTDocumentKindEnum.ThingDescription,
+                System.Text.Encoding.UTF8.GetBytes(dependent.ToJsonString()));
+
+            WotDeleteResult result = await m_registry.DeleteResourceAsync(
+                WotRegistryGroups.ThingModels, "tm-unrelated", WoTDeletePolicyEnum.Force);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(result.Deleted, Is.True);
+                Assert.That(result.Dependents, Is.Empty);
+                Assert.That(ModelResource(), Is.Not.Null);
+                Assert.That(InstanceResource(), Is.Not.Null);
             });
         }
 

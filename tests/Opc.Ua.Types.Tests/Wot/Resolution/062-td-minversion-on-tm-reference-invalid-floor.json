@@ -1,0 +1,26 @@
+{
+  "description": "td:minVersion is invalid on a TM reference.",
+  "registry": [
+    {
+      "wotid": "urn:example:pump:v1",
+      "defaultversionsticky": false,
+      "defaultversionid": "1.2.0",
+      "versions": [
+        {
+          "versionid": "1.2.0",
+          "versionorigin": "authored",
+          "contentdigest": "sha256:0000000000000000000000000000000000000000000000000000000000000047"
+        }
+      ]
+    }
+  ],
+  "reference": {
+    "kind": "extends",
+    "target": "urn:example:pump:v1",
+    "minVersion": "1.2.0",
+    "floorTerm": "td:minVersion"
+  },
+  "expect": {
+    "error": "invalid-floor"
+  }
+}

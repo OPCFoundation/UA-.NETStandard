@@ -135,7 +135,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     metadataByDigest.Add(version.DigestHex, metadata);
                 }
                 return version.WithDocumentMetadata(
-                    version.DocumentId, version.Title, version.BaseUri, version.ModelVersion, metadata);
+                    version.DocumentId, version.Title, version.BaseUri, version.ModelVersion,
+                    metadata, version.InstanceVersion);
             }
         }
     }

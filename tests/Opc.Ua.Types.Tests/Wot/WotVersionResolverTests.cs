@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     Assert.That(bytes[^1], Is.EqualTo((byte)'\n'), line[66..]);
                 });
             }
-            Assert.That(Vectors.Count(), Is.EqualTo(49));
+            Assert.That(Vectors.Count(), Is.EqualTo(64));
         }
 
         [TestCaseSource(nameof(Vectors))]
@@ -81,14 +81,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 new WotResourceSnapshot(Text(resource, "wotid")!, resource.GetProperty("defaultversionsticky").GetBoolean(),
                     Text(resource, "defaultversionid"), resource.GetProperty("versions").EnumerateArray().Select(version =>
                         new WotVersionSnapshot(Text(version, "versionid")!, Text(version, "versionorigin")!,
-                            Text(version, "contentdigest")!, Text(version, "version.model"))).ToArrayOf())).ToArrayOf();
+                            Text(version, "contentdigest")!, Text(version, "version.model"),
+                            Text(version, "version.instance"))).ToArrayOf())).ToArrayOf();
             JsonElement expected = root.GetProperty("expect");
             try
             {
                 if (root.TryGetProperty("publish", out JsonElement publish))
                 {
                     WotPublicationAssignment result = WotVersionResolver.AssignPublishedVersion(resources,
-                        Text(publish, "target")!, Text(publish, "versionid"), Text(publish, "version.model"));
+                        Text(publish, "target")!,
+                        Text(publish, "versionid"),
+                        Text(publish, "version.model"),
+                        Text(publish, "targetKind") ?? "tm",
+                        Text(publish, "version.instance"));
                     Assert.That(expected.TryGetProperty("assigned", out JsonElement assigned), Is.True);
                     Assert.Multiple(() =>
                     {
@@ -108,7 +113,8 @@ namespace Opc.Ua.Types.Tests.Wot
                         ? new WotVersionPin(Text(pinJson, "digest"), Text(pinJson, "versionid")) : null;
                     WotResolutionResult result = WotVersionResolver.Resolve(resources,
                         new WotReferenceRequest(Text(reference, "kind")!, Text(reference, "target")!,
-                            Text(reference, "minVersion")), "https://registry.example", context, pin,
+                            Text(reference, "minVersion"), Text(reference, "floorTerm")),
+                        "https://registry.example", context, pin,
                         root.TryGetProperty("allowPrerelease", out JsonElement allow) && allow.GetBoolean());
                     Assert.That(expected.TryGetProperty("result", out JsonElement selected), Is.True);
                     Assert.Multiple(() =>

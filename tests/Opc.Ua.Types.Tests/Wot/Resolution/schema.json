@@ -59,6 +59,9 @@
         },
         "version.model": {
           "type": "string"
+        },
+        "version.instance": {
+          "type": "string"
         }
       },
       "required": [
@@ -119,7 +122,10 @@
             "extends",
             "submodel",
             "ref",
-            "type"
+            "type",
+            "td-extends",
+            "td-subthing",
+            "td-ref"
           ]
         },
         "target": {
@@ -127,13 +133,33 @@
         },
         "minVersion": {
           "type": "string"
+        },
+        "floorTerm": {
+          "enum": [
+            "tm:minVersion",
+            "td:minVersion"
+          ]
         }
       },
       "required": [
         "kind",
         "target"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "floorTerm"
+            ]
+          },
+          "then": {
+            "required": [
+              "minVersion"
+            ]
+          }
+        }
+      ]
     },
     "document": {
       "type": "object",
@@ -205,6 +231,15 @@
           "type": "string"
         },
         "version.model": {
+          "type": "string"
+        },
+        "targetKind": {
+          "enum": [
+            "tm",
+            "td"
+          ]
+        },
+        "version.instance": {
           "type": "string"
         }
       },
@@ -289,7 +324,8 @@
                 "pin-mismatch",
                 "unsatisfied",
                 "ambiguous-floor",
-                "invalid-version"
+                "invalid-version",
+                "invalid-floor"
               ]
             }
           },

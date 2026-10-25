@@ -33,6 +33,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -71,7 +72,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 : fixture.Registry.Current.FindResource(model.GroupId, model.ResourceId)!;
             var request = new WotRefreshRequest
             {
-                Selection = [Select(a).Selection[0], Select(other, twoDependencies ? "v1" : "2.0.0").Selection[0]]
+                Selection = [Select(a).Selection[0], Select(other, twoDependencies ? "1.0.0" : "2.0.0").Selection[0]]
             };
             await Assert.ThatAsync(() => fixture.Coordinator.CaptureAsync(request).AsTask(),
                 Throws.TypeOf<ServiceResultException>()
@@ -168,24 +169,24 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task SelectorKindAndExactVersionBoundInputs(WoTDocumentKindEnum kind)
         {
             await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
-            WotResource a = await fixture.RegisterAsync("a", versionId: "v1");
-            await fixture.RegisterAsync("a", versionId: "v2");
+            WotResource a = await fixture.RegisterAsync("a", versionId: "1.0.0");
+            await fixture.RegisterAsync("a", versionId: "2.0.0");
             await fixture.RegisterAsync("model", WoTDocumentKindEnum.ThingModel);
-            WotRefreshRequest request = Select(a, "v1");
+            WotRefreshRequest request = Select(a, "1.0.0");
             request.Selection[0].Kind = kind;
 
             WotRefreshResult result = await fixture.Coordinator.RefreshAsync(request);
 
             Assert.Multiple(() =>
             {
-                Assert.That(fixture.Reads.Single().VersionId, Is.EqualTo("v1"));
-                Assert.That(fixture.Reads.Single().Digest, Is.EqualTo(a.FindVersion("v1")!.Digest));
-                Assert.That(result.Results.Single().VersionId, Is.EqualTo("v1"));
+                Assert.That(fixture.Reads.Single().VersionId, Is.EqualTo("1.0.0"));
+                Assert.That(fixture.Reads.Single().Digest, Is.EqualTo(a.FindVersion("1.0.0")!.Digest));
+                Assert.That(result.Results.Single().VersionId, Is.EqualTo("1.0.0"));
                 Assert.That(result.Results.Single().Kind, Is.EqualTo(WoTDocumentKindEnum.ThingDescription));
                 Assert.That(fixture.Registry.Current.FindResource(a.GroupId, a.ResourceId)!.ActiveVersionId,
-                    Is.EqualTo("v1"));
+                    Is.EqualTo("1.0.0"));
                 Assert.That(fixture.Registry.Current.FindResource(a.GroupId, a.ResourceId)!.DefaultVersionId,
-                    Is.EqualTo("v2"));
+                    Is.EqualTo("2.0.0"));
             });
         }
 
@@ -230,10 +231,10 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public async Task DisabledExactVersionIsSkippedWithoutAcquisition()
         {
             await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
-            WotResource a = await fixture.RegisterAsync("a", versionId: "v1");
-            await fixture.RegisterAsync("a", versionId: "v2");
+            WotResource a = await fixture.RegisterAsync("a", versionId: "1.0.0");
+            await fixture.RegisterAsync("a", versionId: "2.0.0");
             await fixture.Registry.SetEnabledAsync(a.GroupId, a.ResourceId, false);
-            string versionXid = a.Xid + "/versions/v1";
+            string versionXid = a.Xid + "/versions/1.0.0";
 
             WotRefreshResult result = await fixture.Coordinator.RefreshAsync(new WotRefreshRequest
             {
@@ -247,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.Multiple(() =>
             {
                 Assert.That(result.Results.Single().Xid, Is.EqualTo(versionXid));
-                Assert.That(result.Results.Single().VersionId, Is.EqualTo("v1"));
+                Assert.That(result.Results.Single().VersionId, Is.EqualTo("1.0.0"));
                 Assert.That(result.Results.Single().Outcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
                 Assert.That(fixture.Reads, Is.Empty);
                 Assert.That(fixture.Operations, Is.Empty);
@@ -308,7 +309,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single(row => row.ResourceId == "b").Phase,
                     Is.EqualTo(WoTPhaseEnum.Fetch));
                 Assert.That(fixture.Registry.Current.FindResource(a.GroupId, a.ResourceId)!.ActiveVersionId,
-                    Is.EqualTo("v1"));
+                    Is.EqualTo("1.0.0"));
                 Assert.That(fixture.Registry.Current.FindResource(b.GroupId, b.ResourceId)!.ActiveVersionId, Is.Null);
                 Assert.That(fixture.Prepared, Is.EqualTo(new List<string> { a.Xid }));
             });
@@ -387,6 +388,64 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(edge.TargetXid, Is.EqualTo(model.Xid));
                 Assert.That(edge.Resolved, Is.True);
                 Assert.That(closures.Single().IsProjectable, Is.True);
+            });
+        }
+
+        [TestCase("1.3.0", "1.9.0")]
+        [TestCase(null, "2.0.0")]
+        public async Task ThingDescriptionCompositionSelectsVersionWithinFloorRange(
+            string? floor,
+            string expectedVersion)
+        {
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
+            await fixture.RegisterAsync("base", versionId: "1.3.0",
+                content: VersionedCompositionTd("urn:base", "1.3.0"));
+            await fixture.RegisterAsync("base", versionId: "1.9.0",
+                content: VersionedCompositionTd("urn:base", "1.9.0"));
+            await fixture.RegisterAsync("base", versionId: "2.0.0",
+                content: VersionedCompositionTd("urn:base", "2.0.0"));
+            WotResource source = await fixture.RegisterAsync("source", versionId: "1.0.0",
+                content: VersionedCompositionTd("urn:source", "1.0.0", "urn:base", floor));
+
+            using WotMaterializationSnapshot snapshot = await WotDependencyGraph.CaptureAsync(
+                fixture.Registry,
+                [new WoTResourceSelectorDataType
+                {
+                    Kind = WoTDocumentKindEnum.ThingDescription,
+                    GroupId = source.GroupId,
+                    ResourceId = source.ResourceId
+                }],
+                includeDependents: false,
+                maxJsonDepth: 64);
+            WotResource selectedBase = snapshot.Closures.ToList().Single().Members
+                .Single(member => member.ResourceId == "base");
+
+            Assert.That(selectedBase.DefaultVersionId, Is.EqualTo(expectedVersion));
+        }
+
+        [Test]
+        public async Task AnUnsatisfiedFloorFailsOnlyItsDependencyClosure()
+        {
+            await using SelectionFixture fixture = await SelectionFixture.CreateAsync();
+            await fixture.RegisterAsync("base", versionId: "1.3.0",
+                content: VersionedCompositionTd("urn:base", "1.3.0"));
+            WotResource incompatible = await fixture.RegisterAsync("incompatible", versionId: "1.0.0",
+                content: VersionedCompositionTd("urn:incompatible", "1.0.0", "urn:base", "2.0.0"));
+            WotResource independent = await fixture.RegisterAsync("independent", versionId: "1.0.0",
+                content: VersionedCompositionTd("urn:independent", "1.0.0"));
+
+            ImmutableArray<WotDependencyClosure> closures = await WotDependencyGraph.BuildClosuresAsync(
+                fixture.Registry.Current, [incompatible, independent], 64,
+                fixture.Registry.ReadContentAsync, CancellationToken.None);
+            WotDependencyClosure failed = closures.Single(closure =>
+                closure.Members.Any(member => member.ResourceId == "incompatible"));
+            WotDependencyClosure unaffected = closures.Single(closure =>
+                closure.Members.Any(member => member.ResourceId == "independent"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.IsProjectable, Is.False);
+                Assert.That(unaffected.IsProjectable, Is.True);
             });
         }
 
@@ -470,8 +529,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         {
             await using SelectionFixture fixture = await SelectionFixture.CreateAsync(
                 new WotRegistryPersistenceBounds { MaxVersionsPerResource = 2 });
-            WotResource original = await fixture.RegisterAsync("a", versionId: "v1");
-            await fixture.RegisterAsync("a", versionId: "v2");
+            WotResource original = await fixture.RegisterAsync("a", versionId: "1.0.0");
+            await fixture.RegisterAsync("a", versionId: "2.0.0");
             await fixture.Coordinator.RefreshAsync(new WotRefreshRequest());
             fixture.ClearObservations();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -481,7 +540,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 entered.TrySetResult(true);
                 await resume.Task;
             };
-            Task<WotRefreshResult> refresh = fixture.Coordinator.RefreshAsync(Select(original, "v1")).AsTask();
+            Task<WotRefreshResult> refresh = fixture.Coordinator.RefreshAsync(Select(original, "1.0.0")).AsTask();
             try
             {
                 await Task.WhenAny(entered.Task, refresh);
@@ -491,27 +550,28 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     {
                         GroupId = original.GroupId,
                         ResourceId = original.ResourceId,
-                        VersionId = "v3",
-                        Content = ByteString.From(TestMaterialization.Td("urn:a", "v3"))
+                        VersionId = "3.0.0",
+                        Content = ByteString.From(WithInstanceVersion(
+                            TestMaterialization.Td("urn:a", "3.0.0"), "3.0.0"))
                     });
                 Assert.That(attempted.Outcome, Is.EqualTo(WoTOutcomeEnum.Rejected),
                     "Active v2, selected/leased v1 and incoming v3 cannot fit a two-Version bound.");
                 await fixture.Registry.InitializeAsync();
                 Assert.That(fixture.Registry.Current.FindResource(original.GroupId, original.ResourceId)!
-                    .FindVersion("v1")!.Digest, Is.EqualTo(original.FindVersion("v1")!.Digest));
+                    .FindVersion("1.0.0")!.Digest, Is.EqualTo(original.FindVersion("1.0.0")!.Digest));
             }
             finally
             {
                 resume.TrySetResult(true);
                 await refresh;
             }
-            Assert.That((await refresh).Results.Single().VersionId, Is.EqualTo("v1"));
+            Assert.That((await refresh).Results.Single().VersionId, Is.EqualTo("1.0.0"));
             Assert.That(fixture.Reads, Has.Count.EqualTo(2),
                 "Reload invalidates preparation, so the exact selected Version must be reacquired.");
             foreach (WotResourceVersion acquired in fixture.Reads)
             {
-                Assert.That(acquired.VersionId, Is.EqualTo("v1"));
-                Assert.That(acquired.Digest, Is.EqualTo(original.FindVersion("v1")!.Digest));
+                Assert.That(acquired.VersionId, Is.EqualTo("1.0.0"));
+                Assert.That(acquired.Digest, Is.EqualTo(original.FindVersion("1.0.0")!.Digest));
             }
         }
 
@@ -572,6 +632,46 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     Atomicity = WoTAtomicityEnum.PerClosure
                 }
             };
+        }
+
+        private static byte[] WithInstanceVersion(byte[] content, string instanceVersion)
+        {
+            JsonObject document = JsonNode.Parse(content)!.AsObject();
+            JsonObject version = document["version"] as JsonObject ?? new JsonObject();
+            version["instance"] ??= instanceVersion;
+            document["version"] = version;
+            return Encoding.UTF8.GetBytes(document.ToJsonString());
+        }
+
+        private static byte[] VersionedCompositionTd(
+            string id,
+            string instanceVersion,
+            string? target = null,
+            string? floor = null)
+        {
+            var document = new JsonObject
+            {
+                ["@context"] = new JsonArray(
+                    JsonValue.Create("https://www.w3.org/2022/wot/td/v1.1"),
+                    new JsonObject { ["td"] = "https://www.w3.org/2019/wot/td#" }),
+                ["@type"] = "Thing",
+                ["id"] = id,
+                ["version"] = new JsonObject { ["instance"] = instanceVersion }
+            };
+            if (target is not null)
+            {
+                var link = new JsonObject
+                {
+                    ["rel"] = "td:extends",
+                    ["href"] = target
+                };
+                if (floor is not null)
+                {
+                    link["td:minVersion"] = floor;
+                }
+                document["links"] = new JsonArray(link);
+            }
+            return Encoding.UTF8.GetBytes(document.ToJsonString());
         }
 
         private static byte[] ReferenceDocument(string source, string target)
@@ -740,16 +840,22 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 byte[]? content = null,
                 string? groupId = null)
             {
-                versionId ??= kind == WoTDocumentKindEnum.ThingModel ? "1.0.0" : "v1";
+                versionId ??= "1.0.0";
+                byte[] document = content ?? (kind == WoTDocumentKindEnum.ThingModel
+                    ? TestMaterialization.Tm("urn:" + resourceId, versionId)
+                    : TestMaterialization.Td("urn:" + resourceId, versionId));
+                if (kind == WoTDocumentKindEnum.ThingDescription &&
+                    !versionId.StartsWith("0.0.0-", StringComparison.Ordinal))
+                {
+                    document = WithInstanceVersion(document, versionId);
+                }
                 WotRegistryMutationResult result = await Registry.UpsertResourceAsync(new WotUpsertResourceRequest
                 {
                     GroupId = groupId ?? (kind == WoTDocumentKindEnum.ThingModel ? "models" : "things"),
                     ResourceId = resourceId,
                     VersionId = versionId,
                     Kind = kind,
-                    Content = ByteString.From(content ?? (kind == WoTDocumentKindEnum.ThingModel
-                        ? TestMaterialization.Tm("urn:" + resourceId, versionId)
-                        : TestMaterialization.Td("urn:" + resourceId, versionId)))
+                    Content = ByteString.From(document)
                 });
                 Assert.That(result.Outcome, Is.EqualTo(WoTOutcomeEnum.Success), result.Message);
                 return result.Resource!;
