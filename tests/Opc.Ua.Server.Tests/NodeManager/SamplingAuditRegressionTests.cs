@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
@@ -159,6 +160,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task SnapshotCapturesPlainManagerMembershipAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var item = Mock.Of<IMonitoredItem>();
+                var membership = new ConcurrentDictionary<uint, IMonitoredItem>();
+                membership[1] = item;
+                var monitoredItems = new Mock<IMonitoredItemManager>();
+                monitoredItems.SetupGet(value => value.MonitoredItems).Returns(membership);
+                using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
+                IReadOnlyList<IMonitoredItem> snapshot = await ((INodeManagerMonitoredItemLifecycle)manager)
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                membership.Clear();
+
+                Assert.That(snapshot, Is.EqualTo(new[] { item }));
+            }
+        }
+
+        [Test]
         public async Task ShutdownRejectsLifecycleCallsWhileOwnedDisposalIsRunningAsync()
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
@@ -167,9 +188,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var monitoredItems = new Mock<IMonitoredItemManager>();
-                Mock<IMonitoredItemManagerLifecycle> lifecycle = monitoredItems.As<IMonitoredItemManagerLifecycle>();
-                lifecycle.Setup(value => value.GetMonitoredItemsSnapshot(It.IsAny<IReadOnlyCollection<NodeId>>()))
-                    .Returns([]);
+                monitoredItems.SetupGet(value => value.MonitoredItems).Returns([]);
                 using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
                 monitoredItems.Setup(value => value.Dispose()).Callback(() =>
                 {
@@ -184,8 +203,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await ((INodeManagerMonitoredItemLifecycle)manager)
                             .GetMonitoredItemsSnapshotAsync(null, CancellationToken.None).ConfigureAwait(false),
                         Throws.TypeOf<ObjectDisposedException>());
-                    lifecycle.Verify(value => value.GetMonitoredItemsSnapshot(
-                        It.IsAny<IReadOnlyCollection<NodeId>>()), Times.Never);
+                    monitoredItems.VerifyGet(value => value.MonitoredItems, Times.Never);
                 }
                 finally
                 {
@@ -450,14 +468,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var monitoredItems = new Mock<IMonitoredItemManager>();
-                Mock<IMonitoredItemManagerLifecycle> lifecycle = monitoredItems.As<IMonitoredItemManagerLifecycle>();
                 IReadOnlyList<IMonitoredItem> expectedSnapshot = [Mock.Of<IMonitoredItem>()];
-                lifecycle.Setup(value => value.GetMonitoredItemsSnapshot(It.IsAny<IReadOnlyCollection<NodeId>>()))
+                monitoredItems.SetupGet(value => value.MonitoredItems)
                     .Returns(() =>
                     {
                         entered.TrySetResult(true);
                         Assert.That(release.Wait(TimeSpan.FromSeconds(5)), Is.True);
-                        return expectedSnapshot;
+                        return new ConcurrentDictionary<uint, IMonitoredItem>(
+                            [new KeyValuePair<uint, IMonitoredItem>(1, expectedSnapshot[0])]);
                     });
                 using var manager = new TestNodeManager(server.Object, monitoredItems.Object);
                 manager.RetainedNode.OnSimpleReadValue = (_, _, ref value) =>
@@ -525,7 +543,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(manager.RetainedNodes, Is.Zero);
                     if (lifecycleCall)
                     {
-                        Assert.That(snapshot, Is.SameAs(expectedSnapshot));
+                        Assert.That(snapshot, Is.EqualTo(expectedSnapshot));
                     }
                     else
                     {

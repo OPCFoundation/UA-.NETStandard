@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -2259,9 +2260,52 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(detachChanged, Is.False);
                     Assert.That(attach.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
                     Assert.That(attachChanged, Is.False);
-                    Assert.That(lifecycle.GetMonitoredItemsSnapshot([]), Is.Empty);
+                    Assert.That(manager.CaptureMonitoredItems([]), Is.Empty);
                 });
             }
+        }
+
+        /// <summary>
+        /// Membership capture needs only the ordinary manager registry and never retains a live collection.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        public void MembershipCaptureFiltersAndPreservesExactNativeItems(int selection)
+        {
+            var first = new Mock<IMonitoredItem>();
+            first.SetupGet(value => value.NodeId).Returns(new NodeId("FirstCapturedItem", 1));
+            var second = new Mock<IMonitoredItem>();
+            second.SetupGet(value => value.NodeId).Returns(new NodeId("SecondCapturedItem", 1));
+            var membership = new ConcurrentDictionary<uint, IMonitoredItem>();
+            membership[1] = first.Object;
+            membership[2] = second.Object;
+            var manager = new Mock<IMonitoredItemManager>(MockBehavior.Strict);
+            manager.SetupGet(value => value.MonitoredItems).Returns(membership);
+            IReadOnlyCollection<NodeId>? nodeIds = selection switch
+            {
+                0 => null,
+                1 => [],
+                2 => [first.Object.NodeId, first.Object.NodeId, new NodeId("MissingCapturedItem", 1)],
+                _ => [new NodeId("MissingCapturedItem", 1)]
+            };
+            IReadOnlyList<IMonitoredItem> expected = selection switch
+            {
+                0 => [first.Object, second.Object],
+                2 => [first.Object],
+                _ => []
+            };
+
+            IReadOnlyList<IMonitoredItem> snapshot = manager.Object.CaptureMonitoredItems(nodeIds);
+            manager.VerifyGet(value => value.MonitoredItems, selection == 1 ? Times.Never() : Times.Once());
+            membership.Clear();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(snapshot, Is.EquivalentTo(expected));
+                Assert.That(manager.Object.CaptureMonitoredItems(null), Is.Empty);
+            });
         }
 
         [Test]
@@ -2329,7 +2373,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(removeCacheCount, Is.EqualTo(1));
                     Assert.That(manager.MonitoredItems.ContainsKey(conflictingItem.Id), Is.False);
                     Assert.That(
-                        lifecycle.GetMonitoredItemsSnapshot(null),
+                        manager.CaptureMonitoredItems(null),
                         Is.EqualTo([existingItem]));
                 });
 

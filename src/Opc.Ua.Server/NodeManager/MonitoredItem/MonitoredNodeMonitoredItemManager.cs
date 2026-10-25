@@ -508,24 +508,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        IReadOnlyList<IMonitoredItem> IMonitoredItemManagerLifecycle.GetMonitoredItemsSnapshot(
-            IReadOnlyCollection<NodeId>? nodeIds)
-        {
-            if (nodeIds == null)
-            {
-                return [.. MonitoredItems.Values];
-            }
-
-            if (nodeIds.Count == 0)
-            {
-                return [];
-            }
-
-            var requestedNodeIds = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
-            return [.. MonitoredItems.Values.Where(item => requestedNodeIds.Contains(item.NodeId))];
-        }
-
-        /// <inheritdoc/>
         (ServiceResult Result, bool Changed) IMonitoredItemManagerLifecycle.DetachMonitoredItem(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,

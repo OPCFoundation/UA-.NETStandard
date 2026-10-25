@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Generic;
 
 namespace Opc.Ua.Server
 {
@@ -37,12 +36,6 @@ namespace Opc.Ua.Server
     /// </summary>
     internal interface IMonitoredItemManagerLifecycle
     {
-        /// <summary>
-        /// Returns a stable snapshot of the monitored items owned by the manager.
-        /// </summary>
-        IReadOnlyList<IMonitoredItem> GetMonitoredItemsSnapshot(
-            IReadOnlyCollection<NodeId>? nodeIds);
-
         /// <summary>
         /// Removes an item from the manager without disposing it.
         /// </summary>

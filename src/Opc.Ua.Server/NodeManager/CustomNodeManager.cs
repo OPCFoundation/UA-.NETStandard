@@ -427,19 +427,7 @@ namespace Opc.Ua.Server
             {
                 lock (Lock)
                 {
-                    if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
-                    {
-                        if (!MonitoredItems.IsEmpty)
-                        {
-                            throw new NotSupportedException(
-                                "The configured monitored-item manager does not support lifecycle transitions.");
-                        }
-                        snapshot = [];
-                    }
-                    else
-                    {
-                        snapshot = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
-                    }
+                    snapshot = m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
                 }
             }
             return new ValueTask<IReadOnlyList<IMonitoredItem>>(snapshot);
@@ -1145,7 +1133,7 @@ namespace Opc.Ua.Server
             ISystemContext context,
             NodeState node)
         {
-            if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
             {
                 if (!MonitoredItems.IsEmpty)
                 {
@@ -1165,7 +1153,7 @@ namespace Opc.Ua.Server
                 current.GetChildren(context, children);
                 nodes.AddRange(children);
             }
-            return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+            return m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
         }
 
         private void RestoreSurvivingMonitoredItems(

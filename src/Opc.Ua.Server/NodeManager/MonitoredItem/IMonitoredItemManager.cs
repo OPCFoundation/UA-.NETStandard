@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -137,6 +139,28 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static class MonitoredItemManagerLifecycleOperations
     {
+        /// <summary>
+        /// Captures native membership while the caller holds its node-manager mutation gate.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager whose membership is captured.</param>
+        /// <param name="nodeIds">The requested nodes, or null to capture all native items.</param>
+        /// <returns>A stable snapshot independent of subsequent membership changes.</returns>
+        internal static IReadOnlyList<IMonitoredItem> CaptureMonitoredItems(
+            this IMonitoredItemManager manager,
+            IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            if (nodeIds is null)
+            {
+                return [.. manager.MonitoredItems.Values];
+            }
+            if (nodeIds.Count == 0)
+            {
+                return [];
+            }
+            var requestedNodeIds = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
+            return [.. manager.MonitoredItems.Values.Where(item => requestedNodeIds.Contains(item.NodeId))];
+        }
+
         /// <summary>
         /// Captures a notification fence without acquiring another lifetime admission.
         /// </summary>

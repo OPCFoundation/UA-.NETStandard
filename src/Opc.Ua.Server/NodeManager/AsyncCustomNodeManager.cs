@@ -828,16 +828,7 @@ namespace Opc.Ua.Server
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
-                {
-                    if (!MonitoredItems.IsEmpty)
-                    {
-                        throw new NotSupportedException(
-                            "The configured monitored-item manager does not support lifecycle transitions.");
-                    }
-                    return [];
-                }
-                return lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                return m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
             }
         }
 
@@ -2627,7 +2618,7 @@ namespace Opc.Ua.Server
                     nodes.AddRange(children);
                 }
 
-                monitoredItems = lifecycle.GetMonitoredItemsSnapshot(nodeIds);
+                monitoredItems = m_monitoredItemManager.CaptureMonitoredItems(nodeIds);
             }
             detachedItems.Capacity = monitoredItems.Count;
             foreach (IMonitoredItem monitoredItem in monitoredItems)
