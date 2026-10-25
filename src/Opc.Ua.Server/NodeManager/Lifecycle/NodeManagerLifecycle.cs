@@ -37,6 +37,7 @@ using Opc.Ua.Schema;
 using Opc.Ua.Server.RuntimeNodeSet;
 using RetiredGeneration = Opc.Ua.Server.GenerationReclaimer.RetiredGeneration;
 using ShutdownCleanupState = Opc.Ua.Server.GenerationReclaimer.ShutdownCleanupState;
+using OperationLifetime = Opc.Ua.Server.LifecycleWriter.OperationLifetime;
 
 namespace Opc.Ua.Server
 {
@@ -73,6 +74,7 @@ namespace Opc.Ua.Server
         public NodeManagerLifecycle(StandardServer server)
         {
             m_server = server ?? throw new ArgumentNullException(nameof(server));
+            m_writer = new LifecycleWriter(() => m_reclaimer.Count == 0);
         }
 
         /// <inheritdoc/>
@@ -118,7 +120,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public bool IsShuttingDown => m_shuttingDown;
+        public bool IsShuttingDown => m_writer.IsShuttingDown;
 
         /// <inheritdoc/>
         public bool SupportsPreparedPublication =>
@@ -131,26 +133,7 @@ namespace Opc.Ua.Server
 
         internal void PrepareForStartup()
         {
-            lock (m_operationLifetimeLock)
-            {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-                }
-                if (!m_shuttingDown)
-                {
-                    return;
-                }
-                if (m_shutdownPrepared ||
-                    m_activeLifecycleOperations != 0 ||
-                    m_activeShutdownMethods != 0)
-                {
-                    throw new InvalidOperationException(
-                        "The previous NodeManager lifecycle shutdown did not complete.");
-                }
-                m_reclaimer.BeginStartup();
-                m_shuttingDown = false;
-            }
+            m_writer.BeginStartup(m_reclaimer.BeginStartup);
         }
 
         internal async ValueTask AdoptStartupNodeManagersAsync(
@@ -175,8 +158,7 @@ namespace Opc.Ua.Server
                     "The running server changed before startup NodeManagers were adopted.");
             }
 
-            await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
+            using (await m_writer.BeginMutationAsync(ct).ConfigureAwait(false))
             {
                 EnsureSameRunningServer(server, host, allowRequestCallback: false);
                 ArrayOf<PreparedNodeManager> preparedNodeManagers = await host
@@ -223,10 +205,6 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            finally
-            {
-                m_lifecycleSemaphore.Release();
-            }
         }
 
         /// <inheritdoc/>
@@ -238,24 +216,7 @@ namespace Opc.Ua.Server
             // finishes retiring the generations it captured.
             m_reclaimer.Dispose();
 
-            bool disposeSemaphore;
-            lock (m_operationLifetimeLock)
-            {
-                if (m_disposeRequested)
-                {
-                    return;
-                }
-
-                m_disposeRequested = true;
-                m_disposed = true;
-                m_shuttingDown = true;
-                disposeSemaphore = TryReserveSemaphoreDisposal();
-            }
-            if (disposeSemaphore)
-            {
-                m_lifecycleSemaphore.Dispose();
-                m_shutdownCleanupSemaphore.Dispose();
-            }
+            m_writer.Dispose();
         }
 
         /// <summary>
@@ -265,23 +226,8 @@ namespace Opc.Ua.Server
         {
             ThrowIfDecisionCallbackActive();
 
-            lock (m_operationLifetimeLock)
+            m_writer.BeginStartup(() =>
             {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-                }
-                if (!m_shuttingDown)
-                {
-                    return;
-                }
-                if (m_activeLifecycleOperations != 0 ||
-                    m_activeShutdownMethods != 0 ||
-                    m_shutdownPrepared)
-                {
-                    throw new InvalidOperationException(
-                        "The previous NodeManager lifecycle has not completed shutdown.");
-                }
                 lock (m_registrationLock)
                 {
                     if (m_registrations.Count != 0 || m_reclaimer.Count != 0)
@@ -290,9 +236,8 @@ namespace Opc.Ua.Server
                             "The previous NodeManager generations have not completed cleanup.");
                     }
                     m_reclaimer.BeginStartup();
-                    m_shuttingDown = false;
                 }
-            }
+            });
         }
 
         /// <summary>
@@ -326,14 +271,13 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            Task activeOperations = await EnterShutdownAfterPublicationAsync(ct).ConfigureAwait(false);
-            bool semaphoreHeld = false;
+            Task activeOperations = await m_writer.BeginShutdownAsync(ct).ConfigureAwait(false);
+            LifecycleWriter.Mutation? mutation = null;
             bool shutdownPrepared = false;
             try
             {
                 await activeOperations.WaitAsync(ct).ConfigureAwait(false);
-                await m_lifecycleSemaphore.WaitAsync(ct).ConfigureAwait(false);
-                semaphoreHeld = true;
+                mutation = await m_writer.BeginMutationAsync(ct).ConfigureAwait(false);
                 if (server.NodeManager is IDynamicNodeManagerHost host)
                 {
                     RegistrationState[] registrations;
@@ -360,11 +304,8 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (semaphoreHeld)
-                {
-                    m_lifecycleSemaphore.Release();
-                }
-                ExitBeginShutdownMethod(shutdownPrepared);
+                mutation?.Dispose();
+                m_writer.EndShutdown(shutdownPrepared);
             }
         }
 
@@ -377,14 +318,13 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(server));
             }
 
-            Task activeOperations = await EnterShutdownAfterPublicationAsync(ct).ConfigureAwait(false);
-            bool semaphoreHeld = false;
+            Task activeOperations = await m_writer.BeginShutdownAsync(ct).ConfigureAwait(false);
+            IDisposable? cleanupOwnership = null;
             bool shutdownCompleted = false;
             try
             {
                 await activeOperations.WaitAsync(ct).ConfigureAwait(false);
-                await m_shutdownCleanupSemaphore.WaitAsync(ct).ConfigureAwait(false);
-                semaphoreHeld = true;
+                cleanupOwnership = await m_writer.BeginShutdownCleanupAsync(ct).ConfigureAwait(false);
                 RegistrationState[] registrations;
                 lock (m_registrationLock)
                 {
@@ -464,11 +404,8 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                if (semaphoreHeld)
-                {
-                    m_shutdownCleanupSemaphore.Release();
-                }
-                ExitCompleteShutdownMethod(shutdownCompleted);
+                cleanupOwnership?.Dispose();
+                m_writer.EndShutdown(!shutdownCompleted, completing: true);
             }
         }
 
@@ -865,8 +802,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Notifies a registered node manager that the server is ready while the lifecycle semaphore is released, then
-        /// reacquires the semaphore and revalidates the registration.
+        /// Notifies a registered node manager outside mutation serialization and revalidates its registration.
         /// </summary>
         /// <param name="server">The running server.</param>
         /// <param name="host">The dynamic node manager host.</param>
@@ -874,7 +810,7 @@ namespace Opc.Ua.Server
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <returns>A task that completes when the readiness callback finished and the registration is still
         /// current.</returns>
-        private async ValueTask CompleteReadinessOutsideLifecycleSemaphoreAsync(
+        private async ValueTask CompleteReadinessAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
             RegistrationState state,
@@ -885,17 +821,9 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            m_lifecycleSemaphore.Release();
-            try
-            {
-                ct.ThrowIfCancellationRequested();
-                await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
-                ct.ThrowIfCancellationRequested();
-            }
-            finally
-            {
-                await m_lifecycleSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
-            }
+            ct.ThrowIfCancellationRequested();
+            await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
 
             EnsureSameRunningServer(server, host, state.AllowLifecycleFromRequestCallback);
             if (!IsCurrentRegistration(state.Registration))
@@ -924,15 +852,7 @@ namespace Opc.Ua.Server
             bool allowRequestCallback = false,
             IOperationContext? callerContext = null)
         {
-            if (m_disposed)
-            {
-                throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-            }
-            if (m_shuttingDown)
-            {
-                throw new InvalidOperationException(
-                    "The NodeManager lifecycle is shutting down.");
-            }
+            m_writer.EnsureRunning();
 
             if (m_server.CurrentState is not (ServerState.Running or ServerState.NoConfiguration))
             {
@@ -961,131 +881,10 @@ namespace Opc.Ua.Server
         /// <param name="publication">The publication capture that owns admission, or null for a regular
         /// operation.</param>
         /// <returns>The scope that ends the operation when disposed.</returns>
-        private OperationLifetime EnterLifecycleOperation(PublicationCapture? publication = null)
+        private OperationLifetime EnterLifecycleOperation(
+            LifecycleWriter.PublicationReservation? publication = null)
         {
-            ThrowIfDecisionCallbackActive();
-
-            lock (m_operationLifetimeLock)
-            {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-                }
-                if (m_shuttingDown)
-                {
-                    throw new InvalidOperationException(
-                        "The NodeManager lifecycle is shutting down.");
-                }
-                if (m_publicationCapture is not null &&
-                    !ReferenceEquals(m_publicationCapture, publication))
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadServerTooBusy, "An invocation owns lifecycle publication admission.");
-                }
-                if (publication is not null && !ReferenceEquals(m_publicationCapture, publication))
-                {
-                    throw new ObjectDisposedException(nameof(INodeManagerPublication));
-                }
-
-                m_activeLifecycleOperations++;
-                var operation = new OperationLifetime(this, m_currentOperation.Value);
-                m_currentOperation.Value = operation;
-                return operation;
-            }
-        }
-
-        private void ExitLifecycleOperation()
-        {
-            TaskCompletionSource<bool>? operationsDrained = null;
-            bool disposeSemaphore;
-            lock (m_operationLifetimeLock)
-            {
-                if (--m_activeLifecycleOperations == 0)
-                {
-                    operationsDrained = m_operationsDrained;
-                    m_operationsDrained = null;
-                }
-                disposeSemaphore = TryReserveSemaphoreDisposal();
-            }
-
-            operationsDrained?.TrySetResult(true);
-            if (disposeSemaphore)
-            {
-                m_lifecycleSemaphore.Dispose();
-                m_shutdownCleanupSemaphore.Dispose();
-            }
-        }
-
-        private Task EnterShutdownMethod()
-        {
-            lock (m_operationLifetimeLock)
-            {
-                if (m_lifecycleSemaphoreDisposed)
-                {
-                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-                }
-
-                m_shuttingDown = true;
-                m_activeShutdownMethods++;
-                if (m_activeLifecycleOperations == 0)
-                {
-                    return Task.CompletedTask;
-                }
-                return (m_operationsDrained ??=
-                    new TaskCompletionSource<bool>(
-                        TaskCreationOptions.RunContinuationsAsynchronously)).Task;
-            }
-        }
-
-        private void ExitBeginShutdownMethod(bool shutdownPrepared)
-        {
-            bool disposeSemaphore;
-            lock (m_operationLifetimeLock)
-            {
-                if (shutdownPrepared)
-                {
-                    m_shutdownPrepared = true;
-                }
-                m_activeShutdownMethods--;
-                disposeSemaphore = TryReserveSemaphoreDisposal();
-            }
-            if (disposeSemaphore)
-            {
-                m_lifecycleSemaphore.Dispose();
-                m_shutdownCleanupSemaphore.Dispose();
-            }
-        }
-
-        private void ExitCompleteShutdownMethod(bool shutdownCompleted)
-        {
-            bool disposeSemaphore;
-            lock (m_operationLifetimeLock)
-            {
-                m_shutdownPrepared = !shutdownCompleted;
-                m_activeShutdownMethods--;
-                disposeSemaphore = TryReserveSemaphoreDisposal();
-            }
-            if (disposeSemaphore)
-            {
-                m_lifecycleSemaphore.Dispose();
-                m_shutdownCleanupSemaphore.Dispose();
-            }
-        }
-
-        private bool TryReserveSemaphoreDisposal()
-        {
-            if (!m_disposeRequested ||
-                m_lifecycleSemaphoreDisposed ||
-                m_activeLifecycleOperations != 0 ||
-                m_reclaimer.Count != 0 ||
-                m_activeShutdownMethods != 0 ||
-                m_shutdownPrepared)
-            {
-                return false;
-            }
-
-            m_lifecycleSemaphoreDisposed = true;
-            return true;
+            return m_writer.EnterOperation(publication);
         }
 
         private void EnsureSameRunningServer(
@@ -1156,13 +955,11 @@ namespace Opc.Ua.Server
                 : server.RequestManager.IsExecutingRequest(callerContext);
         }
 
-        private async ValueTask WaitForLifecycleSemaphoreAsync(
+        private ValueTask<LifecycleWriter.Mutation> BeginMutationAsync(
             RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter,
             CancellationToken ct)
         {
-            Task semaphoreWait = m_lifecycleSemaphore.WaitAsync(ct);
-            requestWaiter?.MarkSemaphoreWaitStarted();
-            await semaphoreWait.ConfigureAwait(false);
+            return m_writer.BeginMutationAsync(ct, requestWaiter is null ? null : requestWaiter.MarkSemaphoreWaitStarted);
         }
 
         private static RequestManagerLifecycleExtension.RequestLifecycleWaiterScope?
@@ -2375,92 +2172,6 @@ namespace Opc.Ua.Server
             public ShutdownCleanupState ShutdownCleanup { get; } = new();
         }
 
-        private sealed class DecisionCallbackScope
-        {
-            /// <summary>
-            /// Gets whether the durable decision callback is still running.
-            /// </summary>
-            public bool IsActive => Volatile.Read(ref m_active) != 0;
-
-            /// <summary>
-            /// Marks the callback as complete for execution contexts it spawned.
-            /// </summary>
-            public void Deactivate()
-            {
-                Volatile.Write(ref m_active, 0);
-            }
-
-            /// <summary>
-            /// Indicates whether the durable decision callback is still running.
-            /// </summary>
-            private int m_active = 1;
-        }
-
-        private sealed class OperationLifetime : IDisposable
-        {
-            /// <summary>
-            /// Creates a lifecycle operation scope.
-            /// </summary>
-            /// <param name="owner">The lifecycle that owns the operation.</param>
-            /// <param name="parent">The operation active when this one started.</param>
-            public OperationLifetime(NodeManagerLifecycle owner, OperationLifetime? parent)
-            {
-                m_owner = owner;
-                Parent = parent;
-            }
-
-            /// <summary>
-            /// Gets the operation that was active when this one started.
-            /// </summary>
-            public OperationLifetime? Parent { get; }
-
-            /// <summary>
-            /// Determines whether the operation belongs to the specified lifecycle and has not ended.
-            /// </summary>
-            /// <param name="owner">The lifecycle to compare with.</param>
-            /// <returns>True if the operation is still owned by the lifecycle.</returns>
-            public bool IsOwnedBy(NodeManagerLifecycle owner)
-            {
-                return ReferenceEquals(Volatile.Read(ref m_owner), owner);
-            }
-
-            /// <summary>
-            /// Activates this held operation in the current asynchronous execution context.
-            /// </summary>
-            /// <returns>A scope that restores the previous ambient operation.</returns>
-            public IDisposable Activate()
-            {
-                NodeManagerLifecycle owner = Volatile.Read(ref m_owner) ??
-                    throw new ObjectDisposedException(nameof(OperationLifetime));
-                OperationLifetime? previous = owner.m_currentOperation.Value;
-                owner.m_currentOperation.Value = this;
-                return new AmbientScope(owner, previous);
-            }
-
-            public void Dispose()
-            {
-                NodeManagerLifecycle? owner = Interlocked.Exchange(ref m_owner, null);
-                if (owner is not null)
-                {
-                    if (ReferenceEquals(owner.m_currentOperation.Value, this))
-                    {
-                        owner.m_currentOperation.Value = Parent;
-                    }
-                    owner.ExitLifecycleOperation();
-                }
-            }
-
-            private sealed class AmbientScope(NodeManagerLifecycle owner, OperationLifetime? previous) : IDisposable
-            {
-                public void Dispose()
-                {
-                    owner.m_currentOperation.Value = previous;
-                }
-            }
-
-            private NodeManagerLifecycle? m_owner;
-        }
-
         /// <inheritdoc/>
         public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
             ArrayOf<NodeManagerBatchChange> changes,
@@ -2535,7 +2246,7 @@ namespace Opc.Ua.Server
             OperationLifetime? operation = null;
             try
             {
-                operation = EnterLifecycleOperation(publication?.Capture);
+                operation = EnterLifecycleOperation(publication?.Reservation);
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     GetRunningServer(allowRequestCallback, callerContext);
                 if (host is not IDynamicNodeManagerBatchHost)
@@ -2549,7 +2260,8 @@ namespace Opc.Ua.Server
                 await m_reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server, callerContext);
-                await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
+                LifecycleWriter.Mutation mutation = await BeginMutationAsync(waiter, cancellationToken)
+                    .ConfigureAwait(false);
                 bool releaseWriter = true;
                 ChangePreparer? preparation = null;
                 try
@@ -2637,7 +2349,7 @@ namespace Opc.Ua.Server
                     if (retainWriter)
                     {
                         // Direct Add/Reload are one writer operation: keep the captured metadata revision current.
-                        prepared.RetainWriter();
+                        prepared.RetainWriter(mutation);
                         releaseWriter = false;
                     }
                     operation = null;
@@ -2645,6 +2357,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
+                    mutation.Dispose();
                     Exception? cleanup = await AbortBatchEntriesAsync(host, entries)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
@@ -2657,7 +2370,7 @@ namespace Opc.Ua.Server
                 {
                     if (releaseWriter)
                     {
-                        m_lifecycleSemaphore.Release();
+                        mutation.Dispose();
                     }
                 }
             }
@@ -2685,13 +2398,12 @@ namespace Opc.Ua.Server
         {
             ThrowIfDecisionCallbackActive();
 
-            bool writerHeld = batch.TakeWriter();
+            LifecycleWriter.Mutation? retainedMutation = batch.TakeWriter();
+            bool writerHeld = retainedMutation is not null;
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 writerHeld ? null : EnterRequestLifecycleWaiter(batch.Server);
-            if (!writerHeld)
-            {
-                await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
-            }
+            LifecycleWriter.Mutation mutation = retainedMutation ??
+                await BeginMutationAsync(waiter, cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredGeneration>();
             bool releaseWriter = true;
             var failures = new List<Exception>();
@@ -2836,7 +2548,7 @@ namespace Opc.Ua.Server
                         ReadImages: batch.ReadImages,
                         DecideAsync: decideAsync is null
                             ? null
-                            : token => InvokeDecisionCallbackAsync(decideAsync, token),
+                            : token => mutation.DecideAsync(decideAsync, token),
                         ViewPublished: () =>
                         {
                             lock (m_registrationLock)
@@ -2863,7 +2575,12 @@ namespace Opc.Ua.Server
                                 m_server.ComplexTypeResolverHolder?.SetResolver(batch.Resolver);
                             }
                         },
-                        Published: PublishCommittedState,
+                        Published: () =>
+                        {
+                            mutation.Dispose();
+                            releaseWriter = false;
+                            PublishCommittedState();
+                        },
                         ReconcileBindingsAsync: async () =>
                         {
                             // Retired generations are cut off by their gate; physical source bindings are released
@@ -2898,7 +2615,6 @@ namespace Opc.Ua.Server
                                     {
                                         continue;
                                     }
-                                    m_lifecycleSemaphore.Release();
                                     try
                                     {
                                         GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
@@ -2910,8 +2626,6 @@ namespace Opc.Ua.Server
                                     finally
                                     {
                                         generation.Gate.Exit(admissionSlot);
-                                        await m_lifecycleSemaphore.WaitAsync(CancellationToken.None)
-                                            .ConfigureAwait(false);
                                     }
                                 }
                                 catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -2944,6 +2658,8 @@ namespace Opc.Ua.Server
                 {
                     return null;
                 }
+                mutation.Dispose();
+                releaseWriter = false;
                 PublishCommittedState();
 
                 foreach (BatchEntry entry in batch.Entries)
@@ -2967,7 +2683,7 @@ namespace Opc.Ua.Server
                         }
                         // A single-registration operation lets its caller cancel readiness; a prepared batch has
                         // already committed every change, so its readiness runs to completion.
-                        await CompleteReadinessOutsideLifecycleSemaphoreAsync(
+                        await CompleteReadinessAsync(
                             batch.Server,
                             batch.Host,
                             entry.Next,
@@ -2985,8 +2701,6 @@ namespace Opc.Ua.Server
                 }
                 // Publication and readiness are complete. Reclamation owns its records and callbacks independently;
                 // this operation never reacquires the writer after handing them off.
-                m_lifecycleSemaphore.Release();
-                releaseWriter = false;
                 m_reclaimer.Activate(retired);
                 batch.Host.SetRetiredGenerationDrainObserver(ScheduleRetiredGenerationDrainCleanup);
                 try
@@ -3065,7 +2779,7 @@ namespace Opc.Ua.Server
             {
                 if (releaseWriter)
                 {
-                    m_lifecycleSemaphore.Release();
+                    mutation.Dispose();
                 }
                 if (batch.IsCommitted)
                 {
@@ -3075,36 +2789,12 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask InvokeDecisionCallbackAsync(
-            Func<CancellationToken, ValueTask> decideAsync,
-            CancellationToken cancellationToken)
-        {
-            ThrowIfDecisionCallbackActive();
-
-            DecisionCallbackScope? previous = m_decisionCallback.Value;
-            var current = new DecisionCallbackScope();
-            m_decisionCallback.Value = current;
-            try
-            {
-                await decideAsync(cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                current.Deactivate();
-                m_decisionCallback.Value = previous;
-            }
-        }
-
         /// <summary>
         /// Rejects lifecycle re-entry from the durable decision callback.
         /// </summary>
         private void ThrowIfDecisionCallbackActive()
         {
-            if (m_decisionCallback.Value is { IsActive: true })
-            {
-                throw new InvalidOperationException(
-                    "NodeManager lifecycle operations cannot be started from the durable decision callback.");
-            }
+            m_writer.ThrowIfDecisionCallbackActive();
         }
 
         /// <summary>
@@ -3266,18 +2956,18 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Transfers the held lifecycle writer to this batch.
             /// </summary>
-            public void RetainWriter()
+            public void RetainWriter(LifecycleWriter.Mutation mutation)
             {
-                Volatile.Write(ref m_writerRetained, 1);
+                Volatile.Write(ref m_retainedMutation, mutation);
             }
 
             /// <summary>
             /// Takes ownership of a lifecycle writer retained from preparation.
             /// </summary>
             /// <returns>True when the caller now owns the held writer.</returns>
-            public bool TakeWriter()
+            public LifecycleWriter.Mutation? TakeWriter()
             {
-                return Interlocked.Exchange(ref m_writerRetained, 0) != 0;
+                return Interlocked.Exchange(ref m_retainedMutation, null);
             }
 
             /// <summary>
@@ -3448,7 +3138,8 @@ namespace Opc.Ua.Server
                     await m_finished.Task.ConfigureAwait(false);
                 }
                 OperationLifetime? operation = Interlocked.Exchange(ref m_operation, null);
-                bool writerHeld = TakeWriter();
+                LifecycleWriter.Mutation? mutation = TakeWriter();
+                mutation?.Dispose();
                 try
                 {
                     if (operation is null)
@@ -3458,12 +3149,6 @@ namespace Opc.Ua.Server
                     using IDisposable ambientOperation = operation.Activate();
                     if (!IsCommitted)
                     {
-                        if (!writerHeld)
-                        {
-                            await m_owner.m_lifecycleSemaphore.WaitAsync(CancellationToken.None)
-                                .ConfigureAwait(false);
-                            writerHeld = true;
-                        }
                         Exception? failure = await m_owner.AbortBatchEntriesAsync(
                             Host, Entries).ConfigureAwait(false);
                         if (failure is not null)
@@ -3474,10 +3159,6 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    if (writerHeld)
-                    {
-                        m_owner.m_lifecycleSemaphore.Release();
-                    }
                     operation?.Dispose();
                 }
             }
@@ -3538,7 +3219,7 @@ namespace Opc.Ua.Server
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private OperationLifetime? m_operation;
-            private int m_writerRetained;
+            private LifecycleWriter.Mutation? m_retainedMutation;
             private int m_state;
             private bool m_readImagesBound;
         }
@@ -3551,15 +3232,7 @@ namespace Opc.Ua.Server
         public INodeManagerPublicationCapture CapturePublication()
         {
             (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(allowRequestCallback: true);
-            if (host is not IDynamicNodeManagerBatchHost batchHost || server.Factory is not EncodeableFactory factory)
-            {
-                throw new NotSupportedException("The server cannot capture publication revisions.");
-            }
-            _ = server.TypeTree.CaptureSnapshot(out TypeTable types, out long typeRevision);
-            _ = factory.CaptureSnapshot(out EncodeableFactory originalFactory, out long factoryRevision);
-            return new PublicationCapture(
-                this, server, host, batchHost, batchHost.RoutingRevision, types, typeRevision,
-                originalFactory, factoryRevision);
+            return new PublicationCapture(this, m_writer.CaptureRevision(server, host));
         }
 
         /// <summary>
@@ -3577,91 +3250,19 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            lock (m_operationLifetimeLock)
-            {
-                int ancestors = 0;
-                for (OperationLifetime? operation = m_currentOperation.Value; operation is not null;
-                    operation = operation.Parent)
-                {
-                    if (operation.IsOwnedBy(this))
-                    {
-                        ancestors++;
-                    }
-                }
-                if (m_publicationCapture is not null || m_activeLifecycleOperations != ancestors)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadServerTooBusy, "Another lifecycle operation owns publication admission.");
-                }
-                EnsureSameRunningServer(capture.Server, capture.OwnerHost, allowRequestCallback: true);
-                _ = ((EncodeableFactory)capture.Server.Factory).CaptureSnapshot(
-                    out EncodeableFactory factory, out long factoryRevision);
-                bool current = ReferenceEquals(capture.Host.RoutingRevision, capture.RoutingRevision) &&
-                    capture.Server.TypeTree.IsCurrentSnapshot(capture.Types, capture.TypeRevision) &&
-                    ReferenceEquals(factory, capture.Factory) && factoryRevision == capture.FactoryRevision;
-                var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                m_publicationCapture = capture;
-                m_publicationFinished = finished;
-                try
-                {
-                    OperationLifetime operation = EnterLifecycleOperation(capture);
-                    return new PublicationInvocation(this, capture, current, finished, operation, callerContext);
-                }
-                catch
-                {
-                    m_publicationCapture = null;
-                    m_publicationFinished = null;
-                    throw;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Enters shutdown once no publication invocation owns admission.
-        /// </summary>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        /// <returns>A task that completes when the active operations have drained.</returns>
-        private async ValueTask<Task> EnterShutdownAfterPublicationAsync(CancellationToken cancellationToken)
-        {
-            ThrowIfDecisionCallbackActive();
-
-            while (true)
-            {
-                Task finished;
-                lock (m_operationLifetimeLock)
-                {
-                    if (m_publicationCapture is null)
-                    {
-                        return EnterShutdownMethod();
-                    }
-                    finished = m_publicationFinished!.Task;
-                }
-                await finished.WaitAsync(cancellationToken).ConfigureAwait(false);
-            }
+            EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost, allowRequestCallback: true);
+            LifecycleWriter.PublicationReservation reservation = m_writer.ReservePublication(capture.Revision);
+            return new PublicationInvocation(this, capture, reservation, callerContext);
         }
 
         /// <summary>
         /// Immutable record of the routing, type and factory revisions captured for a publication.
         /// </summary>
         /// <param name="Owner">The lifecycle that created the capture.</param>
-        /// <param name="Server">The running server.</param>
-        /// <param name="OwnerHost">The dynamic node manager host.</param>
-        /// <param name="Host">The batch host of the node manager.</param>
-        /// <param name="RoutingRevision">The captured routing revision.</param>
-        /// <param name="Types">The captured type tree.</param>
-        /// <param name="TypeRevision">The revision of the captured type tree.</param>
-        /// <param name="Factory">The captured encodeable factory.</param>
-        /// <param name="FactoryRevision">The revision of the captured factory.</param>
+        /// <param name="Revision">The writer-owned serving revision capture.</param>
         private sealed record PublicationCapture(
             NodeManagerLifecycle Owner,
-            IServerInternal Server,
-            IDynamicNodeManagerHost OwnerHost,
-            IDynamicNodeManagerBatchHost Host,
-            NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
-            TypeTable Types,
-            long TypeRevision,
-            EncodeableFactory Factory,
-            long FactoryRevision) : INodeManagerPublicationCapture
+            LifecycleWriter.PublicationRevision Revision) : INodeManagerPublicationCapture
         {
             /// <inheritdoc/>
             public ValueTask<INodeManagerPublication> BeginAsync(
@@ -3685,23 +3286,19 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="owner">The lifecycle that admitted the publication.</param>
         /// <param name="capture">The capture the publication belongs to.</param>
-        /// <param name="current">Whether the captured revisions were still current at admission.</param>
-        /// <param name="finished">The completion source set when the publication ends.</param>
-        /// <param name="operation">The lifecycle operation held for the publication.</param>
+        /// <param name="reservation">The writer-owned invocation reservation.</param>
         /// <param name="callerContext">The operation the publication was begun under, or null for an ordinary
         /// external caller.</param>
         private sealed class PublicationInvocation(
             NodeManagerLifecycle owner,
             PublicationCapture capture,
-            bool current,
-            TaskCompletionSource<bool> finished,
-            OperationLifetime operation,
+            LifecycleWriter.PublicationReservation reservation,
             IOperationContext? callerContext) : INodeManagerValidationPublication
         {
             /// <summary>
             /// Gets whether the captured revisions were current when the publication was admitted.
             /// </summary>
-            public bool IsCurrent { get; } = current;
+            public bool IsCurrent => Reservation.IsCurrent;
 
             /// <summary>
             /// Gets the capture the publication belongs to.
@@ -3711,7 +3308,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets a task that completes when the publication ends.
             /// </summary>
-            public Task Finished => m_finished.Task;
+            public LifecycleWriter.PublicationReservation Reservation { get; } = reservation;
 
             /// <inheritdoc/>
             public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
@@ -3762,135 +3359,39 @@ namespace Opc.Ua.Server
             /// <param name="cancellationToken">The token used to cancel the operation.</param>
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <returns>The prepared batch.</returns>
-            private async ValueTask<IPreparedNodeManagerBatch> PrepareCoreAsync(
+            private ValueTask<IPreparedNodeManagerBatch> PrepareCoreAsync(
                 ArrayOf<NodeManagerBatchChange> changes,
                 ArrayOf<INodeManagerReadImage> images,
                 CancellationToken cancellationToken,
                 bool validationOnly = false)
             {
-                lock (owner.m_operationLifetimeLock)
-                {
-                    if (m_closing || !ReferenceEquals(owner.m_publicationCapture, Capture) || !IsCurrent)
-                    {
-                        throw new InvalidOperationException("The publication invocation is stale or closed.");
-                    }
-                    if (m_preparing)
-                    {
-                        throw new InvalidOperationException("Prepare invocation units sequentially.");
-                    }
-                    m_preparing = true;
-                    m_prepared = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                }
-                try
-                {
-                    IPreparedNodeManagerBatch batch = await owner.PrepareBatchAsync(
-                        changes, this, callerContext, cancellationToken, images, validationOnly)
-                        .ConfigureAwait(false);
-                    lock (owner.m_operationLifetimeLock)
-                    {
-                        m_batches.Add(batch);
-                    }
-                    return batch;
-                }
-                finally
-                {
-                    lock (owner.m_operationLifetimeLock)
-                    {
-                        m_preparing = false;
-                        m_prepared.TrySetResult(true);
-                    }
-                }
+                return Reservation.PrepareAsync(() => owner.PrepareBatchAsync(
+                    changes, this, callerContext, cancellationToken, images, validationOnly));
             }
 
             /// <inheritdoc/>
             public async ValueTask DisposeAsync()
             {
-                Task? prepared;
-                bool ownsDisposal;
-                lock (owner.m_operationLifetimeLock)
-                {
-                    ownsDisposal = !m_closing;
-                    m_closing = true;
-                    prepared = m_preparing ? m_prepared.Task : null;
-                }
-                if (!ownsDisposal)
-                {
-                    await Finished.ConfigureAwait(false);
-                    return;
-                }
                 try
                 {
-                    if (prepared is not null)
-                    {
-                        await prepared.ConfigureAwait(false);
-                    }
-                    var failures = new List<Exception>();
-                    foreach (IPreparedNodeManagerBatch batch in m_batches)
-                    {
-                        try
-                        {
-                            await batch.DisposeAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception failure) when (failure is not OutOfMemoryException)
-                        {
-                            failures.Add(failure);
-                        }
-                    }
-                    if (failures.Count != 0)
-                    {
-                        throw new AggregateException("Publication invocation cleanup failed.", failures);
-                    }
+                    await Reservation.DisposeAsync().ConfigureAwait(false);
                 }
                 finally
                 {
-                    lock (owner.m_operationLifetimeLock)
-                    {
-                        owner.m_publicationCapture = null;
-                        owner.m_publicationFinished = null;
-                    }
-                    m_operation.Dispose();
-                    m_finished.TrySetResult(true);
                     owner.ScheduleRetiredGenerationDrainCleanup();
                 }
             }
 
-            private readonly List<IPreparedNodeManagerBatch> m_batches = [];
-            private readonly OperationLifetime m_operation = operation;
-            private readonly TaskCompletionSource<bool> m_finished = finished;
-            private TaskCompletionSource<bool> m_prepared =
-                new(TaskCreationOptions.RunContinuationsAsynchronously);
-            private bool m_preparing;
-            private bool m_closing;
         }
 
 
         private readonly StandardServer m_server;
-        private readonly SemaphoreSlim m_lifecycleSemaphore = new(1, 1);
+        private readonly LifecycleWriter m_writer;
         private readonly Lock m_registrationLock = new();
-        private readonly Lock m_operationLifetimeLock = new();
         private Dictionary<Guid, RegistrationState> m_registrations = [];
 
         /// <summary>Owns retired generations independently of lifecycle publication.</summary>
         private readonly GenerationReclaimer m_reclaimer = new();
 
-        /// <summary>Serializes shutdown cleanup without retaining the publication writer.</summary>
-        private readonly SemaphoreSlim m_shutdownCleanupSemaphore = new(1, 1);
-
-        private TaskCompletionSource<bool>? m_operationsDrained;
-        private int m_activeLifecycleOperations;
-        private int m_activeShutdownMethods;
-        private bool m_shutdownPrepared;
-        private bool m_disposeRequested;
-        private bool m_lifecycleSemaphoreDisposed;
-        private volatile bool m_disposed;
-        private volatile bool m_shuttingDown;
-        private readonly AsyncLocal<OperationLifetime?> m_currentOperation = new();
-
-        /// <summary>
-        /// Carries the active durable-decision scope through asynchronous callback execution.
-        /// </summary>
-        private readonly AsyncLocal<DecisionCallbackScope?> m_decisionCallback = new();
-        private PublicationCapture? m_publicationCapture;
-        private TaskCompletionSource<bool>? m_publicationFinished;
     }
 }
