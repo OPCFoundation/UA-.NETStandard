@@ -363,7 +363,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var retired = context.CreateRetirement();
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(value => value.NodeId).Returns(new NodeId(1));
-            item.As<IDetachableMonitoredItem>();
+            Mock<IDetachableMonitoredItem> detachable = item.As<IDetachableMonitoredItem>();
+            detachable.Setup(value => value.TryBeginAttach()).Returns(true);
+            detachable.Setup(value => value.EndAttach()).Returns(true);
             Mock<IMonitoredItemGenerationBinding> binding = item.As<IMonitoredItemGenerationBinding>();
             int marks = 0;
             binding.Setup(value => value.Invalidate(false)).Callback(() =>
@@ -389,6 +391,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 item.Object.NodeId, out drain, out releaseRetention)).Returns(true);
             retired.Transition = new NodeManagerLifecycle.MonitoredItemTransition(
                 retired.Server, current.Object, null, [], [item.Object], _ => true);
+            Assert.That(
+                await retired.Transition.AdoptAsync(timeout.Token).ConfigureAwait(false),
+                Is.Empty);
             retired.Generation.Gate.Retire();
             reclaimer.Enqueue([retired]);
             reclaimer.Activate([retired]);

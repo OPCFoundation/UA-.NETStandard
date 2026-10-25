@@ -975,7 +975,9 @@ management; continuation points from a retired generation are invalid when its g
 #### MonitoredItems
 
 On a `Migrate` reload a compatible NodeId keeps the same MonitoredItem and Subscription without a
-transient bad status. A removed or incompatible NodeId is detached and publishes one
+transient bad status. After publication, each compatible item completes its handoff before the next
+item is released from the old manager. A failed committed handoff does not restore the old generation;
+its errors are reported on the committed result. A removed or incompatible NodeId is detached and publishes one
 `BadNodeIdUnknown` data-change notification (Part 4 §5.8.4.1); adding a compatible Node with that
 NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.

@@ -577,10 +577,17 @@ namespace Opc.Ua.Server
                     server,
                     nodeManager,
                     CancellationToken.None).ConfigureAwait(false);
-            await monitoredItemTransition
-                .DetachCurrentAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-            monitoredItemTransition.MarkDeletedItems();
+            try
+            {
+                await monitoredItemTransition
+                    .AdoptAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                monitoredItemTransition.MarkDeletedItems();
+            }
+            finally
+            {
+                monitoredItemTransition.ReleaseSourceRetentions();
+            }
         }
 
         /// <summary>
@@ -607,18 +614,22 @@ namespace Opc.Ua.Server
                     retired,
                     replacement,
                     CancellationToken.None).ConfigureAwait(false);
-            await monitoredItemTransition
-                .DetachCurrentAsync(CancellationToken.None)
-                .ConfigureAwait(false);
-            List<Exception> failures =
-                await monitoredItemTransition.AttachCompatibleAsync(
-                    CancellationToken.None).ConfigureAwait(false);
-            monitoredItemTransition.MarkDeletedItems();
-            if (failures.Count > 0)
+            try
             {
-                throw new AggregateException(
-                    "Monitored items created during the reload could not be migrated.",
-                    failures);
+                List<Exception> failures =
+                    await monitoredItemTransition.AdoptAsync(
+                        CancellationToken.None).ConfigureAwait(false);
+                monitoredItemTransition.MarkDeletedItems();
+                if (failures.Count > 0)
+                {
+                    throw new AggregateException(
+                        "Monitored items created during the reload could not be migrated.",
+                        failures);
+                }
+            }
+            finally
+            {
+                monitoredItemTransition.ReleaseSourceRetentions();
             }
         }
 
@@ -1226,57 +1237,23 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Detaches every item still owned by a subscription from the retiring NodeManager.
+            /// Releases and adopts each subscribed item before moving to the next item.
+            /// Incompatible items are released for invalidation after admitted notifications drain.
             /// </summary>
-            /// <param name="ct">The token that aborts detach work.</param>
-            /// <returns>A task that completes when all current items have detached.</returns>
-            /// <exception cref="ServiceResultException">The retiring NodeManager rejects a detach.</exception>
-            public async ValueTask DetachCurrentAsync(CancellationToken ct)
-            {
-                foreach (IMonitoredItem monitoredItem in m_compatibleItems.Concat(m_deletedItems))
-                {
-                    // A Subscription being deleted, a Session being closed or a Client deleting the
-                    // item can remove it while the transition runs. There is then nothing to move,
-                    // so the item is skipped instead of failing the lifecycle operation.
-                    if (!IsOwnedBySubscription(monitoredItem))
-                    {
-                        continue;
-                    }
-
-                    ServiceResult result = await m_current.DetachMonitoredItemAsync(
-                        monitoredItem,
-                        ct)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result))
-                    {
-                        if (!IsOwnedBySubscription(monitoredItem))
-                        {
-                            continue;
-                        }
-                        throw new ServiceResultException(result);
-                    }
-                    m_detachedItems.Add(monitoredItem);
-                }
-            }
-
-            /// <summary>
-            /// Attaches compatible items to the replacement NodeManager and records failures
-            /// that should delete the item instead.
-            /// </summary>
-            /// <param name="ct">The token that aborts attach work.</param>
-            /// <returns>The non-fatal failures that occurred while attempting the attach.</returns>
-            public async ValueTask<List<Exception>> AttachCompatibleAsync(
+            /// <param name="ct">The token that aborts handoff work.</param>
+            /// <returns>The non-fatal failures that occurred while attempting adoption.</returns>
+            /// <exception cref="ServiceResultException">The retiring NodeManager rejects a release.</exception>
+            public async ValueTask<List<Exception>> AdoptAsync(
                 CancellationToken ct)
             {
                 var failures = new List<Exception>();
-                if (m_replacement is null)
+                for (int index = 0; index < m_compatibleItems.Count + m_deletedItems.Count; index++)
                 {
-                    return failures;
-                }
-
-                foreach (IMonitoredItem monitoredItem in m_compatibleItems)
-                {
-                    if (!IsOwnedBySubscription(monitoredItem))
+                    bool compatible = index < m_compatibleItems.Count;
+                    IMonitoredItem monitoredItem = compatible
+                        ? m_compatibleItems[index]
+                        : m_deletedItems[index - m_compatibleItems.Count];
+                    if (m_reconciledItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
                     {
                         continue;
                     }
@@ -1294,51 +1271,70 @@ namespace Opc.Ua.Server
                     bool attached = false;
                     try
                     {
-                        ServiceResult result = await m_replacement.AttachMonitoredItemAsync(
+                        ServiceResult result = await m_current.DetachMonitoredItemAsync(
                             monitoredItem,
                             ct)
                             .ConfigureAwait(false);
-                        if (ServiceResult.IsGood(result))
+                        if (ServiceResult.IsBad(result))
                         {
-                            attached = true;
-                            m_attachedItems.Add(monitoredItem);
-                        }
-                        else
-                        {
-                            MarkAttachFailure(monitoredItem);
-                            if (!IsExpectedMonitoredItemIncompatibility(result))
+                            if (!IsOwnedBySubscription(monitoredItem))
                             {
-                                failures.Add(new ServiceResultException(result));
+                                continue;
+                            }
+                            throw new ServiceResultException(result);
+                        }
+                        if (!compatible || m_replacement is null || !IsOwnedBySubscription(monitoredItem))
+                        {
+                            m_reconciledItems.Add(monitoredItem);
+                            continue;
+                        }
+                        try
+                        {
+                            result = await m_replacement.AttachMonitoredItemAsync(
+                                monitoredItem,
+                                ct).ConfigureAwait(false);
+                            if (ServiceResult.IsGood(result))
+                            {
+                                attached = true;
+                            }
+                            else
+                            {
+                                MarkAttachFailure(monitoredItem);
+                                if (!IsExpectedMonitoredItemIncompatibility(result))
+                                {
+                                    failures.Add(new ServiceResultException(result));
+                                }
                             }
                         }
+                        catch (Exception ex) when (ex is not OutOfMemoryException)
+                        {
+                            MarkAttachFailure(monitoredItem);
+                            failures.Add(ex);
+                        }
+                        m_reconciledItems.Add(monitoredItem);
                     }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
+                    finally
                     {
-                        MarkAttachFailure(monitoredItem);
-                        failures.Add(ex);
+                        if (detachable is not null && !detachable.EndAttach() && attached)
+                        {
+                            // Client deletion during handoff must also stop replacement sampling.
+                            try
+                            {
+                                ServiceResult result = await m_replacement!.DetachMonitoredItemAsync(
+                                    monitoredItem,
+                                    ct).ConfigureAwait(false);
+                                if (ServiceResult.IsBad(result))
+                                {
+                                    failures.Add(new ServiceResultException(result));
+                                }
+                            }
+                            catch (Exception ex) when (ex is not OutOfMemoryException)
+                            {
+                                failures.Add(ex);
+                            }
+                            detachable.Detach(m_server);
+                        }
                     }
-
-                    if (detachable is null || detachable.EndAttach() || !attached)
-                    {
-                        continue;
-                    }
-
-                    // The item was deleted and disposed while it was being handed over, so the
-                    // replacement must not be left sampling it.
-                    m_attachedItems.Remove(monitoredItem);
-                    try
-                    {
-                        await m_replacement.DetachMonitoredItemAsync(
-                            monitoredItem,
-                            ct)
-                            .ConfigureAwait(false);
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        failures.Add(ex);
-                    }
-
-                    detachable.Detach(m_server);
                 }
 
                 return failures;
@@ -1355,7 +1351,8 @@ namespace Opc.Ua.Server
                     var failures = new List<Exception>();
                     foreach (IMonitoredItem monitoredItem in m_deletedItems.Concat(m_failedItems))
                     {
-                        if (m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
+                        if (!m_reconciledItems.Contains(monitoredItem) ||
+                            m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem))
                         {
                             continue;
                         }
@@ -1383,72 +1380,6 @@ namespace Opc.Ua.Server
                 {
                     ReleaseSourceRetentions();
                 }
-            }
-
-            /// <summary>
-            /// Reverses the detach and attach steps already completed by this transition.
-            /// </summary>
-            /// <param name="ct">The token that aborts rollback work.</param>
-            /// <returns>A task that completes when the transition has been restored.</returns>
-            /// <exception cref="AggregateException">One or more monitored items could not be restored.</exception>
-            public async ValueTask RollbackAsync(CancellationToken ct)
-            {
-                var failures = new List<Exception>();
-                if (m_replacement is not null)
-                {
-                    for (int ii = m_attachedItems.Count - 1; ii >= 0; ii--)
-                    {
-                        try
-                        {
-                            ServiceResult result = await m_replacement.DetachMonitoredItemAsync(
-                                m_attachedItems[ii],
-                                ct)
-                                .ConfigureAwait(false);
-                            if (ServiceResult.IsBad(result))
-                            {
-                                failures.Add(new ServiceResultException(result));
-                            }
-                        }
-                        catch (Exception ex) when (ex is not OutOfMemoryException)
-                        {
-                            failures.Add(ex);
-                        }
-                    }
-                }
-
-                for (int ii = m_detachedItems.Count - 1; ii >= 0; ii--)
-                {
-                    if (!IsOwnedBySubscription(m_detachedItems[ii]))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        ServiceResult result = await m_current.RecoverMonitoredItemAsync(
-                            m_detachedItems[ii],
-                            ct)
-                            .ConfigureAwait(false);
-                        if (ServiceResult.IsBad(result))
-                        {
-                            failures.Add(new ServiceResultException(result));
-                        }
-                    }
-                    catch (Exception ex) when (ex is not OutOfMemoryException)
-                    {
-                        failures.Add(ex);
-                    }
-                }
-
-                ReleaseSourceRetentions();
-                if (failures.Count > 0)
-                {
-                    throw new AggregateException(
-                        "One or more monitored items could not be restored.",
-                        failures);
-                }
-                m_attachedItems.Clear();
-                m_detachedItems.Clear();
             }
 
             private void MarkAttachFailure(IMonitoredItem monitoredItem)
@@ -1493,8 +1424,8 @@ namespace Opc.Ua.Server
             /// <summary>Whether items lost by this transition cannot be adopted again.</summary>
             private readonly bool m_terminal;
 
-            private readonly List<IMonitoredItem> m_detachedItems = [];
-            private readonly List<IMonitoredItem> m_attachedItems = [];
+            /// <summary>Items whose committed handoff has already completed.</summary>
+            private readonly HashSet<IMonitoredItem> m_reconciledItems = new(MonitoredItemReferenceComparer.Instance);
             private readonly List<IMonitoredItem> m_failedItems = [];
             private readonly HashSet<IMonitoredItem> m_markedDeletedItems = [];
             private Action[]? m_sourceRetentions;
@@ -2029,8 +1960,7 @@ namespace Opc.Ua.Server
                             {
                                 try
                                 {
-                                    await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
-                                    foreach (Exception failure in await transition.AttachCompatibleAsync(
+                                    foreach (Exception failure in await transition.AdoptAsync(
                                         CancellationToken.None).ConfigureAwait(false))
                                     {
                                         reconciliation.ReportOwnedFailure(

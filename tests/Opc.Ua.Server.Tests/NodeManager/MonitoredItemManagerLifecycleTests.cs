@@ -967,27 +967,74 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// One item completes handoff before another item is released from the serving source.
+        /// </summary>
         [Test]
-        public async Task RollbackDoesNotRestoreItemRemovedFromItsSubscriptionAsync()
+        public async Task CompatibleItemsCompleteHandoffBeforeNextItemIsReleasedAsync()
+        {
+            IMonitoredItem first = new Mock<IMonitoredItem>().Object;
+            IMonitoredItem second = new Mock<IMonitoredItem>().Object;
+            var operations = new List<string>();
+            var current = new TestNodeManagerLifecycle
+            {
+                DetachCallback = item =>
+                {
+                    operations.Add(ReferenceEquals(item, first) ? "release-first" : "release-second");
+                    return ServiceResult.Good;
+                }
+            };
+            var replacement = new TestNodeManagerLifecycle
+            {
+                AttachCallback = item =>
+                {
+                    operations.Add(ReferenceEquals(item, first) ? "adopt-first" : "adopt-second");
+                    return ServiceResult.Good;
+                }
+            };
+            var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                new Mock<IServerInternal>().Object,
+                current, replacement, [first, second], [], static _ => true);
+
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+
+            Assert.That(string.Join(", ", operations),
+                Is.EqualTo("release-first, adopt-first, release-second, adopt-second"));
+        }
+
+        [Test]
+        public async Task AdoptionSkipsItemRemovedFromItsSubscriptionDuringReleaseAsync()
         {
             bool subscriptionOwnsItem = true;
             var item = new Mock<IMonitoredItem>();
-            var current = new TestNodeManagerLifecycle();
+            var current = new TestNodeManagerLifecycle
+            {
+                DetachCallback = _ =>
+                {
+                    subscriptionOwnsItem = false;
+                    return ServiceResult.Good;
+                }
+            };
+            var replacement = new TestNodeManagerLifecycle();
 
             var server = new Mock<IServerInternal>();
             var transition = new NodeManagerLifecycle.MonitoredItemTransition(
                 server.Object,
                 current,
-                replacement: null,
-                compatibleItems: [],
-                deletedItems: [item.Object],
+                replacement,
+                compatibleItems: [item.Object],
+                deletedItems: [],
                 isOwnedBySubscription: _ => subscriptionOwnsItem);
 
-            await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
-            subscriptionOwnsItem = false;
-            await transition.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
 
-            Assert.That(current.RestoreCount, Is.Zero);
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.DetachCount, Is.EqualTo(1));
+                Assert.That(replacement.AttachCount, Is.Zero);
+                Assert.That(current.RestoreCount, Is.Zero);
+            });
         }
 
         [Test]
@@ -1013,12 +1060,15 @@ namespace Opc.Ua.Server.Tests
                 deletedItems: [],
                 isOwnedBySubscription: static _ => true);
 
-            await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(replacement.AttachCount, Is.Zero);
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.DetachCount, Is.Zero);
+                Assert.That(replacement.AttachCount, Is.Zero);
+            });
 
             committed = true;
             List<Exception> failures = await transition
-                .AttachCompatibleAsync(CancellationToken.None)
+                .AdoptAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(failures, Is.Empty);
@@ -1051,9 +1101,8 @@ namespace Opc.Ua.Server.Tests
                     deletedItems: [],
                     isOwnedBySubscription: static _ => true);
 
-                await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
                 List<Exception> failures = await transition
-                    .AttachCompatibleAsync(CancellationToken.None)
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false);
                 transition.MarkDeletedItems();
                 var itemLifecycle = (IDetachableMonitoredItem)item;
@@ -1069,44 +1118,20 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task TransitionFailureVariantsReportEveryRollbackFailureAsync()
+        public async Task AdoptionResumesAfterReleaseFailureWithoutRestoringCommittedItemsAsync()
         {
+            bool rejectSecond = true;
             var firstItem = new Mock<IMonitoredItem>();
             var secondItem = new Mock<IMonitoredItem>();
             var current = new TestNodeManagerLifecycle
             {
-                DetachCallback = item => ReferenceEquals(item, firstItem.Object)
+                DetachCallback = item => rejectSecond && ReferenceEquals(item, secondItem.Object)
                     ? new ServiceResult(StatusCodes.BadInvalidState)
                     : ServiceResult.Good
             };
             var server = new Mock<IServerInternal>();
-            var failedDetachTransition = new NodeManagerLifecycle.MonitoredItemTransition(
-                server.Object,
-                current,
-                replacement: null,
-                compatibleItems: [firstItem.Object],
-                deletedItems: [],
-                isOwnedBySubscription: static _ => true);
-
-            ServiceResultException detachException = await Assert.ThrowsAsync<ServiceResultException>(
-                async () => await failedDetachTransition
-                    .DetachCurrentAsync(CancellationToken.None)
-                    .ConfigureAwait(false));
-
-            Assert.That(detachException.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
-
-            current.DetachCallback = static _ => ServiceResult.Good;
-            current.RestoreCallback = item => ReferenceEquals(item, firstItem.Object)
-                ? new ServiceResult(StatusCodes.BadUnexpectedError)
-                : throw new InvalidOperationException("Injected restore failure.");
-            var replacement = new TestNodeManagerLifecycle
-            {
-                AttachCallback = static _ => ServiceResult.Good,
-                DetachCallback = item => ReferenceEquals(item, firstItem.Object)
-                    ? new ServiceResult(StatusCodes.BadInvalidState)
-                    : throw new InvalidOperationException("Injected replacement detach failure.")
-            };
-            var rollbackTransition = new NodeManagerLifecycle.MonitoredItemTransition(
+            var replacement = new TestNodeManagerLifecycle();
+            var transition = new NodeManagerLifecycle.MonitoredItemTransition(
                 server.Object,
                 current,
                 replacement,
@@ -1114,28 +1139,177 @@ namespace Opc.Ua.Server.Tests
                 deletedItems: [],
                 isOwnedBySubscription: static _ => true);
 
-            await rollbackTransition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
-            Assert.That(
-                await rollbackTransition
-                    .AttachCompatibleAsync(CancellationToken.None)
-                    .ConfigureAwait(false),
-                Is.Empty);
-
-            AggregateException rollbackException = await Assert.ThrowsAsync<AggregateException>(
-                async () => await rollbackTransition
-                    .RollbackAsync(CancellationToken.None)
+            ServiceResultException detachException = await Assert.ThrowsAsync<ServiceResultException>(
+                async () => await transition
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false));
 
             Assert.Multiple(() =>
             {
-                Assert.That(rollbackException.InnerExceptions, Has.Count.EqualTo(4));
-                Assert.That(
-                    rollbackException.InnerExceptions,
-                    Has.Exactly(2).TypeOf<ServiceResultException>());
-                Assert.That(
-                    rollbackException.InnerExceptions,
-                    Has.Exactly(2).TypeOf<InvalidOperationException>());
+                Assert.That(detachException.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(current.DetachCount, Is.EqualTo(2));
+                Assert.That(replacement.AttachCount, Is.EqualTo(1));
+                Assert.That(current.RestoreCount, Is.Zero);
             });
+
+            rejectSecond = false;
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+            Assert.That(await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false), Is.Empty);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(current.DetachCount, Is.EqualTo(3));
+                Assert.That(replacement.AttachCount, Is.EqualTo(2));
+                Assert.That(current.RestoreCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Invalidating a failed transition cannot transfer items whose source release never completed.
+        /// </summary>
+        [Test]
+        public async Task ReleaseFailureDoesNotInvalidateItemsStillOwnedByTheSourceAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var owner = new Mock<IAsyncNodeManager>();
+                using MonitoredItem first = CreateMonitoredItem(
+                    server.Object, owner.Object, new object(), new NodeId("Released", 1), 2);
+                using MonitoredItem second = CreateMonitoredItem(
+                    server.Object, owner.Object, new object(), new NodeId("StillOwned", 1), 3);
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = item => ReferenceEquals(item, second)
+                        ? new ServiceResult(StatusCodes.BadInvalidState)
+                        : ServiceResult.Good
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, null, [], [first, second], static _ => true);
+
+                await Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false));
+                transition.MarkDeletedItems();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(((IDetachableMonitoredItem)first).IsDeleted, Is.True);
+                    Assert.That(((IDetachableMonitoredItem)second).IsDeleted, Is.False);
+                    Assert.That(second.NodeManager, Is.SameAs(owner.Object));
+                });
+            }
+        }
+
+        /// <summary>
+        /// Every failed retirement attempt releases its source retention before a new transition is prepared.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RetirementHandoffFailureReleasesSourceRetentionBeforeRetryAsync(bool migrate, bool throws)
+        {
+            var server = new Mock<IServerInternal>();
+            var current = new Mock<IAsyncNodeManager>();
+            Mock<INodeManagerMonitoredItemLifecycle> source = current.As<INodeManagerMonitoredItemLifecycle>();
+            var replacement = new Mock<IAsyncNodeManager>();
+            Mock<INodeManagerMonitoredItemLifecycle> target = replacement.As<INodeManagerMonitoredItemLifecycle>();
+            var item = new Mock<IMonitoredItem>();
+            item.SetupGet(value => value.NodeId).Returns(new NodeId("RetainedFailure", 1));
+            Mock<IDetachableMonitoredItem> detachable = item.As<IDetachableMonitoredItem>();
+            detachable.Setup(value => value.TryBeginAttach()).Returns(true);
+            detachable.Setup(value => value.EndAttach()).Returns(true);
+            var subscription = new Mock<ISubscription>();
+            subscription.As<ISubscriptionMonitoredItemLifecycle>()
+                .Setup(value => value.ContainsMonitoredItem(item.Object)).Returns(true);
+            item.SetupGet(value => value.SubscriptionCallback).Returns(subscription.Object);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
+            generation.MonitoredItems.TryAdd(item.Object, subscription.Object);
+            int released = 0;
+            Func<CancellationToken, ValueTask>? drain = static _ => default;
+            Action? release = () => released++;
+            source.Setup(value => value.TryRetainMonitoredNode(item.Object.NodeId, out drain, out release))
+                .Returns(true);
+            source.Setup(value => value.DetachMonitoredItemAsync(item.Object, It.IsAny<CancellationToken>()))
+                .Returns(() => throws
+                    ? throw new InvalidOperationException("Injected retirement handoff failure.")
+                    : new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadInvalidState)));
+            target.Setup(value => value.CanAttachMonitoredItemAsync(item.Object, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(ServiceResult.Good);
+
+            for (int attempt = 1; attempt <= 2; attempt++)
+            {
+                Exception failure = await Assert.CatchAsync<Exception>(async () =>
+                {
+                    if (migrate)
+                    {
+                        await NodeManagerLifecycle.MigrateLateMonitoredItemsAsync(
+                            server.Object, current.Object, replacement.Object).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await NodeManagerLifecycle.DetachActiveMonitoredItemsAsync(
+                            server.Object, current.Object).ConfigureAwait(false);
+                    }
+                });
+                Assert.Multiple(() =>
+                {
+                    Assert.That(failure, Is.TypeOf(
+                        throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
+                    Assert.That(released, Is.EqualTo(attempt));
+                    Assert.That(generation.MonitoredItems.ContainsKey(item.Object), Is.True);
+                });
+            }
+            target.Verify(value => value.AttachMonitoredItemAsync(
+                It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A failed source release relinquishes the reservation without calling the replacement.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ReleaseFailureEndsTheAdoptionReservationAsync(bool throws)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (MonitoredItem item = CreateMonitoredItem(
+                server.Object, new Mock<IAsyncNodeManager>().Object, new object(), new NodeId("ReleaseFailure", 1)))
+            {
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ => throws
+                        ? throw new InvalidOperationException("Injected release failure.")
+                        : new ServiceResult(StatusCodes.BadInvalidState)
+                };
+                var replacement = new TestNodeManagerLifecycle();
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, replacement, [item], [], static _ => true);
+
+                Exception failure = await Assert.CatchAsync<Exception>(
+                    async () => await transition.AdoptAsync(CancellationToken.None).ConfigureAwait(false));
+                var lifecycle = (IDetachableMonitoredItem)item;
+                bool reserved = lifecycle.TryBeginAttach();
+                try
+                {
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(failure, Is.TypeOf(
+                            throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
+                        Assert.That(reserved, Is.True);
+                        Assert.That(replacement.AttachCount, Is.Zero);
+                    });
+                }
+                finally
+                {
+                    if (reserved)
+                    {
+                        lifecycle.EndAttach();
+                    }
+                }
+            }
         }
 
         [TestCase(false, 0)]
@@ -1169,9 +1343,8 @@ namespace Opc.Ua.Server.Tests
                     deletedItems: [],
                     isOwnedBySubscription: static _ => true);
 
-                await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
                 List<Exception> failures = await transition
-                    .AttachCompatibleAsync(CancellationToken.None)
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false);
                 transition.MarkDeletedItems();
 
@@ -1185,7 +1358,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task TransitionWithoutSubscriptionOwnershipSkipsRecoveryAsync()
+        public async Task TransitionWithoutSubscriptionOwnershipSkipsAdoptionAsync()
         {
             var item = new Mock<IMonitoredItem>();
             var subscriptionManager = new Mock<ISubscriptionManager>();
@@ -1202,17 +1375,16 @@ namespace Opc.Ua.Server.Tests
                 compatibleItems: [item.Object],
                 deletedItems: []);
 
-            await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
             Assert.That(
                 await transition
-                    .AttachCompatibleAsync(CancellationToken.None)
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false),
                 Is.Empty);
-            await transition.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(replacement.AttachCount, Is.Zero);
+                Assert.That(current.DetachCount, Is.Zero);
                 Assert.That(current.RestoreCount, Is.Zero);
             });
         }
@@ -2218,7 +2390,7 @@ namespace Opc.Ua.Server.Tests
                 item.Dispose();
 
                 List<Exception> failures = await transition
-                    .AttachCompatibleAsync(CancellationToken.None)
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false);
 
                 Assert.Multiple(() =>
@@ -2229,9 +2401,13 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        [Test]
+        [TestCase(0, 0)]
+        [TestCase(1, 1)]
+        [TestCase(2, 1)]
         [Category("NodeManagerLifecycle")]
-        public async Task AttachUndoesHandOverWhenItemIsDisposedWhileAttachingAsync()
+        public async Task AttachUndoesHandOverWhenItemIsDisposedWhileAttachingAsync(
+            int cleanupFailure,
+            int expectedFailureCount)
         {
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
@@ -2251,6 +2427,12 @@ namespace Opc.Ua.Server.Tests
                     {
                         ((MonitoredItem)attaching).Dispose();
                         return ServiceResult.Good;
+                    },
+                    DetachCallback = _ => cleanupFailure switch
+                    {
+                        1 => new ServiceResult(StatusCodes.BadUnexpectedError),
+                        2 => throw new InvalidOperationException("Injected cleanup failure."),
+                        _ => ServiceResult.Good
                     }
                 };
                 var transition = new NodeManagerLifecycle.MonitoredItemTransition(
@@ -2262,18 +2444,27 @@ namespace Opc.Ua.Server.Tests
                     isOwnedBySubscription: static _ => true);
 
                 List<Exception> failures = await transition
-                    .AttachCompatibleAsync(CancellationToken.None)
+                    .AdoptAsync(CancellationToken.None)
                     .ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(failures, Is.Empty);
+                    Assert.That(failures, Has.Count.EqualTo(expectedFailureCount));
                     Assert.That(replacement.AttachCount, Is.EqualTo(1));
 
                     // The replacement must not be left sampling a disposed item.
                     Assert.That(replacement.DetachCount, Is.EqualTo(1));
                     Assert.That(item.ManagerHandle, Is.SameAs(MonitoredItem.DetachedHandle));
                 });
+                if (cleanupFailure == 1)
+                {
+                    Assert.That(((ServiceResultException)failures[0]).StatusCode,
+                        Is.EqualTo(StatusCodes.BadUnexpectedError));
+                }
+                else if (cleanupFailure == 2)
+                {
+                    Assert.That(failures[0].Message, Is.EqualTo("Injected cleanup failure."));
+                }
             }
         }
 
