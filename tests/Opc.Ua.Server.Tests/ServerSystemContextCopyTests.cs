@@ -31,6 +31,7 @@ using System;
 using System.Reflection;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Server.Tests.NodeManager;
 
 namespace Opc.Ua.Server.Tests
 {
@@ -51,6 +52,14 @@ namespace Opc.Ua.Server.Tests
         public void CopyCopiesEveryField()
         {
             ServerSystemContext template = CreatePopulatedContext();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using var ownedQueues = queues;
+            var source = new Mock<IAsyncNodeManager>();
+            using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [source.Object]);
+            Assert.That(MasterNodeManager.TryCaptureItemEmission(
+                server.Object, source.Object, null, out var admission), Is.True);
+            using MasterNodeManager.SourceEmissionOrigin? origin = admission?.TransferToOrigin();
+            template.SourceEmissionOrigin = origin;
 
             ServerSystemContext copy = template.Copy();
 

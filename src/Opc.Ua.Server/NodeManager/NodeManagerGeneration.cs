@@ -789,6 +789,7 @@ namespace Opc.Ua.Server
                         "Only a retired generation can be restored after replacement rollback.");
                 }
                 m_drained = null;
+                m_drainCompleted = false;
             }
         }
 
@@ -797,11 +798,14 @@ namespace Opc.Ua.Server
         /// </summary>
         internal void DisposeGeneration()
         {
-            if (ActiveCount != 0)
+            lock (m_waitLock)
             {
-                throw new InvalidOperationException("A generation with active operations cannot be disposed.");
+                if (!m_drainCompleted && ActiveCount != 0)
+                {
+                    throw new InvalidOperationException("A generation with active operations cannot be disposed.");
+                }
+                Transition(NodeManagerGenerationState.Retiring, NodeManagerGenerationState.Disposed);
             }
-            Transition(NodeManagerGenerationState.Retiring, NodeManagerGenerationState.Disposed);
         }
 
         /// <summary>
@@ -874,8 +878,12 @@ namespace Opc.Ua.Server
             }
             lock (m_waitLock)
             {
-                if (HasNoActiveOperations)
+                if (HasNoActiveOperations &&
+                    State is NodeManagerGenerationState.Retiring or
+                        NodeManagerGenerationState.Disposed or NodeManagerGenerationState.Aborted)
                 {
+                    // A later tentative entry must refuse itself; no accepted owner can reappear after this point.
+                    m_drainCompleted = true;
                     m_drained?.TrySetResult(true);
                 }
             }
@@ -904,6 +912,30 @@ namespace Opc.Ua.Server
             /// </summary>
             internal bool IsActive => Volatile.Read(ref m_gate) is not null;
 
+            /// <summary>
+            /// Extends admitted work while its parent lease remains active, including after retirement.
+            /// </summary>
+            /// <param name="slot">The striped counter slot owned by the child on success.</param>
+            /// <returns>Whether the parent was still active when the child entered.</returns>
+            internal bool TryFork(out int slot)
+            {
+                GenerationGate? gate = Volatile.Read(ref m_gate);
+                if (gate is null)
+                {
+                    slot = -1;
+                    return false;
+                }
+
+                slot = gate.m_active.Enter();
+                if (ReferenceEquals(Volatile.Read(ref m_gate), gate))
+                {
+                    return true;
+                }
+                gate.Exit(slot);
+                slot = -1;
+                return false;
+            }
+
             /// <inheritdoc/>
             public void Dispose()
             {
@@ -925,6 +957,9 @@ namespace Opc.Ua.Server
 
         /// <summary>Completes when a closed gate has no remaining operations.</summary>
         private TaskCompletionSource<bool>? m_drained;
+
+        /// <summary>Whether a closed gate reached zero accepted owners; protected by the drain lock.</summary>
+        private bool m_drainCompleted;
 
         /// <summary>The current generation state.</summary>
         private int m_state;

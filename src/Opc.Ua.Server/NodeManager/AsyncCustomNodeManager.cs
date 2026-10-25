@@ -8146,14 +8146,14 @@ namespace Opc.Ua.Server
             IFilterTarget e,
             CancellationToken cancellationToken = default)
         {
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission);
-            using var emissionLease = emission;
+            bool admitted = MasterNodeManager.TryCaptureSourceEmission(Server, this, out var emission, context: context);
             if (!admitted)
             {
                 return;
             }
-            using var emissionScope = emission?.EnterSourceEmission();
-            await Server.ReportEventAsync(context, e, cancellationToken).ConfigureAwait(false);
+            using MasterNodeManager.SourceEmissionOrigin? origin = emission?.TransferToOrigin();
+            await Server.ReportEventAsync(origin?.CreateContext(context) ?? context, e, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <summary>

@@ -283,6 +283,74 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A root report admitted before retirement reaches the actual Server notifier consumer afterward.
+        /// </summary>
+        [Test]
+        public async Task RootEventAdmittedBeforeRetirementReachesServerConsumerAsync()
+        {
+            await using var source = new TestableAsyncCustomNodeManager(
+                m_server,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                false,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                "urn:tests:root-event-source");
+            MonitoredNode2 monitored = CreateMonitoredNode(true);
+            using MasterNodeManager master = CreateMaster([source, monitored.NodeManager]);
+            var item = new CountingMonitoredItem(this, 1, CreateFilter(SelectA(), null), monitored.NodeManager);
+            m_disposables.Add(item);
+            monitored.Add((IEventMonitoredItem)item);
+            var root = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("root-event-source", source.NamespaceIndex),
+                EventNotifier = EventNotifiers.SubscribeToEvents
+            };
+            await source.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source);
+            var authorizing = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseAuthorization = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Mock.Get(monitored.NodeManager).Setup(manager => manager.ValidateEventRolePermissionsAsync(
+                    It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IEventMonitoredItem _, IFilterTarget _, CancellationToken cancellationToken) =>
+                {
+                    authorizing.TrySetResult(true);
+                    await releaseAuthorization.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                });
+            bool ambient = false;
+            Mock.Get(m_server).Setup(server => server.ReportEventAsync(
+                    It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                .Returns(async (ISystemContext context, IFilterTarget target, CancellationToken cancellationToken) =>
+                {
+                    ambient = master.HasCapturedSourceEmission(source);
+                    generation.Gate.Retire();
+                    await monitored.OnReportEventAsync(context, monitored.Node, target, cancellationToken)
+                        .ConfigureAwait(false);
+                });
+
+            try
+            {
+                await root.ReportEventAsync(source.SystemContext, CreateEvent(EventSeverity.High)).ConfigureAwait(false);
+                await authorizing.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1),
+                    "After the root report returns, its queued Server delivery must still own the original source.");
+                Assert.That(generation.Gate.WaitForDrainAsync().IsCompleted, Is.False);
+            }
+            finally
+            {
+                releaseAuthorization.TrySetResult(true);
+                await monitored.DisposeAsync().ConfigureAwait(false);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ambient, Is.False);
+                Assert.That(item.Queued, Is.EqualTo(1));
+                Assert.That(Publish(item), Has.Count.EqualTo(1));
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
         /// An overridable delivery cannot lend its source admission to another item's nested queue call.
         /// </summary>
         [TestCase(false)]

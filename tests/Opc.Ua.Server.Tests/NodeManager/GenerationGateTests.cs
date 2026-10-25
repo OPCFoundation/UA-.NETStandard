@@ -32,6 +32,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -78,6 +79,136 @@ namespace Opc.Ua.Server.Tests.NodeManager
             aborted.Abort();
             Assert.That(aborted.State, Is.EqualTo(NodeManagerGenerationState.Aborted));
             Assert.That(() => aborted.Activate(), Throws.InvalidOperationException);
+        }
+
+        /// <summary>
+        /// Only an active parent can extend admitted work, and each child independently delays retirement.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ActiveParentForkKeepsGenerationAliveAfterParentExitAsync(bool retireBeforeFork)
+        {
+            var gate = new GenerationGate(NodeManagerGenerationState.Live);
+            Assert.That(gate.TryEnter(out GenerationGate.Lease? parent), Is.True);
+            if (retireBeforeFork)
+            {
+                gate.Retire();
+            }
+            Assert.That(parent!.TryFork(out int child), Is.True);
+            Assert.That(gate.ActiveCount, Is.EqualTo(2));
+            parent.Dispose();
+            parent.Dispose();
+            Assert.Multiple(() =>
+            {
+                Assert.That(parent.TryFork(out int rejected), Is.False);
+                Assert.That(rejected, Is.EqualTo(-1));
+                Assert.That(gate.ActiveCount, Is.EqualTo(1));
+            });
+            gate.Retire();
+            Task drained = gate.WaitForDrainAsync();
+            Assert.That(drained.IsCompleted, Is.False);
+            gate.Exit(child);
+            await drained.ConfigureAwait(false);
+            Assert.That(gate.ActiveCount, Is.Zero);
+            gate.DisposeGeneration();
+            Assert.That(parent.TryFork(out int _), Is.False);
+            Assert.That(gate.ActiveCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Racing parent release either refuses a child or counts it before the generation can drain.
+        /// </summary>
+        [Test]
+        public async Task ForkRacingParentReleaseNeverEscapesGenerationDrainAsync()
+        {
+            for (int iteration = 0; iteration < 200; iteration++)
+            {
+                var gate = new GenerationGate(NodeManagerGenerationState.Live);
+                Assert.That(gate.TryEnter(out GenerationGate.Lease? parent), Is.True);
+                gate.Retire();
+                var start = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                Task<int> fork = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    return parent!.TryFork(out int child) ? child : -1;
+                });
+                Task release = Task.Run(async () =>
+                {
+                    await start.Task.ConfigureAwait(false);
+                    parent!.Dispose();
+                });
+                start.SetResult(true);
+                await Task.WhenAll(fork, release).ConfigureAwait(false);
+                int slot = await fork.ConfigureAwait(false);
+                bool entered = slot >= 0;
+                Assert.That(gate.ActiveCount, Is.EqualTo(entered ? 1 : 0));
+                Task drained = gate.WaitForDrainAsync();
+                Assert.That(drained.IsCompleted, Is.EqualTo(!entered));
+                if (entered)
+                {
+                    gate.Exit(slot);
+                }
+                await drained.ConfigureAwait(false);
+                Assert.That(gate.ActiveCount, Is.Zero);
+                gate.DisposeGeneration();
+            }
+        }
+
+        /// <summary>
+        /// A refused late entrant cannot invalidate a completed closed-gate drain.
+        /// </summary>
+        [Test]
+        public async Task ConfirmedDrainAllowsDisposalWhileLateEntryIsBeingRefusedAsync()
+        {
+            var gate = new GenerationGate(NodeManagerGenerationState.Live);
+            Assert.That(gate.TryEnter(out GenerationGate.Lease? parent), Is.True);
+            gate.Retire();
+            Task drained = gate.WaitForDrainAsync();
+            parent!.Dispose();
+            await drained.ConfigureAwait(false);
+
+            // Reproduce the counter state of a fork paused between its increment and parent recheck.
+            var counter = (StripedCounter)typeof(GenerationGate)
+                .GetField("m_active", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(gate)!;
+            int pending = counter.Enter();
+            try
+            {
+                Assert.That(gate.DisposeGeneration, Throws.Nothing);
+            }
+            finally
+            {
+                counter.Exit(pending);
+            }
+            Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Disposed));
+            Assert.That(gate.ActiveCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Disposal still refuses accepted work, including after a retired gate has been restored.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void GenerationDisposalRequiresAcceptedWorkToDrain(bool restore)
+        {
+            var gate = new GenerationGate(NodeManagerGenerationState.Live);
+            if (restore)
+            {
+                gate.Retire();
+                gate.Restore();
+            }
+            Assert.That(gate.TryEnter(out GenerationGate.Lease? parent), Is.True);
+            gate.Retire();
+            try
+            {
+                Assert.That(gate.DisposeGeneration, Throws.InvalidOperationException);
+                Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+            }
+            finally
+            {
+                parent!.Dispose();
+            }
+            gate.DisposeGeneration();
+            Assert.That(gate.State, Is.EqualTo(NodeManagerGenerationState.Disposed));
         }
 
         /// <summary>

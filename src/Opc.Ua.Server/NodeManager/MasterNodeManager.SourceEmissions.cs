@@ -115,18 +115,32 @@ namespace Opc.Ua.Server
         /// <param name="isGlobalServerEventSink">
         /// Whether this is the Server object's event callback, which receives events from every node manager.
         /// </param>
+        /// <param name="context">The explicit event propagation context, when present.</param>
         /// <returns><c>true</c> when the generation accepted the emission.</returns>
         internal static bool TryCaptureSourceEmission(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             out SourceEmissionAdmission? emission,
             NodeManagerGenerationReference? generationReference = null,
-            bool isGlobalServerEventSink = false)
+            bool isGlobalServerEventSink = false,
+            ISystemContext? context = null)
         {
             emission = null;
             if (server.NodeManager is not MasterNodeManager master)
             {
                 return true;
+            }
+
+            SourceEmissionOrigin? origin = context switch
+            {
+                ServerSystemContext serverContext => serverContext.SourceEmissionOrigin,
+                SourceEmissionContext sourceContext => sourceContext.Origin,
+                _ => null
+            };
+            if (origin is not null)
+            {
+                return origin.TryCapture(
+                    master, nodeManager, generationReference, isGlobalServerEventSink, out emission);
             }
 
             NodeManagerGeneration generation;
@@ -244,6 +258,15 @@ namespace Opc.Ua.Server
                 return m_owner.EnterSourceEmission(Generation);
             }
 
+            /// <summary>
+            /// Transfers this single-owned admission to an explicitly propagated event origin.
+            /// </summary>
+            /// <returns>The new owner; the original admission must not be disposed afterward.</returns>
+            internal SourceEmissionOrigin TransferToOrigin()
+            {
+                return new SourceEmissionOrigin(m_owner, Generation, m_slot);
+            }
+
             /// <inheritdoc/>
             public void Dispose()
             {
@@ -252,6 +275,137 @@ namespace Opc.Ua.Server
 
             private readonly MasterNodeManager m_owner;
             private readonly int m_slot;
+        }
+
+        /// <summary>
+        /// Owns a root report's admission and revokes new fan-out when that report finishes.
+        /// </summary>
+        internal sealed class SourceEmissionOrigin : IDisposable
+        {
+            /// <summary>
+            /// Takes ownership of one already admitted striped gate slot.
+            /// </summary>
+            /// <param name="owner">The routing owner that admitted the source.</param>
+            /// <param name="generation">The exact source generation.</param>
+            /// <param name="slot">The admitted counter slot transferred by the caller.</param>
+            internal SourceEmissionOrigin(MasterNodeManager owner, NodeManagerGeneration generation, int slot)
+            {
+                m_owner = owner;
+                m_generation = generation;
+                m_lease = new GenerationGate.Lease(generation.Gate, slot);
+            }
+
+            /// <summary>
+            /// Copies event provenance without mutating the producer's shared context.
+            /// </summary>
+            /// <param name="context">The original event context.</param>
+            /// <returns>A context carrying this revocable origin.</returns>
+            internal ISystemContext CreateContext(ISystemContext context)
+            {
+                if (context is ServerSystemContext serverContext)
+                {
+                    ServerSystemContext copy = serverContext.Copy();
+                    copy.SourceEmissionOrigin = this;
+                    return copy;
+                }
+                return new SourceEmissionContext(context, this);
+            }
+
+            /// <summary>
+            /// Gives a fan-out consumer its own gate slot only while this origin is active.
+            /// </summary>
+            /// <param name="owner">The receiving server's routing owner.</param>
+            /// <param name="nodeManager">The receiving notifier's manager.</param>
+            /// <param name="reference">The notifier's exact generation, when bound.</param>
+            /// <param name="globalSink">Whether this notifier receives all server events.</param>
+            /// <param name="emission">The child admission owned by the consumer.</param>
+            /// <returns>Whether this origin admitted the consumer.</returns>
+            internal bool TryCapture(
+                MasterNodeManager owner,
+                IAsyncNodeManager nodeManager,
+                NodeManagerGenerationReference? reference,
+                bool globalSink,
+                out SourceEmissionAdmission? emission)
+            {
+                emission = null;
+                NodeManagerGeneration? generation = Volatile.Read(ref m_generation);
+                if (generation is null ||
+                    !ReferenceEquals(Volatile.Read(ref m_owner), owner) ||
+                    (!(globalSink || ReferenceEquals(nodeManager, owner.CoreNodeManager)) &&
+                        (!ReferenceEquals(nodeManager, generation.NodeManager) ||
+                            (reference is not null &&
+                                (!reference.TryGetGeneration(out NodeManagerGeneration? bound) ||
+                                    !ReferenceEquals(bound, generation))))) ||
+                    !m_lease.TryFork(out int slot))
+                {
+                    return false;
+                }
+                emission = new SourceEmissionAdmission(owner, generation, slot);
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                m_lease.Dispose();
+                Volatile.Write(ref m_generation, null);
+                Volatile.Write(ref m_owner, null);
+            }
+
+            /// <summary>The routing owner, released when the root report finishes.</summary>
+            private MasterNodeManager? m_owner;
+
+            /// <summary>The exact source, released when the root report finishes.</summary>
+            private NodeManagerGeneration? m_generation;
+
+            /// <summary>The existing generation gate admission, not a separate retention counter.</summary>
+            private readonly GenerationGate.Lease m_lease;
+        }
+
+        /// <summary>
+        /// Carries explicit provenance for event producers supplying a non-server system context.
+        /// </summary>
+        /// <param name="context">The original context whose values remain authoritative.</param>
+        /// <param name="origin">The revocable source admission.</param>
+        private sealed class SourceEmissionContext(ISystemContext context, SourceEmissionOrigin origin) : ISystemContext
+        {
+            /// <summary>
+            /// Gets the explicit event origin.
+            /// </summary>
+            internal SourceEmissionOrigin Origin { get; } = origin;
+
+            /// <inheritdoc/>
+            public object? SystemHandle => context.SystemHandle;
+
+            /// <inheritdoc/>
+            public string? UserId => context.UserId;
+
+            /// <inheritdoc/>
+            public ArrayOf<string> PreferredLocales => context.PreferredLocales;
+
+            /// <inheritdoc/>
+            public string? AuditEntryId => context.AuditEntryId;
+
+            /// <inheritdoc/>
+            public NamespaceTable NamespaceUris => context.NamespaceUris;
+
+            /// <inheritdoc/>
+            public StringTable ServerUris => context.ServerUris;
+
+            /// <inheritdoc/>
+            public ITypeTable TypeTable => context.TypeTable;
+
+            /// <inheritdoc/>
+            public IEncodeableFactory EncodeableFactory => context.EncodeableFactory;
+
+            /// <inheritdoc/>
+            public INodeIdFactory? NodeIdFactory => context.NodeIdFactory;
+
+            /// <inheritdoc/>
+            public NodeStateFactory NodeStateFactory => context.NodeStateFactory;
+
+            /// <inheritdoc/>
+            public ITelemetryContext Telemetry => context.Telemetry;
         }
 
         /// <summary>

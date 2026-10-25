@@ -447,7 +447,8 @@ namespace Opc.Ua.Server
                     NodeManager,
                     out emission,
                     Generation,
-                    isGlobalServerEventSink: Node.NodeId == ObjectIds.Server))
+                    isGlobalServerEventSink: Node.NodeId == ObjectIds.Server,
+                    context: context))
                 {
                     return;
                 }
@@ -1014,7 +1015,7 @@ namespace Opc.Ua.Server
             {
                 if (Node.NodeId != ObjectIds.Server &&
                     sourceEmission is
-                        { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
+                    { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
                     !IsInCurrentGeneration(item) &&
                     item is not IDetachableMonitoredItem { IsDetached: true })
                 {

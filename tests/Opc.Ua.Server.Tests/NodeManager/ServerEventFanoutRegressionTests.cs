@@ -41,6 +41,162 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Category("NodeManager")]
     public sealed class ServerEventFanoutRegressionTests
     {
+        /// <summary>
+        /// Root fan-out carries revocable source provenance and lets admitted child work finish after retirement.
+        /// </summary>
+        [Test]
+        public async Task RootEventContextRetainsOnlyAdmittedFanoutWithoutAmbientSourceAsync(
+            [Values] bool retire,
+            [Values] bool fail,
+            [Values] bool serverContext)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                await using var manager = new TestableAsyncCustomNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                    false, NullLogger.Instance, DeterministicServerMock.TestNamespaceUri);
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [manager]);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+                var root = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("root-context", manager.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                await manager.AddRootNotifierPublicAsync(root).ConfigureAwait(false);
+                ISystemContext original = serverContext
+                    ? manager.SystemContext
+                    : new SystemContext(server.Object.Telemetry)
+                    {
+                        UserId = "root-event-user",
+                        AuditEntryId = "root-event-audit",
+                        NamespaceUris = manager.SystemContext.NamespaceUris,
+                        ServerUris = manager.SystemContext.ServerUris,
+                        TypeTable = manager.SystemContext.TypeTable,
+                        EncodeableFactory = manager.SystemContext.EncodeableFactory,
+                        NodeStateFactory = manager.SystemContext.NodeStateFactory,
+                        PreferredLocales = ["en-US"]
+                    };
+                ISystemContext? escaped = null;
+                bool ambient = false;
+                bool admitted = false;
+                MasterNodeManager.SourceEmissionAdmission? child = null;
+                server.Setup(value => value.ReportEventAsync(
+                        It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
+                    .Returns((ISystemContext context, IFilterTarget _, CancellationToken _) =>
+                    {
+                        escaped = context is ServerSystemContext propagated ? propagated.Copy() : context;
+                        ambient = master.HasCapturedSourceEmission(manager);
+                        if (retire)
+                        {
+                            generation.Gate.Retire();
+                        }
+                        admitted = MasterNodeManager.TryCaptureSourceEmission(
+                            server.Object, master.CoreNodeManager!, out child,
+                            isGlobalServerEventSink: true, context: escaped);
+                        return fail
+                            ? new ValueTask(Task.FromException(new InvalidOperationException("Controlled report failure.")))
+                            : default;
+                    });
+                try
+                {
+                    if (fail)
+                    {
+                        await Assert.ThrowsAsync<InvalidOperationException>(
+                            async () => await root.ReportEventAsync(original, new BaseEventState(null))
+                                .ConfigureAwait(false)).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await root.ReportEventAsync(original, new BaseEventState(null)).ConfigureAwait(false);
+                    }
+                    bool escapedAdmitted = MasterNodeManager.TryCaptureSourceEmission(
+                        server.Object, master.CoreNodeManager!, out var escapedAdmission,
+                        isGlobalServerEventSink: true, context: escaped);
+                    escapedAdmission?.Dispose();
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(ambient, Is.False);
+                        Assert.That(admitted, Is.True);
+                        Assert.That(child?.Generation, Is.SameAs(generation));
+                        Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1));
+                        Assert.That(escapedAdmitted, Is.False);
+                        Assert.That(escaped, Is.Not.SameAs(original));
+                        Assert.That(escaped!.NamespaceUris, Is.SameAs(original.NamespaceUris));
+                        Assert.That(escaped.UserId, Is.EqualTo(original.UserId));
+                        Assert.That(escaped.AuditEntryId, Is.EqualTo(original.AuditEntryId));
+                        Assert.That(escaped.TypeTable, Is.SameAs(original.TypeTable));
+                        Assert.That(escaped.EncodeableFactory, Is.SameAs(original.EncodeableFactory));
+                        Assert.That(escaped.NodeStateFactory, Is.SameAs(original.NodeStateFactory));
+                        Assert.That(escaped.PreferredLocales, Is.EqualTo(original.PreferredLocales));
+                    });
+                    generation.Gate.Retire();
+                    Task drained = generation.Gate.WaitForDrainAsync();
+                    Assert.That(drained.IsCompleted, Is.False);
+                    child?.Dispose();
+                    child = null;
+                    await drained.ConfigureAwait(false);
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+                finally
+                {
+                    child?.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Explicit event provenance cannot authorize an unrelated notifier, generation or server.
+        /// </summary>
+        [Test]
+        public void RootEventContextRejectsUnrelatedSourcesAndServers()
+        {
+            Mock<IServerInternal> first = DeterministicServerMock.Create(out MonitoredItemQueueFactory firstQueues);
+            Mock<IServerInternal> second = DeterministicServerMock.Create(out MonitoredItemQueueFactory secondQueues);
+            using (firstQueues)
+            using (secondQueues)
+            {
+                var source = new Mock<IAsyncNodeManager>();
+                var other = new Mock<IAsyncNodeManager>();
+                var foreign = new Mock<IAsyncNodeManager>();
+                using MasterNodeManager firstMaster =
+                    DeterministicServerMock.CreateMasterNodeManager(first, [source.Object, other.Object]);
+                using MasterNodeManager secondMaster =
+                    DeterministicServerMock.CreateMasterNodeManager(second, [foreign.Object]);
+                Assert.That(MasterNodeManager.TryCaptureItemEmission(
+                    first.Object, source.Object, null, out var admission), Is.True);
+                using MasterNodeManager.SourceEmissionOrigin? origin = admission?.TransferToOrigin();
+                ISystemContext context = origin!.CreateContext(first.Object.DefaultSystemContext);
+
+                bool own = MasterNodeManager.TryCaptureSourceEmission(
+                    first.Object, source.Object, out var ownAdmission, context: context);
+                bool unrelated = MasterNodeManager.TryCaptureSourceEmission(
+                    first.Object, other.Object, out var unrelatedAdmission, context: context);
+                bool rebound = MasterNodeManager.TryCaptureSourceEmission(
+                    first.Object, source.Object, out var reboundAdmission,
+                    NodeManagerGenerationRegistry.GetOrCreate(other.Object).Reference, context: context);
+                bool crossServer = MasterNodeManager.TryCaptureSourceEmission(
+                    second.Object, secondMaster.CoreNodeManager!, out var foreignAdmission,
+                    isGlobalServerEventSink: true, context: context);
+                ownAdmission?.Dispose();
+                unrelatedAdmission?.Dispose();
+                reboundAdmission?.Dispose();
+                foreignAdmission?.Dispose();
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(own, Is.True);
+                    Assert.That(unrelated, Is.False);
+                    Assert.That(rebound, Is.False);
+                    Assert.That(crossServer, Is.False);
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(source.Object).Gate.ActiveCount, Is.EqualTo(1));
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(other.Object).Gate.ActiveCount, Is.Zero);
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(foreign.Object).Gate.ActiveCount, Is.Zero);
+                });
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task EventModifyFailuresRemainPerItemAndDoNotSkipOtherOwnersAsync(bool throws)

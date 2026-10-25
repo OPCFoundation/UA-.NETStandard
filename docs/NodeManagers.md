@@ -987,6 +987,12 @@ source-generation admission through their final enqueue. Already-admitted work c
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.
 Physical retirement waits for those admissions to drain.
 
+Root event reporting propagates the exact source through its system context, not ambient
+execution state. The Server notifier's queued deliveries keep their own admissions to that
+source, including when retirement starts during reporting. Forward the supplied context when
+implementing an event-reporting sink. Its source provenance expires when the root reporting
+call returns or fails; keeping a copy of the context does not authorize later emissions.
+
 `Invalidate` and manager removal make old items terminal. Adding the same NodeId later does not
 reactivate them; clients must create new MonitoredItems. Durable subscription restoration preserves
 the terminal state.
