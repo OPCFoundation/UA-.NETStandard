@@ -151,14 +151,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed class SourceFactory(WotPreparedSourceImage image, IAsyncNodeManagerFactory inner)
-            : IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory
+            : IAsyncNodeManagerFactory
         {
             /// <summary>
             /// Gets the namespaces URIs for <c>SourceFactory</c>.
             /// </summary>
             public ArrayOf<string> NamespacesUris => inner.NamespacesUris;
-            public bool AllowLifecycleFromRequestCallback =>
-                inner is IRequestCallbackSafeNodeManagerFactory { AllowLifecycleFromRequestCallback: true };
 
             /// <summary>
             /// Creates the wrapped node manager and records it as a candidate owner in the prepared image.

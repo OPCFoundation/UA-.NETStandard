@@ -251,11 +251,11 @@ namespace Opc.Ua.Server
             IDynamicNodeManagerHost host)
         {
             EnsureRunning();
-            if (host is not IDynamicNodeManagerBatchHost batchHost || server.Factory is not EncodeableFactory factory)
+            if (server.Factory is not EncodeableFactory factory)
             {
                 throw new NotSupportedException("The server cannot capture publication revisions.");
             }
-            return CaptureRevisionCore(server, host, batchHost, factory);
+            return CaptureRevisionCore(server, host, factory);
         }
 
         /// <summary>
@@ -264,13 +264,12 @@ namespace Opc.Ua.Server
         private PublicationRevision CaptureRevisionCore(
             IServerInternal server,
             IDynamicNodeManagerHost host,
-            IDynamicNodeManagerBatchHost batchHost,
             EncodeableFactory factory)
         {
             _ = server.TypeTree.CaptureSnapshot(out TypeTable types, out long typeRevision);
             _ = factory.CaptureSnapshot(out EncodeableFactory originalFactory, out long factoryRevision);
             return new PublicationRevision(
-                this, server, host, batchHost, batchHost.RoutingRevision, types, typeRevision,
+                this, server, host, host.RoutingRevision, types, typeRevision,
                 originalFactory, factoryRevision);
         }
 
@@ -281,7 +280,6 @@ namespace Opc.Ua.Server
             LifecycleWriter Owner,
             IServerInternal Server,
             IDynamicNodeManagerHost OwnerHost,
-            IDynamicNodeManagerBatchHost Host,
             NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
             TypeTable Types,
             long TypeRevision,
@@ -295,7 +293,7 @@ namespace Opc.Ua.Server
             {
                 _ = ((EncodeableFactory)Server.Factory).CaptureSnapshot(
                     out EncodeableFactory factory, out long factoryRevision);
-                return ReferenceEquals(Host.RoutingRevision, RoutingRevision) &&
+                return ReferenceEquals(OwnerHost.RoutingRevision, RoutingRevision) &&
                     Server.TypeTree.IsCurrentSnapshot(Types, TypeRevision) &&
                     ReferenceEquals(factory, Factory) && factoryRevision == FactoryRevision;
             }
@@ -401,7 +399,7 @@ namespace Opc.Ua.Server
                 lock (owner.m_state)
                 {
                     m_revision = owner.CaptureRevisionCore(
-                        m_revision.Server, m_revision.OwnerHost, m_revision.Host,
+                        m_revision.Server, m_revision.OwnerHost,
                         (EncodeableFactory)m_revision.Server.Factory);
                 }
             }

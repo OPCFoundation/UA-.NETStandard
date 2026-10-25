@@ -158,7 +158,6 @@ namespace Opc.Ua.Server
             }
 
             m_requests.Add(context);
-            m_currentServiceDispatchScope.Value?.RegisterRequest(context.RequestId);
 
             // Registration takes no lock. A Session close marks the Session before it sweeps the
             // registered requests, and a Cancel remembers itself before it scans them; the fence
@@ -242,19 +241,6 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Reports whether the supplied context belongs to a request that is executing right now.
-        /// A NodeManager lifecycle operation started from inside such a request would wait for its
-        /// own request to drain, so the lifecycle API uses this to reject the call instead of
-        /// deadlocking.
-        /// <para>
-        /// The context is supplied by the caller rather than discovered from ambient state, so the
-        /// dependency is visible at the call site. A context that was never registered as a
-        /// request - an internal operation, or a request that has already completed - is not
-        /// executing and is therefore allowed through.
-        /// </para>
-        /// <para>
-        /// A caller inside a request that supplies no context is not covered.
-        /// <see cref="RequestDrainTimeout"/> bounds that case instead of relying on the guard.
-        /// </para>
         /// </summary>
         /// <param name="context">The context the caller is operating under, or <c>null</c> when
         /// the caller is not operating on behalf of a request.</param>
@@ -267,32 +253,6 @@ namespace Opc.Ua.Server
             }
 
             return m_requests.Contains(operation);
-        }
-
-        /// <summary>
-        /// Determines whether the request executing in the current async flow is still active.
-        /// </summary>
-        /// <returns><c>true</c> when the current flow belongs to an executing request.</returns>
-        internal bool IsCurrentRequestExecuting()
-        {
-            uint? requestId = GetCurrentRequestId();
-            if (!requestId.HasValue || requestId.Value == uint.MaxValue)
-            {
-                return false;
-            }
-
-            lock (m_requestsLock)
-            {
-                foreach (OperationContext request in m_requests.GetEntries())
-                {
-                    if (request.RequestId == requestId.Value)
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
         }
 
         /// <summary>
@@ -353,15 +313,7 @@ namespace Opc.Ua.Server
 
             RequestReceived(context);
 
-            // The dispatch scope already carries the id to the lifecycle extension; setting the
-            // ambient id as well would allocate an execution context to no effect.
-            if (m_currentServiceDispatchScope.Value?.RequestId == context.RequestId)
-            {
-                return new RequestExecutionScope(this, context, null, restoreRequestId: false);
-            }
-            uint? previousRequestId = m_currentRequestId.Value;
-            m_currentRequestId.Value = context.RequestId;
-            return new RequestExecutionScope(this, context, previousRequestId, restoreRequestId: true);
+            return new RequestExecutionScope(this, context);
         }
 
         /// <summary>
@@ -370,9 +322,7 @@ namespace Opc.Ua.Server
         /// context completes the request.
         /// </summary>
         /// <remarks>
-        /// A request inside its service dispatch scope, which is every request the server
-        /// dispatches, has no ambient id to restore: the context then completes the request
-        /// itself and no scope object is allocated for it.
+        /// The context completes its own request without an ambient identity or allocated scope object.
         /// </remarks>
         /// <param name="context">The context of the request being executed.</param>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
@@ -385,15 +335,7 @@ namespace Opc.Ua.Server
 
             RequestReceived(context);
 
-            if (m_currentServiceDispatchScope.Value?.RequestId == context.RequestId)
-            {
-                context.AttachRequestCompletion(this);
-                return;
-            }
-            uint? previousRequestId = m_currentRequestId.Value;
-            m_currentRequestId.Value = context.RequestId;
-            context.AttachRequestScope(
-                new RequestExecutionScope(this, context, previousRequestId, restoreRequestId: true));
+            context.AttachRequestCompletion(this);
         }
 
         /// <summary>
@@ -403,28 +345,6 @@ namespace Opc.Ua.Server
         internal void CompleteAttachedRequest(OperationContext context)
         {
             CompleteRequest(context);
-        }
-
-        /// <summary>
-        /// Enters a service dispatch scope for the current request-processing flow. The scope is
-        /// opened at the top of request dispatch, before validation assigns a request id, and
-        /// carries that id forward once <see cref="RequestReceived"/> registers the request.
-        /// <see cref="IsCurrentRequestExecuting"/> uses this identity to distinguish live request
-        /// callbacks from independent background work.
-        /// <para>
-        /// The scope is needed because the request id is assigned by validation, which runs in a
-        /// deeper asynchronous flow whose ambient value never propagates back to the dispatch flow.
-        /// The scope is a reference captured in the dispatch flow, so the id that validation stamps
-        /// onto it is observed by the callback.
-        /// </para>
-        /// </summary>
-        /// <returns>The scope to dispose once the request has been dispatched.</returns>
-        internal IDisposable EnterServiceDispatchScope()
-        {
-            ServiceDispatchScope? previousScope = m_currentServiceDispatchScope.Value;
-            var scope = new ServiceDispatchScope(this, previousScope);
-            m_currentServiceDispatchScope.Value = scope;
-            return scope;
         }
 
         /// <summary>
@@ -532,15 +452,6 @@ namespace Opc.Ua.Server
         private bool HasRequestDrains()
         {
             return Interlocked.CompareExchange(ref m_drainCount, 0, 0) != 0;
-        }
-
-        /// <summary>
-        /// Gets the identity associated with the current request-processing flow, if any.
-        /// </summary>
-        internal uint? GetCurrentRequestId()
-        {
-            return m_currentServiceDispatchScope.Value?.RequestId ??
-                m_currentRequestId.Value;
         }
 
         /// <summary>
@@ -991,8 +902,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
-        private readonly AsyncLocal<uint?> m_currentRequestId = new();
-        private readonly AsyncLocal<ServiceDispatchScope?> m_currentServiceDispatchScope = new();
 
         /// <summary>
         /// The executing requests and the open validation scopes. Registration and completion
@@ -1127,18 +1036,12 @@ namespace Opc.Ua.Server
             /// </summary>
             /// <param name="requestManager">The owning request manager.</param>
             /// <param name="context">The context of the request being executed.</param>
-            /// <param name="previousRequestId">The direct request id to restore on dispose.</param>
-            /// <param name="restoreRequestId">Whether the scope set the ambient request id.</param>
             public RequestExecutionScope(
                 RequestManager requestManager,
-                OperationContext context,
-                uint? previousRequestId,
-                bool restoreRequestId)
+                OperationContext context)
             {
                 m_requestManager = requestManager;
                 m_context = context;
-                m_previousRequestId = previousRequestId;
-                m_restoreRequestId = restoreRequestId;
             }
 
             /// <summary>
@@ -1150,55 +1053,11 @@ namespace Opc.Ua.Server
                 {
                     m_disposed = true;
                     m_requestManager.CompleteRequest(m_context);
-                    if (m_restoreRequestId)
-                    {
-                        m_requestManager.m_currentRequestId.Value = m_previousRequestId;
-                    }
                 }
             }
 
             private readonly RequestManager m_requestManager;
             private readonly OperationContext m_context;
-            private readonly uint? m_previousRequestId;
-            private readonly bool m_restoreRequestId;
-            private bool m_disposed;
-        }
-
-        /// <summary>
-        /// Carries the executing request id into the service dispatch flow. It is opened at the top
-        /// of request processing, before a request id exists, and stamped with the id once
-        /// validation registers the request. It is held as a reference from the dispatch flow, so
-        /// the stamped id is observed by a NodeManager lifecycle operation that runs inside a
-        /// request callback beneath the dispatch.
-        /// </summary>
-        private sealed class ServiceDispatchScope : IDisposable
-        {
-            public ServiceDispatchScope(
-                RequestManager requestManager,
-                ServiceDispatchScope? previousScope)
-            {
-                m_requestManager = requestManager;
-                m_previousScope = previousScope;
-            }
-
-            public uint? RequestId { get; private set; }
-
-            public void RegisterRequest(uint requestId)
-            {
-                RequestId ??= requestId;
-            }
-
-            public void Dispose()
-            {
-                if (!m_disposed)
-                {
-                    m_disposed = true;
-                    m_requestManager.m_currentServiceDispatchScope.Value = m_previousScope;
-                }
-            }
-
-            private readonly RequestManager m_requestManager;
-            private readonly ServiceDispatchScope? m_previousScope;
             private bool m_disposed;
         }
 

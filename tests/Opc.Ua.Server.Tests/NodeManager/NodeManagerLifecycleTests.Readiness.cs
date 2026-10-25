@@ -63,7 +63,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? child = null;
             NodeManagerRegistration? childRegistration = null;
             long revisionBeforeChild = 0;
-            var childFactory = new CallbackSafeNodeManagerFactory(
+            var childFactory = new CountingNodeManagerFactory(
                 [kReadinessProbeNamespaceUri],
                 CreateTrackingNodeManagementFactory(
                     304, value => child = value, kReadinessProbeNamespaceUri).CreateAsync);

@@ -42,28 +42,6 @@ using OperationLifetime = Opc.Ua.Server.LifecycleWriter.OperationLifetime;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Factory opt-in for lifecycle operations initiated from OPC UA request callbacks.
-    /// </summary>
-    internal interface IRequestCallbackSafeNodeManagerFactory
-    {
-        /// <summary>
-        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
-        /// </summary>
-        bool AllowLifecycleFromRequestCallback { get; }
-    }
-
-    /// <summary>
-    /// NodeManager opt-in for lifecycle operations initiated from OPC UA request callbacks.
-    /// </summary>
-    internal interface IRequestCallbackSafeNodeManager
-    {
-        /// <summary>
-        /// Gets whether request callbacks may enter lifecycle work without deadlocking request drains.
-        /// </summary>
-        bool AllowLifecycleFromRequestCallback { get; }
-    }
-
-    /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
     public sealed class NodeManagerLifecycle : INodeManagerPublicationLifecycle, IDisposable
@@ -160,7 +138,7 @@ namespace Opc.Ua.Server
 
             using (await m_writer.BeginMutationAsync(ct).ConfigureAwait(false))
             {
-                EnsureSameRunningServer(server, host, allowRequestCallback: false);
+                EnsureSameRunningServer(server, host);
                 ArrayOf<PreparedNodeManager> preparedNodeManagers = await host
                     .TakeStartupNodeManagersAsync(ct)
                     .ConfigureAwait(false);
@@ -200,8 +178,7 @@ namespace Opc.Ua.Server
                             registration.Id,
                             new RegistrationState(
                                 registration,
-                                prepared,
-                                prepared.AllowLifecycleFromRequestCallback));
+                                prepared));
                     }
                 }
             }
@@ -433,7 +410,7 @@ namespace Opc.Ua.Server
             await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
-            EnsureSameRunningServer(server, host, state.AllowLifecycleFromRequestCallback);
+            EnsureSameRunningServer(server, host);
             if (!IsCurrentRegistration(state.Registration))
             {
                 throw new InvalidOperationException(
@@ -456,8 +433,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
-            bool allowRequestCallback = false)
+        private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer()
         {
             m_writer.EnsureRunning();
 
@@ -468,12 +444,6 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (server.RequestManager.IsCurrentRequestExecuting() &&
-                !allowRequestCallback)
-            {
-                throw new InvalidOperationException(
-                    "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
-            }
             if (server.NodeManager is not IDynamicNodeManagerHost host)
             {
                 throw new NotSupportedException(
@@ -493,16 +463,15 @@ namespace Opc.Ua.Server
 
         private void EnsureSameRunningServer(
             IServerInternal server,
-            IDynamicNodeManagerHost host,
-            bool allowRequestCallback)
+            IDynamicNodeManagerHost host)
         {
             (IServerInternal currentServer, IDynamicNodeManagerHost currentHost) =
-                GetRunningServer(allowRequestCallback);
+                GetRunningServer();
             if (!ReferenceEquals(currentServer, server) ||
                 !ReferenceEquals(currentHost, host))
             {
                 throw new InvalidOperationException(
-                    "The running server changed while requests were draining.");
+                    "The running server changed during the lifecycle operation.");
             }
         }
 
@@ -549,14 +518,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentException(
                     "The factory does not belong to this exact addition or replacement operation.", nameof(factory));
             }
-        }
-
-        private static bool IsRequestCallbackSafe(IAsyncNodeManagerFactory factory)
-        {
-            return factory is IRequestCallbackSafeNodeManagerFactory
-            {
-                AllowLifecycleFromRequestCallback: true
-            };
         }
 
         private RegistrationState GetCurrentState(NodeManagerRegistration registration)
@@ -1639,19 +1600,15 @@ namespace Opc.Ua.Server
         {
             public RegistrationState(
                 NodeManagerRegistration registration,
-                PreparedNodeManager prepared,
-                bool allowLifecycleFromRequestCallback)
+                PreparedNodeManager prepared)
             {
                 Registration = registration;
                 Prepared = prepared;
-                AllowLifecycleFromRequestCallback = allowLifecycleFromRequestCallback;
             }
 
             public NodeManagerRegistration Registration { get; }
 
             public PreparedNodeManager Prepared { get; }
-
-            public bool AllowLifecycleFromRequestCallback { get; }
 
             /// <summary>
             /// Gets or sets whether the readiness callback of the registration has not yet completed.
@@ -1694,7 +1651,6 @@ namespace Opc.Ua.Server
             changes = [.. changes];
             readImages = [.. readImages];
             var identities = new HashSet<Guid>();
-            bool allowRequestCallback = true;
             foreach (NodeManagerBatchChange change in changes)
             {
                 if (change is null)
@@ -1707,12 +1663,11 @@ namespace Opc.Ua.Server
                     {
                         throw new ArgumentException("A registration occurs twice in the same unit.", nameof(changes));
                     }
-                    allowRequestCallback &= GetCurrentState(current).AllowLifecycleFromRequestCallback;
+                    GetCurrentState(current);
                 }
                 if (change.Factory is { } factory)
                 {
                     ValidateFactoryRegistration(factory, change.Current);
-                    allowRequestCallback &= IsRequestCallbackSafe(factory);
                 }
             }
 
@@ -1722,11 +1677,7 @@ namespace Opc.Ua.Server
             {
                 operation = EnterLifecycleOperation();
                 (IServerInternal server, IDynamicNodeManagerHost host) =
-                    GetRunningServer(allowRequestCallback);
-                if (host is not IDynamicNodeManagerBatchHost batchHost)
-                {
-                    throw new NotSupportedException("The server host does not support prepared publication.");
-                }
+                    GetRunningServer();
                 if (server.Factory is not EncodeableFactory)
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
@@ -1737,10 +1688,10 @@ namespace Opc.Ua.Server
                 var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
                 try
                 {
-                    EnsureSameRunningServer(server, host, allowRequestCallback);
+                    EnsureSameRunningServer(server, host);
                     publication?.Session.ValidateRevision();
                     var preparation = new ChangePreparer(server);
-                    NodeManagerRoutingTable.RoutingSnapshot routingRevision = batchHost.RoutingRevision;
+                    NodeManagerRoutingTable.RoutingSnapshot routingRevision = host.RoutingRevision;
                     IDataTypeDefinitionResolver? resolver = null;
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
@@ -1812,7 +1763,7 @@ namespace Opc.Ua.Server
                                 current?.Registration.Id ?? Guid.NewGuid(),
                                 (current?.Registration.Generation ?? 0) + 1,
                                 entry.Manager);
-                            entry.Next = new RegistrationState(registration, entry.Prepared, allowRequestCallback)
+                            entry.Next = new RegistrationState(registration, entry.Prepared)
                             {
                                 ReadinessPending = entry.Manager is INodeManagerReadinessNotification
                             };
@@ -1838,7 +1789,7 @@ namespace Opc.Ua.Server
                         }
                     }
                     var prepared = new PreparedBatch(
-                        this, server, host, entries, operation, namespaceCount, routingRevision, allowRequestCallback,
+                        this, server, host, entries, operation, namespaceCount, routingRevision,
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
                         preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session);
@@ -1915,9 +1866,9 @@ namespace Opc.Ua.Server
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
             try
             {
-                EnsureSameRunningServer(batch.Server, batch.Host, batch.AllowRequestCallback);
+                EnsureSameRunningServer(batch.Server, batch.Host);
                 if (!ReferenceEquals(
-                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision, batch.RoutingRevision))
+                    batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
                     throw new InvalidOperationException("The address space changed while the batch was prepared.");
                 }
@@ -1986,13 +1937,13 @@ namespace Opc.Ua.Server
                     .Select(entry => entry.Current!.Prepared.NodeManager)
                     .ToArrayOf();
                 using PreparedAddressSpaceReferences references =
-                    await ((IDynamicNodeManagerBatchHost)batch.Host).PrepareReferencesAsync(
+                    await batch.Host.PrepareReferencesAsync(
                         candidates, removed, batch.RoutingRevision, cancellationToken).ConfigureAwait(false);
 
                 mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
-                EnsureSameRunningServer(batch.Server, batch.Host, batch.AllowRequestCallback);
+                EnsureSameRunningServer(batch.Server, batch.Host);
                 if (!ReferenceEquals(
-                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision, batch.RoutingRevision))
+                    batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
                     throw new InvalidOperationException("The address space changed while transitions were prepared.");
                 }
@@ -2102,7 +2053,7 @@ namespace Opc.Ua.Server
                                     }
                                 }
                                 publishedRevision =
-                                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision.Revision;
+                                    batch.Host.RoutingRevision.Revision;
                             }
                             if (batch.Resolver is not null)
                             {
@@ -2171,7 +2122,7 @@ namespace Opc.Ua.Server
                         Preparation: batch.Preparation,
                         Reconciliation: reconciliation,
                         References: references);
-                    await ((IDynamicNodeManagerBatchHost)batch.Host).CommitBatchAsync(context).ConfigureAwait(false);
+                    await batch.Host.CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
                 {
@@ -2430,7 +2381,6 @@ namespace Opc.Ua.Server
             /// <param name="operation">The lifecycle operation held until the batch ends.</param>
             /// <param name="namespaceCount">The number of namespaces when the batch was prepared.</param>
             /// <param name="routingRevision">The serving view captured before candidate callbacks.</param>
-            /// <param name="allowRequestCallback">Whether the batch may be completed from a request callback.</param>
             /// <param name="typeTree">The private type tree image.</param>
             /// <param name="originalTypes">The published type tree to restore.</param>
             /// <param name="typeRevision">The revision of the published type tree.</param>
@@ -2449,7 +2399,6 @@ namespace Opc.Ua.Server
                 OperationLifetime operation,
                 int namespaceCount,
                 NodeManagerRoutingTable.RoutingSnapshot routingRevision,
-                bool allowRequestCallback,
                 TypeTable typeTree,
                 TypeTable originalTypes,
                 long typeRevision,
@@ -2469,7 +2418,6 @@ namespace Opc.Ua.Server
                 m_operation = operation;
                 NamespaceCount = namespaceCount;
                 RoutingRevision = routingRevision;
-                AllowRequestCallback = allowRequestCallback;
                 TypeTree = typeTree;
                 OriginalTypes = originalTypes;
                 TypeRevision = typeRevision;
@@ -2532,11 +2480,6 @@ namespace Opc.Ua.Server
             /// Gets the serving view that must remain current until publication admission.
             /// </summary>
             public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
-
-            /// <summary>
-            /// Gets whether the batch may be completed from a request callback.
-            /// </summary>
-            public bool AllowRequestCallback { get; }
 
             /// <summary>
             /// Gets the private type tree image of the batch.
@@ -2751,7 +2694,7 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public INodeManagerPublicationCapture CapturePublication()
         {
-            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer(allowRequestCallback: true);
+            (IServerInternal server, IDynamicNodeManagerHost host) = GetRunningServer();
             return new PublicationCapture(this, m_writer.CaptureRevision(server, host));
         }
 
@@ -2766,7 +2709,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost, allowRequestCallback: true);
+            EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost);
             LifecycleWriter.PublicationSession session = m_writer.BeginPublication(capture.Revision);
             return new PublicationInvocation(this, session);
         }

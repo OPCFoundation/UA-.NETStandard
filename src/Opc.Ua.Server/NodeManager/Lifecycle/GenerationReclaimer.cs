@@ -582,7 +582,7 @@ namespace Opc.Ua.Server
                     unsubscribeAllEvents: false,
                     CancellationToken.None)
                     .ConfigureAwait(false);
-                (host as IDynamicNodeManagerBatchHost)?.ReleaseRetiringEventGeneration(retired.Generation);
+                host.ReleaseRetiringEventGeneration(retired.Generation);
                 retired.NeedsDetachment = false;
                 if (!cleanup.Detached)
                 {
@@ -637,7 +637,7 @@ namespace Opc.Ua.Server
 
             if (!cleanup.Disposed)
             {
-                (host as IDynamicNodeManagerBatchHost)?.ReleaseRetiringEventGeneration(retired.Generation);
+                host.ReleaseRetiringEventGeneration(retired.Generation);
                 await DisposeNodeManagerAsync(retired.NodeManager).ConfigureAwait(false);
                 cleanup.Disposed = true;
                 RecordShutdownCleanupProgress();

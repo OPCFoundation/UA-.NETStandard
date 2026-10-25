@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// reconciled or removed through another transaction, never structurally rolled back.
     /// </para>
     /// </summary>
-    internal interface IDynamicNodeManagerHost
+    internal interface IDynamicNodeManagerHost : IDynamicNodeManagerBatchHost
     {
         /// <summary>
         /// Gets the server-owned reconciler for exact generation binding records.
@@ -189,12 +189,6 @@ namespace Opc.Ua.Server
         /// Gets the references the NodeManager adds to Nodes owned by other NodeManagers.
         /// </summary>
         public Dictionary<NodeId, IList<IReference>> ExternalReferences { get; }
-
-        /// <summary>
-        /// Gets or sets whether lifecycle operations initiated from an OPC UA request callback
-        /// are allowed for this NodeManager.
-        /// </summary>
-        public bool AllowLifecycleFromRequestCallback { get; set; }
 
         /// <summary>
         /// Gets or sets whether the candidate crossed the routing-view commit point.

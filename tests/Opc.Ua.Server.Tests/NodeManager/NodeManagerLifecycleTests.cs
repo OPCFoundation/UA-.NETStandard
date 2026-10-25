@@ -879,101 +879,82 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return Task.CompletedTask;
         }
 
-        [Test]
-        public void AddAsyncFromAnExecutingRequestRejectsWithoutInvokingFactory()
+        /// <summary>
+        /// Request callbacks use ordinary factories through canonical and compatibility entry points.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public async Task AddFromExecutingRequestDoesNotRequireFactoryOptInAsync(int entryPoint)
         {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-
+            TrackingLifecycleNodeManager? manager = null;
+            IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
+                kGeneration1Value, created => manager = created);
             using var requestLifetime = new RequestLifetime();
             using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
-
-            Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object, callerContext, CancellationToken.None)
-                    .ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.Contains(
-                    "cannot run from an OPC UA request callback"));
-            factory.Verify(
-                candidate => candidate.CreateAsync(
-                    It.IsAny<IServerInternal>(),
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
+            NodeManagerRegistration registration;
+            if (entryPoint == 0)
+            {
+                await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle
+                    .PrepareAsync([NodeManagerBatchChange.Add(factory)], timeout.Token).ConfigureAwait(false);
+                NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(result.CleanupFailure, Is.Null);
+                registration = result.Registrations[0];
+            }
+            else
+            {
+                IOperationContext? context = entryPoint == 1
+                    ? callerContext
+                    : server.DefaultSystemContext.Copy(callerContext).GetOperationContext();
+                Assert.That(context, Is.SameAs(callerContext));
+                registration = await m_server.NodeManagerLifecycle
+                    .AddAsync(factory, context, timeout.Token).ConfigureAwait(false);
+            }
+            Assert.That(registration.NodeManager, Is.SameAs(RequireLifecycleValue(manager)));
+            Assert.That(registration.Identity.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, timeout.Token).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// A callback may replace and remove its own pinned generation without awaiting its drain.
+        /// </summary>
         [Test]
-        public void AddAsyncWithoutCallerContextDetectsTheCurrentRequestAndRejects()
+        public async Task ReloadAndRemoveFromExecutingRequestDoNotWaitForOwnViewAsync()
         {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-
-            using var requestLifetime = new RequestLifetime();
-            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
-
-            Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object, CancellationToken.None)
-                    .ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.Contains(
-                    "cannot run from an OPC UA request callback"));
-            factory.Verify(
-                candidate => candidate.CreateAsync(
-                    It.IsAny<IServerInternal>(),
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-        }
-
-        [Test]
-        public async Task ReloadAndRemoveFromAnExecutingRequestAreRejectedAsync()
-        {
-            // Reload and Remove look up the registration to evaluate its per-registration opt-in
-            // before the request-callback guard runs, so the target must be a real, owned and
-            // non-opted-in registration for the guard - not the staleness check - to reject it.
-            IServerInternal server = m_server.CurrentInstance;
-            var replacement = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(
-                    CreateGenerationOptions(generation: 1),
-                    null,
-                    CancellationToken.None)
-                .ConfigureAwait(false);
+                .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult replaced;
+            NodeManagerBatchResult removed;
 
             using (var requestLifetime = new RequestLifetime())
             using (OperationContext callerContext = CreateExecutingRequest(server, requestLifetime))
             {
-                Assert.Multiple(() =>
-                {
-                    Assert.That(
-                        async () => await m_server.NodeManagerLifecycle
-                            .ReloadAsync(
-                                registration,
-                                replacement.Object,
-                                callerContext,
-                                CancellationToken.None)
-                            .ConfigureAwait(false),
-                        Throws.InvalidOperationException.With.Message.Contains(
-                            "cannot run from an OPC UA request callback"));
-                    Assert.That(
-                        async () => await m_server.NodeManagerLifecycle
-                            .RemoveAsync(registration, callerContext, CancellationToken.None)
-                            .ConfigureAwait(false),
-                        Throws.InvalidOperationException.With.Message.Contains(
-                            "cannot run from an OPC UA request callback"));
-                });
+                callerContext.PinRouting(GetRoutingTable((MasterNodeManager)server.NodeManager));
+                await using IPreparedNodeManagerBatch replacement = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(
+                        registration, new RuntimeNodeSetNodeManagerFactory(CreateGenerationOptions(generation: 2)))],
+                    timeout.Token).ConfigureAwait(false);
+                replaced = await replacement.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration current = replaced.Registrations[0];
+                Assert.That(replaced.CleanupFailure, Is.Null);
+                Assert.That(current.Id, Is.EqualTo(registration.Id));
+                Assert.That(current.Generation, Is.EqualTo(2));
+                Assert.That(replaced.Retirement.IsCompleted, Is.False);
+                await using IPreparedNodeManagerBatch removal = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(current)], timeout.Token).ConfigureAwait(false);
+                removed = await removal.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                Assert.That(removed.CleanupFailure, Is.Null);
+                Assert.That(current.Slot.TryGetCurrent(out _), Is.False);
+                Assert.That(replaced.Retirement.IsCompleted, Is.False);
             }
 
-            replacement.Verify(
-                candidate => candidate.CreateAsync(
-                    It.IsAny<IServerInternal>(),
-                    It.IsAny<ApplicationConfiguration>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-
-            await m_server.NodeManagerLifecycle
-                .RemoveAsync(registration, null, CancellationToken.None)
-                .ConfigureAwait(false);
+            await replaced.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await removed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
         }
 
         [Test]
@@ -1023,28 +1004,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
         }
 
-        [Test]
-        public void LifecycleCallFromANodeManagerCallbackContextIsRejected()
-        {
-            // A NodeManager or Method callback receives an ISystemContext that was copied for
-            // the request. Handing that operation to the lifecycle is the explicit replacement
-            // for the ambient marker, so it must be both reachable and rejected.
-            IServerInternal server = m_server.CurrentInstance;
-            var factory = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
-
-            using var requestLifetime = new RequestLifetime();
-            using OperationContext callerContext = CreateExecutingRequest(server, requestLifetime);
-            ISystemContext callbackContext = server.DefaultSystemContext.Copy(callerContext);
-
-            Assert.That(callbackContext.GetOperationContext(), Is.SameAs(callerContext));
-            Assert.That(
-                async () => await m_server.NodeManagerLifecycle
-                    .AddAsync(factory.Object, callbackContext.GetOperationContext(), CancellationToken.None)
-                    .ConfigureAwait(false),
-                Throws.InvalidOperationException.With.Message.Contains(
-                    "cannot run from an OPC UA request callback"));
-        }
-
         /// <summary>
         /// Creates a context that is enrolled as an executing request, the way
         /// <see cref="StandardServer"/> enrols a validated request. Disposing the context
@@ -1069,7 +1028,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task OptedInRuntimeNodeSetCanBeAddedFromRequestScopeAsync()
+        public async Task RuntimeNodeSetCanBeAddedFromRequestScopeAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
             var context = new OperationContext(
@@ -1078,7 +1037,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RequestType.Call,
                 RequestLifetime.None);
             RuntimeNodeSetOptions options = CreateGenerationOptions(generation: 1);
-            options.AllowLifecycleFromRequestCallback = true;
             NodeManagerRegistration? registration = null;
 
             try
@@ -1108,10 +1066,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task OptedInRuntimeNodeSetCanBeReloadedAndRemovedFromRequestScopeAsync()
+        public async Task RuntimeNodeSetCanBeReloadedAndRemovedFromRequestScopeAsync()
         {
             RuntimeNodeSetOptions initialOptions = CreateGenerationOptions(generation: 1);
-            initialOptions.AllowLifecycleFromRequestCallback = true;
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
                 .AddRuntimeNodeSetAsync(initialOptions, null)
                 .ConfigureAwait(false);
@@ -1127,7 +1084,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using IDisposable requestScope =
                     server.RequestManager.EnterRequestScope(context);
                 RuntimeNodeSetOptions replacement = CreateGenerationOptions(generation: 2);
-                replacement.AllowLifecycleFromRequestCallback = true;
                 registration = await m_server.NodeManagerLifecycle
                     .ShadowReloadRuntimeNodeSetAsync(registration, replacement)
                     .ConfigureAwait(false);
@@ -1152,7 +1108,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task ConcurrentCallbackSafeAddsRejectStalePreparationWithoutRequestExclusionAsync()
+        public async Task ConcurrentCallbackAddsRejectStalePreparationWithoutRequestExclusionAsync()
         {
             const string NamespaceUriA =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackAddA";
@@ -1167,7 +1123,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var secondRequestEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var factoryA = new CallbackSafeNodeManagerFactory(
+            var factoryA = new CountingNodeManagerFactory(
                 [NamespaceUriA],
                 async (_, _, ct) =>
                 {
@@ -1175,7 +1131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
                     return managerA.Object;
                 });
-            var factoryB = new CallbackSafeNodeManagerFactory(
+            var factoryB = new CountingNodeManagerFactory(
                 [NamespaceUriB],
                 (_, _, _) => new ValueTask<IAsyncNodeManager>(managerB.Object));
 
@@ -1221,7 +1177,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task ConcurrentCallbackSafeReloadsRejectStalePreparationWithoutRequestExclusionAsync()
+        public async Task ConcurrentCallbackReloadsRejectStalePreparationWithoutRequestExclusionAsync()
         {
             const string NamespaceUriA =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackReloadA";
@@ -1246,14 +1202,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
             NodeManagerRegistration originalA = await m_server.NodeManagerLifecycle
                 .AddAsync(
-                    new CallbackSafeNodeManagerFactory(
+                    new CountingNodeManagerFactory(
                         [NamespaceUriA],
                         (_, _, _) => new ValueTask<IAsyncNodeManager>(
                             originalManagerA.Object)), null)
                 .ConfigureAwait(false);
             NodeManagerRegistration originalB = await m_server.NodeManagerLifecycle
                 .AddAsync(
-                    new CallbackSafeNodeManagerFactory(
+                    new CountingNodeManagerFactory(
                         [NamespaceUriB],
                         (_, _, _) => new ValueTask<IAsyncNodeManager>(
                             originalManagerB.Object)), null)
@@ -1269,7 +1225,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var secondRequestEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var replacementFactoryA = new CallbackSafeNodeManagerFactory(
+            var replacementFactoryA = new CountingNodeManagerFactory(
                 [NamespaceUriA],
                 async (_, _, ct) =>
                 {
@@ -1277,7 +1233,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
                     return replacementManagerA.Object;
                 });
-            var replacementFactoryB = new CallbackSafeNodeManagerFactory(
+            var replacementFactoryB = new CountingNodeManagerFactory(
                 [NamespaceUriB],
                 (_, _, _) => new ValueTask<IAsyncNodeManager>(
                     replacementManagerB.Object));
@@ -1332,7 +1288,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task ShutdownWaitsForSimultaneousCallbackSafeLifecycleOperationsAsync()
+        public async Task ShutdownWaitsForSimultaneousCallbackLifecycleOperationsAsync()
         {
             const string NamespaceUriA =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:CallbackShutdownA";
@@ -1351,7 +1307,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var secondFactoryEntered = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
-            var factoryA = new CallbackSafeNodeManagerFactory(
+            var factoryA = new CountingNodeManagerFactory(
                 [NamespaceUriA],
                 async (_, _, ct) =>
                 {
@@ -1359,7 +1315,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await releaseFirstFactory.Task.WaitAsync(ct).ConfigureAwait(false);
                     return managerA.Object;
                 });
-            var factoryB = new CallbackSafeNodeManagerFactory(
+            var factoryB = new CountingNodeManagerFactory(
                 [NamespaceUriB],
                 async (_, _, ct) =>
                 {
@@ -2529,7 +2485,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// drain waits for the request, forming a circular wait.
         /// </summary>
         [Test]
-        public async Task ShadowDrainDoesNotDeadlockCallbackSafeLifecycleCallAsync()
+        public async Task ShadowDrainDoesNotDeadlockCallbackLifecycleCallAsync()
         {
             const string DrainProbeNamespaceUri =
                 "urn:opcfoundation.org:Tests:NodeManagerLifecycle:DrainProbe";
@@ -2575,7 +2531,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RuntimeNodeSetOptions probeOptions = CreateOptions(
                     DrainProbeNamespaceUri,
                     value: 303);
-                probeOptions.AllowLifecycleFromRequestCallback = true;
                 using var timeout = new CancellationTokenSource(
                     TimeSpan.FromSeconds(10));
                 try
@@ -2587,7 +2542,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 catch (OperationCanceledException)
                 {
                     Assert.Fail(
-                        "The callback-safe lifecycle call deadlocked with the background " +
+                        "The callback lifecycle call deadlocked with the background " +
                         "retired-generation request drain.");
                 }
             }
@@ -2969,7 +2924,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             RuntimeNodeSetOptions targetOptions = CreateOptions(
                 TargetNamespaceUri,
                 value: 401);
-            targetOptions.AllowLifecycleFromRequestCallback = true;
             NodeManagerRegistration target = await m_server.NodeManagerLifecycle
                 .AddRuntimeNodeSetAsync(targetOptions, null)
                 .ConfigureAwait(false);
@@ -3001,7 +2955,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 RuntimeNodeSetOptions replacementOptions = CreateOptions(
                     TargetNamespaceUri,
                     value: 402);
-                replacementOptions.AllowLifecycleFromRequestCallback = true;
                 using var timeout = new CancellationTokenSource(
                     TimeSpan.FromSeconds(10));
                 InvalidOperationException exception =
@@ -3080,7 +3033,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             RuntimeNodeSetOptions targetOptions = CreateOptions(
                 TargetNamespaceUri,
                 value: 501);
-            targetOptions.AllowLifecycleFromRequestCallback = true;
             NodeManagerRegistration target = await m_server.NodeManagerLifecycle
                 .AddRuntimeNodeSetAsync(targetOptions, null)
                 .ConfigureAwait(false);
@@ -3654,7 +3606,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     TaskCreationOptions.RunContinuationsAsynchronously);
             Mock<IAsyncNodeManager> probeManager =
                 CreateLifecycleNodeManager(ProbeNamespaceUri);
-            var probeFactory = new CallbackSafeNodeManagerFactory(
+            var probeFactory = new CountingNodeManagerFactory(
                 [ProbeNamespaceUri],
                 (_, _, _) => new ValueTask<IAsyncNodeManager>(probeManager.Object));
             retiredManager!.ConditionRefreshCallback = async (_, ct) =>
@@ -8051,11 +8003,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return factory.Object;
         }
 
-        private sealed class CallbackSafeNodeManagerFactory :
-            IAsyncNodeManagerFactory,
-            IRequestCallbackSafeNodeManagerFactory
+        private sealed class CountingNodeManagerFactory :
+            IAsyncNodeManagerFactory
         {
-            public CallbackSafeNodeManagerFactory(
+            public CountingNodeManagerFactory(
                 ArrayOf<string> namespaceUris,
                 Func<
                     IServerInternal,
@@ -8068,8 +8019,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             public ArrayOf<string> NamespacesUris { get; }
-
-            public bool AllowLifecycleFromRequestCallback => true;
 
             public int CreateCount => Volatile.Read(ref m_createCount);
 

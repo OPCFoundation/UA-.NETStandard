@@ -80,7 +80,7 @@ namespace Opc.Ua.Server
         PreparedAddressSpaceReferences? References = null);
 
     /// <summary>
-    /// Optional host support for a single prepared routing publication.
+    /// Publication responsibilities of the unified dynamic NodeManager host.
     /// </summary>
     internal interface IDynamicNodeManagerBatchHost
     {

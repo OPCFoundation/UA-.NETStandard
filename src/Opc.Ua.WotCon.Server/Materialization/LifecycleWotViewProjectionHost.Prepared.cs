@@ -201,7 +201,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             ArrayOf<WotViewProjectionRequest> updates,
             ArrayOf<string> removals,
             WotCanonicalViewState? recovered = null)
-            : IWotPreparedViewPublication, IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory,
+            : IWotPreparedViewPublication, IAsyncNodeManagerFactory,
                 IWotPreparedViewSourceConsumer, IRegistrationBoundNodeManagerFactory
         {
             public ArrayOf<NodeManagerBatchChange> Changes => previous is null
@@ -213,10 +213,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
 
-            /// <summary>
-            /// Gets the allow lifecycle from request callback for <c>PreparedViewPublication</c>.
-            /// </summary>
-            public bool AllowLifecycleFromRequestCallback => true;
             public NodeManagerRegistration? ExpectedRegistration => previous?.Registration;
 
             /// <summary>

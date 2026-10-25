@@ -812,11 +812,6 @@ namespace Opc.Ua.Server
                         externalReferences)
                     {
                         Generation = m_nodeManagers.GetGeneration(state.NodeManager),
-                        AllowLifecycleFromRequestCallback =
-                            state.NodeManager is IRequestCallbackSafeNodeManager
-                            {
-                                AllowLifecycleFromRequestCallback: true
-                            },
                         Published = true
                     };
                 }

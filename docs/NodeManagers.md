@@ -940,9 +940,9 @@ unpublished, and `Retirement` carries the eventual retirement outcome. Do not aw
 the callback or request whose own view or generation admission must drain.
 
 Service, Method, event-source, session, and hosted-service callbacks use the same context-free
-transaction members. Factories used in request callbacks must explicitly support that use, for
-example through `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback`. No explicit
-`OperationContext` is passed to lifecycle preparation or publication admission.
+transaction members and ordinary factories; no callback opt-in or request exclusion is needed.
+No explicit `OperationContext` is passed to lifecycle preparation or publication admission.
+Nested lifecycle mutations from the durable decision callback are rejected.
 
 A lifecycle operation validates the replacement address space before its client-visible commit and
 rolls back on preparation failure. Failures after publication, including readiness, can leave a live

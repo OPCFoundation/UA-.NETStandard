@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 throw new InvalidOperationException("Initial readiness failure.");
                             }
                             child = await m_server.NodeManagerLifecycle.AddAsync(
-                                new CallbackSafeNodeManagerFactory(
+                                new CountingNodeManagerFactory(
                                     [kSecondModelNamespaceUri],
                                     CreateTrackingNodeManagementFactory(
                                         kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync),

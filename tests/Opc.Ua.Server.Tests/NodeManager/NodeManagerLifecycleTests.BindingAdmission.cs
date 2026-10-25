@@ -168,7 +168,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
                 304, value => nested = value, kReadinessProbeNamespaceUri);
-            var callbackFactory = new CallbackSafeNodeManagerFactory(
+            var callbackFactory = new CountingNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
             IOperationContext? custom = nullContext ? null : Mock.Of<IOperationContext>();
             var added = new TaskCompletionSource<NodeManagerRegistration>(
@@ -250,7 +250,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
                 305, value => nested = value, kReadinessProbeNamespaceUri);
-            var callbackFactory = new CallbackSafeNodeManagerFactory(
+            var callbackFactory = new CountingNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
             NodeManagerRegistration? added = null;
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -430,7 +430,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var nestedAdded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
                 306, value => nested = value, kReadinessProbeNamespaceUri);
-            var callbackFactory = new CallbackSafeNodeManagerFactory(
+            var callbackFactory = new CountingNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
             original.AllEventsCallback = async (item, unsubscribe, token) =>
             {
@@ -650,7 +650,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
-            var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
+            var factory = new CountingNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -753,7 +753,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
                 303, manager => nested = manager, kReadinessProbeNamespaceUri);
-            var callbackFactory = new CallbackSafeNodeManagerFactory(
+            var callbackFactory = new CountingNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
             var decisionEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -926,7 +926,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
-            var nestedFactory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
+            var nestedFactory = new CountingNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

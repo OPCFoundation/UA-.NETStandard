@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseVariableState variable = RequireLifecycleValue(original.Find(valueId) as BaseVariableState);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, manager => nested = manager, kSecondModelNamespaceUri);
-            var factory = new CallbackSafeNodeManagerFactory([kSecondModelNamespaceUri], inner.CreateAsync);
+            var factory = new CountingNodeManagerFactory([kSecondModelNamespaceUri], inner.CreateAsync);
             var deciding = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDecision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

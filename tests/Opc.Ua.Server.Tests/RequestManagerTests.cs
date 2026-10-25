@@ -1356,22 +1356,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A request attached inside its service dispatch scope is tracked until its context is
-        /// disposed, completes exactly once however often the context is disposed, and its id
-        /// reaches the lifecycle extension through the dispatch scope.
+        /// A request is tracked until its context is disposed and completes exactly once.
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
         public async Task AttachedRequestCompletesOnceWhenItsContextIsDisposedAsync()
         {
-            using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
             using var lifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(90, lifetime, 60000);
 
             m_requestManager.AttachRequestScope(context);
 
             Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
-            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(context.RequestId));
             Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
             Assert.That(waiter.IsCompleted, Is.False);
 
@@ -1402,22 +1398,19 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A request attached outside a service dispatch scope sets the ambient request id for
-        /// its execution and restores the previous one when its context is disposed.
+        /// A request owns completion independently of the async flow that disposes it.
         /// </summary>
         [Test]
         [Category("NodeManagerLifecycle")]
-        public void AttachedRequestOutsideADispatchScopeRestoresTheAmbientRequestId()
+        public async Task AttachedRequestCompletesFromIndependentFlowAsync()
         {
-            uint? before = m_requestManager.GetCurrentRequestId();
             using var lifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(91, lifetime, 60000);
 
             m_requestManager.AttachRequestScope(context);
-            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(context.RequestId));
+            Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
 
-            context.Dispose();
-            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(before));
+            await Task.Run(context.Dispose).ConfigureAwait(false);
             Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
         }
 
@@ -1441,7 +1434,6 @@ namespace Opc.Ua.Server.Tests
                     uint handle = firstHandle;
                     while (!stop.IsCancellationRequested)
                     {
-                        using IDisposable dispatch = m_requestManager.EnterServiceDispatchScope();
                         IDisposable validation = m_requestManager.EnterValidationScope();
                         using var lifetime = new RequestLifetime();
                         OperationContext context = CreateOperationContext(++handle, lifetime, 60000);

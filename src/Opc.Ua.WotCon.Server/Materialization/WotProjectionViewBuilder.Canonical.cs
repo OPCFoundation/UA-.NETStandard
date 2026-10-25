@@ -649,7 +649,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         }
 
         private sealed class CanonicalNodeManagerFactory :
-            IAsyncNodeManagerFactory, IRequestCallbackSafeNodeManagerFactory, IRegistrationBoundNodeManagerFactory
+            IAsyncNodeManagerFactory, IRegistrationBoundNodeManagerFactory
         {
             /// <summary>
             /// Initializes a new <c>CanonicalNodeManagerFactory</c> instance.
@@ -667,11 +667,6 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             public ArrayOf<string> NamespacesUris =>
                 WotProjectionViewNodeManager.CanonicalNamespaces(m_state).ToArrayOf();
-
-            /// <summary>
-            /// Gets the allow lifecycle from request callback for <c>CanonicalNodeManagerFactory</c>.
-            /// </summary>
-            public bool AllowLifecycleFromRequestCallback => true;
 
             /// <summary>
             /// Gets the expected registration for <c>CanonicalNodeManagerFactory</c>.

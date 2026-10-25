@@ -48,7 +48,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }), timeout.Token)
                 .ConfigureAwait(false);
-            var factory = new CallbackSafeNodeManagerFactory(
+            var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri).CreateAsync);
@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using INodeManagerPublication first = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
             await using INodeManagerPublication second = await capture.BeginAsync(timeout.Token).ConfigureAwait(false);
             TrackingLifecycleNodeManager? candidate = null;
-            var factory = new CallbackSafeNodeManagerFactory(
+            var factory = new CountingNodeManagerFactory(
                 [kSecondModelNamespaceUri],
                 CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri).CreateAsync);
@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri), timeout.Token).ConfigureAwait(false);
-            var rejectedFactory = new CallbackSafeNodeManagerFactory(
+            var rejectedFactory = new CountingNodeManagerFactory(
                 [kModelNamespaceUri], CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }).CreateAsync);
             await Assert.ThatAsync(() => invocation.PrepareAsync(
                 [NodeManagerBatchChange.Replace(replaced.Registrations[0], rejectedFactory)],
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             TrackingLifecycleNodeManager? candidate = null;
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 kGeneration1Value, manager => candidate = manager);
-            var factory = new CallbackSafeNodeManagerFactory([kModelNamespaceUri], async (server, config, token) =>
+            var factory = new CountingNodeManagerFactory([kModelNamespaceUri], async (server, config, token) =>
             {
                 await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri), token).ConfigureAwait(false);
@@ -205,7 +205,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             await using INodeManagerPublication invocation = await lifecycle.CapturePublication()
                 .BeginAsync(timeout.Token).ConfigureAwait(false);
-            var factory = new CallbackSafeNodeManagerFactory([kModelNamespaceUri], (server, config, _) =>
+            var factory = new CountingNodeManagerFactory([kModelNamespaceUri], (server, config, _) =>
                 new ValueTask<IAsyncNodeManager>(new ReadinessLifecycleNodeManager(
                     server, config, m_logger, kGeneration1Value)
                 {
@@ -243,7 +243,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             INodeManagerPublicationCapture capture = lifecycle.CapturePublication();
             await Assert.ThatAsync(() => capture.BeginAsync(cancellation.Token).AsTask(),
                 Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
-            var factory = new CallbackSafeNodeManagerFactory(
+            var factory = new CountingNodeManagerFactory(
                 [kModelNamespaceUri], CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }).CreateAsync);
             await using (INodeManagerPublication invocation = await capture.BeginAsync(timeout.Token)
                 .ConfigureAwait(false))

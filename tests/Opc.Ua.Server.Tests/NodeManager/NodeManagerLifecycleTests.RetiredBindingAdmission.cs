@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
-            var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
+            var factory = new CountingNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -221,14 +221,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
-            var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
+            var factory = new CountingNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Task<NodeManagerRegistration>? adding = null;
             originalManager.SessionActivatedCallback = _ =>
             {
-                Assert.That(server.RequestManager.GetCurrentRequestId().HasValue, Is.True);
                 // A callback has no request context, so the add is an ordinary external call. It is not awaited
                 // here: awaiting it would make the admitted callback wait for the commit that drains it.
                 adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();

@@ -459,7 +459,6 @@ namespace Opc.Ua.XRegistry.Server
             {
                 Sources = new ArrayOf<RuntimeNodeSetSource>(sources),
                 DefaultNamespaceUri = document.DefaultNamespaceUri,
-                AllowLifecycleFromRequestCallback = true,
                 ConfigureAsync = document.ConfigureAsync
             };
         }

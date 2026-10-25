@@ -146,8 +146,8 @@ Each add returns an immutable `NodeManagerRegistration`, and reload returns the 
 A registration obtained from `Registrations` for an `AddRuntimeNodeSet` model is already the first
 live generation; pass it directly to `NodeManagerBatchChange.Replace` or `NodeManagerBatchChange.Remove`.
 
-Preparation is context-free, including inside a NodeManager or Method callback. To permit runtime
-NodeSet creation from a request callback, set `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback`.
+Preparation is context-free, including inside a NodeManager or Method callback; ordinary factories
+require no callback-specific opt-in.
 Commit awaits reconciliation and readiness but not the retiring generation's drain. Await the result's
 `Retirement` task only outside callbacks or requests whose admissions must drain.
 See [Registering NodeManagers](NodeManagers.md#runtime-registration).

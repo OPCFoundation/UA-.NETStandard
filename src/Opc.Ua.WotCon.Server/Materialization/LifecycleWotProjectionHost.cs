@@ -199,8 +199,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             var options = new RuntimeNodeSetOptions
             {
                 Sources = new ArrayOf<RuntimeNodeSetSource>(sources),
-                DefaultNamespaceUri = document.DefaultNamespaceUri,
-                AllowLifecycleFromRequestCallback = true
+                DefaultNamespaceUri = document.DefaultNamespaceUri
             };
             if (m_runtimeFactory is { } runtimeFactory &&
                 (runtimeFactory is not WotProjectionBindingRuntimeFactory ||
