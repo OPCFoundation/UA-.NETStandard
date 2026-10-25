@@ -982,6 +982,11 @@ its errors are reported on the committed result. A removed or incompatible NodeI
 NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.
 
+Native reads, sampling groups and report-by-exception value deliveries carry an explicit
+source-generation admission through their final enqueue. Already-admitted work can finish after
+the source stops accepting new work, but cannot deliver a stale value into a replacement binding.
+Physical retirement waits for those admissions to drain.
+
 `Invalidate` and manager removal make old items terminal. Adding the same NodeId later does not
 reactivate them; clients must create new MonitoredItems. Durable subscription restoration preserves
 the terminal state.

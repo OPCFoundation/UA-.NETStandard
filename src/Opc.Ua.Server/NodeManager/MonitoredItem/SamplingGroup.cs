@@ -710,14 +710,13 @@ namespace Opc.Ua.Server
                 // read values for all enabled items.
                 if (items != null && items.Count > 0)
                 {
-                    bool admitted = MasterNodeManager.TryCaptureSourceEmission(
-                        m_server, m_nodeManager, out var emission);
+                    bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                        m_server, m_nodeManager, null, out var emission);
                     using var emissionLease = emission;
                     if (!admitted)
                     {
                         return;
                     }
-                    using var emissionScope = emission?.EnterSourceEmission();
                     if (m_session == null)
                     {
                         // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
@@ -730,7 +729,7 @@ namespace Opc.Ua.Server
                         .GroupBy(item => (object?)item.Session ?? item.EffectiveIdentity))
                     {
                         List<ISampledDataChangeMonitoredItem> ownedItems = [.. owned];
-                        await SampleItemsAsync(ownedItems, loopCts, cancellationToken).ConfigureAwait(false);
+                        await SampleItemsAsync(ownedItems, loopCts, emission, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -750,6 +749,7 @@ namespace Opc.Ua.Server
         private async ValueTask SampleItemsAsync(
             List<ISampledDataChangeMonitoredItem> items,
             CancellationTokenSource? loopCts,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission,
             CancellationToken cancellationToken)
         {
             using OperationContext context = MonitoredReadAuthorization.CreateContext(items[0], m_diagnosticsMask);
@@ -797,7 +797,7 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult);
+                QueueSample(items[ii], context, values[ii], errors[ii], permissionResult, sourceEmission);
             }
         }
 
@@ -887,7 +887,8 @@ namespace Opc.Ua.Server
             OperationContext context,
             DataValue value,
             ServiceResult error,
-            ServiceResult permissionResult)
+            ServiceResult permissionResult,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission)
         {
             if (ServiceResult.IsBad(permissionResult))
             {
@@ -905,7 +906,7 @@ namespace Opc.Ua.Server
 
             if (item is MonitoredItem concreteItem)
             {
-                concreteItem.QueueValueIfCurrent(context, value, error);
+                concreteItem.QueueValueIfCurrent(context, value, error, sourceEmission: sourceEmission);
             }
             else
             {
@@ -1043,6 +1044,14 @@ namespace Opc.Ua.Server
                 // if session of the Sampling group is not set yet, adopt the session of the first monitored item.
                 m_group.m_session ??= first.Session;
 
+                bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                    m_group.m_server, m_group.m_nodeManager, null, out var emission);
+                using var emissionLease = emission;
+                if (!admitted)
+                {
+                    return;
+                }
+
                 using OperationContext context = MonitoredReadAuthorization.CreateContext(
                     first, m_group.m_diagnosticsMask);
 
@@ -1100,7 +1109,7 @@ namespace Opc.Ua.Server
                     {
                         return;
                     }
-                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult);
+                    m_group.QueueSample(items[ii], context, m_values[ii], m_errors[ii], permissionResult, emission);
                 }
             }
 

@@ -64,6 +64,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Admits an item source through its exact generation without consulting execution-context state.
+        /// </summary>
+        /// <param name="server">The server owning the generation.</param>
+        /// <param name="nodeManager">The source node manager.</param>
+        /// <param name="generationReference">The non-owning source generation identity, when known.</param>
+        /// <param name="emission">The admission owned by the caller until delivery completes.</param>
+        /// <returns>Whether the source accepted the operation.</returns>
+        internal static bool TryCaptureItemEmission(
+            IServerInternal server,
+            IAsyncNodeManager nodeManager,
+            NodeManagerGenerationReference? generationReference,
+            out SourceEmissionAdmission? emission)
+        {
+            emission = null;
+            if (server.NodeManager is not MasterNodeManager master)
+            {
+                return true;
+            }
+
+            NodeManagerGeneration? generation;
+            if (generationReference is not null)
+            {
+                if (!generationReference.TryGetGeneration(out generation) ||
+                    generation is null ||
+                    !ReferenceEquals(generation.NodeManager, nodeManager))
+                {
+                    return false;
+                }
+            }
+            else if (!master.m_nodeManagers.Revision.TryGetGeneration(nodeManager, out generation))
+            {
+                return false;
+            }
+            if (!generation!.Gate.TryEnter(out int slot))
+            {
+                return false;
+            }
+            emission = new SourceEmissionAdmission(master, generation, slot);
+            return true;
+        }
+
+        /// <summary>
         /// Enters the source generation gate for one notification emission.
         /// </summary>
         /// <param name="server">The server internal.</param>

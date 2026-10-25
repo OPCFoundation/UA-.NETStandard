@@ -50,6 +50,104 @@ namespace Opc.Ua.Server.Tests
     public class MonitoredNode2Tests
     {
         /// <summary>
+        /// A native sample carries its admission explicitly and cannot deliver into a replacement binding.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task NativeSampleKeepsItsAdmissionWithoutAmbientSourceAsync(bool retire, bool rebind)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var manager = new Mock<IAsyncNodeManager>();
+                manager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [manager.Object]);
+
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                bool ambientDuringRead = false;
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId(1, 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 0,
+                    AccessLevel = AccessLevels.CurrentRead,
+                    UserAccessLevel = AccessLevels.CurrentRead,
+                    OnReadValueAsync = async (_, _, _, _, ct) =>
+                    {
+                        ambientDuringRead = master.HasCapturedSourceEmission(manager.Object);
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        return new AttributeReadResult(
+                            ServiceResult.Good, new Variant(555), StatusCodes.Good, DateTimeUtc.Now);
+                    }
+                };
+                using var item = new MonitoredItem(
+                    server.Object,
+                    manager.Object,
+                    new NodeHandle { NodeId = node.NodeId, Node = node },
+                    1,
+                    2,
+                    new ReadValueId { NodeId = node.NodeId, AttributeId = Attributes.Value },
+                    DiagnosticsMasks.All,
+                    TimestampsToReturn.Both,
+                    MonitoringMode.Reporting,
+                    3,
+                    null,
+                    new MonitoringFilter(),
+                    null,
+                    0,
+                    10,
+                    true,
+                    0);
+                await using var monitored = new MonitoredNode2(manager.Object, server.Object, node);
+                monitored.Add((IDataChangeMonitoredItem2)item);
+                Task sample = monitored.QueueValueAsync(server.Object.DefaultSystemContext, node, item).AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    Assert.That(sample.IsCompleted, Is.False);
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                    if (retire)
+                    {
+                        generation.Gate.Retire();
+                    }
+                    if (rebind)
+                    {
+                        NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                            generation, new Mock<IAsyncNodeManager>().Object);
+                        ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                    }
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await sample.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+
+                using var context = new OperationContext(item);
+                var notifications = new Queue<MonitoredItemNotification>();
+                var diagnostics = new Queue<DiagnosticInfo>();
+                item.Publish(
+                    context, notifications, diagnostics, 10, server.Object.Telemetry.CreateLogger<MonitoredItem>());
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ambientDuringRead, Is.False, "A native read must not install an ambient source.");
+                    Assert.That(notifications, Has.Count.EqualTo(rebind ? 0 : 1));
+                });
+                if (!rebind)
+                {
+                    Assert.That(notifications.Peek().Value.WrappedValue, Is.EqualTo(new Variant(555)));
+                }
+            }
+        }
+
+        /// <summary>
         /// A slow consumer applies asynchronous backpressure before retaining thousands of large snapshots.
         /// </summary>
         [Test]

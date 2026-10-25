@@ -560,7 +560,7 @@ namespace Opc.Ua.Server
             MasterNodeManager.SourceEmissionAdmission? emission = null;
             try
             {
-                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission, Generation))
+                if (!MasterNodeManager.TryCaptureItemEmission(m_server, NodeManager, Generation, out emission))
                 {
                     return;
                 }
@@ -762,7 +762,6 @@ namespace Opc.Ua.Server
                         else
                         {
                             using var emission = notification.SourceEmission;
-                            using var emissionScope = emission?.EnterSourceEmission();
                             if (notification is DataChangeSnapshot dataChangeSnapshot)
                             {
                                 await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
@@ -1520,7 +1519,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(validationResult))
             {
-                QueueError(monitoredItem, validationResult, contextToUse, NodeManager);
+                QueueError(monitoredItem, validationResult, contextToUse, snapshot.SourceEmission);
                 return;
             }
 
@@ -1537,7 +1536,7 @@ namespace Opc.Ua.Server
                         {
                             QueueError(monitoredItem, ServiceResult.IsBad(userAccess)
                                 ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied),
-                                contextToUse, NodeManager);
+                                contextToUse, snapshot.SourceEmission);
                             return;
                         }
                     }
@@ -1562,7 +1561,7 @@ namespace Opc.Ua.Server
                 }
                 DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
                 QueueValueIfCurrent(
-                    monitoredItem, contextToUse, valueToQueue, valueToQueue.StatusCode, NodeManager);
+                    monitoredItem, contextToUse, valueToQueue, valueToQueue.StatusCode, snapshot.SourceEmission);
                 return;
             }
 
@@ -1579,11 +1578,12 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(readResult))
                 {
-                    QueueError(monitoredItem, readResult, contextToUse, NodeManager);
+                    QueueError(monitoredItem, readResult, contextToUse, snapshot.SourceEmission);
                     return;
                 }
             }
-            QueueValueIfCurrent(monitoredItem, contextToUse, snapshotValue, ServiceResult.Good, NodeManager);
+            QueueValueIfCurrent(
+                monitoredItem, contextToUse, snapshotValue, ServiceResult.Good, snapshot.SourceEmission);
         }
 
         /// <summary>
@@ -1687,7 +1687,7 @@ namespace Opc.Ua.Server
             IDataChangeMonitoredItem2 monitoredItem,
             ServiceResult error,
             ServerSystemContext? context = null,
-            IAsyncNodeManager? admittedSourceNodeManager = null)
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission = null)
         {
             if (!IsInCurrentGeneration(monitoredItem))
             {
@@ -1697,7 +1697,7 @@ namespace Opc.Ua.Server
                 error.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime);
             if (context != null)
             {
-                QueueValueIfCurrent(monitoredItem, context, value, error, admittedSourceNodeManager);
+                QueueValueIfCurrent(monitoredItem, context, value, error, sourceEmission);
             }
             else
             {
@@ -1868,13 +1868,13 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
+            bool admitted = MasterNodeManager.TryCaptureItemEmission(
+                m_server, NodeManager, Generation, out var emission);
             using var emissionLease = emission;
             if (!admitted)
             {
                 return;
             }
-            using var emissionScope = emission?.EnterSourceEmission();
             if (!ReferenceEquals(node, Node))
             {
                 QueueError(monitoredItem, new ServiceResult(StatusCodes.BadNodeIdUnknown));
@@ -1886,7 +1886,7 @@ namespace Opc.Ua.Server
                 snapshot, monitoredItem, requested, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(authorization))
             {
-                QueueError(monitoredItem, authorization, subscriberContext);
+                QueueError(monitoredItem, authorization, subscriberContext, emission);
                 return;
             }
             var value = new DataValue(
@@ -1913,10 +1913,10 @@ namespace Opc.Ua.Server
                 !ReferenceEquals(subscriberContext.UserIdentity, currentContext.UserIdentity))
             {
                 QueueError(monitoredItem, ServiceResult.IsBad(authorization)
-                    ? authorization : new ServiceResult(StatusCodes.BadUserAccessDenied), subscriberContext);
+                    ? authorization : new ServiceResult(StatusCodes.BadUserAccessDenied), subscriberContext, emission);
                 return;
             }
-            QueueValueIfCurrent(monitoredItem, subscriberContext, value, error);
+            QueueValueIfCurrent(monitoredItem, subscriberContext, value, error, emission);
         }
 
         /// <summary>
@@ -1927,13 +1927,13 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             in DataValue value,
             ServiceResult? error,
-            IAsyncNodeManager? admittedSourceNodeManager = null,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission = null,
             bool ignoreFilters = false)
         {
             if (item is MonitoredItem concreteItem && context.OperationContext is OperationContext operation)
             {
                 concreteItem.QueueValueIfCurrent(
-                    operation, value, error, ignoreFilters, admittedSourceNodeManager: admittedSourceNodeManager);
+                    operation, value, error, ignoreFilters, sourceEmission: sourceEmission);
             }
             else if (ignoreFilters)
             {

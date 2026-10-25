@@ -91,6 +91,32 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Creates a socket-free routing owner and connects it to the supplied mock server.
+        /// </summary>
+        /// <param name="server">The deterministic server whose services the master borrows.</param>
+        /// <param name="managers">The application managers included in the initial view.</param>
+        /// <returns>The master owned and disposed by the caller.</returns>
+        public static MasterNodeManager CreateMasterNodeManager(
+            Mock<IServerInternal> server,
+            ArrayOf<IAsyncNodeManager> managers)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(server.Object.NodeManager.ConfigurationNodeManager!);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(server.Object.CoreNodeManager);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var master = new MasterNodeManager(
+                server.Object,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                managers.ToList(),
+                null);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
+        /// <summary>
         /// Makes the same namespace policy available to synchronous and asynchronous node-manager paths.
         /// </summary>
         public static void SetNamespaceMetadata(

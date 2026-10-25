@@ -1535,7 +1535,7 @@ namespace Opc.Ua.Server
             ServiceResult? error,
             bool ignoreFilters = false,
             bool initialValue = false,
-            IAsyncNodeManager? admittedSourceNodeManager = null)
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission = null)
         {
             lock (m_lock)
             {
@@ -1558,12 +1558,12 @@ namespace Opc.Ua.Server
                 if (initialValue)
                 {
                     QueueValueCore(
-                        value, error, ignoreFilters, initialValue: true, admittedSourceNodeManager);
+                        value, error, ignoreFilters, initialValue: true, sourceEmission);
                 }
                 else
                 {
                     QueueValueCore(
-                        value, error, ignoreFilters, initialValue: false, admittedSourceNodeManager);
+                        value, error, ignoreFilters, initialValue: false, sourceEmission);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
                 {
@@ -1626,29 +1626,34 @@ namespace Opc.Ua.Server
             ServiceResult? error,
             bool ignoreFilters,
             bool initialValue,
-            IAsyncNodeManager? admittedSourceNodeManager = null)
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission = null)
         {
-            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
-                m_server.NodeManager is MasterNodeManager sourceMaster &&
-                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            bool capturedSourceEmission = sourceEmission.HasValue;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
             bool admitted = capturedSourceEmission;
             if (!admitted)
             {
-                admitted = MasterNodeManager.TryCaptureSourceEmission(
+                admitted = MasterNodeManager.TryCaptureItemEmission(
                     m_server,
                     NodeManager,
-                    out emission,
-                    Generation);
+                    Generation,
+                    out emission);
             }
             using var emissionLease = emission;
             if (!admitted)
             {
                 return;
             }
-            using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
+                if ((sourceEmission ?? emission) is { Generation: var generation } &&
+                    !(Generation is { } reference &&
+                        reference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) &&
+                        ReferenceEquals(boundGeneration, generation)) &&
+                    !(capturedSourceEmission && m_isDetached && ReferenceEquals(m_slot, generation.Slot)))
+                {
+                    return;
+                }
                 EnsureNotificationAuthorization();
 
                 // this method should only be called for variables.
