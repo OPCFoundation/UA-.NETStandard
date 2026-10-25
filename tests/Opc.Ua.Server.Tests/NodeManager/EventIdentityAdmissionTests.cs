@@ -257,13 +257,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var fixture = new IdentityFixture();
             EnableAdmission(fixture);
-            fixture.Manager.AdmitEvent(fixture.Context, Event(s_id));
+            BaseEventState original = Event(s_id);
+            fixture.Manager.AdmitEvent(fixture.Context, original);
+            CollectUnownedTargets();
             BaseEventState changed = Event(s_id);
             changed.Severity!.Value = 999;
 
             AssertStatus(() => fixture.Manager.AdmitEvent(fixture.Context, changed),
                 StatusCodes.BadSecurityChecksFailed);
             fixture.Manager.AdmitEvent(fixture.Context, Event(s_id));
+            GC.KeepAlive(original);
         }
 
         /// <summary>

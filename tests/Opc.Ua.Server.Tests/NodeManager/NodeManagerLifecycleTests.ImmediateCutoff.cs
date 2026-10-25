@@ -417,10 +417,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that retirement preserves queued events but drops events emitted by a captured old generation later.
+        /// Verifies that retirement preserves admitted events but rejects a target after its callback returns.
         /// </summary>
-        [Test]
-        public async Task PreparedBatchRetirementDropsLateCapturedEventsAndKeepsQueuedEventsAsync()
+        /// <param name="emitAfterCutoff">Whether the admitted callback queues another event after publication.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedBatchRetirementPreservesAdmittedEventsAndRejectsExpiredTargetsAsync(
+            bool emitAfterCutoff)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
@@ -446,13 +449,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseReadiness = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            originalManager.ConditionRefreshCallback = async (_, token) =>
+            IEventMonitoredItem? capturedTarget = null;
+            originalManager.ConditionRefreshCallback = async (targets, token) =>
             {
                 if (originalManager.ConditionRefreshCount == 1)
                 {
+                    capturedTarget = targets.Single(value => value.Id == itemId);
+                    QueueOccurrence("queued-before-cutoff", capturedTarget);
                     entered.TrySetResult(true);
                     await releaseDispatch.Task.WaitAsync(token).ConfigureAwait(false);
-                    QueueOccurrence("captured-before-cutoff");
+                    if (emitAfterCutoff)
+                    {
+                        QueueOccurrence("admitted-after-cutoff", capturedTarget);
+                    }
                 }
             };
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
@@ -466,7 +475,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         })),
                     NodeManagerBatchChange.Remove(original, true)
                 ], timeout.Token).ConfigureAwait(false);
-            QueueOccurrence("queued-before-cutoff");
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             Task? dispatch = null;
@@ -509,10 +517,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     "Retirement cleanup waits for the blocked new-generation readiness callback.");
                 Assert.That(survivor.AllEventsUnsubscribeCount, Is.Zero);
                 Assert.That(survivor.ConditionRefreshCount, Is.EqualTo(2));
+                QueueOccurrence("expired-after-callback", RequireLifecycleValue(capturedTarget));
 
                 var messages = new List<string>();
+                int expectedCount = emitAfterCutoff ? 2 : 1;
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
-                while (messages.Count < 1)
+                while (messages.Count < expectedCount)
                 {
                     RequestHeader header = m_requestHeader;
                     header.Timestamp = DateTimeUtc.Now;
@@ -535,8 +545,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     }
                 }
-                Assert.That(messages, Has.Count.EqualTo(1));
+                Assert.That(messages, Has.Count.EqualTo(expectedCount), () => string.Join(", ", messages));
                 Assert.That(messages[0], Is.EqualTo("queued-before-cutoff"));
+                if (emitAfterCutoff)
+                {
+                    Assert.That(messages[1], Is.EqualTo("admitted-after-cutoff"));
+                }
                 Assert.That(server.EventManager.GetMonitoredItems().Single(value => value.Id == itemId),
                     Is.SameAs(item));
             }
@@ -567,12 +581,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             Assert.That(survivor.DisposeCount, Is.Zero);
 
-            void QueueOccurrence(string message)
+            void QueueOccurrence(string message, IEventMonitoredItem target)
             {
                 var occurrence = new BaseEventState(null);
                 occurrence.Initialize(server.DefaultSystemContext, server.ServerObject,
                     EventSeverity.Medium, new LocalizedText(message));
-                item.QueueEvent(occurrence);
+                target.QueueEvent(occurrence);
             }
         }
 

@@ -1123,7 +1123,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
             }
 
             return true;
@@ -1169,7 +1169,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                    ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                 }
             }
             try

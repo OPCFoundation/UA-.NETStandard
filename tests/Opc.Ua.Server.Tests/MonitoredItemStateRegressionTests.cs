@@ -198,7 +198,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
 
             item.SetMonitoringMode(MonitoringMode.Disabled);
-            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(item.ItemsInQueue, Is.Zero);
             Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
 
@@ -264,7 +264,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(PublishData(harness, item), Has.Count.EqualTo(1));
 
                 item.SetMonitoringMode(MonitoringMode.Disabled);
-                ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
                 (ServiceResult result, MonitoringMode? previousMode) = await manager.SetMonitoringModeAsync(
                     context, item, MonitoringMode.Reporting, handle).ConfigureAwait(false);

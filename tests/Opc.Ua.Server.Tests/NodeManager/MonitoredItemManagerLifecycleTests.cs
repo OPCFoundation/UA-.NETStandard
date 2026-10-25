@@ -653,7 +653,7 @@ namespace Opc.Ua.Server.Tests
                         .StatusCode,
                     Is.EqualTo(StatusCodes.Good));
 
-                lifecycle.MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
                 ServiceResult detachResult = await owner.Lifecycle
                     .DetachMonitoredItemAsync(item)
                     .ConfigureAwait(false);
@@ -2455,7 +2455,7 @@ namespace Opc.Ua.Server.Tests
                     nodeManager.Object,
                     new object(),
                     new NodeId("Restored", 1));
-                ((IDetachableMonitoredItem)source).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)source).Invalidate(terminal: false);
                 IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
                 var node = new BaseDataVariableState(null)
                 {

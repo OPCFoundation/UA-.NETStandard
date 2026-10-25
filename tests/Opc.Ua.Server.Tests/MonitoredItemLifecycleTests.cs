@@ -56,8 +56,8 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(telemetry);
             var lifecycle = (IDetachableMonitoredItem)item;
 
-            lifecycle.MarkNodeDeleted();
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             lifecycle.QueueNodeIdUnknown();
 
             Queue<MonitoredItemNotification> first = Publish(item, telemetry, 10, out bool more);
@@ -82,12 +82,11 @@ namespace Opc.Ua.Server.Tests
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
-            var lifecycle = (IDetachableMonitoredItem)item;
             var beforeDeletion = new DataValue(new Variant(7), StatusCodes.Good);
             var recovered = new DataValue(new Variant(42), StatusCodes.Good);
 
             item.QueueValue(beforeDeletion, ServiceResult.Good);
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
             // Part 4 5.13.1.5 makes a queue of size one a buffer holding the newest Notification,
             // so the marker takes the single slot and the value sampled before the deletion goes.
@@ -117,7 +116,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 1);
             var recovered = new DataValue(Variant.From(42), StatusCodes.Good);
 
-            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(recovered, ServiceResult.Good);
             Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out bool more);
 
@@ -179,12 +178,11 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 4,
                 filter: filter,
                 samplingInterval: 0);
-            var lifecycle = (IDetachableMonitoredItem)item;
 
             item.QueueValue(
                 new DataValue(new Variant(1), StatusCodes.Good),
                 ServiceResult.Good);
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(2), StatusCodes.Good),
                 ServiceResult.Good);
@@ -230,7 +228,7 @@ namespace Opc.Ua.Server.Tests
                 managerHandle: originalHandle);
             var lifecycle = (IDetachableMonitoredItem)item;
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             lifecycle.Rebind(reboundManager.Object, reboundHandle);
             Queue<MonitoredItemNotification> notifications = Publish(item, telemetry, 1, out _);
 
@@ -258,12 +256,12 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateMonitoredItem(telemetry, queueSize: 2);
             var lifecycle = (IDetachableMonitoredItem)item;
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(new DataValue(new Variant(1), StatusCodes.Good), ServiceResult.Good);
             Queue<MonitoredItemNotification> firstEpoch = Publish(item, telemetry, 2, out _);
 
             lifecycle.Rebind(reboundManager.Object, new object());
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Queue<MonitoredItemNotification> secondEpoch = Publish(item, telemetry, 1, out _);
 
             Assert.Multiple(() =>
@@ -289,7 +287,7 @@ namespace Opc.Ua.Server.Tests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
             var sourceLifecycle = (IDetachableMonitoredItem)source;
-            sourceLifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)source).Invalidate(terminal: false);
             sourceLifecycle.BeginDetach();
 
             IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
@@ -358,12 +356,12 @@ namespace Opc.Ua.Server.Tests
                 samplingInterval: 0);
             var lifecycle = (IDetachableMonitoredItem)item;
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(1), StatusCodes.Good),
                 ServiceResult.Good);
             lifecycle.Rebind(reboundManager.Object, new object());
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             item.QueueValue(
                 new DataValue(new Variant(2), StatusCodes.Good),
                 ServiceResult.Good);

@@ -503,17 +503,17 @@ namespace Opc.Ua.Server
                         DataChangeMonitoredItems.Values)
                     {
                         if (IsInCurrentGeneration(monitoredItem) &&
-                            monitoredItem is IDetachableMonitoredItem lifecycle)
+                            monitoredItem is IMonitoredItemGenerationBinding binding)
                         {
-                            lifecycle.MarkNodeDeleted();
+                            binding.Invalidate(terminal: false);
                         }
                     }
                     foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
                     {
                         if (IsInCurrentGeneration(monitoredItem) &&
-                            monitoredItem is IDetachableMonitoredItem lifecycle)
+                            monitoredItem is IMonitoredItemGenerationBinding binding)
                         {
-                            lifecycle.MarkNodeDeleted();
+                            binding.Invalidate(terminal: false);
                         }
                     }
                 }

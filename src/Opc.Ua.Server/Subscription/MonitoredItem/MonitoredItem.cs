@@ -749,12 +749,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IDetachableMonitoredItem.MarkNodeDeleted()
-        {
-            Invalidate(terminal: false);
-        }
-
-        /// <inheritdoc/>
         void IMonitoredItemGenerationBinding.Invalidate(bool terminal)
         {
             Invalidate(terminal);

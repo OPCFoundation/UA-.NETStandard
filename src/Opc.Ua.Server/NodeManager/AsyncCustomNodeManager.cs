@@ -2100,7 +2100,8 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)monitoredItem)
+                    .Invalidate(terminal: false);
             }
 
             return true;
@@ -2354,7 +2355,7 @@ namespace Opc.Ua.Server
                                     {
                                         if (!PredefinedNodes.ContainsKey(monitoredItem.NodeId))
                                         {
-                                            ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                                            ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                                         }
                                     }
                                     await RemoveDeletedNotifiersAsync(removedNotifiers).ConfigureAwait(false);
@@ -2532,7 +2533,7 @@ namespace Opc.Ua.Server
 
             foreach (IMonitoredItem monitoredItem in detachedItems)
             {
-                ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
             }
 
             return ServiceResult.Good;
@@ -2676,7 +2677,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).MarkNodeDeleted();
+                    ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                 }
             }
             try

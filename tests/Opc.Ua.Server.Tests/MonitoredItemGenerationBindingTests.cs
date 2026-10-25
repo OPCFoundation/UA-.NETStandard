@@ -232,8 +232,8 @@ namespace Opc.Ua.Server.Tests
             var lifecycle = (IDetachableMonitoredItem)item;
 
             lifecycle.Detach(server.Object);
-            lifecycle.MarkNodeDeleted();
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
             Assert.That(original.Slot.UnresolvedItems, Has.Count.EqualTo(1));
             Assert.That(original.Slot.UnresolvedItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
@@ -261,7 +261,7 @@ namespace Opc.Ua.Server.Tests
             item.SubscriptionCallback = owner;
             var binding = (IMonitoredItemGenerationBinding)item;
             binding.BindSubscription(owner);
-            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            binding.Invalidate(terminal: false);
             Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
 
             if (dispose)
@@ -419,7 +419,7 @@ namespace Opc.Ua.Server.Tests
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(slot.UnresolvedItems.TryGetValue(item, out ISubscription? subscription), Is.True);
             Assert.That(subscription, Is.SameAs(owner));
 
@@ -467,19 +467,18 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            var lifecycle = (IDetachableMonitoredItem)item;
             NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
 
             item.Dispose();
             Assert.That(slot.UnresolvedItems, Is.Empty);
 
-            lifecycle.MarkNodeDeleted();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 

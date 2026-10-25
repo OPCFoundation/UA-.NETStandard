@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Server
                 }
 
                 itemLifecycle.Detach(Server);
-                itemLifecycle.MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                 if (!IsExpectedRecoveryFailure(attachResult))
                 {
                     failures.Add(new ServiceResultException(attachResult));

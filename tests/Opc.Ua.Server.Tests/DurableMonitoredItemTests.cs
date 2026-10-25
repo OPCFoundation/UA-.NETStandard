@@ -1274,7 +1274,7 @@ namespace Opc.Ua.Server.Tests
                     // Production deletes a monitored node by detaching the item and marking
                     // it deleted, so establish both flags here as well.
                     var sourceLifecycle = (IDetachableMonitoredItem)source;
-                    sourceLifecycle.MarkNodeDeleted();
+                    ((IMonitoredItemGenerationBinding)source).Invalidate(terminal: false);
                     sourceLifecycle.BeginDetach();
                     var notifications = new Queue<MonitoredItemNotification>();
                     var diagnostics = new Queue<DiagnosticInfo>();

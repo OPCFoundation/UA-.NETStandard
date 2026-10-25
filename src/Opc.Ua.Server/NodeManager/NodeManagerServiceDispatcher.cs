@@ -2780,7 +2780,7 @@ namespace Opc.Ua.Server
                     storedItem);
                 var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                 lifecycle.Detach(Server);
-                lifecycle.MarkNodeDeleted();
+                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                 storedItem.IsRestored = true;
                 monitoredItems[ii] = monitoredItem;
             }

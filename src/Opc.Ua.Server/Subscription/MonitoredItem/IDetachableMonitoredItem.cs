@@ -45,11 +45,6 @@ namespace Opc.Ua.Server
         bool IsDeleted { get; }
 
         /// <summary>
-        /// Marks the monitored node as deleted and schedules the required status notification.
-        /// </summary>
-        void MarkNodeDeleted();
-
-        /// <summary>
         /// Enters the manager-detach transition while preserving rollback ownership.
         /// </summary>
         void BeginDetach();
