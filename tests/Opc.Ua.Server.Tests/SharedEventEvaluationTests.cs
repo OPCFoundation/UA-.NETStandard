@@ -242,6 +242,47 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Event consumers carry admission into virtual queues without installing an ambient source.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public async Task EventDeliveryKeepsItsAdmissionWithoutAmbientSourceAsync(bool serverNode, bool rebind)
+        {
+            MonitoredNode2 monitored = CreateMonitoredNode(serverNode);
+            var item = new CountingMonitoredItem(
+                this, 1, CreateFilter(SelectA(), null), monitored.NodeManager, monitored.Node.NodeId);
+            m_disposables.Add(item);
+            using MasterNodeManager master = CreateMaster([monitored.NodeManager]);
+            bool ambientDuringQueue = false;
+            item.BeforeQueue = _ =>
+            {
+                ambientDuringQueue = master.HasCapturedSourceEmission(monitored.NodeManager);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(monitored.NodeManager);
+                generation.Gate.Retire();
+                if (rebind)
+                {
+                    NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                        generation, new Mock<IAsyncNodeManager>().Object);
+                    ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                }
+            };
+            monitored.Add((IEventMonitoredItem)item);
+
+            await monitored.OnReportEventAsync(m_systemContext, monitored.Node, CreateEvent(EventSeverity.High))
+                .ConfigureAwait(false);
+            await monitored.DisposeAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ambientDuringQueue, Is.False);
+                Assert.That(item.Queued, Is.EqualTo(1));
+                Assert.That(Publish(item), Has.Count.EqualTo(rebind ? 0 : 1));
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(monitored.NodeManager).Gate.ActiveCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
         /// An overridable delivery cannot lend its source admission to another item's nested queue call.
         /// </summary>
         [TestCase(false)]
@@ -274,13 +315,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(MasterNodeManager.TryCaptureSourceEmission(
                 m_server, source.Object, out MasterNodeManager.SourceEmissionAdmission? admission), Is.True);
             using (admission)
-            using (admission?.EnterSourceEmission())
             {
                 NodeManagerGenerationRegistry.GetOrCreate(source.Object).Gate.Retire();
                 NodeManagerGenerationRegistry.GetOrCreate(unrelatedSource.Object).Gate.Retire();
 
                 parent.QueueSharedEvent(snapshot, parent.GetSharedEventFilterKey()!,
-                    new MonitoredItem.SharedEventEvaluation(), source.Object);
+                    new MonitoredItem.SharedEventEvaluation(), admission?.Generation);
             }
 
             Assert.Multiple(() =>
@@ -321,11 +361,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(MasterNodeManager.TryCaptureSourceEmission(
                     m_server, source.Object, out MasterNodeManager.SourceEmissionAdmission? admission), Is.True);
                 using (admission)
-                using (admission?.EnterSourceEmission())
                 {
                     NodeManagerGenerationRegistry.GetOrCreate(source.Object).Gate.Retire();
                     item.QueueSharedEvent(snapshot, item.GetSharedEventFilterKey()!,
-                        new MonitoredItem.SharedEventEvaluation(), source.Object);
+                        new MonitoredItem.SharedEventEvaluation(), admission?.Generation);
                 }
             });
             Task? escaped = null;
@@ -680,11 +719,11 @@ namespace Opc.Ua.Server.Tests
             item.SubscriptionCallback = subscription.Object;
         }
 
-        private static ReadValueId EventItemToMonitor()
+        private static ReadValueId EventItemToMonitor(NodeId nodeId = default)
         {
             return new ReadValueId
             {
-                NodeId = ObjectIds.Server,
+                NodeId = nodeId.IsNull ? ObjectIds.Server : nodeId,
                 AttributeId = Attributes.EventNotifier
             };
         }
@@ -834,14 +873,15 @@ namespace Opc.Ua.Server.Tests
                 SharedEventEvaluationTests fixture,
                 uint id,
                 EventFilter filter,
-                IAsyncNodeManager? nodeManager = null)
+                IAsyncNodeManager? nodeManager = null,
+                NodeId nodeId = default)
                 : base(
                     fixture.m_server,
                     nodeManager ?? new Mock<IAsyncNodeManager>().Object,
                     null!,
                     1,
                     id,
-                    EventItemToMonitor(),
+                    EventItemToMonitor(nodeId),
                     DiagnosticsMasks.All,
                     TimestampsToReturn.Server,
                     MonitoringMode.Reporting,

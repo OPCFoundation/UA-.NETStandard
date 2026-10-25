@@ -91,7 +91,7 @@ namespace Opc.Ua.Server
             IFilterTarget instance,
             SharedEventFilterKey key,
             SharedEventEvaluation evaluation,
-            IAsyncNodeManager? admittedSourceNodeManager = null)
+            NodeManagerGeneration? admittedGeneration = null)
         {
             lock (m_lock)
             {
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server
                 t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
                 try
                 {
-                    QueueAdmittedEvent(instance, admittedSourceNodeManager);
+                    QueueAdmittedEvent(instance, admittedGeneration);
                 }
                 finally
                 {
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// This item's source admission, carried through virtual queue calls while its lock is held.
         /// </summary>
-        private IAsyncNodeManager? m_admittedSourceNodeManager;
+        private NodeManagerGeneration? m_admittedSourceGeneration;
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>

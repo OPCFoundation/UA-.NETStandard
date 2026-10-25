@@ -755,7 +755,6 @@ namespace Opc.Ua.Server
                             while (next is not null)
                             {
                                 using var emission = next.SourceEmission;
-                                using var emissionScope = emission?.EnterSourceEmission();
                                 next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
                             }
                         }
@@ -962,7 +961,7 @@ namespace Opc.Ua.Server
                 target,
                 eventTypeId,
                 sourceNodeId,
-                snapshot.SourceEmission?.Generation.NodeManager ?? NodeManager,
+                snapshot.SourceEmission?.Generation,
                 offset);
         }
 
@@ -1193,7 +1192,7 @@ namespace Opc.Ua.Server
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
-                delivery.SourceNodeManager,
+                delivery.SourceGeneration,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
@@ -1209,13 +1208,13 @@ namespace Opc.Ua.Server
                 IFilterTarget target,
                 NodeId eventTypeId,
                 NodeId sourceNodeId,
-                IAsyncNodeManager sourceNodeManager,
+                NodeManagerGeneration? sourceGeneration,
                 int offset)
             {
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
-                SourceNodeManager = sourceNodeManager;
+                SourceGeneration = sourceGeneration;
                 Offset = offset;
             }
 
@@ -1225,7 +1224,7 @@ namespace Opc.Ua.Server
 
             public NodeId SourceNodeId { get; }
 
-            public IAsyncNodeManager SourceNodeManager { get; }
+            public NodeManagerGeneration? SourceGeneration { get; }
 
             public int Offset { get; }
         }
@@ -1294,7 +1293,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
-            IAsyncNodeManager sourceNodeManager,
+            NodeManagerGeneration? sourceGeneration,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
@@ -1326,7 +1325,7 @@ namespace Opc.Ua.Server
                             target,
                             key,
                             evaluation,
-                            admittedSourceNodeManager: sourceNodeManager);
+                            admittedGeneration: sourceGeneration);
                     }
                     else
                     {

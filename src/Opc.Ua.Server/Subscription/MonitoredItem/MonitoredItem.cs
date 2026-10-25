@@ -1581,7 +1581,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             SharedEventFilterKey? key,
             SharedEventEvaluation? evaluation,
-            IAsyncNodeManager? admittedSourceNodeManager = null)
+            NodeManagerGeneration? admittedGeneration = null)
         {
             lock (m_lock)
             {
@@ -1592,11 +1592,11 @@ namespace Opc.Ua.Server
                 }
                 if (evaluation != null)
                 {
-                    QueueSharedEvent(target, key!, evaluation, admittedSourceNodeManager);
+                    QueueSharedEvent(target, key!, evaluation, admittedGeneration);
                 }
                 else
                 {
-                    QueueAdmittedEvent(target, admittedSourceNodeManager);
+                    QueueAdmittedEvent(target, admittedGeneration);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, authorization))
                 {
@@ -1647,9 +1647,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 if ((sourceEmission ?? emission) is { Generation: var generation } &&
-                    !(Generation is { } reference &&
-                        reference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) &&
-                        ReferenceEquals(boundGeneration, generation)) &&
+                    !IsBoundToGeneration(generation) &&
                     !(capturedSourceEmission && m_isDetached && ReferenceEquals(m_slot, generation.Slot)))
                 {
                     return;
@@ -2017,53 +2015,51 @@ namespace Opc.Ua.Server
         /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
-            QueueEventCore(instance, bypassFilter, TakeAdmittedSourceNodeManager());
+            QueueEventCore(instance, bypassFilter, TakeAdmittedSourceGeneration());
         }
 
         /// <summary>
         /// Queues an event through the overridable entry point while carrying the source admission the caller
         /// already holds, so derived item types still observe every event.
         /// </summary>
-        private void QueueAdmittedEvent(IFilterTarget instance, IAsyncNodeManager? admittedSourceNodeManager)
+        private void QueueAdmittedEvent(IFilterTarget instance, NodeManagerGeneration? admittedGeneration)
         {
-            IAsyncNodeManager? previous = m_admittedSourceNodeManager;
-            m_admittedSourceNodeManager = admittedSourceNodeManager;
+            NodeManagerGeneration? previous = m_admittedSourceGeneration;
+            m_admittedSourceGeneration = admittedGeneration;
             try
             {
                 QueueEvent(instance);
             }
             finally
             {
-                m_admittedSourceNodeManager = previous;
+                m_admittedSourceGeneration = previous;
             }
         }
 
         /// <summary>
         /// Takes this item's locked delivery admission without lending it to another item or thread.
         /// </summary>
-        private IAsyncNodeManager? TakeAdmittedSourceNodeManager()
+        private NodeManagerGeneration? TakeAdmittedSourceGeneration()
         {
             if (!m_lock.IsHeldByCurrentThread)
             {
                 return null;
             }
-            IAsyncNodeManager? admitted = m_admittedSourceNodeManager;
-            m_admittedSourceNodeManager = null;
+            NodeManagerGeneration? admitted = m_admittedSourceGeneration;
+            m_admittedSourceGeneration = null;
             return admitted;
         }
 
         private void QueueEventCore(
             IFilterTarget instance,
             bool bypassFilter,
-            IAsyncNodeManager? admittedSourceNodeManager)
+            NodeManagerGeneration? admittedGeneration)
         {
             if (instance == null)
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
-                m_server.NodeManager is MasterNodeManager sourceMaster &&
-                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
             bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
@@ -2076,7 +2072,6 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            using var emissionScope = emission?.EnterSourceEmission();
             m_server.EventManager?.AdmitEvent(m_server.DefaultSystemContext, instance);
 
             // the evaluation shared by the items with an equal filter, when the event
@@ -2088,7 +2083,8 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureNotificationAuthorization();
-                if (!capturedSourceEmission && !CanQueueSourceEmission())
+                if (!CanUseEventSource(admittedGeneration) ||
+                    (!capturedSourceEmission && !CanQueueSourceEmission()))
                 {
                     return;
                 }
@@ -2166,15 +2162,15 @@ namespace Opc.Ua.Server
                 {
                     fields = GetEventFields(context, filter, instance);
                 }
-                IAsyncNodeManager? previous = m_admittedSourceNodeManager;
-                m_admittedSourceNodeManager = admittedSourceNodeManager;
+                NodeManagerGeneration? previous = m_admittedSourceGeneration;
+                m_admittedSourceGeneration = admittedGeneration ?? emission?.Generation;
                 try
                 {
                     QueueEvent(fields);
                 }
                 finally
                 {
-                    m_admittedSourceNodeManager = previous;
+                    m_admittedSourceGeneration = previous;
                 }
             }
         }
@@ -2185,16 +2181,14 @@ namespace Opc.Ua.Server
         /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
-            QueueEventFields(fields, TakeAdmittedSourceNodeManager());
+            QueueEventFields(fields, TakeAdmittedSourceGeneration());
         }
 
         private void QueueEventFields(
             EventFieldList fields,
-            IAsyncNodeManager? admittedSourceNodeManager)
+            NodeManagerGeneration? admittedGeneration)
         {
-            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
-                m_server.NodeManager is MasterNodeManager sourceMaster &&
-                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            bool capturedSourceEmission = admittedGeneration is not null;
             MasterNodeManager.SourceEmissionAdmission? emission = null;
             bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
                     m_server,
@@ -2207,12 +2201,12 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            using var emissionScope = emission?.EnterSourceEmission();
             m_server.EventManager?.AdmitEventFields(fields);
             lock (m_lock)
             {
                 EnsureNotificationAuthorization();
-                if (!capturedSourceEmission && !CanQueueSourceEmission())
+                if (!CanUseEventSource(admittedGeneration) ||
+                    (!capturedSourceEmission && !CanQueueSourceEmission()))
                 {
                     return;
                 }
@@ -2901,6 +2895,27 @@ namespace Opc.Ua.Server
                     (m_server.NodeManager is MasterNodeManager master &&
                         master.HasCapturedSourceEmission(NodeManager) &&
                         !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+        }
+
+        /// <summary>
+        /// Compares the bound generation without consulting the public slot identifier or taking its lock.
+        /// </summary>
+        private bool IsBoundToGeneration(NodeManagerGeneration generation)
+        {
+            return Generation is { } reference &&
+                reference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) &&
+                ReferenceEquals(boundGeneration, generation);
+        }
+
+        /// <summary>
+        /// Checks a borrowed event source while the item lock protects its current binding.
+        /// </summary>
+        private bool CanUseEventSource(NodeManagerGeneration? generation)
+        {
+            return generation is null ||
+                MonitoringAllEvents ||
+                IsBoundToGeneration(generation) ||
+                (m_isDetached && ReferenceEquals(m_slot, generation.Slot));
         }
 
         /// <summary>
