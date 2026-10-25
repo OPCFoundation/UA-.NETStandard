@@ -687,6 +687,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 try
                 {
                     result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    if (badStatus)
+                    {
+                        await Assert.ThatAsync(
+                            () => result.Retirement.WaitAsync(timeout.Token),
+                            Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Assert.ThatAsync(
+                            () => result.Retirement.WaitAsync(timeout.Token),
+                            Throws.Exception.SameAs(failure)).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
@@ -699,20 +711,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 survivorRegistration,
                 null,
                 timeout.Token).ConfigureAwait(false);
-            if (badStatus)
-            {
-                await Assert.ThatAsync(
-                    () => RequireLifecycleValue(result).Retirement.WaitAsync(timeout.Token),
-                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
-            }
-            else
-            {
-                await Assert.ThatAsync(
-                    () => RequireLifecycleValue(result).Retirement.WaitAsync(timeout.Token),
-                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
-            }
-            Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
-            var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException).Flatten().InnerExceptions;
+            AssertLifecycleValue(result);
+            Assert.That(result.CleanupFailure, Is.Null);
+            var failures = RequireLifecycleValue(result.Retirement.Exception).Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(1));
             if (badStatus)
             {
@@ -733,10 +734,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 null,
                 timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(retryTrigger);
+            await failing.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await healthy.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(result.Retired, Is.EqualTo(1u),
-                    "Only the healthy source completed cleanup when the result was created.");
+                Assert.That(result.Retirement.IsFaulted, Is.True,
+                    "A successful retry must not overwrite the original retirement failure.");
                 Assert.That(failing.AllEventsUnsubscribeCount, Is.EqualTo(2),
                     "Retry only the retained failed binding, not the whole live all-events set.");
                 Assert.That(healthy.AllEventsUnsubscribeCount, Is.EqualTo(1));

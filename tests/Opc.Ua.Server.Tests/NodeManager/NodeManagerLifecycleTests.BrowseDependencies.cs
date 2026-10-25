@@ -100,6 +100,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     retired = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
                 }
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(unrelated.Manager.DisposeCount, Is.EqualTo(1),
                     "A saved continuation must not pin an unrelated generation.");
                 BrowseResult current = await BrowseContinuationRootAsync(
@@ -120,7 +121,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
                     Assert.That(stale.Results[0].References, Is.Empty);
-                    Assert.That(retired.Retired, Is.EqualTo(3u));
+                    Assert.That(retired.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     Assert.That(retired.CleanupFailure, Is.Null);
                 }
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -191,7 +192,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     [first.Registration, second.Registration, targetRegistration, unrelatedRegistration],
                     false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(4u));
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(retired.CleanupFailure, Is.Null);
                 Assert.That(unrelated.DisposeCount, Is.EqualTo(1));
                 Assert.That(target.DisposeCount, Is.EqualTo(1));
@@ -550,7 +551,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerRegistration[] registrations = evictingRegistration is { } evicting
                         ? [source.Registration, target.Registration, evicting]
                         : [source.Registration, target.Registration];
-                    await RetireBrowseDependenciesAsync(registrations, false, timeout.Token).ConfigureAwait(false);
+                    NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
+                        registrations, false, timeout.Token).ConfigureAwait(false);
+                    await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -595,7 +598,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     retireSource ? [source.Registration, target.Registration] : [target.Registration],
                     true, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(retireSource ? 2u : 1u));
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(retireSource ? 1 : 0));
                 BrowseNextResponse resumed = await session.BrowseNextAsync(
@@ -662,7 +665,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     [source.Registration, target.Registration], false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(2u));
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
@@ -715,7 +718,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 NodeManagerBatchResult retired = await RetireBrowseDependenciesAsync(
                     [target.Registration], false, timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(1u));
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 List<ReferenceDescription> references = await DrainBrowsePointAsync(
                     session, page, timeout.Token).ConfigureAwait(false);

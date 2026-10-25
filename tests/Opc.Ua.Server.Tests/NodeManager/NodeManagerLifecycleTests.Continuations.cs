@@ -88,8 +88,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     result = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
                 }
-                int deletedAfterCommit = originalManager.DeleteAddressSpaceCount;
-                int disposedAfterCommit = originalManager.DisposeCount;
+                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                int deletedAfterRetirement = originalManager.DeleteAddressSpaceCount;
+                int disposedAfterRetirement = originalManager.DisposeCount;
                 BrowseResult current = await BrowseContinuationRootAsync(session, ns, 0, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(current.StatusCode, Is.EqualTo(replace ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
@@ -107,9 +108,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(deletedAfterCommit, Is.EqualTo(1));
-                    Assert.That(disposedAfterCommit, Is.EqualTo(1));
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    Assert.That(deletedAfterRetirement, Is.EqualTo(1));
+                    Assert.That(disposedAfterRetirement, Is.EqualTo(1));
+                    Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     Assert.That(result.CleanupFailure, Is.Null);
                     Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                     Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
@@ -163,7 +164,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    Assert.That(result.Retired, Is.EqualTo(3u));
+                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
 
                 BrowseNextResponse stale = await session.BrowseNextAsync(
@@ -372,7 +373,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             NodeManagerBatchResult retirement = await RetireContinuationOwnerAsync(
                 owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            Assert.That(retirement.Retired, Is.EqualTo(1u));
+            await retirement.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
 
             BrowseNextResponse stale = await session.BrowseNextAsync(
@@ -411,7 +412,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
-                Assert.That(result.Retired, Is.EqualTo(1u));
+                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -442,6 +443,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await m_server.NodeManagerLifecycle.ShadowReloadAsync(
                 owner.Registration, CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }),
                 ct: timeout.Token).ConfigureAwait(false);
+            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             BrowseNextResponse next = await session.BrowseNextAsync(
                 null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);

@@ -271,7 +271,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchResult result = await retired.CommitAsync(_ => default, timeout.Token)
                         .ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
             }
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, value), Is.EqualTo(!publish));
@@ -343,6 +343,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                await result.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
                 var cleanupFailure = RequireLifecycleValue(result.CleanupFailure) as AggregateException;
                 Assert.That(RequireLifecycleValue(cleanupFailure).Flatten().InnerExceptions,
@@ -351,7 +352,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(replacement.ReadinessCount, Is.EqualTo(1));
                 Assert.That(replacement.ReadinessCompletedCount, Is.EqualTo(1));
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
-                Assert.That(result.Retired, Is.EqualTo(1u));
+                Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                 Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, root), Is.True);
             }
             finally

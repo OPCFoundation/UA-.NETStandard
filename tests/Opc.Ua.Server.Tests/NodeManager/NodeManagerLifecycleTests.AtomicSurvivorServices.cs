@@ -95,6 +95,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(original.DisposeCount, Is.EqualTo(1));
                 original.ValidateNodeCallback = (_, _, _) =>
                     throw new InvalidOperationException("A survivor service re-entered its retired source.");
@@ -227,6 +228,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult committed = await prepared.CommitAsync(_ => default, timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.Find(valueId), Is.Null);
                 await CheckFiltersAsync().ConfigureAwait(false);
             }

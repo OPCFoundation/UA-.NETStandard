@@ -373,7 +373,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ExpandedNodeId cachedAlias = new(8412, kSecondModelNamespaceUri);
             cachedBuilder.AddEncodeableType(cachedAlias, structure).Commit();
             Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(cachedAlias, out _), Is.True);
-            await m_server.NodeManagerLifecycle.RemoveAsync(first, null).ConfigureAwait(false);
+            await RemoveAndRetireAsync(m_server.NodeManagerLifecycle, first).ConfigureAwait(false);
             cachedTypes.Remove(added);
             cachedNamespaces.Append("urn:opcfoundation.org:Tests:DetachedCleanup");
             Assert.That(m_server.CurrentInstance.TypeTree.IsKnown(added), Is.True);
@@ -877,6 +877,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 escaped = failure;
             }
+            Assert.That(result, Is.Not.Null);
+            await result!.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(escaped, Is.Null, "A post-decision callback failure must remain a committed outcome.");
@@ -893,7 +895,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (result is not null)
                 {
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     if (failPublication || failReadiness)
                     {
                         Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
@@ -915,7 +917,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                 }
             }
-            await result!.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
         }
 

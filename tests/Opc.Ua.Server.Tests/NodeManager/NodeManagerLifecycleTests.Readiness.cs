@@ -300,6 +300,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(next.Generation, Is.EqualTo(2));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
+            await originalManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
@@ -601,6 +602,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.ReadinessCompletedCount, Is.Zero);
             Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
             Assert.That(participant.DisposeCount, Is.Zero);
+            await originalManager.DisposalCompleted.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);

@@ -112,7 +112,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(result.CleanupFailure, Is.Null);
-                    Assert.That(result.Retired, Is.EqualTo(1u));
+                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 using (Assert.EnterMultipleScope())
                 {
@@ -244,10 +244,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 else
                 {
                     NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(result.CleanupFailure, Is.Null);
-                        Assert.That(result.Retired, Is.EqualTo(1u));
+                        Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
                     }
                 }
                 await Task.WhenAll(RequireLifecycleValue(closingBefore), RequireLifecycleValue(closingDuring))
@@ -444,6 +445,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             NodeManagerBatchResult result = await prepared.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(prepared.IsCommitted, Is.True);
@@ -456,7 +458,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(succeeding.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { eventId }));
                 Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
-                Assert.That(result.Retired, Is.EqualTo(1u));
+                Assert.That(result.Retirement.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             }
             var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException).Flatten().InnerExceptions;
             if (badStatus)
