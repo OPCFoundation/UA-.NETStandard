@@ -531,7 +531,8 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = [.. DataChangeMonitoredItems];
+                // A collection expression races the dictionary's Count against CopyTo during concurrent registration.
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = DataChangeMonitoredItems.ToArray();
                 // Collect the distinct attribute IDs being monitored so we can pre-read them.
                 // The raw value is read once without any index range or data encoding; each
                 // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.

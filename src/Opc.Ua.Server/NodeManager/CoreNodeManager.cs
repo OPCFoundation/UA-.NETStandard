@@ -93,65 +93,6 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates and applies a modify request to a monitored item whose source node is detached from the address
-        /// space, using the metadata retained by the item.
-        /// </summary>
-        /// <param name="context">The operation context of the request.</param>
-        /// <param name="timestampsToReturn">The timestamps to be returned for the item.</param>
-        /// <param name="monitoredItem">The detached monitored item to modify.</param>
-        /// <param name="request">The modify request.</param>
-        /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        /// <returns>The modification error and the revised filter result, if any.</returns>
-        internal async ValueTask<DetachedModifyResult>
-            ModifyDetachedMonitoredItemAsync(
-                OperationContext context,
-                TimestampsToReturn timestampsToReturn,
-                MonitoredItem monitoredItem,
-                MonitoredItemModifyRequest request,
-                CancellationToken cancellationToken)
-        {
-            MonitoringParameters parameters = request.RequestedParameters;
-            NodeState? metadata = monitoredItem.SourceMetadata;
-            if (metadata is null && !parameters.Filter.IsNull)
-            {
-                return new DetachedModifyResult(StatusCodes.BadMonitoredItemFilterUnsupported, null);
-            }
-            double defaultSamplingInterval = monitoredItem.SamplingInterval;
-            if (monitoredItem.SubscriptionCallback is ISubscription subscription)
-            {
-                defaultSamplingInterval = subscription.PublishingInterval;
-            }
-            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
-                parameters.SamplingInterval, defaultSamplingInterval, metadata,
-                monitoredItem.AttributeId, MinSupportedSamplingInterval);
-            uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
-                monitoredItem.IsDurable, parameters.QueueSize, MaxQueueSize, MaxDurableQueueSize);
-            ValidateMonitoringFilterResult validated = await ValidateMonitoringFilterAsync(
-                SystemContext.Copy(context),
-                new NodeHandle { NodeId = monitoredItem.NodeId, Node = metadata! },
-                monitoredItem.AttributeId, samplingInterval, queueSize, parameters.Filter, cancellationToken)
-                .ConfigureAwait(false);
-            if (ServiceResult.IsBad(validated.StatusCode))
-            {
-                return new DetachedModifyResult(validated.StatusCode, validated.FilterResult);
-            }
-            ServiceResult? error = monitoredItem.ModifyAttributes(
-                context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
-                validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
-                queueSize, parameters.DiscardOldest);
-            return new DetachedModifyResult(error, validated.FilterResult);
-        }
-
-        /// <summary>
-        /// The outcome of modifying a detached monitored item.
-        /// </summary>
-        /// <param name="Error">The modification error, if any.</param>
-        /// <param name="FilterResult">The revised filter result, if any.</param>
-        internal readonly record struct DetachedModifyResult(
-            ServiceResult? Error,
-            MonitoringFilterResult? FilterResult);
-
-        /// <summary>
         /// Updates the diagnostics node manager with the nodes that were imported.
         /// </summary>
         private void UpdateDiagnostics(ISystemContext context, NodeState node)

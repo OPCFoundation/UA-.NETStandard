@@ -9604,132 +9604,23 @@ namespace Opc.Ua.Server
             ExtensionObject filter,
             CancellationToken cancellationToken = default)
         {
-            var result = new ValidateMonitoringFilterResult();
-
-            // nothing to do if the filter is not specified.
-            if (filter.IsNull)
+            ValidateMonitoringFilterResult result = MonitoredItemFilterValidation.Validate(
+                Server, context, handle.Node, attributeId, filter);
+            if (StatusCode.IsGood(result.StatusCode) && result.FilterToUse is ServerAggregateFilter aggregate)
             {
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // extension objects wrap any data structure. must check that the client provided the correct structure.
-
-            if (ExtensionObject.ToEncodeable(filter) is not DataChangeFilter deadbandFilter)
-            {
-                if (ExtensionObject.ToEncodeable(filter) is not AggregateFilter aggregateFilter ||
-                    attributeId != Attributes.Value)
-                {
-                    result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                    return result;
-                }
-
-                if (!Server.AggregateManager.IsSupported(aggregateFilter.AggregateType))
-                {
-                    result.StatusCode = StatusCodes.BadAggregateNotSupported;
-                    return result;
-                }
-
-                var revisedFilter = new ServerAggregateFilter
-                {
-                    AggregateType = aggregateFilter.AggregateType,
-                    StartTime = aggregateFilter.StartTime,
-                    ProcessingInterval = aggregateFilter.ProcessingInterval,
-                    AggregateConfiguration = aggregateFilter.AggregateConfiguration,
-                    Stepped = false,
-                    PrimeInitialValue = true
-                };
-
-                StatusCode error = await ReviseAggregateFilterAsync(
+                StatusCode status = await ReviseAggregateFilterAsync(
                     context,
                     handle,
                     samplingInterval,
                     queueSize,
-                    revisedFilter,
+                    aggregate,
                     cancellationToken).ConfigureAwait(false);
-
-                if (StatusCode.IsBad(error))
+                if (StatusCode.IsBad(status))
                 {
-                    result.StatusCode = error;
-                    return result;
+                    return new ValidateMonitoringFilterResult { StatusCode = status };
                 }
-
-                var aggregateFilterResult = new AggregateFilterResult
-                {
-                    RevisedProcessingInterval = revisedFilter.ProcessingInterval,
-                    RevisedStartTime = revisedFilter.StartTime,
-                    RevisedAggregateConfiguration = revisedFilter.AggregateConfiguration
-                };
-
-                result.FilterToUse = revisedFilter;
-                result.FilterResult = aggregateFilterResult;
-                result.StatusCode = StatusCodes.Good;
-                return result;
+                result.FilterResult = MonitoredItemFilterValidation.CreateAggregateResult(aggregate);
             }
-
-            // deadband filters only allowed for variable values.
-            if (attributeId != Attributes.Value)
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            if (handle.Node is not BaseVariableState variable)
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            // check for status filter.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.None)
-            {
-                result.FilterToUse = deadbandFilter;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // deadband filters can only be used for numeric values.
-            if (!Server.TypeTree.IsTypeOf(variable.DataType, DataTypeIds.Number))
-            {
-                result.StatusCode = StatusCodes.BadFilterNotAllowed;
-                return result;
-            }
-
-            // nothing more to do for absolute filters.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.Absolute)
-            {
-                result.FilterToUse = deadbandFilter;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // need to look up the EU range if a percent filter is requested.
-            if (deadbandFilter.DeadbandType == (uint)DeadbandType.Percent)
-            {
-                // FindChild and the property value read each guard themselves on the node.
-                if (handle.Node.FindChild(
-                    context,
-                    QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
-                {
-                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
-                    return result;
-                }
-
-                Range tmpRange;
-                if (!property.Value.TryGetStructure(out tmpRange!))
-                {
-                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
-                    return result;
-                }
-
-                result.FilterToUse = deadbandFilter;
-                result.Range = tmpRange;
-                result.StatusCode = StatusCodes.Good;
-                return result;
-            }
-
-            // no other type of filter supported.
-            result.StatusCode = StatusCodes.BadFilterNotAllowed;
             return result;
         }
 
@@ -9769,21 +9660,8 @@ namespace Opc.Ua.Server
                 TimestampStructuredDataKeySelector.Instance;
             if (provider == null)
             {
-                filterToUse.ReviseProcessingInterval(
-                    samplingInterval,
-                    Server.AggregateManager.MinimumProcessingInterval);
-
-                DateTimeUtc currentTime =
-                    ((Server as ITimeProviderProvider)?.TimeProvider ??
-                        TimeProvider.System).GetUtcNow().UtcDateTime;
-                filterToUse.ReviseStartTime(currentTime, queueSize);
-
-                if (filterToUse.AggregateConfiguration
-                    .UseServerCapabilitiesDefaults)
-                {
-                    filterToUse.AggregateConfiguration = Server.AggregateManager
-                        .GetDefaultConfiguration(default);
-                }
+                MonitoredItemFilterValidation.ReviseDefaultAggregate(
+                    Server, samplingInterval, queueSize, filterToUse);
                 return StatusCodes.Good;
             }
 

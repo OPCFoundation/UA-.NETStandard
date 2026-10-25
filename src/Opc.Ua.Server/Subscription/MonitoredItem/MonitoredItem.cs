@@ -1183,6 +1183,60 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Revises unresolved attributes against server policy without racing source adoption or disposal.
+        /// </summary>
+        internal (ServiceResult? Error, MonitoringFilterResult? FilterResult) ModifyUnresolvedAttributes(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            MonitoredItemModifyRequest request,
+            ServerConfiguration configuration)
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    return (StatusCodes.BadMonitoredItemIdInvalid, null);
+                }
+                if (!m_isDetached)
+                {
+                    return (StatusCodes.BadInvalidState, null);
+                }
+                MonitoringParameters parameters = request.RequestedParameters;
+                NodeState? metadata = SourceMetadata;
+                if (metadata is null && !parameters.Filter.IsNull)
+                {
+                    return (StatusCodes.BadMonitoredItemFilterUnsupported, null);
+                }
+                double defaultInterval = SubscriptionCallback is ISubscription subscription
+                    ? subscription.PublishingInterval : SamplingInterval;
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    parameters.SamplingInterval, defaultInterval, metadata, AttributeId,
+                    configuration.MinSupportedSamplingInterval);
+                uint queueSize = SubscriptionManager.CalculateRevisedQueueSize(
+                    IsDurable, parameters.QueueSize, (uint)configuration.MaxNotificationQueueSize,
+                    (uint)configuration.MaxDurableNotificationQueueSize);
+                AsyncCustomNodeManager.ValidateMonitoringFilterResult validated =
+                    MonitoredItemFilterValidation.Validate(
+                        m_server, new ServerSystemContext(m_server, context), metadata, AttributeId, parameters.Filter);
+                if (StatusCode.IsBad(validated.StatusCode))
+                {
+                    return (validated.StatusCode, validated.FilterResult);
+                }
+                if (validated.FilterToUse is ServerAggregateFilter aggregate)
+                {
+                    MonitoredItemFilterValidation.ReviseDefaultAggregate(
+                        m_server, samplingInterval, queueSize, aggregate);
+                    validated.FilterResult = MonitoredItemFilterValidation.CreateAggregateResult(aggregate);
+                }
+                ServiceResult? error = ModifyAttributes(
+                    context.DiagnosticsMask, timestampsToReturn, parameters.ClientHandle,
+                    validated.FilterToUse, validated.FilterToUse, validated.Range, samplingInterval,
+                    queueSize, parameters.DiscardOldest);
+                return (error, validated.FilterResult);
+            }
+        }
+
+        /// <summary>
         /// Brings events that were queued before a modification in line with the new
         /// select clauses and client handle.
         /// </summary>

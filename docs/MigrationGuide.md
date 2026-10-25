@@ -146,6 +146,9 @@ and `ManagerHandle` now return null when no source is bound. Custom item consume
 these properties before invoking source operations, and must not use Core ownership or a shared
 sentinel handle to recognize a lost node. The subscription retains the item and its queues;
 the original stable slot retains recovery ownership until compatible adoption or client deletion.
+Unresolved-item modification now uses `ServerConfiguration` sampling and queue limits instead of
+concrete `CoreNodeManager` settings or overrides. Bound items still use their source manager's
+validation hooks, including historian-specific aggregate revision.
 
 Condition-refresh callbacks now receive invocation-scoped `IEventMonitoredItem` targets rather than
 the subscription's original concrete item objects. Custom refresh implementations must use the

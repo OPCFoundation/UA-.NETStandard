@@ -96,6 +96,209 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Unresolved modification uses server limits and retained metadata without a concrete Core manager.
+        /// </summary>
+        [TestCase("none", false)]
+        [TestCase("none", true)]
+        [TestCase("absolute", false)]
+        [TestCase("percent", false)]
+        [TestCase("missing-range", false)]
+        [TestCase("invalid-type", false)]
+        [TestCase("no-metadata", false)]
+        [TestCase("none-no-metadata", false)]
+        [TestCase("aggregate", false)]
+        [TestCase("unsupported-aggregate", false)]
+        [TestCase("aggregate-no-metadata", false)]
+        [TestCase("cancelled", false)]
+        public async Task UnresolvedModificationUsesServerPolicyWithoutConcreteCoreAsync(string filter, bool durable)
+        {
+            var clock = new FakeTimeProvider();
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues, clock);
+            using (queues)
+            using (var aggregates = new AggregateManager(server.Object))
+            {
+                server.SetupGet(value => value.AggregateManager).Returns(aggregates);
+                if (filter == "aggregate")
+                {
+                    server.SetupGet(value => value.DiagnosticsNodeManager)
+                        .Returns(new Mock<IDiagnosticsNodeManager>().Object);
+                    var calculator = new Mock<IAggregateCalculator>();
+                    await aggregates.RegisterFactoryAsync(
+                        ObjectIds.AggregateFunction_Average, "Average",
+                        (_, _, _, _, _, _, _) => calculator.Object).ConfigureAwait(false);
+                }
+                if (durable)
+                {
+                    var durableQueues = new Mock<IMonitoredItemQueueFactory>();
+                    durableQueues.SetupGet(value => value.SupportsDurableQueues).Returns(true);
+                    durableQueues.Setup(value => value.CreateDataChangeQueue(It.IsAny<bool>(), It.IsAny<uint>()))
+                        .Returns<bool, uint>((_, id) => queues.CreateDataChangeQueue(false, id));
+                    server.SetupGet(value => value.MonitoredItemQueueFactory).Returns(durableQueues.Object);
+                }
+                var factory = new Mock<IMainNodeManagerFactory>();
+                factory.Setup(value => value.CreateConfigurationNodeManager())
+                    .Returns(new Mock<IConfigurationNodeManager>().Object);
+                factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                    .Returns(new Mock<ICoreNodeManager>().Object);
+                server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+                using var master = new MasterNodeManager(
+                    server.Object,
+                    new ApplicationConfiguration
+                    {
+                        ServerConfiguration = new ServerConfiguration
+                        {
+                            MinSupportedSamplingInterval = 125,
+                            MaxNotificationQueueSize = 4,
+                            MaxDurableNotificationQueueSize = 8
+                        }
+                    },
+                    null,
+                    Array.Empty<IAsyncNodeManager>(),
+                    null);
+                server.SetupGet(value => value.NodeManager).Returns(master);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("LostSource", 1),
+                    DataType = filter == "invalid-type" ? DataTypeIds.String : DataTypeIds.Number,
+                    MinimumSamplingInterval = 500
+                };
+                if (filter == "percent")
+                {
+                    node.AddChild(new PropertyState(node)
+                    {
+                        BrowseName = QualifiedName.From(BrowseNames.EURange),
+                        Value = new Variant(new ExtensionObject(new Range { Low = 0, High = 100 }))
+                    });
+                }
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object,
+                    new Mock<IAsyncNodeManager>().Object,
+                    filter.EndsWith("no-metadata", StringComparison.Ordinal)
+                        ? new NodeHandle() : new NodeHandle(node.NodeId, node),
+                    node.NodeId,
+                    durable: durable);
+                ((IDetachableMonitoredItem)item).Detach(server.Object);
+                ((IDetachableMonitoredItem)item).QueueNodeIdUnknown();
+                var request = new MonitoredItemModifyRequest
+                {
+                    MonitoredItemId = item.Id,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 43,
+                        SamplingInterval = 0,
+                        QueueSize = 100,
+                        DiscardOldest = true,
+                        Filter = filter is "none" or "none-no-metadata" ? ExtensionObject.Null :
+                            filter.Contains("aggregate", StringComparison.Ordinal) ? new ExtensionObject(
+                                new AggregateFilter
+                                {
+                                    AggregateType = ObjectIds.AggregateFunction_Average,
+                                    ProcessingInterval = 1,
+                                    AggregateConfiguration = new AggregateConfiguration
+                                    {
+                                        UseServerCapabilitiesDefaults = true
+                                    }
+                                }) :
+                            new ExtensionObject(new DataChangeFilter
+                            {
+                                DeadbandType = filter is "percent" or "missing-range"
+                                    ? (uint)DeadbandType.Percent : (uint)DeadbandType.Absolute,
+                                DeadbandValue = 10
+                            })
+                    }
+                };
+                var errors = new List<ServiceResult> { ServiceResult.Good };
+                var results = new List<MonitoringFilterResult> { null! };
+
+                using var cancellation = new CancellationTokenSource();
+                if (filter == "cancelled")
+                {
+                    cancellation.Cancel();
+                    await Assert.ThrowsAsync<OperationCanceledException>(
+                        async () => await ModifyAsync().ConfigureAwait(false));
+                    Assert.That(item.ClientHandle, Is.EqualTo(3U));
+                    Assert.That(item.NodeManager, Is.Null);
+                    server.VerifyGet(value => value.CoreNodeManager, Times.Never);
+                    return;
+                }
+                await ModifyAsync().ConfigureAwait(false);
+
+                ValueTask ModifyAsync() => master.ModifyMonitoredItemsAsync(
+                    new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems,
+                        RequestLifetime.None),
+                    TimestampsToReturn.Both,
+                    [item],
+                    [request],
+                    errors, results, cancellation.Token);
+
+                StatusCode expected = filter switch
+                {
+                    "missing-range" => StatusCodes.BadDeadbandFilterInvalid,
+                    "invalid-type" => StatusCodes.BadFilterNotAllowed,
+                    "no-metadata" => StatusCodes.BadMonitoredItemFilterUnsupported,
+                    "aggregate-no-metadata" => StatusCodes.BadMonitoredItemFilterUnsupported,
+                    "unsupported-aggregate" => StatusCodes.BadAggregateNotSupported,
+                    _ => StatusCodes.Good
+                };
+                Assert.Multiple(() =>
+                {
+                    Assert.That(errors[0]?.StatusCode ?? StatusCodes.Good, Is.EqualTo(expected));
+                    Assert.That(request.Processed, Is.True);
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(item.ClientHandle, StatusCode.IsGood(expected) ? Is.EqualTo(43U) : Is.Not.EqualTo(43U));
+                    if (StatusCode.IsGood(expected))
+                    {
+                        Assert.That(item.SamplingInterval, Is.EqualTo(filter == "none-no-metadata" ? 125 : 500));
+                        Assert.That(item.QueueSize, Is.EqualTo(durable ? 8U : 4U));
+                    }
+                    if (filter == "aggregate")
+                    {
+                        Assert.That(results[0], Is.InstanceOf<AggregateFilterResult>());
+                        var revised = (AggregateFilterResult)results[0];
+                        Assert.That(revised.RevisedProcessingInterval, Is.EqualTo(1000));
+                        Assert.That(revised.RevisedStartTime, Is.LessThanOrEqualTo(
+                            (DateTimeUtc)clock.GetUtcNow().UtcDateTime));
+                        Assert.That(revised.RevisedAggregateConfiguration.UseServerCapabilitiesDefaults, Is.False);
+                        Assert.That(revised.RevisedAggregateConfiguration.PercentDataGood, Is.EqualTo(100));
+                    }
+                });
+                server.VerifyGet(value => value.CoreNodeManager, Times.Never);
+            }
+        }
+
+        /// <summary>
+        /// A stale unresolved modify cannot change an already adopted or disposed item.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UnresolvedModificationRejectsAdoptedOrDisposedItem(bool disposed)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (MonitoredItem item = CreateMonitoredItem(
+                server.Object, new Mock<IAsyncNodeManager>().Object, new NodeHandle(), new NodeId("State", 1)))
+            {
+                if (disposed)
+                {
+                    item.Dispose();
+                }
+                (ServiceResult? error, _) = item.ModifyUnresolvedAttributes(
+                    new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems,
+                        RequestLifetime.None),
+                    TimestampsToReturn.Both,
+                    new MonitoredItemModifyRequest
+                    {
+                        RequestedParameters = new MonitoringParameters { ClientHandle = 43 }
+                    },
+                    new ServerConfiguration());
+                Assert.That(error!.StatusCode, Is.EqualTo(
+                    disposed ? StatusCodes.BadMonitoredItemIdInvalid : StatusCodes.BadInvalidState));
+                Assert.That(item.ClientHandle, Is.EqualTo(3U));
+            }
+        }
+
+        /// <summary>
         /// Awaited legacy-manager edits recover only unresolved items in the same serving slot.
         /// </summary>
         [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
@@ -2588,7 +2791,8 @@ namespace Opc.Ua.Server.Tests
             IAsyncNodeManager nodeManager,
             object managerHandle,
             NodeId nodeId,
-            uint id = 2)
+            uint id = 2,
+            bool durable = false)
         {
             var identity = new Mock<IUserIdentity>();
             var session = new Mock<ISession>();
@@ -2620,7 +2824,8 @@ namespace Opc.Ua.Server.Tests
                 samplingInterval: 1000,
                 queueSize: 10,
                 discardOldest: true,
-                sourceSamplingInterval: 1000)
+                sourceSamplingInterval: 1000,
+                createDurable: durable)
             {
                 SubscriptionCallback = subscription.Object
             };

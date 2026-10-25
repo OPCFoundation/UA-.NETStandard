@@ -65,11 +65,13 @@ namespace Opc.Ua.Server
             MasterNodeManager owner,
             NodeManagerRoutingTable nodeManagers,
             IServerInternal server,
+            ServerConfiguration configuration,
             ILogger logger)
         {
             m_owner = owner ?? throw new ArgumentNullException(nameof(owner));
             m_nodeManagers = nodeManagers ?? throw new ArgumentNullException(nameof(nodeManagers));
             Server = server ?? throw new ArgumentNullException(nameof(server));
+            m_configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             m_logger = logger ?? throw new ArgumentNullException(nameof(logger));
             Func<NodeId, CancellationToken, ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>> lookup =
                 owner.GetManagerHandleAsync;
@@ -2972,13 +2974,12 @@ namespace Opc.Ua.Server
                     (monitoredItems[ii].MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     itemsToModify[ii].Processed = true;
-                    if (monitoredItems[ii] is MonitoredItem detached &&
-                        m_owner.CoreNodeManager is CoreNodeManager core)
+                    if (monitoredItems[ii] is MonitoredItem unresolved)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         (ServiceResult? error, MonitoringFilterResult? result) =
-                            await core.ModifyDetachedMonitoredItemAsync(
-                                context, timestampsToReturn, detached, itemsToModify[ii], cancellationToken)
-                                .ConfigureAwait(false);
+                            unresolved.ModifyUnresolvedAttributes(
+                                context, timestampsToReturn, itemsToModify[ii], m_configuration);
                         errors[ii] = error!;
                         filterResults[ii] = result!;
                     }
@@ -4600,7 +4601,14 @@ namespace Opc.Ua.Server
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly ILogger m_logger;
 
-        /// <summary>The optional legacy virtual lookup, bound once rather than inspected on a hot path.</summary>
+        /// <summary>
+        /// Server-wide queue and sampling limits for items without a bound source.
+        /// </summary>
+        private readonly ServerConfiguration m_configuration;
+
+        /// <summary>
+        /// The optional legacy virtual lookup, bound once rather than inspected on a hot path.
+        /// </summary>
         private readonly Func<NodeId, CancellationToken,
             ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>>? m_handleLookupOverride;
 

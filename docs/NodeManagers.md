@@ -987,6 +987,9 @@ An unresolved item has no bound manager or node handle: `IMonitoredItem.NodeMana
 and its original stable slot owns recovery; the Core manager is not a parking owner.
 Stack service dispatch handles unresolved modification, monitoring-mode changes and deletion
 locally rather than manufacturing a source binding.
+Unresolved modification uses the server configuration's sampling and queue limits and the
+item's retained type/range metadata. Source-specific validation hooks resume only after adoption;
+Core-manager overrides do not supply policy for an item without a source.
 
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after

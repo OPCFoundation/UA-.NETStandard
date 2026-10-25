@@ -178,7 +178,8 @@ namespace Opc.Ua.Server
                 server.TypeTree,
                 factory);
 
-            m_serviceDispatch = new NodeManagerServiceDispatcher(this, m_nodeManagers, server, m_logger);
+            m_serviceDispatch = new NodeManagerServiceDispatcher(
+                this, m_nodeManagers, server, configuration.ServerConfiguration, m_logger);
         }
 
         /// <summary>
