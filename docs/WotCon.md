@@ -1592,7 +1592,12 @@ last completion summary.
 ### Provider requirements
 
 `LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` require the same
-`INodeManagerLifecycle` transaction provider. The default lifecycle and file registry with
+`INodeManagerLifecycle` transaction provider. The source adapter prepares through
+`PrepareAsync(changes, ct)` and begins captured invocations through
+`CapturePublication().BeginAsync(ct)` without forwarding a request context.
+Per-generation binding records coordinate callbacks without global binding admission;
+publication still awaits reconciliation and readiness before returning.
+The default lifecycle and file registry with
 genuine immutable-content leases support the four modes. Immediate-only custom
 hosts and `InMemoryWotRegistryStore` do not provide Refresh publication;
 unsupported capabilities fail `BadNotSupported` before acquisition/effects.

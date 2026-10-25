@@ -53,6 +53,79 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class LifecycleWotProjectionHostBindingTests
     {
         /// <summary>
+        /// Verifies standalone preparation uses the canonical context-free transaction and preserves failures.
+        /// </summary>
+        /// <param name="hasContext">Whether the WoT compatibility entry point receives a request context.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task StandalonePreparationUsesContextFreeLifecycleTransactionAsync(bool hasContext)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var failure = new InvalidOperationException("Candidate preparation failed.");
+            ArrayOf<NodeManagerBatchChange> captured = default;
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
+            lifecycle.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
+                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+                .Throws(failure);
+            var host = new LifecycleWotProjectionHost(lifecycle.Object);
+            var document = new WotProjectionDocument("context-free-preparation",
+            [
+                new WotProjectionSource("context-free-source", ["urn:wot:context-free"], Encoding.UTF8.GetBytes("""
+                    <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                      <NamespaceUris><Uri>urn:wot:context-free</Uri></NamespaceUris>
+                    </UANodeSet>
+                    """))
+            ]);
+            IOperationContext? context = hasContext ? Mock.Of<IOperationContext>() : null;
+
+            await Assert.ThatAsync(async () => await host.PrepareAsync(
+                [WotProjectionChange.Add(document)], null, context, cancellation.Token).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo(failure.Message))
+                .ConfigureAwait(false);
+
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0].Current, Is.Null);
+            Assert.That(captured[0].Factory, Is.Not.Null);
+            Assert.That(captured[0].TransitionMode, Is.EqualTo(NodeManagerMonitoredItemTransitionMode.Migrate));
+            lifecycle.VerifyAll();
+        }
+
+        /// <summary>
+        /// Verifies captured WoT invocations use the context-free lifecycle admission and retain disposal.
+        /// </summary>
+        /// <param name="hasContext">Whether the WoT compatibility entry point receives a request context.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CapturedPublicationUsesContextFreeLifecycleAdmissionAsync(bool hasContext)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var invocation = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            invocation.SetupGet(owner => owner.IsCurrent).Returns(true);
+            invocation.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var capture = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            capture.Setup(owner => owner.BeginAsync(cancellation.Token))
+                .Returns(new ValueTask<INodeManagerPublication>(invocation.Object));
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.SetupGet(owner => owner.SupportsPublicationIsolation).Returns(true);
+            lifecycle.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
+            var host = new LifecycleWotProjectionHost(lifecycle.Object);
+            IOperationContext? context = hasContext ? Mock.Of<IOperationContext>() : null;
+
+            await using (IWotProjectionPublication publication = await host.CapturePublication()
+                .BeginAsync(context, cancellation.Token).ConfigureAwait(false))
+            {
+                Assert.That(publication.IsCurrent, Is.True);
+            }
+
+            lifecycle.VerifyAll();
+            capture.Verify(owner => owner.BeginAsync(cancellation.Token), Times.Once);
+            invocation.Verify(owner => owner.DisposeAsync(), Times.Once);
+            invocation.VerifyAll();
+        }
+
+        /// <summary>
         /// Verifies observed publications retain private source namespace mappings through commit or abort.
         /// </summary>
         /// <param name="invocation">Whether preparation uses an explicit publication invocation.</param>

@@ -87,14 +87,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            return PrepareCoreAsync(changes, views, null, callerContext, cancellationToken);
+            return PrepareCoreAsync(changes, views, null, cancellationToken);
         }
 
         private async ValueTask<IWotPreparedProjectionPublication> PrepareCoreAsync(
             ArrayOf<WotProjectionChange> changes,
             IWotPreparedViewPublication? views,
             INodeManagerPublication? publication,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
             if (!m_lifecycle.SupportsPreparedPublication)
@@ -103,7 +102,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             PreparedChanges candidate = CreatePreparedChanges(changes, views);
             IPreparedNodeManagerBatch? batch = publication is null
-                ? await m_lifecycle.PrepareAsync(candidate.Changes, callerContext, cancellationToken)
+                ? await m_lifecycle.PrepareAsync(candidate.Changes, cancellationToken)
                     .ConfigureAwait(false)
                 : await publication.PrepareAsync(candidate.Changes, cancellationToken).ConfigureAwait(false);
             try
@@ -253,7 +252,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IOperationContext? callerContext,
                 CancellationToken cancellationToken)
             {
-                INodeManagerPublication invocation = await capture.BeginAsync(callerContext, cancellationToken)
+                INodeManagerPublication invocation = await capture.BeginAsync(cancellationToken)
                     .ConfigureAwait(false);
                 return new PublicationInvocation(owner, invocation);
             }
@@ -278,7 +277,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IWotPreparedViewPublication? views = null,
                 CancellationToken cancellationToken = default)
             {
-                return owner.PrepareCoreAsync(changes, views, publication, null, cancellationToken);
+                return owner.PrepareCoreAsync(changes, views, publication, cancellationToken);
             }
 
             /// <summary>
