@@ -43,8 +43,7 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         IMasterNodeManager,
         IMonitoredItemTransferCoordinator,
-        IDynamicNodeManagerHost,
-        ISyncNodeManagerMonitoredItemRecovery
+        IDynamicNodeManagerHost
     {
         /// <summary>
         /// Initializes the object with default values.
@@ -994,68 +993,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void ISyncNodeManagerMonitoredItemRecovery.RecoverDetachedMonitoredItems(
-            IAsyncNodeManager nodeManager,
-            IReadOnlyCollection<NodeId> nodeIds)
-        {
-            if (!Server.IsRunning)
-            {
-                return;
-            }
-
-            IAsyncNodeManager? visibleNodeManager = GetVisibleNodeManager(nodeManager);
-            if (visibleNodeManager is not INodeManagerMonitoredItemLifecycle nodeManagerLifecycle)
-            {
-                return;
-            }
-
-            var failures = new List<Exception>();
-            foreach (IMonitoredItem monitoredItem in GetUnresolvedMonitoredItems(visibleNodeManager, nodeIds))
-            {
-                var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
-                if (!itemLifecycle.IsDetached)
-                {
-                    if (monitoredItem.NodeManager is not
-                        INodeManagerMonitoredItemLifecycle currentLifecycle)
-                    {
-                        failures.Add(new InvalidOperationException(
-                            "The current NodeManager cannot detach a deleted monitored item."));
-                        continue;
-                    }
-
-                    ServiceResult detachResult = CompleteInMemory(
-                        currentLifecycle.DetachMonitoredItemAsync(monitoredItem));
-                    if (ServiceResult.IsBad(detachResult))
-                    {
-                        failures.Add(new ServiceResultException(detachResult));
-                        continue;
-                    }
-                }
-
-                ServiceResult attachResult = CompleteInMemory(
-                    nodeManagerLifecycle.AttachMonitoredItemAsync(monitoredItem));
-                if (ServiceResult.IsGood(attachResult))
-                {
-                    continue;
-                }
-
-                itemLifecycle.Detach(Server);
-                itemLifecycle.MarkNodeDeleted();
-                if (!IsExpectedRecoveryFailure(attachResult))
-                {
-                    failures.Add(new ServiceResultException(attachResult));
-                }
-            }
-
-            if (failures.Count > 0)
-            {
-                throw new AggregateException(
-                    "One or more monitored items could not be recovered.",
-                    failures);
-            }
-        }
-
-        /// <inheritdoc/>
         async ValueTask IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds,
@@ -1159,28 +1096,6 @@ namespace Opc.Ua.Server
                     "One or more monitored items could not be recovered.",
                     failures);
             }
-        }
-
-        /// <summary>
-        /// Consumes a MonitoredItem lifecycle operation that the NodeManager completed in memory.
-        /// The synchronous recovery path runs inside <c>AddPredefinedNode</c>, where attaching and
-        /// detaching never suspends, so the result is already available and no blocking wait is
-        /// introduced.
-        /// </summary>
-        /// <param name="operation">The operation the NodeManager started.</param>
-        /// <returns>The result of the operation.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// The NodeManager suspended an operation that has to complete in memory.
-        /// </exception>
-        private static ServiceResult CompleteInMemory(ValueTask<ServiceResult> operation)
-        {
-            if (!operation.IsCompleted)
-            {
-                throw new InvalidOperationException(
-                    "A NodeManager must complete MonitoredItem recovery without suspending when " +
-                    "a Node is added through the synchronous AddPredefinedNode path.");
-            }
-            return operation.Result;
         }
 
         private static bool IsExpectedRecoveryFailure(ServiceResult result)

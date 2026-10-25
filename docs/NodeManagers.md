@@ -987,6 +987,14 @@ source-generation admission through their final enqueue. Already-admitted work c
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.
 Physical retirement waits for those admissions to drain.
 
+For runtime edits to a legacy `CustomNodeManager2`, await
+`((ILocalAddressSpaceSource)manager).CreateLocalAddressSpace().AddOrUpdateNodeAsync(node, ct)`.
+The complete subtree is indexed before its unresolved items in that manager's stable slot are
+checked for recovery; other unresolved nodes are not retried. Use `CreateNodeAsync` when creating
+an instance under a parent with child-id assignment and model-change emission. The synchronous
+`AddPredefinedNode` helper and obsolete `CreateNode` only initialize/index nodes; they do not force
+asynchronous recovery to complete synchronously.
+
 Root event reporting propagates the exact source through its system context, not ambient
 execution state. The Server notifier's queued deliveries keep their own admissions to that
 source, including when retirement starts during reporting. Forward the supplied context when

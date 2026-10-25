@@ -148,6 +148,24 @@ lookups with the supplied item id or manager handle. Queue work before returning
 escaped targets refuse events after success, failure or cancellation. Item ids and the original
 virtual queue implementation are preserved. See [MonitoredItems](NodeManagers.md#monitoreditems).
 
+`CustomNodeManager2.AddPredefinedNode` remains a synchronous initialization/indexing helper. For
+runtime changes that must recover unresolved monitored items, use the existing awaited
+`ILocalAddressSpace` adapter:
+```csharp
+ILocalAddressSpace addressSpace = ((ILocalAddressSpaceSource)nodeManager).CreateLocalAddressSpace();
+await addressSpace.AddOrUpdateNodeAsync(node, cancellationToken);
+```
+Recovery now runs once after the complete subtree is indexed and can suspend normally. It checks
+only unresolved items for the indexed subtree in that manager's stable slot; unrelated unresolved
+nodes are not retried. The synchronous recovery interface and completed-ValueTask requirement are
+removed. Startup indexing does not require recovery.
+
+Replace legacy `CustomNodeManager2.CreateNode(...)` runtime calls with
+`await nodeManager.CreateNodeAsync(..., cancellationToken)`. The asynchronous method preserves
+parent linking, child-id assignment and model-change emission, and awaits subtree recovery outside
+the indexing lock. The obsolete synchronous method still creates/indexes the instance, but does not
+run asynchronous recovery.
+
 ## Compatible metadata in prepared NodeManager batches
 
 Prepared NodeManager batches now reject incompatible metadata before invoking the durable decision

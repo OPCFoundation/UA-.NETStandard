@@ -33,6 +33,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
@@ -55,8 +57,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
     {
         private const string TestNamespaceUri = "http://test.org/UA/CustomNodeManagerDeterministic/";
 
-        [Test]
-        public void CreateNode_AddsNodeToPredefinedNodesAndEmitsModelChange()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CreateNodeAddsNodeToPredefinedNodesAndEmitsModelChangeAsync(bool asynchronous)
         {
             using Harness h = CreateHarness();
             ushort ns = h.NamespaceIndex;
@@ -65,12 +68,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             // node that carries no NodeVersion property (the default requires one).
             h.Manager.RequireNodeVersionForModelChange = false;
 
-            NodeId resultId = h.Manager.CreateNode(
-                h.Context,
-                NodeId.Null,
-                ReferenceTypeIds.Organizes,
-                new QualifiedName("Created", ns),
-                instance);
+            NodeId resultId = asynchronous
+                ? await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    new QualifiedName("Created", ns), instance).ConfigureAwait(false)
+                : h.Manager.CreateNode(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    new QualifiedName("Created", ns), instance);
 
             Assert.That(resultId.IsNull, Is.False);
             Assert.That(resultId, Is.EqualTo(instance.NodeId));
@@ -112,6 +116,110 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             Assert.That(h.Manager.PredefinedNodes.ContainsKey(variable.NodeId), Is.True);
             Assert.That(h.Manager.PredefinedNodes[variable.NodeId], Is.SameAs(variable));
+        }
+
+        /// <summary>
+        /// Runtime address-space additions await slot recovery without requiring synchronous completion.
+        /// </summary>
+        [Test]
+        public async Task RuntimeAdditionAwaitsScopedRecoveryAsync([Values] bool fail, [Values] bool create)
+        {
+            using Harness h = CreateHarness();
+            IMasterNodeManager previous = h.MockServer.Object.NodeManager;
+            var master = new Mock<IMasterNodeManager>();
+            Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
+            master.SetupGet(value => value.ConfigurationNodeManager).Returns(previous.ConfigurationNodeManager);
+            master.SetupGet(value => value.CoreNodeManager).Returns(previous.CoreNodeManager);
+            h.MockServer.SetupGet(value => value.NodeManager).Returns(master.Object);
+            using var cancellation = new CancellationTokenSource();
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool called = false;
+            CancellationToken receivedToken = default;
+            IAsyncNodeManager? receivedManager = null;
+            IReadOnlyCollection<NodeId>? receivedNodes = null;
+            var failure = new InvalidOperationException("asynchronous recovery failed");
+            recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                    It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId>? nodeIds, CancellationToken ct) =>
+                {
+                    receivedManager = owner;
+                    receivedToken = ct;
+                    receivedNodes = nodeIds;
+                    called = true;
+                    await release.Task.ConfigureAwait(false);
+                    if (fail)
+                    {
+                        throw failure;
+                    }
+                });
+            BaseDataVariableState node = h.NewVariable("AwaitedRecovery", 42);
+            BaseDataVariableState child = h.NewVariable("RecoveryChild", 1);
+            node.AddChild(child);
+            ILocalAddressSpace addressSpace = ((ILocalAddressSpaceSource)h.Manager).CreateLocalAddressSpace();
+            Task addition = create
+                ? h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes,
+                    node.BrowseName, node, cancellation.Token).AsTask()
+                : addressSpace.AddOrUpdateNodeAsync(node, cancellation.Token).AsTask();
+            try
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(called, Is.True);
+                    Assert.That(addition.IsCompleted, Is.False);
+                    Assert.That(h.Manager.PredefinedNodes[node.NodeId], Is.SameAs(node));
+                    Assert.That(receivedToken, Is.EqualTo(cancellation.Token));
+                    Assert.That(receivedNodes, Is.EquivalentTo(new[] { node.NodeId, child.NodeId }));
+                    Assert.That(receivedManager, Is.TypeOf<AsyncNodeManagerAdapter>());
+                    Assert.That((receivedManager as AsyncNodeManagerAdapter)?.SyncNodeManager, Is.SameAs(h.Manager));
+                });
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (fail && called)
+                {
+                    await Assert.ThatAsync(
+                        async () => await addition.ConfigureAwait(false),
+                        Throws.TypeOf<InvalidOperationException>().And.SameAs(failure)).ConfigureAwait(false);
+                }
+                else
+                {
+                    await addition.ConfigureAwait(false);
+                }
+            }
+            recovery.Verify(value => value.RecoverDetachedMonitoredItemsAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Creation validates reference arguments and cancellation before indexing any nodes.
+        /// </summary>
+        [Test]
+        public async Task CreateNodeAsyncRejectsInvalidArgumentsBeforeIndexingAsync()
+        {
+            using Harness h = CreateHarness();
+            BaseDataVariableState node = h.NewVariable("CanceledCreation", 1);
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    null!, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, node).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("context")).ConfigureAwait(false);
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, null!).ConfigureAwait(false),
+                Throws.TypeOf<ArgumentNullException>()
+                    .With.Property("ParamName").EqualTo("instance")).ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            await Assert.ThatAsync(async () =>
+                await h.Manager.CreateNodeAsync(
+                    h.Context, NodeId.Null, ReferenceTypeIds.Organizes, node.BrowseName, node,
+                    cancellation.Token).ConfigureAwait(false),
+                Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            Assert.That(h.Manager.PredefinedNodes.ContainsKey(node.NodeId), Is.False);
         }
 
         [Test]

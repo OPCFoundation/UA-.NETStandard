@@ -278,12 +278,64 @@ namespace Opc.Ua.Server
             return new PredefinedNodesAddressSpace(
                 SystemContext,
                 PredefinedNodes,
-                (node, cancellationToken) =>
-                {
-                    AddPredefinedNode(SystemContext, node);
-                    return default;
-                },
+                AddPredefinedNodeForLocalAddressSpaceAsync,
                 (nodeId, cancellationToken) => new ValueTask<bool>(DeleteNode(SystemContext, nodeId)));
+        }
+
+        /// <summary>
+        /// Completes runtime node registration before awaiting recovery in this manager's stable slot.
+        /// </summary>
+        /// <param name="node">The node and children to register.</param>
+        /// <param name="cancellationToken">Cancels registration or the recovery operation.</param>
+        private async ValueTask AddPredefinedNodeForLocalAddressSpaceAsync(
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            AddPredefinedNode(SystemContext, node);
+            await RecoverRegisteredSubtreeAsync(SystemContext, node, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Recovers only targets in the completed registration, including its active child nodes.
+        /// </summary>
+        /// <param name="context">The registration context used to enumerate children.</param>
+        /// <param name="node">The root of the completed registration.</param>
+        /// <param name="cancellationToken">Cancels the recovery operation.</param>
+        private async ValueTask RecoverRegisteredSubtreeAsync(
+            ISystemContext context,
+            NodeState node,
+            CancellationToken cancellationToken)
+        {
+            if (Server.NodeManager is IDynamicNodeManagerHost recovery)
+            {
+                var nodeIds = new HashSet<NodeId>(NodeIdComparer.Default);
+                var pending = new Stack<NodeState>();
+                pending.Push(node);
+                while (pending.Count > 0)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    NodeState current = pending.Pop();
+                    if (!nodeIds.Add(current.NodeId))
+                    {
+                        continue;
+                    }
+                    if (!PredefinedNodes.TryGetValue(current.NodeId, out NodeState? active))
+                    {
+                        throw new InvalidOperationException(
+                            $"The registration did not index node '{current.NodeId}'.");
+                    }
+                    var children = new List<BaseInstanceState>();
+                    active.GetChildren(context, children);
+                    foreach (BaseInstanceState child in children)
+                    {
+                        pending.Push(child);
+                    }
+                }
+                await recovery.RecoverDetachedMonitoredItemsAsync(
+                    m_asyncNodeManager, nodeIds, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -911,7 +963,54 @@ namespace Opc.Ua.Server
         /// <param name="instance">The instance to create.</param>
         /// <returns>The new node id.</returns>
         /// <exception cref="ServiceResultException"></exception>
+        [Obsolete("Use CreateNodeAsync for runtime creation with awaited monitored-item recovery.")]
         public NodeId CreateNode(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance)
+        {
+            return CreateNodeCore(context, parentId, referenceTypeId, browseName, instance);
+        }
+
+        /// <summary>
+        /// Creates an instance and its children, then awaits recovery of their unresolved monitored items.
+        /// </summary>
+        /// <param name="context">The operation context.</param>
+        /// <param name="parentId">An optional parent identifier.</param>
+        /// <param name="referenceTypeId">The reference type from the parent.</param>
+        /// <param name="browseName">The browse name.</param>
+        /// <param name="instance">The instance to create.</param>
+        /// <param name="cancellationToken">Cancels creation or monitored-item recovery.</param>
+        /// <returns>The created node id.</returns>
+        public async ValueTask<NodeId> CreateNodeAsync(
+            ServerSystemContext context,
+            NodeId parentId,
+            NodeId referenceTypeId,
+            QualifiedName browseName,
+            BaseInstanceState instance,
+            CancellationToken cancellationToken = default)
+        {
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (instance is null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            NodeId result = CreateNodeCore(context, parentId, referenceTypeId, browseName, instance);
+            await RecoverRegisteredSubtreeAsync(context, instance, cancellationToken).ConfigureAwait(false);
+            return result;
+        }
+
+        /// <summary>
+        /// Indexes a created instance and emits its model change without running asynchronous recovery.
+        /// </summary>
+        private NodeId CreateNodeCore(
             ServerSystemContext context,
             NodeId parentId,
             NodeId referenceTypeId,
@@ -1236,6 +1335,11 @@ namespace Opc.Ua.Server
         /// Completes the create lifecycle and recursively indexes the node and
         /// its children.
         /// </summary>
+        /// <remarks>
+        /// Runtime edits that must recover unresolved monitored items use
+        /// <see cref="ILocalAddressSpace.AddOrUpdateNodeAsync"/> on the local address-space adapter.
+        /// This synchronous indexing helper does not run asynchronous recovery.
+        /// </remarks>
         protected virtual void AddPredefinedNode(ISystemContext context, NodeState node)
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
@@ -1308,13 +1412,6 @@ namespace Opc.Ua.Server
                 }
 
                 AddPredefinedNode(context, children[ii]);
-            }
-
-            if (Server.NodeManager is ISyncNodeManagerMonitoredItemRecovery recovery)
-            {
-                recovery.RecoverDetachedMonitoredItems(
-                    m_asyncNodeManager,
-                    [activeNode.NodeId]);
             }
         }
 

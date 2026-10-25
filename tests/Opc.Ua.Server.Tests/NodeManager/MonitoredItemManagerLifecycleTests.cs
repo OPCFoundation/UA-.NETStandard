@@ -53,6 +53,82 @@ namespace Opc.Ua.Server.Tests
             SyncAdapterSamplingGroup
         }
 
+        /// <summary>
+        /// Awaited legacy-manager edits recover only unresolved items in the same serving slot.
+        /// </summary>
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task LegacyRuntimeAdditionRecoversSameSlotItemAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            using (MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                server, [(IAsyncNodeManager)owner.Lifecycle]))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("LegacyRecovery", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("LegacyRecovery", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 42
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var state = (IDetachableMonitoredItem)item;
+                state.Detach(server.Object);
+                ServiceResult attached = await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+                Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
+                var subscription = new Mock<ISubscription>();
+                subscription.SetupGet(value => value.EffectiveIdentity).Returns(Mock.Of<IUserIdentity>());
+                item.SubscriptionCallback = subscription.Object;
+                ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
+                uint id = item.Id;
+                uint clientHandle = item.ClientHandle;
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+                NodeManagerSlot slot = generation.Slot;
+                using MonitoredItem unrelated = CreateMonitoredItem(
+                    server.Object, (IAsyncNodeManager)owner.Lifecycle, new NodeHandle(),
+                    new NodeId("NotInThisAddition", owner.NamespaceIndex), 3);
+                unrelated.SubscriptionCallback = subscription.Object;
+                ((IMonitoredItemGenerationBinding)unrelated).BindSubscription(subscription.Object);
+                var unrelatedState = (IDetachableMonitoredItem)unrelated;
+                unrelatedState.Detach(server.Object);
+
+                await owner.DeleteNodeAsync(node.NodeId).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(state.IsDetached, Is.True);
+                    Assert.That(state.IsDeleted, Is.True);
+                    Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
+                });
+
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+
+                IReadOnlyList<IMonitoredItem> owned = await owner.Lifecycle
+                    .GetMonitoredItemsSnapshotAsync().ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(state.IsDetached, Is.False);
+                    Assert.That(state.IsDeleted, Is.False);
+                    Assert.That(item.Id, Is.EqualTo(id));
+                    Assert.That(item.ClientHandle, Is.EqualTo(clientHandle));
+                    Assert.That(owner.Owns(item.NodeManager), Is.True);
+                    Assert.That(item.Generation!.TryGetGeneration(out NodeManagerGeneration? bound), Is.True);
+                    Assert.That(bound, Is.SameAs(generation));
+                    Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.False);
+                    Assert.That(owned, Has.Count.EqualTo(1));
+                    Assert.That(owned[0], Is.SameAs(item));
+                    Assert.That(unrelatedState.IsDetached, Is.True);
+                    Assert.That(unrelatedState.IsDeleted, Is.False,
+                        "Adding another subtree must not retry or queue a lost-node status for this item.");
+                    Assert.That(slot.UnresolvedItems.ContainsKey(unrelated), Is.True);
+                });
+            }
+        }
+
         [TestCase(ManagerPath.AsyncMonitoredNode)]
         [TestCase(ManagerPath.AsyncSamplingGroup)]
         [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
@@ -2649,8 +2725,8 @@ namespace Opc.Ua.Server.Tests
                     return m_asyncManager.AddPredefinedNodePublicAsync(SystemContext, node);
                 }
 
-                m_syncManager!.AddPredefinedNodePublic(SystemContext, node);
-                return default;
+                return ((ILocalAddressSpaceSource)m_syncManager!).CreateLocalAddressSpace()
+                    .AddOrUpdateNodeAsync(node);
             }
 
             public bool Owns(IAsyncNodeManager nodeManager)
