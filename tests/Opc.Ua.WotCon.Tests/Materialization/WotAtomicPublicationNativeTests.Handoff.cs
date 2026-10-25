@@ -593,6 +593,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     runtime.Setup(owner => owner.DisposeAsync()).Returns(() =>
                     {
                         probe.RuntimeDisposedCount++;
+                        probe.OnRuntimeDisposed?.Invoke();
                         return default;
                     });
                     probe.OnRuntimeCreated?.Invoke();
@@ -784,6 +785,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// Gets or sets the runtime disposed count for <c>HandoffProbe</c>.
             /// </summary>
             public int RuntimeDisposedCount { get; set; }
+
+            /// <summary>
+            /// Gets or sets the callback observing completion of a runtime's asynchronous retirement.
+            /// </summary>
+            public Action? OnRuntimeDisposed { get; set; }
         }
     }
 }
