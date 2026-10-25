@@ -1712,13 +1712,18 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A provider callback finishing after client deletion must release the source it registered late.
+        /// A provider callback finishing after subscription removal must release the source it registered late.
         /// </summary>
-        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
-        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
-        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
-        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
-        public async Task DeletedEventAdoptionReleasesLateProviderRegistrationAsync(ManagerPath path, bool failCleanup)
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, true)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, true)]
+        public async Task RemovedEventAdoptionReleasesLateProviderRegistrationAsync(
+            ManagerPath path, bool dispose, bool failCleanup)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
@@ -1735,6 +1740,10 @@ namespace Opc.Ua.Server.Tests
                 await owner.AddNodeAsync(source).ConfigureAwait(false);
                 using MonitoredItem item = CreateEventMonitoredItem(
                     server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), source.NodeId);
+                var subscription = new Mock<ISubscription>().Object;
+                item.SubscriptionCallback = subscription;
+                var generationBinding = (IMonitoredItemGenerationBinding)item;
+                generationBinding.BindSubscription(subscription);
                 var binding = (IDetachableMonitoredItem)item;
                 var current = new TestNodeManagerLifecycle
                 {
@@ -1777,7 +1786,14 @@ namespace Opc.Ua.Server.Tests
                         context, item.ManagerHandle!, item.SubscriptionId, item, true, timeout.Token)
                         .ConfigureAwait(false);
                     Assert.That(deletion.StatusCode, Is.EqualTo(StatusCodes.Good));
-                    item.Dispose();
+                    if (dispose)
+                    {
+                        item.Dispose();
+                    }
+                    else
+                    {
+                        generationBinding.UnbindSubscription(subscription);
+                    }
                     release.TrySetResult(true);
                     List<Exception> failures = await adoption.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.Multiple(() =>
@@ -1785,6 +1801,7 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(unsubscribeCalls, Is.EqualTo(2));
                         Assert.That(providerRegistered, Is.EqualTo(failCleanup));
                         Assert.That(failures, Has.Count.EqualTo(failCleanup ? 1 : 0));
+                        Assert.That(generationBinding.IsDisposed, Is.EqualTo(dispose));
                     });
                     if (failCleanup)
                     {

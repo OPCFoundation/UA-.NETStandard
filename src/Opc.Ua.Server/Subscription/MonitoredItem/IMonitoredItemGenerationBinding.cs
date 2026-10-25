@@ -45,6 +45,11 @@ namespace Opc.Ua.Server
         bool IsDisposed { get; }
 
         /// <summary>
+        /// Gets whether subscription removal or disposal permanently forbids further adoption.
+        /// </summary>
+        bool IsRemoved { get; }
+
+        /// <summary>
         /// Reports the lost node once and optionally forbids future adoption.
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>

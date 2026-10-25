@@ -1281,10 +1281,10 @@ namespace Opc.Ua.Server
                             compensationFailures.Add(compensationException);
                         }
                     }
-                    else if (monitoredItem is IMonitoredItemGenerationBinding { IsDisposed: true } &&
+                    else if (monitoredItem is IMonitoredItemGenerationBinding { IsRemoved: true } &&
                         !MonitoredItems.ContainsKey(monitoredItem.Id))
                     {
-                        // Disposal permanently forbids a new binding while the late provider is being released.
+                        // Subscription removal forbids a new binding while the late provider is being released.
                         removed = true;
                     }
                 }

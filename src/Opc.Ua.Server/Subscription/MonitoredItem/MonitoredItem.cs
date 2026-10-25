@@ -472,7 +472,7 @@ namespace Opc.Ua.Server
                 m_slot = generation.Slot;
                 m_nodeManager = value;
                 Generation = generation.Reference;
-                if (m_subscriptionOwned)
+                if (m_subscriptionOwnership == SubscriptionOwnership.Bound)
                 {
                     generation.MonitoredItems[this] = m_subscription!;
                 }
@@ -506,7 +506,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private void UpdateUnresolvedOwnership()
         {
-            if (m_subscriptionOwned && !m_isDisposed && !m_isTerminal && (m_isDetached || m_isDeleted))
+            if (m_subscriptionOwnership == SubscriptionOwnership.Bound &&
+                !m_isDisposed && !m_isTerminal && (m_isDetached || m_isDeleted))
             {
                 m_slot.UnresolvedItems[this] = m_subscription!;
             }
@@ -749,6 +750,18 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.IsRemoved
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_subscriptionOwnership == SubscriptionOwnership.Released;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         void IMonitoredItemGenerationBinding.Invalidate(bool terminal)
         {
             Invalidate(terminal);
@@ -834,7 +847,7 @@ namespace Opc.Ua.Server
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
-                if (m_isDisposed)
+                if (m_isDisposed || m_subscriptionOwnership == SubscriptionOwnership.Released)
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2851,6 +2864,10 @@ namespace Opc.Ua.Server
                 {
                     throw new ObjectDisposedException(nameof(MonitoredItem));
                 }
+                if (m_subscriptionOwnership == SubscriptionOwnership.Released)
+                {
+                    throw new InvalidOperationException("A removed monitored item cannot be reclaimed.");
+                }
                 if (!ReferenceEquals(m_subscription, subscription))
                 {
                     throw new InvalidOperationException("The monitored item belongs to another subscription.");
@@ -2859,7 +2876,7 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The monitored item's generation is unavailable.");
                 }
-                m_subscriptionOwned = true;
+                m_subscriptionOwnership = SubscriptionOwnership.Bound;
                 generation!.MonitoredItems[this] = subscription;
                 UpdateUnresolvedOwnership();
             }
@@ -2874,7 +2891,7 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                m_subscriptionOwned = false;
+                m_subscriptionOwnership = SubscriptionOwnership.Released;
                 m_slot.UnresolvedItems.TryRemove(this, out _);
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true)
                 {
@@ -3470,7 +3487,7 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
-                m_subscriptionOwned = false;
+                m_subscriptionOwnership = SubscriptionOwnership.Released;
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true)
                 {
                     generation!.MonitoredItems.TryRemove(this, out _);
@@ -3571,6 +3588,21 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Distinguishes an item awaiting its first subscription claim from a permanently removed item.
+        /// </summary>
+        private enum SubscriptionOwnership : byte
+        {
+            /// <summary>The item has not yet been added to a subscription.</summary>
+            Unclaimed,
+
+            /// <summary>The subscription owns this item's generation binding.</summary>
+            Bound,
+
+            /// <summary>The item has left its subscription or has been disposed.</summary>
+            Released
+        }
+
         private readonly Lock m_lock = new();
 
         /// <summary>The owner of this item's notification epoch.</summary>
@@ -3592,8 +3624,8 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private bool m_isDisposed;
 
-        /// <summary>Whether the subscription still owns this item's generation binding.</summary>
-        private bool m_subscriptionOwned;
+        /// <summary>The subscription's ownership of this item's generation binding.</summary>
+        private SubscriptionOwnership m_subscriptionOwnership;
 
         /// <summary>The stable slot owning this item, including while its node is unavailable.</summary>
         private NodeManagerSlot m_slot = null!;

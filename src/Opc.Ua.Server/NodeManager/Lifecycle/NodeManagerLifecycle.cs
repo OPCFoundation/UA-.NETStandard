@@ -1234,7 +1234,7 @@ namespace Opc.Ua.Server
 
                     var binding = monitoredItem as IMonitoredItemGenerationBinding;
                     var detachable = monitoredItem as IDetachableMonitoredItem;
-                    if (binding is { IsDisposed: true } or { IsTerminal: true })
+                    if (binding is { IsRemoved: true } or { IsTerminal: true })
                     {
                         continue;
                     }
@@ -1255,7 +1255,7 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(result);
                         }
                         if (!compatible || m_replacement is null ||
-                            binding?.IsDisposed == true || !IsOwnedBySubscription(monitoredItem))
+                            binding?.IsRemoved == true || !IsOwnedBySubscription(monitoredItem))
                         {
                             m_reconciledItems.Add(monitoredItem);
                             continue;
@@ -1279,9 +1279,9 @@ namespace Opc.Ua.Server
                             }
                         }
                         catch (ServiceResultException ex) when (
-                            binding?.IsDisposed == true && ex.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
+                            binding?.IsRemoved == true && ex.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
                         {
-                            // Rebinding lost to client disposal; native adoption rolls its registration back.
+                            // Rebinding lost to subscription removal; native adoption rolls its registration back.
                             detachable?.Detach(m_server);
                         }
                         catch (Exception ex) when (ex is not OutOfMemoryException)
@@ -1293,7 +1293,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
-                        if (attached && (binding?.IsDisposed == true || !IsOwnedBySubscription(monitoredItem)))
+                        if (attached && (binding?.IsRemoved == true || !IsOwnedBySubscription(monitoredItem)))
                         {
                             // Client deletion during handoff must also stop replacement sampling.
                             try
@@ -1329,7 +1329,7 @@ namespace Opc.Ua.Server
                 {
                     if (!m_reconciledItems.Contains(monitoredItem) ||
                         m_markedDeletedItems.Contains(monitoredItem) || !IsOwnedBySubscription(monitoredItem) ||
-                        monitoredItem is IMonitoredItemGenerationBinding { IsDisposed: true })
+                        monitoredItem is IMonitoredItemGenerationBinding { IsRemoved: true })
                     {
                         continue;
                     }

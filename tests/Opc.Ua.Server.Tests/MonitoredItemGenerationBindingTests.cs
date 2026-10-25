@@ -56,6 +56,7 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
 
             Assert.That(GetBoundGeneration(item).Slot.UnresolvedItems, Is.Empty);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsRemoved, Is.False);
         }
 
         /// <summary>
@@ -81,6 +82,54 @@ namespace Opc.Ua.Server.Tests
             Assert.That(actualOwner, Is.SameAs(owner));
             binding.UnbindSubscription(new Mock<ISubscription>().Object);
             Assert.That(generation.MonitoredItems.ContainsKey(item), Is.True);
+            Assert.That(binding.IsRemoved, Is.False);
+        }
+
+        /// <summary>
+        /// Removal also closes an unclaimed item, while another subscription cannot release its ownership.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void UnclaimedItemReleaseUsesExactSubscriptionIdentity(bool failedClaim, bool matchesOwner)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = GetBoundGeneration(item);
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            if (failedClaim)
+            {
+                Assert.That(() => binding.BindSubscription(new Mock<ISubscription>().Object),
+                    Throws.InvalidOperationException);
+            }
+
+            binding.UnbindSubscription(matchesOwner ? owner : new Mock<ISubscription>().Object);
+            Assert.That(binding.IsRemoved, Is.EqualTo(matchesOwner));
+            Assert.That(binding.IsDisposed, Is.False);
+            Assert.That(item.SubscriptionCallback, Is.SameAs(owner));
+            if (matchesOwner)
+            {
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                    ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object()));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                Assert.That(() => binding.BindSubscription(owner), Throws.InvalidOperationException);
+                Assert.That(item.NodeManager, Is.SameAs(original.NodeManager));
+                Assert.That(original.MonitoredItems, Is.Empty);
+                Assert.That(replacement.MonitoredItems, Is.Empty);
+            }
+            else
+            {
+                ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                binding.BindSubscription(owner);
+                Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+                Assert.That(actualOwner, Is.SameAs(owner));
+                Assert.That(binding.IsRemoved, Is.False);
+            }
         }
 
         /// <summary>
@@ -128,13 +177,23 @@ namespace Opc.Ua.Server.Tests
             if (releaseFirst)
             {
                 binding.UnbindSubscription(owner);
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                    ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object()));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                Assert.That(item.NodeManager, Is.SameAs(original.NodeManager));
+            }
+            else
+            {
+                ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
             }
 
-            ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
             binding.UnbindSubscription(owner);
 
             Assert.That(original.MonitoredItems, Is.Empty);
             Assert.That(replacement.MonitoredItems, Is.Empty);
+            Assert.That(binding.IsDisposed, Is.False);
+            Assert.That(binding.IsRemoved, Is.True);
+            Assert.That(() => binding.BindSubscription(owner), Throws.InvalidOperationException);
             Assert.That(item.SubscriptionCallback, Is.SameAs(owner),
                 "Manager cleanup still needs the callback after subscription ownership ends.");
         }
@@ -156,11 +215,25 @@ namespace Opc.Ua.Server.Tests
             binding.BindSubscription(owner);
 
             await Task.WhenAll(
-                Task.Run(() => ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object())),
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                    }
+                    catch (ServiceResultException failure) when (
+                        failure.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
+                    {
+                        Assert.That(item.NodeManager, Is.SameAs(original.NodeManager));
+                    }
+                }),
                 Task.Run(() => binding.UnbindSubscription(owner))).ConfigureAwait(false);
 
             Assert.That(original.MonitoredItems, Is.Empty);
             Assert.That(replacement.MonitoredItems, Is.Empty);
+            Assert.That(binding.IsDisposed, Is.False);
+            Assert.That(binding.IsRemoved, Is.True);
+            Assert.That(() => binding.BindSubscription(owner), Throws.InvalidOperationException);
         }
 
         /// <summary>
@@ -181,6 +254,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(generation.MonitoredItems, Is.Empty);
             Assert.That(binding.IsDisposed, Is.True);
+            Assert.That(binding.IsRemoved, Is.True);
             ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
                 ((IDetachableMonitoredItem)item).Rebind(new Mock<IAsyncNodeManager>().Object, new object()));
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
