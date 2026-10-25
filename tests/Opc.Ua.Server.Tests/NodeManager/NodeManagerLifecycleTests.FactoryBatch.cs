@@ -48,6 +48,255 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// A private candidate changes serving routes only at publication, never during preparation or abandonment.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedCandidateKeepsNamespaceRoutesPrivateUntilPublicationAsync(bool publish)
+        {
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            long revision = lifecycle.Revision;
+            int namespaceCount = m_server.CurrentInstance.NamespaceUris.Count;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))]).ConfigureAwait(false))
+            {
+                Assert.That(lifecycle.Revision, Is.EqualTo(revision));
+                Assert.That(m_server.CurrentInstance.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    Assert.That(result.Revision, Is.EqualTo(revision + 1));
+                }
+            }
+            Assert.That(lifecycle.Revision, Is.EqualTo(revision + (publish ? 1 : 0)));
+            if (publish)
+            {
+                await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.That(m_server.CurrentInstance.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            }
+        }
+
+        /// <summary>
+        /// Constructor-discovered namespace registrations remain private and are retained at publication.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedCandidateKeepsConstructorDiscoveredNamespacesPrivateAsync(bool publish)
+        {
+            const string discoveredUri = kModelNamespaceUri + ":ConstructorDiscovered";
+            IServerInternal server = m_server.CurrentInstance;
+            var host = (IDynamicNodeManagerBatchHost)server.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot initial = host.RoutingRevision;
+            int namespaceCount = server.NamespaceUris.Count;
+            var runtimeFactory = new RuntimeNodeSetNodeManagerFactory(
+                CreateOptions(kModelNamespaceUri, kFirstRegistrationValue));
+            IAsyncNodeManager? candidate = null;
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(async (IServerInternal staged, ApplicationConfiguration configuration,
+                    CancellationToken token) =>
+                {
+                    candidate = await runtimeFactory.CreateAsync(staged, configuration, token).ConfigureAwait(false);
+                    staged.NodeManager.RegisterNamespaceManager(discoveredUri, candidate);
+                    Assert.That(host.RoutingRevision, Is.SameAs(initial));
+                    Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+                    return candidate;
+                });
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            int namespaceIndex;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)], null).ConfigureAwait(false))
+            {
+                IAsyncNodeManager manager = RequireLifecycleValue(candidate);
+                Assert.That(manager.NamespaceUris, Does.Not.Contain(discoveredUri));
+                namespaceIndex = ChangePreparer.GetServer(manager)!.NamespaceUris.GetIndex(discoveredUri);
+                Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(namespaceCount));
+                Assert.That(host.RoutingRevision, Is.SameAs(initial));
+                Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+            if (publish)
+            {
+                Assert.That(host.RoutingRevision.Revision, Is.EqualTo(initial.Revision + 1));
+                Assert.That(host.RoutingRevision.NamespaceManagers[namespaceIndex],
+                    Does.Contain(RequireLifecycleValue(candidate)));
+                await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.That(host.RoutingRevision, Is.SameAs(initial));
+                Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            }
+        }
+
+        /// <summary>
+        /// Address-space preparation publishes retained discovered namespaces but not locally unregistered routes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PreparedCandidatePublishesOnlyRetainedDiscoveredNamespacesAsync(bool publish)
+        {
+            const string discoveredUri = kModelNamespaceUri + ":Discovered";
+            const string removedUri = kModelNamespaceUri + ":Removed";
+            IServerInternal server = m_server.CurrentInstance;
+            var host = (IDynamicNodeManagerBatchHost)server.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot initial = host.RoutingRevision;
+            int namespaceCount = server.NamespaceUris.Count;
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            manager.Setup(value => value.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    server.NodeManager.RegisterNamespaceManager(discoveredUri, manager.Object);
+                    server.NodeManager.RegisterNamespaceManager(discoveredUri, manager.Object);
+                    server.NodeManager.RegisterNamespaceManager(removedUri, manager.Object);
+                    Assert.That(server.NodeManager.UnregisterNamespaceManager(
+                        removedUri, manager.Object.SyncNodeManager!), Is.True);
+                    Assert.That(server.NodeManager.UnregisterNamespaceManager(removedUri, manager.Object), Is.False);
+                })
+                .Returns(default(ValueTask));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            int discoveredIndex;
+            int removedIndex;
+            await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object)], null).ConfigureAwait(false))
+            {
+                NamespaceTable staged = ChangePreparer.GetServer(manager.Object)!.NamespaceUris;
+                discoveredIndex = staged.GetIndex(discoveredUri);
+                removedIndex = staged.GetIndex(removedUri);
+                Assert.That(discoveredIndex, Is.GreaterThanOrEqualTo(namespaceCount));
+                Assert.That(removedIndex, Is.GreaterThan(discoveredIndex));
+                Assert.That(host.RoutingRevision, Is.SameAs(initial));
+                Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+                if (publish)
+                {
+                    NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
+                    Assert.That(result.CleanupFailure, Is.Null);
+                }
+            }
+            NodeManagerRoutingTable.RoutingSnapshot final = host.RoutingRevision;
+            if (publish)
+            {
+                Assert.That(final.Revision, Is.EqualTo(initial.Revision + 1));
+                Assert.That(server.NamespaceUris.GetIndex(discoveredUri), Is.EqualTo(discoveredIndex));
+                Assert.That(final.NamespaceManagers[discoveredIndex], Is.EqualTo(new[] { manager.Object }));
+                Assert.That(final.NamespaceManagers.ContainsKey(removedIndex), Is.False);
+            }
+            else
+            {
+                Assert.That(final, Is.SameAs(initial));
+                Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            }
+        }
+
+        /// <summary>
+        /// Creation and later-candidate failures clean up private namespace registrations without publishing routes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedCandidatePreparationKeepsServingRoutesUnchangedAsync(bool failDuringCreation)
+        {
+            const string discoveredUri = kModelNamespaceUri + ":FailedCandidate";
+            IServerInternal server = m_server.CurrentInstance;
+            var host = (IDynamicNodeManagerBatchHost)server.NodeManager;
+            NodeManagerRoutingTable.RoutingSnapshot initial = host.RoutingRevision;
+            int namespaceCount = server.NamespaceUris.Count;
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            manager.Setup(value => value.CreateAddressSpaceAsync(
+                    It.IsAny<IDictionary<NodeId, IList<IReference>>>(), It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    server.NodeManager.RegisterNamespaceManager(discoveredUri, manager.Object);
+                    if (failDuringCreation)
+                    {
+                        throw new IOException("Candidate address-space creation failed.");
+                    }
+                })
+                .Returns(default(ValueTask));
+            manager.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                .Callback(() => Assert.That(
+                    server.NodeManager.UnregisterNamespaceManager(discoveredUri, manager.Object), Is.True))
+                .Returns(default(ValueTask));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            var failingFactory = new Mock<IAsyncNodeManagerFactory>();
+            failingFactory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new IOException("Later factory failed."));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await Assert.ThatAsync(() => lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory.Object), NodeManagerBatchChange.Add(failingFactory.Object)],
+                null).AsTask(), Throws.TypeOf<IOException>()).ConfigureAwait(false);
+            Assert.That(host.RoutingRevision, Is.SameAs(initial));
+            Assert.That(server.NamespaceUris.Count, Is.EqualTo(namespaceCount));
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
+            manager.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
+        /// Concurrent factories returning one manager cannot both claim its staging metadata.
+        /// </summary>
+        [Test]
+        public async Task ConcurrentCandidateClaimsHaveExactlyOneOwnerAsync()
+        {
+            var first = new ChangePreparer(m_server.CurrentInstance);
+            var second = new ChangePreparer(m_server.CurrentInstance);
+            Mock<IAsyncNodeManager> manager = CreateLifecycleNodeManager(kModelNamespaceUri);
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IAsyncNodeManager>(manager.Object));
+            using var claims = new Barrier(2);
+            bool[] results = await Task.WhenAll(
+                Task.Run(() => ClaimAsync(first)),
+                Task.Run(() => ClaimAsync(second))).ConfigureAwait(false);
+            Assert.That(results.Count(success => success), Is.EqualTo(1));
+            ChangePreparer.StagingServer owner = ChangePreparer.GetServer(manager.Object)!;
+            Assert.That(owner, Is.Not.Null);
+            owner.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
+            Assert.That(first.NamespaceUris.GetIndex(kSecondModelNamespaceUri) >= 0, Is.EqualTo(results[0]));
+            Assert.That(second.NamespaceUris.GetIndex(kSecondModelNamespaceUri) >= 0, Is.EqualTo(results[1]));
+
+            async Task<bool> ClaimAsync(ChangePreparer preparation)
+            {
+                try
+                {
+                    IAsyncNodeManager claimed = await preparation.CreateNodeManagerAsync(
+                        factory.Object, m_server.CurrentConfiguration, false, _ =>
+                        {
+                            if (!claims.SignalAndWait(TimeSpan.FromSeconds(30)))
+                            {
+                                throw new TimeoutException("Concurrent candidate claims did not rendezvous.");
+                            }
+                            return false;
+                        }, CancellationToken.None).ConfigureAwait(false);
+                    Assert.That(claimed, Is.SameAs(manager.Object));
+                    return true;
+                }
+                catch (NodeManagerAlreadyRegisteredException)
+                {
+                    return false;
+                }
+            }
+        }
+
         [Test]
         public async Task PreparedBatchRejectsUnsupportedFactoryBeforeCandidateEffectsAsync()
         {

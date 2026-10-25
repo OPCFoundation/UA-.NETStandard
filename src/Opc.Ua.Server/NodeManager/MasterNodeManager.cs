@@ -634,7 +634,10 @@ namespace Opc.Ua.Server
                 ex is not OutOfMemoryException and
                     not NodeManagerAlreadyRegisteredException)
             {
-                m_nodeManagers.RemoveNamespaceManager(nodeManager);
+                if (ChangePreparer.GetServer(nodeManager)?.IsStaging != true)
+                {
+                    m_nodeManagers.RemoveNamespaceManager(nodeManager);
+                }
                 try
                 {
                     ChangePreparer.Detach(nodeManager);
@@ -877,7 +880,10 @@ namespace Opc.Ua.Server
                 prepared.Published = false;
             }
             prepared.Staged = false;
-            m_nodeManagers.RemoveNamespaceManager(prepared.NodeManager);
+            if (ChangePreparer.GetServer(prepared.NodeManager)?.IsStaging != true)
+            {
+                m_nodeManagers.RemoveNamespaceManager(prepared.NodeManager);
+            }
             SetPreparing(prepared.NodeManager, preparing: false);
 
             try
@@ -1375,7 +1381,7 @@ namespace Opc.Ua.Server
             {
                 index = namespaceTable.Append(namespaceUri);
             }
-            if (staging is { IsStaging: true, IsAttached: false })
+            if (staging is { IsStaging: true })
             {
                 staging.StageNamespaceRegistration(namespaceUri);
                 return;
@@ -1409,6 +1415,14 @@ namespace Opc.Ua.Server
             if (nodeManager == null && asyncNodeManager == null)
             {
                 throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            IAsyncNodeManager candidate = asyncNodeManager ?? nodeManager!.ToAsyncNodeManager();
+            ChangePreparer.StagingServer? staging =
+                ChangePreparer.GetServer(GetPreparingNodeManager(candidate) ?? candidate);
+            if (staging is { IsStaging: true })
+            {
+                return staging.UnstageNamespaceRegistration(namespaceUri);
             }
 
             // look up the namespace uri.

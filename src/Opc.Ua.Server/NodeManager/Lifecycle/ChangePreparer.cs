@@ -148,11 +148,11 @@ namespace Opc.Ua.Server
                 throw new InvalidOperationException(replacement
                     ? "The replacement NodeManager factory returned null."
                     : "The NodeManager factory returned null.");
-            if (isRegistered(manager) || s_candidates.TryGetValue(manager, out _))
+            if (isRegistered(manager) ||
+                !ReferenceEquals(s_candidates.GetValue(manager, _ => server), server))
             {
                 throw new NodeManagerAlreadyRegisteredException();
             }
-            s_candidates.Add(manager, server);
             return manager;
         }
 
@@ -181,7 +181,6 @@ namespace Opc.Ua.Server
         /// </summary>
         internal static void Attach(IAsyncNodeManager manager, StagingServer server)
         {
-            s_candidates.Add(manager, server);
             server.Attach(manager);
         }
 
@@ -358,9 +357,9 @@ namespace Opc.Ua.Server
             internal bool IsStaging { get; private set; } = true;
 
             /// <summary>
-            /// Gets whether the factory has transferred ownership of this candidate to the lifecycle.
+            /// Gets explicit namespace registrations retained until routing publication.
             /// </summary>
-            internal bool IsAttached { get; private set; }
+            internal IEnumerable<string> NamespaceRegistrations => m_pendingNamespaces;
 
             /// <inheritdoc/>
             public void Dispose()
@@ -438,7 +437,7 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Retains constructor-time namespace registrations without changing serving routing.
+            /// Retains candidate namespace registrations without changing serving routing.
             /// </summary>
             internal void StageNamespaceRegistration(string namespaceUri)
             {
@@ -446,16 +445,22 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
-            /// Registers constructor-time namespaces as hidden only after factory ownership has transferred.
+            /// Removes a candidate registration without changing serving routing.
+            /// </summary>
+            internal bool UnstageNamespaceRegistration(string namespaceUri)
+            {
+                return m_pendingNamespaces.Remove(namespaceUri);
+            }
+
+            /// <summary>
+            /// Claims the candidate without publishing its namespace registrations.
             /// </summary>
             internal void Attach(IAsyncNodeManager manager)
             {
-                IsAttached = true;
-                foreach (string namespaceUri in m_pendingNamespaces)
+                if (!ReferenceEquals(s_candidates.GetValue(manager, _ => this), this))
                 {
-                    m_server.NodeManager.RegisterNamespaceManager(namespaceUri, manager);
+                    throw new NodeManagerAlreadyRegisteredException();
                 }
-                m_pendingNamespaces.Clear();
             }
 
             /// <summary>
@@ -478,8 +483,8 @@ namespace Opc.Ua.Server
             private readonly TypeTable m_servingTypes;
             private readonly EncodeableFactory m_servingFactory;
 
-            /// <summary>Retains namespace registration intent until the factory returns its candidate.</summary>
-            private readonly List<string> m_pendingNamespaces = [];
+            /// <summary>Retains namespace registration intent until routing publication.</summary>
+            private readonly HashSet<string> m_pendingNamespaces = [];
         }
     }
 }

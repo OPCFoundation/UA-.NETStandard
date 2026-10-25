@@ -197,10 +197,10 @@ namespace Opc.Ua.Server
                         using NodeManagerRoutingTable.PreparedRoutes routes =
                             m_nodeManagers.PrepareBatch(
                                 candidates, removed,
-                                manager => manager.NamespaceUris is { } namespaces
-                                    ? namespaces.Select(
-                                        uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri))
-                                    : Enumerable.Empty<int>(),
+                                manager => (manager.NamespaceUris ?? Enumerable.Empty<string>())
+                                    .Concat(ChangePreparer.GetServer(manager)?.NamespaceRegistrations ??
+                                        Enumerable.Empty<string>())
+                                    .Select(uri => (int)context.Preparation.NamespaceUris.GetIndexOrAppend(uri)),
                                 originalTypes, originalFactory, readImages);
                         routes.Reserve();
                         using TypeTable.Publication types = Server.TypeTree.BeginPublication(originalTypes, typeRevision);
