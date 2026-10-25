@@ -49,6 +49,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class GenerationGateTests
     {
         /// <summary>
+        /// Independent execution contexts cannot inherit a notification's source generation.
+        /// </summary>
+        [Test]
+        public void MasterDoesNotStoreAmbientSourceGeneration()
+        {
+            Assert.That(
+                typeof(MasterNodeManager).GetFields(BindingFlags.NonPublic | BindingFlags.Instance)
+                    .Where(field => field.FieldType == typeof(AsyncLocal<NodeManagerGeneration>)),
+                Is.Empty);
+        }
+
+        /// <summary>
         /// Prepared generations refuse entry, while retirement closes a live gate and drains prior work.
         /// </summary>
         [Test]

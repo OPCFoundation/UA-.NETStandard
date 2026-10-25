@@ -1600,10 +1600,9 @@ namespace Opc.Ua.Server
                 IEventMonitoredItem[] monitoredItems,
                 int slot)
             {
-                m_owner = owner;
                 Generation = generation;
                 MonitoredItems = monitoredItems;
-                m_slot = slot;
+                m_origin = new SourceEmissionOrigin(owner, generation, slot);
             }
 
             /// <summary>
@@ -1624,33 +1623,34 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets whether the lease still retains its dispatch owner.
             /// </summary>
-            public bool IsActive => Volatile.Read(ref m_owner) is not null;
+            public bool IsActive => m_origin.IsActive;
 
             /// <summary>
-            /// Enters the source-emission scope for this dispatch, if the lease is still active.
+            /// Creates invocation-scoped targets that carry this dispatch's exact source admission.
             /// </summary>
-            public SourceEmissionScope? EnterSourceEmission()
+            /// <param name="context">The request identity that authorized the refresh.</param>
+            /// <returns>The event targets for this callback.</returns>
+            internal IEventMonitoredItem[] CreateRefreshTargets(OperationContext context)
             {
-                return m_owner?.EnterSourceEmission(Generation);
+                var targets = new IEventMonitoredItem[MonitoredItems.Length];
+                for (int ii = 0; ii < targets.Length; ii++)
+                {
+                    targets[ii] = new ConditionRefreshTarget(
+                        MonitoredItems[ii], m_origin, context.Session, context.NotificationAuthorization);
+                }
+                return targets;
             }
 
             /// <inheritdoc />
             public void Dispose()
             {
-                MasterNodeManager? owner = Interlocked.Exchange(ref m_owner, null);
-                if (owner is null)
-                {
-                    return;
-                }
-                Generation.Gate.Exit(m_slot);
+                m_origin.Dispose();
             }
 
-            private MasterNodeManager? m_owner;
-
             /// <summary>
-            /// Gets the owned generation-gate slot.
+            /// Owns the dispatch admission and revokes any escaped refresh targets.
             /// </summary>
-            private readonly int m_slot;
+            private readonly SourceEmissionOrigin m_origin;
         }
 
         private sealed class StartupNodeManagerState

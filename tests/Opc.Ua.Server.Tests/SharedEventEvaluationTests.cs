@@ -257,7 +257,8 @@ namespace Opc.Ua.Server.Tests
             bool ambientDuringQueue = false;
             item.BeforeQueue = _ =>
             {
-                ambientDuringQueue = master.HasCapturedSourceEmission(monitored.NodeManager);
+                ambientDuringQueue = NodeManager.DeterministicServerMock.HasImplicitEventSource(
+                    m_server, monitored.NodeManager);
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(monitored.NodeManager);
                 generation.Gate.Retire();
                 if (rebind)
@@ -321,7 +322,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
                 .Returns(async (ISystemContext context, IFilterTarget target, CancellationToken cancellationToken) =>
                 {
-                    ambient = master.HasCapturedSourceEmission(source);
+                    ambient = NodeManager.DeterministicServerMock.HasImplicitEventSource(m_server, source);
                     generation.Gate.Retire();
                     await monitored.OnReportEventAsync(context, monitored.Node, target, cancellationToken)
                         .ConfigureAwait(false);
@@ -347,6 +348,233 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(item.Queued, Is.EqualTo(1));
                 Assert.That(Publish(item), Has.Count.EqualTo(1));
                 Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Refresh callbacks can finish admitted events after retirement but cannot reuse an expired target.
+        /// </summary>
+        [Test]
+        public async Task RefreshTargetsCarryRevocableSourceAdmissionsWithoutAmbientStateAsync(
+            [Values] bool retire,
+            [Values(0, 1, 2)] int completion)
+        {
+            var source = new Mock<IAsyncNodeManager>();
+            MonitoredNode2 monitored = CreateMonitoredNode(true);
+            var item = new CountingMonitoredItem(
+                this, 1, CreateFilter(SelectA(), 500), monitored.NodeManager);
+            m_disposables.Add(item);
+            using MasterNodeManager master = CreateMaster([source.Object, monitored.NodeManager]);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source.Object);
+            IEventMonitoredItem? escaped = null;
+            bool ambient = false;
+            source.Setup(manager => manager.ConditionRefreshAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<IList<IEventMonitoredItem>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(async (OperationContext _, IList<IEventMonitoredItem> items, CancellationToken _) =>
+                {
+                    escaped = items.Single(target => target.Id == item.Id);
+                    ambient = NodeManager.DeterministicServerMock.HasImplicitEventSource(m_server, source.Object);
+                    if (retire)
+                    {
+                        generation.Gate.Retire();
+                    }
+                    escaped.QueueEvent(CreateEvent(EventSeverity.High));
+                    await Task.Yield();
+                    escaped.QueueEvent(CreateEvent(EventSeverity.Low), bypassFilter: false);
+                    escaped.QueueEvent(CreateEvent(EventSeverity.Low), bypassFilter: true);
+                    if (completion == 1)
+                    {
+                        throw new InvalidOperationException("refresh callback failed");
+                    }
+                    if (completion == 2)
+                    {
+                        throw new OperationCanceledException("refresh callback canceled");
+                    }
+                    return ServiceResult.Good;
+                });
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            await master.ConditionRefreshAsync(context, [item]).ConfigureAwait(false);
+            escaped!.QueueEvent(CreateEvent(EventSeverity.High));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ambient, Is.False);
+                Assert.That(Publish(item), Has.Count.EqualTo(2));
+                Assert.That(item.OneArgumentCalls, Is.EqualTo(1));
+                Assert.That(item.Queued, Is.EqualTo(3));
+                Assert.That(escaped.Id, Is.EqualTo(item.Id));
+                Assert.That(escaped.ManagerHandle, Is.SameAs(item.ManagerHandle));
+                Assert.That(escaped.NodeManager, Is.SameAs(item.NodeManager));
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// A completed refresh cannot borrow the admission retained for a later manager's callback.
+        /// </summary>
+        [Test]
+        public async Task RefreshTargetExpiresBeforeNextManagerCallbackAsync()
+        {
+            var source = new Mock<IAsyncNodeManager>();
+            MonitoredNode2 monitored = CreateMonitoredNode(true);
+            var item = new CountingMonitoredItem(this, 1, CreateFilter(SelectA(), null), monitored.NodeManager);
+            m_disposables.Add(item);
+            using MasterNodeManager master = CreateMaster([source.Object, monitored.NodeManager]);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(source.Object);
+            IEventMonitoredItem? escaped = null;
+            source.Setup(manager => manager.ConditionRefreshAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<IList<IEventMonitoredItem>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, IList<IEventMonitoredItem> items, CancellationToken _) =>
+                {
+                    escaped = items.Single(target => target.Id == item.Id);
+                    escaped.QueueEvent(CreateEvent(EventSeverity.High));
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            bool nextCallbackRan = false;
+            Mock.Get(monitored.NodeManager).Setup(manager => manager.ConditionRefreshAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<IList<IEventMonitoredItem>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, IList<IEventMonitoredItem> items, CancellationToken _) =>
+                {
+                    nextCallbackRan = true;
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                    escaped!.QueueEvent(CreateEvent(EventSeverity.High));
+                    items.Single(target => target.Id == item.Id).QueueEvent(CreateEvent(EventSeverity.High));
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            await master.ConditionRefreshAsync(context, [item]).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(nextCallbackRan, Is.True);
+                Assert.That(Publish(item), Has.Count.EqualTo(2));
+                Assert.That(item.Queued, Is.EqualTo(2));
+                Assert.That(generation.Gate.ActiveCount, Is.Zero);
+            });
+        }
+
+        /// <summary>
+        /// Ordinary targets accept only their own source, including interface-only provider items.
+        /// </summary>
+        [Test]
+        public async Task RefreshTargetRejectsForeignSourcesAsync([Values] bool provider, [Values] bool retire)
+        {
+            var owner = new Mock<IAsyncNodeManager>();
+            var foreign = new Mock<IAsyncNodeManager>();
+            using MasterNodeManager master = CreateMaster([owner.Object, foreign.Object]);
+            IEventMonitoredItem item;
+            CountingMonitoredItem? concrete = null;
+            Mock<IEventMonitoredItem>? external = null;
+            if (provider)
+            {
+                external = new Mock<IEventMonitoredItem>();
+                external.SetupGet(target => target.NodeManager).Returns(owner.Object);
+                external.SetupGet(target => target.Id).Returns(1);
+                item = external.Object;
+            }
+            else
+            {
+                concrete = new CountingMonitoredItem(
+                    this, 1, CreateFilter(SelectA(), null), owner.Object, new NodeId("ordinary", 1));
+                m_disposables.Add(concrete);
+                item = concrete;
+            }
+            int callbacks = 0;
+            foreach (Mock<IAsyncNodeManager> manager in new[] { owner, foreign })
+            {
+                manager.Setup(value => value.ConditionRefreshAsync(
+                        It.IsAny<OperationContext>(), It.IsAny<IList<IEventMonitoredItem>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns((OperationContext _, IList<IEventMonitoredItem> items, CancellationToken _) =>
+                    {
+                        callbacks++;
+                        if (retire)
+                        {
+                            NodeManagerGenerationRegistry.GetOrCreate(manager.Object).Gate.Retire();
+                        }
+                        items.Single(target => target.Id == item.Id).QueueEvent(CreateEvent(EventSeverity.High));
+                        items.Single(target => target.Id == item.Id).QueueEvent(
+                            CreateEvent(EventSeverity.Low), bypassFilter: true);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+            }
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
+
+            await master.ConditionRefreshAsync(context, [item]).ConfigureAwait(false);
+
+            Assert.That(callbacks, Is.EqualTo(2));
+            if (external is not null)
+            {
+                external.Verify(target => target.QueueEvent(It.IsAny<IFilterTarget>()), Times.Once);
+                external.Verify(target => target.QueueEvent(It.IsAny<IFilterTarget>(), true), Times.Once);
+            }
+            else
+            {
+                Assert.That(concrete!.Queued, Is.EqualTo(2));
+                Assert.That(Publish(concrete), Has.Count.EqualTo(2));
+            }
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(owner.Object).Gate.ActiveCount, Is.Zero);
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(foreign.Object).Gate.ActiveCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// Refresh targets reject events after their captured authorization or owning session changes.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefreshTargetRejectsChangedAuthorizationAsync(bool transfer)
+        {
+            MonitoredNode2 monitored = CreateMonitoredNode(true);
+            var item = new CountingMonitoredItem(this, 1, CreateFilter(SelectA(), null), monitored.NodeManager);
+            m_disposables.Add(item);
+            var session = new Mock<ISession>();
+            bool stale = false;
+            session.SetupGet(value => value.IsIdentityStale).Returns(() => stale);
+            var subscription = new Mock<ISubscription>();
+            ISession currentSession = session.Object;
+            subscription.SetupGet(value => value.Session).Returns(() => currentSession);
+            item.SubscriptionCallback = subscription.Object;
+            using MasterNodeManager master = CreateMaster([monitored.NodeManager]);
+            bool attempted = false;
+            Mock.Get(monitored.NodeManager).Setup(manager => manager.ConditionRefreshAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<IList<IEventMonitoredItem>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((OperationContext _, IList<IEventMonitoredItem> items, CancellationToken _) =>
+                {
+                    IEventMonitoredItem target = items.Single();
+                    target.QueueEvent(CreateEvent(EventSeverity.High));
+                    if (transfer)
+                    {
+                        currentSession = new Mock<ISession>().Object;
+                    }
+                    else
+                    {
+                        stale = true;
+                    }
+                    target.QueueEvent(CreateEvent(EventSeverity.High));
+                    attempted = true;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            using var context = new OperationContext(session.Object, DiagnosticsMasks.All);
+
+            await master.ConditionRefreshAsync(context, [item]).ConfigureAwait(false);
+
+            stale = false;
+            currentSession = session.Object;
+            Assert.Multiple(() =>
+            {
+                Assert.That(attempted, Is.True);
+                Assert.That(item.Queued, Is.EqualTo(1));
+                Assert.That(Publish(item), Has.Count.EqualTo(1));
+                Assert.That(NodeManagerGenerationRegistry.GetOrCreate(monitored.NodeManager).Gate.ActiveCount, Is.Zero);
             });
         }
 
@@ -967,9 +1195,21 @@ namespace Opc.Ua.Server.Tests
             public int Queued => Volatile.Read(ref m_queued);
 
             /// <summary>
+            /// Gets the number of calls through the one-argument virtual queue entry point.
+            /// </summary>
+            public int OneArgumentCalls => Volatile.Read(ref m_oneArgumentCalls);
+
+            /// <summary>
             /// Gets or sets the nested call exercised before forwarding to the base queue implementation.
             /// </summary>
             public Action<IFilterTarget>? BeforeQueue { get; set; }
+
+            /// <inheritdoc/>
+            public override void QueueEvent(IFilterTarget instance)
+            {
+                Interlocked.Increment(ref m_oneArgumentCalls);
+                base.QueueEvent(instance);
+            }
 
             public override void QueueEvent(IFilterTarget instance, bool bypassFilter)
             {
@@ -977,6 +1217,9 @@ namespace Opc.Ua.Server.Tests
                 BeforeQueue?.Invoke(instance);
                 base.QueueEvent(instance, bypassFilter);
             }
+
+            /// <summary>The one-argument virtual entry count.</summary>
+            private int m_oneArgumentCalls;
         }
     }
 }

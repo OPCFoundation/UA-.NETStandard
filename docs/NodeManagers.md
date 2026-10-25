@@ -993,6 +993,13 @@ source, including when retirement starts during reporting. Forward the supplied 
 implementing an event-reporting sink. Its source provenance expires when the root reporting
 call returns or fails; keeping a copy of the context does not authorize later emissions.
 
+Condition-refresh callbacks receive invocation-scoped `IEventMonitoredItem` targets. Use their
+interface properties and `QueueEvent` methods rather than casting or comparing object identity with
+stored subscription items. The targets preserve item ids, handles, filters, authorization and the
+original item's virtual queue behavior. They carry the admitted source across asynchronous callback
+work, including retirement, and expire as soon as that manager's callback returns, fails or is
+canceled. Retaining a target does not authorize later queue calls.
+
 `Invalidate` and manager removal make old items terminal. Adding the same NodeId later does not
 reactivate them; clients must create new MonitoredItems. Durable subscription restoration preserves
 the terminal state.

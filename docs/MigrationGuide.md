@@ -141,6 +141,13 @@ the lifecycle never silently reruns a factory or rebases its private namespace i
 
 See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 
+Condition-refresh callbacks now receive invocation-scoped `IEventMonitoredItem` targets rather than
+the subscription's original concrete item objects. Custom refresh implementations must use the
+interface properties and `QueueEvent` methods: replace casts to `MonitoredItem` and reference-identity
+lookups with the supplied item id or manager handle. Queue work before returning from the callback;
+escaped targets refuse events after success, failure or cancellation. Item ids and the original
+virtual queue implementation are preserved. See [MonitoredItems](NodeManagers.md#monitoreditems).
+
 ## Compatible metadata in prepared NodeManager batches
 
 Prepared NodeManager batches now reject incompatible metadata before invoking the durable decision

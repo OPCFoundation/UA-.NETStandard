@@ -117,6 +117,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Probes whether an untagged Server event incorrectly inherits an application's source generation.
+        /// </summary>
+        /// <param name="server">The server whose routing owner is under test.</param>
+        /// <param name="source">The application manager that must require explicit provenance.</param>
+        /// <returns>Whether the untagged capture borrowed this application source.</returns>
+        public static bool HasImplicitEventSource(IServerInternal server, IAsyncNodeManager source)
+        {
+            var master = (MasterNodeManager)server.NodeManager;
+            if (!MasterNodeManager.TryCaptureSourceEmission(
+                server, master.CoreNodeManager!, out var probe, isGlobalServerEventSink: true))
+            {
+                throw new InvalidOperationException("The serving core event source unexpectedly refused the probe.");
+            }
+            using var admission = probe;
+            return ReferenceEquals(probe?.Generation.NodeManager, source);
+        }
+
+        /// <summary>
         /// Makes the same namespace policy available to synchronous and asynchronous node-manager paths.
         /// </summary>
         public static void SetNamespaceMetadata(

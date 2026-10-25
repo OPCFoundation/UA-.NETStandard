@@ -38,29 +38,13 @@ namespace Opc.Ua.Server
         /// Determines whether a source generation may currently emit notifications.
         /// </summary>
         /// <param name="nodeManager">The source node manager.</param>
-        /// <param name="includeCaptured">Whether an already admitted source emission is allowed.</param>
-        /// <returns><c>true</c> when the source generation is live or already admitted.</returns>
-        internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager, bool includeCaptured = true)
+        /// <returns><c>true</c> when the source generation is live.</returns>
+        internal bool IsSourceEmissionAllowed(IAsyncNodeManager nodeManager)
         {
-            if (includeCaptured && HasCapturedSourceEmission(nodeManager))
-            {
-                return true;
-            }
             return m_nodeManagers.Revision.TryGetGeneration(
                     nodeManager,
                     out NodeManagerGeneration? generation) &&
                 generation!.Gate.State == NodeManagerGenerationState.Live;
-        }
-
-        /// <summary>
-        /// Determines whether this execution context holds an emission for the given generation.
-        /// </summary>
-        /// <param name="nodeManager">The source node manager.</param>
-        /// <returns><c>true</c> when the source emission was admitted before retirement.</returns>
-        internal bool HasCapturedSourceEmission(IAsyncNodeManager nodeManager)
-        {
-            return m_currentSourceEmission.Value is { } captured &&
-                ReferenceEquals(captured.NodeManager, nodeManager);
         }
 
         /// <summary>
@@ -144,19 +128,8 @@ namespace Opc.Ua.Server
             }
 
             NodeManagerGeneration generation;
-            if ((isGlobalServerEventSink ||
-                ReferenceEquals(nodeManager, master.CoreNodeManager)) &&
-                master.m_currentSourceEmission.Value is { } captured)
+            if (generationReference is not null)
             {
-                generation = captured;
-            }
-            else if (generationReference is not null)
-            {
-                if (master.m_currentSourceEmission.Value is { } capturedSourceEmission &&
-                    !generationReference.Identifies(capturedSourceEmission))
-                {
-                    return false;
-                }
                 if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
                     boundGeneration is null ||
                     !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
@@ -217,15 +190,6 @@ namespace Opc.Ua.Server
             return true;
         }
 
-        private SourceEmissionScope EnterSourceEmission(NodeManagerGeneration generation)
-        {
-            NodeManagerGeneration? previous = m_currentSourceEmission.Value;
-            m_currentSourceEmission.Value = generation;
-            return new SourceEmissionScope(this, previous);
-        }
-
-        private readonly AsyncLocal<NodeManagerGeneration?> m_currentSourceEmission = new();
-
         /// <summary>
         /// Owns one source-emission generation gate admission without allocating a dispatch lease.
         /// This value has single-owner semantics and must be disposed exactly once.
@@ -251,14 +215,6 @@ namespace Opc.Ua.Server
             internal NodeManagerGeneration Generation { get; }
 
             /// <summary>
-            /// Enters the source-emission scope for this generation.
-            /// </summary>
-            internal SourceEmissionScope EnterSourceEmission()
-            {
-                return m_owner.EnterSourceEmission(Generation);
-            }
-
-            /// <summary>
             /// Transfers this single-owned admission to an explicitly propagated event origin.
             /// </summary>
             /// <returns>The new owner; the original admission must not be disposed afterward.</returns>
@@ -278,7 +234,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Owns a root report's admission and revokes new fan-out when that report finishes.
+        /// Owns a source callback's admission and revokes new fan-out when that callback finishes.
         /// </summary>
         internal sealed class SourceEmissionOrigin : IDisposable
         {
@@ -293,6 +249,27 @@ namespace Opc.Ua.Server
                 m_owner = owner;
                 m_generation = generation;
                 m_lease = new GenerationGate.Lease(generation.Gate, slot);
+            }
+
+            /// <summary>
+            /// Gets whether the originating callback still accepts child emissions.
+            /// </summary>
+            internal bool IsActive => m_lease.IsActive;
+
+            /// <summary>
+            /// Admits one refresh target without retaining a request context or an ambient source.
+            /// </summary>
+            /// <param name="item">The original target item.</param>
+            /// <param name="emission">The child admission owned by the queue call.</param>
+            /// <returns>Whether this source still admits the target.</returns>
+            internal bool TryCaptureForItem(IEventMonitoredItem item, out SourceEmissionAdmission? emission)
+            {
+                emission = null;
+                MasterNodeManager? owner = Volatile.Read(ref m_owner);
+                return owner is not null &&
+                    TryCapture(
+                        owner, item.NodeManager, (item as MonitoredItem)?.Generation,
+                        item.MonitoringAllEvents, out emission);
             }
 
             /// <summary>
@@ -352,10 +329,10 @@ namespace Opc.Ua.Server
                 Volatile.Write(ref m_owner, null);
             }
 
-            /// <summary>The routing owner, released when the root report finishes.</summary>
+            /// <summary>The routing owner, released when the source callback finishes.</summary>
             private MasterNodeManager? m_owner;
 
-            /// <summary>The exact source, released when the root report finishes.</summary>
+            /// <summary>The exact source, released when the source callback finishes.</summary>
             private NodeManagerGeneration? m_generation;
 
             /// <summary>The existing generation gate admission, not a separate retention counter.</summary>
@@ -408,20 +385,5 @@ namespace Opc.Ua.Server
             public ITelemetryContext Telemetry => context.Telemetry;
         }
 
-        /// <summary>
-        /// Restores the previous admitted source emission when disposed.
-        /// </summary>
-        /// <param name="owner">The master node manager.</param>
-        /// <param name="previous">The previous source emission.</param>
-        internal readonly struct SourceEmissionScope(
-            MasterNodeManager owner,
-            NodeManagerGeneration? previous) : IDisposable
-        {
-            /// <inheritdoc />
-            public void Dispose()
-            {
-                owner.m_currentSourceEmission.Value = previous;
-            }
-        }
     }
 }

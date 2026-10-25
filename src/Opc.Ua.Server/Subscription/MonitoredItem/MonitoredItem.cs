@@ -1581,7 +1581,8 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             SharedEventFilterKey? key,
             SharedEventEvaluation? evaluation,
-            NodeManagerGeneration? admittedGeneration = null)
+            NodeManagerGeneration? admittedGeneration = null,
+            bool? bypassFilter = null)
         {
             lock (m_lock)
             {
@@ -1596,7 +1597,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    QueueAdmittedEvent(target, admittedGeneration);
+                    QueueAdmittedEvent(target, admittedGeneration, bypassFilter);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, authorization))
                 {
@@ -1690,7 +1691,7 @@ namespace Opc.Ua.Server
                     initialValue: initialValue);
                 if (m_isDeleted &&
                     m_server.NodeManager is MasterNodeManager master &&
-                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
+                    !master.IsSourceEmissionAllowed(NodeManager))
                 {
                     QueueNodeIdUnknown();
                 }
@@ -2022,13 +2023,23 @@ namespace Opc.Ua.Server
         /// Queues an event through the overridable entry point while carrying the source admission the caller
         /// already holds, so derived item types still observe every event.
         /// </summary>
-        private void QueueAdmittedEvent(IFilterTarget instance, NodeManagerGeneration? admittedGeneration)
+        private void QueueAdmittedEvent(
+            IFilterTarget instance,
+            NodeManagerGeneration? admittedGeneration,
+            bool? bypassFilter = null)
         {
             NodeManagerGeneration? previous = m_admittedSourceGeneration;
             m_admittedSourceGeneration = admittedGeneration;
             try
             {
-                QueueEvent(instance);
+                if (bypassFilter is { } bypass)
+                {
+                    QueueEvent(instance, bypass);
+                }
+                else
+                {
+                    QueueEvent(instance);
+                }
             }
             finally
             {
@@ -2891,10 +2902,7 @@ namespace Opc.Ua.Server
         {
             return !m_isDetached &&
                 (!m_isDeleted ||
-                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0) ||
-                    (m_server.NodeManager is MasterNodeManager master &&
-                        master.HasCapturedSourceEmission(NodeManager) &&
-                        !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
+                    (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0));
         }
 
         /// <summary>

@@ -2202,17 +2202,20 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        using var emission = dispatch.EnterSourceEmission();
                         await dispatch.NodeManager
                             .ConditionRefreshAsync(
                                 context,
-                                dispatch.MonitoredItems,
+                                dispatch.CreateRefreshTargets(context),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
                     catch (Exception e)
                     {
                         m_logger.ErrorCallingConditionRefreshAsyncOnAsyncNodeManager(e);
+                    }
+                    finally
+                    {
+                        dispatch.Dispose();
                     }
                 }
             }

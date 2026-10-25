@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Returns((ISystemContext context, IFilterTarget _, CancellationToken _) =>
                     {
                         escaped = context is ServerSystemContext propagated ? propagated.Copy() : context;
-                        ambient = master.HasCapturedSourceEmission(manager);
+                        ambient = DeterministicServerMock.HasImplicitEventSource(server.Object, manager);
                         if (retire)
                         {
                             generation.Gate.Retire();

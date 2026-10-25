@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     try
                     {
-                        ambientDuringRead = master.HasCapturedSourceEmission(manager.Object);
+                        ambientDuringRead = DeterministicServerMock.HasImplicitEventSource(server.Object, manager.Object);
                         entered.TrySetResult(true);
                         await release.Task.ConfigureAwait(false);
                         if (failRead)

@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests
                     UserAccessLevel = AccessLevels.CurrentRead,
                     OnReadValueAsync = async (_, _, _, _, ct) =>
                     {
-                        ambientDuringRead = master.HasCapturedSourceEmission(manager.Object);
+                        ambientDuringRead = DeterministicServerMock.HasImplicitEventSource(server.Object, manager.Object);
                         entered.TrySetResult(true);
                         await release.Task.WaitAsync(ct).ConfigureAwait(false);
                         return new AttributeReadResult(
