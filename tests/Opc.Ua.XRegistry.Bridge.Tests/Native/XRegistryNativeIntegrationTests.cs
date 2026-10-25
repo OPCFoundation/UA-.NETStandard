@@ -66,7 +66,8 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             m_allowedUser = "native-allowed-" + Guid.NewGuid().ToString("N");
             m_deniedUser = "native-denied-" + Guid.NewGuid().ToString("N");
             m_roleDeniedUser = "native-role-" + Guid.NewGuid().ToString("N");
-            m_password = ByteString.From(Encoding.UTF8.GetBytes(Guid.NewGuid().ToString("N")));
+            string password = Guid.NewGuid().ToString("N");
+            m_password = ByteString.From(Encoding.UTF8.GetBytes(password));
             m_forwarder = new ForwardingEndpoint();
             await ResetEndpointAsync().ConfigureAwait(false);
             m_options = new XRegistryBridgeNativeOptions
@@ -109,7 +110,7 @@ namespace Opc.Ua.XRegistry.Bridge.Tests.Native
             foreach (string user in new[] { m_allowedUser, m_deniedUser, m_roleDeniedUser })
             {
                 ServiceResult provisioned = userManagement.AddUser(
-                    user, Encoding.UTF8.GetString(m_password.Span), UserConfigurationMask.None, string.Empty);
+                    user, password, UserConfigurationMask.None, string.Empty);
                 Assert.That(ServiceResult.IsGood(provisioned), Is.True);
             }
             Assert.That(m_server.UserDatabase.CreateUser(m_allowedUser, m_password.Span, [Role.Operator]),
