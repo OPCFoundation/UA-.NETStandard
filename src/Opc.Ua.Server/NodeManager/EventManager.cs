@@ -424,6 +424,20 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Gets whether exactly this monitored item is still registered.
+        /// </summary>
+        /// <param name="monitoredItem">The monitored item.</param>
+        /// <returns><c>true</c> when the item is registered.</returns>
+        internal bool Contains(IEventMonitoredItem monitoredItem)
+        {
+            lock (m_lock)
+            {
+                return m_monitoredItems.TryGetValue(monitoredItem.Id, out IEventMonitoredItem? current) &&
+                    ReferenceEquals(current, monitoredItem);
+            }
+        }
+
         private readonly Lock m_lock = new();
         private readonly IServerInternal m_server;
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;

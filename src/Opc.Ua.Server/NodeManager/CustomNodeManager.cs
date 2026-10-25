@@ -394,6 +394,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
+        bool INodeManagerMonitoredItemLifecycle.TryRetainMonitoredNode(
+            NodeId nodeId,
+            out Func<CancellationToken, ValueTask>? drain,
+            out Action? release)
+        {
+            using (BeginNodeManagerOperation())
+            {
+                lock (Lock)
+                {
+                    return m_monitoredItemManager.TryRetainMonitoredNode(nodeId, out drain, out release);
+                }
+            }
+        }
+
+        /// <inheritdoc/>
         ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)

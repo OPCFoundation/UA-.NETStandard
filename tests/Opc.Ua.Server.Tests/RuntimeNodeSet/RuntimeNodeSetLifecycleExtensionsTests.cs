@@ -89,6 +89,22 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         [Test]
+        public async Task AddRuntimeNodeSetWithoutCallerContextForwardsARuntimeNodeSetFactoryAsync()
+        {
+            Mock<INodeManagerLifecycle> lifecycle = CreateLifecycle();
+
+            await lifecycle.Object
+                .AddRuntimeNodeSetAsync(CreateOptions(), CancellationToken.None)
+                .ConfigureAwait(false);
+
+            lifecycle.Verify(
+                l => l.AddAsync(
+                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
         public async Task ReloadRuntimeNodeSetRejectsANullLifecycle()
         {
             ArgumentNullException exception = await Assert.ThrowsAsync<ArgumentNullException>(
@@ -139,6 +155,26 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     It.IsAny<NodeManagerRegistration>(),
                     It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
                     It.IsAny<IOperationContext>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+        }
+
+        [Test]
+        public async Task ReloadRuntimeNodeSetWithoutCallerContextForwardsARuntimeNodeSetFactoryAsync()
+        {
+            Mock<INodeManagerLifecycle> lifecycle = CreateLifecycle();
+
+            await lifecycle.Object
+                .ReloadRuntimeNodeSetAsync(
+                    CreateRegistration(),
+                    CreateOptions(),
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+
+            lifecycle.Verify(
+                l => l.ReloadAsync(
+                    It.IsAny<NodeManagerRegistration>(),
+                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -260,10 +296,21 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<NodeManagerRegistration>(registration));
             lifecycle
+                .Setup(l => l.AddAsync(
+                    It.IsAny<IAsyncNodeManagerFactory>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeManagerRegistration>(registration));
+            lifecycle
                 .Setup(l => l.ReloadAsync(
                     It.IsAny<NodeManagerRegistration>(),
                     It.IsAny<IAsyncNodeManagerFactory>(),
                     It.IsAny<IOperationContext>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeManagerRegistration>(registration));
+            lifecycle
+                .Setup(l => l.ReloadAsync(
+                    It.IsAny<NodeManagerRegistration>(),
+                    It.IsAny<IAsyncNodeManagerFactory>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<NodeManagerRegistration>(registration));
             lifecycle

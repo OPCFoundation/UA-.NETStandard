@@ -131,6 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             Task? dispatch = null;
             Task<NodeManagerBatchResult>? commit = null;
+            NodeManagerBatchResult? retirementResult = null;
             try
             {
                 await ProduceAsync(771).ConfigureAwait(false);
@@ -143,25 +144,27 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     ], timeout.Token).ConfigureAwait(false);
                 ISession session = RequireLifecycleValue(
                     server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
-                using var context = new OperationContext(session, DiagnosticsMasks.None);
-                dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
-                    .AsTask();
-                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await ProduceAsync(999).ConfigureAwait(false);
-                Assert.That(prepared.IsCommitted, Is.True);
-                Assert.That(dispatch.IsCompleted, Is.False);
-                Assert.That(second.DisposeCount, Is.Zero);
-                releaseDispatch.TrySetResult(true);
-                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(second.DisposeCount, Is.Zero,
-                    "The queued source snapshots, not just A's callback, must retain B.");
-                releaseValidation.TrySetResult(true);
-                NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(result.CleanupFailure, Is.Null);
-                Assert.That(second.DisposeCount, Is.EqualTo(1));
-                await survivor.ReportOwnedEmissionAsync("source-drain-fence", timeout.Token).ConfigureAwait(false);
+                    using (var context = new OperationContext(session, DiagnosticsMasks.None))
+                    {
+                        dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
+                        await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token)
+                            .AsTask();
+                        await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        Assert.That(prepared.IsCommitted, Is.True);
+                        Assert.That(dispatch.IsCompleted, Is.False);
+                        Assert.That(second.DisposeCount, Is.Zero);
+                        releaseDispatch.TrySetResult(true);
+                        releaseValidation.TrySetResult(true);
+                        await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        await ProduceAsync(999).ConfigureAwait(false);
+                        Assert.That(second.DisposeCount, Is.Zero,
+                            "The queued source snapshots, not just A's callback, must retain B.");
+                    }
+                    NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    retirementResult = result;
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    await survivor.ReportOwnedEmissionAsync("source-drain-fence", timeout.Token).ConfigureAwait(false);
                 var values = new List<DataValue>();
                 var messages = new List<string>();
                 bool fenced = false;
@@ -211,7 +214,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 else
                 {
                     Assert.That(values.Where(value => StatusCode.IsGood(value.StatusCode))
-                        .Select(value => value.WrappedValue),
+                        .Select(value => value.WrappedValue)
+                        .ToArray(),
                         Is.EqualTo(new[] { new Variant(771), new Variant(772) }));
                     Assert.That(values[^1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                     Assert.That(messages, Is.Empty);
@@ -262,6 +266,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
+            await RequireLifecycleValue(retirementResult).Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(second.DisposeCount, Is.EqualTo(1));
 
             async ValueTask ProduceAsync(int value)
             {
@@ -354,6 +360,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 release.TrySetResult(true);
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
+
+            await using IPreparedNodeManagerBatch finalRemoval = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
+            NodeManagerBatchResult finalResult = await finalRemoval
+                .CommitAsync(static _ => default, timeout.Token).ConfigureAwait(false);
+            await finalResult.Retirement.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(manager.DisposeCount, Is.EqualTo(1));
+            Assert.That(variable.OnStateChangedAsync, Is.Null);
 
             async Task AssertServingAsync(int value)
             {

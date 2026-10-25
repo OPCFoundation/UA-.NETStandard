@@ -531,7 +531,6 @@ namespace Opc.Ua.Server
         {
             get
             {
-                EnsureSourceRetirement(includeCaptured: false);
                 if (MonitoringMode == MonitoringMode.Disabled ||
                     (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
                 {
@@ -740,6 +739,10 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                if (m_isDeleted)
+                {
+                    return;
+                }
                 m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
                 SetDetachState(m_isDetached, isDeleted: true);
                 QueueNodeIdUnknown();
@@ -1496,7 +1499,8 @@ namespace Opc.Ua.Server
             in DataValue value,
             ServiceResult? error,
             bool ignoreFilters = false,
-            bool initialValue = false)
+            bool initialValue = false,
+            IAsyncNodeManager? admittedSourceNodeManager = null)
         {
             lock (m_lock)
             {
@@ -1518,11 +1522,13 @@ namespace Opc.Ua.Server
                 }
                 if (initialValue)
                 {
-                    QueueValueCore(value, error, ignoreFilters, initialValue: true);
+                    QueueValueCore(
+                        value, error, ignoreFilters, initialValue: true, admittedSourceNodeManager);
                 }
                 else
                 {
-                    QueueValue(value, error, ignoreFilters);
+                    QueueValueCore(
+                        value, error, ignoreFilters, initialValue: false, admittedSourceNodeManager);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, context.NotificationAuthorization))
                 {
@@ -1539,7 +1545,8 @@ namespace Opc.Ua.Server
             NotificationAuthorization? authorization,
             IFilterTarget target,
             SharedEventFilterKey? key,
-            SharedEventEvaluation? evaluation)
+            SharedEventEvaluation? evaluation,
+            IAsyncNodeManager? admittedSourceNodeManager = null)
         {
             lock (m_lock)
             {
@@ -1550,11 +1557,11 @@ namespace Opc.Ua.Server
                 }
                 if (evaluation != null)
                 {
-                    QueueSharedEvent(target, key!, evaluation);
+                    QueueSharedEvent(target, key!, evaluation, admittedSourceNodeManager);
                 }
                 else
                 {
-                    QueueEvent(target);
+                    QueueEventCore(target, bypassFilter: false, admittedSourceNodeManager);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, authorization))
                 {
@@ -1583,20 +1590,31 @@ namespace Opc.Ua.Server
             in DataValue value,
             ServiceResult? error,
             bool ignoreFilters,
-            bool initialValue)
+            bool initialValue,
+            IAsyncNodeManager? admittedSourceNodeManager = null)
         {
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
+            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
+                m_server.NodeManager is MasterNodeManager sourceMaster &&
+                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            MasterNodeManager.SourceEmissionAdmission? emission = null;
+            bool admitted = capturedSourceEmission;
+            if (!admitted)
+            {
+                admitted = MasterNodeManager.TryCaptureSourceEmission(
+                    m_server,
+                    NodeManager,
+                    out emission,
+                    Generation);
+            }
             using var emissionLease = emission;
             if (!admitted)
             {
-                EnsureSourceRetirement();
                 return;
             }
             using var emissionScope = emission?.EnterSourceEmission();
             lock (m_lock)
             {
                 EnsureNotificationAuthorization();
-                EnsureSourceRetirement();
 
                 // this method should only be called for variables.
                 if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
@@ -1607,7 +1625,9 @@ namespace Opc.Ua.Server
                 // check monitoring mode.
                 if (MonitoringMode == MonitoringMode.Disabled ||
                     (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)) ||
-                    (!CanQueueSourceEmission() && !IsBadNodeIdUnknown(value, error)))
+                    (!capturedSourceEmission &&
+                        !CanQueueSourceEmission() &&
+                        !IsBadNodeIdUnknown(value, error)))
                 {
                     return;
                 }
@@ -1957,11 +1977,28 @@ namespace Opc.Ua.Server
         /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
+            QueueEventCore(instance, bypassFilter, admittedSourceNodeManager: null);
+        }
+
+        private void QueueEventCore(
+            IFilterTarget instance,
+            bool bypassFilter,
+            IAsyncNodeManager? admittedSourceNodeManager)
+        {
             if (instance == null)
             {
                 throw new ArgumentNullException(nameof(instance));
             }
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
+            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
+                m_server.NodeManager is MasterNodeManager sourceMaster &&
+                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            MasterNodeManager.SourceEmissionAdmission? emission = null;
+            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+                    m_server,
+                    NodeManager,
+                    out emission,
+                    Generation,
+                    isGlobalServerEventSink: MonitoringAllEvents);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -1979,7 +2016,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureNotificationAuthorization();
-                if (!CanQueueSourceEmission())
+                if (!capturedSourceEmission && !CanQueueSourceEmission())
                 {
                     return;
                 }
@@ -2057,7 +2094,7 @@ namespace Opc.Ua.Server
                 {
                     fields = GetEventFields(context, filter, instance);
                 }
-                QueueEvent(fields);
+                QueueEventFields(fields, admittedSourceNodeManager);
             }
         }
 
@@ -2067,7 +2104,23 @@ namespace Opc.Ua.Server
         /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
-            bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission, Generation);
+            QueueEventFields(fields, admittedSourceNodeManager: null);
+        }
+
+        private void QueueEventFields(
+            EventFieldList fields,
+            IAsyncNodeManager? admittedSourceNodeManager)
+        {
+            bool capturedSourceEmission = admittedSourceNodeManager is { } sourceNodeManager &&
+                m_server.NodeManager is MasterNodeManager sourceMaster &&
+                sourceMaster.HasCapturedSourceEmission(sourceNodeManager);
+            MasterNodeManager.SourceEmissionAdmission? emission = null;
+            bool admitted = capturedSourceEmission || MasterNodeManager.TryCaptureSourceEmission(
+                    m_server,
+                    NodeManager,
+                    out emission,
+                    Generation,
+                    isGlobalServerEventSink: MonitoringAllEvents);
             using var emissionLease = emission;
             if (!admitted)
             {
@@ -2078,7 +2131,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EnsureNotificationAuthorization();
-                if (!CanQueueSourceEmission())
+                if (!capturedSourceEmission && !CanQueueSourceEmission())
                 {
                     return;
                 }
@@ -2725,28 +2778,6 @@ namespace Opc.Ua.Server
                     (m_server.NodeManager is MasterNodeManager master &&
                         master.HasCapturedSourceEmission(NodeManager) &&
                         !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false)));
-        }
-
-        /// <summary>
-        /// Retires the item when its source emission was cut off so the cutoff is reported to the subscription.
-        /// </summary>
-        internal void RetireCutOffSource()
-        {
-            EnsureSourceRetirement();
-        }
-
-        private void EnsureSourceRetirement(bool includeCaptured = true)
-        {
-            lock (m_lock)
-            {
-                if (!m_isDeleted &&
-                    m_server.NodeManager is MasterNodeManager master &&
-                    !master.IsSourceEmissionAllowed(NodeManager, includeCaptured))
-                {
-                    SetDetachState(m_isDetached, isDeleted: true);
-                    QueueNodeIdUnknown();
-                }
-            }
         }
 
         /// <summary>

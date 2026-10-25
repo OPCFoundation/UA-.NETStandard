@@ -206,6 +206,12 @@ namespace Opc.Ua.Server
             bool enabled);
 
         /// <summary>
+        /// Closes admission for a NodeManager generation during server shutdown.
+        /// </summary>
+        /// <param name="nodeManager">The NodeManager whose generation must stop accepting work.</param>
+        void CloseNodeManagerGenerationAdmissions(IAsyncNodeManager nodeManager);
+
+        /// <summary>
         /// Disables new lifecycle-protected notifications and waits for dispatches that already
         /// captured <paramref name="nodeManager"/> to finish, without changing its retained
         /// all-events subscription snapshot.

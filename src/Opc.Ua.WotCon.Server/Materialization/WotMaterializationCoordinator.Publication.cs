@@ -1415,7 +1415,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             {
                 return capture() is { } pending
                     ? Record(pending, WotProjectionChange.Replace(
-                        current, document, WotProjectionRetirementPolicy.Immediate))
+                        current, document, WotProjectionRetirementPolicy.Invalidate))
                     : inner.ImmediateReloadAsync(current, document, cancellationToken);
             }
 

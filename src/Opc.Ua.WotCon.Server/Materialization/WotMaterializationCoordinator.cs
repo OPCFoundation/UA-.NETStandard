@@ -540,7 +540,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// successful version switch.
         /// </summary>
         public WotProjectionRetirementPolicy RetirementPolicy { get; set; } =
-            WotProjectionRetirementPolicy.Graceful;
+            WotProjectionRetirementPolicy.Migrate;
 
         /// <summary>
         /// Gets the binding capability snapshots advertised by the registered
@@ -1234,7 +1234,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         handle = await m_host.AddAsync(document, cancellationToken)
                             .ConfigureAwait(false);
                     }
-                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Immediate)
+                    else if (capture.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate)
                     {
                         handle = await m_host.ImmediateReloadAsync(
                             tracked.Handle, document, cancellationToken).ConfigureAwait(false);

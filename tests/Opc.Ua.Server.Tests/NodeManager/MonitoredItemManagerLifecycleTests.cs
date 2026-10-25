@@ -2388,6 +2388,19 @@ namespace Opc.Ua.Server.Tests
                 return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
             }
 
+            /// <summary>
+            /// Reports that this test lifecycle has no monitored-node consumer to retain.
+            /// </summary>
+            public bool TryRetainMonitoredNode(
+                NodeId nodeId,
+                out Func<CancellationToken, ValueTask>? drain,
+                out Action? release)
+            {
+                drain = null;
+                release = null;
+                return false;
+            }
+
             public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)

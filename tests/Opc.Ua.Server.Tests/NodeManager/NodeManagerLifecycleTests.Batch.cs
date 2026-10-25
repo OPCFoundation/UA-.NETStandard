@@ -703,7 +703,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerBatchResult committed = await pendingCommit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(committed.CleanupFailure, Is.Null);
-                Assert.That(committed.Retired, Is.EqualTo(2u));
+                await committed.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             }
             ReadResponse current = await ReadPairAsync().ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
@@ -864,6 +864,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     () =>
                     {
                         publications++;
+                        Assert.That(prepared.IsCommitted, Is.True);
                         Assert.That(GetBranchRegistration(lifecycle, original.Id),
                             Is.SameAs(prepared.Registrations[0]));
                         if (failPublication)
@@ -916,6 +917,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             await result!.Retirement.WaitAsync(TimeSpan.FromSeconds(60)).ConfigureAwait(false);
             await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task PreparedBatchDecisionFailureKeepsCurrentGenerationAndAbortsCandidateAsync()
+        {
+            TrackingLifecycleNodeManager? originalManager = null;
+            TrackingLifecycleNodeManager? candidateManager = null;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager), null)
+                .ConfigureAwait(false);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Replace(
+                    original,
+                    CreateTrackingNodeManagementFactory(kGeneration2Value, manager => candidateManager = manager))],
+                null).ConfigureAwait(false);
+            var decisionFailure = new IOException("Durable decision was rejected.");
+            int decisions = 0;
+            Exception? escaped = null;
+
+            try
+            {
+                _ = await prepared.CommitAsync(
+                    _ =>
+                    {
+                        decisions++;
+                        return ValueTask.FromException(decisionFailure);
+                    }).ConfigureAwait(false);
+            }
+            catch (IOException failure)
+            {
+                escaped = failure;
+            }
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(escaped, Is.SameAs(decisionFailure));
+                Assert.That(decisions, Is.EqualTo(1));
+                Assert.That(prepared.IsCommitted, Is.False);
+                Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
+                Assert.That(originalManager, Is.Not.Null);
+                Assert.That(candidateManager, Is.Not.Null);
+                Assert.That(candidateManager!.DisposeCount, Is.Zero);
+            }
+
+            await prepared.DisposeAsync().ConfigureAwait(false);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
+                Assert.That(candidateManager!.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(candidateManager.DisposeCount, Is.EqualTo(1));
+            }
         }
 
         [Test]

@@ -51,7 +51,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// Gets whether the host can retain private View candidates and participate in one lifecycle batch.
         /// </summary>
         /// <inheritdoc/>
-        public bool SupportsPreparedPublication => m_lifecycle is INodeManagerBatchLifecycle;
+        public bool SupportsPreparedPublication => m_lifecycle.SupportsPreparedPublication;
 
         /// <summary>
         /// Plans the complete remaining View graph from a captured committed image and requested changes.
@@ -207,7 +207,9 @@ namespace Opc.Ua.WotCon.Server.Materialization
             public ArrayOf<NodeManagerBatchChange> Changes => previous is null
                 ? [NodeManagerBatchChange.Add(this)]
                 : [NodeManagerBatchChange.Replace(previous.Registration, this,
-                    owner.m_retirementPolicy == WotProjectionRetirementPolicy.Immediate)];
+                    owner.m_retirementPolicy == WotProjectionRetirementPolicy.Invalidate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate)];
 
             public ArrayOf<string> NamespacesUris => [Namespaces.WotCon];
 

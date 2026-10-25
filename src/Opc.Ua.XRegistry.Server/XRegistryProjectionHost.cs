@@ -307,11 +307,12 @@ namespace Opc.Ua.XRegistry.Server
     /// </summary>
     /// <remarks>
     /// First activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync"/>;
-    /// updates use
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.ShadowReloadRuntimeNodeSetAsync"/>,
-    /// so the previous generation keeps serving its existing monitored items
-    /// until they drain. The stable registry NodeManager is never touched.
+    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
+    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
+    /// updates migrate compatible monitored items and invalidate items that
+    /// cannot bind to the replacement. The previous generation is not retained
+    /// for future requests or continuations. The stable registry NodeManager is
+    /// never touched.
     /// </remarks>
     public sealed class LifecycleXRegistryProjectionHost : IXRegistryProjectionHost
     {
@@ -337,7 +338,7 @@ namespace Opc.Ua.XRegistry.Server
 
             RuntimeNodeSetOptions options = BuildOptions(document);
             NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, callerContext: null, ct)
+                .AddRuntimeNodeSetAsync(options, ct)
                 .ConfigureAwait(false);
             return new XRegistryProjectionHandle(
                 document.Key,
@@ -378,7 +379,7 @@ namespace Opc.Ua.XRegistry.Server
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
                 await m_lifecycle
-                    .RemoveAsync(wrapper.Registration, callerContext: null, ct)
+                    .RemoveAsync(wrapper.Registration, ct)
                     .ConfigureAwait(false);
             }
         }

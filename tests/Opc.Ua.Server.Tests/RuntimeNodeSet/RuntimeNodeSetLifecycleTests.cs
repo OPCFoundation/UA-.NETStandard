@@ -75,10 +75,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private const uint kValueNodeId = 9001;
         private const uint kOriginalOnlyNodeId = 9002;
         private const uint kReplacementOnlyNodeId = 9003;
+        private const uint kSemanticPropertyNodeId = 9004;
         private const string kRootBrowseName = "LifecycleRoot";
         private const string kValueBrowseName = "LifecycleValue";
         private const string kOriginalOnlyBrowseName = "OriginalOnly";
         private const string kReplacementOnlyBrowseName = "ReplacementOnly";
+        private const string kSemanticPropertyBrowseName = "SemanticProperty";
         private const int kGeneration1Value = 1;
         private const int kGeneration2Value = 2;
         private const int kOriginalOnlyValue = 100;
@@ -231,7 +233,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             uint urisVersionBefore = await ReadUrisVersionAsync().ConfigureAwait(false);
 
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
-                .AddRuntimeNodeSetAsync(CreateOptions(generation: 1), null)
+                .AddRuntimeNodeSetAsync(CreateOptions(generation: 1))
                 .ConfigureAwait(false);
 
             Assert.That(server.CurrentState, Is.EqualTo(ServerState.Running));
@@ -1180,19 +1182,111 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(originalOnlyValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
         }
 
+        [Test]
+        public async Task ReloadRuntimeNodeSetAsyncReportsSemanticPropertyChangesAsync()
+        {
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            RequestHeader requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateSubscriptionResponse subscription = await services
+                .CreateSubscriptionAsync(requestHeader, 100, 100, 10, 0, true, 0)
+                .ConfigureAwait(false);
+
+            var eventFilter = new EventFilter();
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.EventId));
+            eventFilter.AddSelectClause(
+                ObjectTypeIds.SemanticChangeEventType,
+                QualifiedName.From(BrowseNames.Changes));
+
+            requestHeader = m_requestHeader;
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            CreateMonitoredItemsResponse monitoredItems = await services
+                .CreateMonitoredItemsAsync(
+                    requestHeader,
+                    subscription.SubscriptionId,
+                    TimestampsToReturn.Both,
+                    [
+                        new MonitoredItemCreateRequest
+                        {
+                            ItemToMonitor = new ReadValueId
+                            {
+                                NodeId = ObjectIds.Server,
+                                AttributeId = Attributes.EventNotifier
+                            },
+                            MonitoringMode = MonitoringMode.Reporting,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                SamplingInterval = 0,
+                                QueueSize = 10,
+                                DiscardOldest = true,
+                                Filter = new ExtensionObject(eventFilter)
+                            }
+                        }
+                    ])
+                .ConfigureAwait(false);
+            Assert.That(monitoredItems.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateOptions(generation: 1, semanticValue: 1), null)
+                .ConfigureAwait(false);
+            try
+            {
+                Assert.That(
+                    ((RuntimeNodeSetNodeManager)registration.NodeManager).GetSemanticProperties(),
+                    Has.Count.EqualTo(1));
+                var originalProperties =
+                    ((RuntimeNodeSetNodeManager)registration.NodeManager).GetSemanticProperties();
+                NodeId semanticOwner = new(
+                    kRootNodeId,
+                    (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
+                var semanticPropertyName = new QualifiedName(
+                    kSemanticPropertyBrowseName,
+                    semanticOwner.NamespaceIndex);
+                Assert.That(
+                    originalProperties[semanticOwner][semanticPropertyName].GetInt32(),
+                    Is.EqualTo(1));
+                registration = await m_server.NodeManagerLifecycle
+                    .ReloadRuntimeNodeSetAsync(registration, CreateOptions(generation: 2, semanticValue: 2), null)
+                    .ConfigureAwait(false);
+                var replacementProperties =
+                    ((RuntimeNodeSetNodeManager)registration.NodeManager).GetSemanticProperties();
+                Assert.That(
+                    replacementProperties[semanticOwner][semanticPropertyName].GetInt32(),
+                    Is.EqualTo(2));
+                Assert.That(
+                    ((RuntimeNodeSetNodeManager)registration.NodeManager).GetSemanticProperties(),
+                    Has.Count.EqualTo(1));
+
+                EventFieldList eventFields = await PublishForSemanticChangeEventAsync(
+                    services,
+                    subscription.SubscriptionId).ConfigureAwait(false);
+                Assert.That(eventFields.EventFields, Has.Count.EqualTo(2));
+                Assert.That(
+                    eventFields.EventFields[1].TryGetStructure(
+                        out ArrayOf<SemanticChangeStructureDataType> changes),
+                    Is.True);
+                Assert.That(changes, Has.Count.EqualTo(1));
+                Assert.That(
+                    changes[0].Affected,
+                    Is.EqualTo(new NodeId(kRootNodeId, (ushort)m_server.CurrentInstance
+                        .NamespaceUris.GetIndex(kModelNamespaceUri))));
+            }
+            finally
+            {
+                await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
+                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
-        /// Unlike Reload, ShadowReload must succeed while the current generation owns an
-        /// active reporting monitored item. New Read and Browse requests must be
-        /// atomically routed to the replacement generation as soon as the switch is
-        /// committed, while the monitored item created before the switch keeps being
-        /// serviced by the retired (but not yet destroyed) current generation, including
-        /// for a value pushed directly on that retired generation's own node after the
-        /// switch. Once the owning subscription is deleted, a later lifecycle operation
-        /// completes retired-generation cleanup and disposes the old generation's address
-        /// space.
+        /// ShadowReload publishes the replacement view and migrates an active reporting
+        /// monitored item to the replacement generation.
         /// </summary>
         [Test]
-        public async Task ShadowReloadRuntimeNodeSetAsyncRoutesNewRequestsToReplacementWhileOldMonitoredItemStaysActiveAsync()
+        public async Task ShadowReloadRuntimeNodeSetAsyncRoutesRequestsAndMonitoredItemsToReplacementAsync()
         {
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
@@ -1259,19 +1353,34 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     .ConfigureAwait(false))!;
                 Assert.That(replacementNode, Is.Not.Null);
 
-                // The retired generation's own node must still be present and unaffected.
-                var originalValueState = (BaseVariableState)originalManager.Find(valueNodeId)!;
-                Assert.That(originalValueState, Is.Not.Null);
-                Assert.That(originalValueState.Value, Is.EqualTo(kGeneration1Value));
+                var replacementManager = (AsyncCustomNodeManager)reloaded.NodeManager;
+                var replacementValueState = (BaseVariableState)replacementManager.Find(valueNodeId)!;
+                Assert.That(replacementValueState, Is.Not.Null);
+                Assert.That(replacementValueState.Value, Is.EqualTo(kGeneration2Value));
+                var subscription = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager
+                    .GetSubscriptions()
+                    .Single(candidate => candidate.Id == subscriptionId);
+                Assert.That(subscription.HasMonitoredItems(original.NodeManager), Is.False);
+                Assert.That(subscription.HasMonitoredItems(reloaded.NodeManager), Is.True);
 
-                // Simulate an internal (device-driven) value push directly on the retired
-                // generation's own node: it must still reach the existing monitored item.
+                // Consume the replacement's migration sample before asserting the later
+                // device-driven value notification.
+                (DataValue? migratedNotification, acknowledgements) = await PublishForDataChangeAsync(
+                    services,
+                    subscriptionId,
+                    acknowledgements,
+                    clientHandle).ConfigureAwait(false);
+                Assert.That(migratedNotification, Is.Not.Null);
+                Assert.That(
+                    migratedNotification!.Value.WrappedValue.GetInt32(),
+                    Is.EqualTo(kGeneration2Value));
+
                 const int pushedValue = 888;
-                originalValueState.Value = pushedValue;
-                originalValueState.Timestamp = DateTimeUtc.Now;
-                originalValueState.StatusCode = StatusCodes.Good;
-                originalValueState.UpdateChangeMasks(NodeStateChangeMasks.Value);
-                await originalValueState
+                replacementValueState.Value = pushedValue;
+                replacementValueState.Timestamp = DateTimeUtc.Now;
+                replacementValueState.StatusCode = StatusCodes.Good;
+                replacementValueState.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                await replacementValueState
                     .ClearChangeMasksAsync(server.DefaultSystemContext, includeChildren: false)
                     .ConfigureAwait(false);
 
@@ -1284,10 +1393,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Assert.That(pushedNotification, Is.Not.Null);
                 Assert.That(pushedNotification!.Value.WrappedValue.GetInt32(), Is.EqualTo(pushedValue));
 
-                // The replacement generation's own value must remain unaffected by the
-                // push made directly on the retired generation.
                 DataValue valueAfterPush = await ReadValueAsync(valueNodeId).ConfigureAwait(false);
-                Assert.That(valueAfterPush.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+                Assert.That(valueAfterPush.WrappedValue.GetInt32(), Is.EqualTo(pushedValue));
             }
             finally
             {
@@ -1527,9 +1634,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// pre-existing production issue and should be reported/fixed separately.
         /// </para>
         /// </remarks>
-        private static RuntimeNodeSetOptions CreateOptions(int generation)
+        private static RuntimeNodeSetOptions CreateOptions(int generation, int? semanticValue = null)
         {
-            string xml = BuildNodeSetXml(generation);
+            string xml = BuildNodeSetXml(generation, semanticValue.HasValue);
 
             (string childBrowseName, int childValue) = generation == 1
                 ? (kOriginalOnlyBrowseName, kOriginalOnlyValue)
@@ -1557,6 +1664,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         lifecycleValue;
                     builder.Variable<int>($"{kRootBrowseName}/{childBrowseName}").Node.Value =
                         childValue;
+                    if (semanticValue is int value)
+                    {
+                        builder.Variable<int>($"{kRootBrowseName}/{kSemanticPropertyBrowseName}").Node.Value =
+                            value;
+                    }
                 }
             };
         }
@@ -1617,11 +1729,25 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         /// see the defect note on <see cref="CreateOptions"/> for why their concrete values
         /// are instead wired through the fluent <c>Configure</c> callback.
         /// </summary>
-        private static string BuildNodeSetXml(int generation)
+        private static string BuildNodeSetXml(int generation, bool includeSemanticProperty = false)
         {
             (uint childNodeId, string childBrowseName) = generation == 1
                 ? (kOriginalOnlyNodeId, kOriginalOnlyBrowseName)
                 : (kReplacementOnlyNodeId, kReplacementOnlyBrowseName);
+            string semanticProperty = includeSemanticProperty
+                ? $"""
+                    <UAVariable NodeId="ns=1;i={kSemanticPropertyNodeId}"
+                                BrowseName="1:{kSemanticPropertyBrowseName}"
+                                ParentNodeId="ns=1;i={kRootNodeId}" DataType="i=6" ValueRank="-1"
+                                AccessLevel="19" UserAccessLevel="19">
+                      <DisplayName>{kSemanticPropertyBrowseName}</DisplayName>
+                      <References>
+                        <Reference ReferenceType="i=40">i=63</Reference>
+                        <Reference ReferenceType="i=35" IsForward="false">ns=1;i={kRootNodeId}</Reference>
+                      </References>
+                    </UAVariable>
+                    """
+                : string.Empty;
 
             return $"""
                 <?xml version="1.0" encoding="utf-8"?>
@@ -1639,6 +1765,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                       <Reference ReferenceType="i=40">i=58</Reference>
                       <Reference ReferenceType="i=35">ns=1;i={kValueNodeId}</Reference>
                       <Reference ReferenceType="i=35">ns=1;i={childNodeId}</Reference>
+                      {(includeSemanticProperty
+                        ? $"<Reference ReferenceType=\"i=35\">ns=1;i={kSemanticPropertyNodeId}</Reference>"
+                        : string.Empty)}
                       <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
                     </References>
                   </UAObject>
@@ -1660,6 +1789,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                       <Reference ReferenceType="i=35" IsForward="false">ns=1;i={kRootNodeId}</Reference>
                     </References>
                   </UAVariable>
+                  {semanticProperty}
                 </UANodeSet>
                 """;
         }
@@ -1809,6 +1939,68 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+        }
+
+        /// <summary>
+        /// Publishes until the semantic-change monitored item receives its event.
+        /// </summary>
+        /// <param name="services">The active test session's service client.</param>
+        /// <param name="subscriptionId">The event subscription identifier.</param>
+        /// <returns>The received event fields.</returns>
+        private async Task<EventFieldList> PublishForSemanticChangeEventAsync(
+            ServerTestServices services,
+            uint subscriptionId)
+        {
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
+            const int maxPublishAttempts = 20;
+            for (int attempt = 0; attempt < maxPublishAttempts; attempt++)
+            {
+                RequestHeader requestHeader = m_requestHeader;
+                requestHeader.Timestamp = DateTimeUtc.Now;
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                PublishResponse response = await services
+                    .PublishAsync(requestHeader, acknowledgements, timeoutCts.Token)
+                    .ConfigureAwait(false);
+                Assert.That(response.SubscriptionId, Is.EqualTo(subscriptionId));
+
+                acknowledgements = response.AvailableSequenceNumbers.ToArrayOf(
+                    sequenceNumber => new SubscriptionAcknowledgement
+                    {
+                        SubscriptionId = subscriptionId,
+                        SequenceNumber = sequenceNumber
+                    });
+
+                if (response.NotificationMessage is not { } message)
+                {
+                    continue;
+                }
+
+                var events = new List<EventFieldList>();
+                foreach (ExtensionObject notificationData in message.NotificationData)
+                {
+                    if (notificationData.TryGetValue(out EventNotificationList? eventNotification))
+                    {
+                        eventNotification.Events.ForEach(events.Add);
+                    }
+                }
+
+                foreach (EventFieldList eventFields in events)
+                {
+                    if (eventFields.EventFields.Count > 1 &&
+                        eventFields.EventFields[1].TryGetStructure(
+                            out ArrayOf<SemanticChangeStructureDataType> changes) &&
+                        changes.Count > 0)
+                    {
+                        return eventFields;
+                    }
+                }
+            }
+
+            Assert.Fail(
+                $"No semantic-change event arrived for subscription {subscriptionId} " +
+                $"within {maxPublishAttempts} bounded publish attempts.");
+            throw new InvalidOperationException("Assert.Fail did not throw.");
         }
 
         /// <summary>

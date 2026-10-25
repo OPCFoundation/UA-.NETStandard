@@ -244,8 +244,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 else
                 {
                     NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                    Assert.That(result.CleanupFailure, Is.Null);
-                    Assert.That(result.Retired, Is.Zero, "The old generation still owns the data MonitoredItem.");
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(result.CleanupFailure, Is.Null);
+                        Assert.That(result.Retired, Is.EqualTo(1u));
+                    }
                 }
                 await Task.WhenAll(RequireLifecycleValue(closingBefore), RequireLifecycleValue(closingDuring))
                     .WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -262,10 +265,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(candidate.SubscribedAllEventIds.ToList(),
                         Is.EquivalentTo(rejectDecision ? Array.Empty<uint>() : new[] { liveBefore, liveDuring }));
                     Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.Empty);
-                    Assert.That(owner.HasMonitoredItems(originalManager), Is.True);
-                    Assert.That(owner.HasMonitoredItems(candidate), Is.False);
-                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.Zero);
-                    Assert.That(originalManager.DisposeCount, Is.Zero);
+                    Assert.That(owner.HasMonitoredItems(originalManager), Is.EqualTo(rejectDecision));
+                    Assert.That(owner.HasMonitoredItems(candidate), Is.EqualTo(!rejectDecision));
+                    Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(rejectDecision ? 0 : 1));
+                    Assert.That(originalManager.DisposeCount, Is.EqualTo(rejectDecision ? 0 : 1));
                     Assert.That(candidate.DisposeCount, Is.EqualTo(rejectDecision ? 1 : 0));
                     if (rejectDecision)
                     {
@@ -306,8 +309,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that admissions during the final binding snapshot are not blocked by an unrelated
+        /// generation binding callback and that every session and event is still bound exactly once.
+        /// </summary>
         [Test]
-        public async Task PreparedBatchSerializesAdmissionsAcrossFinalBindingSnapshotAsync()
+        public async Task PreparedBatchAdmitsConcurrentlyWithFinalBindingSnapshotAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -346,15 +353,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 sessionAdmission = m_server.CreateAndActivateSessionAsync(
                     "AtFinalBindingSnapshot", clientApplicationUri: kClientApplicationUri);
                 eventAdmission = CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 2);
+                await sessionAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await eventAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(commit.IsCompleted, Is.False);
-                    Assert.That(sessionAdmission.IsCompleted, Is.False);
-                    Assert.That(eventAdmission.IsCompleted, Is.False);
-                    Assert.That(first.SessionActivatedCount, Is.EqualTo(1));
-                    Assert.That(first.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { originalEvent }));
-                    Assert.That(second.SessionActivatedCount, Is.Zero);
-                    Assert.That(second.AllEventsSubscribeCount, Is.Zero);
+                    Assert.That(commit.IsCompleted, Is.False,
+                        "The commit still waits for the blocked binding callback.");
+                    Assert.That(bindingEntered.Task.IsCompleted, Is.True);
                 }
             }
             finally

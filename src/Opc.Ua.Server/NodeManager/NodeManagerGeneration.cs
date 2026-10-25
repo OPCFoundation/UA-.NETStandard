@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -204,6 +205,9 @@ namespace Opc.Ua.Server
             NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
             Gate = new GenerationGate(state);
             Reference = new NodeManagerGenerationReference(this);
+            SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
+            EventBindings = new ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord>(
+                EventMonitoredItemReferenceComparer.Instance);
         }
 
         /// <summary>
@@ -230,6 +234,31 @@ namespace Opc.Ua.Server
         /// Gets the weak generation token safe to retain in continuations.
         /// </summary>
         internal NodeManagerGenerationReference Reference { get; }
+
+        /// <summary>
+        /// Gets the per-session binding records owned by this generation.
+        /// </summary>
+        internal ConcurrentDictionary<NodeId, GenerationSessionBindingRecord> SessionBindings { get; }
+
+        /// <summary>
+        /// Gets the per-item all-events binding records owned by this generation.
+        /// </summary>
+        internal ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord> EventBindings { get; }
+
+        /// <summary>
+        /// Gets whether the all-events bindings are sealed because the generation retired. A sealed
+        /// generation accepts no new bindings and keeps released records so a release happens once.
+        /// </summary>
+        internal bool EventBindingsSealed => Volatile.Read(ref m_eventBindingsSealed) != 0;
+
+        /// <summary>
+        /// Seals the all-events bindings.
+        /// </summary>
+        /// <returns><c>true</c> when this call sealed the bindings.</returns>
+        internal bool TrySealEventBindings()
+        {
+            return Interlocked.Exchange(ref m_eventBindingsSealed, 1) == 0;
+        }
 
         /// <summary>
         /// Gets whether all view pins and generation-gated operations have drained.
@@ -293,6 +322,100 @@ namespace Opc.Ua.Server
 
         /// <summary>The un-drained views that have routed this generation.</summary>
         private readonly List<AddressSpaceEpoch> m_viewEpochs = [];
+
+        /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
+        private int m_eventBindingsSealed;
+    }
+
+    /// <summary>
+    /// Serializes callbacks for one session within a single NodeManager generation.
+    /// </summary>
+    internal sealed class GenerationSessionBindingRecord
+    {
+        /// <summary>
+        /// Gets the semaphore that serializes this session's lifecycle callbacks.
+        /// </summary>
+        internal SemaphoreSlim Semaphore { get; } = new(1, 1);
+
+        /// <summary>
+        /// Gets or sets the binding currently installed for this session.
+        /// </summary>
+        internal GenerationReconciler.SessionBinding? Binding { get; set; }
+    }
+
+    /// <summary>
+    /// Coordinates binding changes for one all-events monitored item.
+    /// </summary>
+    internal sealed class GenerationEventBindingRecord
+    {
+        /// <summary>
+        /// Initializes a record for one exact monitored-item instance.
+        /// </summary>
+        /// <param name="item">The item represented by this record.</param>
+        internal GenerationEventBindingRecord(IEventMonitoredItem item)
+        {
+            Item = item ?? throw new ArgumentNullException(nameof(item));
+        }
+
+        /// <summary>
+        /// Gets the exact monitored-item instance represented by this record.
+        /// </summary>
+        internal IEventMonitoredItem Item { get; }
+
+        /// <summary>
+        /// Protects short state transitions; no manager callback runs while it is held.
+        /// </summary>
+        internal Lock Sync { get; } = new();
+
+        /// <summary>
+        /// Gets or sets the current binding transition.
+        /// </summary>
+        internal GenerationEventBindingState State { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether an unsubscribe was requested during a bind callback.
+        /// </summary>
+        internal bool RemovalRequested { get; set; }
+
+        /// <summary>
+        /// Gets or sets completion for the active transition.
+        /// </summary>
+        internal TaskCompletionSource<bool>? Completion { get; set; }
+    }
+
+    /// <summary>
+    /// Describes the transition state of one generation's all-events binding.
+    /// </summary>
+    internal enum GenerationEventBindingState
+    {
+        Unbound,
+        Subscribing,
+        Bound,
+        Unsubscribing,
+        Removed
+    }
+
+    /// <summary>
+    /// Compares monitored items by reference identity.
+    /// </summary>
+    internal sealed class EventMonitoredItemReferenceComparer : IEqualityComparer<IEventMonitoredItem>
+    {
+        /// <summary>
+        /// Gets the shared reference comparer.
+        /// </summary>
+        internal static EventMonitoredItemReferenceComparer Instance { get; } = new();
+
+        /// <inheritdoc/>
+        public bool Equals(IEventMonitoredItem? x, IEventMonitoredItem? y)
+        {
+            return ReferenceEquals(x, y);
+        }
+
+        /// <inheritdoc/>
+        public int GetHashCode(IEventMonitoredItem obj)
+        {
+            return RuntimeHelpers.GetHashCode(obj);
+        }
     }
 
     /// <summary>

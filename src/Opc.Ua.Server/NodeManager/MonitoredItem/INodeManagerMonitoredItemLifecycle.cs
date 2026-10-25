@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +55,18 @@ namespace Opc.Ua.Server
         ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Retains the monitored-node notification consumer for a node owned by this manager.
+        /// </summary>
+        /// <param name="nodeId">The NodeId whose notifications must drain.</param>
+        /// <param name="drain">Waits for the retained node's pending notifications.</param>
+        /// <param name="release">Releases the retention acquired by this call.</param>
+        /// <returns><c>true</c> when the monitored node was retained.</returns>
+        bool TryRetainMonitoredNode(
+            NodeId nodeId,
+            out Func<CancellationToken, ValueTask>? drain,
+            out Action? release);
 
         /// <summary>
         /// Reports whether an existing MonitoredItem could attach to this NodeManager, which is

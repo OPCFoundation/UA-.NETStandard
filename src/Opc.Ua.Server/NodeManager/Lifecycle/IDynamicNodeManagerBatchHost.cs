@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,7 +39,6 @@ namespace Opc.Ua.Server
     /// </summary>
     /// <param name="Candidates">The prepared node managers to add or replace.</param>
     /// <param name="Removed">The node managers removed by the batch.</param>
-    /// <param name="RoutingRevision">The routing image the batch was prepared against.</param>
     /// <param name="TypeTree">The candidate type tree.</param>
     /// <param name="OriginalTypes">The type tree the batch was prepared against.</param>
     /// <param name="TypeRevision">The revision of the original type tree.</param>
@@ -47,15 +47,18 @@ namespace Opc.Ua.Server
     /// <param name="FactoryRevision">The revision of the original factory.</param>
     /// <param name="ReadImages">The read images to bind when the batch is published.</param>
     /// <param name="DecideAsync">The callback deciding whether to publish, or null to validate only.</param>
+    /// <param name="ViewPublished">The callback marking the routing-view commit point.</param>
     /// <param name="Published">The callback invoked after the candidate has been published.</param>
     /// <param name="ReconcileBindingsAsync">The callback reconciling monitored item bindings.</param>
+    /// <param name="DeferReferenceRemoval">
+    /// The callback recording external reference removals that cannot be applied to a staged NodeState.
+    /// </param>
     /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
     /// <param name="Preparation">The explicit private metadata staging context.</param>
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
-        NodeManagerRoutingTable.RoutingSnapshot RoutingRevision,
         TypeTable TypeTree,
         TypeTable OriginalTypes,
         long TypeRevision,
@@ -64,8 +67,10 @@ namespace Opc.Ua.Server
         long FactoryRevision,
         ArrayOf<INodeManagerReadImage> ReadImages,
         Func<CancellationToken, ValueTask>? DecideAsync,
+        Action ViewPublished,
         Action Published,
         Func<ValueTask> ReconcileBindingsAsync,
+        Action<IAsyncNodeManager, List<LocalReference>> DeferReferenceRemoval,
         Action<Exception> ReportCleanupFailure,
         ChangePreparer Preparation,
         CancellationToken CancellationToken);

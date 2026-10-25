@@ -41,23 +41,26 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// The production <see cref="IWotProjectionHost"/> that projects WoT closures
     /// onto the live server through the public NodeManager lifecycle. First
     /// activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync"/>;
+    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
+    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
     /// updates use
     /// <see cref="RuntimeNodeSetLifecycleExtensions.ShadowReloadRuntimeNodeSetAsync"/>,
-    /// so the previous generation keeps serving its existing monitored items
-    /// until they drain. The stable WoT registry NodeManager is never touched.
+    /// migrating compatible monitored items and invalidating items unavailable
+    /// in the replacement. The previous generation is not retained for future
+    /// requests or continuations. The stable WoT registry NodeManager is never
+    /// touched.
     /// </summary>
     public sealed partial class LifecycleWotProjectionHost
     {
         /// <inheritdoc/>
-        public bool SupportsPreparedPublication => m_lifecycle is INodeManagerBatchLifecycle;
+        public bool SupportsPreparedPublication => m_lifecycle.SupportsPreparedPublication;
 
         /// <summary>
         /// Gets the atomicity modes this actual source owner can isolate.
         /// </summary>
         /// <inheritdoc/>
         public ArrayOf<WoTAtomicityEnum> SupportedAtomicities =>
-            m_lifecycle is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true }
+            m_lifecycle.SupportsPublicationIsolation
                 ? [WoTAtomicityEnum.PerResource, WoTAtomicityEnum.PerGroup,
                     WoTAtomicityEnum.PerClosure, WoTAtomicityEnum.PerRegistry]
                 : [];
@@ -68,8 +71,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         public IWotProjectionPublicationCapture CapturePublication()
         {
-            return m_lifecycle is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true } lifecycle
-                ? new PublicationCapture(this, lifecycle.CapturePublication())
+            return m_lifecycle.SupportsPublicationIsolation
+                ? new PublicationCapture(this, m_lifecycle.CapturePublication())
                 : throw new NotSupportedException("The lifecycle cannot isolate a publication invocation.");
         }
 
@@ -94,13 +97,13 @@ namespace Opc.Ua.WotCon.Server.Materialization
             IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            if (m_lifecycle is not INodeManagerBatchLifecycle lifecycle)
+            if (!m_lifecycle.SupportsPreparedPublication)
             {
                 throw new NotSupportedException("The lifecycle cannot prepare an aggregate projection publication.");
             }
             PreparedChanges candidate = CreatePreparedChanges(changes, views);
             IPreparedNodeManagerBatch? batch = publication is null
-                ? await lifecycle.PrepareAsync(candidate.Changes, callerContext, cancellationToken)
+                ? await m_lifecycle.PrepareAsync(candidate.Changes, callerContext, cancellationToken)
                     .ConfigureAwait(false)
                 : await publication.PrepareAsync(candidate.Changes, cancellationToken).ConfigureAwait(false);
             try
@@ -126,12 +129,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
             CancellationToken cancellationToken)
         {
             _ = inspectAsync ?? throw new ArgumentNullException(nameof(inspectAsync));
-            if (publication is not INodeManagerValidationPublication validation)
+            if (!publication.IsCurrent)
             {
-                throw new NotSupportedException("The lifecycle cannot privately validate a publication candidate.");
+                throw new InvalidOperationException("A stale publication cannot validate a candidate.");
             }
             PreparedChanges candidate = CreatePreparedChanges(changes, views);
-            await validation.ValidateAsync(candidate.Changes, async (batch, token) =>
+            await publication.ValidateAsync(candidate.Changes, async (batch, token) =>
             {
                 PreparedPublication prepared = BindPreparedPublication(candidate, views, batch);
                 await inspectAsync(prepared, token).ConfigureAwait(false);
@@ -174,12 +177,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     current = registration.Registration;
                     sourceImage.Exclude(current.NodeManager);
                 }
-                bool immediate = change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate;
+                NodeManagerMonitoredItemTransitionMode transitionMode =
+                    change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate
+                        ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                        : NodeManagerMonitoredItemTransitionMode.Migrate;
                 if (change.Document is null)
                 {
                     lifecycleChanges.Add(NodeManagerBatchChange.Remove(
-                        current ?? throw new ArgumentException("Retirement has no current owner.", nameof(changes)),
-                        immediate));
+                        current ?? throw new ArgumentException("Retirement has no current owner.", nameof(changes))));
                     continue;
                 }
                 RuntimeNodeSetOptions options = BuildOptions(change.Document);
@@ -187,7 +192,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 IAsyncNodeManagerFactory factory = sourceImage.Capture(new RuntimeNodeSetNodeManagerFactory(options));
                 lifecycleChanges.Add(current is null
                     ? NodeManagerBatchChange.Add(factory)
-                    : NodeManagerBatchChange.Replace(current, factory, immediate));
+                    : NodeManagerBatchChange.Replace(current, factory, transitionMode));
                 documents.Add(change.Document);
             }
             if (views is IWotPreparedViewSourceConsumer consumer)

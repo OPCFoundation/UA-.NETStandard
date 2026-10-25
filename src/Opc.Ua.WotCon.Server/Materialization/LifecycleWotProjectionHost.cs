@@ -42,11 +42,14 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// The production <see cref="IWotProjectionHost"/> that projects WoT closures
     /// onto the live server through the public NodeManager lifecycle. First
     /// activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync"/>;
+    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
+    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
     /// updates use
     /// <see cref="RuntimeNodeSetLifecycleExtensions.ShadowReloadRuntimeNodeSetAsync"/>,
-    /// so the previous generation keeps serving its existing monitored items
-    /// until they drain. The stable WoT registry NodeManager is never touched.
+    /// migrating compatible monitored items and invalidating items unavailable
+    /// in the replacement. The previous generation is not retained for future
+    /// requests or continuations. The stable WoT registry NodeManager is never
+    /// touched.
     /// </summary>
     public sealed partial class LifecycleWotProjectionHost : IWotInvocationProjectionHost
     {
@@ -83,7 +86,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             RuntimeNodeSetOptions options = BuildOptions(document);
             var publication = new WotProjectionRuntimePublication(options);
             NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, callerContext: null, cancellationToken)
+                .AddRuntimeNodeSetAsync(options, cancellationToken)
                 .ConfigureAwait(false);
             publication.Publish(registration.Generation);
             return new WotProjectionHandle(
@@ -186,7 +189,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
                 await m_lifecycle
-                    .RemoveAsync(wrapper.Registration, callerContext: null, cancellationToken)
+                    .RemoveAsync(wrapper.Registration, cancellationToken)
                     .ConfigureAwait(false);
             }
         }

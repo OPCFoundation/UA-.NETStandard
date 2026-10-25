@@ -153,6 +153,40 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Retains the notification consumer while a lifecycle transition drains admitted snapshots.
+        /// </summary>
+        /// <returns>A retention handle, or null if the consumer is already disposed.</returns>
+        internal Action? RetainForLifecycleTransition()
+        {
+            lock (m_rebindLock)
+            {
+                if (m_disposed || m_disposePending)
+                {
+                    return null;
+                }
+                m_lifecycleRetentions++;
+                return ReleaseLifecycleRetention;
+            }
+        }
+
+        private void ReleaseLifecycleRetention()
+        {
+            bool dispose;
+            lock (m_rebindLock)
+            {
+                if (--m_lifecycleRetentions < 0)
+                {
+                    throw new InvalidOperationException("The monitored-node lifecycle retention was released twice.");
+                }
+                dispose = m_lifecycleRetentions == 0 && m_disposePending;
+            }
+            if (dispose)
+            {
+                Dispose();
+            }
+        }
+
+        /// <summary>
         /// Gets the non-owning identity of the generation currently bound to this monitored node.
         /// </summary>
         internal NodeManagerGenerationReference Generation { get; private set; } = null!;
@@ -405,10 +439,15 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            MasterNodeManager.NotificationDispatchLease? emission = null;
+            MasterNodeManager.SourceEmissionAdmission? emission = null;
             try
             {
-                if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission, Generation))
+                if (!MasterNodeManager.TryCaptureSourceEmission(
+                    m_server,
+                    NodeManager,
+                    out emission,
+                    Generation,
+                    isGlobalServerEventSink: Node.NodeId == ObjectIds.Server))
                 {
                     return;
                 }
@@ -425,6 +464,7 @@ namespace Opc.Ua.Server
                 {
                     Context = context,
                     EventTargetSnapshot = eventTarget,
+                    MonitoredItems = [.. EventMonitoredItems.Values],
                     SourceEmission = emission
                 };
                 await m_channel.Writer.WriteAsync(notification, cancellationToken).ConfigureAwait(false);
@@ -489,19 +529,25 @@ namespace Opc.Ua.Server
 
             if ((changes & NodeStateChangeMasks.Deleted) != 0)
             {
-                foreach (IDataChangeMonitoredItem2 monitoredItem in
-                    DataChangeMonitoredItems.Values)
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true &&
+                    generation?.Gate.State == NodeManagerGenerationState.Live)
                 {
-                    if (monitoredItem is IDetachableMonitoredItem lifecycle)
+                    foreach (IDataChangeMonitoredItem2 monitoredItem in
+                        DataChangeMonitoredItems.Values)
                     {
-                        lifecycle.MarkNodeDeleted();
+                        if (IsInCurrentGeneration(monitoredItem) &&
+                            monitoredItem is IDetachableMonitoredItem lifecycle)
+                        {
+                            lifecycle.MarkNodeDeleted();
+                        }
                     }
-                }
-                foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
-                {
-                    if (monitoredItem is IDetachableMonitoredItem lifecycle)
+                    foreach (IEventMonitoredItem monitoredItem in EventMonitoredItems.Values)
                     {
-                        lifecycle.MarkNodeDeleted();
+                        if (IsInCurrentGeneration(monitoredItem) &&
+                            monitoredItem is IDetachableMonitoredItem lifecycle)
+                        {
+                            lifecycle.MarkNodeDeleted();
+                        }
                     }
                 }
                 return;
@@ -511,23 +557,19 @@ namespace Opc.Ua.Server
             {
                 return;
             }
-            MasterNodeManager.NotificationDispatchLease? emission = null;
+            MasterNodeManager.SourceEmissionAdmission? emission = null;
             try
             {
                 if (!MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out emission, Generation))
                 {
-                    // A cut-off source still retires the items this change would have reached, in
-                    // channel order so snapshots captured before the cutoff are delivered first.
-                    await m_channel.Writer.WriteAsync(
-                        new CutOffRetirementNotification { Context = context, Changes = changes },
-                        cancellationToken).ConfigureAwait(false);
                     return;
                 }
+                KeyValuePair<uint, IDataChangeMonitoredItem2>[] monitoredItems = [.. DataChangeMonitoredItems];
                 // Collect the distinct attribute IDs being monitored so we can pre-read them.
                 // The raw value is read once without any index range or data encoding; each
                 // monitored item applies its own range/encoding in ProcessDataChangeSnapshotAsync.
                 var attributeIds = new HashSet<uint>();
-                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+                foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in monitoredItems)
                 {
                     IDataChangeMonitoredItem2 item = kvp.Value;
                     if (item is MonitoredItem { UsesExternalValueSource: true })
@@ -579,7 +621,7 @@ namespace Opc.Ua.Server
                             custom.HasValueReadAuthorization(variable))))
                 {
                     ServerSystemContext serverContext = GetSubscriberContextTemplate();
-                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+                    foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in monitoredItems)
                     {
                         if (kvp.Value.AttributeId != Attributes.Value ||
                             kvp.Value is MonitoredItem { UsesExternalValueSource: true })
@@ -618,6 +660,7 @@ namespace Opc.Ua.Server
                     Context = context,
                     NodeId = node.NodeId,
                     Changes = changes,
+                    MonitoredItems = monitoredItems,
                     AttributeSnapshots = attributeSnapshots,
                     SubscriberValueSnapshots = subscriberValueSnapshots,
                     SourceEmission = emission
@@ -704,46 +747,40 @@ namespace Opc.Ua.Server
             {
                 await foreach (INodeNotification notification in m_channel.Reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    using var emission = notification.SourceEmission;
-                    using var emissionScope = emission?.EnterSourceEmission();
                     try
                     {
                         if (notification is EventSnapshot eventSnapshot)
                         {
                             EventSnapshot? next = eventSnapshot;
-                            do
+                            while (next is not null)
                             {
+                                using var emission = next.SourceEmission;
+                                using var emissionScope = emission?.EnterSourceEmission();
                                 next = await ProcessEventSnapshotAsync(next, cancellationToken).ConfigureAwait(false);
                             }
-                            while (next != null);
                         }
-                        else if (notification is DataChangeSnapshot dataChangeSnapshot)
+                        else
                         {
-                            await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken).ConfigureAwait(false);
-                        }
-                        else if (notification is SemanticResample semanticResample)
-                        {
-                            await ProcessSemanticResampleAsync(semanticResample, cancellationToken).ConfigureAwait(false);
-                        }
-                        else if (notification is SemanticResampleSignal)
-                        {
-                        }
-                        else if (notification is CutOffRetirementNotification cutOff)
-                        {
-                            foreach (IDataChangeMonitoredItem2 cutOffItem in DataChangeMonitoredItems.Values)
+                            using var emission = notification.SourceEmission;
+                            using var emissionScope = emission?.EnterSourceEmission();
+                            if (notification is DataChangeSnapshot dataChangeSnapshot)
                             {
-                                bool isValue = cutOffItem.AttributeId == Attributes.Value;
-                                if (cutOffItem is MonitoredItem { UsesExternalValueSource: false } retirable &&
-                                    (cutOff.Changes & (isValue ? NodeStateChangeMasks.Value : NodeStateChangeMasks.NonValue)) != 0)
-                                {
-                                    retirable.RetireCutOffSource();
-                                }
+                                await ProcessDataChangeSnapshotAsync(dataChangeSnapshot, cancellationToken)
+                                    .ConfigureAwait(false);
                             }
-                        }
-                        else if (notification is NotificationFence fence)
-                        {
-                            await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
-                            fence.Completion.TrySetResult(true);
+                            else if (notification is SemanticResample semanticResample)
+                            {
+                                await ProcessSemanticResampleAsync(semanticResample, cancellationToken)
+                                    .ConfigureAwait(false);
+                            }
+                            else if (notification is SemanticResampleSignal)
+                            {
+                            }
+                            else if (notification is NotificationFence fence)
+                            {
+                                await ProcessPendingSemanticResamplesAsync(cancellationToken).ConfigureAwait(false);
+                                fence.Completion.TrySetResult(true);
+                            }
                         }
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -794,10 +831,15 @@ namespace Opc.Ua.Server
             EventSnapshot snapshot,
             CancellationToken cancellationToken)
         {
-            int count = CollectEventDeliveries(snapshot.EventTargetSnapshot, 0);
+            int count = CollectEventDeliveries(
+                snapshot.EventTargetSnapshot,
+                0,
+                snapshot.MonitoredItems,
+                snapshot.SourceEmission);
             int collected = count;
             int events = 0;
             EventSnapshot? different = null;
+            List<MasterNodeManager.SourceEmissionAdmission?>? batchedEmissions = null;
             try
             {
                 if (count == 0)
@@ -849,13 +891,25 @@ namespace Opc.Ua.Server
                     {
                         var waitingEvent = (EventSnapshot)waiting;
                         int offset = events * count;
-                        int waitingCount = CollectEventDeliveries(waitingEvent.EventTargetSnapshot, offset);
+                        int waitingCount = CollectEventDeliveries(
+                            waitingEvent.EventTargetSnapshot,
+                            offset,
+                            waitingEvent.MonitoredItems,
+                            waitingEvent.SourceEmission);
                         collected = offset + waitingCount;
                         if (!HasSameItems(offset, waitingCount, count))
                         {
                             different = waitingEvent;
                             break;
                         }
+                        if (!ReferenceEquals(
+                            snapshot.SourceEmission?.Generation,
+                            waitingEvent.SourceEmission?.Generation))
+                        {
+                            different = waitingEvent;
+                            break;
+                        }
+                        (batchedEmissions ??= []).Add(waitingEvent.SourceEmission);
                         m_eventBatch[events++] = CreateEventDelivery(waitingEvent, offset);
                     }
                 }
@@ -879,6 +933,13 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                if (batchedEmissions is not null)
+                {
+                    foreach (MasterNodeManager.SourceEmissionAdmission? emission in batchedEmissions)
+                    {
+                        emission?.Dispose();
+                    }
+                }
                 // no reference to an item or event outlives the batch in the buffers.
                 Array.Clear(m_eventDeliveries, 0, collected);
                 Array.Clear(m_eventBatch, 0, events);
@@ -889,7 +950,7 @@ namespace Opc.Ua.Server
         /// Creates the delivery of an event whose items start at <paramref name="offset"/>
         /// in <see cref="m_eventDeliveries"/>.
         /// </summary>
-        private static EventDelivery CreateEventDelivery(EventSnapshot snapshot, int offset)
+        private EventDelivery CreateEventDelivery(EventSnapshot snapshot, int offset)
         {
             // Extract EventTypeId + SourceNodeId once so the per-item
             // permission cache can be keyed by them. The asynchronous
@@ -898,7 +959,12 @@ namespace Opc.Ua.Server
             // calls per delivered event.
             IFilterTarget target = snapshot.EventTargetSnapshot;
             (NodeId eventTypeId, NodeId sourceNodeId) = ExtractEventIdentity(target);
-            return new EventDelivery(target, eventTypeId, sourceNodeId, offset);
+            return new EventDelivery(
+                target,
+                eventTypeId,
+                sourceNodeId,
+                snapshot.SourceEmission?.Generation.NodeManager ?? NodeManager,
+                offset);
         }
 
         /// <summary>
@@ -933,7 +999,11 @@ namespace Opc.Ua.Server
         /// is reused for every batch, which the consumer delivers one after the other.
         /// </remarks>
         /// <returns>The number of deliveries.</returns>
-        private int CollectEventDeliveries(IFilterTarget target, int offset)
+        private int CollectEventDeliveries(
+            IFilterTarget target,
+            int offset,
+            IEventMonitoredItem[] monitoredItems,
+            MasterNodeManager.SourceEmissionAdmission? sourceEmission)
         {
             bool isAuditEvent =
                 target is AuditEventState || (target is InstanceStateSnapshot sn && sn.Handle is AuditEventState);
@@ -942,9 +1012,16 @@ namespace Opc.Ua.Server
             // clause and the select clauses are evaluated once per group, not per item.
             var evaluations = new SharedEventEvaluations();
             int count = 0;
-            foreach (KeyValuePair<uint, IEventMonitoredItem> entry in EventMonitoredItems)
+            foreach (IEventMonitoredItem item in monitoredItems)
             {
-                IEventMonitoredItem item = entry.Value;
+                if (Node.NodeId != ObjectIds.Server &&
+                    sourceEmission is
+                        { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
+                    !IsInCurrentGeneration(item) &&
+                    item is not IDetachableMonitoredItem { IsDetached: true })
+                {
+                    continue;
+                }
                 if (isAuditEvent &&
                     (!m_server.Auditing ||
                     (item.Session?.EndpointDescription?.SecurityMode != MessageSecurityMode.SignAndEncrypt &&
@@ -1117,6 +1194,7 @@ namespace Opc.Ua.Server
                 delivery.Target,
                 delivery.EventTypeId,
                 delivery.SourceNodeId,
+                delivery.SourceNodeManager,
                 item.Key,
                 item.Evaluation,
                 cancellationToken);
@@ -1128,11 +1206,17 @@ namespace Opc.Ua.Server
         /// </summary>
         private readonly struct EventDelivery
         {
-            public EventDelivery(IFilterTarget target, NodeId eventTypeId, NodeId sourceNodeId, int offset)
+            public EventDelivery(
+                IFilterTarget target,
+                NodeId eventTypeId,
+                NodeId sourceNodeId,
+                IAsyncNodeManager sourceNodeManager,
+                int offset)
             {
                 Target = target;
                 EventTypeId = eventTypeId;
                 SourceNodeId = sourceNodeId;
+                SourceNodeManager = sourceNodeManager;
                 Offset = offset;
             }
 
@@ -1141,6 +1225,8 @@ namespace Opc.Ua.Server
             public NodeId EventTypeId { get; }
 
             public NodeId SourceNodeId { get; }
+
+            public IAsyncNodeManager SourceNodeManager { get; }
 
             public int Offset { get; }
         }
@@ -1209,6 +1295,7 @@ namespace Opc.Ua.Server
             IFilterTarget target,
             NodeId eventTypeId,
             NodeId sourceNodeId,
+            IAsyncNodeManager sourceNodeManager,
             MonitoredItem.SharedEventFilterKey? key,
             MonitoredItem.SharedEventEvaluation? evaluation,
             CancellationToken cancellationToken)
@@ -1235,7 +1322,12 @@ namespace Opc.Ua.Server
                     if (monitoredItem is MonitoredItem concreteItem)
                     {
                         concreteItem.QueueEventIfCurrent(
-                            authorizationSession, authorization, target, key, evaluation);
+                            authorizationSession,
+                            authorization,
+                            target,
+                            key,
+                            evaluation,
+                            admittedSourceNodeManager: sourceNodeManager);
                     }
                     else
                     {
@@ -1375,9 +1467,16 @@ namespace Opc.Ua.Server
                 InvalidatePermissionCaches();
             }
 
-            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in DataChangeMonitoredItems)
+            foreach (KeyValuePair<uint, IDataChangeMonitoredItem2> kvp in snapshot.MonitoredItems)
             {
                 IDataChangeMonitoredItem2 monitoredItem = kvp.Value;
+                if (snapshot.SourceEmission is
+                    { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
+                    !IsInCurrentGeneration(monitoredItem) &&
+                    monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
+                {
+                    continue;
+                }
                 if (monitoredItem is MonitoredItem { UsesExternalValueSource: true })
                 {
                     continue;
@@ -1421,7 +1520,7 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(validationResult))
             {
-                QueueError(monitoredItem, validationResult, contextToUse);
+                QueueError(monitoredItem, validationResult, contextToUse, NodeManager);
                 return;
             }
 
@@ -1437,7 +1536,8 @@ namespace Opc.Ua.Server
                         if (ServiceResult.IsBad(userAccess) || (userAccessLevel & AccessLevels.CurrentRead) == 0)
                         {
                             QueueError(monitoredItem, ServiceResult.IsBad(userAccess)
-                                ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied), contextToUse);
+                                ? userAccess : new ServiceResult(StatusCodes.BadUserAccessDenied),
+                                contextToUse, NodeManager);
                             return;
                         }
                     }
@@ -1461,7 +1561,8 @@ namespace Opc.Ua.Server
                     }
                 }
                 DataValue valueToQueue = ApplyRangeAndEncoding(contextToUse, monitoredItem, snapshotValue);
-                QueueValueIfCurrent(monitoredItem, contextToUse, valueToQueue, valueToQueue.StatusCode);
+                QueueValueIfCurrent(
+                    monitoredItem, contextToUse, valueToQueue, valueToQueue.StatusCode, NodeManager);
                 return;
             }
 
@@ -1478,11 +1579,11 @@ namespace Opc.Ua.Server
                     cancellationToken).ConfigureAwait(false);
                 if (ServiceResult.IsBad(readResult))
                 {
-                    QueueError(monitoredItem, readResult, contextToUse);
+                    QueueError(monitoredItem, readResult, contextToUse, NodeManager);
                     return;
                 }
             }
-            QueueValueIfCurrent(monitoredItem, contextToUse, snapshotValue, ServiceResult.Good);
+            QueueValueIfCurrent(monitoredItem, contextToUse, snapshotValue, ServiceResult.Good, NodeManager);
         }
 
         /// <summary>
@@ -1572,6 +1673,7 @@ namespace Opc.Ua.Server
             {
                 return !m_disposed &&
                     ReferenceEquals(request.Source, Node) &&
+                    IsInCurrentGeneration(request.Item) &&
                     DataChangeMonitoredItems.TryGetValue(request.Item.Id, out IDataChangeMonitoredItem2? current) &&
                     ReferenceEquals(current, request.Item);
             }
@@ -1584,13 +1686,18 @@ namespace Opc.Ua.Server
         private void QueueError(
             IDataChangeMonitoredItem2 monitoredItem,
             ServiceResult error,
-            ServerSystemContext? context = null)
+            ServerSystemContext? context = null,
+            IAsyncNodeManager? admittedSourceNodeManager = null)
         {
+            if (!IsInCurrentGeneration(monitoredItem))
+            {
+                return;
+            }
             DataValue value = DataValue.FromStatusCode(
                 error.StatusCode, m_timeProvider.GetUtcNow().UtcDateTime);
             if (context != null)
             {
-                QueueValueIfCurrent(monitoredItem, context, value, error);
+                QueueValueIfCurrent(monitoredItem, context, value, error, admittedSourceNodeManager);
             }
             else
             {
@@ -1765,8 +1872,6 @@ namespace Opc.Ua.Server
             using var emissionLease = emission;
             if (!admitted)
             {
-                // A cut-off source still retires the item so the subscription reports BadNodeIdUnknown.
-                (monitoredItem as MonitoredItem)?.RetireCutOffSource();
                 return;
             }
             using var emissionScope = emission?.EnterSourceEmission();
@@ -1822,11 +1927,13 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             in DataValue value,
             ServiceResult? error,
+            IAsyncNodeManager? admittedSourceNodeManager = null,
             bool ignoreFilters = false)
         {
             if (item is MonitoredItem concreteItem && context.OperationContext is OperationContext operation)
             {
-                concreteItem.QueueValueIfCurrent(operation, value, error, ignoreFilters);
+                concreteItem.QueueValueIfCurrent(
+                    operation, value, error, ignoreFilters, admittedSourceNodeManager: admittedSourceNodeManager);
             }
             else if (ignoreFilters)
             {
@@ -1938,6 +2045,17 @@ namespace Opc.Ua.Server
             InvalidatePermissionCaches();
         }
 
+        private bool IsInCurrentGeneration(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is not MonitoredItem { Generation: { } itemGeneration })
+            {
+                return true;
+            }
+
+            return itemGeneration.SlotId == Generation.SlotId &&
+                itemGeneration.Number == Generation.Number;
+        }
+
         private void InvalidatePermissionCaches()
         {
             Interlocked.Increment(ref m_permissionGeneration);
@@ -2004,6 +2122,8 @@ namespace Opc.Ua.Server
         private readonly ConcurrentQueue<SemanticResample> m_pendingSemanticResamples = new();
         private bool m_disposed;
         private bool m_draining;
+        private int m_lifecycleRetentions;
+        private bool m_disposePending;
 
         /// <summary>
         /// Completes the notification writer and asynchronously waits for all queued
@@ -2055,6 +2175,12 @@ namespace Opc.Ua.Server
             {
                 if (m_disposed)
                 {
+                    return;
+                }
+                if (m_lifecycleRetentions > 0)
+                {
+                    m_draining = true;
+                    m_disposePending = true;
                     return;
                 }
                 m_disposed = true;
@@ -2184,7 +2310,7 @@ namespace Opc.Ua.Server
             /// <summary>
             /// Gets the source emission, which a drain fence never holds.
             /// </summary>
-            public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+            public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
 
             public TaskCompletionSource<bool> Completion { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -339,7 +339,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void PreparedRoutingReservationRejectsChangedRevisionBeforeOwnership()
+        public void PreparedRoutingReservationRebasesOverChangedNamespaceRoutes()
         {
             NodeManagerRoutingTable table = CreateTable(out _, out _);
             IAsyncNodeManager candidate = CreateManager();
@@ -347,9 +347,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerRoutingTable.RoutingSnapshot previous = table.Revision;
             using NodeManagerRoutingTable.PreparedRoutes stale = PrepareRoutingCandidate(table, candidate);
             table.RegisterNamespace(9, writer);
-            Assert.Throws<InvalidOperationException>(() => table.PrepareBatch(
-                [], [], previous, _ => BatchNamespaceIndexes,
-                new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create()));
             Assert.Throws<InvalidOperationException>(stale.Reserve);
             using NodeManagerRoutingTable.PreparedRoutes current = PrepareRoutingCandidate(table, candidate);
             current.Reserve();
@@ -364,12 +361,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(previous.NamespaceManagers.ContainsKey(9), Is.False);
         }
 
+        [Test]
+        public void PreparedRoutesRejectInvalidGenerationBeforeReservation()
+        {
+            NodeManagerRoutingTable table = CreateTable(out _, out _);
+            IAsyncNodeManager candidate = CreateManager();
+            using NodeManagerRoutingTable.PreparedRoutes routes = PrepareRoutingCandidate(table, candidate);
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(candidate);
+            generation.Gate.Abort();
+
+            Assert.Throws<InvalidOperationException>(routes.Reserve);
+            Assert.That(table.Contains(candidate), Is.False);
+
+            IAsyncNodeManager writer = CreateManager();
+            table.RegisterNamespace(9, writer);
+            AssertSingleManagerRoute(table.NamespaceManagers, 9, writer);
+        }
+
         private static NodeManagerRoutingTable.PreparedRoutes PrepareRoutingCandidate(
             NodeManagerRoutingTable table,
             IAsyncNodeManager candidate)
         {
             var prepared = new PreparedNodeManager(candidate, []) { Staged = true };
-            return table.PrepareBatch([prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+            return table.PrepareBatch([prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
         }
     }

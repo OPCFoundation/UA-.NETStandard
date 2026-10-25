@@ -50,7 +50,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class NodeManagerLifecycleTests
     {
         /// <summary>
-        /// Verifies that prepared batch retirement cuts off sources before readiness.
+        /// Verifies that prepared batch retirement blocks old-generation samples before replacement readiness.
         /// </summary>
         /// <param name="replace">The replace flag for this test case.</param>
         /// <param name="immediate">The immediate flag for this test case.</param>
@@ -109,6 +109,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(commit.IsCompleted, Is.False);
                 Assert.That(candidate.ReadinessCompletedCount, Is.Zero);
                 DataValue current = await ReadValueAsync(valueId).ConfigureAwait(false);
+                bool migrated = replace && !immediate;
                 Assert.That(current.StatusCode, Is.EqualTo(replace ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
                 if (replace)
                 {
@@ -129,15 +130,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(observed.StatusCode,
-                        Is.EqualTo(immediate ? StatusCodes.BadNodeIdUnknown : StatusCodes.Good),
-                        "A committed immediate source must stop new data before another candidate becomes ready.");
-                    if (!immediate)
+                        Is.EqualTo(migrated ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown),
+                        "A retired source must stop before another candidate becomes ready.");
+                    if (migrated)
                     {
                         Assert.That(observed.WrappedValue.TryGetValue(out int pushed), Is.True);
-                        Assert.That(pushed, Is.EqualTo(777));
+                        Assert.That(pushed, Is.EqualTo(kGeneration2Value),
+                            "The migrated item must not publish a value from the retiring generation.");
                     }
-                    Assert.That(originalManager.AllEventsUnsubscribeCount, Is.EqualTo(immediate ? 1 : 0),
-                        "Immediate cutoff must also release the old all-events source binding.");
+                    Assert.That(originalManager.AllEventsUnsubscribeCount, Is.Zero,
+                        "The retired gate cuts off sources; cleanup releases the binding after readiness.");
                     Assert.That(candidate.ReadinessCompletedCount, Is.Zero);
                     Assert.That(commit.IsCompleted, Is.False);
                 }
@@ -392,13 +394,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             AssertLifecycleValue(captured);
             AssertLifecycleValue(result);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(captured.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(captured.Results[0].WrappedValue, Is.EqualTo(new Variant(kGeneration1Value)));
                 Assert.That(retainedRoutes, Is.True);
                 Assert.That(result.CleanupFailure, Is.Null);
-                Assert.That(result.Retired, Is.EqualTo(1u));
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (replace)
                 {
@@ -415,10 +417,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Verifies that prepared batch immediate cutoff keeps captured notification and queued events.
+        /// Verifies that retirement preserves queued events but drops events emitted by a captured old generation later.
         /// </summary>
         [Test]
-        public async Task PreparedBatchImmediateCutoffKeepsCapturedNotificationAndQueuedEventsAsync()
+        public async Task PreparedBatchRetirementDropsLateCapturedEventsAndKeepsQueuedEventsAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
@@ -467,36 +469,50 @@ namespace Opc.Ua.Server.Tests.NodeManager
             QueueOccurrence("queued-before-cutoff");
             ISession session = RequireLifecycleValue(
                 server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
-            using var context = new OperationContext(session, DiagnosticsMasks.None);
-            Task dispatch = master.ConditionRefreshAsync(context, [item], timeout.Token).AsTask();
+            Task? dispatch = null;
             Task<NodeManagerBatchResult>? commit = null;
             NodeManagerBatchResult? result = null;
             try
             {
-                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                commit = prepared.CommitAsync(_ => default, () => published.TrySetResult(true), timeout.Token).AsTask();
-                await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await master.ConditionRefreshAsync(context, [item], timeout.Token).ConfigureAwait(false);
-                using (Assert.EnterMultipleScope())
+                using (var context = new OperationContext(session, DiagnosticsMasks.None))
                 {
-                    Assert.That(originalManager.ConditionRefreshCount, Is.EqualTo(1),
-                        "New dispatches must not enter the retired source after the publication cutoff.");
-                    Assert.That(originalManager.AllEventsUnsubscribeCount, Is.Zero,
-                        "The dispatch admitted before cutoff still owns its all-events binding.");
-                    Assert.That(ready.Task.IsCompleted, Is.False);
-                    Assert.That(dispatch.IsCompleted, Is.False);
-                    Assert.That(originalManager.DisposeCount, Is.Zero);
+                    dispatch = master.ConditionRefreshAsync(context, [item], timeout.Token).AsTask();
+                    try
+                    {
+                        await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        commit = prepared.CommitAsync(
+                            _ => default,
+                            () => published.TrySetResult(true),
+                            timeout.Token).AsTask();
+                        await published.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        await master.ConditionRefreshAsync(context, [item], timeout.Token).ConfigureAwait(false);
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(originalManager.ConditionRefreshCount, Is.EqualTo(1),
+                                "New dispatches must not enter the retired source after the publication cutoff.");
+                            Assert.That(originalManager.AllEventsUnsubscribeCount, Is.Zero,
+                                "The dispatch admitted before cutoff still owns its all-events binding.");
+                            Assert.That(ready.Task.IsCompleted, Is.True,
+                                "New-generation readiness must not wait for an unrelated retired dispatch.");
+                            Assert.That(dispatch.IsCompleted, Is.False);
+                            Assert.That(originalManager.DisposeCount, Is.Zero);
+                        }
+                    }
+                    finally
+                    {
+                        releaseDispatch.TrySetResult(true);
+                        await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    }
                 }
-                releaseDispatch.TrySetResult(true);
-                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(originalManager.AllEventsUnsubscribeCount, Is.EqualTo(1));
+                Assert.That(originalManager.AllEventsUnsubscribeCount, Is.Zero,
+                    "Retirement cleanup waits for the blocked new-generation readiness callback.");
                 Assert.That(survivor.AllEventsUnsubscribeCount, Is.Zero);
                 Assert.That(survivor.ConditionRefreshCount, Is.EqualTo(2));
 
                 var messages = new List<string>();
                 ArrayOf<SubscriptionAcknowledgement> acknowledgements = default;
-                while (messages.Count < 2)
+                while (messages.Count < 1)
                 {
                     RequestHeader header = m_requestHeader;
                     header.Timestamp = DateTimeUtc.Now;
@@ -519,9 +535,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         }
                     }
                 }
-                Assert.That(messages, Has.Count.EqualTo(2));
+                Assert.That(messages, Has.Count.EqualTo(1));
                 Assert.That(messages[0], Is.EqualTo("queued-before-cutoff"));
-                Assert.That(messages[1], Is.EqualTo("captured-before-cutoff"));
                 Assert.That(server.EventManager.GetMonitoredItems().Single(value => value.Id == itemId),
                     Is.SameAs(item));
             }
@@ -529,7 +544,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 releaseDispatch.TrySetResult(true);
                 releaseReadiness.TrySetResult(true);
-                await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (dispatch is not null)
+                {
+                    await dispatch.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
                 if (commit is not null)
                 {
                     result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -542,6 +560,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(repeated.Results[0], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
+            await RequireLifecycleValue(result).Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(RequireLifecycleValue(result).CleanupFailure, Is.Null);
             Assert.That(originalManager.AllEventsUnsubscribeCount, Is.EqualTo(1));
             Assert.That(survivor.AllEventsUnsubscribeCount, Is.EqualTo(1));
@@ -567,6 +586,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
+            var master = (MasterNodeManager)server.NodeManager;
             TrackingLifecycleNodeManager? failing = null;
             TrackingLifecycleNodeManager? healthy = null;
             TrackingLifecycleNodeManager? survivor = null;
@@ -578,8 +598,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateTrackingNodeManagementFactory(
                     kGeneration2Value, manager => healthy = manager, kReadinessProbeNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                303, manager => survivor = manager, "urn:opcfoundation.org:Tests:CutoffFailureSurvivor"),
+            NodeManagerRegistration survivorRegistration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(
+                    303, manager => survivor = manager, "urn:opcfoundation.org:Tests:CutoffFailureSurvivor"),
                 null, timeout.Token).ConfigureAwait(false);
             AssertLifecycleValue(failing);
             AssertLifecycleValue(healthy);
@@ -588,6 +609,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
                 services, ObjectIds.Server).ConfigureAwait(false);
             await ModifyEventMonitoredItemAsync(services, subscriptionId, itemId).ConfigureAwait(false);
+            Assert.That(survivor.SubscribedAllEventIds.ToList(), Does.Contain(itemId));
+            await survivor.ReportOwnedEmissionAsync("pre-cutoff-fence", timeout.Token).ConfigureAwait(false);
+            var baselineDelivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
+                .ConfigureAwait(false);
+            Assert.That(baselineDelivery.EventFields!.EventFields[1]
+                .TryGetValue(out LocalizedText baselineMessage), Is.True);
+            Assert.That(baselineMessage.Text, Is.EqualTo("pre-cutoff-fence"));
             var failure = new IOException("The retired source rejected its first unsubscribe.");
             if (badStatus)
             {
@@ -595,7 +623,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             else
             {
-                failing.AllEventsCallback = (_, unsubscribe, _) => unsubscribe ? throw failure : default;
+                int failuresRemaining = 1;
+                failing.AllEventsCallback = (_, unsubscribe, _) =>
+                {
+                    if (unsubscribe && Interlocked.Exchange(ref failuresRemaining, 0) != 0)
+                    {
+                        throw failure;
+                    }
+                    return default;
+                };
             }
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -625,6 +661,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
                 await healthy.ReportOwnedEmissionAsync("healthy-retired-new-business", timeout.Token)
                     .ConfigureAwait(false);
+                Assert.That(survivor.SubscribedAllEventIds.ToList(), Does.Contain(itemId),
+                    "Retiring unrelated managers must preserve the surviving all-events binding.");
+                Assert.That(master.TryGetCurrentGeneration(survivor, out NodeManagerGeneration? currentGeneration), Is.True);
+                Assert.That(currentGeneration!.Gate.State, Is.EqualTo(NodeManagerGenerationState.Live));
                 await survivor.ReportOwnedEmissionAsync("cleanup-failure-fence", timeout.Token).ConfigureAwait(false);
                 var delivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
                     .ConfigureAwait(false);
@@ -635,20 +675,41 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(prepared.IsCommitted, Is.True);
                     Assert.That(commit.IsCompleted, Is.False);
-                    Assert.That(failing.AllEventsUnsubscribeCount, Is.EqualTo(1));
-                    Assert.That(healthy.AllEventsUnsubscribeCount, Is.EqualTo(1),
-                        "One failing source must not prevent cutoff of later retired sources.");
+                    Assert.That(failing.AllEventsUnsubscribeCount, Is.Zero);
+                    Assert.That(healthy.AllEventsUnsubscribeCount, Is.Zero);
                     Assert.That(candidate.ReadinessCount, Is.EqualTo(1));
                     Assert.That(server.EventManager.GetMonitoredItems().Single().Id, Is.EqualTo(itemId));
                 }
             }
             finally
             {
-                failing.AllEventsCallback = (_, _, _) => default;
-                failing.AllEventsUnsubscribeResult = ServiceResult.Good;
                 release.TrySetResult(true);
-                result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                try
+                {
+                    result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                finally
+                {
+                    failing.AllEventsCallback = (_, _, _) => default;
+                    failing.AllEventsUnsubscribeResult = ServiceResult.Good;
+                    await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+                }
+            }
+            await m_server.NodeManagerLifecycle.RemoveAsync(
+                survivorRegistration,
+                null,
+                timeout.Token).ConfigureAwait(false);
+            if (badStatus)
+            {
+                await Assert.ThatAsync(
+                    () => RequireLifecycleValue(result).Retirement.WaitAsync(timeout.Token),
+                    Throws.TypeOf<ServiceResultException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                await Assert.ThatAsync(
+                    () => RequireLifecycleValue(result).Retirement.WaitAsync(timeout.Token),
+                    Throws.Exception.SameAs(failure)).ConfigureAwait(false);
             }
             Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
             var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException).Flatten().InnerExceptions;
@@ -663,9 +724,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(failures[0], Is.SameAs(failure));
             }
+            TrackingLifecycleNodeManager? retryTrigger = null;
+            NodeManagerRegistration retryRegistration = await m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(
+                    404,
+                    manager => retryTrigger = manager,
+                    "urn:opcfoundation.org:Tests:CutoffFailureRetryTrigger"),
+                null,
+                timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(retryTrigger);
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(result.Retired, Is.EqualTo(2u));
+                Assert.That(result.Retired, Is.EqualTo(1u),
+                    "Only the healthy source completed cleanup when the result was created.");
                 Assert.That(failing.AllEventsUnsubscribeCount, Is.EqualTo(2),
                     "Retry only the retained failed binding, not the whole live all-events set.");
                 Assert.That(healthy.AllEventsUnsubscribeCount, Is.EqualTo(1));
@@ -673,6 +744,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(healthy.DisposeCount, Is.EqualTo(1));
                 Assert.That(candidate.ReadinessCompletedCount, Is.EqualTo(1));
             }
+            await m_server.NodeManagerLifecycle.RemoveAsync(
+                retryRegistration,
+                null,
+                timeout.Token).ConfigureAwait(false);
         }
 
         private IAsyncNodeManagerFactory CreateCutoffReadinessFactory(

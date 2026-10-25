@@ -34,24 +34,11 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Optional lifecycle capability for privately preparing a complete publication unit.
+    /// Compatibility marker for lifecycles that expose prepared transactions.
+    /// New callers should use the transaction members on <see cref="INodeManagerLifecycle"/>.
     /// </summary>
     public interface INodeManagerBatchLifecycle : INodeManagerLifecycle
     {
-        /// <summary>
-        /// Prepares the requested additions, replacements and retirements without publishing them.
-        /// The change sequence is copied before the operation can yield.
-        /// The returned owner must be committed or asynchronously disposed.
-        /// </summary>
-        /// <param name="changes">The additions, replacements and retirements to prepare.</param>
-        /// <param name="callerContext">The request the caller is running under, or null for an ordinary external
-        /// caller. Pass the context when preparing from a binding admission callback.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The unpublished prepared unit, which owns all resources acquired while preparing.</returns>
-        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
-            IOperationContext? callerContext,
-            CancellationToken cancellationToken = default);
     }
 
     /// <summary>
@@ -62,7 +49,7 @@ namespace Opc.Ua.Server
     public static class NodeManagerBatchLifecycleExtensions
     {
         /// <summary>
-        /// Prepares a unit for an ordinary external caller that is not running under a request.
+        /// Legacy context-free preparation helper.
         /// </summary>
         /// <param name="lifecycle">The batch lifecycle.</param>
         /// <param name="changes">The additions, replacements and retirements to prepare.</param>
@@ -78,7 +65,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(lifecycle));
             }
 
-            return lifecycle.PrepareAsync(changes, null, cancellationToken);
+            return lifecycle.PrepareAsync(changes, cancellationToken);
         }
 
         /// <summary>
@@ -96,7 +83,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(capture));
             }
 
-            return capture.BeginAsync(null, cancellationToken);
+            return capture.BeginAsync(cancellationToken);
         }
     }
 }

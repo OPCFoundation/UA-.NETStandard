@@ -55,7 +55,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <paramref name="lifecycle"/> is <c>null</c>.
         /// </exception>
         public LifecycleWotViewProjectionHost(INodeManagerLifecycle lifecycle)
-            : this(lifecycle, WotProjectionRetirementPolicy.Graceful)
+            : this(lifecycle, WotProjectionRetirementPolicy.Migrate)
         {
         }
 
@@ -69,7 +69,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             m_lifecycle = lifecycle ?? throw new ArgumentNullException(nameof(lifecycle));
             if (retirementPolicy is not (
-                WotProjectionRetirementPolicy.Graceful or WotProjectionRetirementPolicy.Immediate))
+                WotProjectionRetirementPolicy.Migrate or WotProjectionRetirementPolicy.Invalidate))
             {
                 throw new ArgumentOutOfRangeException(nameof(retirementPolicy));
             }
@@ -176,7 +176,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             }
             var factory = new ViewNodeManagerFactory();
             m_registration = await m_lifecycle
-                .AddAsync(factory, callerContext: null, cancellationToken)
+                .AddAsync(factory, cancellationToken)
                 .ConfigureAwait(false);
             m_manager = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");

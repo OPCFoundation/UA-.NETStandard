@@ -135,8 +135,37 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Provides lifecycle-owned semantic resampling for monitored-item managers.
     /// </summary>
-    internal static class MonitoredItemManagerSemanticResampling
+    internal static class MonitoredItemManagerLifecycleOperations
     {
+        /// <summary>
+        /// Retains the notification consumer for a node owned by a monitored-item manager.
+        /// </summary>
+        /// <param name="manager">The monitored-item manager.</param>
+        /// <param name="nodeId">The NodeId whose notifications must drain.</param>
+        /// <param name="drain">Waits for the retained node's pending notifications.</param>
+        /// <param name="release">Releases the retention acquired by this call.</param>
+        /// <returns><c>true</c> when the monitored node was retained.</returns>
+        internal static bool TryRetainMonitoredNode(
+            this IMonitoredItemManager manager,
+            NodeId nodeId,
+            out Func<CancellationToken, ValueTask>? drain,
+            out Action? release)
+        {
+            if (manager.MonitoredNodes.TryGetValue(nodeId, out MonitoredNode2? monitoredNode))
+            {
+                release = monitoredNode.RetainForLifecycleTransition();
+                if (release is not null)
+                {
+                    drain = monitoredNode.WaitForPendingNotificationsAsync;
+                    return true;
+                }
+            }
+
+            drain = null;
+            release = null;
+            return false;
+        }
+
         /// <summary>
         /// Queues a force-resample for the exact node and monitored item currently owned by the manager.
         /// </summary>
@@ -183,5 +212,6 @@ namespace Opc.Ua.Server
                 _ => default
             };
         }
+
     }
 }

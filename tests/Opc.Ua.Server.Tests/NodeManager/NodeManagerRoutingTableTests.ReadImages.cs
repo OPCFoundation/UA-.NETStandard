@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 context.PinRouting(table);
                 var next = new TestReadImage(owner, 2);
                 using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                    [], retire ? [owner] : [], table.Revision, _ => InitialNamespaceIndexes,
+                    [], retire ? [owner] : [], _ => InitialNamespaceIndexes,
                     new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),
                     readImages: retire ? [] : [next]);
                 routes.Reserve();
@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Mock<INodeManagerReadImageSource> source = CreateReadImageSource(table, owner);
 
             using (NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                [], retire ? [owner] : [], table.Revision, _ => InitialNamespaceIndexes,
+                [], retire ? [owner] : [], _ => InitialNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),
                 readImages: retire ? [] : [next]))
             {
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
 
             Assert.That(() => table.PrepareBatch(
-                [], [], table.Revision, _ => InitialNamespaceIndexes,
+                [], [], _ => InitialNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),
                 readImages: images), Throws.InvalidOperationException);
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 context.PinRouting(table);
                 using (NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                    [], [], table.Revision, _ => InitialNamespaceIndexes,
+                    [], [], _ => InitialNamespaceIndexes,
                     new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),
                     readImages: [new TestReadImage(owner, 2)]))
                 {
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static void PublishReadImage(NodeManagerRoutingTable table, TestReadImage image)
         {
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                [], [], table.Revision, _ => InitialNamespaceIndexes,
+                [], [], _ => InitialNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create(),
                 readImages: [image]);
             routes.Reserve();

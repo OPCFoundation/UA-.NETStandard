@@ -1312,7 +1312,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             ushort oldNamespace;
             await using (NativeHarness harness = await NativeHarness.CreateAsync(
                 withGraphResources: true, retirementPolicy: immediate
-                    ? WotProjectionRetirementPolicy.Immediate : WotProjectionRetirementPolicy.Graceful)
+                    ? WotProjectionRetirementPolicy.Invalidate : WotProjectionRetirementPolicy.Migrate)
                 .ConfigureAwait(false))
             {
                 NodeId child = harness.Identity("urn:c2:native-views", "Child");
@@ -1760,7 +1760,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             /// <param name="retirementPolicy">The retirement policy.</param>
             public static async Task<NativeHarness> CreateAsync(
                 bool withGraphResources = false, bool rebaseNamespaces = false,
-                WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+                WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
             {
                 var harness = new NativeHarness();
                 try

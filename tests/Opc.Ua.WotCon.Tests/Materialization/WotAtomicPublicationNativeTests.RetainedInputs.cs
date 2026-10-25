@@ -280,7 +280,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 int before = restarted.Lifecycle.Registrations.Count;
                 await Assert.ThatAsync(async () => await restarted.Lifecycle.AddAsync(new WotRegistryNodeManagerFactory(
                     new WotRegistryServerOptions { AutoRefresh = false }, registry, recovered),
-                    callerContext: null).ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>())
+                    callerContext: null).ConfigureAwait(false),
+                    Throws.InstanceOf<Opc.Ua.Server.NodeManagerAddCommittedException>())
                     .ConfigureAwait(false);
                 Assert.That(recovered.Generation, Is.Zero);
                 Assert.That(restarted.Lifecycle.Registrations.Count, Is.EqualTo(before + 1));

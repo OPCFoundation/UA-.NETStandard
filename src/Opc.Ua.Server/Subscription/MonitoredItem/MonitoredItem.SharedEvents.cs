@@ -90,13 +90,14 @@ namespace Opc.Ua.Server
         internal void QueueSharedEvent(
             IFilterTarget instance,
             SharedEventFilterKey key,
-            SharedEventEvaluation evaluation)
+            SharedEventEvaluation evaluation,
+            IAsyncNodeManager? admittedSourceNodeManager = null)
         {
             SharedEventScope previous = t_sharedEvent;
             t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
             try
             {
-                QueueEvent(instance);
+                QueueEventCore(instance, bypassFilter: false, admittedSourceNodeManager);
             }
             finally
             {

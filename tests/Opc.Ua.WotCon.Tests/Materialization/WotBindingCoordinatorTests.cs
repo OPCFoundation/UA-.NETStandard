@@ -427,7 +427,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_recorder.Record(change.Document is null ? "remove" :
                         change.Current is null ? "add" :
-                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate ? "invalidate" : "migrate");
                 }
             }
 
@@ -506,7 +506,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_timeline.Add(change.Document is null ? "retirement-commit" :
                         change.Current is null ? "activation-commit" :
-                        change.RetirementPolicy == WotProjectionRetirementPolicy.Immediate ? "immediate" : "shadow");
+                        change.RetirementPolicy == WotProjectionRetirementPolicy.Invalidate ? "invalidate" : "migrate");
                 }
             }
 

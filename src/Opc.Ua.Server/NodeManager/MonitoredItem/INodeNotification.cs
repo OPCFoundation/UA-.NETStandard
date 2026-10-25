@@ -42,9 +42,11 @@ namespace Opc.Ua.Server
         ISystemContext Context { get; }
 
         /// <summary>
-        /// Gets the source emission for <c>INodeNotification</c>.
+        /// Gets the source-emission admission owned by this notification snapshot.
+        /// The consumer releases it exactly once after processing; batching transfers ownership
+        /// for each dequeued snapshot to the batch processor.
         /// </summary>
-        MasterNodeManager.NotificationDispatchLease? SourceEmission { get; }
+        MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; }
     }
 
     /// <summary>
@@ -58,12 +60,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the source emission for <c>DataChangeSnapshot</c>.
         /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
 
         /// <summary>
         /// Gets or sets the identifier of the node whose changes were captured.
         /// </summary>
         public NodeId NodeId { get; set; }
+
+        /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the changes were admitted.
+        /// </summary>
+        public KeyValuePair<uint, IDataChangeMonitoredItem2>[] MonitoredItems { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the node-state changes represented by this snapshot.
@@ -113,7 +120,7 @@ namespace Opc.Ua.Server
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
 
         /// <summary>
         /// Gets the exact source node that was admitted.
@@ -144,27 +151,7 @@ namespace Opc.Ua.Server
         public ISystemContext Context { get; }
 
         /// <inheritdoc/>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
-    }
-
-    /// <summary>
-    /// Marks a change that reached a cut-off source so the items it would have reached are
-    /// retired in channel order, after the snapshots captured before the cutoff.
-    /// </summary>
-    internal sealed class CutOffRetirementNotification : INodeNotification
-    {
-        /// <inheritdoc cref="INodeNotification.Context"/>
-        public ISystemContext Context { get; set; } = null!;
-
-        /// <summary>
-        /// Gets the source emission, which a cut-off retirement never holds.
-        /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission => null;
-
-        /// <summary>
-        /// Gets or sets the change masks of the cut-off change.
-        /// </summary>
-        public NodeStateChangeMasks Changes { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission => null;
     }
 
     /// <summary>
@@ -178,11 +165,17 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets or sets the source emission for <c>EventSnapshot</c>.
         /// </summary>
-        public MasterNodeManager.NotificationDispatchLease? SourceEmission { get; set; }
+        public MasterNodeManager.SourceEmissionAdmission? SourceEmission { get; set; }
 
         /// <summary>
         /// Gets or sets the captured event fields used when evaluating event filters.
         /// </summary>
         public IFilterTarget EventTargetSnapshot { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets the monitored items that were subscribed when the event was admitted.
+        /// </summary>
+        public IEventMonitoredItem[] MonitoredItems { get; set; } = [];
     }
+
 }

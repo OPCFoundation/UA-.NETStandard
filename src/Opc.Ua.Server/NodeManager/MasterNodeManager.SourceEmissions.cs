@@ -59,7 +59,7 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the source emission was admitted before retirement.</returns>
         internal bool HasCapturedSourceEmission(IAsyncNodeManager nodeManager)
         {
-            return m_currentSourceEmission.Value is { IsActive: true } captured &&
+            return m_currentSourceEmission.Value is { } captured &&
                 ReferenceEquals(captured.NodeManager, nodeManager);
         }
 
@@ -68,14 +68,18 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="server">The server internal.</param>
         /// <param name="nodeManager">The source node manager.</param>
-        /// <param name="emission">The generation lease, when admitted.</param>
+        /// <param name="emission">The generation gate admission, when admitted.</param>
         /// <param name="generationReference">The exact bound generation for an item emission, if known.</param>
+        /// <param name="isGlobalServerEventSink">
+        /// Whether this is the Server object's event callback, which receives events from every node manager.
+        /// </param>
         /// <returns><c>true</c> when the generation accepted the emission.</returns>
         internal static bool TryCaptureSourceEmission(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
-            out NotificationDispatchLease? emission,
-            NodeManagerGenerationReference? generationReference = null)
+            out SourceEmissionAdmission? emission,
+            NodeManagerGenerationReference? generationReference = null,
+            bool isGlobalServerEventSink = false)
         {
             emission = null;
             if (server.NodeManager is not MasterNodeManager master)
@@ -84,13 +88,19 @@ namespace Opc.Ua.Server
             }
 
             NodeManagerGeneration generation;
-            if (ReferenceEquals(nodeManager, master.CoreNodeManager) &&
-                master.m_currentSourceEmission.Value is { IsActive: true } captured)
+            if ((isGlobalServerEventSink ||
+                ReferenceEquals(nodeManager, master.CoreNodeManager)) &&
+                master.m_currentSourceEmission.Value is { } captured)
             {
-                generation = captured.Generation;
+                generation = captured;
             }
             else if (generationReference is not null)
             {
+                if (master.m_currentSourceEmission.Value is { } capturedSourceEmission &&
+                    !generationReference.Identifies(capturedSourceEmission))
+                {
+                    return false;
+                }
                 if (!generationReference.TryGetGeneration(out NodeManagerGeneration? boundGeneration) ||
                     boundGeneration is null ||
                     !ReferenceEquals(boundGeneration.NodeManager, nodeManager))
@@ -114,12 +124,7 @@ namespace Opc.Ua.Server
                 return false;
             }
 
-            emission = new NotificationDispatchLease(
-                master,
-                generation,
-                master.GetNotificationDispatchState(generation),
-                [],
-                slot);
+            emission = new SourceEmissionAdmission(master, generation, slot);
             return true;
         }
 
@@ -133,7 +138,7 @@ namespace Opc.Ua.Server
         internal static bool TryBeginCustomSourceCreation(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
-            out IDisposable? admission)
+            out SourceEmissionAdmission? admission)
         {
             admission = null;
             if (server.NodeManager is not MasterNodeManager master)
@@ -152,23 +157,60 @@ namespace Opc.Ua.Server
             {
                 return false;
             }
-            admission = new NotificationDispatchLease(
-                master,
-                currentGeneration,
-                master.GetNotificationDispatchState(currentGeneration),
-                [],
-                slot);
+            admission = new SourceEmissionAdmission(master, currentGeneration, slot);
             return true;
         }
 
-        private SourceEmissionScope EnterSourceEmission(NotificationDispatchLease emission)
+        private SourceEmissionScope EnterSourceEmission(NodeManagerGeneration generation)
         {
-            NotificationDispatchLease? previous = m_currentSourceEmission.Value;
-            m_currentSourceEmission.Value = emission;
+            NodeManagerGeneration? previous = m_currentSourceEmission.Value;
+            m_currentSourceEmission.Value = generation;
             return new SourceEmissionScope(this, previous);
         }
 
-        private readonly AsyncLocal<NotificationDispatchLease?> m_currentSourceEmission = new();
+        private readonly AsyncLocal<NodeManagerGeneration?> m_currentSourceEmission = new();
+
+        /// <summary>
+        /// Owns one source-emission generation gate admission without allocating a dispatch lease.
+        /// This value has single-owner semantics and must be disposed exactly once.
+        /// </summary>
+        internal readonly struct SourceEmissionAdmission : IDisposable
+        {
+            /// <summary>
+            /// Initializes an admitted source emission.
+            /// </summary>
+            internal SourceEmissionAdmission(
+                MasterNodeManager owner,
+                NodeManagerGeneration generation,
+                int slot)
+            {
+                m_owner = owner;
+                Generation = generation;
+                m_slot = slot;
+            }
+
+            /// <summary>
+            /// Gets the exact generation admitted by the source emission.
+            /// </summary>
+            internal NodeManagerGeneration Generation { get; }
+
+            /// <summary>
+            /// Enters the source-emission scope for this generation.
+            /// </summary>
+            internal SourceEmissionScope EnterSourceEmission()
+            {
+                return m_owner.EnterSourceEmission(Generation);
+            }
+
+            /// <inheritdoc/>
+            public void Dispose()
+            {
+                Generation.Gate.Exit(m_slot);
+            }
+
+            private readonly MasterNodeManager m_owner;
+            private readonly int m_slot;
+        }
 
         /// <summary>
         /// Restores the previous admitted source emission when disposed.
@@ -177,7 +219,7 @@ namespace Opc.Ua.Server
         /// <param name="previous">The previous source emission.</param>
         internal readonly struct SourceEmissionScope(
             MasterNodeManager owner,
-            NotificationDispatchLease? previous) : IDisposable
+            NodeManagerGeneration? previous) : IDisposable
         {
             /// <inheritdoc />
             public void Dispose()

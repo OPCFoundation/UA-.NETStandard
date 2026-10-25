@@ -338,13 +338,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     };
                 },
                 timeout.Token);
-            InvalidOperationException failure = await ExpectReadinessExceptionAsync<InvalidOperationException>(
+            NodeManagerAddCommittedException failure =
+                await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(
                 operation).ConfigureAwait(false);
             AssertLifecycleValue(participant);
             AssertLifecycleValue(observed);
 
             Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
             Assert.That(failure.InnerException, Is.SameAs(expected));
+            Assert.That(failure.Registration, Is.SameAs(observed));
             Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
             Assert.That(observed.Generation, Is.EqualTo(1));
             Assert.That(observed.NodeManager, Is.SameAs(participant));
@@ -406,7 +408,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 caller.Token);
 
-            InvalidOperationException? failure = null;
+            NodeManagerAddCommittedException? failure = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
@@ -417,7 +419,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                failure = await ExpectReadinessExceptionAsync<InvalidOperationException>(operation)
+                failure = await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
                     .ConfigureAwait(false);
             }
 
@@ -434,6 +436,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(failure.InnerException, Is.SameAs(callbackCancellation));
             }
             Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
+            Assert.That(failure.Registration, Is.SameAs(observed));
             Assert.That(observed.Generation, Is.EqualTo(1));
             Assert.That(observed.NodeManager, Is.SameAs(participant));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
@@ -579,6 +582,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         lifecycle.RemoveAsync(observed, null, timeout.Token).AsTask()).ConfigureAwait(false);
                 Assert.That(removeFailure.Message, Does.Contain("completing readiness"));
 
+                asyncReplacement.SetupGet(factory => factory.NamespacesUris).Returns([]);
+                syncReplacement.SetupGet(factory => factory.NamespacesUris).Returns([]);
                 ReadinessChange[] reloads =
                 [
                     ReadinessChange.Reload,

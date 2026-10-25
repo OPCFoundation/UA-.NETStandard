@@ -49,7 +49,7 @@ namespace Opc.Ua.Server
         ArrayOf<NodeManagerRegistration> Registrations { get; }
 
         /// <summary>
-        /// Gets whether this unit has crossed its irreversible publication decision.
+        /// Gets whether the prepared routing view has been published.
         /// </summary>
         bool IsCommitted { get; }
 
@@ -62,11 +62,11 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Rechecks ownership and the captured routing revision, invokes the durable decision once,
-        /// then publishes one routing image.
-        /// Returning from the decision means committed; its confirmed noncommit or indeterminate
-        /// exceptions must escape it. A caller with a committed durability warning must retain that
-        /// warning and return normally so publication completes. After the decision, cancellation
-        /// cannot undo the unit; cleanup failures are returned with the committed registrations.
+        /// then publishes one routing image. The routing-view publication is the commit point;
+        /// returning from the durable decision callback alone does not make this unit committed.
+        /// A callback that cannot determine its durable outcome must surface that uncertainty, and
+        /// the caller must reconcile it before retrying. After the routing view is published,
+        /// cancellation cannot undo the unit; cleanup failures are returned with the committed registrations.
         /// Committed reconciliation releases operation ownership before this call completes,
         /// including when it returns a cleanup warning. Disposal is then optional and idempotent.
         /// An uncommitted unit must still be disposed after a failed commit attempt.
@@ -82,8 +82,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Commits the same unit and publishes its already-prepared in-memory state immediately
-        /// after the routing switch, before readiness and retirement reconciliation.
+        /// Publishes the same unit and its already-prepared in-memory state at the routing-view
+        /// commit point, before readiness and retirement reconciliation.
         /// The publication callback must perform no I/O or additional durable decision.
         /// A callback failure occurs after commit and cannot make the batch uncommitted.
         /// </summary>
@@ -98,6 +98,22 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Selects how monitored items owned by a replaced NodeManager are handled.
+    /// </summary>
+    public enum NodeManagerMonitoredItemTransitionMode
+    {
+        /// <summary>
+        /// Move compatible monitored items to the replacement and invalidate items whose nodes are unavailable.
+        /// </summary>
+        Migrate,
+
+        /// <summary>
+        /// Invalidate monitored items owned by the retiring NodeManager.
+        /// </summary>
+        Invalidate
+    }
+
+    /// <summary>
     /// One addition, replacement or retirement in a prepared publication unit.
     /// </summary>
     public sealed class NodeManagerBatchChange
@@ -107,16 +123,15 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="current">The registration being replaced or retired, or null for an addition.</param>
         /// <param name="factory">The candidate factory, or null for a retirement.</param>
-        /// <param name="immediate">Whether old monitored sources are invalidated instead of gracefully
-        /// retained.</param>
+        /// <param name="transitionMode">The monitored-item transition used for the retiring generation.</param>
         private NodeManagerBatchChange(
             NodeManagerRegistration? current,
             IAsyncNodeManagerFactory? factory,
-            bool immediate)
+            NodeManagerMonitoredItemTransitionMode transitionMode)
         {
             Current = current;
             Factory = factory;
-            Immediate = immediate;
+            TransitionMode = transitionMode;
         }
 
         /// <summary>
@@ -130,9 +145,14 @@ namespace Opc.Ua.Server
         public IAsyncNodeManagerFactory? Factory { get; }
 
         /// <summary>
-        /// Gets whether old monitored sources are invalidated instead of gracefully retained.
+        /// Gets the monitored-item transition applied to the retiring generation.
         /// </summary>
-        public bool Immediate { get; }
+        public NodeManagerMonitoredItemTransitionMode TransitionMode { get; }
+
+        /// <summary>
+        /// Gets whether old monitored sources are invalidated.
+        /// </summary>
+        public bool Immediate => TransitionMode == NodeManagerMonitoredItemTransitionMode.Invalidate;
 
         /// <summary>
         /// Adds a new privately prepared owner.
@@ -142,7 +162,9 @@ namespace Opc.Ua.Server
         public static NodeManagerBatchChange Add(IAsyncNodeManagerFactory factory)
         {
             return new NodeManagerBatchChange(
-                null, factory ?? throw new ArgumentNullException(nameof(factory)), false);
+                null,
+                factory ?? throw new ArgumentNullException(nameof(factory)),
+                NodeManagerMonitoredItemTransitionMode.Migrate);
         }
 
         /// <summary>
@@ -150,33 +172,62 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="current">The exact registration being replaced.</param>
         /// <param name="factory">The factory creating the replacement owner.</param>
-        /// <param name="immediate">Whether old monitored sources are invalidated instead of gracefully
-        /// retained.</param>
+        /// <param name="transitionMode">How monitored items owned by the current generation are handled.</param>
         /// <returns>The replacement change.</returns>
         public static NodeManagerBatchChange Replace(
             NodeManagerRegistration current,
             IAsyncNodeManagerFactory factory,
-            bool immediate = false)
+            NodeManagerMonitoredItemTransitionMode transitionMode =
+                NodeManagerMonitoredItemTransitionMode.Migrate)
         {
             return new NodeManagerBatchChange(
                 current ?? throw new ArgumentNullException(nameof(current)),
                 factory ?? throw new ArgumentNullException(nameof(factory)),
-                immediate);
+                transitionMode);
+        }
+
+        /// <summary>
+        /// Replaces an exact registration using the legacy immediate flag.
+        /// </summary>
+        /// <param name="current">The exact registration being replaced.</param>
+        /// <param name="factory">The factory creating the replacement owner.</param>
+        /// <param name="immediate">Whether old monitored sources are invalidated.</param>
+        /// <returns>The replacement change.</returns>
+        public static NodeManagerBatchChange Replace(
+            NodeManagerRegistration current,
+            IAsyncNodeManagerFactory factory,
+            bool immediate)
+        {
+            return Replace(
+                current,
+                factory,
+                immediate
+                    ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                    : NodeManagerMonitoredItemTransitionMode.Migrate);
         }
 
         /// <summary>
         /// Retires an exact registration in the same switch as the other changes.
         /// </summary>
         /// <param name="current">The exact registration being retired.</param>
-        /// <param name="immediate">Whether old monitored sources are invalidated instead of gracefully
-        /// retained.</param>
         /// <returns>The retirement change.</returns>
-        public static NodeManagerBatchChange Remove(
-            NodeManagerRegistration current,
-            bool immediate = false)
+        public static NodeManagerBatchChange Remove(NodeManagerRegistration current)
         {
             return new NodeManagerBatchChange(
-                current ?? throw new ArgumentNullException(nameof(current)), null, immediate);
+                current ?? throw new ArgumentNullException(nameof(current)),
+                null,
+                NodeManagerMonitoredItemTransitionMode.Invalidate);
+        }
+
+        /// <summary>
+        /// Retires an exact registration using the legacy immediate flag.
+        /// </summary>
+        /// <param name="current">The exact registration being retired.</param>
+        /// <param name="immediate">Ignored. Retiring a NodeManager always invalidates its monitored items.</param>
+        /// <returns>The retirement change.</returns>
+        public static NodeManagerBatchChange Remove(NodeManagerRegistration current, bool immediate)
+        {
+            return Remove(current);
         }
     }
 

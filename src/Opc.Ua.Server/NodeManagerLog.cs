@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -56,5 +57,11 @@ namespace Opc.Ua.Server
             this ILogger logger,
             NodeId nodeId,
             QualifiedName browseName);
+
+        [LoggerMessage(EventId = ServerEventIds.NodeManager + 4, Level = LogLevel.Error,
+            Message = "Retired NodeManager cleanup failed; a later lifecycle operation or shutdown will retry.")]
+        public static partial void RetiredGenerationCleanupFailed(
+            this ILogger logger,
+            Exception exception);
     }
 }

@@ -152,7 +152,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         [TestCase(false)]
         [TestCase(true)]
-        public async Task PreparedBatchRejectsNamespaceChangesBeforeDecisionAsync(bool register)
+        public async Task PreparedBatchUsesCurrentNamespaceRoutingBeforeDecisionAsync(bool register)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             NodeManagerRegistration survivor = await m_server.NodeManagerLifecycle.AddRuntimeNodeSetAsync(
@@ -177,20 +177,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);
             }
             int decisions = 0;
-            await Assert.ThatAsync(() => prepared.CommitAsync(_ =>
+            NodeManagerBatchResult result = await prepared.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
-            }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
-            Assert.That(decisions, Is.Zero);
-            Assert.That(prepared.IsCommitted, Is.False);
-            Assert.That(GetBranchRegistrations(lifecycle), Is.EqualTo(new[] { survivor }));
+            }, timeout.Token).ConfigureAwait(false);
+            Assert.That(decisions, Is.EqualTo(1));
+            Assert.That(prepared.IsCommitted, Is.True);
+            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(2));
             NodeId root = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
             (_, IAsyncNodeManager? owner) = await master.GetManagerHandleAsync(root, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(owner, register ? Is.SameAs(survivor.NodeManager) : Is.Null);
-            await prepared.DisposeAsync().ConfigureAwait(false);
+            await lifecycle.RemoveAsync(result.Registrations[0], null, timeout.Token).ConfigureAwait(false);
             await prepared.DisposeAsync().ConfigureAwait(false);
             master.RegisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager);
             Assert.That(master.UnregisterNamespaceManager(kModelNamespaceUri, survivor.NodeManager), Is.True);

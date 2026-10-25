@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 ReplacedNodeManager = replace ? original : null
             };
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
-                [prepared], [], table.Revision, _ => BatchNamespaceIndexes,
+                [prepared], [], _ => BatchNamespaceIndexes,
                 new TypeTable(new NamespaceTable()), (EncodeableFactory)EncodeableFactory.Create());
             using var context = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
             using (context.UseRouting(table.Revision))

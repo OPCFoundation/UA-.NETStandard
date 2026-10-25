@@ -2645,7 +2645,21 @@ namespace Opc.Ua.Server
             return error;
         }
 
-        private static ValueTask<ServiceResult> SetEventSubscriptionAsync(
+        /// <summary>
+        /// Restores one manager's all-events binding through the generation binding records.
+        /// </summary>
+        private async ValueTask RestoreAllEventsSubscriptionAsync(
+            IAsyncNodeManager manager,
+            IEventMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            using var eventContext = new OperationContext(monitoredItem);
+            await SetEventSubscriptionAsync(
+                manager, eventContext, monitoredItem.SubscriptionId, monitoredItem, false, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        private ValueTask<ServiceResult> SetEventSubscriptionAsync(
             IAsyncNodeManager nodeManager,
             OperationContext context,
             uint subscriptionId,
@@ -2653,11 +2667,29 @@ namespace Opc.Ua.Server
             bool unsubscribe,
             CancellationToken cancellationToken)
         {
-            return monitoredItem.MonitoringAllEvents
-                ? nodeManager.SubscribeToAllEventsAsync(
-                    context, subscriptionId, monitoredItem, unsubscribe, cancellationToken)
-                : nodeManager.SubscribeToEventsAsync(
+            if (!monitoredItem.MonitoringAllEvents)
+            {
+                return nodeManager.SubscribeToEventsAsync(
                     context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+            }
+            if (!m_owner.TryGetCurrentGeneration(nodeManager, out NodeManagerGeneration? generation))
+            {
+                return nodeManager.SubscribeToAllEventsAsync(
+                    context, subscriptionId, monitoredItem, unsubscribe, cancellationToken);
+            }
+
+            // A release targets only the generation's recorded binding: a failed bind already
+            // released itself, and an unrecorded manager holds nothing for this item.
+            if (unsubscribe && !generation!.EventBindings.ContainsKey(monitoredItem))
+            {
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
+            }
+            return new GenerationReconciler(Server).ChangeAllEventsSubscriptionAsync(
+                generation!,
+                monitoredItem,
+                (remove, ct) => nodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
+                unsubscribe,
+                cancellationToken);
         }
 
         /// <summary>
@@ -2823,13 +2855,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                using var eventContext = new OperationContext(monitoredItem);
-                                await manager.SubscribeToAllEventsAsync(
-                                        eventContext,
-                                        monitoredItem.SubscriptionId,
-                                        monitoredItem,
-                                        false,
-                                        cancellationToken)
+                                await RestoreAllEventsSubscriptionAsync(manager, monitoredItem, cancellationToken)
                                     .ConfigureAwait(false);
                             }
                             catch (Exception e)
@@ -3074,9 +3100,11 @@ namespace Opc.Ua.Server
                         {
                             ServiceResult ownerResult = await DispatchEventSubscriptionAsync(
                                 dispatch.NodeManager,
-                                () => dispatch.NodeManager.SubscribeToAllEventsAsync(
-                                    context, monitoredItem.SubscriptionId, monitoredItem, false, cancellationToken),
+                                monitoredItem,
+                                (unsubscribe, ct) => dispatch.NodeManager.SubscribeToAllEventsAsync(
+                                    context, monitoredItem.SubscriptionId, monitoredItem, unsubscribe, ct),
                                 allEvents: true,
+                                unsubscribe: false,
                                 cancellationToken).ConfigureAwait(false);
                             if (ServiceResult.IsBad(ownerResult) && ServiceResult.IsGood(subscriptionResult))
                             {
@@ -3094,10 +3122,12 @@ namespace Opc.Ua.Server
                 {
                     subscriptionResult = await DispatchEventSubscriptionAsync(
                         monitoredItem.NodeManager,
-                        () => monitoredItem.NodeManager.SubscribeToEventsAsync(
+                        monitoredItem,
+                        (unsubscribe, ct) => monitoredItem.NodeManager.SubscribeToEventsAsync(
                             context, monitoredItem.ManagerHandle, monitoredItem.SubscriptionId,
-                            monitoredItem, false, cancellationToken),
+                            monitoredItem, unsubscribe, ct),
                         allEvents: false,
+                        unsubscribe: false,
                         cancellationToken).ConfigureAwait(false);
                 }
 
@@ -3450,13 +3480,15 @@ namespace Opc.Ua.Server
                         {
                             ServiceResult unsubscribe = await DispatchEventSubscriptionAsync(
                                 dispatch.NodeManager,
-                                () => dispatch.NodeManager.SubscribeToAllEventsAsync(
+                                monitoredItem,
+                                (remove, ct) => dispatch.NodeManager.SubscribeToAllEventsAsync(
                                     context,
                                     subscriptionId,
                                     monitoredItem,
-                                    true,
-                                    cancellationToken),
+                                    remove,
+                                    ct),
                                 allEvents: true,
+                                unsubscribe: true,
                                 cancellationToken)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
@@ -3477,10 +3509,11 @@ namespace Opc.Ua.Server
                     {
                         result = await DispatchEventSubscriptionAsync(
                             owningNodeManager,
-                            () => owningNodeManager.SubscribeToEventsAsync(
-                                context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, true,
-                                cancellationToken),
+                            monitoredItem,
+                            (unsubscribe, ct) => owningNodeManager.SubscribeToEventsAsync(
+                                context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, ct),
                             allEvents: false,
+                            unsubscribe: true,
                             cancellationToken).ConfigureAwait(false);
                     }
 
@@ -4429,14 +4462,29 @@ namespace Opc.Ua.Server
         /// </summary>
         private async ValueTask<ServiceResult> DispatchEventSubscriptionAsync(
             IAsyncNodeManager owner,
-            Func<ValueTask<ServiceResult>> operation,
+            IEventMonitoredItem monitoredItem,
+            Func<bool, CancellationToken, ValueTask<ServiceResult>> operation,
             bool allEvents,
+            bool unsubscribe,
             CancellationToken cancellationToken)
         {
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                ServiceResult result = await operation().ConfigureAwait(false) ?? ServiceResult.Good;
+                ServiceResult result;
+                if (allEvents && m_owner.TryGetCurrentGeneration(owner, out NodeManagerGeneration? generation))
+                {
+                    result = await new GenerationReconciler(Server).ChangeAllEventsSubscriptionAsync(
+                        generation!,
+                        monitoredItem,
+                        operation,
+                        unsubscribe,
+                        cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
+                }
+                else
+                {
+                    result = await operation(unsubscribe, cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
+                }
                 if (allEvents && result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;

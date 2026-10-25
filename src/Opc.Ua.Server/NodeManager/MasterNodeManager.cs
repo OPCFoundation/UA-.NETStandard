@@ -448,11 +448,20 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            await dispatch.NodeManager.SessionClosingAsync(
-                                context,
-                                sessionId,
-                                deleteSubscriptions,
-                                cancellationToken).ConfigureAwait(false);
+                            bool closed = dispatch.Generation.Gate.State == NodeManagerGenerationState.Live &&
+                                await GenerationReconciler.CloseSessionAsync(
+                                    dispatch.Generation,
+                                    sessionId,
+                                    cancellationToken,
+                                    deleteSubscriptions).ConfigureAwait(false);
+                            if (!closed)
+                            {
+                                await dispatch.NodeManager.SessionClosingAsync(
+                                    context,
+                                    sessionId,
+                                    deleteSubscriptions,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
                         }
                         catch (Exception e)
                         {
@@ -483,16 +492,29 @@ namespace Opc.Ua.Server
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
+            ISession? activatedSession = Server.SessionManager.GetSessions().FirstOrDefault(
+                current => current.Id == sessionId);
             try
             {
                 foreach (NotificationDispatchLease dispatch in dispatches)
                 {
                     try
                     {
-                        await dispatch.NodeManager.SessionActivatedAsync(
-                            context,
-                            sessionId,
-                            cancellationToken).ConfigureAwait(false);
+                        if (dispatch.Generation.Gate.State == NodeManagerGenerationState.Live &&
+                            activatedSession is not null)
+                        {
+                            await new GenerationReconciler(Server).ActivateSessionAsync(
+                                dispatch.Generation,
+                                activatedSession,
+                                cancellationToken).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await dispatch.NodeManager.SessionActivatedAsync(
+                                context,
+                                sessionId,
+                                cancellationToken).ConfigureAwait(false);
+                        }
                     }
                     catch (Exception e)
                     {
@@ -1180,6 +1202,16 @@ namespace Opc.Ua.Server
                 }
                 if (notifications is not null)
                 {
+                    if (enabled &&
+                        notifications.NotificationGate.State == NodeManagerGenerationState.Retiring)
+                    {
+                        notifications.NotificationGate.Restore();
+                    }
+                    else if (!enabled &&
+                        notifications.NotificationGate.State == NodeManagerGenerationState.Live)
+                    {
+                        notifications.NotificationGate.Retire();
+                    }
                     notifications.Enabled = enabled;
                     notifications.AcceptEventDeletes = enabled;
                 }
@@ -1192,6 +1224,22 @@ namespace Opc.Ua.Server
         {
             await WaitForNotificationDispatchesAsync(nodeManager, ct)
                 .ConfigureAwait(false);
+        }
+
+        void IDynamicNodeManagerHost.CloseNodeManagerGenerationAdmissions(
+            IAsyncNodeManager nodeManager)
+        {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
+
+            if (m_nodeManagers.Revision.TryGetGeneration(
+                nodeManager,
+                out NodeManagerGeneration? generation))
+            {
+                generation!.Gate.Retire();
+            }
         }
 
         async ValueTask IDynamicNodeManagerHost
@@ -1307,6 +1355,7 @@ namespace Opc.Ua.Server
             }
 
             NodeManagerGeneration generation;
+            GenerationGate? retiredNotificationGate = null;
             lock (m_retiredGenerationNotificationsLock)
             {
                 RetiredGenerationNotifications? notifications =
@@ -1332,13 +1381,34 @@ namespace Opc.Ua.Server
                 {
                     notifications.Enabled = false;
                     notifications.AcceptEventDeletes = false;
+                    retiredNotificationGate = notifications.NotificationGate;
+                    if (retiredNotificationGate.State == NodeManagerGenerationState.Live)
+                    {
+                        retiredNotificationGate.Retire();
+                    }
                 }
             }
             await generation.Gate.WaitForDrainAsync().WaitAsync(ct).ConfigureAwait(false);
+            if (retiredNotificationGate is not null)
+            {
+                await retiredNotificationGate.WaitForDrainAsync().WaitAsync(ct).ConfigureAwait(false);
+            }
         }
 
         private void RetainRetiredGenerationNotifications(
             IAsyncNodeManager nodeManager)
+        {
+            RetiredGenerationNotifications? notifications =
+                PrepareRetiredGenerationNotifications(nodeManager);
+            if (notifications is not null)
+            {
+                PublishRetiredGenerationNotifications(notifications);
+            }
+        }
+
+        private RetiredGenerationNotifications? PrepareRetiredGenerationNotifications(
+            IAsyncNodeManager nodeManager,
+            int additionalCapacity = 1)
         {
             List<IEventMonitoredItem> monitoredItems =
             [
@@ -1347,11 +1417,14 @@ namespace Opc.Ua.Server
             ];
             lock (m_retiredGenerationNotificationsLock)
             {
-                if (m_retiredGenerationNotifications.Any(candidate =>
-                    ReferenceEquals(candidate.NodeManager, nodeManager)))
+                for (int index = 0; index < m_retiredGenerationNotifications.Count; index++)
                 {
-                    throw new InvalidOperationException(
-                        "The NodeManager is already retained for lifecycle notifications.");
+                    if (ReferenceEquals(
+                        m_retiredGenerationNotifications[index].NodeManager,
+                        nodeManager))
+                    {
+                        return null;
+                    }
                 }
                 NotificationDispatchState dispatchState =
                     GetOrCreateNotificationDispatchState(nodeManager);
@@ -1359,7 +1432,28 @@ namespace Opc.Ua.Server
                     nodeManager,
                     dispatchState,
                     monitoredItems);
-                dispatchState.Notifications = notifications;
+                m_retiredGenerationNotifications.Capacity = Math.Max(
+                    m_retiredGenerationNotifications.Capacity,
+                    m_retiredGenerationNotifications.Count + additionalCapacity);
+                return notifications;
+            }
+        }
+
+        private void PublishRetiredGenerationNotifications(
+            RetiredGenerationNotifications notifications)
+        {
+            lock (m_retiredGenerationNotificationsLock)
+            {
+                for (int index = 0; index < m_retiredGenerationNotifications.Count; index++)
+                {
+                    if (ReferenceEquals(
+                        m_retiredGenerationNotifications[index].NodeManager,
+                        notifications.NodeManager))
+                    {
+                        return;
+                    }
+                }
+                notifications.DispatchState.Notifications = notifications;
                 m_retiredGenerationNotifications.Add(notifications);
             }
         }
@@ -1600,20 +1694,15 @@ namespace Opc.Ua.Server
             RetiredGenerationNotifications notifications,
             IEventMonitoredItem[]? monitoredItems = null)
         {
-            NotificationDispatchLease? dispatch = CreateNotificationDispatch(
-                notifications.DispatchState,
-                monitoredItems);
-            try
+            if (notifications.NotificationGate.TryEnter(out int slot))
             {
-                if (dispatch is not null)
-                {
-                    dispatches.Add(dispatch);
-                    dispatch = null;
-                }
-            }
-            finally
-            {
-                dispatch?.Dispose();
+                dispatches.Add(new NotificationDispatchLease(
+                    this,
+                    notifications.DispatchState.Generation,
+                    notifications.DispatchState,
+                    monitoredItems ?? [],
+                    slot,
+                    notifications.NotificationGate));
             }
         }
 
@@ -2667,18 +2756,21 @@ namespace Opc.Ua.Server
             /// <param name="slot">
             /// The striped gate slot released by this lease, or <see langword="null"/> for a retired unsubscribe.
             /// </param>
+            /// <param name="gate">The gate owning the slot, or the generation gate when omitted.</param>
             public NotificationDispatchLease(
                 MasterNodeManager owner,
                 NodeManagerGeneration generation,
                 NotificationDispatchState dispatchState,
                 IEventMonitoredItem[] monitoredItems,
-                int? slot)
+                int? slot,
+                GenerationGate? gate = null)
             {
                 m_owner = owner;
                 Generation = generation;
                 DispatchState = dispatchState;
                 MonitoredItems = monitoredItems;
                 m_slot = slot;
+                m_gate = gate ?? generation.Gate;
             }
 
             /// <summary>
@@ -2717,7 +2809,7 @@ namespace Opc.Ua.Server
             /// </summary>
             public SourceEmissionScope? EnterSourceEmission()
             {
-                return m_owner?.EnterSourceEmission(this);
+                return m_owner?.EnterSourceEmission(Generation);
             }
 
             /// <inheritdoc />
@@ -2730,7 +2822,7 @@ namespace Opc.Ua.Server
                 }
                 if (m_slot is int slot)
                 {
-                    Generation.Gate.Exit(slot);
+                    m_gate.Exit(slot);
                 }
                 else if (DispatchState.Notifications is { } notifications)
                 {
@@ -2739,6 +2831,7 @@ namespace Opc.Ua.Server
             }
 
             private MasterNodeManager? m_owner;
+            private readonly GenerationGate m_gate;
 
             /// <summary>
             /// Gets the owned generation-gate slot, or null when the lease pins a retired unsubscribe callback.
@@ -2765,6 +2858,7 @@ namespace Opc.Ua.Server
                 NodeManager = nodeManager;
                 DispatchState = dispatchState;
                 SubscribedEventMonitoredItems = eventMonitoredItems;
+                NotificationGate = new GenerationGate(NodeManagerGenerationState.Live);
             }
 
             /// <summary>
@@ -2776,6 +2870,11 @@ namespace Opc.Ua.Server
             /// Gets the dispatch state shared with outstanding generation leases.
             /// </summary>
             public NotificationDispatchState DispatchState { get; }
+
+            /// <summary>
+            /// Gets the admission gate for notifications retained after generation retirement.
+            /// </summary>
+            public GenerationGate NotificationGate { get; }
 
             /// <summary>
             /// Gets the event monitored items still subscribed to the retired generation.
@@ -2791,6 +2890,7 @@ namespace Opc.Ua.Server
             /// Gets or sets whether event unsubscription can still be dispatched to the retired generation.
             /// </summary>
             public bool AcceptEventDeletes { get; set; } = true;
+
 
             /// <summary>
             /// Gets or sets the count of in-flight retired-generation event-unsubscribe callbacks.
@@ -2882,7 +2982,7 @@ namespace Opc.Ua.Server
         private readonly Lock m_preparingNodeManagersLock = new();
         private readonly List<StartupNodeManagerState>
             m_startupApplicationNodeManagers = [];
-        private readonly Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
+        private volatile Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>>
             m_dynamicExternalReferences = [];
         private readonly Dictionary<
             IAsyncNodeManager,

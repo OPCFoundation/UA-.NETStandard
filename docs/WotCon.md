@@ -638,13 +638,11 @@ The 1.1 runtime separates a **stable registry** from **ephemeral projections**:
   registry snapshot (see §11.7).
 * Registry documents are projected into the AddressSpace as **separate
   runtime NodeManagers** through the public `INodeManagerLifecycle`
-  (`AddRuntimeNodeSetAsync` for first activation,
-  `ShadowReloadRuntimeNodeSetAsync` or
-  `ImmediateReloadRuntimeNodeSetAsync` for updates). Graceful retirement
-  keeps the previous generation serving existing monitored items until
-  they drain. Immediate retirement reports `BadNodeIdUnknown` for affected
-  monitored items and disposes the previous generation without waiting
-  for drain.
+  (`AddRuntimeNodeSetAsync` for first activation and
+  `ReloadRuntimeNodeSetAsync` for updates). Compatible monitored items migrate
+  to the replacement with their identity preserved; items whose Nodes are no
+  longer available receive `BadNodeIdUnknown`. Invalidation is available when
+  clients must recreate every affected monitored item.
 
 Register it on an OPC UA server host:
 
@@ -656,7 +654,7 @@ builder
         options.StorageFolder = Path.Combine(AppContext.BaseDirectory, "wot-registry");
         options.AutoRefresh = true;      // re-project after every content mutation
         options.StrictBindings = false;  // materialize degraded nodes for unsupported forms
-        options.RetirementPolicy = WotProjectionRetirementPolicy.Graceful;
+        options.RetirementPolicy = WotProjectionRetirementPolicy.Migrate;
     });
 ```
 
@@ -803,8 +801,8 @@ The target's own blob is the one exception: it is being removed anyway, so its r
    join closures; semantic reference cycles can coactivate, while inheritance/
    ordering cycles and missing dependencies produce diagnostics.
 4. Converts each closure to one or more NodeSet2 documents and projects
-   the closure as one runtime NodeManager (Add, or graceful/immediate
-   reload on update according to `RetirementPolicy`).
+   the closure as one runtime NodeManager (Add, or migrate/invalidate
+   replacement according to `RetirementPolicy`).
 
 Behaviours:
 
@@ -822,12 +820,13 @@ Behaviours:
   **retains its previous active generations**.
 * An **unchanged** closure (same content digest, options and binder
   version) returns `WoTOutcomeEnum.Unchanged` and emits no model change.
-* `WotProjectionRetirementPolicy.Graceful` preserves existing monitored
-  items on the previous generation until drain.
-  `WotProjectionRetirementPolicy.Immediate` invalidates affected items
-  with `BadNodeIdUnknown` and disposes the previous generation. The proof
-  rejects immediate retirement when the old generation owns a durable
-  monitored item; configure `Graceful` for that closure.
+* `WotProjectionRetirementPolicy.Migrate` transfers compatible monitored
+  items to the replacement generation while preserving their identity.
+  Items whose Nodes disappeared or became incompatible receive one
+  `BadNodeIdUnknown` notification.
+  `WotProjectionRetirementPolicy.Invalidate` makes every affected monitored
+  item terminally unresolved, so clients must resubscribe. Neither mode keeps
+  the old generation alive for outstanding continuations.
 * `Refresh` returns a detailed `WoTRefreshSummaryDataType` plus a
   per-resource `WoTResourceLoadResultDataType[]` and the new generation,
   matching the generated Method signature.
@@ -1593,7 +1592,7 @@ last completion summary.
 ### Provider requirements
 
 `LifecycleWotProjectionHost` and `LifecycleWotViewProjectionHost` require the same
-actual `INodeManagerBatchLifecycle`. The default lifecycle and file registry with
+`INodeManagerLifecycle` transaction provider. The default lifecycle and file registry with
 genuine immutable-content leases support the four modes. Immediate-only custom
 hosts and `InMemoryWotRegistryStore` do not provide Refresh publication;
 unsupported capabilities fail `BadNotSupported` before acquisition/effects.

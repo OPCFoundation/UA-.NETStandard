@@ -271,6 +271,32 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Determines whether the request executing in the current async flow is still active.
+        /// </summary>
+        /// <returns><c>true</c> when the current flow belongs to an executing request.</returns>
+        internal bool IsCurrentRequestExecuting()
+        {
+            uint? requestId = GetCurrentRequestIdForLifecycleExtension();
+            if (!requestId.HasValue || requestId.Value == uint.MaxValue)
+            {
+                return false;
+            }
+
+            lock (m_requestsLock)
+            {
+                foreach (OperationContext request in m_requests.GetEntries())
+                {
+                    if (request.RequestId == requestId.Value)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Gets the optional request lifecycle extension registered for server shutdown and
         /// NodeManager lifecycle coordination.
         /// </summary>

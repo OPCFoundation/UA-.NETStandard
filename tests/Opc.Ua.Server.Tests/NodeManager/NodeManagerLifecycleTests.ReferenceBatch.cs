@@ -127,6 +127,43 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
+        public async Task PreparedBatchDecisionDoesNotHoldDynamicMutationSemaphoreAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
+                    CreateOptions(kModelNamespaceUri, kFirstRegistrationValue)))], null, timeout.Token)
+                .ConfigureAwait(false);
+
+            await prepared.CommitAsync(async token =>
+            {
+                using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+                requestTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+                using var requestLifetime = new RequestLifetime(requestTimeout.Token);
+                RequestHeader requestHeader = m_requestHeader;
+                requestHeader.Timestamp = DateTimeUtc.Now;
+                AddNodesResponse response = await m_server.AddNodesAsync(
+                    m_secureChannelContext,
+                    requestHeader,
+                    [
+                        new AddNodesItem
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.Organizes,
+                            BrowseName = new QualifiedName("Unreachable", 0),
+                            NodeClass = NodeClass.Object
+                        }
+                    ],
+                    requestLifetime).ConfigureAwait(false);
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadParentNodeIdInvalid));
+            }, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(prepared.IsCommitted, Is.True);
+        }
+
+        [Test]
+        [Category("Integration")]
+        [Category("NativeTcp")]
         public async Task PreparedBatchNodeOwnedReferencesBecomeVisibleToAnInflightNativeRequestAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));

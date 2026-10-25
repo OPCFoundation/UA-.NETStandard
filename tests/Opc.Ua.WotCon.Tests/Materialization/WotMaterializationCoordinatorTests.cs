@@ -360,7 +360,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         [Test]
         public async Task VersionSwitchUsesImmediateReloadWhenConfigured()
         {
-            m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Immediate;
+            m_coordinator.RetirementPolicy = WotProjectionRetirementPolicy.Invalidate;
             await RegisterTd("td-a", TestMaterialization.Td("urn:td-a", "v1")).ConfigureAwait(false);
             await m_coordinator.RefreshAsync(new WotRefreshRequest()).ConfigureAwait(false);
 

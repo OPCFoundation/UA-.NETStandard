@@ -129,6 +129,42 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Validates generation transitions while the routing image is still private.
+        /// </summary>
+        /// <param name="previous">The serving image.</param>
+        /// <param name="next">The prepared image.</param>
+        private static void ValidatePublicationTransitions(
+            RoutingSnapshot previous,
+            RoutingSnapshot next)
+        {
+            foreach (NodeManagerGeneration generation in previous.Generations)
+            {
+                if (!next.Generations.Contains(generation) &&
+                    generation.Gate.State == NodeManagerGenerationState.Preparing)
+                {
+                    throw new InvalidOperationException(
+                        "A generation in the serving image cannot still be preparing.");
+                }
+            }
+
+            foreach (NodeManagerGeneration generation in next.Generations)
+            {
+                NodeManagerGenerationState state = generation.Gate.State;
+                bool wasHidden = previous.HiddenNodeManagers.Contains(generation.NodeManager);
+                bool isHidden = next.HiddenNodeManagers.Contains(generation.NodeManager);
+                bool willActivate = state == NodeManagerGenerationState.Prepared &&
+                    !isHidden &&
+                    (!previous.Generations.Contains(generation) || wasHidden);
+                if (state != NodeManagerGenerationState.Live &&
+                    !(state == NodeManagerGenerationState.Prepared && (willActivate || isHidden)))
+                {
+                    throw new InvalidOperationException(
+                        "The prepared routing image contains a generation that cannot be published.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Adds a NodeManager during server startup, before the namespace routes are built.
         /// </summary>
         /// <param name="nodeManager">The NodeManager to add.</param>
@@ -1425,7 +1461,6 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="candidates">The prepared node managers to add or replace.</param>
         /// <param name="removed">The node managers to retire.</param>
-        /// <param name="expectedRevision">The revision the batch was prepared against.</param>
         /// <param name="resolveNamespaces">Resolves the namespace indexes served by a node manager.</param>
         /// <param name="typeTree">The type tree to publish.</param>
         /// <param name="factory">The encodeable factory to publish.</param>
@@ -1434,7 +1469,6 @@ namespace Opc.Ua.Server
         internal PreparedRoutes PrepareBatch(
             ArrayOf<PreparedNodeManager> candidates,
             ArrayOf<IAsyncNodeManager> removed,
-            RoutingSnapshot expectedRevision,
             Func<IAsyncNodeManager, IEnumerable<int>> resolveNamespaces,
             TypeTable typeTree,
             EncodeableFactory factory,
@@ -1443,11 +1477,6 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 RoutingSnapshot current = m_snapshot;
-                if (!ReferenceEquals(current, expectedRevision))
-                {
-                    throw new InvalidOperationException("Routing changed after the batch was prepared.");
-                }
-
                 HashSet<IAsyncNodeManager> removals = [.. removed];
                 HashSet<IAsyncNodeManager> publishing = [];
                 var replacements = new Dictionary<IAsyncNodeManager, IAsyncNodeManager>();
@@ -1646,6 +1675,7 @@ namespace Opc.Ua.Server
                         throw new InvalidOperationException("Routing changed during batch preparation.");
                     }
                     m_owner.EnsureMutable();
+                    ValidatePublicationTransitions(m_previous, m_next);
                     m_owner.m_reservedRoutes = this;
                 }
             }

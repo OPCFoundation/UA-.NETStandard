@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,6 +41,11 @@ namespace Opc.Ua.Server
     /// the generation. Its registration remains visible but cannot be removed or reloaded
     /// until that startup operation completes. A readiness failure or cancellation is a
     /// post-commit failure; the live registration remains available for recovery or removal.
+    /// Post-commit failures are reported by <see cref="NodeManagerAddCommittedException"/>
+    /// or <see cref="NodeManagerReloadCommittedException"/> for add and reload, and by
+    /// <see cref="NodeManagerRemovalCommittedException"/> for removal. Their registrations
+    /// and results describe the authoritative published state; callers must not retry the
+    /// same operation as though it had been rolled back.
     /// </remarks>
     public interface INodeManagerLifecycle
     {
@@ -70,17 +76,69 @@ namespace Opc.Ua.Server
         bool IsShuttingDown { get; }
 
         /// <summary>
+        /// Gets whether this lifecycle supports preparing an unpublished transaction.
+        /// </summary>
+        bool SupportsPreparedPublication { get; }
+
+        /// <summary>
+        /// Gets whether publication admission can be captured across multiple prepared units.
+        /// </summary>
+        bool SupportsPublicationIsolation { get; }
+
+        /// <summary>
+        /// Captures the current routing, type, and factory revisions without reserving publication.
+        /// </summary>
+        /// <returns>The capture holding the observed revisions.</returns>
+        INodeManagerPublicationCapture CapturePublication();
+
+        /// <summary>
+        /// Prepares additions, replacements, and retirements without publishing them.
+        /// The returned owner must be committed or asynchronously disposed.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit.</returns>
+        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Prepares additions, replacements, and retirements without publishing them.
+        /// </summary>
+        /// <param name="changes">The additions, replacements, and retirements to prepare.</param>
+        /// <param name="callerContext">The legacy explicit operation context.</param>
+        /// <param name="cancellationToken">The token to cancel the operation.</param>
+        /// <returns>The unpublished prepared unit.</returns>
+        ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            IOperationContext? callerContext,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Creates and publishes a NodeManager from an asynchronous factory.
         /// </summary>
         /// <param name="factory">The factory that creates the NodeManager.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
-        /// call would wait for its own request to complete, so it is rejected instead.
-        /// </exception>
+        ValueTask<NodeManagerRegistration> AddAsync(
+            IAsyncNodeManagerFactory factory,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates and publishes a NodeManager from a synchronous factory without requiring a request context.
+        /// </summary>
+        /// <param name="factory">The factory that creates the NodeManager.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        ValueTask<NodeManagerRegistration> AddAsync(
+            INodeManagerFactory factory,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Creates and publishes a NodeManager from an asynchronous factory.
+        /// </summary>
+        /// <param name="factory">The factory that creates the NodeManager.</param>
+        /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
+        /// without this parameter; request lifetime is discovered by the lifecycle implementation.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
         ValueTask<NodeManagerRegistration> AddAsync(
             IAsyncNodeManagerFactory factory,
             IOperationContext? callerContext,
@@ -90,17 +148,36 @@ namespace Opc.Ua.Server
         /// Creates and publishes a NodeManager from a synchronous factory.
         /// </summary>
         /// <param name="factory">The factory that creates the NodeManager.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
+        /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
+        /// without this parameter; request lifetime is discovered by the lifecycle implementation.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
-        /// call would wait for its own request to complete, so it is rejected instead.
-        /// </exception>
         ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             IOperationContext? callerContext,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration with a new asynchronous factory generation without requiring a request
+        /// context.
+        /// </summary>
+        /// <param name="registration">The registration to replace.</param>
+        /// <param name="replacement">The factory that creates the next generation.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces a live registration with a new synchronous factory generation without requiring a request
+        /// context.
+        /// </summary>
+        /// <param name="registration">The registration to replace.</param>
+        /// <param name="replacement">The factory that creates the next generation.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
             CancellationToken ct = default);
 
         /// <summary>
@@ -112,14 +189,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
+        /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
+        /// without this parameter; request lifetime is discovered by the lifecycle implementation.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
-        /// call would wait for its own request to complete, so it is rejected instead.
-        /// </exception>
         ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -135,14 +207,9 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The factory that creates the next generation.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
+        /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
+        /// without this parameter; request lifetime is discovered by the lifecycle implementation.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
-        /// call would wait for its own request to complete, so it is rejected instead.
-        /// </exception>
         ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
@@ -150,16 +217,14 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Replaces a live registration with a new asynchronous factory generation while
-        /// allowing the current generation to keep serving monitored items that were
-        /// already created on it. New service requests are atomically routed to the
-        /// replacement generation as soon as it is committed; the current generation is
-        /// retained only for its existing monitored items and any request or continuation
-        /// point that already captured it, and is disposed automatically once they drain.
+        /// Legacy alias for <see cref="ReloadAsync(NodeManagerRegistration, IAsyncNodeManagerFactory,
+        /// IOperationContext, CancellationToken)"/> using the <c>Migrate</c> transition.
         /// </summary>
         /// <remarks>
-        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
-        /// reload modes.
+        /// Compatible monitored items move to the replacement; incompatible items are invalidated.
+        /// This method does not retain the old generation for future service requests or continuation points.
+        /// A request already pinned to the old routing view may finish on that view as part of ordinary
+        /// request lifetime management.
         /// </remarks>
         /// <param name="registration">The live registration to replace.</param>
         /// <param name="replacement">The factory that creates the replacement generation.</param>
@@ -170,16 +235,14 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Replaces a live registration with a new synchronous factory generation while
-        /// allowing the current generation to keep serving monitored items that were
-        /// already created on it. New service requests are atomically routed to the
-        /// replacement generation as soon as it is committed; the current generation is
-        /// retained only for its existing monitored items and any request or continuation
-        /// point that already captured it, and is disposed automatically once they drain.
+        /// Legacy alias for <see cref="ReloadAsync(NodeManagerRegistration, INodeManagerFactory,
+        /// IOperationContext, CancellationToken)"/> using the <c>Migrate</c> transition.
         /// </summary>
         /// <remarks>
-        /// See docs/NodeManagers.md#reload-modes for the client-visible differences between
-        /// reload modes.
+        /// Compatible monitored items move to the replacement; incompatible items are invalidated.
+        /// This method does not retain the old generation for future service requests or continuation points.
+        /// A request already pinned to the old routing view may finish on that view as part of ordinary
+        /// request lifetime management.
         /// </remarks>
         /// <param name="registration">The live registration to replace.</param>
         /// <param name="replacement">The factory that creates the replacement generation.</param>
@@ -219,19 +282,33 @@ namespace Opc.Ua.Server
         ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
             NodeManagerRegistration registration,
             INodeManagerFactory replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Removes a live registration from the server without requiring a request context.
+        /// </summary>
+        /// <param name="registration">The registration to remove.</param>
+        /// <param name="ct">The token used to cancel the operation.</param>
+        /// <exception cref="NodeManagerRemovalCommittedException">
+        /// The registration was removed, but post-commit reconciliation or retirement cleanup failed.
+        /// </exception>
+        ValueTask RemoveAsync(
+            NodeManagerRegistration registration,
             CancellationToken ct = default);
 
         /// <summary>
         /// Removes a live registration from the server.
         /// </summary>
+        /// <remarks>
+        /// Removal is committed before retirement cleanup. A request that initiated the operation never waits for
+        /// its own routing-view pin to drain.
+        /// </remarks>
         /// <param name="registration">The registration to remove.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation. A callback passes the context it was
-        /// invoked with; see <see cref="SystemContextOperationExtensions.GetOperationContext"/>.</param>
+        /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
+        /// without this parameter; request lifetime is discovered by the lifecycle implementation.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        /// <exception cref="System.InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing. Such a
-        /// call would wait for its own request to complete, so it is rejected instead.
+        /// <exception cref="NodeManagerRemovalCommittedException">
+        /// The registration was removed, but post-commit reconciliation or retirement cleanup failed.
         /// </exception>
         ValueTask RemoveAsync(
             NodeManagerRegistration registration,

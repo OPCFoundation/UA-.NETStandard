@@ -816,8 +816,9 @@ as an initial manager.
   retry afterwards, and never do it from inside its own readiness callback.
 - Forward the callback's cancellation token. Cancellation after publication does not undo it:
   clients may already see the manager, and several registrations are not published atomically.
-- A readiness failure after publication leaves the registration live. Add throws a post-commit
-  `InvalidOperationException` and the handle remains in `Registrations`; reload throws
+- A readiness failure after publication leaves the registration live. Add throws
+  `NodeManagerAddCommittedException`; its `Registration` remains authoritative in `Registrations`,
+  so do not retry the add as a new registration. Reload throws
   `NodeManagerReloadCommittedException` whose `Registration` is the replacement. A startup failure
   is reported after `StandardServer` shuts everything down.
 - Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
@@ -869,17 +870,17 @@ public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 
     public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        m_registration = await lifecycle.AddAsync(factory, callerContext: null, ct);
+        m_registration = await lifecycle.AddAsync(factory, ct);
     }
 
     public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, callerContext: null, ct);
+        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, ct);
     }
 
     public ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
+        return lifecycle.RemoveAsync(m_registration!, ct);
     }
 }
 ```
@@ -903,10 +904,14 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 }
 ```
 
-`INodeManagerLifecycle` is a host control-plane API. Teardown waits for requests that captured the
-retired generation, so a lifecycle call made from inside an OPC UA service or Method callback would
-wait for itself. Every lifecycle method therefore takes the operation the caller is running under;
-pass it from a callback and the server throws `InvalidOperationException` instead of deadlocking:
+`INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
+for requests that pinned a retired generation. `RemoveAsync` waits for retirement when called outside
+an executing request; an allowed OPC UA request callback does not wait for its own request to drain.
+Use the batch API's `NodeManagerBatchResult.Retirement` task when the caller needs explicit retirement
+completion from a callback. If post-commit removal cleanup fails, `NodeManagerRemovalCommittedException`
+means the registration is already unpublished; its `Result.Retirement` task carries the retirement outcome.
+Pass the operation context from an OPC UA service or Method callback so the lifecycle writer can
+identify that request's own admission:
 
 ```csharp
 private async ValueTask<ServiceResult> OnReloadModelAsync(
@@ -954,11 +959,13 @@ subscriptions:
 | Mode | Existing MonitoredItems | Choose it when |
 | --- | --- | --- |
 | `ReloadAsync` (normal) | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
-| `ShadowReloadAsync` | Items stay on the retired generation and keep sampling; only new items use the replacement. | Old subscriptions must keep the old model until they drain. Runs two generations at once. |
+| `ShadowReloadAsync` (legacy alias) | Same `Migrate` behavior as `ReloadAsync`; compatible items move to the replacement and incompatible items are invalidated. | Existing callers migrating from the former retained-generation behavior. |
 | `ImmediateReloadAsync` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
-Browse continuation points issued by a retired generation are invalid as soon as its gate closes
-(see [Continuation points](#continuation-points)).
+`ShadowReloadAsync` no longer retains a generation for existing items or future continuation
+requests. Requests already pinned to the old routing view may finish under ordinary request lifetime
+management; continuation points from a retired generation are invalid when its gate closes (see
+[Continuation points](#continuation-points)).
 
 #### MonitoredItems
 
@@ -1020,11 +1027,14 @@ Runtime DataType registrations are additive. Reload accepts an existing DataType
 definition is structurally compatible, rejects incompatible changes, and retains removed stand-in
 encodeables so existing Sessions and in-flight values remain decodable.
 
-`INodeManagerBatchLifecycle` stages several lifecycle changes (and their type, reference-type,
+`INodeManagerLifecycle` stages several lifecycle changes (and their type, reference-type,
 encoding and encodeable-factory registrations) in one explicit staging context. Factories receive a
 server facade with private namespace tables, a type overlay and an encodeable builder. Use that
 supplied server (including contexts copied from it), not a previously captured serving server, when
 registering candidate metadata. Staging never changes the serving namespace indexes or registrations.
+Prepared transactions, publication capture, and validation are part of this canonical lifecycle
+contract. `INodeManagerBatchLifecycle` and `INodeManagerPublicationLifecycle` remain compatibility
+markers; callers do not need to downcast the lifecycle to discover those operations.
 
 Publication merges compatible additions into the shared metadata tables and rebinds the candidate's
 cached handles to their canonical storage. Those handles also observe subsequent compatible additions.
@@ -1049,10 +1059,10 @@ NodeManagerBatchResult result = await batch.CommitAsync(
     async token => await store.SaveDecisionAsync(token), ct);
 ```
 
-`PrepareAsync(changes, ct)` and `BeginAsync(ct)` are shortcuts for ordinary external callers; they
-forward `callerContext: null`. Code running inside an OPC UA request or binding callback must call the
-overload that takes its `OperationContext`; a `null` context there is not a compatibility mode and
-waits for its own request.
+The overloads without `callerContext` are the primary lifecycle entry points. Request lifetime is
+discovered by the lifecycle implementation, so a lifecycle operation does not wait for its own
+request-view pin. Explicit-context overloads remain only for source migration; new code should not
+pass an `OperationContext`.
 
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to
@@ -1072,11 +1082,12 @@ waits for its own request.
 
 #### Invocation publication units
 
-`INodeManagerPublicationLifecycle` groups sequential prepared batches into one logical invocation.
-`CapturePublication` records the serving revisions; `BeginAsync(callerContext, ct)` reserves the
-invocation, and `IsCurrent` reports whether the revisions still match. A stale invocation must be
-disposed and recaptured. Units are prepared with `INodeManagerPublication.PrepareAsync` and follow
-the same decision and cleanup contracts.
+`INodeManagerLifecycle.CapturePublication` records the serving revisions; `BeginAsync(callerContext, ct)`
+reserves the invocation, and `IsCurrent` reports whether the revisions still match. A stale
+invocation must be disposed and recaptured. Units are prepared with
+`INodeManagerPublication.PrepareAsync` and follow the same decision and cleanup contracts.
+`SupportsPreparedPublication` and `SupportsPublicationIsolation` report whether the attached host
+supports the corresponding transaction operations.
 
 Admission stays held across every unit. Other lifecycle mutations fail `BadServerTooBusy` before
 effects and can retry after disposal, so callback code should defer conflicting lifecycle work
@@ -1852,13 +1863,13 @@ Read permissions before queueing them. Combining this factory with
 `queueInitialValue: true` is a configuration error: creation is rolled back and
 the allocated item and queue are disposed under either built-in item manager.
 
-Retained monitored items use `OnMonitoredItemAttached` and
+Migrated monitored items use `OnMonitoredItemAttached` and
 `OnMonitoredItemDetached` during handoff, not the creation/deletion callbacks.
 Register these hooks when maintaining source membership across compatible
 `ReloadAsync` operations. They run before first/last-subscriber reconciliation
 and also support typed-variable and virtual builders. Multiple handoff handlers
-run in registration order. A graceful `ShadowReloadAsync` instead lets existing
-subscribers drain on the old manager; it does not migrate them to the new source.
+run in registration order. The legacy `ShadowReloadAsync` alias now uses the same
+`Migrate` behavior and does not keep existing subscribers on the old manager.
 
 The acquisition mode is retained in `MonitoredItemTypeMask.ExternalValueSource`
 and the existing persisted `IStoredMonitoredItem.TypeMask`. Stores must preserve

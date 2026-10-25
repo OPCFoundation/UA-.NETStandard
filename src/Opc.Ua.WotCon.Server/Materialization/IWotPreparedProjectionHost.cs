@@ -72,7 +72,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         {
             return new WotProjectionChange(
                 null, document ?? throw new ArgumentNullException(nameof(document)),
-                WotProjectionRetirementPolicy.Graceful);
+                WotProjectionRetirementPolicy.Migrate);
         }
 
         /// <summary>
@@ -84,7 +84,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         public static WotProjectionChange Replace(
             WotProjectionHandle current,
             WotProjectionDocument document,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Migrate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)),
@@ -98,7 +98,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <param name="retirementPolicy">The retirement policy.</param>
         public static WotProjectionChange Remove(
             WotProjectionHandle current,
-            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Graceful)
+            WotProjectionRetirementPolicy retirementPolicy = WotProjectionRetirementPolicy.Invalidate)
         {
             return new WotProjectionChange(
                 current ?? throw new ArgumentNullException(nameof(current)), null, retirementPolicy);

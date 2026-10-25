@@ -58,16 +58,16 @@ namespace Opc.Ua.Server.Hosting
             => Current.IsShuttingDown;
 
         /// <inheritdoc/>
-        public bool SupportsPublicationIsolation =>
-            Current is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true };
+        public bool SupportsPreparedPublication
+            => Current.SupportsPreparedPublication;
+
+        /// <inheritdoc/>
+        public bool SupportsPublicationIsolation
+            => Current.SupportsPublicationIsolation;
 
         /// <inheritdoc/>
         public INodeManagerPublicationCapture CapturePublication()
-        {
-            return Current is INodeManagerPublicationLifecycle { SupportsPublicationIsolation: true } publication
-                ? publication.CapturePublication()
-                : throw new NotSupportedException("The attached lifecycle cannot isolate a publication invocation.");
-        }
+            => Current.CapturePublication();
 
         /// <inheritdoc/>
         public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
@@ -75,11 +75,15 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken cancellationToken = default)
         {
-            if (Current is not INodeManagerBatchLifecycle batch)
-            {
-                throw new NotSupportedException("The attached lifecycle does not support prepared publication.");
-            }
-            return batch.PrepareAsync(changes, callerContext, cancellationToken);
+            return Current.PrepareAsync(changes, callerContext, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
+            ArrayOf<NodeManagerBatchChange> changes,
+            CancellationToken cancellationToken = default)
+        {
+            return Current.PrepareAsync(changes, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -93,6 +97,14 @@ namespace Opc.Ua.Server.Hosting
 
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> AddAsync(
+            IAsyncNodeManagerFactory factory,
+            CancellationToken ct = default)
+        {
+            return Current.AddAsync(factory, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> AddAsync(
             INodeManagerFactory factory,
             IOperationContext? callerContext,
             CancellationToken ct = default)
@@ -101,6 +113,14 @@ namespace Opc.Ua.Server.Hosting
         }
 
         /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> AddAsync(
+            INodeManagerFactory factory,
+            CancellationToken ct = default)
+        {
+            return Current.AddAsync(factory, ct);
+        }
+
+        /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
             IAsyncNodeManagerFactory replacement,
@@ -113,11 +133,29 @@ namespace Opc.Ua.Server.Hosting
         /// <inheritdoc/>
         public ValueTask<NodeManagerRegistration> ReloadAsync(
             NodeManagerRegistration registration,
+            IAsyncNodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
             INodeManagerFactory replacement,
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
             return Current.ReloadAsync(registration, replacement, callerContext, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask<NodeManagerRegistration> ReloadAsync(
+            NodeManagerRegistration registration,
+            INodeManagerFactory replacement,
+            CancellationToken ct = default)
+        {
+            return Current.ReloadAsync(registration, replacement, ct);
         }
 
         /// <inheritdoc/>
@@ -154,6 +192,14 @@ namespace Opc.Ua.Server.Hosting
             CancellationToken ct = default)
         {
             return Current.ImmediateReloadAsync(registration, replacement, ct);
+        }
+
+        /// <inheritdoc/>
+        public ValueTask RemoveAsync(
+            NodeManagerRegistration registration,
+            CancellationToken ct = default)
+        {
+            return Current.RemoveAsync(registration, ct);
         }
 
         /// <inheritdoc/>
