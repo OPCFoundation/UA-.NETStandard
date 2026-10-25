@@ -1246,12 +1246,14 @@ namespace Opc.Ua.Server
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    return ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
+                    if (ReferenceEquals(sampledMonitoredItem.ManagerHandle, handle) &&
                         ReferenceEquals(sampledMonitoredItem.NodeManager, this) &&
                         MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? current) &&
-                        ReferenceEquals(current, monitoredItem)
-                        ? result
-                        : new ServiceResult(StatusCodes.BadMonitoredItemIdInvalid);
+                        ReferenceEquals(current, monitoredItem))
+                    {
+                        return result;
+                    }
+                    throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException && changed && monitoredNode != null)
@@ -1287,6 +1289,12 @@ namespace Opc.Ua.Server
                         {
                             compensationFailures.Add(compensationException);
                         }
+                    }
+                    else if (monitoredItem is IMonitoredItemGenerationBinding { IsDisposed: true } &&
+                        !MonitoredItems.ContainsKey(monitoredItem.Id))
+                    {
+                        // Disposal permanently forbids a new binding while the late provider is being released.
+                        removed = true;
                     }
                 }
                 if (removed)

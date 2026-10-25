@@ -1711,6 +1711,99 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A provider callback finishing after client deletion must release the source it registered late.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
+        public async Task DeletedEventAdoptionReleasesLateProviderRegistrationAsync(ManagerPath path, bool failCleanup)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var source = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("DeletedEventAdoption", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("DeletedEventAdoption", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                source.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(source).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), source.NodeId);
+                var binding = (IDetachableMonitoredItem)item;
+                var current = new TestNodeManagerLifecycle
+                {
+                    DetachCallback = _ =>
+                    {
+                        binding.Detach(server.Object);
+                        return ServiceResult.Good;
+                    }
+                };
+                var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var cleanupFailure = new InvalidOperationException("Injected late-registration cleanup failure.");
+                bool providerRegistered = false;
+                int unsubscribeCalls = 0;
+                owner.AsyncManager.EventSubscriptionCallback = async (unsubscribe, ct) =>
+                {
+                    if (!unsubscribe)
+                    {
+                        entered.TrySetResult(true);
+                        await release.Task.WaitAsync(ct).ConfigureAwait(false);
+                        providerRegistered = true;
+                    }
+                    else
+                    {
+                        if (++unsubscribeCalls == 2 && failCleanup)
+                        {
+                            throw cleanupFailure;
+                        }
+                        providerRegistered = false;
+                    }
+                };
+                var transition = new NodeManagerLifecycle.MonitoredItemTransition(
+                    server.Object, current, owner.Lifecycle, [item], [], static _ => true);
+                Task<List<Exception>> adoption = transition.AdoptAsync(timeout.Token).AsTask();
+                try
+                {
+                    await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    using var context = new OperationContext(item);
+                    ServiceResult deletion = await owner.AsyncManager.SubscribeToEventsAsync(
+                        context, item.ManagerHandle!, item.SubscriptionId, item, true, timeout.Token)
+                        .ConfigureAwait(false);
+                    Assert.That(deletion.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    item.Dispose();
+                    release.TrySetResult(true);
+                    List<Exception> failures = await adoption.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(unsubscribeCalls, Is.EqualTo(2));
+                        Assert.That(providerRegistered, Is.EqualTo(failCleanup));
+                        Assert.That(failures, Has.Count.EqualTo(failCleanup ? 1 : 0));
+                    });
+                    if (failCleanup)
+                    {
+                        Assert.That(failures[0], Is.TypeOf<AggregateException>());
+                        Assert.That(((AggregateException)failures[0]).Flatten().InnerExceptions,
+                            Does.Contain(cleanupFailure));
+                    }
+                    Assert.That(await owner.Lifecycle.GetMonitoredItemsSnapshotAsync(
+                        cancellationToken: timeout.Token).ConfigureAwait(false), Is.Empty);
+                }
+                finally
+                {
+                    release.TrySetResult(true);
+                    await adoption.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
+                }
+            }
+        }
+
+        /// <summary>
         /// Source release failures preserve ownership and leave adoption retryable without an item reservation.
         /// </summary>
         [TestCase(false)]
