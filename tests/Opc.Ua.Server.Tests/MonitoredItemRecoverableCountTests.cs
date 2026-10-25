@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -209,6 +210,189 @@ namespace Opc.Ua.Server.Tests
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.False);
             ((IDetachableMonitoredItem)item).Rebind(manager, new object());
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
+        }
+
+        /// <summary>
+        /// A lost item belongs to its stable slot until a compatible generation adopts it.
+        /// </summary>
+        [Test]
+        public void LostItemRemainsOnItsSlotUntilRebound()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
+            server.Setup(value => value.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
+            using MonitoredItem item = CreateItem(server);
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
+            var lifecycle = (IDetachableMonitoredItem)item;
+
+            lifecycle.Detach(server.Object);
+            lifecycle.MarkNodeDeleted();
+            lifecycle.MarkNodeDeleted();
+
+            Assert.That(original.Slot.UnresolvedItems, Has.Count.EqualTo(1));
+            Assert.That(original.Slot.UnresolvedItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+            Assert.That(actualOwner, Is.SameAs(owner));
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot.UnresolvedItems, Is.Empty,
+                "A parking manager must never become the stable owner of the lost item.");
+
+            lifecycle.Rebind(replacement.NodeManager, new object());
+
+            Assert.That(original.Slot.UnresolvedItems, Is.Empty);
+            Assert.That(replacement.MonitoredItems.ContainsKey(item), Is.True);
+        }
+
+        /// <summary>
+        /// Subscription removal releases unresolved ownership as well as generation membership.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void LostItemReleasesSlotOwnershipWhenDeleted(bool dispose)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+            ((IDetachableMonitoredItem)item).MarkNodeDeleted();
+            Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
+
+            if (dispose)
+            {
+                item.Dispose();
+            }
+            else
+            {
+                binding.UnbindSubscription(owner);
+            }
+
+            Assert.That(slot.UnresolvedItems, Is.Empty);
+        }
+
+        /// <summary>
+        /// Terminal invalidation removes even an existing recovery claim and permanently refuses adoption.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TerminalInvalidationRejectsRebindingAndRemovesRecoveryClaim(bool alreadyLost)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+            if (alreadyLost)
+            {
+                binding.Invalidate(terminal: false);
+                Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
+            }
+
+            binding.Invalidate(terminal: true);
+            binding.Invalidate(terminal: false);
+
+            Assert.That(binding.IsTerminal, Is.True);
+            Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
+            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
+            Assert.That(
+                () => ((IDetachableMonitoredItem)item).Rebind(new Mock<IAsyncNodeManager>().Object, new object()),
+                Throws.InvalidOperationException);
+            IStoredMonitoredItem stored = item.ToStorableMonitoredItem();
+            Assert.That(((IStoredMonitoredItemInvalidation)stored).IsTerminal, Is.True);
+            using var restored = new MonitoredItem(
+                CreateServer(telemetry, queueFactory).Object,
+                item.NodeManager,
+                new object(),
+                stored,
+                null);
+            restored.SubscriptionCallback = owner;
+            var restoredBinding = (IMonitoredItemGenerationBinding)restored;
+            restoredBinding.BindSubscription(owner);
+            Assert.That(restoredBinding.IsTerminal, Is.True);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
+            Assert.That(((IDetachableMonitoredItem)restored).TryBeginAttach(), Is.False);
+            Assert.That(
+                () => ((IDetachableMonitoredItem)restored).Rebind(item.NodeManager, new object()),
+                Throws.InvalidOperationException);
+        }
+
+        /// <summary>
+        /// Existing persistence implementations restore without having to implement the new optional capability.
+        /// </summary>
+        [Test]
+        public void LegacyStoredItemRestoresWithoutTerminalInvalidation()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            var stored = new TestStoredMonitoredItem
+            {
+                Id = 2,
+                SubscriptionId = 1,
+                TypeMask = MonitoredItemTypeMask.DataChange,
+                MonitoringMode = MonitoringMode.Reporting,
+                NodeId = new NodeId(1),
+                AttributeId = Attributes.Value,
+                QueueSize = 10,
+                DiscardOldest = true,
+                SamplingInterval = 1000,
+                TimestampsToReturn = TimestampsToReturn.Both,
+                DiagnosticsMasks = DiagnosticsMasks.All,
+                FilterToUse = new MonitoringFilter(),
+                IndexRange = string.Empty,
+                ParsedIndexRange = NumericRange.Null,
+                LastValue = new DataValue(new Variant(0)),
+                IsDeleted = true,
+                IsDetached = true
+            };
+            Assert.That(stored, Is.Not.InstanceOf<IStoredMonitoredItemInvalidation>());
+            using var item = new MonitoredItem(
+                CreateServer(telemetry, queueFactory).Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored,
+                null);
+
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsTerminal, Is.False);
+            var lifecycle = (IDetachableMonitoredItem)item;
+            Assert.That(lifecycle.TryBeginAttach(), Is.True);
+            Assert.That(lifecycle.EndAttach(), Is.True);
+        }
+
+        /// <summary>
+        /// Repeated reconciliation reports one lost-node notification without changing the client handle.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RepeatedInvalidationPublishesOneBadNodeIdUnknown(bool terminal)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.Invalidate(terminal);
+            binding.Invalidate(terminal);
+            using var context = new OperationContext(item);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+
+            bool more = item.Publish(context, notifications, diagnostics, 10, telemetry.CreateLogger<MonitoredItem>());
+
+            Assert.That(more, Is.False);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().ClientHandle, Is.EqualTo(3));
+            Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            binding.Invalidate(terminal);
+            notifications.Clear();
+            diagnostics.Clear();
+            more = item.Publish(context, notifications, diagnostics, 10, telemetry.CreateLogger<MonitoredItem>());
+            Assert.That(more, Is.False);
+            Assert.That(notifications, Is.Empty);
         }
 
         [Test]

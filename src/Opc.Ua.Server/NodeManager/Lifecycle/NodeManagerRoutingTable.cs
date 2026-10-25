@@ -1253,6 +1253,17 @@ namespace Opc.Ua.Server
                         return true;
                     }
                 }
+                if (NodeManagerGenerationRegistry.TryGet(nodeManager, out NodeManagerGeneration? identity))
+                {
+                    for (int ii = 0; ii < Generations.Length; ii++)
+                    {
+                        if (ReferenceEquals(Generations[ii], identity))
+                        {
+                            generation = identity;
+                            return true;
+                        }
+                    }
+                }
                 generation = null;
                 return false;
             }

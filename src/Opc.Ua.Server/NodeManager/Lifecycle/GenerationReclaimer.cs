@@ -130,6 +130,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Starts item-status finalization without enabling physical cleanup before readiness completes.
+        /// </summary>
+        /// <param name="retired">The records whose logical item transitions have been reconciled.</param>
+        internal void FinalizeMonitoredItemTransitions(List<RetiredGeneration> retired)
+        {
+            foreach (RetiredGeneration generation in retired)
+            {
+                StartTransitionFinalization(generation);
+            }
+        }
+
+        /// <summary>
         /// Restarts scheduling after a completed server shutdown.
         /// </summary>
         internal void BeginStartup()

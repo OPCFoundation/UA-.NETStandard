@@ -379,6 +379,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                m_isTerminal = (storedMonitoredItem as IStoredMonitoredItemInvalidation)?.IsTerminal ?? false;
                 SetDetachState(storedMonitoredItem.IsDetached, storedMonitoredItem.IsDeleted);
             }
         }
@@ -428,6 +429,11 @@ namespace Opc.Ua.Server
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
                 }
+                if (m_slot is { } previousSlot && !ReferenceEquals(previousSlot, generation.Slot))
+                {
+                    previousSlot.UnresolvedItems.TryRemove(this, out _);
+                }
+                m_slot = generation.Slot;
                 m_nodeManager = value;
                 Generation = generation.Reference;
                 if (m_subscriptionOwned)
@@ -484,11 +490,27 @@ namespace Opc.Ua.Server
             m_isDeleted = isDeleted;
 
             // a disposed item cannot be attached again, so it no longer counts.
-            bool recoverable = (isDetached || isDeleted) && !m_isDisposed;
+            bool recoverable = (isDetached || isDeleted) && !m_isDisposed && !m_isTerminal;
             if (recoverable != m_countedAsRecoverable)
             {
                 m_countedAsRecoverable = recoverable;
                 Interlocked.Add(ref s_recoverableCount, recoverable ? 1 : -1);
+            }
+            UpdateUnresolvedOwnership();
+        }
+
+        /// <summary>
+        /// Updates the stable slot's unresolved set while the item lock is held.
+        /// </summary>
+        private void UpdateUnresolvedOwnership()
+        {
+            if (m_subscriptionOwned && !m_isDisposed && !m_isTerminal && (m_isDetached || m_isDeleted))
+            {
+                m_slot.UnresolvedItems[this] = m_subscription!;
+            }
+            else
+            {
+                m_slot.UnresolvedItems.TryRemove(this, out _);
             }
         }
 
@@ -717,7 +739,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (m_isDisposed)
+                if (m_isDisposed || m_isTerminal)
                 {
                     return false;
                 }
@@ -748,14 +770,43 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         void IDetachableMonitoredItem.MarkNodeDeleted()
         {
+            Invalidate(terminal: false);
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemGenerationBinding.Invalidate(bool terminal)
+        {
+            Invalidate(terminal);
+        }
+
+        /// <inheritdoc/>
+        bool IMonitoredItemGenerationBinding.IsTerminal
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_isTerminal;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Records the lost-node state without repeating its initial status notification.
+        /// </summary>
+        /// <param name="terminal">Whether future adoption is forbidden.</param>
+        private void Invalidate(bool terminal)
+        {
             lock (m_lock)
             {
+                m_isTerminal |= terminal;
                 if (m_isDeleted)
                 {
+                    SetDetachState(m_isDetached || terminal, isDeleted: true);
                     return;
                 }
                 m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
-                SetDetachState(m_isDetached, isDeleted: true);
+                SetDetachState(m_isDetached || terminal, isDeleted: true);
                 QueueNodeIdUnknown();
             }
         }
@@ -782,7 +833,10 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // Parking changes the dispatch owner, not the recovery slot.
+                NodeManagerSlot slot = m_slot;
                 NodeManager = owner;
+                m_slot = slot;
                 ManagerHandle = DetachedHandle;
                 SetDetachState(isDetached: true, m_isDeleted);
             }
@@ -831,6 +885,10 @@ namespace Opc.Ua.Server
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
+                if (m_isTerminal)
+                {
+                    throw new InvalidOperationException("A terminal monitored item cannot be rebound.");
+                }
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
                 SourceMetadata = metadata;
@@ -2759,6 +2817,7 @@ namespace Opc.Ua.Server
                 }
                 m_subscriptionOwned = true;
                 generation!.MonitoredItems[this] = subscription;
+                UpdateUnresolvedOwnership();
             }
         }
 
@@ -2772,6 +2831,7 @@ namespace Opc.Ua.Server
                     return;
                 }
                 m_subscriptionOwned = false;
+                m_slot.UnresolvedItems.TryRemove(this, out _);
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true)
                 {
                     generation!.MonitoredItems.TryRemove(this, out _);
@@ -2838,6 +2898,7 @@ namespace Opc.Ua.Server
                     IsDurable = IsDurable,
                     IsDeleted = m_isDeleted,
                     IsDetached = m_isDetached,
+                    IsTerminal = m_isTerminal,
                     Encoding = DataEncoding,
                     FilterToUse = FilterToUse!,
                     Id = Id,
@@ -3479,6 +3540,12 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether the subscription still owns this item's generation binding.</summary>
         private bool m_subscriptionOwned;
+
+        /// <summary>The stable slot owning this item, including while its node is unavailable.</summary>
+        private NodeManagerSlot m_slot = null!;
+
+        /// <summary>Whether invalidation permanently forbids this item's adoption.</summary>
+        private bool m_isTerminal;
 
         private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;

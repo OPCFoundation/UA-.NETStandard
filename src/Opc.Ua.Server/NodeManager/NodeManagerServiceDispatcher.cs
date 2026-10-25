@@ -2725,6 +2725,24 @@ namespace Opc.Ua.Server
             await PreHydrateMonitoredItemQueuesAsync(itemsToRestore, cancellationToken)
                 .ConfigureAwait(false);
 
+            for (int ii = 0; ii < itemsToRestore.Count; ii++)
+            {
+                IStoredMonitoredItem storedItem = itemsToRestore[ii];
+                if (storedItem is not IStoredMonitoredItemInvalidation { IsTerminal: true })
+                {
+                    continue;
+                }
+                var monitoredItem = new MonitoredItem(
+                    Server,
+                    MonitoredItem.GetDetachedOwner(Server),
+                    MonitoredItem.DetachedHandle,
+                    storedItem);
+                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: true);
+                monitoredItems[ii] = monitoredItem;
+                storedItem.IsRestored = true;
+            }
+
             // create items for event filters.
             await RestoreMonitoredItemsForEventsAsync(itemsToRestore, monitoredItems, cancellationToken)
                 .ConfigureAwait(false);

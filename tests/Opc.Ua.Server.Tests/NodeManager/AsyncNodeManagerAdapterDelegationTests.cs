@@ -94,6 +94,87 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(result, Is.SameAs(manager.Object));
         }
 
+        /// <summary>
+        /// Every server surface shares the same wrapper and generation for a synchronous manager.
+        /// </summary>
+        [Test]
+        public void FactoryPreservesOneFacadeAndGenerationPerSynchronousManager()
+        {
+            var manager = new Mock<INodeManager>();
+            IAsyncNodeManager first = manager.Object.ToAsyncNodeManager();
+            IAsyncNodeManager second = manager.Object.ToAsyncNodeManager();
+
+            Assert.That(second, Is.SameAs(first));
+            Assert.That(
+                NodeManagerGenerationRegistry.GetOrCreate(second),
+                Is.SameAs(NodeManagerGenerationRegistry.GetOrCreate(first)));
+            Assert.That(new Mock<INodeManager>().Object.ToAsyncNodeManager(), Is.Not.SameAs(first));
+        }
+
+        /// <summary>
+        /// Concurrent first use cannot split a synchronous manager across facade identities.
+        /// </summary>
+        [Test]
+        public async Task FactorySharesOneFacadeWithConcurrentCallersAsync()
+        {
+            INodeManager manager = new Mock<INodeManager>().Object;
+            var calls = new Task<IAsyncNodeManager>[16];
+            for (int ii = 0; ii < calls.Length; ii++)
+            {
+                calls[ii] = Task.Run(() => manager.ToAsyncNodeManager());
+            }
+            IAsyncNodeManager[] facades = await Task.WhenAll(calls).ConfigureAwait(false);
+
+            foreach (IAsyncNodeManager facade in facades)
+            {
+                Assert.That(facade, Is.SameAs(facades[0]));
+            }
+        }
+
+        /// <summary>
+        /// Explicit public wrappers cannot split the generation or bypass its serving view and retirement gate.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void ExplicitSyncFacadesShareGenerationAndViewIdentity(bool prepared, bool replacement)
+        {
+            INodeManager manager = new Mock<INodeManager>().Object;
+            using var first = new AsyncNodeManagerAdapter(manager);
+            using var second = new AsyncNodeManagerAdapter(manager);
+            NodeManagerGeneration current = NodeManagerGenerationRegistry.GetOrCreate(
+                new Mock<IAsyncNodeManager>().Object);
+            NodeManagerGeneration generation = replacement
+                ? NodeManagerGenerationRegistry.CreateReplacement(current, first)
+                : prepared
+                    ? NodeManagerGenerationRegistry.CreateAddition(first)
+                    : NodeManagerGenerationRegistry.GetOrCreate(first);
+            NodeManagerGeneration alias = replacement
+                ? NodeManagerGenerationRegistry.CreateReplacement(current, second)
+                : prepared
+                    ? NodeManagerGenerationRegistry.CreateAddition(second)
+                    : NodeManagerGenerationRegistry.GetOrCreate(second);
+
+            Assert.That(alias, Is.SameAs(generation));
+            Assert.That(generation.NodeManager, Is.SameAs(first));
+            var view = new NodeManagerRoutingTable.RoutingSnapshot(
+                [first], new Dictionary<int, IReadOnlyList<IAsyncNodeManager>>(), []);
+            Assert.That(view.TryGetGeneration(manager.ToAsyncNodeManager(), out NodeManagerGeneration? canonical),
+                Is.True);
+            Assert.That(canonical, Is.SameAs(generation));
+            Assert.That(view.TryGetGeneration(second, out NodeManagerGeneration? explicitAlias), Is.True);
+            Assert.That(explicitAlias, Is.SameAs(generation));
+            IAsyncNodeManager unregistered = new Mock<IAsyncNodeManager>().Object;
+            Assert.That(view.TryGetGeneration(unregistered, out _), Is.False);
+            Assert.That(NodeManagerGenerationRegistry.TryGet(unregistered, out _), Is.False);
+
+            generation.Gate.Retire();
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(second).Gate.State,
+                Is.EqualTo(NodeManagerGenerationState.Retiring));
+            Assert.That(alias.Gate.TryEnter(out GenerationGate.Lease? admission), Is.False);
+            admission?.Dispose();
+        }
+
         [Test]
         public void FactoryWrapsSyncOnlyManager()
         {

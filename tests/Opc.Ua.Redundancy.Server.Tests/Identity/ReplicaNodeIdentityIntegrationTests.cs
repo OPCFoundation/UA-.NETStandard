@@ -725,11 +725,17 @@ namespace Opc.Ua.Redundancy.Server.Tests.Identity
                 INodeManagerLifecycle lifecycle = m_fixture.Server.NodeManagerLifecycle;
                 NodeManagerRegistration registration = lifecycle.Registrations.ToList().Single(value =>
                     value.NamespaceUris.ToList().Contains(InstanceNamespaceUri));
-                await lifecycle.ReloadAsync(
-                    registration,
-                    new ReplicaNodeManagerFactory(InstanceNamespaceUri, PlantRootName, true, 0),
-                    callerContext: null,
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(
+                        registration,
+                        new ReplicaNodeManagerFactory(InstanceNamespaceUri, PlantRootName, true, 0))],
                     ct).ConfigureAwait(false);
+                NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct)
+                    .ConfigureAwait(false);
+                if (result.CleanupFailure is { } failure)
+                {
+                    throw failure;
+                }
             }
 
             public async Task AssertStoredIdentityAsync(NodeId nodeId, CancellationToken ct)

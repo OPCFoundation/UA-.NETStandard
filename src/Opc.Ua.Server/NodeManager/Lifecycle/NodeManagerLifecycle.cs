@@ -558,7 +558,8 @@ namespace Opc.Ua.Server
                 lifecycle,
                 replacement: null,
                 compatibleItems: [],
-                deletedItems: items);
+                deletedItems: items,
+                terminal: true);
         }
 
         /// <summary>
@@ -1161,13 +1162,15 @@ namespace Opc.Ua.Server
             /// <param name="compatibleItems">Items that can be handed to the replacement NodeManager.</param>
             /// <param name="deletedItems">Items whose nodes disappeared during reload.</param>
             /// <param name="isOwnedBySubscription">Optional test hook that verifies subscription ownership.</param>
+            /// <param name="terminal">Whether lost items require client-side recreation.</param>
             public MonitoredItemTransition(
                 IServerInternal server,
                 INodeManagerMonitoredItemLifecycle current,
                 INodeManagerMonitoredItemLifecycle? replacement,
                 IReadOnlyList<IMonitoredItem> compatibleItems,
                 IReadOnlyList<IMonitoredItem> deletedItems,
-                Func<IMonitoredItem, bool>? isOwnedBySubscription = null)
+                Func<IMonitoredItem, bool>? isOwnedBySubscription = null,
+                bool terminal = false)
             {
                 m_server = server;
                 m_current = current;
@@ -1175,6 +1178,7 @@ namespace Opc.Ua.Server
                 m_compatibleItems = compatibleItems;
                 m_deletedItems = deletedItems;
                 m_isOwnedBySubscription = isOwnedBySubscription;
+                m_terminal = terminal;
                 var sourceMonitoredNodeDrains = new List<Func<CancellationToken, ValueTask>>();
                 var sourceRetentions = new List<Action>();
                 var retainedNodeIds = new HashSet<NodeId>();
@@ -1360,7 +1364,7 @@ namespace Opc.Ua.Server
                         {
                             var lifecycle = (IDetachableMonitoredItem)monitoredItem;
                             lifecycle.Detach(m_server);
-                            lifecycle.MarkNodeDeleted();
+                            ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(m_terminal);
                             m_markedDeletedItems.Add(monitoredItem);
                         }
                         catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -1485,6 +1489,10 @@ namespace Opc.Ua.Server
             private readonly IReadOnlyList<IMonitoredItem> m_compatibleItems;
             private readonly IReadOnlyList<IMonitoredItem> m_deletedItems;
             private readonly Func<IMonitoredItem, bool>? m_isOwnedBySubscription;
+
+            /// <summary>Whether items lost by this transition cannot be adopted again.</summary>
+            private readonly bool m_terminal;
+
             private readonly List<IMonitoredItem> m_detachedItems = [];
             private readonly List<IMonitoredItem> m_attachedItems = [];
             private readonly List<IMonitoredItem> m_failedItems = [];
@@ -2035,6 +2043,7 @@ namespace Opc.Ua.Server
                                         NodeManagerReconciliationStage.MonitoredItems, failure);
                                 }
                             }
+                            m_reclaimer.FinalizeMonitoredItemTransitions(retired);
                             foreach (BatchEntry entry in batch.Entries)
                             {
                                 if (entry.Manager is null)

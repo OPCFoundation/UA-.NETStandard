@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -46,12 +47,19 @@ namespace Opc.Ua.Server
         /// </summary>
         public static IAsyncNodeManager ToAsyncNodeManager(this INodeManager nodeManager)
         {
+            if (nodeManager is null)
+            {
+                throw new ArgumentNullException(nameof(nodeManager));
+            }
             if (nodeManager is IAsyncNodeManager asyncNodeManager)
             {
                 return asyncNodeManager;
             }
-            return new AsyncNodeManagerAdapter(nodeManager);
+            return s_adapters.GetValue(nodeManager, static manager => new AsyncNodeManagerAdapter(manager));
         }
+
+        /// <summary>Preserves one async facade without keeping retired synchronous managers alive.</summary>
+        private static readonly ConditionalWeakTable<INodeManager, AsyncNodeManagerAdapter> s_adapters = new();
     }
 
     /// <summary>

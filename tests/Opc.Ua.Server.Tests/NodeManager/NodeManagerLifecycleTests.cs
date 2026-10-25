@@ -1806,11 +1806,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Remove preserves the subscription and monitored item, publishes BadNodeIdUnknown,
-        /// recovers on a later add, and permits client-side deletion of the same item id.
+        /// Remove reports the lost node without adopting the old item on a later add.
+        /// The client can recreate monitoring and delete its original terminal item.
         /// </summary>
         [Test]
-        public async Task RemoveAsyncPublishesBadRecoversAndClientDeletesSameItemAsync()
+        public async Task RemoveInvalidatesUntilClientRecreatesMonitoringAsync()
         {
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle
                 .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 1), null)
@@ -1855,18 +1855,25 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerRegistration added = await m_server.NodeManagerLifecycle
                     .AddRuntimeNodeSetAsync(CreateGenerationOptions(generation: 2), null)
                     .ConfigureAwait(false);
-                IMonitoredItem recoveredItem = subscription
-                    .GetMonitoredItemsSnapshot(added.NodeManager)
-                    .Single();
-                Assert.That(ReferenceEquals(recoveredItem, originalItem), Is.True);
+                Assert.That(subscription.GetMonitoredItemsSnapshot(added.NodeManager), Is.Empty);
+                Assert.That(((IMonitoredItemGenerationBinding)originalItem).IsTerminal, Is.True);
+                Assert.That(original.Slot.UnresolvedItems, Is.Empty);
+                Assert.That(originalItem.Id, Is.EqualTo(monitoredItemId));
 
-                (MonitoredItemNotification current, acknowledgements) =
-                    await PublishForDataChangeAsync(
-                        services,
-                        subscriptionId,
-                        acknowledgements).ConfigureAwait(false);
-                Assert.That(current.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(current.Value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+                (uint recreatedSubscriptionId, uint recreatedItemId) =
+                    await CreateSubscriptionWithMonitoredItemAsync(services, valueNodeId).ConfigureAwait(false);
+                try
+                {
+                    (MonitoredItemNotification current, _) = await PublishForDataChangeAsync(
+                        services, recreatedSubscriptionId, []).ConfigureAwait(false);
+                    Assert.That(recreatedItemId, Is.Not.EqualTo(monitoredItemId));
+                    Assert.That(current.Value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(current.Value.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
+                }
+                finally
+                {
+                    await DeleteSubscriptionAsync(services, recreatedSubscriptionId).ConfigureAwait(false);
+                }
 
                 RequestHeader requestHeader = m_requestHeader;
                 requestHeader.Timestamp = DateTimeUtc.Now;

@@ -102,6 +102,19 @@ extensions ignore it and forward only the changes and cancellation token. Use an
 `IAsyncNodeManagerFactory` for new transactions; the synchronous factory adapter exists only in
 the obsolete shims. There is no retained-generation reload mode.
 
+`Invalidate` and removal make existing monitored items terminal: each item reports
+`BadNodeIdUnknown` once and cannot recover when a matching node is later added. Clients must create
+new monitored items. `Migrate` preserves item IDs and permits missing or incompatible items to recover
+within their original slot when compatible nodes return.
+
+`IStoredMonitoredItem` is unchanged for existing implementations. To persist terminal invalidation,
+implement the optional `IStoredMonitoredItemInvalidation` capability and retain `IsTerminal` when
+cloning or serializing definitions. Older definitions without the capability default to nonterminal. Terminal
+state implies both `IsDeleted` and `IsDetached`; custom stores must preserve those flags too.
+The shared key-value subscription store uses definition format 7 only for subscriptions containing terminal
+items; unaffected subscriptions retain format 5 or 6. Replicas that do not support format 7 cannot
+restore a subscription containing terminal items.
+
 Commit awaits reconciliation and readiness, but retirement is asynchronous. Unlike the former
 single-operation pipeline, committed runtime readiness uses a noncancelable token; caller cancellation
 after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.

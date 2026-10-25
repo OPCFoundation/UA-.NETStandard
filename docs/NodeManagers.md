@@ -974,11 +974,15 @@ management; continuation points from a retired generation are invalid when its g
 
 #### MonitoredItems
 
-On a normal reload a compatible NodeId keeps the same MonitoredItem and Subscription without a
+On a `Migrate` reload a compatible NodeId keeps the same MonitoredItem and Subscription without a
 transient bad status. A removed or incompatible NodeId is detached and publishes one
 `BadNodeIdUnknown` data-change notification (Part 4 §5.8.4.1); adding a compatible Node with that
-NodeId later reattaches the item automatically. Event MonitoredItems recover their source binding
+NodeId in the same slot later reattaches the item automatically. Event MonitoredItems recover their source binding
 without a data-change status.
+
+`Invalidate` and manager removal make old items terminal. Adding the same NodeId later does not
+reactivate them; clients must create new MonitoredItems. Durable subscription restoration preserves
+the terminal state.
 
 That notification is queued in its natural position (Part 4 §5.13.1.5) and is never discarded: on
 a full queue an incoming value is dropped instead. At the default `queueSize` of 1 there is no
@@ -987,9 +991,9 @@ such notification is pending at a time, and it is not preserved across a durable
 restart. Issue [#4102](https://github.com/OPCFoundation/UA-.NETStandard/issues/4102) records the
 specification ambiguity behind this.
 
-Derive from `CustomNodeManager2` or `AsyncCustomNodeManager` to get these transitions, or implement
-`INodeManagerMonitoredItemLifecycle` (and `ISubscriptionMonitoredItemLifecycle` for a custom
-Subscription). An implementation the server cannot migrate safely fails with
+`CustomNodeManager2` and `AsyncCustomNodeManager` provide these transitions through the built-in
+monitored-item managers. The lifecycle capabilities are internal, not application extension contracts.
+An implementation the server cannot migrate safely fails with
 `NotSupportedException` before any routing changes.
 
 #### Continuation points

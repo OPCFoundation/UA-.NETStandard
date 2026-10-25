@@ -363,9 +363,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var retired = context.CreateRetirement();
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(value => value.NodeId).Returns(new NodeId(1));
-            Mock<IDetachableMonitoredItem> detached = item.As<IDetachableMonitoredItem>();
+            item.As<IDetachableMonitoredItem>();
+            Mock<IMonitoredItemGenerationBinding> binding = item.As<IMonitoredItemGenerationBinding>();
             int marks = 0;
-            detached.Setup(value => value.MarkNodeDeleted()).Callback(() =>
+            binding.Setup(value => value.Invalidate(false)).Callback(() =>
             {
                 if (Interlocked.Increment(ref marks) == 1 && failFirst)
                 {

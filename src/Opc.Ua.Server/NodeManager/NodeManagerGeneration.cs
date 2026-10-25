@@ -94,6 +94,12 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets the subscription-owned items awaiting a compatible node in this slot.
+        /// </summary>
+        internal ConcurrentDictionary<IMonitoredItem, ISubscription> UnresolvedItems { get; } =
+            new(MonitoredItemReferenceComparer.Instance);
+
+        /// <summary>
         /// Gets the currently published generation.
         /// </summary>
         internal NodeManagerGeneration? Current => Volatile.Read(ref m_current);
@@ -526,18 +532,34 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            IAsyncNodeManager identity = GetIdentity(nodeManager);
             lock (s_lock)
             {
-                if (s_generations.TryGetValue(nodeManager, out NodeManagerGeneration? generation))
+                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? generation))
                 {
                     return generation;
                 }
                 var slot = new NodeManagerSlot();
                 generation = new NodeManagerGeneration(
                     slot, 1, nodeManager, NodeManagerGenerationState.Live);
-                s_generations.Add(nodeManager, generation);
+                s_generations.Add(identity, generation);
                 slot.Publish(generation);
                 return generation;
+            }
+        }
+
+        /// <summary>
+        /// Resolves an existing generation without creating or publishing an identity for an unregistered manager.
+        /// </summary>
+        /// <param name="nodeManager">The manager or an explicit wrapper of the same synchronous resource.</param>
+        /// <param name="generation">The existing generation, when present.</param>
+        /// <returns>Whether the manager already has a generation.</returns>
+        internal static bool TryGet(IAsyncNodeManager nodeManager, out NodeManagerGeneration? generation)
+        {
+            IAsyncNodeManager identity = GetIdentity(nodeManager);
+            lock (s_lock)
+            {
+                return s_generations.TryGetValue(identity, out generation);
             }
         }
 
@@ -559,9 +581,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(replacement));
             }
+            IAsyncNodeManager identity = GetIdentity(replacement);
             lock (s_lock)
             {
-                if (s_generations.TryGetValue(replacement, out NodeManagerGeneration? existing))
+                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
                 {
                     if (ReferenceEquals(existing.Slot, current.Slot) &&
                         existing.Gate.State == NodeManagerGenerationState.Prepared)
@@ -590,14 +613,14 @@ namespace Opc.Ua.Server
                     {
                         existing.Gate.Abort();
                     }
-                    s_generations.Remove(replacement);
+                    s_generations.Remove(identity);
                 }
                 var generation = new NodeManagerGeneration(
                     current.Slot,
                     current.Number + 1,
                     replacement,
                     NodeManagerGenerationState.Prepared);
-                s_generations.Add(replacement, generation);
+                s_generations.Add(identity, generation);
                 return generation;
             }
         }
@@ -613,9 +636,10 @@ namespace Opc.Ua.Server
             {
                 throw new ArgumentNullException(nameof(nodeManager));
             }
+            IAsyncNodeManager identity = GetIdentity(nodeManager);
             lock (s_lock)
             {
-                if (s_generations.TryGetValue(nodeManager, out NodeManagerGeneration? existing))
+                if (s_generations.TryGetValue(identity, out NodeManagerGeneration? existing))
                 {
                     if (existing.Gate.State == NodeManagerGenerationState.Prepared)
                     {
@@ -631,14 +655,26 @@ namespace Opc.Ua.Server
                     {
                         return existing;
                     }
-                    s_generations.Remove(nodeManager);
+                    s_generations.Remove(identity);
                 }
                 var slot = new NodeManagerSlot();
                 var generation = new NodeManagerGeneration(
                     slot, 1, nodeManager, NodeManagerGenerationState.Prepared);
-                s_generations.Add(nodeManager, generation);
+                s_generations.Add(identity, generation);
                 return generation;
             }
+        }
+
+        /// <summary>
+        /// Uses one resource identity for public wrappers without replacing the generation's owning facade.
+        /// </summary>
+        /// <param name="nodeManager">The facade supplied by the owner.</param>
+        /// <returns>The canonical resource key.</returns>
+        private static IAsyncNodeManager GetIdentity(IAsyncNodeManager nodeManager)
+        {
+            return nodeManager is AsyncNodeManagerAdapter adapter
+                ? adapter.SyncNodeManager.ToAsyncNodeManager()
+                : nodeManager;
         }
 
         /// <summary>Serializes generation identity changes on writer paths.</summary>

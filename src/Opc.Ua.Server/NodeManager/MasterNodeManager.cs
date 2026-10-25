@@ -998,8 +998,7 @@ namespace Opc.Ua.Server
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId> nodeIds)
         {
-            // only items that are detached or marked deleted are recovered.
-            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
+            if (!Server.IsRunning)
             {
                 return;
             }
@@ -1011,48 +1010,40 @@ namespace Opc.Ua.Server
             }
 
             var failures = new List<Exception>();
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
+            foreach (IMonitoredItem monitoredItem in GetUnresolvedMonitoredItems(visibleNodeManager, nodeIds))
             {
-                if (subscription is not ISubscriptionMonitoredItemLifecycle lifecycle)
+                var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
+                if (!itemLifecycle.IsDetached)
+                {
+                    if (monitoredItem.NodeManager is not
+                        INodeManagerMonitoredItemLifecycle currentLifecycle)
+                    {
+                        failures.Add(new InvalidOperationException(
+                            "The current NodeManager cannot detach a deleted monitored item."));
+                        continue;
+                    }
+
+                    ServiceResult detachResult = CompleteInMemory(
+                        currentLifecycle.DetachMonitoredItemAsync(monitoredItem));
+                    if (ServiceResult.IsBad(detachResult))
+                    {
+                        failures.Add(new ServiceResultException(detachResult));
+                        continue;
+                    }
+                }
+
+                ServiceResult attachResult = CompleteInMemory(
+                    nodeManagerLifecycle.AttachMonitoredItemAsync(monitoredItem));
+                if (ServiceResult.IsGood(attachResult))
                 {
                     continue;
                 }
 
-                foreach (IMonitoredItem monitoredItem in lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds))
+                itemLifecycle.Detach(Server);
+                itemLifecycle.MarkNodeDeleted();
+                if (!IsExpectedRecoveryFailure(attachResult))
                 {
-                    var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
-                    if (!itemLifecycle.IsDetached)
-                    {
-                        if (monitoredItem.NodeManager is not
-                            INodeManagerMonitoredItemLifecycle currentLifecycle)
-                        {
-                            failures.Add(new InvalidOperationException(
-                                "The current NodeManager cannot detach a deleted monitored item."));
-                            continue;
-                        }
-
-                        ServiceResult detachResult = CompleteInMemory(
-                            currentLifecycle.DetachMonitoredItemAsync(monitoredItem));
-                        if (ServiceResult.IsBad(detachResult))
-                        {
-                            failures.Add(new ServiceResultException(detachResult));
-                            continue;
-                        }
-                    }
-
-                    ServiceResult attachResult = CompleteInMemory(
-                        nodeManagerLifecycle.AttachMonitoredItemAsync(monitoredItem));
-                    if (ServiceResult.IsGood(attachResult))
-                    {
-                        continue;
-                    }
-
-                    itemLifecycle.Detach(Server);
-                    itemLifecycle.MarkNodeDeleted();
-                    if (!IsExpectedRecoveryFailure(attachResult))
-                    {
-                        failures.Add(new ServiceResultException(attachResult));
-                    }
+                    failures.Add(new ServiceResultException(attachResult));
                 }
             }
 
@@ -1070,29 +1061,38 @@ namespace Opc.Ua.Server
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
         {
-            // only items that are detached or marked deleted are recovered.
-            if (!Server.IsRunning || !MonitoredItem.HasRecoverableItems)
+            if (!Server.IsRunning || GetVisibleNodeManager(nodeManager) is not { } visibleNodeManager)
             {
                 return;
             }
 
-            var monitoredItems = new List<IMonitoredItem>();
-            foreach (ISubscription subscription in Server.SubscriptionManager.GetSubscriptions())
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (subscription is not ISubscriptionMonitoredItemLifecycle lifecycle)
-                {
-                    continue;
-                }
-
-                monitoredItems.AddRange(
-                    lifecycle.GetRecoverableMonitoredItemsSnapshot(nodeIds));
-            }
-
             await RecoverMonitoredItemsAsync(
-                nodeManager,
-                monitoredItems,
+                visibleNodeManager,
+                GetUnresolvedMonitoredItems(visibleNodeManager, nodeIds),
                 cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Selects only unresolved items owned by the target's stable slot.
+        /// </summary>
+        /// <param name="nodeManager">The manager whose slot owns the unresolved items.</param>
+        /// <param name="nodeIds">The nodes being added, or null to check every unresolved item.</param>
+        /// <returns>A stable item snapshot, without inspecting unrelated subscriptions.</returns>
+        private static IMonitoredItem[] GetUnresolvedMonitoredItems(
+            IAsyncNodeManager nodeManager,
+            IReadOnlyCollection<NodeId>? nodeIds)
+        {
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
+            if (slot.UnresolvedItems.IsEmpty || nodeIds is { Count: 0 })
+            {
+                return [];
+            }
+            if (nodeIds is null)
+            {
+                return [.. slot.UnresolvedItems.Keys];
+            }
+            var requestedNodes = new HashSet<NodeId>(nodeIds, NodeIdComparer.Default);
+            return [.. slot.UnresolvedItems.Keys.Where(item => requestedNodes.Contains(item.NodeId))];
         }
 
         /// <summary>
@@ -1201,18 +1201,10 @@ namespace Opc.Ua.Server
 
         private IAsyncNodeManager? GetVisibleNodeManager(IAsyncNodeManager nodeManager)
         {
-            foreach (IAsyncNodeManager candidate in m_nodeManagers)
-            {
-                if (m_nodeManagers.IsVisible(candidate) &&
-                    (ReferenceEquals(candidate, nodeManager) ||
-                        ReferenceEquals(
-                            candidate.SyncNodeManager,
-                            nodeManager.SyncNodeManager)))
-                {
-                    return candidate;
-                }
-            }
-            return null;
+            return m_nodeManagers.Revision.TryGetGeneration(nodeManager, out NodeManagerGeneration? generation) &&
+                generation!.Gate.State == NodeManagerGenerationState.Live
+                    ? generation.NodeManager
+                    : null;
         }
 
         /// <inheritdoc/>

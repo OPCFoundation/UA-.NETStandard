@@ -35,6 +35,17 @@ namespace Opc.Ua.Server
     internal interface IMonitoredItemGenerationBinding
     {
         /// <summary>
+        /// Gets whether the client must create a new item instead of rebinding this one.
+        /// </summary>
+        bool IsTerminal { get; }
+
+        /// <summary>
+        /// Reports the lost node once and optionally forbids future adoption.
+        /// </summary>
+        /// <param name="terminal">Whether the item requires client-side recreation.</param>
+        void Invalidate(bool terminal);
+
+        /// <summary>
         /// Claims the item after its subscription has added it.
         /// </summary>
         /// <param name="subscription">The subscription claiming the item.</param>

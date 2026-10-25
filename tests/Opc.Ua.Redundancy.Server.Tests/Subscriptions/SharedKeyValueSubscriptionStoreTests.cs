@@ -87,6 +87,41 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Terminal items survive persistence without requiring newer definitions for unaffected subscriptions.
+        /// </summary>
+        [TestCase(false, false, 5)]
+        [TestCase(false, true, 6)]
+        [TestCase(true, false, 7)]
+        [TestCase(true, true, 7)]
+        public async Task StoreAndRestorePreservesTerminalInvalidationAsync(
+            bool terminal, bool triggering, int expectedVersion)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            SharedKeyValueSubscriptionStore store = CreateStore(kv);
+            StoredSubscription expected = NewSubscription(100, 10);
+            var item = (StoredMonitoredItem)expected.MonitoredItems.Single();
+            item.IsTerminal = terminal;
+            item.IsDeleted = true;
+            item.IsDetached = true;
+            if (triggering)
+            {
+                expected.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+                {
+                    [10] = [11]
+                };
+            }
+
+            Assert.That(ReadDefinitionVersion(store, expected), Is.EqualTo(expectedVersion));
+            Assert.That(await store.StoreSubscriptionsAsync([expected]).ConfigureAwait(false), Is.True);
+            RestoreSubscriptionResult restored = await store.RestoreSubscriptionsAsync().ConfigureAwait(false);
+
+            Assert.That(restored.Success, Is.True);
+            var actual = (StoredMonitoredItem)restored.Subscriptions!.Single().MonitoredItems.Single();
+            Assert.That(actual.IsTerminal, Is.EqualTo(terminal));
+            AssertMonitoredItem(actual, item);
+        }
+
+        /// <summary>
         /// Verifies that a snapshot cannot replay the same subscription identifier from an older generation.
         /// </summary>
         [Test]
@@ -2102,6 +2137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private static void AssertMonitoredItem(StoredMonitoredItem actual, StoredMonitoredItem expected)
         {
+            Assert.That(actual.IsTerminal, Is.EqualTo(expected.IsTerminal));
             Assert.That(actual.IsDeleted, Is.EqualTo(expected.IsDeleted));
             Assert.That(actual.IsDetached, Is.EqualTo(expected.IsDetached));
             Assert.That(actual.SubscriptionId, Is.EqualTo(expected.SubscriptionId));
