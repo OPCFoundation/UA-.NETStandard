@@ -37,29 +37,25 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Tests generation-bound subscription ownership and that every detach state transition keeps
-    /// <see cref="MonitoredItem.HasRecoverableItems"/> exact. Recovery of detached items is
-    /// skipped while no item is counted, so a missed increment would suppress reattachment
-    /// and a missed decrement would bring back the scans of every monitored item.
+    /// Tests exact-generation membership, slot-local recovery and terminal invalidation of subscription-owned items.
     /// </summary>
-    /// <remarks>
-    /// The count is process-wide and other tests run in parallel, so the tests assert the
-    /// per-item flag, and only that the count is positive while an item is counted.
-    /// </remarks>
     [TestFixture]
     [Category("MonitoredItem")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [Parallelizable]
-    public class MonitoredItemRecoverableCountTests
+    public sealed class MonitoredItemGenerationBindingTests
     {
+        /// <summary>
+        /// Construction alone does not enroll an item in slot-local recovery.
+        /// </summary>
         [Test]
-        public void NewItemIsNotCounted()
+        public void NewItemHasNoUnresolvedClaim()
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
 
-            Assert.That(item.IsCountedAsRecoverable, Is.False);
+            Assert.That(NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot.UnresolvedItems, Is.Empty);
         }
 
         /// <summary>
@@ -395,70 +391,92 @@ namespace Opc.Ua.Server.Tests
             Assert.That(notifications, Is.Empty);
         }
 
+        /// <summary>
+        /// Repeated lost-node transitions keep one recovery claim until the item is rebound.
+        /// </summary>
         [Test]
-        public void DeletedItemIsCountedUntilRebound()
+        public void RepeatedDeletionKeepsOneUnresolvedClaimUntilRebound()
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
             var lifecycle = (IDetachableMonitoredItem)item;
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
 
             lifecycle.MarkNodeDeleted();
-            Assert.That(item.IsCountedAsRecoverable, Is.True);
-            Assert.That(MonitoredItem.HasRecoverableItems, Is.True);
+            Assert.That(slot.UnresolvedItems.TryGetValue(item, out ISubscription? subscription), Is.True);
+            Assert.That(subscription, Is.SameAs(owner));
 
-            // a second transition into the same state does not count the item twice.
             lifecycle.QueueNodeIdUnknown();
-            Assert.That(item.IsCountedAsRecoverable, Is.True);
+            Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(1));
 
             lifecycle.Rebind(new Mock<IAsyncNodeManager>().Object, new object());
-            Assert.That(item.IsCountedAsRecoverable, Is.False);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 
+        /// <summary>
+        /// Private lost items enter recovery only when a subscription takes ownership.
+        /// </summary>
         [Test]
-        public void DetachedItemIsCountedUntilRebound()
+        public void PrivateDetachWaitsForSubscriptionOwnershipBeforeRecovery()
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
             server.Setup(s => s.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
             using MonitoredItem item = CreateItem(server);
             var lifecycle = (IDetachableMonitoredItem)item;
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
 
             lifecycle.BeginDetach();
-            Assert.That(item.IsCountedAsRecoverable, Is.True);
-            Assert.That(MonitoredItem.HasRecoverableItems, Is.True);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
+            Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(1));
 
             lifecycle.Detach(server.Object);
             Assert.That(lifecycle.IsDetached, Is.True);
-            Assert.That(item.IsCountedAsRecoverable, Is.True);
+            Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
 
             lifecycle.Rebind(new Mock<IAsyncNodeManager>().Object, new object());
             Assert.That(lifecycle.IsDetached, Is.False);
-            Assert.That(item.IsCountedAsRecoverable, Is.False);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 
+        /// <summary>
+        /// Disposed items cannot regain slot ownership after repeated lost-node transitions.
+        /// </summary>
         [Test]
-        public void DisposedItemIsNotCounted()
+        public void DisposedItemCannotReclaimUnresolvedOwnership()
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
-            MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
             var lifecycle = (IDetachableMonitoredItem)item;
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
 
             lifecycle.MarkNodeDeleted();
-            Assert.That(item.IsCountedAsRecoverable, Is.True);
+            Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
 
             item.Dispose();
-            Assert.That(item.IsCountedAsRecoverable, Is.False);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
 
-            // a disposed item cannot be attached again, so later transitions do not count it.
             lifecycle.MarkNodeDeleted();
-            Assert.That(item.IsCountedAsRecoverable, Is.False);
+            Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 
+        /// <summary>
+        /// Restored lost items enroll on their own slot only after a subscription claims them.
+        /// </summary>
         [TestCase(true, false)]
         [TestCase(false, true)]
         [TestCase(true, true)]
         [TestCase(false, false)]
-        public void RestoredItemIsCountedWhenStoredDetachedOrDeleted(bool isDetached, bool isDeleted)
+        public void RestoredItemClaimsOnlyItsOwnSlotsRecovery(bool isDetached, bool isDeleted)
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             var stored = new StoredMonitoredItem
@@ -489,7 +507,13 @@ namespace Opc.Ua.Server.Tests
                 stored,
                 null);
 
-            Assert.That(item.IsCountedAsRecoverable, Is.EqualTo(isDetached || isDeleted));
+            NodeManagerSlot slot = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager).Slot;
+            Assert.That(slot.UnresolvedItems, Is.Empty);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
+            Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.EqualTo(isDetached || isDeleted));
+            Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(isDetached || isDeleted ? 1 : 0));
         }
 
         private static MonitoredItemQueueFactory CreateQueueFactory(out ITelemetryContext telemetry)

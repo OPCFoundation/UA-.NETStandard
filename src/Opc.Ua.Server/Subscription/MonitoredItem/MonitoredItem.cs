@@ -455,47 +455,13 @@ namespace Opc.Ua.Server
         internal NodeState? SourceMetadata { get; private set; }
 
         /// <summary>
-        /// Whether any live monitored item in the process is detached or marked deleted.
-        /// </summary>
-        /// <remarks>
-        /// Every node a NodeManager adds asks the subscriptions for detached items to
-        /// reattach, and a scan reads every monitored item of every subscription. Creating a
-        /// subscription adds its diagnostics nodes, so with many monitored items the scans made
-        /// subscription creation quadratic. Recovery is skipped while this is <c>false</c>. The
-        /// count is process-wide, so items of another server instance only cost a scan.
-        /// </remarks>
-        internal static bool HasRecoverableItems => Interlocked.Read(ref s_recoverableCount) > 0;
-
-        /// <summary>
-        /// Whether this item is included in <see cref="HasRecoverableItems"/>.
-        /// </summary>
-        internal bool IsCountedAsRecoverable
-        {
-            get
-            {
-                lock (m_lock)
-                {
-                    return m_countedAsRecoverable;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Sets the detached and deleted flags and keeps <see cref="HasRecoverableItems"/>
-        /// in step. The caller holds <c>m_lock</c>.
+        /// Sets the lost-node flags and updates slot ownership while the item lock is held.
         /// </summary>
         private void SetDetachState(bool isDetached, bool isDeleted)
         {
             m_isDetached = isDetached;
             m_isDeleted = isDeleted;
 
-            // a disposed item cannot be attached again, so it no longer counts.
-            bool recoverable = (isDetached || isDeleted) && !m_isDisposed && !m_isTerminal;
-            if (recoverable != m_countedAsRecoverable)
-            {
-                m_countedAsRecoverable = recoverable;
-                Interlocked.Add(ref s_recoverableCount, recoverable ? 1 : -1);
-            }
             UpdateUnresolvedOwnership();
         }
 
@@ -3582,8 +3548,6 @@ namespace Opc.Ua.Server
         private EventFilterContext? m_eventFilterContext;
         private bool m_isDetached;
         private bool m_isDeleted;
-        private bool m_countedAsRecoverable;
-        private static long s_recoverableCount;
     }
 
     /// <summary>
