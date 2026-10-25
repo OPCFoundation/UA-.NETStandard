@@ -78,7 +78,8 @@ namespace Opc.Ua.Storage
             string logicalStoreId,
             IRecordProtector protector,
             int maximumSnapshotBytes,
-            Action<FileStoreCommitPhase>? commitPhase)
+            Action<FileStoreCommitPhase>? commitPhase,
+            Action? stageFileCreated = null)
         {
             if (directory == null)
             {
@@ -118,6 +119,7 @@ namespace Opc.Ua.Storage
             m_snapshotContext = RecordProtectionContext.Create("FileSharedKeyValueStore.Snapshot.1", logicalStoreId);
             m_identityContext = RecordProtectionContext.Create("FileSharedKeyValueStore.Identity.1", logicalStoreId);
             m_commitPhase = commitPhase;
+            m_stageFileCreated = stageFileCreated;
         }
 
         /// <summary>
@@ -524,7 +526,11 @@ namespace Opc.Ua.Storage
             try
             {
                 m_commitPhase?.Invoke(FileStoreCommitPhase.BeforeStage);
-                await DurableFileOperations.WriteNewAsync(staged, protectedSnapshot, cancellationToken: ct)
+                await DurableFileOperations.WriteNewAsync(
+                    staged,
+                    protectedSnapshot,
+                    fileCreated: _ => m_stageFileCreated?.Invoke(),
+                    cancellationToken: ct)
                     .ConfigureAwait(false);
                 m_commitPhase?.Invoke(FileStoreCommitPhase.AfterStage);
                 DurableFileOperations.SynchronizeDirectory(m_root, "durable key/value staging");
@@ -546,6 +552,11 @@ namespace Opc.Ua.Storage
                 m_revision = revision;
                 committed = true;
                 return true;
+            }
+            catch (OperationCanceledException)
+            {
+                File.Delete(staged);
+                throw;
             }
             finally
             {
@@ -782,6 +793,7 @@ namespace Opc.Ua.Storage
         private readonly ByteString m_snapshotContext;
         private readonly ByteString m_identityContext;
         private readonly Action<FileStoreCommitPhase>? m_commitPhase;
+        private readonly Action? m_stageFileCreated;
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly CancellationTokenSource m_closed = new();
 

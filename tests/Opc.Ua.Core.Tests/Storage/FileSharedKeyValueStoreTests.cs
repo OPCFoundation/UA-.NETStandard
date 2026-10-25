@@ -1470,9 +1470,9 @@ namespace Opc.Ua.Core.Tests.Storage
             using var release = new ManualResetEventSlim();
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             bool armed = false;
-            FileSharedKeyValueStore store = CreateStore(commitPhase: phase =>
+            FileSharedKeyValueStore store = CreateStore(stageFileCreated: () =>
             {
-                if (armed && phase == FileStoreCommitPhase.BeforeStage)
+                if (armed)
                 {
                     entered.TrySetResult(true);
                     if (!release.Wait(s_watchdog))
@@ -2102,11 +2102,12 @@ namespace Opc.Ua.Core.Tests.Storage
             Action<FileStoreCommitPhase>? commitPhase = null,
             string? directory = null,
             string logicalStoreId = kLogicalStoreId,
-            IRecordProtector? protector = null)
+            IRecordProtector? protector = null,
+            Action? stageFileCreated = null)
         {
             var store = new FileSharedKeyValueStore(
                 directory ?? m_storeDirectory, logicalStoreId, protector ?? m_protector,
-                maximumSnapshotBytes, commitPhase);
+                maximumSnapshotBytes, commitPhase, stageFileCreated);
             m_stores.Add(store);
             return store;
         }
