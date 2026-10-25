@@ -286,27 +286,8 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             NodeHandle handle)
         {
-            // validate monitored item.
-            if (!MonitoredItems.TryGetValue(
-                monitoredItem.Id,
-                out IMonitoredItem? existingMonitoredItem))
-            {
-                return StatusCodes.BadMonitoredItemIdInvalid;
-            }
-
-            if (!ReferenceEquals(monitoredItem, existingMonitoredItem))
-            {
-                return StatusCodes.BadMonitoredItemIdInvalid;
-            }
-
-            // remove item.
-            m_samplingGroupManager.StopMonitoring(monitoredItem);
-
-            // remove association with the group.
-            MonitoredItems.TryRemove(monitoredItem.Id, out _);
-
-            // delete successful.
-            return StatusCodes.Good;
+            (ServiceResult result, _) = RemoveRegistration(monitoredItem, handle.NodeId, sourceRelease: false);
+            return result.StatusCode;
         }
 
         /// <inheritdoc/>
@@ -572,14 +553,24 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
+            return RemoveRegistration(monitoredItem, monitoredItem.NodeId, sourceRelease: true);
+        }
 
+        /// <summary>
+        /// Removes exact native ownership for both client deletion and generation source release.
+        /// </summary>
+        private (ServiceResult Result, bool Changed) RemoveRegistration(
+            ISampledDataChangeMonitoredItem monitoredItem,
+            NodeId sourceId,
+            bool sourceRelease)
+        {
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
-                return lifecycle.IsDetached
+                return sourceRelease && monitoredItem is IDetachableMonitoredItem { IsDetached: true }
                     ? (ServiceResult.Good, false)
                     : (StatusCodes.BadMonitoredItemIdInvalid, false);
             }
@@ -593,7 +584,7 @@ namespace Opc.Ua.Server
             if (isEvent)
             {
                 if (!MonitoredNodes.TryGetValue(
-                    monitoredItem.NodeId,
+                    sourceId,
                     out MonitoredNode2? monitoredNode) ||
                     !monitoredNode.EventMonitoredItems.TryGetValue(
                         monitoredItem.Id,
@@ -606,7 +597,7 @@ namespace Opc.Ua.Server
                 monitoredNode.Remove(eventItem);
                 if (!monitoredNode.HasMonitoredItems)
                 {
-                    MonitoredNodes.Remove(monitoredItem.NodeId);
+                    MonitoredNodes.Remove(sourceId);
                     monitoredNode.Dispose();
                 }
             }
@@ -615,14 +606,21 @@ namespace Opc.Ua.Server
                 m_samplingGroupManager.StopMonitoring(monitoredItem);
             }
 
-            if (!((ICollection<KeyValuePair<uint, IMonitoredItem>>)MonitoredItems).Remove(
-                new KeyValuePair<uint, IMonitoredItem>(monitoredItem.Id, monitoredItem)))
+            bool keepAllEventsOwner = !sourceRelease &&
+                monitoredItem is IEventMonitoredItem { MonitoringAllEvents: true } &&
+                IsEventMonitoredItemLinked(monitoredItem.Id);
+            if (!keepAllEventsOwner &&
+                !((ICollection<KeyValuePair<uint, IMonitoredItem>>)MonitoredItems).Remove(
+                    new KeyValuePair<uint, IMonitoredItem>(monitoredItem.Id, monitoredItem)))
             {
                 return (StatusCodes.BadInvalidState, false);
             }
 
-            lifecycle.BeginDetach();
-            m_samplingGroupManager.ApplyChanges();
+            if (sourceRelease)
+            {
+                ((IDetachableMonitoredItem)monitoredItem).BeginDetach();
+                m_samplingGroupManager.ApplyChanges();
+            }
             return (ServiceResult.Good, true);
         }
 

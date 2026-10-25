@@ -301,32 +301,9 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             NodeHandle handle)
         {
-            // check if the node is already being monitored.
-            if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2? monitoredNode))
-            {
-                monitoredNode.Remove(monitoredItem);
-                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
-                    monitoredItem is not IEventMonitoredItem { MonitoringAllEvents: true } ||
-                    !IsEventMonitoredItemLinked(monitoredItem.Id))
-                {
-                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
-                }
-
-                // check if node is no longer being monitored.
-                if (!monitoredNode.HasMonitoredItems)
-                {
-                    MonitoredNodes.Remove(handle.NodeId);
-                    monitoredNode.Dispose();
-                }
-
-                monitoredItem.Dispose();
-            }
-            else
-            {
-                return StatusCodes.BadMonitoredItemIdInvalid;
-            }
-
-            return StatusCodes.Good;
+            (ServiceResult result, _) = RemoveRegistration(
+                context, monitoredItem, handle, null, sourceRelease: false);
+            return result.StatusCode;
         }
 
         /// <inheritdoc/>
@@ -554,14 +531,31 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IDetachableMonitoredItem lifecycle)
+            if (monitoredItem is not IDetachableMonitoredItem)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
+            return RemoveRegistration(
+                context,
+                monitoredItem,
+                monitoredItem.ManagerHandle as NodeHandle,
+                removeNodeFromComponentCache,
+                sourceRelease: true);
+        }
 
+        /// <summary>
+        /// Removes exact native ownership for both client deletion and generation source release.
+        /// </summary>
+        private (ServiceResult Result, bool Changed) RemoveRegistration(
+            ServerSystemContext context,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            NodeHandle? handle,
+            Action<ISystemContext, NodeHandle>? removeNodeFromComponentCache,
+            bool sourceRelease)
+        {
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
-                return lifecycle.IsDetached
+                return sourceRelease && monitoredItem is IDetachableMonitoredItem { IsDetached: true }
                     ? (ServiceResult.Good, false)
                     : (StatusCodes.BadMonitoredItemIdInvalid, false);
             }
@@ -571,10 +565,14 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadMonitoredItemIdInvalid, false);
             }
 
-            if (monitoredItem.ManagerHandle is not NodeHandle handle ||
-                !MonitoredNodes.TryGetValue(monitoredItem.NodeId, out MonitoredNode2? monitoredNode))
+            if (handle is null)
             {
-                return (StatusCodes.BadInvalidState, false);
+                return (sourceRelease ? StatusCodes.BadInvalidState : StatusCodes.BadMonitoredItemIdInvalid, false);
+            }
+            NodeId nodeId = sourceRelease ? monitoredItem.NodeId : handle.NodeId;
+            if (!MonitoredNodes.TryGetValue(nodeId, out MonitoredNode2? monitoredNode))
+            {
+                return (sourceRelease ? StatusCodes.BadInvalidState : StatusCodes.BadMonitoredItemIdInvalid, false);
             }
 
             bool isEvent = (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
@@ -601,22 +599,33 @@ namespace Opc.Ua.Server
                 }
 
                 monitoredNode.Remove(dataChangeItem);
-                removeNodeFromComponentCache(context, handle);
+                removeNodeFromComponentCache?.Invoke(context, handle);
             }
 
-            if (!((ICollection<KeyValuePair<uint, IMonitoredItem>>)MonitoredItems).Remove(
-                new KeyValuePair<uint, IMonitoredItem>(monitoredItem.Id, monitoredItem)))
+            bool keepAllEventsOwner = !sourceRelease &&
+                monitoredItem is IEventMonitoredItem { MonitoringAllEvents: true } &&
+                IsEventMonitoredItemLinked(monitoredItem.Id);
+            if (!keepAllEventsOwner &&
+                !((ICollection<KeyValuePair<uint, IMonitoredItem>>)MonitoredItems).Remove(
+                    new KeyValuePair<uint, IMonitoredItem>(monitoredItem.Id, monitoredItem)))
             {
                 return (StatusCodes.BadInvalidState, false);
             }
 
             if (!monitoredNode.HasMonitoredItems)
             {
-                MonitoredNodes.Remove(monitoredItem.NodeId);
+                MonitoredNodes.Remove(nodeId);
                 monitoredNode.Dispose();
             }
 
-            lifecycle.BeginDetach();
+            if (sourceRelease)
+            {
+                ((IDetachableMonitoredItem)monitoredItem).BeginDetach();
+            }
+            else if (!keepAllEventsOwner)
+            {
+                monitoredItem.Dispose();
+            }
             return (ServiceResult.Good, true);
         }
 

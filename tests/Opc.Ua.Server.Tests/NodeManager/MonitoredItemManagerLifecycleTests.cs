@@ -2003,6 +2003,114 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Removing one native all-events root preserves the identity and queues used by another root.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ClientEventDeletionPreservesOtherRootSubscriptions(bool useSamplingGroups)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var owner = Mock.Of<IAsyncNodeManager>();
+                using var sampling = new TrackingSamplingGroupManager(server.Object, owner);
+                using IMonitoredItemManager manager = useSamplingGroups
+                    ? new SamplingGroupMonitoredItemManager(owner, server.Object, sampling)
+                    : new MonitoredNodeMonitoredItemManager(owner, server.Object);
+                var first = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FirstDeletionRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                var second = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("SecondDeletionRoot", 1),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, owner, new object(), ObjectIds.Server);
+                ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
+                Assert.That(manager.SubscribeToEvents(context, first, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(manager.SubscribeToEvents(context, second, item, false).Item2.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+
+                Assert.That(manager.DeleteMonitoredItem(context, item, new NodeHandle(first.NodeId, first)),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                    Assert.That(manager.MonitoredNodes.ContainsKey(first.NodeId), Is.False);
+                    Assert.That(manager.MonitoredNodes[second.NodeId].EventMonitoredItems[item.Id], Is.SameAs(item));
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDisposed, Is.False);
+                });
+
+                Assert.That(manager.DeleteMonitoredItem(context, item, new NodeHandle(second.NodeId, second)),
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                    Assert.That(sampling.StopCount, Is.Zero);
+                });
+            }
+        }
+
+        /// <summary>
+        /// Client deletion shares exact native ownership checks without entering source-release state.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ClientDeletionRequiresExactRegisteredItemAndPreservesOtherOwners(bool useSamplingGroups)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var owner = Mock.Of<IAsyncNodeManager>();
+                using var sampling = new TrackingSamplingGroupManager(server.Object, owner);
+                using IMonitoredItemManager manager = useSamplingGroups
+                    ? new SamplingGroupMonitoredItemManager(owner, server.Object, sampling)
+                    : new MonitoredNodeMonitoredItemManager(owner, server.Object);
+                var source = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("ExactDeletionOwner", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                var handle = new NodeHandle(source.NodeId, source);
+                using MonitoredItem item = CreateMonitoredItem(server.Object, owner, handle, source.NodeId);
+                using MonitoredItem conflicting = CreateMonitoredItem(server.Object, owner, handle, source.NodeId);
+                var registration = (IMonitoredItemManagerLifecycle)manager;
+                ((IDetachableMonitoredItem)item).Detach(server.Object);
+                Assert.That(registration.AttachMonitoredItem(
+                    server.Object.DefaultSystemContext, handle, item,
+                    static (_, _, node) => node, static (_, _) => { }).Result.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+
+                Assert.That(manager.DeleteMonitoredItem(server.Object.DefaultSystemContext, conflicting, handle),
+                    Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                    Assert.That(((IMonitoredItemGenerationBinding)item).IsDisposed, Is.False);
+                    Assert.That(((IMonitoredItemGenerationBinding)conflicting).IsDisposed, Is.False);
+                    Assert.That(sampling.StopCount, Is.Zero);
+                });
+                Assert.That(manager.DeleteMonitoredItem(server.Object.DefaultSystemContext, item, handle),
+                    Is.EqualTo(StatusCodes.Good));
+                manager.ApplyChanges();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                    Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.False,
+                        "Client deletion must not enter the generation source-release transition.");
+                    Assert.That(sampling.StopCount, Is.EqualTo(useSamplingGroups ? 1 : 0));
+                });
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void ManagerLifecycleHandlesIdempotenceAndConflictingOwnership(bool useSamplingGroups)
