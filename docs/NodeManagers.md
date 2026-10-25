@@ -1117,6 +1117,12 @@ be treated as a new subscription. `BadNotSupported` from an all-events owner doe
 Deletion removes the item from the server's event registry before invoking unsubscribe callbacks, so
 a lifecycle operation started inside a callback cannot bind the deleted item to a new generation.
 
+The generation reclaimer owns retirement independently of the lifecycle writer. Each retired generation
+waits for its own view epochs and admitted callbacks; a blocked drain or deletion does not delay unrelated
+generations. Successful cleanup stages are retained across retries. A failure faults the retirement task
+and is logged, even when a later operation or shutdown successfully retries the remaining stages.
+Shutdown joins admitted cleanup; canceling its wait does not cancel an already running cleanup callback.
+
 Closed Sessions and deleted MonitoredItems are not restored. Exceptions and bad subscription
 results after publication are reported in `NodeManagerBatchResult.CleanupFailure`; they do not turn
 a committed decision into an abort or block readiness and retirement.

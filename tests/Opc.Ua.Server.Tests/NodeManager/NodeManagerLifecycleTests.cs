@@ -234,6 +234,330 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
+        /// Reclamation never retains the publication writer while a manager closes sessions, deletes, or disposes.
+        /// </summary>
+        [TestCase("SessionClosing")]
+        [TestCase("DeleteAddressSpace")]
+        [TestCase("Dispose")]
+        public async Task ReclaimerCallbacksCanPerformNestedLifecycleMutationsAsync(string stage)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            const string originalUri = kModelNamespaceUri + ":ReclaimerOriginal";
+            const string nestedUri = kModelNamespaceUri + ":ReclaimerNested";
+            Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(originalUri);
+            Mock<IAsyncDisposable> disposal = original.As<IAsyncDisposable>();
+            int callbacks = 0;
+            async ValueTask MutateAsync()
+            {
+                Interlocked.Increment(ref callbacks);
+                Mock<IAsyncNodeManager> nested = CreateLifecycleNodeManager(nestedUri);
+                var nestedFactory = new Mock<IAsyncNodeManagerFactory>();
+                nestedFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(nested.Object);
+                NodeManagerRegistration added = await m_server.NodeManagerLifecycle.AddAsync(
+                    nestedFactory.Object, null, timeout.Token).ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Find(value => value.Id == added.Id), Is.Not.Null);
+                await m_server.NodeManagerLifecycle.RemoveAsync(added, null, timeout.Token).ConfigureAwait(false);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.Find(value => value.Id == added.Id), Is.Null);
+            }
+            if (stage == "SessionClosing")
+            {
+                original.Setup(value => value.SessionClosingAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), false, It.IsAny<CancellationToken>()))
+                    .Returns(() => MutateAsync());
+            }
+            else if (stage == "DeleteAddressSpace")
+            {
+                original.Setup(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()))
+                    .Returns(() => MutateAsync());
+            }
+            else
+            {
+                disposal.Setup(value => value.DisposeAsync()).Returns(() => MutateAsync());
+            }
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>())).ReturnsAsync(original.Object);
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                factory.Object, null, timeout.Token).ConfigureAwait(false);
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, timeout.Token).AsTask()
+                .WaitAsync(timeout.Token).ConfigureAwait(false);
+
+            Assert.That(callbacks, Is.EqualTo(1));
+            original.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+            disposal.Verify(value => value.DisposeAsync(), Times.Once);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
+            Assert.That(((NodeManagerLifecycle)m_server.NodeManagerLifecycle).RetiredNodeManagerCount, Is.Zero);
+        }
+
+        /// <summary>
+        /// A host failure after the routing swap but before the publication callback cannot lose retirement ownership.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task PostSwapHostFailureRetainsRegistrationAndRetirementOwnershipAsync(
+            bool replace,
+            bool notifyBeforeFailure)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var server = (ServerInternalData)m_server.CurrentInstance;
+            IMasterNodeManager master = server.NodeManager;
+            var host = (IDynamicNodeManagerHost)master;
+            var batchHost = (IDynamicNodeManagerBatchHost)master;
+            var proxy = new Mock<IMasterNodeManager>();
+            Mock<IDynamicNodeManagerHost> dynamicProxy = proxy.As<IDynamicNodeManagerHost>();
+            Mock<IDynamicNodeManagerBatchHost> batchProxy = proxy.As<IDynamicNodeManagerBatchHost>();
+            proxy.SetupGet(value => value.AsyncNodeManagers).Returns(() => master.AsyncNodeManagers);
+            proxy.SetupGet(value => value.ConfigurationNodeManager).Returns(master.ConfigurationNodeManager);
+            proxy.SetupGet(value => value.DiagnosticsNodeManager).Returns(master.DiagnosticsNodeManager);
+            proxy.SetupGet(value => value.CoreNodeManager).Returns(master.CoreNodeManager);
+            dynamicProxy.SetupGet(value => value.GenerationReconciler).Returns(host.GenerationReconciler);
+            dynamicProxy.Setup(value => value.PrepareAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.PrepareAsync(manager, ct));
+            dynamicProxy.Setup(value => value.PublishAsync(
+                It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.PublishAsync(prepared, ct));
+            dynamicProxy.Setup(value => value.ReplaceAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, PreparedNodeManager, CancellationToken>(
+                    (manager, prepared, ct) => host.ReplaceAsync(manager, prepared, ct));
+            dynamicProxy.Setup(value => value.RollbackAsync(
+                It.IsAny<PreparedNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<PreparedNodeManager, CancellationToken>((prepared, ct) => host.RollbackAsync(prepared, ct));
+            dynamicProxy.Setup(value => value.DestroyAddressSpaceAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, CancellationToken>((manager, ct) => host.DestroyAddressSpaceAsync(manager, ct));
+            dynamicProxy.Setup(value => value.RemoveDestroyedExternalReferencesAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, CancellationToken>(
+                    (manager, ct) => host.RemoveDestroyedExternalReferencesAsync(manager, ct));
+            dynamicProxy.Setup(value => value.FinalizeRetiredGenerationNotificationsAsync(
+                It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns<IAsyncNodeManager, CancellationToken>(
+                    (manager, ct) => host.FinalizeRetiredGenerationNotificationsAsync(manager, ct));
+            batchProxy.SetupGet(value => value.RoutingRevision).Returns(() => batchHost.RoutingRevision);
+            batchProxy.Setup(value => value.ReleaseRetiringEventGeneration(It.IsAny<NodeManagerGeneration>()))
+                .Callback<NodeManagerGeneration>(batchHost.ReleaseRetiringEventGeneration);
+            bool failPublication = false;
+            var failure = new InvalidOperationException("The host failed around its publication notification.");
+            batchProxy.Setup(value => value.CommitBatchAsync(It.IsAny<NodeManagerBatchContext>()))
+                .Returns<NodeManagerBatchContext>(context => batchHost.CommitBatchAsync(failPublication
+                    ? context with
+                    {
+                        Published = () =>
+                        {
+                            if (notifyBeforeFailure)
+                            {
+                                context.Published();
+                            }
+                            throw failure;
+                        }
+                    }
+                    : context));
+            PropertyInfo nodeManagerProperty = typeof(ServerInternalData).GetProperty(nameof(ServerInternalData.NodeManager))
+                ?? throw new AssertionException("The bound master NodeManager property was not found.");
+            // Adapt only the existing host notification seam; the real master still performs the routing swap.
+            nodeManagerProperty.SetValue(server, proxy.Object);
+            NodeManagerBatchResult? result = null;
+            try
+            {
+                using var lifecycle = new NodeManagerLifecycle(m_server);
+                Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri + ":PostSwap");
+                Mock<IDisposable> disposal = original.As<IDisposable>();
+                original.As<INodeManagerReloadParticipant>().Setup(value => value.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+                var originalFactory = new Mock<IAsyncNodeManagerFactory>();
+                originalFactory.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(original.Object);
+                NodeManagerRegistration registration = await lifecycle.AddAsync(
+                    originalFactory.Object, timeout.Token).ConfigureAwait(false);
+                var replacement = new Mock<IAsyncNodeManagerFactory>();
+                Mock<IAsyncNodeManager> candidate = CreateLifecycleNodeManager(kModelNamespaceUri + ":PostSwap");
+                Mock<IDisposable> candidateDisposal = candidate.As<IDisposable>();
+                replacement.Setup(value => value.CreateAsync(
+                    It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                    It.IsAny<CancellationToken>())).ReturnsAsync(candidate.Object);
+                int applicationPublications = 0;
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [replace
+                        ? NodeManagerBatchChange.Replace(registration, replacement.Object)
+                        : NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
+                failPublication = true;
+
+                result = await prepared.CommitAsync(_ => default,
+                    () => applicationPublications++, timeout.Token).ConfigureAwait(false);
+                await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(result.CleanupFailure, Is.Not.Null);
+                Assert.That(result.CleanupFailure!.ToString(), Does.Contain(failure.Message));
+                Assert.That(applicationPublications, Is.EqualTo(1));
+                Assert.That(result.Revision, Is.EqualTo(batchHost.RoutingRevision.Revision));
+                Assert.That(result.Slots, Has.Count.EqualTo(replace ? 1 : 0));
+                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(replace ? 1 : 0));
+                Assert.That(lifecycle.RetiredNodeManagerCount, Is.Zero);
+                original.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Once);
+                disposal.Verify(value => value.Dispose(), Times.Once);
+                if (replace)
+                {
+                    NodeManagerRegistration current = lifecycle.Registrations[0];
+                    Assert.That(current.NodeManager, Is.SameAs(candidate.Object));
+                    Assert.That(current.Id, Is.EqualTo(registration.Id));
+                    Assert.That(current.Generation, Is.EqualTo(registration.Generation + 1));
+                    Assert.That(result.Slots[0], Is.SameAs(current.Slot));
+                    failPublication = false;
+                    await lifecycle.RemoveAsync(current, timeout.Token).ConfigureAwait(false);
+                    candidateDisposal.Verify(value => value.Dispose(), Times.Once);
+                }
+            }
+            finally
+            {
+                nodeManagerProperty.SetValue(server, master);
+            }
+        }
+
+        /// <summary>
+        /// Reference cleanup retains its resolved live owner until both lookup and the reference callback finish.
+        /// </summary>
+        [Test]
+        public async Task ReclaimerReferenceLookupPinsOwnerAcrossConcurrentRetirementAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            using var reclaimer = new GenerationReclaimer();
+            const string ownerUri = kModelNamespaceUri + ":CleanupReferenceOwner";
+            Mock<IAsyncNodeManager> owner = CreateLifecycleNodeManager(ownerUri);
+            int disposed = 0;
+            owner.As<IDisposable>().Setup(value => value.Dispose()).Callback(() => Interlocked.Increment(ref disposed));
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>())).ReturnsAsync(owner.Object);
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                factory.Object, timeout.Token).ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            var source = new NodeId(9900, (ushort)server.NamespaceUris.GetIndex(ownerUri));
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            object handle = new();
+            owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    return handle;
+                });
+            int referenceCallbacks = 0;
+            bool callbackAfterDisposal = false;
+            owner.Setup(value => value.DeleteReferenceAsync(
+                handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                It.IsAny<CancellationToken>())).Returns(() =>
+                {
+                    Interlocked.Increment(ref referenceCallbacks);
+                    callbackAfterDisposal = Volatile.Read(ref disposed) != 0;
+                    return new ValueTask<ServiceResult>(ServiceResult.Good);
+                });
+            var retiredManager = new Mock<IAsyncNodeManager>();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(retiredManager.Object);
+            generation.Gate.Retire();
+            var retired = new GenerationReclaimer.RetiredGeneration(
+                server, (IDynamicNodeManagerHost)server.NodeManager, generation,
+                [new LocalReference(source, ReferenceTypeIds.HasComponent, false, new NodeId(9901))],
+                needsDetachment: true);
+            reclaimer.Enqueue([retired]);
+            reclaimer.Activate([retired]);
+            reclaimer.Schedule();
+            NodeManagerBatchResult? removal = null;
+            try
+            {
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration)], timeout.Token).ConfigureAwait(false);
+                removal = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+
+                Assert.That(removal.Retirement.IsCompleted, Is.False,
+                    "The reference cleanup still owns an in-flight call into this generation.");
+                Assert.That(Volatile.Read(ref disposed), Is.Zero);
+                owner.Verify(value => value.DeleteAddressSpaceAsync(It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                await reclaimer.CompleteShutdownAsync(timeout.Token).ConfigureAwait(false);
+                if (removal is not null)
+                {
+                    await removal.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+            }
+            Assert.That(referenceCallbacks, Is.EqualTo(1));
+            Assert.That(callbackAfterDisposal, Is.False);
+            Assert.That(Volatile.Read(ref disposed), Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Destroyed-reference callbacks may publish dependencies without holding a shared host publication semaphore.
+        /// </summary>
+        [Test]
+        public async Task DestroyedReferenceCallbackCanPublishNestedLifecycleMutationAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            const string ownerUri = kModelNamespaceUri + ":DestroyedReferenceOwner";
+            Mock<IAsyncNodeManager> owner = CreateLifecycleNodeManager(ownerUri);
+            var ownerFactory = new Mock<IAsyncNodeManagerFactory>();
+            ApplicationConfiguration? configuration = null;
+            ownerFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>())).Returns((
+                    IServerInternal _, ApplicationConfiguration supplied, CancellationToken _) =>
+                {
+                    configuration = supplied;
+                    return new ValueTask<IAsyncNodeManager>(owner.Object);
+                });
+            await m_server.NodeManagerLifecycle.AddAsync(ownerFactory.Object, timeout.Token).ConfigureAwait(false);
+            IServerInternal server = m_server.CurrentInstance;
+            var source = new NodeId(9902, (ushort)server.NamespaceUris.GetIndex(ownerUri));
+            object handle = new();
+            owner.Setup(value => value.GetManagerHandleAsync(source, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(handle);
+            Mock<IAsyncNodeManager> dependency = CreateLifecycleNodeManager(
+                kModelNamespaceUri + ":DestroyedReferenceDependency");
+            var dependencyFactory = new Mock<IAsyncNodeManagerFactory>();
+            dependencyFactory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(),
+                It.IsAny<CancellationToken>())).ReturnsAsync(dependency.Object);
+            NodeManagerRegistration? added = null;
+            owner.Setup(value => value.DeleteReferenceAsync(
+                handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                It.IsAny<CancellationToken>())).Returns(async () =>
+                {
+                    added = await m_server.NodeManagerLifecycle.AddAsync(
+                        dependencyFactory.Object, timeout.Token).ConfigureAwait(false);
+                    return ServiceResult.Good;
+                });
+            using var destroyed = new NodeManagementLifecycleNodeManager(
+                server, configuration!, m_logger, kModelNamespaceUri + ":DestroyedReferenceSource");
+            destroyed.GetRemovedExternalReferences().Add(
+                new LocalReference(source, ReferenceTypeIds.HasComponent, false, new NodeId(9903)));
+
+            await ((IDynamicNodeManagerHost)server.NodeManager).RemoveDestroyedExternalReferencesAsync(
+                destroyed, timeout.Token).ConfigureAwait(false);
+
+            Assert.That(added, Is.Not.Null);
+            Assert.That(CountMatches(m_server.NodeManagerLifecycle.Registrations,
+                registration => ReferenceEquals(registration, added)), Is.EqualTo(1));
+            Assert.That(destroyed.GetRemovedExternalReferences(), Is.Empty);
+            owner.Verify(value => value.DeleteReferenceAsync(
+                handle, ReferenceTypeIds.HasComponent, false, It.IsAny<ExpandedNodeId>(), false,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+
+        /// <summary>
         /// A custom-routed manager with no namespace list must keep its place in
         /// the master manager list across reload and removal.
         /// </summary>

@@ -837,35 +837,29 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
+            // Reclamation exclusively owns this detached manager's removed-reference list.
+            // Reference callbacks may publish dependencies, so no publication semaphore may be held.
+            List<LocalReference> referencesToRemove = nodeManager switch
             {
-                List<LocalReference> referencesToRemove = nodeManager switch
-                {
-                    AsyncCustomNodeManager asyncCustomNodeManager =>
-                        asyncCustomNodeManager.GetRemovedExternalReferences(),
-                    _ when nodeManager.SyncNodeManager is
-                        CustomNodeManager2 customNodeManager =>
-                        customNodeManager.GetRemovedExternalReferences(),
-                    _ => []
-                };
-                if (referencesToRemove.Count > 0)
-                {
-                    await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);
-                }
-                if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
-                {
-                    asyncManagerToClear.ClearRemovedExternalReferences();
-                }
-                else if (nodeManager.SyncNodeManager is
-                    CustomNodeManager2 syncManagerToClear)
-                {
-                    syncManagerToClear.ClearRemovedExternalReferences();
-                }
+                AsyncCustomNodeManager asyncCustomNodeManager =>
+                    asyncCustomNodeManager.GetRemovedExternalReferences(),
+                _ when nodeManager.SyncNodeManager is
+                    CustomNodeManager2 customNodeManager =>
+                    customNodeManager.GetRemovedExternalReferences(),
+                _ => []
+            };
+            if (referencesToRemove.Count > 0)
+            {
+                await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);
             }
-            finally
+            if (nodeManager is AsyncCustomNodeManager asyncManagerToClear)
             {
-                m_startupShutdownSemaphoreSlim.Release();
+                asyncManagerToClear.ClearRemovedExternalReferences();
+            }
+            else if (nodeManager.SyncNodeManager is
+                CustomNodeManager2 syncManagerToClear)
+            {
+                syncManagerToClear.ClearRemovedExternalReferences();
             }
         }
 

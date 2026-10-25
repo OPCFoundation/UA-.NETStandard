@@ -943,7 +943,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     _ =>
                     {
                         decisions++;
-                        return ValueTask.FromException(decisionFailure);
+                        return new ValueTask(Task.FromException(decisionFailure));
                     }).ConfigureAwait(false);
             }
             catch (IOException failure)

@@ -122,14 +122,21 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        public async ValueTask RemoveReferencesAsync(List<LocalReference> referencesToRemove, CancellationToken cancellationToken = default)
+        public async ValueTask RemoveReferencesAsync(
+            List<LocalReference> referencesToRemove,
+            CancellationToken cancellationToken = default)
         {
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.DeleteReferences, RequestLifetime.None);
+            context.PinRouting(m_nodeManagers);
+
             for (int ii = 0; ii < referencesToRemove.Count; ii++)
             {
                 LocalReference reference = referencesToRemove[ii];
 
                 // find source node.
-                (object? sourceHandle, IAsyncNodeManager? nodeManager) = await GetManagerHandleAsync(
+                (object? sourceHandle, IAsyncNodeManager? nodeManager) = await m_serviceDispatch.GetManagerHandleAsync(
+                        context,
                         reference.SourceId,
                         cancellationToken)
                     .ConfigureAwait(false);
