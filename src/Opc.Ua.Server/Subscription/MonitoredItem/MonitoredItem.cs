@@ -2021,26 +2021,29 @@ namespace Opc.Ua.Server
         /// </summary>
         private void QueueAdmittedEvent(IFilterTarget instance, IAsyncNodeManager? admittedSourceNodeManager)
         {
-            IAsyncNodeManager? previous = t_admittedSourceNodeManager;
-            t_admittedSourceNodeManager = admittedSourceNodeManager;
+            IAsyncNodeManager? previous = m_admittedSourceNodeManager;
+            m_admittedSourceNodeManager = admittedSourceNodeManager;
             try
             {
                 QueueEvent(instance);
             }
             finally
             {
-                t_admittedSourceNodeManager = previous;
+                m_admittedSourceNodeManager = previous;
             }
         }
 
         /// <summary>
-        /// Takes the source admission carried into the current overridable queue call, so that nested queue
-        /// calls on other items never inherit it.
+        /// Takes this item's locked delivery admission without lending it to another item or thread.
         /// </summary>
-        private static IAsyncNodeManager? TakeAdmittedSourceNodeManager()
+        private IAsyncNodeManager? TakeAdmittedSourceNodeManager()
         {
-            IAsyncNodeManager? admitted = t_admittedSourceNodeManager;
-            t_admittedSourceNodeManager = null;
+            if (!m_lock.IsHeldByCurrentThread)
+            {
+                return null;
+            }
+            IAsyncNodeManager? admitted = m_admittedSourceNodeManager;
+            m_admittedSourceNodeManager = null;
             return admitted;
         }
 
@@ -2158,15 +2161,15 @@ namespace Opc.Ua.Server
                 {
                     fields = GetEventFields(context, filter, instance);
                 }
-                IAsyncNodeManager? previous = t_admittedSourceNodeManager;
-                t_admittedSourceNodeManager = admittedSourceNodeManager;
+                IAsyncNodeManager? previous = m_admittedSourceNodeManager;
+                m_admittedSourceNodeManager = admittedSourceNodeManager;
                 try
                 {
                     QueueEvent(fields);
                 }
                 finally
                 {
-                    t_admittedSourceNodeManager = previous;
+                    m_admittedSourceNodeManager = previous;
                 }
             }
         }

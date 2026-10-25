@@ -93,15 +93,18 @@ namespace Opc.Ua.Server
             SharedEventEvaluation evaluation,
             IAsyncNodeManager? admittedSourceNodeManager = null)
         {
-            SharedEventScope previous = t_sharedEvent;
-            t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
-            try
+            lock (m_lock)
             {
-                QueueAdmittedEvent(instance, admittedSourceNodeManager);
-            }
-            finally
-            {
-                t_sharedEvent = previous;
+                SharedEventScope previous = t_sharedEvent;
+                t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
+                try
+                {
+                    QueueAdmittedEvent(instance, admittedSourceNodeManager);
+                }
+                finally
+                {
+                    t_sharedEvent = previous;
+                }
             }
         }
 
@@ -155,10 +158,9 @@ namespace Opc.Ua.Server
         private static SharedEventScope t_sharedEvent;
 
         /// <summary>
-        /// The source admission carried from an admitted dispatch into the overridable queue entry points.
+        /// This item's source admission, carried through virtual queue calls while its lock is held.
         /// </summary>
-        [ThreadStatic]
-        private static IAsyncNodeManager? t_admittedSourceNodeManager;
+        private IAsyncNodeManager? m_admittedSourceNodeManager;
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>

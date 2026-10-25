@@ -242,6 +242,110 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// An overridable delivery cannot lend its source admission to another item's nested queue call.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void AdmittedVirtualEventCallCannotLendItsSourceToAnotherItem(bool preselectedFields)
+        {
+            InstanceStateSnapshot snapshot = CreateEvent(EventSeverity.High);
+            EventFilter filter = CreateFilter(SelectA(), null);
+            MonitoredItem reference = CreateItem(3, filter, null);
+            reference.QueueEvent(snapshot);
+            EventFieldList fields = Publish(reference)[0];
+            var source = new Mock<IAsyncNodeManager>();
+            var unrelatedSource = new Mock<IAsyncNodeManager>();
+            var parent = new CountingMonitoredItem(this, 1, filter, source.Object);
+            var nested = new CountingMonitoredItem(this, 2, filter, unrelatedSource.Object);
+            m_disposables.Add(parent);
+            m_disposables.Add(nested);
+            parent.BeforeQueue = instance =>
+            {
+                if (preselectedFields)
+                {
+                    nested.QueueEvent(fields);
+                }
+                else
+                {
+                    nested.QueueEvent(instance);
+                }
+            };
+            using MasterNodeManager master = CreateMaster([source.Object, unrelatedSource.Object]);
+            Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                m_server, source.Object, out MasterNodeManager.SourceEmissionAdmission? admission), Is.True);
+            using (admission)
+            using (admission?.EnterSourceEmission())
+            {
+                NodeManagerGenerationRegistry.GetOrCreate(source.Object).Gate.Retire();
+                NodeManagerGenerationRegistry.GetOrCreate(unrelatedSource.Object).Gate.Retire();
+
+                parent.QueueSharedEvent(snapshot, parent.GetSharedEventFilterKey()!,
+                    new MonitoredItem.SharedEventEvaluation(), source.Object);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(Publish(parent), Has.Count.EqualTo(1));
+                Assert.That(Publish(nested), Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// Independent work with a captured execution context cannot borrow an item's in-progress delivery.
+        /// </summary>
+        [Test]
+        public async Task EscapedQueueCallCannotBorrowAnotherThreadsItemAdmissionAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var release = new ManualResetEventSlim();
+            InstanceStateSnapshot snapshot = CreateEvent(EventSeverity.High);
+            EventFilter filter = CreateFilter(SelectA(), null);
+            MonitoredItem reference = CreateItem(2, filter, null);
+            reference.QueueEvent(snapshot);
+            EventFieldList fields = Publish(reference)[0];
+            var source = new Mock<IAsyncNodeManager>();
+            var item = new CountingMonitoredItem(this, 1, filter, source.Object);
+            m_disposables.Add(item);
+            using MasterNodeManager master = CreateMaster([source.Object]);
+            var entered = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            item.BeforeQueue = _ =>
+            {
+                entered.TrySetResult(Task.Run(() => item.QueueEvent(fields)));
+                if (!release.Wait(TimeSpan.FromSeconds(30)))
+                {
+                    throw new TimeoutException("The admitted virtual delivery was not released.");
+                }
+            };
+            Task delivery = Task.Run(() =>
+            {
+                Assert.That(MasterNodeManager.TryCaptureSourceEmission(
+                    m_server, source.Object, out MasterNodeManager.SourceEmissionAdmission? admission), Is.True);
+                using (admission)
+                using (admission?.EnterSourceEmission())
+                {
+                    NodeManagerGenerationRegistry.GetOrCreate(source.Object).Gate.Retire();
+                    item.QueueSharedEvent(snapshot, item.GetSharedEventFilterKey()!,
+                        new MonitoredItem.SharedEventEvaluation(), source.Object);
+                }
+            });
+            Task? escaped = null;
+            try
+            {
+                escaped = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await escaped.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(delivery.IsCompleted, Is.False,
+                    "The unrelated queue call must return without waiting for the admitted item's lock.");
+            }
+            finally
+            {
+                release.Set();
+                await Task.WhenAll(delivery, escaped ?? Task.CompletedTask)
+                    .WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            }
+            Assert.That(Publish(item), Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
         /// An item whose session changes its locales gets the new translation from the next
         /// event on, although the items it shared the evaluation with keep theirs.
         /// </summary>
@@ -610,6 +714,28 @@ namespace Opc.Ua.Server.Tests
             return e;
         }
 
+        /// <summary>
+        /// Creates a routing owner for socket-free generation-admission tests.
+        /// </summary>
+        private MasterNodeManager CreateMaster(ArrayOf<IAsyncNodeManager> managers)
+        {
+            var factory = new Mock<IMainNodeManagerFactory>();
+            factory.Setup(value => value.CreateConfigurationNodeManager())
+                .Returns(new Mock<IConfigurationNodeManager>().Object);
+            factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
+                .Returns(new Mock<ICoreNodeManager>().Object);
+            Mock<IServerInternal> server = Mock.Get(m_server);
+            server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
+            var master = new MasterNodeManager(
+                m_server,
+                new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() },
+                null,
+                managers.ToList(),
+                null);
+            server.SetupGet(value => value.NodeManager).Returns(master);
+            return master;
+        }
+
         private EventFilter CreateFilter(SimpleAttributeOperand[] selectClauses, ushort? minimumSeverity)
         {
             var whereClause = new ContentFilter();
@@ -704,10 +830,14 @@ namespace Opc.Ua.Server.Tests
         {
             private int m_queued;
 
-            public CountingMonitoredItem(SharedEventEvaluationTests fixture, uint id, EventFilter filter)
+            public CountingMonitoredItem(
+                SharedEventEvaluationTests fixture,
+                uint id,
+                EventFilter filter,
+                IAsyncNodeManager? nodeManager = null)
                 : base(
                     fixture.m_server,
-                    new Mock<IAsyncNodeManager>().Object,
+                    nodeManager ?? new Mock<IAsyncNodeManager>().Object,
                     null!,
                     1,
                     id,
@@ -728,9 +858,15 @@ namespace Opc.Ua.Server.Tests
 
             public int Queued => Volatile.Read(ref m_queued);
 
+            /// <summary>
+            /// Gets or sets the nested call exercised before forwarding to the base queue implementation.
+            /// </summary>
+            public Action<IFilterTarget>? BeforeQueue { get; set; }
+
             public override void QueueEvent(IFilterTarget instance, bool bypassFilter)
             {
                 Interlocked.Increment(ref m_queued);
+                BeforeQueue?.Invoke(instance);
                 base.QueueEvent(instance, bypassFilter);
             }
         }
