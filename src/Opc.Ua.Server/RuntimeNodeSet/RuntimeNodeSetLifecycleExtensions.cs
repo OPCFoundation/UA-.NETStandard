@@ -69,14 +69,10 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// </summary>
         /// <param name="lifecycle">The lifecycle provider of the running server.</param>
         /// <param name="options">The options describing the NodeSet to load.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation.</param>
+        /// <param name="callerContext">The unused legacy request context.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="lifecycle"/> or <paramref name="options"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing.
         /// </exception>
         public static ValueTask<NodeManagerRegistration> AddRuntimeNodeSetAsync(
             this INodeManagerLifecycle lifecycle,
@@ -84,16 +80,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            if (lifecycle is null)
-            {
-                throw new ArgumentNullException(nameof(lifecycle));
-            }
-            if (options is null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
-
-            return lifecycle.AddAsync(new RuntimeNodeSetNodeManagerFactory(options), callerContext, ct);
+            return AddRuntimeNodeSetAsync(lifecycle, options, ct);
         }
 
         /// <summary>
@@ -138,15 +125,11 @@ namespace Opc.Ua.Server.RuntimeNodeSet
         /// <param name="lifecycle">The lifecycle provider of the running server.</param>
         /// <param name="registration">The registration to replace.</param>
         /// <param name="replacement">The options describing the replacement NodeSet.</param>
-        /// <param name="callerContext">The operation the caller is running under, or <c>null</c>
-        /// when the caller is not serving an operation.</param>
+        /// <param name="callerContext">The unused legacy request context.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="lifecycle"/>, <paramref name="registration"/>, or
         /// <paramref name="replacement"/> is <c>null</c>.
-        /// </exception>
-        /// <exception cref="InvalidOperationException">
-        /// <paramref name="callerContext"/> is a Client request that is still executing.
         /// </exception>
         public static ValueTask<NodeManagerRegistration> ReloadRuntimeNodeSetAsync(
             this INodeManagerLifecycle lifecycle,
@@ -155,24 +138,7 @@ namespace Opc.Ua.Server.RuntimeNodeSet
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            if (lifecycle is null)
-            {
-                throw new ArgumentNullException(nameof(lifecycle));
-            }
-            if (registration is null)
-            {
-                throw new ArgumentNullException(nameof(registration));
-            }
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            return lifecycle.ReloadAsync(
-                registration,
-                new RuntimeNodeSetNodeManagerFactory(replacement),
-                callerContext,
-                ct);
+            return ReloadRuntimeNodeSetAsync(lifecycle, registration, replacement, ct);
         }
 
         /// <summary>

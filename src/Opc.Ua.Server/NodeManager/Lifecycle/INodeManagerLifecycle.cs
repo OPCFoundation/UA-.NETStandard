@@ -218,7 +218,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Legacy alias for <see cref="ReloadAsync(NodeManagerRegistration, IAsyncNodeManagerFactory,
-        /// IOperationContext, CancellationToken)"/> using the <c>Migrate</c> transition.
+        /// CancellationToken)"/> using the <c>Migrate</c> transition.
         /// </summary>
         /// <remarks>
         /// Compatible monitored items move to the replacement; incompatible items are invalidated.
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Legacy alias for <see cref="ReloadAsync(NodeManagerRegistration, INodeManagerFactory,
-        /// IOperationContext, CancellationToken)"/> using the <c>Migrate</c> transition.
+        /// CancellationToken)"/> using the <c>Migrate</c> transition.
         /// </summary>
         /// <remarks>
         /// Compatible monitored items move to the replacement; incompatible items are invalidated.

@@ -1063,6 +1063,8 @@ The overloads without `callerContext` are the primary lifecycle entry points. Re
 discovered by the lifecycle implementation, so a lifecycle operation does not wait for its own
 request-view pin. Explicit-context overloads remain only for source migration; new code should not
 pass an `OperationContext`.
+The hosted lifecycle adapter and runtime NodeSet compatibility helpers delegate to the same context-free
+methods, so the compatibility entry points do not impose a second admission protocol.
 
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to

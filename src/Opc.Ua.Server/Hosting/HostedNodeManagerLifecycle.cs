@@ -75,7 +75,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken cancellationToken = default)
         {
-            return Current.PrepareAsync(changes, callerContext, cancellationToken);
+            return Current.PrepareAsync(changes, cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            return Current.AddAsync(factory, callerContext, ct);
+            return Current.AddAsync(factory, ct);
         }
 
         /// <inheritdoc/>
@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            return Current.AddAsync(factory, callerContext, ct);
+            return Current.AddAsync(factory, ct);
         }
 
         /// <inheritdoc/>
@@ -127,7 +127,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            return Current.ReloadAsync(registration, replacement, callerContext, ct);
+            return Current.ReloadAsync(registration, replacement, ct);
         }
 
         /// <inheritdoc/>
@@ -146,7 +146,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            return Current.ReloadAsync(registration, replacement, callerContext, ct);
+            return Current.ReloadAsync(registration, replacement, ct);
         }
 
         /// <inheritdoc/>
@@ -208,7 +208,7 @@ namespace Opc.Ua.Server.Hosting
             IOperationContext? callerContext,
             CancellationToken ct = default)
         {
-            return Current.RemoveAsync(registration, callerContext, ct);
+            return Current.RemoveAsync(registration, ct);
         }
 
         /// <summary>
