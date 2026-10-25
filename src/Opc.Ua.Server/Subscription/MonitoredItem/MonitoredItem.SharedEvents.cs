@@ -97,7 +97,7 @@ namespace Opc.Ua.Server
             t_sharedEvent = new SharedEventScope(this, instance, key, evaluation);
             try
             {
-                QueueEventCore(instance, bypassFilter: false, admittedSourceNodeManager);
+                QueueAdmittedEvent(instance, admittedSourceNodeManager);
             }
             finally
             {
@@ -153,6 +153,12 @@ namespace Opc.Ua.Server
 
         [ThreadStatic]
         private static SharedEventScope t_sharedEvent;
+
+        /// <summary>
+        /// The source admission carried from an admitted dispatch into the overridable queue entry points.
+        /// </summary>
+        [ThreadStatic]
+        private static IAsyncNodeManager? t_admittedSourceNodeManager;
         private SharedEventFilterKey? m_sharedEventFilterKey;
 
         /// <summary>

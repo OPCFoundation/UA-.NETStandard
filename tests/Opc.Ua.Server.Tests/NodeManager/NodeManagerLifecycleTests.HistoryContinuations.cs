@@ -840,7 +840,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(committing, Is.Not.Null);
                 NodeManagerBatchResult retired = await committing.ConfigureAwait(false);
                 Assert.That(retired.CleanupFailure, Is.Null);
-                Assert.That(retired.Retired, Is.EqualTo(1u));
+                // Disposal runs in the background once the in-flight first page releases its generation pin.
+                await retired.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 HistoryReadResponse response = await pending.ConfigureAwait(false);
                 HistoryReadResult page = response.Results[0];
                 AssertHistorySample(page, 101, 0, StatusCodes.Good);

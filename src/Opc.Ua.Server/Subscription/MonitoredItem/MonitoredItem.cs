@@ -1561,7 +1561,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    QueueEventCore(target, bypassFilter: false, admittedSourceNodeManager);
+                    QueueAdmittedEvent(target, admittedSourceNodeManager);
                 }
                 if (!NotificationAuthorization.IsCurrent(session, authorization))
                 {
@@ -1977,7 +1977,36 @@ namespace Opc.Ua.Server
         /// <param name="bypassFilter">The bypass-filter flag supplied by the caller.</param>
         public virtual void QueueEvent(IFilterTarget instance, bool bypassFilter)
         {
-            QueueEventCore(instance, bypassFilter, admittedSourceNodeManager: null);
+            QueueEventCore(instance, bypassFilter, TakeAdmittedSourceNodeManager());
+        }
+
+        /// <summary>
+        /// Queues an event through the overridable entry point while carrying the source admission the caller
+        /// already holds, so derived item types still observe every event.
+        /// </summary>
+        private void QueueAdmittedEvent(IFilterTarget instance, IAsyncNodeManager? admittedSourceNodeManager)
+        {
+            IAsyncNodeManager? previous = t_admittedSourceNodeManager;
+            t_admittedSourceNodeManager = admittedSourceNodeManager;
+            try
+            {
+                QueueEvent(instance);
+            }
+            finally
+            {
+                t_admittedSourceNodeManager = previous;
+            }
+        }
+
+        /// <summary>
+        /// Takes the source admission carried into the current overridable queue call, so that nested queue
+        /// calls on other items never inherit it.
+        /// </summary>
+        private static IAsyncNodeManager? TakeAdmittedSourceNodeManager()
+        {
+            IAsyncNodeManager? admitted = t_admittedSourceNodeManager;
+            t_admittedSourceNodeManager = null;
+            return admitted;
         }
 
         private void QueueEventCore(
@@ -2094,7 +2123,16 @@ namespace Opc.Ua.Server
                 {
                     fields = GetEventFields(context, filter, instance);
                 }
-                QueueEventFields(fields, admittedSourceNodeManager);
+                IAsyncNodeManager? previous = t_admittedSourceNodeManager;
+                t_admittedSourceNodeManager = admittedSourceNodeManager;
+                try
+                {
+                    QueueEvent(fields);
+                }
+                finally
+                {
+                    t_admittedSourceNodeManager = previous;
+                }
             }
         }
 
@@ -2104,7 +2142,7 @@ namespace Opc.Ua.Server
         /// <param name="fields">The event field list.</param>
         public virtual void QueueEvent(EventFieldList fields)
         {
-            QueueEventFields(fields, admittedSourceNodeManager: null);
+            QueueEventFields(fields, TakeAdmittedSourceNodeManager());
         }
 
         private void QueueEventFields(

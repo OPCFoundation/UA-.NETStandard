@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 
 namespace Opc.Ua.Server
@@ -34,13 +35,12 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Installs a fully prepared address-space publication without running asynchronous or application code.
     /// </summary>
-    internal static class AddressSpacePublisher
+    internal sealed class AddressSpacePublisher
     {
         /// <summary>
-        /// Completes prepared metadata and reference changes around the routing-view commit point.
-        /// Every input has already been validated and reserved before the durable decision callback.
+        /// Captures reserved publication inputs and resolves candidate handles before the durable decision.
         /// </summary>
-        internal static void Publish(
+        internal AddressSpacePublisher(
             NodeManagerRoutingTable.PreparedRoutes routes,
             StringTable.Publication namespaces,
             StringTable.Publication serverUris,
@@ -50,28 +50,71 @@ namespace Opc.Ua.Server
             EncodeableFactory factory,
             ArrayOf<PreparedNodeManager> candidates,
             IReadOnlyList<NodeState.ReferenceUpdate> referenceUpdates,
-            System.Action viewPublished)
+            Action viewPublished)
         {
-            namespaces.Complete();
-            serverUris.Complete();
-            types.Complete(typeTree);
-            registrations.Complete(factory);
-            foreach (PreparedNodeManager candidate in candidates)
+            m_routes = routes;
+            m_namespaces = namespaces;
+            m_serverUris = serverUris;
+            m_types = types;
+            m_registrations = registrations;
+            m_typeTree = typeTree;
+            m_factory = factory;
+            m_viewPublished = viewPublished;
+            m_stagingServers = new ChangePreparer.StagingServer?[candidates.Count];
+            for (int index = 0; index < candidates.Count; index++)
             {
-                ChangePreparer.Bind(candidate.NodeManager);
+                m_stagingServers[index] = ChangePreparer.GetServer(candidates[index].NodeManager);
             }
-            foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+            m_referenceUpdates = new NodeState.ReferenceUpdate[referenceUpdates.Count];
+            for (int index = 0; index < referenceUpdates.Count; index++)
+            {
+                m_referenceUpdates[index] = referenceUpdates[index];
+            }
+        }
+
+        /// <summary>
+        /// Installs captured storage and ordered references around the sole routing-view commit point.
+        /// This operation performs no candidate lookup, allocation, or application callback before the swap.
+        /// </summary>
+        internal void Publish()
+        {
+            m_namespaces.Complete();
+            m_serverUris.Complete();
+            m_types.Complete(m_typeTree);
+            m_registrations.Complete(m_factory);
+            foreach (ChangePreparer.StagingServer? server in m_stagingServers)
+            {
+                server?.Bind();
+            }
+            foreach (NodeState.ReferenceUpdate update in m_referenceUpdates)
             {
                 update.Remove();
             }
 
-            routes.Publish();
-            viewPublished();
-
-            foreach (NodeState.ReferenceUpdate update in referenceUpdates)
+            m_routes.Publish();
+            try
             {
-                update.Complete();
+                m_viewPublished();
+            }
+            finally
+            {
+                foreach (NodeState.ReferenceUpdate update in m_referenceUpdates)
+                {
+                    update.Complete();
+                }
             }
         }
+
+        /// <summary>Reserved inputs with sole ownership retained by the lifecycle transaction.</summary>
+        private readonly NodeManagerRoutingTable.PreparedRoutes m_routes;
+        private readonly StringTable.Publication m_namespaces;
+        private readonly StringTable.Publication m_serverUris;
+        private readonly TypeTable.Publication m_types;
+        private readonly EncodeableFactory.Publication m_registrations;
+        private readonly TypeTable m_typeTree;
+        private readonly EncodeableFactory m_factory;
+        private readonly ChangePreparer.StagingServer?[] m_stagingServers;
+        private readonly NodeState.ReferenceUpdate[] m_referenceUpdates;
+        private readonly Action m_viewPublished;
     }
 }

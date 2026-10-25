@@ -111,8 +111,8 @@ namespace Opc.Ua.Server
             }
             foreach (NodeManagerGeneration generation in next.Generations)
             {
-                bool wasHidden = previous.HiddenNodeManagers.Contains(generation.NodeManager);
-                bool isHidden = next.HiddenNodeManagers.Contains(generation.NodeManager);
+                bool wasHidden = ContainsManager(previous.HiddenNodeManagers, generation.NodeManager);
+                bool isHidden = ContainsManager(next.HiddenNodeManagers, generation.NodeManager);
                 if (generation.Gate.State == NodeManagerGenerationState.Prepared &&
                     !isHidden &&
                     (!previous.Generations.Contains(generation) || wasHidden))
@@ -150,8 +150,8 @@ namespace Opc.Ua.Server
             foreach (NodeManagerGeneration generation in next.Generations)
             {
                 NodeManagerGenerationState state = generation.Gate.State;
-                bool wasHidden = previous.HiddenNodeManagers.Contains(generation.NodeManager);
-                bool isHidden = next.HiddenNodeManagers.Contains(generation.NodeManager);
+                bool wasHidden = ContainsManager(previous.HiddenNodeManagers, generation.NodeManager);
+                bool isHidden = ContainsManager(next.HiddenNodeManagers, generation.NodeManager);
                 bool willActivate = state == NodeManagerGenerationState.Prepared &&
                     !isHidden &&
                     (!previous.Generations.Contains(generation) || wasHidden);
@@ -162,6 +162,21 @@ namespace Opc.Ua.Server
                         "The prepared routing image contains a generation that cannot be published.");
                 }
             }
+        }
+
+        /// <summary>
+        /// Compares manager identities without invoking manager-defined equality during publication.
+        /// </summary>
+        private static bool ContainsManager(IAsyncNodeManager[] managers, IAsyncNodeManager candidate)
+        {
+            foreach (IAsyncNodeManager manager in managers)
+            {
+                if (ReferenceEquals(manager, candidate))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

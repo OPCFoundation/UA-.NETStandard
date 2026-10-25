@@ -2684,7 +2684,7 @@ namespace Opc.Ua.Server
             {
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
-            return new GenerationReconciler(Server).ChangeAllEventsSubscriptionAsync(
+            return m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
                 generation!,
                 monitoredItem,
                 (remove, ct) => nodeManager.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
@@ -3092,8 +3092,7 @@ namespace Opc.Ua.Server
                     IAsyncNodeManager[] activeNodeManagers = [.. GetRouting(context).VisibleNodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
-                            activeNodeManagers,
-                            monitoredItem);
+                            activeNodeManagers);
                     try
                     {
                         foreach (NotificationDispatchLease dispatch in dispatches)
@@ -3475,7 +3474,7 @@ namespace Opc.Ua.Server
                     // unsubscribe to all node managers.
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                     {
-                        dispatches = m_owner.GetAllEventUnsubscribeDispatches(monitoredItem);
+                        dispatches = m_owner.GetAllEventUnsubscribeDispatches();
                         foreach (NotificationDispatchLease dispatch in dispatches)
                         {
                             ServiceResult unsubscribe = await DispatchEventSubscriptionAsync(
@@ -3495,13 +3494,21 @@ namespace Opc.Ua.Server
                             {
                                 result = unsubscribe;
                             }
-                            if (dispatch.Notifications is not null)
+                        }
+                        foreach (NodeManagerGeneration retiring in m_owner.RetiringEventGenerations)
+                        {
+                            if (!retiring.EventBindings.ContainsKey(monitoredItem))
                             {
-                                m_owner.CompleteRetiredAllEventUnsubscribe(
-                                    monitoredItem,
-                                    dispatch.Notifications);
-                                retiredGenerationDrained = true;
+                                continue;
                             }
+                            ServiceResult unsubscribe = await ReleaseRetiringEventBindingAsync(
+                                context, subscriptionId, retiring, monitoredItem, cancellationToken)
+                                .ConfigureAwait(false);
+                            if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
+                            {
+                                result = unsubscribe;
+                            }
+                            retiredGenerationDrained = true;
                         }
                     }
                     // only unsubscribe to the node manager that owns the node.
@@ -4474,7 +4481,7 @@ namespace Opc.Ua.Server
                 ServiceResult result;
                 if (allEvents && m_owner.TryGetCurrentGeneration(owner, out NodeManagerGeneration? generation))
                 {
-                    result = await new GenerationReconciler(Server).ChangeAllEventsSubscriptionAsync(
+                    result = await m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
                         generation!,
                         monitoredItem,
                         operation,
@@ -4486,6 +4493,49 @@ namespace Opc.Ua.Server
                     result = await operation(unsubscribe, cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
                 }
                 if (allEvents && result.StatusCode == StatusCodes.BadNotSupported)
+                {
+                    return ServiceResult.Good;
+                }
+                if (ServiceResult.IsBad(result))
+                {
+                    m_logger.MonitoredItemOwnerDispatchFailed(result.GetServiceResultException(), owner.GetType().Name);
+                }
+                return result;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                return GetMonitoredItemDispatchFailure(owner, ex);
+            }
+        }
+
+        /// <summary>
+        /// Releases a deleted item's binding on a retired generation through its binding record. The record is
+        /// removed even when the release fails, because the deleted item can no longer be retried; the failure is
+        /// reported to the client instead.
+        /// </summary>
+        private async ValueTask<ServiceResult> ReleaseRetiringEventBindingAsync(
+            OperationContext context,
+            uint subscriptionId,
+            NodeManagerGeneration generation,
+            IEventMonitoredItem monitoredItem,
+            CancellationToken cancellationToken)
+        {
+            IAsyncNodeManager owner = generation.NodeManager;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                ServiceResult result = await m_owner.GenerationReconciler.ChangeAllEventsSubscriptionAsync(
+                    generation,
+                    monitoredItem,
+                    (remove, ct) => owner.SubscribeToAllEventsAsync(context, subscriptionId, monitoredItem, remove, ct),
+                    unsubscribe: true,
+                    cancellationToken,
+                    retainFailedRelease: false).ConfigureAwait(false) ?? ServiceResult.Good;
+                if (result.StatusCode == StatusCodes.BadNotSupported)
                 {
                     return ServiceResult.Good;
                 }

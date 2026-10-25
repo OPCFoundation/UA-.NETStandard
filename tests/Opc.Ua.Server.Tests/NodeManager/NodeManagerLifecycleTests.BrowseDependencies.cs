@@ -280,6 +280,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Task<BrowseNextResponse> pending = session.BrowseNextAsync(
                     requestHeader, false, [page.ContinuationPoint], timeout.Token).AsTask();
                 Task<NodeManagerBatchResult>? retirement = null;
+                NodeManagerBatchResult? retiredResult = null;
                 try
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -302,7 +303,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
                     }
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(retirement.IsCompleted, Is.False);
+                    // The removal publishes without waiting for in-flight requests; only disposal waits for them.
+                    retiredResult = await retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(pending.IsCompleted, Is.False);
                     Assert.That(blockedOperationContext!.HasRoutingPin, Is.True);
                     Assert.That(blockedOperationContext.RoutingPinMatchesSnapshot, Is.True);
@@ -314,15 +316,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     release.TrySetResult(true);
                 }
+                // The in-flight request keeps resolving against its pinned view, but retirement invalidated the
+                // issuing generation's continuation points, so no successor point outlives the retired generation.
                 BrowseNextResponse next = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(next.Results[0].ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(capturedTarget, Is.True);
-                NodeManagerBatchResult retired = await retirement!.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(2u));
-                BrowseNextResponse stale = await session.BrowseNextAsync(
-                    null, false, [next.Results[0].ContinuationPoint], timeout.Token).ConfigureAwait(false);
-                Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(next.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(next.Results[0].ContinuationPoint.IsEmpty, Is.True);
+                await retiredResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));
@@ -382,6 +382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Task<BrowseNextResponse> pending = session.BrowseNextAsync(
                     header, false, [page.ContinuationPoint], timeout.Token).AsTask();
                 Task<NodeManagerBatchResult>? retirement = null;
+                NodeManagerBatchResult? retiredResult = null;
                 try
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -403,7 +404,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await Task.Delay(TimeSpan.FromMilliseconds(100), timeout.Token).ConfigureAwait(false);
                     }
                     Assert.That(current.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
-                    Assert.That(retirement.IsCompleted, Is.False);
+                    // The removal publishes without waiting for in-flight requests; only disposal waits for them.
+                    retiredResult = await retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(requestGeneration!.Gate.ActiveCount, Is.GreaterThan(0));
                     Assert.That(source.Manager.DisposeCount, Is.Zero);
                     Assert.That(target.Manager.DisposeCount, Is.Zero);
@@ -438,8 +440,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     release.TrySetResult(true);
                 }
-                NodeManagerBatchResult retired = await retirement!.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(retired.Retired, Is.EqualTo(2u));
+                await retiredResult!.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await source.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(source.Manager.DisposeCount, Is.EqualTo(1));

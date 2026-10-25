@@ -202,7 +202,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [TestCase(true)]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task GracefulContinuationSessionTeardownReleasesOwnerAsync(bool dispose)
+        public async Task GracefulRetirementDoesNotWaitForIdleContinuationAsync(bool dispose)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -216,8 +216,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
             NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
                 owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            Assert.That(result.Retired, Is.Zero);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            // An idle continuation point does not retain its issuing generation; it is validated against that
+            // generation on use and rejected once the generation is retired.
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
+            BrowseNextResponse stale = await session.BrowseNextAsync(
+                null, false, [page.ContinuationPoint], timeout.Token).ConfigureAwait(false);
+            Assert.That(stale.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
             if (dispose)
             {
                 ISession serverSession = m_server.CurrentInstance.SessionManager.GetSessions()
@@ -229,7 +235,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
-            await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             if (dispose)
@@ -450,7 +455,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task ShutdownDisposesGracefulOwnerWithOutstandingNativeContinuationAsync()
+        public async Task ShutdownDoesNotRedisposeRetiredOwnerWithOutstandingNativeContinuationAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var owner = await AddContinuationOwnerAsync(kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
@@ -462,8 +467,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BrowseResult page = await BrowseContinuationRootAsync(
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
-            await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            Assert.That(owner.Manager.DisposeCount, Is.Zero);
+            NodeManagerBatchResult result = await RetireContinuationOwnerAsync(
+                owner.Registration, false, timeout.Token).ConfigureAwait(false);
+            await result.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             await m_server.ShutdownInternalsAsync(timeout.Token).ConfigureAwait(false);
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));

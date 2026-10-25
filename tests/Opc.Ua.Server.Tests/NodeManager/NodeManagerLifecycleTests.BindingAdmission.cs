@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public async Task NullContextLifecycleCallFromAdmittedCallbackDoesNotBorrowAdmissionAsync()
+        public async Task NullContextLifecycleCallFromAdmittedCallbackCompletesIndependentlyAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -293,13 +293,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     services, subscription.SubscriptionId, ObjectIds.Server, 1);
                 Task<NodeManagerRegistration> add =
                     await attempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Task completed = await Task.WhenAny(
-                    add, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false);
-                // While the admitted request is running the add must not complete by borrowing its admission.
-                Assert.That(ReferenceEquals(completed, add), Is.False);
+                // Adding an unrelated manager neither borrows nor waits for the admitted request: there is no
+                // global request drain, so the add publishes while the callback is still running.
+                NodeManagerRegistration registration = await add.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(admission.IsCompleted, Is.False);
                 release.TrySetResult(true);
                 await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeManagerRegistration registration = await add.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(registration, Is.Not.Null);

@@ -384,23 +384,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         {
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            var host = (IDynamicNodeManagerHost)master;
+            ushort ns = server.NamespaceUris.GetIndexOrAppend(kModelNamespaceUri);
+            var rootNodeId = new NodeId(kRootNodeId, ns);
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             var factory = new RuntimeNodeSetNodeManagerFactory(
                 CreateOptions(generation: 1));
-            IAsyncNodeManager nodeManager = await factory
-                .CreateAsync(server, m_fixture.Config)
-                .ConfigureAwait(false);
-            PreparedNodeManager prepared = await host
-                .PrepareAsync(nodeManager)
-                .ConfigureAwait(false);
-
+            await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Add(factory)], null).ConfigureAwait(false);
+            IAsyncNodeManager nodeManager = prepared.Registrations[0].NodeManager;
+            NodeManagerRegistration? committed = null;
             try
             {
-                await host.PublishAsync(prepared).ConfigureAwait(false);
-
-                ushort ns = (ushort)server.NamespaceUris.GetIndex(
-                    kModelNamespaceUri);
-                var rootNodeId = new NodeId(kRootNodeId, ns);
+                Assert.That(prepared.IsCommitted, Is.False);
                 Assert.That(
                     master.AsyncNodeManagers.Any(manager =>
                         ReferenceEquals(manager, nodeManager)),
@@ -410,8 +405,22 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false),
                     Is.Null);
 
-                await host.CommitAsync(prepared).ConfigureAwait(false);
+                int decisions = 0;
+                NodeManagerBatchResult result = await prepared.CommitAsync(async token =>
+                {
+                    decisions++;
+                    Assert.That(prepared.IsCommitted, Is.False);
+                    Assert.That(master.AsyncNodeManagers.Any(manager => ReferenceEquals(manager, nodeManager)),
+                        Is.False);
+                    Assert.That(await master.FindNodeInAddressSpaceAsync(rootNodeId, token).ConfigureAwait(false),
+                        Is.Null);
+                }).ConfigureAwait(false);
+                committed = result.Registrations[0];
 
+                Assert.That(decisions, Is.EqualTo(1));
+                Assert.That(prepared.IsCommitted, Is.True);
+                Assert.That(result.CleanupFailure, Is.Null);
+                Assert.That(committed.NodeManager, Is.SameAs(nodeManager));
                 Assert.That(
                     master.AsyncNodeManagers.Any(manager =>
                         ReferenceEquals(manager, nodeManager)),
@@ -423,9 +432,14 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             }
             finally
             {
-                await host.RollbackAsync(prepared).ConfigureAwait(false);
-                (nodeManager as IDisposable)?.Dispose();
+                if (committed is not null)
+                {
+                    await m_server.NodeManagerLifecycle.RemoveAsync(committed, null).ConfigureAwait(false);
+                }
             }
+            Assert.That(
+                master.AsyncNodeManagers.Any(manager => ReferenceEquals(manager, nodeManager)), Is.False);
+            Assert.That(await master.FindNodeInAddressSpaceAsync(rootNodeId).ConfigureAwait(false), Is.Null);
         }
 
         /// <summary>

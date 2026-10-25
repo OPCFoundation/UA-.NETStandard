@@ -100,7 +100,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    await UnbindAsync(nodeManager, bindings, CancellationToken.None).ConfigureAwait(false);
+                    await UnbindAsync(generation, bindings, CancellationToken.None).ConfigureAwait(false);
                 }
                 catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                 {
@@ -217,7 +217,7 @@ namespace Opc.Ua.Server
                     ServiceResult result = await nodeManager.SubscribeToAllEventsAsync(
                         eventContext, monitoredItem.SubscriptionId, monitoredItem, true, cancellationToken)
                         .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result))
+                    if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                     {
                         throw new ServiceResultException(result);
                     }
@@ -262,9 +262,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Seals a retired generation's all-events bindings and releases every binding exactly once.
-        /// The first call adopts live all-events items bound without a record (for example by restore);
-        /// later calls retry only releases that failed and were retained.
+        /// Seals a retired generation's all-events bindings and releases every recorded binding exactly once.
+        /// Every all-events binding of a published generation is created through its record, so an item created
+        /// against a replacement is never released on the retired generation. Later calls retry only releases
+        /// that failed and were retained.
         /// </summary>
         /// <param name="generation">The retired generation.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
@@ -274,19 +275,7 @@ namespace Opc.Ua.Server
             NodeManagerGeneration generation,
             CancellationToken cancellationToken)
         {
-            if (!generation.EventBindingsSealed)
-            {
-                foreach (IEventMonitoredItem monitoredItem in m_server.EventManager.GetMonitoredItems())
-                {
-                    if (monitoredItem.MonitoringAllEvents)
-                    {
-                        generation.EventBindings.GetOrAdd(
-                            monitoredItem,
-                            static item => new GenerationEventBindingRecord(item));
-                    }
-                }
-                generation.TrySealEventBindings();
-            }
+            generation.TrySealEventBindings();
 
             IAsyncNodeManager nodeManager = generation.NodeManager;
             List<Exception>? failures = null;
@@ -326,22 +315,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes exactly the bindings owned by a partially prepared generation.
         /// </summary>
-        /// <param name="nodeManager">The manager to unbind.</param>
+        /// <param name="generation">The generation to unbind.</param>
         /// <param name="bindings">The captured bindings to remove.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes when the captured bindings have been removed.</returns>
-        internal static async ValueTask UnbindAsync(
-            IAsyncNodeManager nodeManager,
+        internal async ValueTask UnbindAsync(
+            NodeManagerGeneration generation,
             Bindings bindings,
             CancellationToken cancellationToken)
         {
+            IAsyncNodeManager nodeManager = generation.NodeManager;
             foreach (IEventMonitoredItem monitoredItem in bindings.EventMonitoredItems.Values)
             {
-                using var eventContext = new OperationContext(monitoredItem);
-                ServiceResult result = await nodeManager.SubscribeToAllEventsAsync(
-                    eventContext, monitoredItem.SubscriptionId, monitoredItem, true, cancellationToken)
-                    .ConfigureAwait(false);
-                if (ServiceResult.IsBad(result))
+                ServiceResult result = await ChangeAllEventsSubscriptionAsync(
+                    generation,
+                    monitoredItem,
+                    (unsubscribe, ct) => InvokeAllEventsAsync(nodeManager, monitoredItem, unsubscribe, ct),
+                    unsubscribe: true,
+                    cancellationToken).ConfigureAwait(false);
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                 {
                     throw new ServiceResultException(result);
                 }
@@ -349,9 +341,9 @@ namespace Opc.Ua.Server
 
             foreach (KeyValuePair<NodeId, SessionBinding> binding in bindings.Sessions)
             {
-                if (binding.Value.Generation.TryGetGeneration(out NodeManagerGeneration? generation))
+                if (binding.Value.Generation.TryGetGeneration(out NodeManagerGeneration? boundGeneration))
                 {
-                    await CloseSessionAsync(generation!, binding.Key, cancellationToken).ConfigureAwait(false);
+                    await CloseSessionAsync(boundGeneration!, binding.Key, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -532,8 +524,9 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
             ServiceResult result = await ChangeAllEventsSubscriptionAsync(
-                NodeManagerGenerationRegistry.GetOrCreate(nodeManager),
+                generation,
                 monitoredItem,
                 async (unsubscribe, ct) =>
                 {
@@ -543,8 +536,9 @@ namespace Opc.Ua.Server
                         .ConfigureAwait(false);
                 },
                 unsubscribe: false,
-                cancellationToken).ConfigureAwait(false);
-            if (ServiceResult.IsBad(result))
+                cancellationToken,
+                refreshExisting: false).ConfigureAwait(false);
+            if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
             {
                 throw new ServiceResultException(result);
             }
@@ -559,37 +553,37 @@ namespace Opc.Ua.Server
         /// <param name="dispatchAsync">The callback that changes the binding.</param>
         /// <param name="unsubscribe">Whether to remove the binding.</param>
         /// <param name="cancellationToken">The operation cancellation token.</param>
+        /// <param name="retainFailedRelease">
+        /// Whether a rejected release keeps the record for a later retry. A release for an item being deleted
+        /// reports the failure to the client instead, because the item no longer exists to retry for.
+        /// </param>
+        /// <param name="refreshExisting">
+        /// Whether an existing binding receives another callback for modification. Reconciliation only ensures
+        /// that a binding exists and never replays its initial callback.
+        /// </param>
         /// <returns>The manager's subscription result.</returns>
         internal ValueTask<ServiceResult> ChangeAllEventsSubscriptionAsync(
             NodeManagerGeneration generation,
             IEventMonitoredItem monitoredItem,
             Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
             bool unsubscribe,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool retainFailedRelease = true,
+            bool refreshExisting = true)
         {
-            GenerationEventBindingRecord? record;
-            if (generation.EventBindingsSealed)
+            GenerationEventBindingRecord? record = generation.GetEventBinding(monitoredItem, unsubscribe);
+            if (record is null)
             {
-                // A retired generation accepts no new binding; a release targets only an existing record.
-                if (!unsubscribe || !generation.EventBindings.TryGetValue(monitoredItem, out record))
-                {
-                    return new ValueTask<ServiceResult>(ServiceResult.Good);
-                }
-            }
-            else
-            {
-                record = generation.EventBindings.GetOrAdd(
-                    monitoredItem,
-                    static item => new GenerationEventBindingRecord(item));
+                return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
             if (unsubscribe)
             {
                 return UnsubscribeAllEventsAsync(
-                    generation, monitoredItem, record, dispatchAsync, cancellationToken);
+                    generation, monitoredItem, record, dispatchAsync, retainFailedRelease, cancellationToken);
             }
 
             return SubscribeAllEventsAsync(
-                generation, monitoredItem, record, dispatchAsync, cancellationToken);
+                generation, monitoredItem, record, dispatchAsync, refreshExisting, cancellationToken);
         }
 
         private async ValueTask<ServiceResult> SubscribeAllEventsAsync(
@@ -597,17 +591,17 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             GenerationEventBindingRecord record,
             Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
+            bool refreshExisting,
             CancellationToken cancellationToken)
         {
             Task<bool>? pending = null;
             TaskCompletionSource<bool>? owner = null;
+            bool rebinding = false;
             lock (record.Sync)
             {
-                if (record.State == GenerationEventBindingState.Bound)
-                {
-                    return ServiceResult.Good;
-                }
-                if (record.State == GenerationEventBindingState.Removed || record.RemovalRequested)
+                if (record.State == GenerationEventBindingState.Removed ||
+                    record.RemovalRequested ||
+                    (!refreshExisting && record.State == GenerationEventBindingState.Bound))
                 {
                     return ServiceResult.Good;
                 }
@@ -618,6 +612,9 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
+                    // Re-subscribing a bound item (for example on Modify) still reaches the manager; a rejection
+                    // leaves the existing binding in place.
+                    rebinding = record.State == GenerationEventBindingState.Bound;
                     record.State = GenerationEventBindingState.Subscribing;
                     record.Completion = owner = new TaskCompletionSource<bool>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
@@ -627,16 +624,18 @@ namespace Opc.Ua.Server
             if (pending is not null)
             {
                 bool bound = await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
-                return bound ? ServiceResult.Good : await SubscribeAllEventsAsync(
-                    generation, monitoredItem, record, dispatchAsync, cancellationToken).ConfigureAwait(false);
+                return bound && !refreshExisting ? ServiceResult.Good : await SubscribeAllEventsAsync(
+                    generation, monitoredItem, record, dispatchAsync, refreshExisting, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             Exception? failure = null;
+            bool threw = false;
             ServiceResult result;
             try
             {
                 result = await dispatchAsync(false, cancellationToken).ConfigureAwait(false) ?? ServiceResult.Good;
-                if (ServiceResult.IsBad(result))
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
                 {
                     failure = new ServiceResultException(result);
                 }
@@ -644,24 +643,19 @@ namespace Opc.Ua.Server
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 failure = ex;
+                threw = true;
                 result = ServiceResult.Create(
                     ex, StatusCodes.BadUnexpectedError, "The all-events binding callback failed.");
             }
 
-            if (failure is not null && result.StatusCode == StatusCodes.BadNotSupported)
-            {
-                // The manager does not source all events: nothing was bound and nothing must be released.
-                MarkRemoved(generation, monitoredItem, record);
-                owner!.TrySetResult(true);
-                return result;
-            }
-
+            // A manager that does not source all events keeps a bound record so that the item's release is still
+            // delivered to it exactly once, as for every other attempted owner.
             bool itemRemains = monitoredItem.MonitoringAllEvents &&
                 m_server.EventManager.Contains(monitoredItem);
             bool removeAfterBind;
             lock (record.Sync)
             {
-                removeAfterBind = record.RemovalRequested || !itemRemains || ServiceResult.IsBad(result);
+                removeAfterBind = record.RemovalRequested || !itemRemains || (failure is not null && !rebinding);
                 record.State = removeAfterBind
                     ? GenerationEventBindingState.Unsubscribing
                     : GenerationEventBindingState.Bound;
@@ -677,22 +671,22 @@ namespace Opc.Ua.Server
                 {
                     ServiceResult cleanup = await dispatchAsync(true, CancellationToken.None).ConfigureAwait(false)
                         ?? ServiceResult.Good;
-                    if (ServiceResult.IsBad(cleanup))
+                    if (ServiceResult.IsBad(cleanup) && cleanup.StatusCode != StatusCodes.BadNotSupported)
                     {
                         throw new ServiceResultException(cleanup);
                     }
                 }
                 catch (Exception cleanupFailure) when (cleanupFailure is not OutOfMemoryException)
                 {
+                    // The release failed, so the manager may still hold the binding: keep it recorded so a later
+                    // release retries it instead of leaking.
                     lock (record.Sync)
                     {
-                        record.State = GenerationEventBindingState.Unbound;
+                        record.State = GenerationEventBindingState.Bound;
+                        record.RemovalRequested = true;
                         record.Completion = null;
                     }
-                    owner!.TrySetException(failure is null
-                        ? cleanupFailure
-                        : new AggregateException(
-                            "NodeManager event binding and cleanup both failed.", failure, cleanupFailure));
+                    owner!.TrySetResult(true);
                     if (failure is not null)
                     {
                         throw new AggregateException(
@@ -711,6 +705,10 @@ namespace Opc.Ua.Server
             }
 
             owner!.TrySetResult(true);
+            if (threw)
+            {
+                throw failure!;
+            }
             return result;
         }
 
@@ -719,8 +717,10 @@ namespace Opc.Ua.Server
             IEventMonitoredItem monitoredItem,
             GenerationEventBindingRecord record,
             Func<bool, CancellationToken, ValueTask<ServiceResult>> dispatchAsync,
+            bool retainFailedRelease,
             CancellationToken cancellationToken)
         {
+            Task<bool>? pending = null;
             TaskCompletionSource<bool>? owner = null;
             lock (record.Sync)
             {
@@ -730,48 +730,72 @@ namespace Opc.Ua.Server
                 }
                 if (record.State == GenerationEventBindingState.Subscribing)
                 {
+                    // The in-flight bind observes the request when its callback returns and releases the
+                    // binding itself, so the release does not wait for a manager callback it does not own.
                     record.RemovalRequested = true;
                     return ServiceResult.Good;
                 }
                 if (record.State == GenerationEventBindingState.Unsubscribing)
                 {
-                    return ServiceResult.Good;
+                    // The active release reports its real outcome.
+                    record.RemovalRequested = true;
+                    pending = record.Completion!.Task;
                 }
-                record.State = GenerationEventBindingState.Unsubscribing;
-                record.RemovalRequested = true;
-                record.Completion = owner = new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
+                else
+                {
+                    record.State = GenerationEventBindingState.Unsubscribing;
+                    record.RemovalRequested = true;
+                    record.Completion = owner = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+
+            if (pending is not null)
+            {
+                bool stillBound = await pending.WaitAsync(cancellationToken).ConfigureAwait(false);
+                return stillBound
+                    ? await UnsubscribeAllEventsAsync(
+                        generation, monitoredItem, record, dispatchAsync, retainFailedRelease, cancellationToken)
+                        .ConfigureAwait(false)
+                    : ServiceResult.Good;
             }
 
             try
             {
                 ServiceResult result = await dispatchAsync(true, cancellationToken).ConfigureAwait(false)
                     ?? ServiceResult.Good;
-                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
+                if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported &&
+                    retainFailedRelease)
                 {
                     lock (record.Sync)
                     {
                         record.State = GenerationEventBindingState.Bound;
-                        record.RemovalRequested = false;
+                        record.RemovalRequested = true;
                         record.Completion = null;
                     }
-                    owner.TrySetResult(true);
+                    owner!.TrySetResult(true);
                     return result;
                 }
 
                 MarkRemoved(generation, monitoredItem, record);
-                owner.TrySetResult(false);
+                owner!.TrySetResult(false);
                 return result;
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
+                if (!retainFailedRelease)
+                {
+                    MarkRemoved(generation, monitoredItem, record);
+                    owner!.TrySetResult(false);
+                    throw;
+                }
                 lock (record.Sync)
                 {
                     record.State = GenerationEventBindingState.Bound;
-                    record.RemovalRequested = false;
+                    record.RemovalRequested = true;
                     record.Completion = null;
                 }
-                owner.TrySetException(failure);
+                owner!.TrySetResult(true);
                 throw;
             }
         }

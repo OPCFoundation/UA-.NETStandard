@@ -257,7 +257,33 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when this call sealed the bindings.</returns>
         internal bool TrySealEventBindings()
         {
-            return Interlocked.Exchange(ref m_eventBindingsSealed, 1) == 0;
+            lock (m_eventBindingsLock)
+            {
+                return Interlocked.Exchange(ref m_eventBindingsSealed, 1) == 0;
+            }
+        }
+
+        /// <summary>
+        /// Admits a binding record before retirement seals the generation, or resolves an existing release.
+        /// </summary>
+        /// <param name="monitoredItem">The exact item represented by the binding.</param>
+        /// <param name="unsubscribe">Whether the operation releases an existing binding.</param>
+        /// <returns>The admitted record, or null when retirement refuses the operation.</returns>
+        internal GenerationEventBindingRecord? GetEventBinding(
+            IEventMonitoredItem monitoredItem,
+            bool unsubscribe)
+        {
+            lock (m_eventBindingsLock)
+            {
+                if (EventBindingsSealed)
+                {
+                    return unsubscribe &&
+                        EventBindings.TryGetValue(monitoredItem, out GenerationEventBindingRecord? record)
+                        ? record
+                        : null;
+                }
+                return EventBindings.GetOrAdd(monitoredItem, static item => new GenerationEventBindingRecord(item));
+            }
         }
 
         /// <summary>
@@ -322,6 +348,9 @@ namespace Opc.Ua.Server
 
         /// <summary>The un-drained views that have routed this generation.</summary>
         private readonly List<AddressSpaceEpoch> m_viewEpochs = [];
+
+        /// <summary>Serializes binding-record admission with retirement sealing.</summary>
+        private readonly Lock m_eventBindingsLock = new();
 
         /// <summary>Non-zero once the all-events bindings were sealed at retirement.</summary>
         private int m_eventBindingsSealed;

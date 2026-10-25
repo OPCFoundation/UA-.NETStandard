@@ -56,6 +56,51 @@ namespace Opc.Ua.Server
             => m_nodeManagers.Revision;
 
         /// <inheritdoc/>
+        void IDynamicNodeManagerBatchHost.ReleaseRetiringEventGeneration(NodeManagerGeneration generation)
+        {
+            if (generation is null)
+            {
+                throw new ArgumentNullException(nameof(generation));
+            }
+
+            lock (m_retiringEventGenerationsLock)
+            {
+                NodeManagerGeneration[] current = m_retiringEventGenerations;
+                int index = Array.IndexOf(current, generation);
+                if (index < 0)
+                {
+                    return;
+                }
+                var next = new NodeManagerGeneration[current.Length - 1];
+                Array.Copy(current, 0, next, 0, index);
+                Array.Copy(current, index + 1, next, index, next.Length - index);
+                Volatile.Write(ref m_retiringEventGenerations, next);
+            }
+        }
+
+        /// <summary>
+        /// Gets the retired generations whose all-events binding records have not been released yet. Item deletion
+        /// releases its binding on these generations so a deleted item is never retained by a retired manager.
+        /// The array is empty unless a lifecycle change retired a generation.
+        /// </summary>
+        internal NodeManagerGeneration[] RetiringEventGenerations => Volatile.Read(ref m_retiringEventGenerations);
+
+        private void TrackRetiringEventGenerations(List<NodeManagerGeneration> generations)
+        {
+            if (generations.Count == 0)
+            {
+                return;
+            }
+            lock (m_retiringEventGenerationsLock)
+            {
+                NodeManagerGeneration[] current = m_retiringEventGenerations;
+                var next = new NodeManagerGeneration[current.Length + generations.Count];
+                current.CopyTo(next, 0);
+                generations.CopyTo(next, current.Length);
+                Volatile.Write(ref m_retiringEventGenerations, next);
+            }
+        }
+
         IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
         {
             return SuspendBindingAdmission(context);
@@ -137,12 +182,14 @@ namespace Opc.Ua.Server
                                 retiring.Add(old);
                             }
                         }
+                        var retiringGenerations = new List<NodeManagerGeneration>(retiring.Count);
                         foreach (IAsyncNodeManager manager in retiring)
                         {
                             if (!m_dynamicExternalReferences.ContainsKey(manager))
                             {
                                 throw new InvalidOperationException("A batch retirement is no longer registered.");
                             }
+                            retiringGenerations.Add(m_nodeManagers.GetGeneration(manager));
                         }
 
                         typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
@@ -191,6 +238,29 @@ namespace Opc.Ua.Server
                         {
                             update.Reserve();
                         }
+                        var publisher = new AddressSpacePublisher(
+                            routes,
+                            namespaces,
+                            serverUris,
+                            types,
+                            registrations,
+                            typeTree,
+                            factory,
+                            candidates,
+                            referenceUpdates,
+                            () =>
+                            {
+                                context.ViewPublished();
+                                m_dynamicExternalReferences = nextReferences;
+                                TrackRetiringEventGenerations(retiringGenerations);
+                                foreach (PreparedNodeManager candidate in candidates)
+                                {
+                                    candidate.Staged = false;
+                                    candidate.Published = true;
+                                    candidate.ReplacedNodeManager = null;
+                                    SetPreparing(candidate.NodeManager, preparing: false);
+                                }
+                            });
                         cancellationToken.ThrowIfCancellationRequested();
                         if (decideAsync is null)
                         {
@@ -208,29 +278,7 @@ namespace Opc.Ua.Server
 
                         // The publication invocation remains an active lifecycle operation until
                         // reconciliation finishes, so shutdown cannot tear down this host first.
-                        AddressSpacePublisher.Publish(
-                            routes,
-                            namespaces,
-                            serverUris,
-                            types,
-                            registrations,
-                            typeTree,
-                            factory,
-                            candidates,
-                            referenceUpdates,
-                            () =>
-                            {
-                                context.ViewPublished();
-                                m_dynamicExternalReferences = nextReferences;
-                                foreach (PreparedNodeManager candidate in candidates)
-                                {
-                                    candidate.Staged = false;
-                                    candidate.Published = true;
-                                    candidate.ReplacedNodeManager = null;
-                                    candidate.ReplacedExternalReferences = null;
-                                    SetPreparing(candidate.NodeManager, preparing: false);
-                                }
-                            });
+                        publisher.Publish();
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         routes.Dispose();
                         namespaces.Dispose();

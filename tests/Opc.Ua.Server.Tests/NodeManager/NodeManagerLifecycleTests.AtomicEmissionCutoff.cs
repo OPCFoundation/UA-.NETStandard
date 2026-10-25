@@ -286,20 +286,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await source.OnMonitoredNodeChangedAsync(
                     server.DefaultSystemContext, node, NodeStateChangeMasks.NonValue, timeout.Token)
                     .ConfigureAwait(false);
-                // The helper requires exactly the expected handles, so a retired item 1 or 3 would fail here.
-                (Dictionary<uint, DataValue> survivorOnly, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
+                // Publication invalidates the reporting item once with BadNodeIdUnknown; the retired source's
+                // own change after the swap delivers nothing. The helper requires exactly the expected handles.
+                (Dictionary<uint, DataValue> first1, ArrayOf<SubscriptionAcknowledgement> acknowledgements) =
                     await PublishEmissionDataAsync(
-                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [2])
+                        services, subscriptionId, initial.Acknowledgements, timeout.Token, [1, 2])
                         .ConfigureAwait(false);
-                Assert.That(survivorOnly[2].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(702)));
+                Assert.That(first1[1].StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                Assert.That(first1[2].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(first1[2].WrappedValue, Is.EqualTo(new Variant(702)));
                 await source.OnMonitoredNodeChangedAsync(
                     server.DefaultSystemContext, node, NodeStateChangeMasks.Value, timeout.Token)
                     .ConfigureAwait(false);
-                (Dictionary<uint, DataValue> delivered, acknowledgements) = await PublishEmissionDataAsync(
-                    services, subscriptionId, acknowledgements, timeout.Token, [1]).ConfigureAwait(false);
-                DataValue value = delivered[1];
-                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                survivorNode.Value = 703;
+                survivorNode.Timestamp = DateTimeUtc.Now;
+                await survivorSource.OnMonitoredNodeChangedAsync(
+                    server.DefaultSystemContext, survivorNode, NodeStateChangeMasks.Value, timeout.Token)
+                    .ConfigureAwait(false);
+                (Dictionary<uint, DataValue> survivorOnly, acknowledgements) = await PublishEmissionDataAsync(
+                    services, subscriptionId, acknowledgements, timeout.Token, [2]).ConfigureAwait(false);
+                Assert.That(survivorOnly[2].WrappedValue, Is.EqualTo(new Variant(703)));
                 header.Timestamp = DateTimeUtc.Now;
                 SetMonitoringModeResponse reporting = await services.SetMonitoringModeAsync(
                     header, subscriptionId, MonitoringMode.Reporting, [disabledItemId], timeout.Token)

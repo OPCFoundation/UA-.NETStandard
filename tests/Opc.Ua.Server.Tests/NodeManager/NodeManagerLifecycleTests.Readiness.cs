@@ -744,28 +744,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 if (cleanup == ReadinessCleanup.ShadowDrain)
                 {
-                    uint monitoredItemId;
-                    (subscriptionId, monitoredItemId) = await CreateSubscriptionWithMonitoredItemAsync(
+                    // The monitored item migrates to the replacement at commit, so the shadow reload drains and
+                    // destroys the retired generation itself instead of retaining it for the client's item.
+                    (subscriptionId, _) = await CreateSubscriptionWithMonitoredItemAsync(
                         services,
                         ReadinessNodeId(kModelNamespaceUri, kValueNodeId))
                         .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                    replacement = await lifecycle.ShadowReloadAsync(
+                    reloadTask = RunWithoutExecutionContext(() => lifecycle.ShadowReloadAsync(
                         original,
                         CreateTrackingNodeManagementFactory(
                             kGeneration2Value,
                             manager => replacementManager = manager),
-                        timeout.Token).AsTask().WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                        timeout.Token).AsTask());
                     shadowRetired = true;
-                    Assert.That(parentManager.DeleteAddressSpaceCount, Is.Zero);
-                    Assert.That(parentManager.DisposeCount, Is.Zero);
-                    Assert.That(
-                        RequireLifecycleValue(parentManager.Find(
-                            ReadinessNodeId(kModelNamespaceUri, kValueNodeId)) as BaseVariableState).Value,
-                        Is.EqualTo(kGeneration1Value));
-                    await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
-                    cleanupTask = parentManager.DisposalCompleted;
-                    await DeleteMonitoredItemAsync(services, subscriptionId, monitoredItemId)
-                        .WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                    cleanupTask = reloadTask;
                 }
                 else if (cleanup == ReadinessCleanup.Reload)
                 {

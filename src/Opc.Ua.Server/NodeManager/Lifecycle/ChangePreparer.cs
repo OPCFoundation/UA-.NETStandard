@@ -138,12 +138,20 @@ namespace Opc.Ua.Server
         internal async ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
             IAsyncNodeManagerFactory factory,
             ApplicationConfiguration configuration,
+            bool replacement,
+            Func<IAsyncNodeManager, bool> isRegistered,
             CancellationToken cancellationToken)
         {
             using var server = new StagingServer(this);
             IAsyncNodeManager manager = await factory.CreateAsync(server, configuration, cancellationToken)
                 .ConfigureAwait(false) ??
-                throw new InvalidOperationException("A batch factory returned no NodeManager.");
+                throw new InvalidOperationException(replacement
+                    ? "The replacement NodeManager factory returned null."
+                    : "The NodeManager factory returned null.");
+            if (isRegistered(manager) || s_candidates.TryGetValue(manager, out _))
+            {
+                throw new NodeManagerAlreadyRegisteredException();
+            }
             s_candidates.Add(manager, server);
             return manager;
         }
@@ -221,6 +229,10 @@ namespace Opc.Ua.Server
             internal StagingServer(ChangePreparer preparation)
             {
                 m_server = preparation.Server;
+                m_servingNamespaceUris = m_server.NamespaceUris;
+                m_servingServerUris = m_server.ServerUris;
+                m_servingTypes = preparation.OriginalTypes;
+                m_servingFactory = preparation.OriginalFactory;
                 NamespaceUris = new NamespaceTable();
                 NamespaceUris.BindTo(preparation.NamespaceUris);
                 ServerUris = new StringTable();
@@ -418,10 +430,10 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Bind()
             {
-                NamespaceUris.BindTo(m_server.NamespaceUris);
-                ServerUris.BindTo(m_server.ServerUris);
-                TypeTree.BindTo(m_server.TypeTree);
-                ((EncodeableFactory)Factory).BindTo((EncodeableFactory)m_server.Factory);
+                NamespaceUris.BindTo(m_servingNamespaceUris);
+                ServerUris.BindTo(m_servingServerUris);
+                TypeTree.BindTo(m_servingTypes);
+                ((EncodeableFactory)Factory).BindTo(m_servingFactory);
                 IsStaging = false;
             }
 
@@ -459,6 +471,12 @@ namespace Opc.Ua.Server
 
             /// <summary>The running server whose non-metadata services are forwarded.</summary>
             private readonly IServerInternal m_server;
+
+            /// <summary>Canonical handles captured before any durable publication decision.</summary>
+            private readonly NamespaceTable m_servingNamespaceUris;
+            private readonly StringTable m_servingServerUris;
+            private readonly TypeTable m_servingTypes;
+            private readonly EncodeableFactory m_servingFactory;
 
             /// <summary>Retains namespace registration intent until the factory returns its candidate.</summary>
             private readonly List<string> m_pendingNamespaces = [];

@@ -95,6 +95,12 @@ namespace Opc.Ua.Server
         IAsyncDisposable SuspendBindingAdmission(IOperationContext? context);
 
         /// <summary>
+        /// Stops routing item deletions to a retired generation after its all-events bindings were released.
+        /// </summary>
+        /// <param name="generation">The retired generation whose bindings were released.</param>
+        void ReleaseRetiringEventGeneration(NodeManagerGeneration generation);
+
+        /// <summary>
         /// Checks whether the request admitted for the context is already removing this exact monitored item.
         /// A null or unadmitted context is removing nothing.
         /// </summary>

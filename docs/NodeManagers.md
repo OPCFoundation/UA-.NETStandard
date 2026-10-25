@@ -905,10 +905,10 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 ```
 
 `INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
-for requests that pinned a retired generation. `RemoveAsync` waits for retirement when called outside
-an executing request; an allowed OPC UA request callback does not wait for its own request to drain.
+for requests that pinned a retired generation. `RemoveAsync` returns after publication and reconciliation,
+without waiting for in-flight generation admissions to drain.
 Use the batch API's `NodeManagerBatchResult.Retirement` task when the caller needs explicit retirement
-completion from a callback. If post-commit removal cleanup fails, `NodeManagerRemovalCommittedException`
+completion. If inline post-commit removal cleanup fails, `NodeManagerRemovalCommittedException`
 means the registration is already unpublished; its `Result.Retirement` task carries the retirement outcome.
 Pass the operation context from an OPC UA service or Method callback so the lifecycle writer can
 identify that request's own admission:
@@ -1099,14 +1099,15 @@ releases admission; shutdown waits for it.
 Preparing a batch does not activate Sessions or subscribe event sources on its candidates. After
 the decision is accepted, the host publishes the new routing and binds the candidates to the live
 Sessions and all-events MonitoredItems. New activations and MonitoredItem create, modify and delete
-operations wait for this reconciliation and then use the published routes, so no arrival is missed
-or duplicated.
+operations reconcile against the published routes through per-generation binding records. Reconciliation
+joins an in-flight bind or reuses a completed binding without repeating its initial callback. A
+MonitoredItem modification still dispatches its updated subscription to the owner.
 
-A Session or all-events callback that starts a lifecycle operation must pass the `OperationContext`
-it received (see the sample above); the server then lets that nested operation proceed instead of
-waiting on the callback's own admission. Without the context the call is treated as external and
-waits for the callback, which is unsupported. Waiting follows the normal cancellation and quiescence
-rules; there is no shortcut around them.
+Retirement seals record admission before enumerating the generation's bindings, so no new binding can
+escape cleanup. Deleting an all-events MonitoredItem during its subscribe callback marks the binding
+for release without waiting for that callback; the subscribing operation releases it when the callback
+finishes. If that release fails, the pending removal remains recorded for retirement to retry and cannot
+be treated as a new subscription. `BadNotSupported` from an all-events owner does not abort publication.
 
 Closed Sessions and deleted MonitoredItems are not restored. Exceptions and bad subscription
 results after publication are reported in `NodeManagerBatchResult.CleanupFailure`; they do not turn
@@ -1118,7 +1119,9 @@ Prepared batches precompute external reference edits for surviving and candidate
 References use ordinary node-owned storage, not request-selected snapshots. Publication removes
 dropped references before switching routes and installs additions after their target owners are
 visible. Reference observers run afterward, outside publication; abort leaves serving references
-unchanged. This path supports the in-memory `NodeState`
+unchanged. Candidate metadata handles are resolved before the durable decision. Once routes are
+published, prepared reference additions complete even if the post-commit application-state callback
+fails; that failure cannot restore the prior routing view. This path supports the in-memory `NodeState`
 ownership model of `AsyncCustomNodeManager` and adapted `CustomNodeManager2`; a custom external
 reference store is rejected before the decision.
 

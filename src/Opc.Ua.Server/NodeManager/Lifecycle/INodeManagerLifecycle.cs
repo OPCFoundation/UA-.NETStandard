@@ -287,6 +287,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Removes a live registration from the server without requiring a request context.
         /// </summary>
+        /// <remarks>
+        /// Waits through publication and reconciliation, but not through an in-flight generation drain.
+        /// Use the prepared batch result's retirement task to await background cleanup explicitly.
+        /// </remarks>
         /// <param name="registration">The registration to remove.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <exception cref="NodeManagerRemovalCommittedException">
@@ -300,8 +304,8 @@ namespace Opc.Ua.Server
         /// Removes a live registration from the server.
         /// </summary>
         /// <remarks>
-        /// Removal is committed before retirement cleanup. A request that initiated the operation never waits for
-        /// its own routing-view pin to drain.
+        /// Removal is committed before retirement cleanup. This operation never waits for an in-flight
+        /// generation drain, regardless of whether the caller is a request callback.
         /// </remarks>
         /// <param name="registration">The registration to remove.</param>
         /// <param name="callerContext">The legacy explicit operation context. New callers should use the overload
