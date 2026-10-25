@@ -30,7 +30,6 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
@@ -87,7 +86,6 @@ namespace Opc.Ua.Server
             if (disposing)
             {
                 List<OperationContext>? operations;
-                List<RequestDrain>? requestDrains;
                 lock (m_requestsLock)
                 {
                     if (m_disposed)
@@ -97,21 +95,12 @@ namespace Opc.Ua.Server
 
                     m_disposed = true;
                     operations = m_requests.Clear();
-                    m_validationScopes.Clear();
-                    requestDrains = [.. m_requestDrains];
-                    m_requestDrains.Clear();
-                    PublishDrainCountLocked();
                 }
 
                 foreach (OperationContext operation in operations)
                 {
                     operation.RequestLifetime.TryCancel(StatusCodes.BadSessionClosed);
                 }
-                foreach (RequestDrain requestDrain in requestDrains)
-                {
-                    requestDrain.Cancel();
-                }
-
                 m_requestTimer?.Dispose();
                 m_requestTimer = null;
             }
@@ -146,10 +135,6 @@ namespace Opc.Ua.Server
         /// nothing.
         /// </remarks>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        /// <exception cref="ServiceResultException">
-        /// A registered request lifecycle extension closed request admission because the server
-        /// is shutting down.
-        /// </exception>
         public void RequestReceived(OperationContext context)
         {
             if (context == null)
@@ -195,7 +180,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reports a request as completed and releases any drain waiting for it.
+        /// Reports a request as completed.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
         private void CompleteRequest(OperationContext context)
@@ -209,35 +194,14 @@ namespace Opc.Ua.Server
             bool removed = m_requests.Remove(context);
             if (removed)
             {
-                if (HasRequestDrains())
-                {
-                    lock (m_requestsLock)
-                    {
-                        for (int ii = m_requestDrains.Count - 1; ii >= 0; ii--)
-                        {
-                            if (m_requestDrains[ii].Complete(context.RequestId))
-                            {
-                                m_requestDrains.RemoveAt(ii);
-                            }
-                        }
-                        PublishDrainCountLocked();
-                    }
-                }
                 context.RequestLifetime?.MarkCompleted();
             }
         }
 
         /// <summary>
-        /// Gets or sets how long a drain keeps waiting once every request it is waiting for has
-        /// passed its deadline. Requests that carry no deadline never expire on their own, so this
-        /// is the only bound that applies to them.
-        /// <para>
-        /// The bound exists because a lifecycle operation holds its semaphore across the drain. A
-        /// request that is never completed would otherwise wedge every later lifecycle operation
-        /// for the lifetime of the server.
-        /// </para>
+        /// Gets the number of tracked requests in a snapshot, for diagnostics outside the dispatch hot path.
         /// </summary>
-        internal TimeSpan RequestDrainTimeout { get; set; } = TimeSpan.FromMinutes(2);
+        internal int TrackedRequestCount => m_requests.GetEntries().Count;
 
         /// <summary>
         /// Reports whether the supplied context belongs to a request that is executing right now.
@@ -256,50 +220,8 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Enters a validation scope, which covers the window in which a request is being
-        /// validated but is not yet tracked as an executing request.
-        /// <para>
-        /// Validation creates the <see cref="OperationContext"/>, resolves the Session, and only
-        /// then hands the request to <see cref="EnterRequestScope"/>. Without this scope a request
-        /// that finished validating could start touching a NodeManager after
-        /// <see cref="WaitForCurrentRequestsAsync"/> had already reported that nothing is in
-        /// flight, and a NodeManager could be retired while that request was using it. The scope
-        /// registers a token that the drain waits for, so the gap is covered from end to end.
-        /// </para>
-        /// <para>
-        /// Disposing the scope completes any context that was registered but never promoted,
-        /// which is what happens when validation fails.
-        /// </para>
-        /// </summary>
-        /// <returns>The scope to dispose once validation has finished.</returns>
-        /// <exception cref="ServiceResultException">
-        /// Request admission has been closed because the server is shutting down.
-        /// </exception>
-        internal IDisposable EnterValidationScope()
-        {
-            long validationId = Interlocked.Increment(
-                ref m_lastValidationScopeId);
-            RequestValidationScope? scope = Interlocked.Exchange(ref m_spareValidationScopes[GetSpareIndex()], null);
-            if (scope == null)
-            {
-                scope = new RequestValidationScope(this, validationId);
-            }
-            else
-            {
-                scope.Reuse(validationId);
-            }
-            m_validationScopes.Add(scope);
-
-            // A drain that misses this scope started first; the fence orders the registration
-            // before validation reads the routing tables the drain's caller has already changed.
-            Interlocked.MemoryBarrier();
-            return scope;
-        }
-
-        /// <summary>
         /// Enters a request scope, which tracks a validated request for as long as it executes.
-        /// Disposing the scope reports the request as completed, which releases any lifecycle
-        /// operation waiting in <see cref="WaitForCurrentRequestsAsync"/>.
+        /// Disposing the scope reports the request as completed.
         /// </summary>
         /// <param name="context">The context of the request being executed.</param>
         /// <returns>The scope to dispose once the request has finished.</returns>
@@ -345,171 +267,6 @@ namespace Opc.Ua.Server
         internal void CompleteAttachedRequest(OperationContext context)
         {
             CompleteRequest(context);
-        }
-
-        /// <summary>
-        /// Waits until every request that is currently executing or being validated has finished.
-        /// NodeManager retirement instead drains its captured view epochs and generation gate.
-        /// <para>
-        /// For a lifecycle drain, only the requests present when the call starts are awaited.
-        /// Requests that arrive later already observe the new routing table, so they never reach
-        /// the retired NodeManager. Once shutdown closes request admission, the drain repeats its
-        /// snapshot until every request admitted before closure has transitioned out of validation
-        /// and completed.
-        /// </para>
-        /// </summary>
-        /// <param name="ct">The token used to stop waiting.</param>
-        /// <exception cref="TimeoutException">
-        /// The requests being waited for did not complete within their deadlines plus
-        /// <see cref="RequestDrainTimeout"/>.
-        /// </exception>
-        internal async ValueTask WaitForCurrentRequestsAsync(
-            CancellationToken ct = default)
-        {
-            RequestDrain? requestDrain;
-            TimeSpan budget;
-            lock (m_requestsLock)
-            {
-                requestDrain = CreateRequestDrainLocked(out budget);
-            }
-
-            if (requestDrain is null)
-            {
-                return;
-            }
-
-            using CancellationTokenRegistration registration = ct.Register(
-                static state => ((RequestDrain)state!).Cancel(),
-                requestDrain);
-            try
-            {
-                Task completion = requestDrain.Completion;
-                Task expiry = m_timeProvider.Delay(budget, ct);
-                if (await Task.WhenAny(completion, expiry).ConfigureAwait(false) != completion)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    throw new TimeoutException(
-                        $"Timed out after {budget} waiting for the requests that were in flight to " +
-                        "complete. A request that never completes blocks every NodeManager " +
-                        "lifecycle operation, so the operation was abandoned instead of waiting " +
-                        "indefinitely.");
-                }
-
-                await completion.ConfigureAwait(false);
-            }
-            finally
-            {
-                lock (m_requestsLock)
-                {
-                    m_requestDrains.Remove(requestDrain);
-                    PublishDrainCountLocked();
-                }
-            }
-        }
-
-        /// <summary>
-        /// The spare validation scope slot of the current processor.
-        /// </summary>
-        private static int GetSpareIndex()
-        {
-#if NETCOREAPP3_0_OR_GREATER
-            return Thread.GetCurrentProcessorId() & (kSpareStripes - 1);
-#else
-            return Environment.CurrentManagedThreadId & (kSpareStripes - 1);
-#endif
-        }
-
-        private RequestDrain? CreateRequestDrainLocked(out TimeSpan budget)
-        {
-            // Published before the snapshot: a request or validation scope completing without
-            // the lock either completed before the snapshot, or sees a drain and takes the lock.
-            Interlocked.Exchange(ref m_drainCount, m_requestDrains.Count + 1);
-            List<uint> requestIds = CollectRequestsToAwait(out budget);
-            List<long> validationIds = m_validationScopes.GetEntries().ConvertAll(scope => scope.ValidationId);
-
-            RequestDrain? requestDrain = null;
-            if (requestIds.Count != 0 || validationIds.Count != 0)
-            {
-                requestDrain = new RequestDrain(requestIds, validationIds);
-                m_requestDrains.Add(requestDrain);
-            }
-            PublishDrainCountLocked();
-            return requestDrain;
-        }
-
-        /// <summary>
-        /// Publishes the number of registered drains for the lock-free completion paths.
-        /// </summary>
-        private void PublishDrainCountLocked()
-        {
-            Interlocked.Exchange(ref m_drainCount, m_requestDrains.Count);
-        }
-
-        /// <summary>
-        /// Whether a completion has to update drains; a full fence after the completion's
-        /// removal, so a drain that is not seen here cannot have seen the request either.
-        /// </summary>
-        private bool HasRequestDrains()
-        {
-            return Interlocked.CompareExchange(ref m_drainCount, 0, 0) != 0;
-        }
-
-        /// <summary>
-        /// Returns the requests a drain starting now has to wait for, and how long it may wait.
-        /// <para>
-        /// Requests are cancelled once their deadline passes, so the budget is the longest
-        /// deadline still outstanding plus <see cref="RequestDrainTimeout"/>, which covers both the
-        /// teardown that follows cancellation and requests that carry no deadline at all.
-        /// </para>
-        /// <para>
-        /// A request that is still registered long after it was cancelled is not waited for. It is
-        /// not going to complete, and waiting for it would make every later lifecycle operation
-        /// pay the full budget before failing. It is left registered so that a handler which does
-        /// eventually finish still reports completion normally.
-        /// </para>
-        /// <para>
-        /// Publish requests are not waited for: they do not dispatch into NodeManagers and are
-        /// parked until a notification or keep-alive is due.
-        /// </para>
-        /// </summary>
-        /// <param name="budget">The longest the drain may wait.</param>
-        /// <returns>The ids of the requests to wait for.</returns>
-        private List<uint> CollectRequestsToAwait(out TimeSpan budget)
-        {
-            DateTime now = m_timeProvider.GetUtcNow().UtcDateTime;
-            DateTime abandoned = now - RequestDrainTimeout;
-            var longest = TimeSpan.Zero;
-            List<OperationContext> requests = m_requests.GetEntries();
-            var awaited = new List<uint>(requests.Count);
-
-            foreach (OperationContext request in requests)
-            {
-                // A Publish never dispatches into a NodeManager, but stays parked until the next
-                // notification or keep-alive, so waiting for it would stall every drain.
-                if (request.RequestType == RequestType.Publish)
-                {
-                    continue;
-                }
-
-                if (request.OperationDeadline < DateTime.MaxValue)
-                {
-                    if (request.OperationDeadline < abandoned)
-                    {
-                        continue;
-                    }
-
-                    TimeSpan remaining = request.OperationDeadline - now;
-                    if (remaining > longest)
-                    {
-                        longest = remaining;
-                    }
-                }
-
-                awaited.Add(request.RequestId);
-            }
-
-            budget = longest + RequestDrainTimeout;
-            return awaited;
         }
 
         /// <summary>
@@ -904,19 +661,12 @@ namespace Opc.Ua.Server
         private readonly TimeProvider m_timeProvider;
 
         /// <summary>
-        /// The executing requests and the open validation scopes. Registration and completion
-        /// take no lock; enumeration, drains, timeouts and Cancel run under
+        /// The executing requests. Registration and completion
+        /// take no lock; timeouts and Cancel run under
         /// <see cref="m_requestsLock"/>.
         /// </summary>
         private readonly RequestTable<OperationContext> m_requests;
-        private readonly RequestTable<RequestValidationScope> m_validationScopes = new();
-        private readonly List<RequestDrain> m_requestDrains = [];
         private readonly Lock m_requestsLock = new();
-
-        /// <summary>
-        /// The number of registered drains (plus one while a drain takes its snapshot).
-        /// </summary>
-        private int m_drainCount;
 
         /// <summary>
         /// The number of requests registered with a deadline, so a stopping timer notices them.
@@ -925,106 +675,10 @@ namespace Opc.Ua.Server
         private readonly Dictionary<NodeId, List<PendingCancel>> m_pendingCancels = [];
         private int m_pendingCancelSessionCount;
         private DateTime m_nextPendingCancelSweep;
-        private long m_lastValidationScopeId;
-
-        /// <summary>
-        /// Validation scopes that have been disposed, one slot per processor stripe: a request
-        /// validates in a short, mostly synchronous window, so a scope is taken and returned on
-        /// the same stripe and validation allocates none.
-        /// </summary>
-        private readonly RequestValidationScope?[] m_spareValidationScopes =
-            new RequestValidationScope?[kSpareStripes];
-        private const int kSpareStripes = 16;
 
         private ITimer? m_requestTimer;
         private bool m_disposed;
         private event RequestCancelledEventHandler? m_RequestCancelled;
-
-        /// <summary>
-        /// Waits for a fixed set of executing requests and validation scopes to finish. The set is
-        /// captured when the drain is created, so requests that start afterwards do not extend it.
-        /// </summary>
-        internal sealed class RequestDrain
-        {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="RequestDrain"/> class.
-            /// </summary>
-            /// <param name="requestIds">The requests executing when the drain started.</param>
-            /// <param name="validationIds">The validation scopes open when the drain started.</param>
-            public RequestDrain(
-                IEnumerable<uint> requestIds,
-                IEnumerable<long> validationIds)
-            {
-                m_requestIds = [.. requestIds];
-                m_validationIds = [.. validationIds];
-            }
-
-            /// <summary>
-            /// Gets the task that completes once everything the drain waits for has finished.
-            /// </summary>
-            public Task Completion => m_completion.Task;
-
-            /// <summary>
-            /// Reports that a request finished.
-            /// </summary>
-            /// <param name="requestId">The request that finished.</param>
-            /// <returns><c>true</c> when nothing is left to wait for.</returns>
-            public bool Complete(uint requestId)
-            {
-                m_requestIds.Remove(requestId);
-                return TryComplete();
-            }
-
-            /// <summary>
-            /// Stops waiting for a request after its lifecycle semaphore wait was queued.
-            /// </summary>
-            /// <param name="requestId">The lifecycle-waiting request.</param>
-            /// <returns><c>true</c> when nothing is left to wait for.</returns>
-            public bool Exclude(uint requestId)
-            {
-                m_requestIds.Remove(requestId);
-                return TryComplete();
-            }
-
-            /// <summary>
-            /// Reports that a validation scope closed.
-            /// </summary>
-            /// <param name="validationId">The validation scope that closed.</param>
-            /// <returns><c>true</c> when nothing is left to wait for.</returns>
-            public bool CompleteValidation(long validationId)
-            {
-                m_validationIds.Remove(validationId);
-                return TryComplete();
-            }
-
-            /// <summary>
-            /// Stops the drain because the caller cancelled the wait.
-            /// </summary>
-            public void Cancel()
-            {
-                m_completion.TrySetCanceled();
-            }
-
-            private readonly HashSet<uint> m_requestIds;
-            private readonly HashSet<long> m_validationIds;
-
-            private readonly TaskCompletionSource<bool> m_completion = new(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            /// <summary>
-            /// Completes the drain once no request and no validation scope is left.
-            /// </summary>
-            private bool TryComplete()
-            {
-                if (m_requestIds.Count == 0 &&
-                    m_validationIds.Count == 0)
-                {
-                    m_completion.TrySetResult(true);
-                    return true;
-                }
-                return false;
-            }
-        }
 
         /// <summary>
         /// Tracks one executing request.
@@ -1061,101 +715,6 @@ namespace Opc.Ua.Server
             private bool m_disposed;
         }
 
-        /// <summary>
-        /// Tracks the window in which a request is being validated, so that a lifecycle operation
-        /// cannot retire a NodeManager between the moment validation starts and the moment the
-        /// validated request starts executing.
-        /// <para>
-        /// The scope carries an id of its own rather than the request id, because it opens before
-        /// the <see cref="OperationContext"/> exists and therefore before a request id has been
-        /// assigned. It tracks no contexts: a validated request is handed over explicitly, by
-        /// attaching its execution scope to the context that <c>ValidateRequestAsync</c> returns.
-        /// </para>
-        /// </summary>
-        /// <remarks>
-        /// A disposed scope is reused under a new id. Ids are never reused, so a drain that read
-        /// the scope before its reuse waits at most for the newer validation, never for nothing.
-        /// Only the owner disposes a scope, once.
-        /// </remarks>
-        private sealed class RequestValidationScope : IDisposable, IRequestTableEntry
-        {
-            /// <inheritdoc/>
-            uint IRequestTableEntry.TableKey => unchecked((uint)ValidationId);
-
-            /// <inheritdoc/>
-            ref int IRequestTableEntry.TableSlot => ref m_tableSlot;
-
-            private int m_tableSlot = RequestTable<RequestValidationScope>.kNoSlot;
-
-            /// <summary>
-            /// Initializes a new instance of the <see cref="RequestValidationScope"/> class.
-            /// </summary>
-            /// <param name="requestManager">The owning request manager.</param>
-            /// <param name="validationId">The id the drain waits for.</param>
-            public RequestValidationScope(
-                RequestManager requestManager,
-                long validationId)
-            {
-                m_requestManager = requestManager;
-                m_validationId = validationId;
-            }
-
-            public long ValidationId => Interlocked.Read(ref m_validationId);
-
-            /// <summary>
-            /// Prepares a disposed scope for another validation.
-            /// </summary>
-            /// <param name="validationId">The id the drain waits for.</param>
-            public void Reuse(long validationId)
-            {
-                Interlocked.Exchange(ref m_validationId, validationId);
-                m_disposed = false;
-            }
-
-            /// <summary>
-            /// Releases the drain that waits for this scope.
-            /// </summary>
-            public void Dispose()
-            {
-                if (!m_disposed)
-                {
-                    m_disposed = true;
-                    m_requestManager.m_validationScopes.Remove(this);
-                    if (m_requestManager.HasRequestDrains())
-                    {
-                        CompleteDrains();
-                    }
-                    // the owner does not touch the scope after disposing it
-                    Volatile.Write(ref m_requestManager.m_spareValidationScopes[GetSpareIndex()], this);
-                }
-            }
-
-            /// <summary>
-            /// Releases the drains that wait for this scope.
-            /// </summary>
-            private void CompleteDrains()
-            {
-                lock (m_requestManager.m_requestsLock)
-                {
-                    for (int ii =
-                        m_requestManager.m_requestDrains.Count - 1;
-                        ii >= 0;
-                        ii--)
-                    {
-                        if (m_requestManager.m_requestDrains[ii]
-                            .CompleteValidation(m_validationId))
-                        {
-                            m_requestManager.m_requestDrains.RemoveAt(ii);
-                        }
-                    }
-                    m_requestManager.PublishDrainCountLocked();
-                }
-            }
-
-            private readonly RequestManager m_requestManager;
-            private long m_validationId;
-            private bool m_disposed;
-        }
     }
 
     /// <summary>

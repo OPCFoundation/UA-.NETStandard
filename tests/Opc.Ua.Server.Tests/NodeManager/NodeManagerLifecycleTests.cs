@@ -1149,14 +1149,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
-            Task drain = server.RequestManager.WaitForCurrentRequestsAsync().AsTask();
             NodeManagerRegistration registration;
             try
             {
-                Assert.That(drain.IsCompleted, Is.False);
+                Assert.That(server.RequestManager.TrackedRequestCount, Is.GreaterThanOrEqualTo(1));
                 registration = await addB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(releaseFirstFactory.Task.IsCompleted, Is.False);
-                Assert.That(drain.IsCompleted, Is.False,
+                Assert.That(server.RequestManager.TrackedRequestCount, Is.EqualTo(1),
                     "The first request is still executing its factory; writer suspension must not exclude it.");
             }
             finally
@@ -1167,7 +1166,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await Assert.ThatAsync(
                 () => addA.WaitAsync(TimeSpan.FromSeconds(10)),
                 Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
-            await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(server.RequestManager.TrackedRequestCount, Is.Zero);
             Assert.That(factoryA.CreateCount, Is.EqualTo(1));
             Assert.That(factoryB.CreateCount, Is.EqualTo(1));
             Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(registration));
@@ -1256,14 +1255,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
-            Task drain = server.RequestManager.WaitForCurrentRequestsAsync().AsTask();
             NodeManagerRegistration replacement;
             try
             {
-                Assert.That(drain.IsCompleted, Is.False);
+                Assert.That(server.RequestManager.TrackedRequestCount, Is.GreaterThanOrEqualTo(1));
                 replacement = await reloadB.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(releaseFirstFactory.Task.IsCompleted, Is.False);
-                Assert.That(drain.IsCompleted, Is.False,
+                Assert.That(server.RequestManager.TrackedRequestCount, Is.EqualTo(1),
                     "The first request is still executing its factory; writer suspension must not exclude it.");
             }
             finally
@@ -1274,7 +1272,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await Assert.ThatAsync(
                 () => reloadA.WaitAsync(TimeSpan.FromSeconds(10)),
                 Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
-            await drain.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(server.RequestManager.TrackedRequestCount, Is.Zero);
             Assert.That(replacementFactoryA.CreateCount, Is.EqualTo(1));
             Assert.That(replacementFactoryB.CreateCount, Is.EqualTo(1));
             Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(), Does.Contain(originalA));
@@ -8157,10 +8155,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
+            /// <summary>
+            /// Gets or sets an observer of explicitly admitted service requests.
+            /// </summary>
+            public Action<OperationContext>? RequestValidatedCallback { get; set; }
+
             public ValueTask ShutdownInternalsAsync(
                 CancellationToken cancellationToken = default)
             {
                 return OnServerStoppingAsync(cancellationToken);
+            }
+
+            /// <inheritdoc/>
+            protected override ValueTask OnRequestValidatedAsync(OperationContext context)
+            {
+                RequestValidatedCallback?.Invoke(context);
+                return base.OnRequestValidatedAsync(context);
             }
         }
 

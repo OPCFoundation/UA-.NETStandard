@@ -219,6 +219,10 @@ read live routes, and internal subscriber contexts are not permanently pinned. B
 resumes validate the issuing generation and resolve later-page targets through the request's current view. Metadata lookups
 use shared additive type and encodeable registrations, not request-selected metadata images.
 
+Request tracking handles cancellation and deadlines independently of routing lifetime. Validation does not
+register a separate lifecycle scope, and publication never snapshots or drains all executing requests.
+Retirement waits only for the retired generation's view pins and admitted generation work.
+
 Application-state providers implement `INodeManagerReadImageSource` for live reads. Request-aware consumers call
 `source.GetReadImage(operationContext, owner)` explicitly. A pinned view with no state for the owner returns
 `null`, even if a later publication has state; work without a request pin reads the provider's live image.

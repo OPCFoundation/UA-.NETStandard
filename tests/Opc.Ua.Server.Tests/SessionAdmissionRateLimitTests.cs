@@ -184,12 +184,12 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task QueuedCreateSessionParksWorkerAndIsNotAwaitedByRequestDrainAsync()
+        public async Task QueuedCreateSessionParksWorkerWithoutRegisteringRequestAsync()
         {
             var provider = new QueuedProvider();
             m_server.RateLimiterProvider = provider;
 
-            const string sessionName = nameof(QueuedCreateSessionParksWorkerAndIsNotAwaitedByRequestDrainAsync);
+            const string sessionName = nameof(QueuedCreateSessionParksWorkerWithoutRegisteringRequestAsync);
             EndpointDescription endpoint = FindTcpEndpoint(m_server.GetEndpoints());
             SecureChannelContext context = CreateSecureChannelContext(sessionName, endpoint);
             var parkSink = new RecordingParkSink();
@@ -210,14 +210,10 @@ namespace Opc.Ua.Server.Tests
                 lifetime).AsTask();
             try
             {
-                // Waiting for a permit releases the request worker and does not register
-                // the request, so a NodeManager lifecycle drain does not wait for it.
+                // Waiting for a permit releases the request worker without registering the request.
                 Assert.That(parkSink.Parked, Is.True);
                 Assert.That(create.IsCompleted, Is.False);
-                await m_server.CurrentInstance.RequestManager.WaitForCurrentRequestsAsync()
-                    .AsTask()
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
+                Assert.That(m_server.CurrentInstance.RequestManager.TrackedRequestCount, Is.Zero);
             }
             finally
             {

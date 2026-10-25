@@ -178,11 +178,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                 Assert.That(lifetime.StatusCode, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
 
-                using var drainTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                await Assert.DoesNotThrowAsync(
-                    async () => await serverInternal.RequestManager
-                        .WaitForCurrentRequestsAsync(drainTimeout.Token)
-                        .ConfigureAwait(false),
+                Assert.That(serverInternal.RequestManager.TrackedRequestCount, Is.Zero,
                     "The rejected request must not stay registered.");
             }
             finally

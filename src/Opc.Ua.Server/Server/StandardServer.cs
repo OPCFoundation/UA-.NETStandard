@@ -3367,10 +3367,6 @@ namespace Opc.Ua.Server
 
             RequestManager requestManager = serverInternal.RequestManager;
 
-            // The validation scope covers the window before the request exists, so a NodeManager
-            // cannot be retired between resolving the Session and starting to execute the request.
-            using IDisposable validationScope = requestManager.EnterValidationScope();
-
             OperationContext context;
             try
             {
