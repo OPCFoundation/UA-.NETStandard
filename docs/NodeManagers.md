@@ -750,7 +750,7 @@ table.
 | --- | --- | --- |
 | Compile time | A source-generated or hand-written `AsyncCustomNodeManager` / `CustomNodeManager2` type | When the server creates its address space |
 | Startup | `IOpcUaServerBuilder.AddNodeManager(...)`, `IOpcUaServerBuilder.AddRuntimeNodeSet(...)` | During `CreateAddressSpaceAsync`, before the server accepts connections |
-| Runtime | `INodeManagerLifecycle.AddAsync` / `ReloadAsync` / `RemoveAsync` | While the server is running and serving Clients |
+| Runtime | `INodeManagerLifecycle.PrepareAsync` followed by the prepared owner's `CommitAsync` | While the server is running and serving Clients |
 
 Compile-time and startup registration are the normal path. Use runtime registration only when the
 set of models has to change without restarting the server.
@@ -803,24 +803,24 @@ managers in `OnServerReadyAsync`, when the server can process lifecycle operatio
 sync adapters forward the callback. Readiness runs:
 
 - **At startup**, after the initial address spaces are built; startup awaits every initial manager.
-- **After a runtime `AddAsync` or reload**, once the new generation is visible; the call awaits it
-  before returning the handle.
+- **After a runtime transaction adds or replaces a manager**, once the new generation is visible;
+  `CommitAsync` awaits readiness before returning the result.
 
-A manager added by a readiness callback gets its own callback through `AddAsync`, not a second one
+A manager added by a readiness callback gets its own callback through its transaction, not a second one
 as an initial manager.
 
 #### Concurrent operations, cancellation and failure
 
-- Unrelated registrations, including dependent `AddAsync` calls, stay available while readiness
+- Unrelated registrations, including dependent addition transactions, stay available while readiness
   runs. Removing or reloading the initializing registration throws `InvalidOperationException`;
   retry afterwards, and never do it from inside its own readiness callback.
-- Forward the callback's cancellation token. Cancellation after publication does not undo it:
-  clients may already see the manager, and several registrations are not published atomically.
-- A readiness failure after publication leaves the registration live. Add throws
-  `NodeManagerAddCommittedException`; its `Registration` remains authoritative in `Registrations`,
-  so do not retry the add as a new registration. Reload throws
-  `NodeManagerReloadCommittedException` whose `Registration` is the replacement. A startup failure
-  is reported after `StandardServer` shuts everything down.
+- Cancellation can abort preparation or the durable decision. After publication, runtime readiness
+  receives a noncancelable token and runs to completion; it cannot undo the published transaction.
+  A participant that independently throws cancellation reports a committed reconciliation failure.
+- A readiness failure after publication leaves the registration live and is reported in the committed
+  result's `CleanupFailure`. Its `Registrations`, `Revision`, and `Slots` remain authoritative;
+  do not retry an addition as a new registration. A startup failure is reported after
+  `StandardServer` shuts everything down.
 - Keep the handle of every dependency you add and remove them in `DeleteAddressSpaceAsync`, which
   the host runs outside the lifecycle operation, so it can await those removals. Dispose injected
   registries or stores only if you own them.
@@ -853,10 +853,10 @@ reloads through `INodeManagerLifecycle` already await readiness; do not call it 
 
 A **generation** identifies one published NodeManager instance within a logical registration.
 `NodeManagerRegistration.Id` stays the same across reloads; `Generation` counts the instances:
-startup adoption and `AddAsync` create generation 1 and each committed [reload](#reload-modes)
+startup adoption and an addition create generation 1 and each committed [replacement](#reload-modes)
 creates the next. Generation is independent of the information model's version and namespace
-index. After a reload, use the returned handle; the previous one is stale even if a shadow reload
-keeps the old manager alive. A new registration starts at generation 1 with a new `Id`.
+index. After a replacement, use the committed result's handle; the previous one is stale even while
+an admitted request finishes on its old view. A new registration starts at generation 1 with a new `Id`.
 
 ### Runtime registration
 
@@ -866,26 +866,53 @@ server, or use `StandardServer.NodeManagerLifecycle` when constructing the serve
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 {
-    private NodeManagerRegistration? m_registration;
-
     public async ValueTask LoadAsync(IAsyncNodeManagerFactory factory, CancellationToken ct)
     {
-        m_registration = await lifecycle.AddAsync(factory, ct);
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Add(factory)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = result.Registrations[0];
+        // This is authoritative even when post-publication readiness or binding failed.
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerAddCommittedException(
+                m_registration, result, "The model is live but reconciliation failed.", failure);
+        }
     }
 
     public async ValueTask ReloadAsync(IAsyncNodeManagerFactory replacement, CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadAsync(m_registration!, replacement, ct);
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Replace(m_registration!, replacement,
+                NodeManagerMonitoredItemTransitionMode.Migrate)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = result.Registrations[0];
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerReloadCommittedException(
+                m_registration, result, "The replacement is live but reconciliation failed.", failure);
+        }
     }
 
-    public ValueTask RemoveAsync(CancellationToken ct)
+    public async ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, ct);
+        NodeManagerRegistration current = m_registration!;
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Remove(current)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = null;
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerRemovalCommittedException(current, result, failure);
+        }
+        // Await result.Retirement here only if this caller needs generation cleanup to finish.
     }
+
+    private NodeManagerRegistration? m_registration;
 }
 ```
 
-Each add returns an immutable `NodeManagerRegistration`; reload returns the next generation and
+Each committed addition returns an immutable `NodeManagerRegistration`; replacement returns the next generation and
 invalidates the previous handle. `Registrations` also lists application NodeManagers composed
 before startup (not the protected diagnostics, configuration and core managers), so a control plane
 can remove them or, if they implement `INodeManagerReloadParticipant`, reload them.
@@ -905,42 +932,17 @@ if (slot.TryGetCurrent(out NodeManagerSlotSnapshot current))
 ```
 
 `INodeManagerLifecycle` is a host control-plane API. Lifecycle mutations publish without waiting
-for requests that pinned a retired generation. `RemoveAsync` returns after publication and reconciliation,
+for requests that pinned a retired generation. `CommitAsync` returns after publication and reconciliation,
 without waiting for in-flight generation admissions to drain.
 Use the batch API's `NodeManagerBatchResult.Retirement` task when the caller needs explicit retirement
-completion. If inline post-commit removal cleanup fails, `NodeManagerRemovalCommittedException`
-means the registration is already unpublished; its `Result.Retirement` task carries the retirement outcome.
-Pass the operation context from an OPC UA service or Method callback so the lifecycle writer can
-identify that request's own admission:
+completion. A post-commit `CleanupFailure` does not undo a removal: its registration is already
+unpublished, and `Retirement` carries the eventual retirement outcome. Do not await retirement from
+the callback or request whose own view or generation admission must drain.
 
-```csharp
-private async ValueTask<ServiceResult> OnReloadModelAsync(
-    ISystemContext context,
-    MethodState method,
-    IList<Variant> inputArguments,
-    IList<Variant> outputArguments,
-    CancellationToken ct)
-{
-    // Throws InvalidOperationException: the call is serving a Client request.
-    await m_lifecycle.ReloadAsync(
-        m_registration,
-        replacement,
-        context.GetOperationContext(),
-        ct);
-    return ServiceResult.Good;
-}
-```
-
-A control-plane caller — a hosted service, or anything resolved from dependency injection — is not
-serving a request and passes `null`.
-
-The guard is an identity check against the requests the server is currently executing. A caller
-that is inside a request but passes no operation is not detected; its wait is bounded by the longest
-outstanding request deadline plus `RequestManager.RequestDrainTimeout`, after which the operation
-fails with a `TimeoutException`. This applies to event-source and session callbacks too: a callback
-that starts a lifecycle operation must pass the `OperationContext` it was given. Passing `null`
-from inside a callback is unsupported, because the operation is then treated as an ordinary
-external caller and waits for the callback's own request to finish.
+Service, Method, event-source, session, and hosted-service callbacks use the same context-free
+transaction members. Factories used in request callbacks must explicitly support that use, for
+example through `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback`. No explicit
+`OperationContext` is passed to lifecycle preparation or publication admission.
 
 A lifecycle operation validates the replacement address space before its client-visible commit and
 rolls back on preparation failure. Failures after publication, including readiness, can leave a live
@@ -958,12 +960,11 @@ subscriptions:
 
 | Mode | Existing MonitoredItems | Choose it when |
 | --- | --- | --- |
-| `ReloadAsync` (normal) | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
-| `ShadowReloadAsync` (legacy alias) | Same `Migrate` behavior as `ReloadAsync`; compatible items move to the replacement and incompatible items are invalidated. | Existing callers migrating from the former retained-generation behavior. |
-| `ImmediateReloadAsync` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
+| `NodeManagerBatchChange.Replace(..., Migrate)` | Compatible items move to the replacement and keep their ids; removed or incompatible items get one `BadNodeIdUnknown`. | A compatible model update where Clients should keep their subscriptions. The default. |
+| `NodeManagerBatchChange.Replace(..., Invalidate)` | Every old item gets `BadNodeIdUnknown`; none are migrated. | Destructive or security-sensitive changes where Clients must resubscribe. |
 
-`ShadowReloadAsync` no longer retains a generation for existing items or future continuation
-requests. Requests already pinned to the old routing view may finish under ordinary request lifetime
+Neither transition retains a generation for existing items or future continuation requests.
+Requests already pinned to the old routing view may finish under ordinary request lifetime
 management; continuation points from a retired generation are invalid when its gate closes (see
 [Continuation points](#continuation-points)).
 
@@ -1059,12 +1060,11 @@ NodeManagerBatchResult result = await batch.CommitAsync(
     async token => await store.SaveDecisionAsync(token), ct);
 ```
 
-The overloads without `callerContext` are the primary lifecycle entry points. Request lifetime is
-discovered by the lifecycle implementation, so a lifecycle operation does not wait for its own
-request-view pin. Explicit-context overloads remain only for source migration; new code should not
-pass an `OperationContext`.
-The hosted lifecycle adapter and runtime NodeSet compatibility helpers delegate to the same context-free
-methods, so the compatibility entry points do not impose a second admission protocol.
+Preparation and publication admission are context-free. Request lifetime is discovered by the
+lifecycle implementation, so publication does not wait for its own request-view pin.
+The hosted lifecycle adapter forwards the exact prepared owner, capture, and cancellation token;
+it does not implement a second convenience-operation pipeline. For a runtime NodeSet, put a
+`RuntimeNodeSetNodeManagerFactory` in the same addition or replacement change records.
 
 - A completed commit releases the batch; `DisposeAsync` afterwards is optional and does not undo
   publication. An unpublished batch, including one after a failed commit, must be disposed to

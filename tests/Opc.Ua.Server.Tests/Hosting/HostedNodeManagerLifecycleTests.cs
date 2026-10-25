@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -37,13 +38,7 @@ using Opc.Ua.Server.Hosting;
 namespace Opc.Ua.Server.Tests.Hosting
 {
     /// <summary>
-    /// Direct unit tests for <see cref="HostedNodeManagerLifecycle"/>: the thin,
-    /// process-wide forwarding shim that lets DI-registered NodeManager factories
-    /// resolve <see cref="INodeManagerLifecycle"/> before the hosted
-    /// <see cref="StandardServer"/> instance exists, and forwards every call to
-    /// whichever concrete lifecycle provider is currently attached. Exercised
-    /// directly against mocked <see cref="INodeManagerLifecycle"/> targets so no
-    /// live server is required.
+    /// Exercises hosted canonical forwarding and the one-release compatibility transaction shims.
     /// </summary>
     [TestFixture]
     [Category("Hosting")]
@@ -52,43 +47,63 @@ namespace Opc.Ua.Server.Tests.Hosting
     public sealed class HostedNodeManagerLifecycleTests
     {
         [Test]
-        public void RegistrationsThrowsWhenNotAttached()
+        public void PrimaryContractHasNoConvenienceOrContextMembers()
         {
-            var hosted = new HostedNodeManagerLifecycle();
-
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => _ = hosted.Registrations)!;
-            Assert.That(ex.Message, Does.Contain("not running"));
+            Assert.That(typeof(INodeManagerLifecycle).GetMethods()
+                .Where(method => !method.IsSpecialName).Select(method => method.Name),
+                Is.EquivalentTo(s_primaryMethods));
+            Assert.That(typeof(INodeManagerLifecycle).GetMethods()
+                .SelectMany(method => method.GetParameters())
+                .Any(parameter => parameter.ParameterType == typeof(IOperationContext)), Is.False);
+            Assert.That(typeof(INodeManagerPublicationCapture).GetMethods()
+                .SelectMany(method => method.GetParameters())
+                .Any(parameter => parameter.ParameterType == typeof(IOperationContext)), Is.False);
+            Assert.That(typeof(HostedNodeManagerLifecycle).GetMethods()
+                .Any(method => method.Name is "AddAsync" or "ReloadAsync" or "RemoveAsync"
+                    or "ShadowReloadAsync" or "ImmediateReloadAsync"), Is.False);
+            Assert.That(typeof(NodeManagerLifecycle).GetMethods()
+                .Any(method => method.Name is "AddAsync" or "ReloadAsync" or "RemoveAsync"
+                    or "ShadowReloadAsync" or "ImmediateReloadAsync"), Is.False);
+            Assert.That(typeof(NodeManagerLifecycleExtensions).GetMethods()
+                .Where(method => method.DeclaringType == typeof(NodeManagerLifecycleExtensions))
+                .All(method => Attribute.IsDefined(method, typeof(ObsoleteAttribute))), Is.True);
         }
 
         [Test]
-        public void RevisionAndSlotsThrowWhenNotAttached()
+        public async Task MembersThrowWhenNotAttachedAsync()
         {
             var hosted = new HostedNodeManagerLifecycle();
-
+            Assert.Throws<InvalidOperationException>(() => _ = hosted.Registrations);
             Assert.Throws<InvalidOperationException>(() => _ = hosted.Revision);
             Assert.Throws<InvalidOperationException>(() => _ = hosted.Slots);
+            Assert.Throws<InvalidOperationException>(() => hosted.CapturePublication());
+            await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await hosted.PrepareAsync([]).ConfigureAwait(false)).ConfigureAwait(false);
         }
 
         [Test]
-        public void RevisionAndSlotsDelegateToAttachedLifecycle()
+        public void SnapshotMembersDelegateToAttachedLifecycle()
         {
+            var inner = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            NodeManagerRegistration registration = NewRegistration();
+            inner.SetupGet(owner => owner.Revision).Returns(17);
+            inner.SetupGet(owner => owner.Slots).Returns([registration.Slot]);
+            inner.SetupGet(owner => owner.Registrations).Returns([registration]);
+            inner.SetupGet(owner => owner.IsShuttingDown).Returns(true);
+            inner.SetupGet(owner => owner.SupportsPreparedPublication).Returns(true);
+            inner.SetupGet(owner => owner.SupportsPublicationIsolation).Returns(true);
             var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerSlot expectedSlot = NewRegistration().Slot;
-            ArrayOf<NodeManagerSlot> expectedSlots = ArrayOf.Wrapped(expectedSlot);
-            inner.Setup(lifecycle => lifecycle.Revision).Returns(17);
-            inner.Setup(lifecycle => lifecycle.Slots).Returns(expectedSlots);
             hosted.Attach(inner.Object);
 
             Assert.That(hosted.Revision, Is.EqualTo(17));
-            Assert.That(hosted.Slots, Is.EqualTo(expectedSlots));
+            Assert.That(hosted.Slots[0], Is.SameAs(registration.Slot));
+            Assert.That(hosted.Registrations[0], Is.SameAs(registration));
+            Assert.That(hosted.IsShuttingDown, Is.True);
+            Assert.That(hosted.SupportsPreparedPublication, Is.True);
+            Assert.That(hosted.SupportsPublicationIsolation, Is.True);
+            inner.VerifyAll();
         }
 
-        /// <summary>
-        /// Verifies hosted preparation preserves the canonical transaction owner and cancellation token.
-        /// </summary>
-        /// <param name="compatibilityEntryPoint">Whether preparation supplies a legacy request context.</param>
         [TestCase(false)]
         [TestCase(true)]
         public async Task HostedPreparationForwardsCanonicalTransactionAsync(bool compatibilityEntryPoint)
@@ -110,413 +125,266 @@ namespace Opc.Ua.Server.Tests.Hosting
                 : await hosted.PrepareAsync(changes, cancellation.Token).ConfigureAwait(false))
             {
                 Assert.That(actual, Is.SameAs(prepared.Object));
-                prepared.Verify(owner => owner.DisposeAsync(), Times.Never);
             }
 
-            inner.Verify(owner => owner.PrepareAsync(changes, cancellation.Token), Times.Once);
+            inner.VerifyAll();
             prepared.Verify(owner => owner.DisposeAsync(), Times.Once);
         }
 
-        [Test]
-        public void AddAsyncWithAsyncFactoryThrowsWhenNotAttached()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task HostedCapturePreservesOwnerContextFreeTokenAndIdentityAsync(bool legacyContext)
         {
+            using var cancellation = new CancellationTokenSource();
+            var publication = new Mock<INodeManagerPublication>(MockBehavior.Strict);
+            var capture = new Mock<INodeManagerPublicationCapture>(MockBehavior.Strict);
+            capture.Setup(owner => owner.BeginAsync(cancellation.Token))
+                .Returns(new ValueTask<INodeManagerPublication>(publication.Object));
+            var inner = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            inner.Setup(owner => owner.CapturePublication()).Returns(capture.Object);
             var hosted = new HostedNodeManagerLifecycle();
+            hosted.Attach(inner.Object);
+
+            INodeManagerPublicationCapture actualCapture = hosted.CapturePublication();
+            INodeManagerPublication actual = legacyContext
+                ? await actualCapture.BeginAsync(Mock.Of<IOperationContext>(), cancellation.Token)
+                    .ConfigureAwait(false)
+                : await actualCapture.BeginAsync(cancellation.Token).ConfigureAwait(false);
+
+            Assert.That(actualCapture, Is.SameAs(capture.Object));
+            Assert.That(actual, Is.SameAs(publication.Object));
+            inner.VerifyAll();
+            capture.VerifyAll();
+        }
+
+        [TestCase("Add")]
+        [TestCase("Reload")]
+        [TestCase("Shadow")]
+        [TestCase("Immediate")]
+        [TestCase("Remove")]
+        public async Task CompatibilityOperationsPrepareCommitDisposeAndPreserveIdentityAsync(string operation)
+        {
+            using var cancellation = new CancellationTokenSource();
+            IAsyncNodeManagerFactory factory = Mock.Of<IAsyncNodeManagerFactory>();
+            NodeManagerRegistration current = NewRegistration();
+            NodeManagerRegistration expected = NewRegistration();
+            ArrayOf<NodeManagerBatchChange> captured = default;
+            var retirement = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var result = new NodeManagerBatchResult(
+                operation == "Remove" ? [] : [expected], 0, null, 17, [expected.Slot], retirement.Task);
+            var prepared = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            prepared.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), cancellation.Token))
+                .Returns(new ValueTask<NodeManagerBatchResult>(result));
+            prepared.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var inner = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            inner.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
+                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+                .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
+            var hosted = new HostedNodeManagerLifecycle();
+            hosted.Attach(inner.Object);
+            IOperationContext context = Mock.Of<IOperationContext>(MockBehavior.Strict);
+
+            NodeManagerRegistration? actual = null;
+            switch (operation)
+            {
+                case "Add":
+                    actual = await hosted.AddAsync(factory, context, cancellation.Token).ConfigureAwait(false);
+                    break;
+                case "Reload":
+                    actual = await hosted.ReloadAsync(current, factory, context, cancellation.Token)
+                        .ConfigureAwait(false);
+                    break;
+                case "Shadow":
+                    actual = await hosted.ShadowReloadAsync(current, factory, cancellation.Token)
+                        .ConfigureAwait(false);
+                    break;
+                case "Immediate":
+                    actual = await hosted.ImmediateReloadAsync(current, factory, cancellation.Token)
+                        .ConfigureAwait(false);
+                    break;
+                default:
+                    await hosted.RemoveAsync(current, context, cancellation.Token).ConfigureAwait(false);
+                    break;
+            }
+
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0].Current, Is.SameAs(operation == "Add" ? null : current));
+            Assert.That(captured[0].Factory, Is.SameAs(operation == "Remove" ? null : factory));
+            Assert.That(captured[0].TransitionMode, Is.EqualTo(operation is "Immediate" or "Remove"
+                ? NodeManagerMonitoredItemTransitionMode.Invalidate : NodeManagerMonitoredItemTransitionMode.Migrate));
+            Assert.That(actual, Is.SameAs(operation == "Remove" ? null : expected));
+            Assert.That(retirement.Task.IsCompleted, Is.False);
+            retirement.SetResult(true);
+            await result.Retirement.ConfigureAwait(false);
+            inner.VerifyAll();
+            prepared.VerifyAll();
+            prepared.Verify(owner => owner.DisposeAsync(), Times.Once);
+        }
+
+        [TestCase("Add")]
+        [TestCase("Reload")]
+        [TestCase("Remove")]
+        public async Task CompatibilityFailuresRetainCommittedResultAndRegistrationAsync(string operation)
+        {
+            NodeManagerRegistration registration = NewRegistration();
+            var failure = new InvalidOperationException("readiness failed");
+            var retirement = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var result = new NodeManagerBatchResult(
+                operation == "Remove" ? [] : [registration],
+                0, new AggregateException(failure), 42, [registration.Slot], retirement.Task);
+            var prepared = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            prepared.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerBatchResult>(result));
+            prepared.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), CancellationToken.None))
+                .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
             IAsyncNodeManagerFactory factory = Mock.Of<IAsyncNodeManagerFactory>();
 
-            Assert.That(
-                async () => await hosted.AddAsync(factory, null).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void AddAsyncWithSyncFactoryThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            INodeManagerFactory factory = Mock.Of<INodeManagerFactory>();
-
-            Assert.That(
-                async () => await hosted.AddAsync(factory, null).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void ReloadAsyncWithAsyncFactoryThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            NodeManagerRegistration registration = NewRegistration();
-            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
-
-            Assert.That(
-                async () => await hosted.ReloadAsync(registration, replacement, null).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void ReloadAsyncWithSyncFactoryThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            NodeManagerRegistration registration = NewRegistration();
-            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
-
-            Assert.That(
-                async () => await hosted.ReloadAsync(registration, replacement, null).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void ShadowReloadAsyncWithAsyncFactoryThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            NodeManagerRegistration registration = NewRegistration();
-            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
-
-            Assert.That(
-                async () => await hosted.ShadowReloadAsync(registration, replacement).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void ShadowReloadAsyncWithSyncFactoryThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            NodeManagerRegistration registration = NewRegistration();
-            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
-
-            Assert.That(
-                async () => await hosted.ShadowReloadAsync(registration, replacement).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void RemoveAsyncThrowsWhenNotAttached()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            NodeManagerRegistration registration = NewRegistration();
-
-            Assert.That(
-                async () => await hosted.RemoveAsync(registration, null).ConfigureAwait(false),
-                Throws.InvalidOperationException);
-        }
-
-        [Test]
-        public void AttachThrowsOnNullLifecycle()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => hosted.Attach(null!))!;
-            Assert.That(ex.ParamName, Is.EqualTo("lifecycle"));
-        }
-
-        [Test]
-        public void DetachThrowsOnNullLifecycle()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => hosted.Detach(null!))!;
-            Assert.That(ex.ParamName, Is.EqualTo("lifecycle"));
-        }
-
-        [Test]
-        public void AttachSameInstanceTwiceDoesNotThrow()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            INodeManagerLifecycle inner = new Mock<INodeManagerLifecycle>().Object;
-
-            hosted.Attach(inner);
-
-            Assert.DoesNotThrow(() => hosted.Attach(inner));
-        }
-
-        [Test]
-        public void AttachDifferentInstanceWhileAttachedThrows()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            hosted.Attach(new Mock<INodeManagerLifecycle>().Object);
-
-            InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => hosted.Attach(new Mock<INodeManagerLifecycle>().Object))!;
-            Assert.That(ex.Message, Does.Contain("already attached"));
-        }
-
-        [Test]
-        public void RegistrationsDelegatesToAttachedLifecycle()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            var expected = ArrayOf.Wrapped(NewRegistration());
-            inner.Setup(l => l.Registrations).Returns(expected);
-            hosted.Attach(inner.Object);
-
-            ArrayOf<NodeManagerRegistration> actual = hosted.Registrations;
-
-            Assert.That(actual, Is.EqualTo(expected));
-        }
-
-        [Test]
-        public async Task AddAsyncWithAsyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            IAsyncNodeManagerFactory factory = Mock.Of<IAsyncNodeManagerFactory>();
-            NodeManagerRegistration expected = NewRegistration();
-            using var cts = new CancellationTokenSource();
-            inner
-                .Setup(l => l.AddAsync(factory, cts.Token))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted
-                .AddAsync(factory, null, cts.Token)
-                .ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-            inner.Verify(l => l.AddAsync(factory, cts.Token), Times.Once);
-        }
-
-        [Test]
-        public async Task AddAsyncWithSyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            INodeManagerFactory factory = Mock.Of<INodeManagerFactory>();
-            NodeManagerRegistration expected = NewRegistration();
-            inner
-                .Setup(l => l.AddAsync(factory, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted.AddAsync(factory, null).ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-        }
-
-        [Test]
-        public async Task ReloadAsyncWithAsyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration current = NewRegistration();
-            NodeManagerRegistration expected = NewRegistration();
-            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
-            inner
-                .Setup(l => l.ReloadAsync(current, replacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted
-                .ReloadAsync(current, replacement, null)
-                .ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-        }
-
-        [Test]
-        public async Task ReloadAsyncWithSyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration current = NewRegistration();
-            NodeManagerRegistration expected = NewRegistration();
-            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
-            inner
-                .Setup(l => l.ReloadAsync(current, replacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted
-                .ReloadAsync(current, replacement, null)
-                .ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-        }
-
-        [Test]
-        public async Task ShadowReloadAsyncWithAsyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration current = NewRegistration();
-            NodeManagerRegistration expected = NewRegistration();
-            IAsyncNodeManagerFactory replacement = Mock.Of<IAsyncNodeManagerFactory>();
-            inner
-                .Setup(l => l.ShadowReloadAsync(current, replacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted
-                .ShadowReloadAsync(current, replacement)
-                .ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-        }
-
-        [Test]
-        public async Task ShadowReloadAsyncWithSyncFactoryDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration current = NewRegistration();
-            NodeManagerRegistration expected = NewRegistration();
-            INodeManagerFactory replacement = Mock.Of<INodeManagerFactory>();
-            inner
-                .Setup(l => l.ShadowReloadAsync(current, replacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration actual = await hosted
-                .ShadowReloadAsync(current, replacement)
-                .ConfigureAwait(false);
-
-            Assert.That(actual, Is.SameAs(expected));
-        }
-
-        [Test]
-        public async Task RemoveAsyncDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration registration = NewRegistration();
-            inner
-                .Setup(l => l.RemoveAsync(registration, CancellationToken.None))
-                .Returns(default(ValueTask));
-            hosted.Attach(inner.Object);
-
-            await hosted.RemoveAsync(registration, null).ConfigureAwait(false);
-
-            inner.Verify(l => l.RemoveAsync(registration, CancellationToken.None), Times.Once);
-        }
-
-        [Test]
-        public async Task AddAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            IAsyncNodeManagerFactory asyncFactory = Mock.Of<IAsyncNodeManagerFactory>();
-            INodeManagerFactory syncFactory = Mock.Of<INodeManagerFactory>();
-            IOperationContext callerContext = Mock.Of<IOperationContext>();
-            NodeManagerRegistration expected = NewRegistration();
-            inner
-                .Setup(l => l.AddAsync(asyncFactory, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            inner
-                .Setup(l => l.AddAsync(syncFactory, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration fromAsync = await hosted
-                .AddAsync(asyncFactory, callerContext, CancellationToken.None)
-                .ConfigureAwait(false);
-            NodeManagerRegistration fromSync = await hosted
-                .AddAsync(syncFactory, callerContext, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            Assert.Multiple(() =>
+            Exception? exception = operation switch
             {
-                Assert.That(fromAsync, Is.SameAs(expected));
-                Assert.That(fromSync, Is.SameAs(expected));
-            });
-        }
-
-        [Test]
-        public async Task ReloadAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            NodeManagerRegistration current = NewRegistration();
-            NodeManagerRegistration expected = NewRegistration();
-            IAsyncNodeManagerFactory asyncReplacement = Mock.Of<IAsyncNodeManagerFactory>();
-            INodeManagerFactory syncReplacement = Mock.Of<INodeManagerFactory>();
-            IOperationContext callerContext = Mock.Of<IOperationContext>();
-            inner
-                .Setup(l => l.ReloadAsync(
-                    current, asyncReplacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            inner
-                .Setup(l => l.ReloadAsync(
-                    current, syncReplacement, CancellationToken.None))
-                .Returns(new ValueTask<NodeManagerRegistration>(expected));
-            hosted.Attach(inner.Object);
-
-            NodeManagerRegistration fromAsync = await hosted
-                .ReloadAsync(current, asyncReplacement, callerContext, CancellationToken.None)
-                .ConfigureAwait(false);
-            NodeManagerRegistration fromSync = await hosted
-                .ReloadAsync(current, syncReplacement, callerContext, CancellationToken.None)
-                .ConfigureAwait(false);
-
-            Assert.Multiple(() =>
+                "Add" => await Assert.ThrowsAsync<NodeManagerAddCommittedException>(
+                    async () => await lifecycle.Object.AddAsync(factory).ConfigureAwait(false)).ConfigureAwait(false),
+                "Reload" => await Assert.ThrowsAsync<NodeManagerReloadCommittedException>(
+                    async () => await lifecycle.Object.ReloadAsync(registration, factory).ConfigureAwait(false))
+                    .ConfigureAwait(false),
+                _ => await Assert.ThrowsAsync<NodeManagerRemovalCommittedException>(
+                    async () => await lifecycle.Object.RemoveAsync(registration).ConfigureAwait(false))
+                    .ConfigureAwait(false)
+            };
+            Assert.That(exception!.InnerException, Is.SameAs(failure));
+            Assert.That(exception switch
             {
-                Assert.That(fromAsync, Is.SameAs(expected));
-                Assert.That(fromSync, Is.SameAs(expected));
-            });
+                NodeManagerAddCommittedException added => added.Registration,
+                NodeManagerReloadCommittedException reloaded => reloaded.Registration,
+                NodeManagerRemovalCommittedException removed => removed.Registration,
+                _ => null
+            }, Is.SameAs(registration));
+            Assert.That(exception switch
+            {
+                NodeManagerAddCommittedException added => added.Result,
+                NodeManagerReloadCommittedException reloaded => reloaded.Result,
+                NodeManagerRemovalCommittedException removed => removed.Result,
+                _ => null
+            }, Is.SameAs(result));
+            Assert.That(result.Retirement.IsCompleted, Is.False);
+            retirement.SetResult(true);
+            await result.Retirement.ConfigureAwait(false);
+            prepared.VerifyAll();
         }
 
-        [Test]
-        public async Task RemoveAsyncWithCallerContextDelegatesToAttachedLifecycleAsync()
+        [TestCase("Add")]
+        [TestCase("Reload")]
+        [TestCase("Shadow")]
+        [TestCase("Immediate")]
+        public async Task SyncCompatibilityAdaptersRetainFactoryNamespacesAndCreationAsync(string operation)
         {
-            var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
             NodeManagerRegistration registration = NewRegistration();
-            IOperationContext callerContext = Mock.Of<IOperationContext>();
-            inner
-                .Setup(l => l.RemoveAsync(registration, CancellationToken.None))
-                .Returns(default(ValueTask));
-            hosted.Attach(inner.Object);
+            ArrayOf<NodeManagerBatchChange> captured = default;
+            var result = new NodeManagerBatchResult(
+                [registration], 0, null, 1, [registration.Slot], Task.CompletedTask);
+            var prepared = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            prepared.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), CancellationToken.None))
+                .Returns(new ValueTask<NodeManagerBatchResult>(result));
+            prepared.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), CancellationToken.None))
+                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+                .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
+            IServerInternal server = Mock.Of<IServerInternal>();
+            var configuration = new ApplicationConfiguration();
+            INodeManager manager = Mock.Of<INodeManager>();
+            var factory = new Mock<INodeManagerFactory>(MockBehavior.Strict);
+            factory.SetupGet(owner => owner.NamespacesUris).Returns(["urn:sync:adapter"]);
+            factory.Setup(owner => owner.Create(server, configuration)).Returns(manager);
+            IOperationContext context = Mock.Of<IOperationContext>(MockBehavior.Strict);
 
-            await hosted.RemoveAsync(registration, callerContext, CancellationToken.None).ConfigureAwait(false);
+            NodeManagerRegistration actual = operation switch
+            {
+                "Add" => await lifecycle.Object.AddAsync(factory.Object, context).ConfigureAwait(false),
+                "Reload" => await lifecycle.Object.ReloadAsync(registration, factory.Object, context)
+                    .ConfigureAwait(false),
+                "Shadow" => await lifecycle.Object.ShadowReloadAsync(registration, factory.Object)
+                    .ConfigureAwait(false),
+                _ => await lifecycle.Object.ImmediateReloadAsync(registration, factory.Object).ConfigureAwait(false)
+            };
 
-            inner.Verify(
-                l => l.RemoveAsync(registration, CancellationToken.None),
-                Times.Once);
+            Assert.That(actual, Is.SameAs(registration));
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0].Current, Is.SameAs(operation == "Add" ? null : registration));
+            Assert.That(captured[0].TransitionMode, Is.EqualTo(operation == "Immediate"
+                ? NodeManagerMonitoredItemTransitionMode.Invalidate : NodeManagerMonitoredItemTransitionMode.Migrate));
+            IAsyncNodeManagerFactory adapter = captured[0].Factory!;
+            Assert.That(adapter.NamespacesUris, Is.EqualTo(new ArrayOf<string>(["urn:sync:adapter"])));
+            using var canceled = new CancellationTokenSource();
+            canceled.Cancel();
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await adapter.CreateAsync(server, configuration, canceled.Token).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            factory.Verify(owner => owner.Create(server, configuration), Times.Never);
+            Assert.That(await adapter.CreateAsync(server, configuration).ConfigureAwait(false), Is.Not.Null);
+            factory.VerifyAll();
+            prepared.VerifyAll();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CompatibilityCommitFailureDisposesUncommittedOwnerAsync(bool canceled)
+        {
+            using var cancellation = new CancellationTokenSource();
+            Exception failure = canceled
+                ? new OperationCanceledException(cancellation.Token)
+                : new InvalidOperationException("decision rejected");
+            var prepared = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            prepared.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), cancellation.Token)).Throws(failure);
+            prepared.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
+                .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
+
+            Exception? actual = await Assert.CatchAsync(
+                async () => await lifecycle.Object.AddAsync(
+                    Mock.Of<IAsyncNodeManagerFactory>(), Mock.Of<IOperationContext>(), cancellation.Token)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+
+            Assert.That(actual, Is.SameAs(failure));
+            prepared.Verify(owner => owner.DisposeAsync(), Times.Once);
+            lifecycle.VerifyAll();
         }
 
         [Test]
-        public void DetachWithMismatchedLifecycleDoesNotClearCurrent()
+        public void AttachDetachRejectNullAndDifferentOwners()
         {
             var hosted = new HostedNodeManagerLifecycle();
-            var inner = new Mock<INodeManagerLifecycle>();
-            inner.Setup(l => l.Registrations).Returns(ArrayOf.Wrapped(Array.Empty<NodeManagerRegistration>()));
-            hosted.Attach(inner.Object);
-
-            hosted.Detach(new Mock<INodeManagerLifecycle>().Object);
-
-            Assert.DoesNotThrow(() => _ = hosted.Registrations);
-        }
-
-        [Test]
-        public void DetachWithMatchingLifecycleClearsCurrent()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            INodeManagerLifecycle inner = new Mock<INodeManagerLifecycle>().Object;
-            hosted.Attach(inner);
-
-            hosted.Detach(inner);
-
-            Assert.Throws<InvalidOperationException>(() => _ = hosted.Registrations);
-        }
-
-        [Test]
-        public void ReattachAfterDetachSucceeds()
-        {
-            var hosted = new HostedNodeManagerLifecycle();
-            INodeManagerLifecycle first = new Mock<INodeManagerLifecycle>().Object;
+            INodeManagerLifecycle first = Mock.Of<INodeManagerLifecycle>();
+            INodeManagerLifecycle second = Mock.Of<INodeManagerLifecycle>();
+            Assert.Throws<ArgumentNullException>(() => hosted.Attach(null!));
+            Assert.Throws<ArgumentNullException>(() => hosted.Detach(null!));
             hosted.Attach(first);
+            Assert.DoesNotThrow(() => hosted.Attach(first));
+            Assert.Throws<InvalidOperationException>(() => hosted.Attach(second));
+            hosted.Detach(second);
+            Assert.Throws<InvalidOperationException>(() => hosted.Attach(second));
             hosted.Detach(first);
-
-            var second = new Mock<INodeManagerLifecycle>();
-            second.Setup(l => l.Registrations).Returns(ArrayOf.Wrapped(Array.Empty<NodeManagerRegistration>()));
-
-            Assert.DoesNotThrow(() => hosted.Attach(second.Object));
-            Assert.DoesNotThrow(() => _ = hosted.Registrations);
+            Assert.Throws<InvalidOperationException>(() => _ = hosted.Registrations);
+            Assert.DoesNotThrow(() => hosted.Attach(second));
         }
 
         private static NodeManagerRegistration NewRegistration()
         {
             var nodeManager = new Mock<IAsyncNodeManager>();
-            nodeManager.Setup(m => m.NamespaceUris).Returns(["urn:test:hosted-lifecycle"]);
+            nodeManager.Setup(manager => manager.NamespaceUris).Returns(["urn:test:hosted-lifecycle"]);
             return new NodeManagerRegistration(Guid.NewGuid(), 1, nodeManager.Object);
         }
+
+        private static readonly string[] s_primaryMethods = ["PrepareAsync", "CapturePublication"];
     }
 }

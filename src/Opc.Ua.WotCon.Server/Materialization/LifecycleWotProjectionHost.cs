@@ -41,11 +41,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
     /// <summary>
     /// The production <see cref="IWotProjectionHost"/> that projects WoT closures
     /// onto the live server through the public NodeManager lifecycle. First
-    /// activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
-    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
-    /// updates use
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.ShadowReloadRuntimeNodeSetAsync"/>,
+    /// activation prepares an addition; updates prepare a replacement transaction,
     /// migrating compatible monitored items and invalidating items unavailable
     /// in the replacement. The previous generation is not retained for future
     /// requests or continuations. The stable WoT registry NodeManager is never
@@ -79,101 +75,44 @@ namespace Opc.Ua.WotCon.Server.Materialization
         /// <inheritdoc/>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        public async ValueTask<WotProjectionHandle> AddAsync(
+        public ValueTask<WotProjectionHandle> AddAsync(
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
-            RuntimeNodeSetOptions options = BuildOptions(document);
-            var publication = new WotProjectionRuntimePublication(options);
-            NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, cancellationToken)
-                .ConfigureAwait(false);
-            publication.Publish(registration.Generation);
-            return new WotProjectionHandle(
-                document.ClosureKey,
-                registration.Generation,
-                new NodeManagerProjectionRegistration(registration),
-                [],
-                0);
+            return CommitProjectionAsync(
+                document, null, NodeManagerMonitoredItemTransitionMode.Migrate, cancellationToken);
         }
 
         /// <inheritdoc/>
         /// <param name="current">The WoT projection handle.</param>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        public async ValueTask<WotProjectionHandle> ShadowReloadAsync(
+        public ValueTask<WotProjectionHandle> ShadowReloadAsync(
             WotProjectionHandle current,
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
-            if (current?.Registration is not NodeManagerProjectionRegistration wrapper)
-            {
-                // No live registration to reload; fall back to a fresh add.
-                return await AddAsync(document, cancellationToken).ConfigureAwait(false);
-            }
-            RuntimeNodeSetOptions options = BuildOptions(document);
-            var publication = new WotProjectionRuntimePublication(options);
-            NodeManagerRegistration next;
-            string warning = string.Empty;
-            try
-            {
-                next = await m_lifecycle
-                    .ShadowReloadRuntimeNodeSetAsync(wrapper.Registration, options, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (NodeManagerReloadCommittedException ex)
-            {
-                next = ex.Registration;
-                warning = "The replacement is active, but prior-generation cleanup is pending: " +
-                    ex.Message;
-            }
-            publication.Publish(next.Generation);
-            return new WotProjectionHandle(
-                document.ClosureKey,
-                next.Generation,
-                new NodeManagerProjectionRegistration(next),
-                [],
-                0,
-                warning);
+            return CommitProjectionAsync(
+                document,
+                (current?.Registration as NodeManagerProjectionRegistration)?.Registration,
+                NodeManagerMonitoredItemTransitionMode.Migrate,
+                cancellationToken);
         }
 
         /// <inheritdoc/>
         /// <param name="current">The WoT projection handle.</param>
         /// <param name="document">The WoT projection document.</param>
         /// <param name="cancellationToken">The cancellation token supplied by the caller.</param>
-        public async ValueTask<WotProjectionHandle> ImmediateReloadAsync(
+        public ValueTask<WotProjectionHandle> ImmediateReloadAsync(
             WotProjectionHandle current,
             WotProjectionDocument document,
             CancellationToken cancellationToken = default)
         {
-            if (current?.Registration is not NodeManagerProjectionRegistration wrapper)
-            {
-                return await AddAsync(document, cancellationToken).ConfigureAwait(false);
-            }
-            RuntimeNodeSetOptions options = BuildOptions(document);
-            var publication = new WotProjectionRuntimePublication(options);
-            NodeManagerRegistration next;
-            string warning = string.Empty;
-            try
-            {
-                next = await m_lifecycle
-                    .ImmediateReloadRuntimeNodeSetAsync(wrapper.Registration, options, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            catch (NodeManagerReloadCommittedException ex)
-            {
-                next = ex.Registration;
-                warning = "The replacement is active, but prior-generation cleanup is pending: " +
-                    ex.Message;
-            }
-            publication.Publish(next.Generation);
-            return new WotProjectionHandle(
-                document.ClosureKey,
-                next.Generation,
-                new NodeManagerProjectionRegistration(next),
-                [],
-                0,
-                warning);
+            return CommitProjectionAsync(
+                document,
+                (current?.Registration as NodeManagerProjectionRegistration)?.Registration,
+                NodeManagerMonitoredItemTransitionMode.Invalidate,
+                cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -188,10 +127,60 @@ namespace Opc.Ua.WotCon.Server.Materialization
 
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
-                await m_lifecycle
-                    .RemoveAsync(wrapper.Registration, cancellationToken)
+                IPreparedNodeManagerBatch prepared = await m_lifecycle
+                    .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], cancellationToken)
                     .ConfigureAwait(false);
+                await using var preparedLifetime = prepared.ConfigureAwait(false);
+                NodeManagerBatchResult result = await prepared
+                    .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
+                if (result.CleanupFailure is { } failure)
+                {
+                    throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
+                }
             }
+        }
+
+        /// <summary>
+        /// Publishes the runtime and registration in the same prepared transaction before readiness.
+        /// </summary>
+        private async ValueTask<WotProjectionHandle> CommitProjectionAsync(
+            WotProjectionDocument document,
+            NodeManagerRegistration? current,
+            NodeManagerMonitoredItemTransitionMode transitionMode,
+            CancellationToken cancellationToken)
+        {
+            RuntimeNodeSetOptions options = BuildOptions(document);
+            var publication = new WotProjectionRuntimePublication(options);
+            var factory = new RuntimeNodeSetNodeManagerFactory(options);
+            NodeManagerBatchChange change = current is null
+                ? NodeManagerBatchChange.Add(factory)
+                : NodeManagerBatchChange.Replace(current, factory, transitionMode);
+            IPreparedNodeManagerBatch prepared =
+                await m_lifecycle.PrepareAsync([change], cancellationToken).ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            NodeManagerRegistration candidate = prepared.Registrations[0];
+            NodeManagerBatchResult result = await prepared.CommitAsync(
+                static _ => default,
+                () => publication.Publish(candidate.Generation),
+                cancellationToken).ConfigureAwait(false);
+            NodeManagerRegistration registration = result.Registrations[0];
+            string warning = string.Empty;
+            if (result.CleanupFailure is { } failure)
+            {
+                if (current is null)
+                {
+                    throw new NodeManagerAddCommittedException(
+                        registration, result, "The WoT projection is live, but reconciliation failed.", failure);
+                }
+                warning = "The replacement is active, but prior-generation cleanup is pending: " + failure.Message;
+            }
+            return new WotProjectionHandle(
+                document.ClosureKey,
+                registration.Generation,
+                new NodeManagerProjectionRegistration(registration),
+                [],
+                0,
+                warning);
         }
 
         private RuntimeNodeSetOptions BuildOptions(WotProjectionDocument document)

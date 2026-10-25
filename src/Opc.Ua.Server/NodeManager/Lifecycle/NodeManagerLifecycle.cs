@@ -409,398 +409,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            IAsyncNodeManagerFactory factory,
-            CancellationToken ct = default)
-        {
-            return AddAsync(factory, callerContext: null, ct: ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            INodeManagerFactory factory,
-            CancellationToken ct = default)
-        {
-            return AddAsync(factory, callerContext: null, ct: ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            IAsyncNodeManagerFactory factory,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (factory is null)
-            {
-                throw new ArgumentNullException(nameof(factory));
-            }
-
-            bool allowRequestCallback = IsRequestCallbackSafe(factory);
-            _ = GetRunningServer(allowRequestCallback, callerContext);
-            ValidateFactoryRegistration(factory, null);
-            return AddCoreAsync(
-                factory.CreateAsync,
-                allowRequestCallback,
-                factory.NamespacesUris,
-                callerContext,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> AddAsync(
-            INodeManagerFactory factory,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (factory is null)
-            {
-                throw new ArgumentNullException(nameof(factory));
-            }
-
-            _ = GetRunningServer(allowRequestCallback: false, callerContext);
-            return AddCoreAsync(
-                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
-                    factory.Create(server, configuration).ToAsyncNodeManager()),
-                allowRequestCallback: false,
-                factory.NamespacesUris,
-                callerContext,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            return ReloadAsync(registration, replacement, callerContext: null, ct: ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            return ReloadAsync(registration, replacement, callerContext: null, ct: ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            ValidateFactoryRegistration(replacement, registration);
-            return ReloadCoreAsync(
-                registration,
-                replacement.CreateAsync,
-                ReloadRetirementMode.Migrate,
-                allowRequestCallback: IsRequestCallbackSafe(replacement),
-                namespacesUris: default,
-                callerContext,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            return ReloadCoreAsync(
-                registration,
-                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
-                    replacement.Create(server, configuration).ToAsyncNodeManager()),
-                ReloadRetirementMode.Migrate,
-                allowRequestCallback: false,
-                namespacesUris: default,
-                callerContext,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            ValidateFactoryRegistration(replacement, registration);
-            return ReloadCoreAsync(
-                registration,
-                replacement.CreateAsync,
-                ReloadRetirementMode.Migrate,
-                allowRequestCallback: IsRequestCallbackSafe(replacement),
-                namespacesUris: default,
-                callerContext: null,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ShadowReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            return ReloadCoreAsync(
-                registration,
-                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
-                    replacement.Create(server, configuration).ToAsyncNodeManager()),
-                ReloadRetirementMode.Migrate,
-                allowRequestCallback: false,
-                namespacesUris: default,
-                callerContext: null,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
-            NodeManagerRegistration registration,
-            IAsyncNodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            ValidateFactoryRegistration(replacement, registration);
-            return ReloadCoreAsync(
-                registration,
-                replacement.CreateAsync,
-                ReloadRetirementMode.Invalidate,
-                allowRequestCallback: IsRequestCallbackSafe(replacement),
-                replacement.NamespacesUris,
-                callerContext: null,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<NodeManagerRegistration> ImmediateReloadAsync(
-            NodeManagerRegistration registration,
-            INodeManagerFactory replacement,
-            CancellationToken ct = default)
-        {
-            if (replacement is null)
-            {
-                throw new ArgumentNullException(nameof(replacement));
-            }
-
-            return ReloadCoreAsync(
-                registration,
-                (server, configuration, _) => new ValueTask<IAsyncNodeManager>(
-                    replacement.Create(server, configuration).ToAsyncNodeManager()),
-                ReloadRetirementMode.Invalidate,
-                allowRequestCallback: false,
-                replacement.NamespacesUris,
-                callerContext: null,
-                ct);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask RemoveAsync(
-            NodeManagerRegistration registration,
-            CancellationToken ct = default)
-        {
-            return RemoveAsync(registration, callerContext: null, ct: ct);
-        }
-
-        /// <inheritdoc/>
-        public async ValueTask RemoveAsync(
-            NodeManagerRegistration registration,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (registration is null)
-            {
-                throw new ArgumentNullException(nameof(registration));
-            }
-            IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
-                [NodeManagerBatchChange.Remove(registration)],
-                publication: null,
-                callerContext,
-                ct).ConfigureAwait(false);
-            await using (batch.ConfigureAwait(false))
-            {
-                NodeManagerBatchResult result = await batch
-                    .CommitAsync(static _ => default, ct)
-                    .ConfigureAwait(false);
-                Exception? failure = result.CleanupFailure;
-                if (result.Retirement.IsCompleted)
-                {
-                    try
-                    {
-                        await result.Retirement.ConfigureAwait(false);
-                    }
-                    catch (Exception retirementFailure) when (retirementFailure is not OutOfMemoryException)
-                    {
-                        failure ??= retirementFailure;
-                    }
-                }
-                else
-                {
-                    ObserveRetirement(result.Retirement);
-                }
-                if (failure is not null)
-                {
-                    throw new NodeManagerRemovalCommittedException(registration, result, failure);
-                }
-            }
-        }
-
-        private static void ObserveRetirement(Task retirement)
-        {
-            _ = retirement.ContinueWith(
-                static completed => _ = completed.Exception,
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnFaulted,
-                TaskScheduler.Default);
-        }
-
-        private async ValueTask<NodeManagerRegistration> AddCoreAsync(
-            CreateNodeManagerAsync createNodeManager,
-            bool allowRequestCallback,
-            ArrayOf<string> namespacesUris,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            var factory = new LifecycleNodeManagerFactory(
-                createNodeManager,
-                namespacesUris,
-                allowRequestCallback);
-            IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
-                [NodeManagerBatchChange.Add(factory)],
-                publication: null,
-                callerContext,
-                ct,
-                retainWriter: true).ConfigureAwait(false);
-            await using (batch.ConfigureAwait(false))
-            {
-                NodeManagerBatchResult result = await batch
-                    .CommitAsync(static _ => default, ct)
-                    .ConfigureAwait(false);
-                NodeManagerRegistration registration = result.Registrations[0];
-                if (result.CleanupFailure is { } failure)
-                {
-                    if (failure is AggregateException aggregateFailure &&
-                        aggregateFailure.Flatten().InnerExceptions.Count == 1)
-                    {
-                        failure = aggregateFailure.Flatten().InnerExceptions[0];
-                    }
-                    throw new NodeManagerAddCommittedException(
-                        registration,
-                        "The NodeManager was added, but post-commit binding, readiness or notification failed. " +
-                        "The published generation was retained and remains available from Registrations.",
-                        failure);
-                }
-                return registration;
-            }
-        }
-
-        /// <summary>
-        /// Replaces a registration through the prepared publication pipeline.
-        /// </summary>
-        /// <param name="registration">The registration to replace.</param>
-        /// <param name="createNodeManager">The callback creating the replacement manager.</param>
-        /// <param name="namespacesUris">The namespaces declared by the replacement factory.</param>
-        /// <param name="allowRequestCallback">Whether the factory permits callback-originated lifecycle work.</param>
-        /// <param name="callerContext">The calling operation context, if any.</param>
-        /// <param name="transitionMode">How monitored items owned by the retiring generation are handled.</param>
-        /// <param name="ct">The token used to cancel preparation or decision.</param>
-        /// <returns>The committed replacement registration.</returns>
-        private async ValueTask<NodeManagerRegistration> ReloadThroughBatchAsync(
-            NodeManagerRegistration registration,
-            CreateNodeManagerAsync createNodeManager,
-            ArrayOf<string> namespacesUris,
-            bool allowRequestCallback,
-            IOperationContext? callerContext,
-            NodeManagerMonitoredItemTransitionMode transitionMode,
-            CancellationToken ct)
-        {
-            var factory = new LifecycleNodeManagerFactory(
-                createNodeManager,
-                namespacesUris,
-                allowRequestCallback);
-            IPreparedNodeManagerBatch batch = await PrepareBatchAsync(
-                [NodeManagerBatchChange.Replace(
-                    registration,
-                    factory,
-                    transitionMode)],
-                publication: null,
-                callerContext,
-                ct,
-                retainWriter: true).ConfigureAwait(false);
-            await using (batch.ConfigureAwait(false))
-            {
-                NodeManagerBatchResult result = await batch
-                    .CommitAsync(static _ => default, ct)
-                    .ConfigureAwait(false);
-                NodeManagerRegistration replacement = result.Registrations[0];
-                if (result.CleanupFailure is { } failure)
-                {
-                    if (failure is AggregateException aggregateFailure &&
-                        aggregateFailure.Flatten().InnerExceptions.Count == 1)
-                    {
-                        failure = aggregateFailure.Flatten().InnerExceptions[0];
-                    }
-                    throw new NodeManagerReloadCommittedException(
-                        replacement,
-                        "The replacement NodeManager is live and the replacement generation was retained, but " +
-                        "post-commit reconciliation failed. A later lifecycle operation will retry generation cleanup.",
-                        failure);
-                }
-                return replacement;
-            }
-        }
-
-        private ValueTask<NodeManagerRegistration> ReloadCoreAsync(
-            NodeManagerRegistration registration,
-            CreateNodeManagerAsync createNodeManager,
-            ReloadRetirementMode retirementMode,
-            bool allowRequestCallback,
-            ArrayOf<string> namespacesUris,
-            IOperationContext? callerContext,
-            CancellationToken ct = default)
-        {
-            if (registration is null)
-            {
-                throw new ArgumentNullException(nameof(registration));
-            }
-            return ReloadThroughBatchAsync(
-                registration,
-                createNodeManager,
-                namespacesUris,
-                allowRequestCallback,
-                callerContext,
-                retirementMode == ReloadRetirementMode.Migrate
-                    ? NodeManagerMonitoredItemTransitionMode.Migrate
-                    : NodeManagerMonitoredItemTransitionMode.Invalidate,
-                ct);
-        }
-
         /// <summary>
         /// Notifies a registered node manager outside mutation serialization and revalidates its registration.
         /// </summary>
@@ -849,8 +457,7 @@ namespace Opc.Ua.Server
         }
 
         private (IServerInternal Server, IDynamicNodeManagerHost Host) GetRunningServer(
-            bool allowRequestCallback = false,
-            IOperationContext? callerContext = null)
+            bool allowRequestCallback = false)
         {
             m_writer.EnsureRunning();
 
@@ -861,7 +468,7 @@ namespace Opc.Ua.Server
             }
 
             IServerInternal server = m_server.CurrentInstance;
-            if (IsExecutingRequest(server, callerContext) &&
+            if (server.RequestManager.IsCurrentRequestExecuting() &&
                 !allowRequestCallback)
             {
                 throw new InvalidOperationException(
@@ -931,30 +538,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private void EnsureRequestCallbackAllowed(
-            bool allowRequestCallback,
-            IOperationContext? callerContext)
-        {
-            // The server state is deliberately not consulted. A request that is still executing
-            // while the server shuts down would otherwise slip past the guard and wait for its
-            // own request, and the request registry reports an exact answer in every state.
-            if (IsExecutingRequest(m_server.CurrentInstance, callerContext) &&
-                !allowRequestCallback)
-            {
-                throw new InvalidOperationException(
-                    "NodeManager lifecycle operations cannot run from an OPC UA request callback.");
-            }
-        }
-
-        private static bool IsExecutingRequest(
-            IServerInternal server,
-            IOperationContext? callerContext)
-        {
-            return callerContext is null
-                ? server.RequestManager.IsCurrentRequestExecuting()
-                : server.RequestManager.IsExecutingRequest(callerContext);
-        }
-
         private ValueTask<LifecycleWriter.Mutation> BeginMutationAsync(
             RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter,
             CancellationToken ct)
@@ -963,7 +546,7 @@ namespace Opc.Ua.Server
         }
 
         private static RequestManagerLifecycleExtension.RequestLifecycleWaiterScope?
-            EnterRequestLifecycleWaiter(IServerInternal server, IOperationContext? callerContext = null)
+            EnterRequestLifecycleWaiter(IServerInternal server)
         {
             RequestManagerLifecycleExtension? extension =
                 server.RequestManager.LifecycleExtension;
@@ -972,14 +555,6 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            // An executing request named by the explicit caller context is the one to exclude from its own
-            // drain. Callers without such a context (ShadowReloadAsync and other internal callers) still run
-            // inside a request scope, so the ambient request keeps them excluded.
-            if (callerContext is OperationContext operation &&
-                server.RequestManager.IsExecutingRequest(operation))
-            {
-                return extension.EnterLifecycleWaiter(operation.RequestId);
-            }
             uint? currentRequestId =
                 server.RequestManager.GetCurrentRequestIdForLifecycleExtension();
             return currentRequestId.HasValue && currentRequestId.Value != uint.MaxValue
@@ -1672,63 +1247,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private delegate ValueTask<IAsyncNodeManager> CreateNodeManagerAsync(
-            IServerInternal server,
-            ApplicationConfiguration configuration,
-            CancellationToken ct);
-
-        /// <summary>
-        /// Carries a legacy factory callback into the prepared lifecycle transaction.
-        /// </summary>
-        private sealed class LifecycleNodeManagerFactory :
-            IAsyncNodeManagerFactory,
-            IRequestCallbackSafeNodeManagerFactory
-        {
-            /// <summary>
-            /// Creates an adapter for the existing factory callback.
-            /// </summary>
-            /// <param name="createNodeManager">The callback creating the candidate manager.</param>
-            /// <param name="namespacesUris">The candidate manager's declared namespaces.</param>
-            /// <param name="allowRequestCallback">Whether the factory permits callback-originated lifecycle work.</param>
-            public LifecycleNodeManagerFactory(
-                CreateNodeManagerAsync createNodeManager,
-                ArrayOf<string> namespacesUris,
-                bool allowRequestCallback)
-            {
-                m_createNodeManager = createNodeManager;
-                NamespacesUris = namespacesUris;
-                AllowLifecycleFromRequestCallback = allowRequestCallback;
-            }
-
-            /// <summary>
-            /// Gets the namespaces declared by the wrapped factory.
-            /// </summary>
-            public ArrayOf<string> NamespacesUris { get; }
-
-            /// <summary>
-            /// Gets whether the wrapped factory permits callback-originated lifecycle work.
-            /// </summary>
-            public bool AllowLifecycleFromRequestCallback { get; }
-
-            /// <summary>
-            /// Creates the NodeManager using the wrapped callback.
-            /// </summary>
-            /// <param name="server">The staging server.</param>
-            /// <param name="configuration">The application configuration.</param>
-            /// <param name="cancellationToken">The token to cancel candidate creation.</param>
-            /// <returns>The prepared candidate manager.</returns>
-            public ValueTask<IAsyncNodeManager> CreateAsync(
-                IServerInternal server,
-                ApplicationConfiguration configuration,
-                CancellationToken cancellationToken = default)
-            {
-                return m_createNodeManager(server, configuration, cancellationToken);
-            }
-
-            /// <summary>The factory callback being adapted.</summary>
-            private readonly CreateNodeManagerAsync m_createNodeManager;
-        }
-
         /// <summary>
         /// Tracks monitored items while a NodeManager reload detaches them from the retiring
         /// NodeManager and attaches compatible items to the replacement.
@@ -2140,12 +1658,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        private enum ReloadRetirementMode
-        {
-            Migrate,
-            Invalidate
-        }
-
         private sealed class RegistrationState
         {
             public RegistrationState(
@@ -2177,16 +1689,7 @@ namespace Opc.Ua.Server
             ArrayOf<NodeManagerBatchChange> changes,
             CancellationToken cancellationToken = default)
         {
-            return PrepareBatchAsync(changes, null, callerContext: null, cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
-            ArrayOf<NodeManagerBatchChange> changes,
-            IOperationContext? callerContext,
-            CancellationToken cancellationToken = default)
-        {
-            return PrepareBatchAsync(changes, null, callerContext, cancellationToken);
+            return PrepareBatchAsync(changes, null, cancellationToken);
         }
 
         /// <summary>
@@ -2195,23 +1698,17 @@ namespace Opc.Ua.Server
         /// <param name="changes">The additions, replacements and retirements of the unit.</param>
         /// <param name="publication">The invocation that owns publication admission, or null for a standalone
         /// batch.</param>
-        /// <param name="callerContext">The operation the caller is running under, or null for an ordinary external
-        /// caller. It is retained by the prepared batch for its commit.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <param name="readImages">Read images to publish together with the changes.</param>
         /// <param name="validationOnly">Whether the batch is a validation candidate that can never be
         /// committed.</param>
-        /// <param name="retainWriter">Whether the prepared batch keeps the lifecycle writer
-        /// until it is committed or disposed, so no other lifecycle operation can interleave.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken,
             ArrayOf<INodeManagerReadImage> readImages = default,
-            bool validationOnly = false,
-            bool retainWriter = false)
+            bool validationOnly = false)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0))
             {
@@ -2248,7 +1745,7 @@ namespace Opc.Ua.Server
             {
                 operation = EnterLifecycleOperation(publication?.Reservation);
                 (IServerInternal server, IDynamicNodeManagerHost host) =
-                    GetRunningServer(allowRequestCallback, callerContext);
+                    GetRunningServer(allowRequestCallback);
                 if (host is not IDynamicNodeManagerBatchHost)
                 {
                     throw new NotSupportedException("The server host does not support prepared publication.");
@@ -2259,10 +1756,9 @@ namespace Opc.Ua.Server
                 }
                 await m_reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
-                    EnterRequestLifecycleWaiter(server, callerContext);
+                    EnterRequestLifecycleWaiter(server);
                 LifecycleWriter.Mutation mutation = await BeginMutationAsync(waiter, cancellationToken)
                     .ConfigureAwait(false);
-                bool releaseWriter = true;
                 ChangePreparer? preparation = null;
                 try
                 {
@@ -2341,16 +1837,10 @@ namespace Opc.Ua.Server
                         this, server, host, entries, operation, namespaceCount, allowRequestCallback,
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
-                        preparation.FactoryRevision, resolver, validationOnly, callerContext, preparation);
+                        preparation.FactoryRevision, resolver, validationOnly, preparation);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
-                    }
-                    if (retainWriter)
-                    {
-                        // Direct Add/Reload are one writer operation: keep the captured metadata revision current.
-                        prepared.RetainWriter(mutation);
-                        releaseWriter = false;
                     }
                     operation = null;
                     return prepared;
@@ -2368,10 +1858,7 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    if (releaseWriter)
-                    {
-                        mutation.Dispose();
-                    }
+                    mutation.Dispose();
                 }
             }
             finally
@@ -2398,11 +1885,9 @@ namespace Opc.Ua.Server
         {
             ThrowIfDecisionCallbackActive();
 
-            LifecycleWriter.Mutation? retainedMutation = batch.TakeWriter();
-            bool writerHeld = retainedMutation is not null;
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
-                writerHeld ? null : EnterRequestLifecycleWaiter(batch.Server);
-            LifecycleWriter.Mutation mutation = retainedMutation ??
+                EnterRequestLifecycleWaiter(batch.Server);
+            LifecycleWriter.Mutation mutation =
                 await BeginMutationAsync(waiter, cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredGeneration>();
             bool releaseWriter = true;
@@ -2681,13 +2166,11 @@ namespace Opc.Ua.Server
                             await RecoverDetachedMonitoredItemsAsync(
                                 batch.Server, entry.Manager, CancellationToken.None).ConfigureAwait(false);
                         }
-                        // A single-registration operation lets its caller cancel readiness; a prepared batch has
-                        // already committed every change, so its readiness runs to completion.
                         await CompleteReadinessAsync(
                             batch.Server,
                             batch.Host,
                             entry.Next,
-                            writerHeld ? cancellationToken : CancellationToken.None).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception failure) when (failure is not OutOfMemoryException)
                     {
@@ -2905,8 +2388,6 @@ namespace Opc.Ua.Server
             /// <param name="factoryRevision">The revision of the published factory.</param>
             /// <param name="resolver">The data type definition resolver, or null.</param>
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
-            /// <param name="callerContext">The operation the batch was prepared under, or null for an ordinary
-            /// external caller.</param>
             /// <param name="preparation">The explicit private staging metadata.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
@@ -2924,11 +2405,9 @@ namespace Opc.Ua.Server
                 long factoryRevision,
                 IDataTypeDefinitionResolver? resolver,
                 bool validationOnly,
-                IOperationContext? callerContext,
                 ChangePreparer preparation)
             {
                 m_owner = owner;
-                CallerContext = callerContext;
                 Preparation = preparation;
                 Server = server;
                 Host = host;
@@ -2946,28 +2425,6 @@ namespace Opc.Ua.Server
                 IsValidationOnly = validationOnly;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
-            }
-
-            /// <summary>
-            /// Gets the operation the batch was prepared under, or null for an ordinary external caller.
-            /// </summary>
-            public IOperationContext? CallerContext { get; }
-
-            /// <summary>
-            /// Transfers the held lifecycle writer to this batch.
-            /// </summary>
-            public void RetainWriter(LifecycleWriter.Mutation mutation)
-            {
-                Volatile.Write(ref m_retainedMutation, mutation);
-            }
-
-            /// <summary>
-            /// Takes ownership of a lifecycle writer retained from preparation.
-            /// </summary>
-            /// <returns>True when the caller now owns the held writer.</returns>
-            public LifecycleWriter.Mutation? TakeWriter()
-            {
-                return Interlocked.Exchange(ref m_retainedMutation, null);
             }
 
             /// <summary>
@@ -3138,8 +2595,6 @@ namespace Opc.Ua.Server
                     await m_finished.Task.ConfigureAwait(false);
                 }
                 OperationLifetime? operation = Interlocked.Exchange(ref m_operation, null);
-                LifecycleWriter.Mutation? mutation = TakeWriter();
-                mutation?.Dispose();
                 try
                 {
                     if (operation is null)
@@ -3219,7 +2674,6 @@ namespace Opc.Ua.Server
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private OperationLifetime? m_operation;
-            private LifecycleWriter.Mutation? m_retainedMutation;
             private int m_state;
             private bool m_readImagesBound;
         }
@@ -3240,19 +2694,16 @@ namespace Opc.Ua.Server
         /// captured revisions are still current.
         /// </summary>
         /// <param name="capture">The capture the invocation belongs to.</param>
-        /// <param name="callerContext">The operation the caller is running under, or null for an ordinary external
-        /// caller.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The publication invocation.</returns>
         private PublicationInvocation BeginPublication(
             PublicationCapture capture,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost, allowRequestCallback: true);
             LifecycleWriter.PublicationReservation reservation = m_writer.ReservePublication(capture.Revision);
-            return new PublicationInvocation(this, capture, reservation, callerContext);
+            return new PublicationInvocation(this, capture, reservation);
         }
 
         /// <summary>
@@ -3268,16 +2719,8 @@ namespace Opc.Ua.Server
             public ValueTask<INodeManagerPublication> BeginAsync(
                 CancellationToken cancellationToken = default)
             {
-                return BeginAsync(callerContext: null, cancellationToken);
-            }
-
-            /// <inheritdoc/>
-            public ValueTask<INodeManagerPublication> BeginAsync(
-                IOperationContext? callerContext,
-                CancellationToken cancellationToken = default)
-            {
                 return new ValueTask<INodeManagerPublication>(
-                    Owner.BeginPublication(this, callerContext, cancellationToken));
+                    Owner.BeginPublication(this, cancellationToken));
             }
         }
 
@@ -3287,13 +2730,10 @@ namespace Opc.Ua.Server
         /// <param name="owner">The lifecycle that admitted the publication.</param>
         /// <param name="capture">The capture the publication belongs to.</param>
         /// <param name="reservation">The writer-owned invocation reservation.</param>
-        /// <param name="callerContext">The operation the publication was begun under, or null for an ordinary
-        /// external caller.</param>
         private sealed class PublicationInvocation(
             NodeManagerLifecycle owner,
             PublicationCapture capture,
-            LifecycleWriter.PublicationReservation reservation,
-            IOperationContext? callerContext) : INodeManagerValidationPublication
+            LifecycleWriter.PublicationReservation reservation) : INodeManagerValidationPublication
         {
             /// <summary>
             /// Gets whether the captured revisions were current when the publication was admitted.
@@ -3366,7 +2806,7 @@ namespace Opc.Ua.Server
                 bool validationOnly = false)
             {
                 return Reservation.PrepareAsync(() => owner.PrepareBatchAsync(
-                    changes, this, callerContext, cancellationToken, images, validationOnly));
+                    changes, this, cancellationToken, images, validationOnly));
             }
 
             /// <inheritdoc/>

@@ -145,7 +145,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Generation, Is.EqualTo(1));
                         AssertReadinessManager(observed, manager, synchronousFactory);
@@ -247,7 +247,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Id, Is.EqualTo(original.Id));
                         Assert.That(observed.Generation, Is.EqualTo(2));
@@ -402,7 +402,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(timeout.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
                             .ConfigureAwait(false);
@@ -431,13 +431,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// Both cancellation from the participant and a cancelled caller whose
-        /// participant returns normally must fail Add without losing committed identity.
+        /// Caller cancellation cannot abort committed readiness. Independent participant cancellation
+        /// is reported with the authoritative committed identity.
         /// </summary>
         [TestCase(false)]
         [TestCase(true)]
         [Category("NodeManagerReadiness")]
-        public async Task AddAsyncReadinessCancellationRetainsRegistrationForCleanupAsync(bool observeCancellation)
+        public async Task AddAsyncReadinessCancellationPreservesCommittedOutcomeAsync(bool observeCancellation)
         {
             using var caller = new CancellationTokenSource(s_readinessTimeout);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -461,14 +461,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration1Value)
                             .ConfigureAwait(false);
                         entered.TrySetResult(true);
-                        // Intentionally independent of ct: the false case requires the
-                        // lifecycle's post-callback cancellation check to reject success.
                         await release.Task.WaitAsync(s_readinessTimeout, CancellationToken.None).ConfigureAwait(false);
                         if (observeCancellation)
                         {
                             try
                             {
-                                ct.ThrowIfCancellationRequested();
+                                caller.Token.ThrowIfCancellationRequested();
                             }
                             catch (OperationCanceledException exception)
                             {
@@ -481,34 +479,47 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 caller.Token);
 
             NodeManagerAddCommittedException? failure = null;
+            NodeManagerRegistration? added = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
-                Assert.That(receivedToken, Is.EqualTo(caller.Token));
+                Assert.That(receivedToken.CanBeCanceled, Is.False);
                 Assert.That(operation.IsCompleted, Is.False);
                 caller.Cancel();
             }
             finally
             {
                 release.TrySetResult(true);
-                failure = await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
-                    .ConfigureAwait(false);
+                if (observeCancellation)
+                {
+                    failure = await ExpectReadinessExceptionAsync<NodeManagerAddCommittedException>(operation)
+                        .ConfigureAwait(false);
+                }
+                else
+                {
+                    added = await operation.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                }
             }
 
-            AssertLifecycleValue(failure);
             AssertLifecycleValue(participant);
             AssertLifecycleValue(observed);
-            Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
-            Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
-            Assert.That(
-                RequireLifecycleValue(failure.InnerException as OperationCanceledException).CancellationToken,
-                Is.EqualTo(caller.Token));
             if (observeCancellation)
             {
+                AssertLifecycleValue(failure);
+                Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
+                Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
+                Assert.That(
+                    RequireLifecycleValue(failure.InnerException as OperationCanceledException).CancellationToken,
+                    Is.EqualTo(caller.Token));
                 Assert.That(failure.InnerException, Is.SameAs(callbackCancellation));
+                Assert.That(failure.Registration, Is.SameAs(observed));
+                Assert.That(failure.Result!.Registrations[0], Is.SameAs(observed));
+            }
+            else
+            {
+                Assert.That(added, Is.SameAs(observed));
             }
             Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
-            Assert.That(failure.Registration, Is.SameAs(observed));
             Assert.That(observed.Generation, Is.EqualTo(1));
             Assert.That(observed.NodeManager, Is.SameAs(participant));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
@@ -558,7 +569,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     participant = manager;
                     manager.ReadinessCallback = async ct =>
                     {
-                        Assert.That(ct, Is.EqualTo(caller.Token));
+                        Assert.That(ct.CanBeCanceled, Is.False);
                         observed = FindReadinessRegistration();
                         Assert.That(observed.Id, Is.EqualTo(original.Id));
                         Assert.That(observed.Generation, Is.EqualTo(2));
@@ -567,7 +578,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         if (cancel)
                         {
                             caller.Cancel();
-                            Assert.That(ct.IsCancellationRequested, Is.True);
+                            Assert.That(ct.IsCancellationRequested, Is.False);
                         }
                         throw expected;
                     };

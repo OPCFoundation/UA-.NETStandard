@@ -175,11 +175,20 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 return m_manager;
             }
             var factory = new ViewNodeManagerFactory();
-            m_registration = await m_lifecycle
-                .AddAsync(factory, cancellationToken)
+            IPreparedNodeManagerBatch prepared = await m_lifecycle
+                .PrepareAsync([NodeManagerBatchChange.Add(factory)], cancellationToken)
                 .ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared
+                .CommitAsync(static _ => default, cancellationToken).ConfigureAwait(false);
+            m_registration = result.Registrations[0];
             m_manager = factory.Created ?? throw new InvalidOperationException(
                 "The projection-view NodeManager factory did not create a NodeManager.");
+            if (result.CleanupFailure is { } failure)
+            {
+                throw new NodeManagerAddCommittedException(
+                    m_registration, result, "The WoT view is live, but reconciliation failed.", failure);
+            }
             return m_manager;
         }
 

@@ -46,8 +46,10 @@ namespace Opc.Ua.Server
     /// <para>
     /// Runtime readiness runs outside registration serialization. The generation remains
     /// published and owned by its startup operation: competing removal or reload is
-    /// rejected until that operation completes. A readiness failure, including cancellation,
-    /// is a post-commit failure, not a rollback. The live registration remains available
+    /// rejected until that operation completes. Runtime publication invokes readiness with
+    /// a non-cancelable token; canceling the original registration request cannot abandon
+    /// committed initialization. A readiness failure is a post-commit failure, not a rollback.
+    /// The live registration remains available
     /// for recovery or removal. DeleteAddressSpaceAsync must release any dependencies
     /// created before the failure.
     /// </para>
@@ -57,7 +59,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Completes initialization once runtime lifecycle operations are available.
         /// </summary>
-        /// <param name="cancellationToken">The caller's startup or registration cancellation token.</param>
+        /// <param name="cancellationToken">
+        /// The host's startup cancellation token, or a non-cancelable token for committed runtime publication.
+        /// </param>
         ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default);
     }
 

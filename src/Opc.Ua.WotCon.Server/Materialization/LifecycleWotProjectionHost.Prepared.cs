@@ -39,12 +39,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
 {
     /// <summary>
     /// The production <see cref="IWotProjectionHost"/> that projects WoT closures
-    /// onto the live server through the public NodeManager lifecycle. First
-    /// activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
-    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
-    /// updates use
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.ShadowReloadRuntimeNodeSetAsync"/>,
+    /// onto the live server through prepared NodeManager transactions,
     /// migrating compatible monitored items and invalidating items unavailable
     /// in the replacement. The previous generation is not retained for future
     /// requests or continuations. The stable WoT registry NodeManager is never

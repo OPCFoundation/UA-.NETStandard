@@ -56,17 +56,6 @@ namespace Opc.Ua.Server
         ValueTask<INodeManagerPublication> BeginAsync(
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Reserves one invocation. Conflicting lifecycle work is rejected before effects.
-        /// A stale capture returns an invocation whose IsCurrent is false and cannot prepare units.
-        /// </summary>
-        /// <param name="callerContext">Legacy explicit request context. New callers should use the overload without
-        /// this parameter; request lifetime is discovered by the lifecycle implementation.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The invocation that retains publication admission until disposed.</returns>
-        ValueTask<INodeManagerPublication> BeginAsync(
-            IOperationContext? callerContext,
-            CancellationToken cancellationToken = default);
     }
 
     /// <summary>

@@ -22,6 +22,7 @@ covers cross-cutting changes.
 - [Removed members on ISession](#removed-members-on-isession)
 - [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
 - [Compatible metadata in prepared NodeManager batches](#compatible-metadata-in-prepared-nodemanager-batches)
+- [Migrating NodeManager lifecycle convenience calls](#migrating-nodemanager-lifecycle-convenience-calls)
 - [Migrating code that called IServerInternal.Set\* mutators](#migrating-code-that-called-iserverinternalset-mutators)
 - [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
 - [Removed members on IServerInternal](#removed-members-on-iserverinternal)
@@ -69,6 +70,50 @@ for use in any repository:
 copilot plugin marketplace add OPCFoundation/UA-.NETStandard
 copilot plugin install opcua-v20-migration@opcua-dotnet
 ```
+
+## Migrating NodeManager lifecycle convenience calls
+
+`INodeManagerLifecycle` exposes `Revision`, stable `Slots`, registration snapshots, and the
+context-free prepared transaction API. `AddAsync`, `ReloadAsync`, `ShadowReloadAsync`,
+`ImmediateReloadAsync`, and `RemoveAsync` are no longer interface or concrete provider members.
+For one release, obsolete extension methods preserve ordinary source calls, including synchronous
+factory and explicit-context overloads. Runtime NodeSet convenience extensions are obsolete too.
+These APIs were not present in the 1.5.378 compatibility baseline; custom implementations or mocks
+of the newer interface must now implement or set up `PrepareAsync` rather than convenience methods.
+Extension methods cannot be intercepted by mocking libraries.
+
+| Previous call | Prepared change |
+| --- | --- |
+| `AddAsync(factory)` | `NodeManagerBatchChange.Add(asyncFactory)` |
+| `ReloadAsync(current, factory)` or `ShadowReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Migrate)` |
+| `ImmediateReloadAsync(current, factory)` | `NodeManagerBatchChange.Replace(current, asyncFactory, NodeManagerMonitoredItemTransitionMode.Invalidate)` |
+| `RemoveAsync(current)` | `NodeManagerBatchChange.Remove(current)` |
+| Runtime NodeSet add/reload helpers | The same changes using `new RuntimeNodeSetNodeManagerFactory(options)` |
+
+```csharp
+await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+    [NodeManagerBatchChange.Replace(current, factory)], cancellationToken);
+NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, cancellationToken);
+current = result.Registrations[0]; // Authoritative even if result.CleanupFailure is non-null.
+```
+
+Pass no callback context to `PrepareAsync` or `CapturePublication().BeginAsync`. Obsolete context
+extensions ignore it and forward only the changes and cancellation token. Use an
+`IAsyncNodeManagerFactory` for new transactions; the synchronous factory adapter exists only in
+the obsolete shims. There is no retained-generation reload mode.
+
+Commit awaits reconciliation and readiness, but retirement is asynchronous. Unlike the former
+single-operation pipeline, committed runtime readiness uses a noncancelable token; caller cancellation
+after publication cannot interrupt it. Participant-thrown cancellation is still a committed failure.
+Inspect `CleanupFailure`
+and retain the published revision/slots/registrations rather than retrying a committed operation as
+an addition. Await `result.Retirement` only outside work whose admission must drain. The compatibility
+shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedException`, and
+`NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
+`Result`. Add/reload exceptions created using their legacy constructors have no result.
+Uncommitted preparation or decision failures must still dispose the prepared owner.
+
+See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 
 ## Compatible metadata in prepared NodeManager batches
 

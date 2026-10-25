@@ -88,8 +88,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.AddAsync(
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current == null &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory),
                     cancellation.Token),
                 Times.Once);
         }
@@ -104,8 +106,10 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.AddAsync(
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current == null &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -165,9 +169,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.ReloadAsync(
-                    registration,
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current == registration &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                        changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     cancellation.Token),
                 Times.Once);
         }
@@ -185,9 +191,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.ReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current != null &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                        changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -238,9 +246,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.ShadowReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current != null &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                        changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -291,9 +301,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
 
             lifecycle.Verify(
-                l => l.ImmediateReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<RuntimeNodeSetNodeManagerFactory>(),
+                l => l.PrepareAsync(
+                    It.Is<ArrayOf<NodeManagerBatchChange>>(changes =>
+                        changes.Count == 1 && changes[0].Current != null &&
+                        changes[0].Factory is RuntimeNodeSetNodeManagerFactory &&
+                        changes[0].TransitionMode == NodeManagerMonitoredItemTransitionMode.Invalidate),
                     It.IsAny<CancellationToken>()),
                 Times.Once);
         }
@@ -301,30 +313,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private static Mock<INodeManagerLifecycle> CreateLifecycle()
         {
             NodeManagerRegistration registration = CreateRegistration();
+            var prepared = new Mock<IPreparedNodeManagerBatch>(MockBehavior.Strict);
+            prepared.Setup(owner => owner.CommitAsync(
+                It.IsAny<Func<CancellationToken, ValueTask>>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<NodeManagerBatchResult>(new NodeManagerBatchResult(
+                    [registration], 0, null, 1, [registration.Slot], Task.CompletedTask)));
+            prepared.Setup(owner => owner.DisposeAsync()).Returns(default(ValueTask));
             var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
             lifecycle
-                .Setup(l => l.AddAsync(
-                    It.IsAny<IAsyncNodeManagerFactory>(),
+                .Setup(l => l.PrepareAsync(
+                    It.IsAny<ArrayOf<NodeManagerBatchChange>>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeManagerRegistration>(registration));
-            lifecycle
-                .Setup(l => l.ReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<IAsyncNodeManagerFactory>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeManagerRegistration>(registration));
-            lifecycle
-                .Setup(l => l.ShadowReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<IAsyncNodeManagerFactory>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeManagerRegistration>(registration));
-            lifecycle
-                .Setup(l => l.ImmediateReloadAsync(
-                    It.IsAny<NodeManagerRegistration>(),
-                    It.IsAny<IAsyncNodeManagerFactory>(),
-                    It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeManagerRegistration>(registration));
+                .Returns(new ValueTask<IPreparedNodeManagerBatch>(prepared.Object));
             return lifecycle;
         }
 

@@ -306,9 +306,7 @@ namespace Opc.Ua.XRegistry.Server
     /// closures onto the live server through the public NodeManager lifecycle.
     /// </summary>
     /// <remarks>
-    /// First activation uses
-    /// <see cref="RuntimeNodeSetLifecycleExtensions.AddRuntimeNodeSetAsync(
-    /// INodeManagerLifecycle, RuntimeNodeSetOptions, CancellationToken)"/>;
+    /// First activation prepares an addition transaction;
     /// updates migrate compatible monitored items and invalidate items that
     /// cannot bind to the replacement. The previous generation is not retained
     /// for future requests or continuations. The stable registry NodeManager is
@@ -337,9 +335,18 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             RuntimeNodeSetOptions options = BuildOptions(document);
-            NodeManagerRegistration registration = await m_lifecycle
-                .AddRuntimeNodeSetAsync(options, ct)
+            IPreparedNodeManagerBatch prepared = await m_lifecycle
+                .PrepareAsync([NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(options))], ct)
                 .ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared
+                .CommitAsync(static _ => default, ct).ConfigureAwait(false);
+            NodeManagerRegistration registration = result.Registrations[0];
+            if (result.CleanupFailure is { } failure)
+            {
+                throw new NodeManagerAddCommittedException(
+                    registration, result, "The projection is live, but reconciliation failed.", failure);
+            }
             return new XRegistryProjectionHandle(
                 document.Key,
                 registration.Generation,
@@ -378,9 +385,15 @@ namespace Opc.Ua.XRegistry.Server
 
             if (handle?.Registration is NodeManagerProjectionRegistration wrapper)
             {
-                await m_lifecycle
-                    .RemoveAsync(wrapper.Registration, ct)
+                IPreparedNodeManagerBatch prepared = await m_lifecycle
+                    .PrepareAsync([NodeManagerBatchChange.Remove(wrapper.Registration)], ct)
                     .ConfigureAwait(false);
+                await using var preparedLifetime = prepared.ConfigureAwait(false);
+                NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
+                if (result.CleanupFailure is { } failure)
+                {
+                    throw new NodeManagerRemovalCommittedException(wrapper.Registration, result, failure);
+                }
             }
         }
 
@@ -402,23 +415,23 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             RuntimeNodeSetOptions options = BuildOptions(document);
-            NodeManagerRegistration next;
+            IPreparedNodeManagerBatch prepared = await m_lifecycle
+                .PrepareAsync(
+                    [NodeManagerBatchChange.Replace(
+                        wrapper.Registration,
+                        new RuntimeNodeSetNodeManagerFactory(options),
+                        immediate
+                            ? NodeManagerMonitoredItemTransitionMode.Invalidate
+                            : NodeManagerMonitoredItemTransitionMode.Migrate)],
+                    ct).ConfigureAwait(false);
+            await using var preparedLifetime = prepared.ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct).ConfigureAwait(false);
+            NodeManagerRegistration next = result.Registrations[0];
             string warning = string.Empty;
-            try
+            if (result.CleanupFailure is { } failure)
             {
-                next = immediate
-                    ? await m_lifecycle
-                        .ImmediateReloadRuntimeNodeSetAsync(wrapper.Registration, options, ct)
-                        .ConfigureAwait(false)
-                    : await m_lifecycle
-                        .ShadowReloadRuntimeNodeSetAsync(wrapper.Registration, options, ct)
-                        .ConfigureAwait(false);
-            }
-            catch (NodeManagerReloadCommittedException ex)
-            {
-                next = ex.Registration;
                 warning = "The replacement is active, but prior-generation cleanup is pending: " +
-                    ex.Message;
+                    failure.Message;
             }
 
             return new XRegistryProjectionHandle(

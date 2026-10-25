@@ -53,6 +53,54 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     public sealed class LifecycleWotProjectionHostBindingTests
     {
         /// <summary>
+        /// Verifies immediate host entry points prepare canonical additions and preserve pre-commit failures.
+        /// </summary>
+        [TestCase("Add")]
+        [TestCase("Shadow")]
+        [TestCase("Immediate")]
+        public async Task DirectProjectionUsesCanonicalPreparationAndPreservesFailureAsync(string operation)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var failure = new InvalidOperationException("candidate rejected");
+            ArrayOf<NodeManagerBatchChange> captured = default;
+            var lifecycle = new Mock<INodeManagerLifecycle>(MockBehavior.Strict);
+            lifecycle.Setup(owner => owner.PrepareAsync(
+                It.IsAny<ArrayOf<NodeManagerBatchChange>>(), cancellation.Token))
+                .Callback<ArrayOf<NodeManagerBatchChange>, CancellationToken>((changes, _) => captured = changes)
+                .Throws(failure);
+            var host = new LifecycleWotProjectionHost(lifecycle.Object);
+            var document = new WotProjectionDocument("direct",
+            [
+                new WotProjectionSource("direct", ["urn:wot:direct"], Encoding.UTF8.GetBytes("""
+                    <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                      <NamespaceUris><Uri>urn:wot:direct</Uri></NamespaceUris>
+                    </UANodeSet>
+                    """))
+            ]);
+            var missing = new WotProjectionHandle("direct", 0, null, [], 0);
+
+            Exception? actual = operation switch
+            {
+                "Add" => await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await host.AddAsync(document, cancellation.Token).ConfigureAwait(false))
+                    .ConfigureAwait(false),
+                "Shadow" => await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await host.ShadowReloadAsync(missing, document, cancellation.Token)
+                        .ConfigureAwait(false)).ConfigureAwait(false),
+                _ => await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await host.ImmediateReloadAsync(missing, document, cancellation.Token)
+                        .ConfigureAwait(false)).ConfigureAwait(false)
+            };
+
+            Assert.That(actual, Is.SameAs(failure));
+            Assert.That(captured.Count, Is.EqualTo(1));
+            Assert.That(captured[0].Current, Is.Null);
+            Assert.That(captured[0].Factory, Is.InstanceOf<RuntimeNodeSetNodeManagerFactory>());
+            lifecycle.VerifyAll();
+            lifecycle.VerifyNoOtherCalls();
+        }
+
+        /// <summary>
         /// Verifies standalone preparation uses the canonical context-free transaction and preserves failures.
         /// </summary>
         /// <param name="hasContext">Whether the WoT compatibility entry point receives a request context.</param>

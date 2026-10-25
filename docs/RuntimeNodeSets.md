@@ -82,86 +82,113 @@ public sealed class ModelRegistration(INodeManagerLifecycle lifecycle)
 }
 ```
 
-Running servers also expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly. The lifecycle provider can add, reload, shadow-reload, and remove runtime NodeSets without restarting the server.
+Running servers expose `INodeManagerLifecycle`. Resolve it from dependency injection in a hosted
+server, or use `StandardServer.NodeManagerLifecycle` when constructing the server directly.
+Prepare additions, replacements, and removals using `RuntimeNodeSetNodeManagerFactory`, then
+commit the prepared owner without restarting the server.
 
 ```csharp
 public sealed class ModelLoader(INodeManagerLifecycle lifecycle)
 {
-    private NodeManagerRegistration? m_registration;
-
     public async ValueTask LoadAsync(CancellationToken ct)
     {
-        m_registration = await lifecycle.AddRuntimeNodeSetAsync(
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+        {
+            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+        });
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Add(factory)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = result.Registrations[0];
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerAddCommittedException(
+                m_registration, result, "The NodeSet is live but reconciliation failed.", failure);
+        }
     }
 
     public async ValueTask ReloadAsync(CancellationToken ct)
     {
-        m_registration = await lifecycle.ReloadRuntimeNodeSetAsync(
-            m_registration!,
-            new RuntimeNodeSetOptions
-            {
-                Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-            },
-            callerContext: null,
-            ct);
+        var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+        {
+            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+        });
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Replace(m_registration!, factory)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = result.Registrations[0];
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerReloadCommittedException(
+                m_registration, result, "The replacement is live but reconciliation failed.", failure);
+        }
     }
 
-    public ValueTask RemoveAsync(CancellationToken ct)
+    public async ValueTask RemoveAsync(CancellationToken ct)
     {
-        return lifecycle.RemoveAsync(m_registration!, callerContext: null, ct);
+        NodeManagerRegistration current = m_registration!;
+        await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+            [NodeManagerBatchChange.Remove(current)], ct);
+        NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+        m_registration = null;
+        if (result.CleanupFailure is { } failure)
+        {
+            throw new NodeManagerRemovalCommittedException(current, result, failure);
+        }
     }
+
+    private NodeManagerRegistration? m_registration;
 }
 ```
 
 Each add returns an immutable `NodeManagerRegistration`, and reload returns the next generation while invalidating the previous handle.
 
 A registration obtained from `Registrations` for an `AddRuntimeNodeSet` model is already the first
-live generation; pass it directly to `ReloadRuntimeNodeSetAsync`,
-`ShadowReloadRuntimeNodeSetAsync`, `ImmediateReloadRuntimeNodeSetAsync`, or `RemoveAsync`.
+live generation; pass it directly to `NodeManagerBatchChange.Replace` or `NodeManagerBatchChange.Remove`.
 
-`AddRuntimeNodeSetAsync`, `ReloadRuntimeNodeSetAsync`, and `RemoveAsync` take the operation the caller is running under. Pass `context.GetOperationContext()` when calling from a NodeManager or Method callback: a lifecycle operation drains the requests that are in flight, so one started from inside a request would wait for itself and is rejected with an `InvalidOperationException`. A control-plane caller such as the `ModelLoader` above is not serving a request and passes `null`. See [Registering NodeManagers](NodeManagers.md#runtime-registration).
+Preparation is context-free, including inside a NodeManager or Method callback. To permit runtime
+NodeSet creation from a request callback, set `RuntimeNodeSetOptions.AllowLifecycleFromRequestCallback`.
+Commit awaits reconciliation and readiness but not the retiring generation's drain. Await the result's
+`Retirement` task only outside callbacks or requests whose admissions must drain.
+See [Registering NodeManagers](NodeManagers.md#runtime-registration).
 
 The rules that apply to every NodeManager registered at runtime -- what happens to MonitoredItems, Browse continuation points, namespace indexes, DataTypes, and change notifications, and which NodeManagers may be reloaded at all -- are described once in [Registering NodeManagers](NodeManagers.md#registering-node-managers). Runtime NodeSets follow those rules, and the built-in runtime NodeSet manager already implements the `INodeManagerReloadParticipant` contract that reload requires.
 
-### Shadow reload
+### Migrating replacement
 
-`ShadowReloadRuntimeNodeSetAsync` permits replacing a generation that still owns
-active monitored items. Those items stay on the retired generation and continue
-to be served there until they are deleted or otherwise released; new requests use
-the replacement generation. Normal reload instead migrates compatible monitored items.
+The default `Migrate` transition replaces a generation that still owns active monitored items.
+Compatible items move to the replacement and retain their identities; incompatible nodes become
+unresolved. The old generation is not retained for existing subscriptions or continuation points.
 
 ```csharp
-public async ValueTask ShadowReloadAsync(CancellationToken ct)
+public async ValueTask ReplaceAsync(CancellationToken ct)
 {
-    m_registration = await lifecycle.ShadowReloadRuntimeNodeSetAsync(
-        m_registration!,
-        new RuntimeNodeSetOptions
-        {
-            Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
-        },
-        ct);
+    var factory = new RuntimeNodeSetNodeManagerFactory(new RuntimeNodeSetOptions
+    {
+        Sources = [RuntimeNodeSetSource.FromFile("Models/MyMachine.NodeSet2.xml")]
+    });
+    await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+        [NodeManagerBatchChange.Replace(m_registration!, factory,
+            NodeManagerMonitoredItemTransitionMode.Migrate)], ct);
+    NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, ct);
+    m_registration = result.Registrations[0];
+    // Inspect result.CleanupFailure; publication cannot be undone by a readiness failure.
 }
 ```
 
 The returned registration replaces the old handle for lifecycle operations.
-Choose shadow reload only when retaining the old model for existing subscriptions
-is intentional; its resources remain allocated until those subscriptions drain.
+Retirement releases resources after admitted work on the old generation drains.
 
 ### Immediate reload
 
-`ImmediateReloadRuntimeNodeSetAsync` does not migrate existing monitored items.
+`NodeManagerBatchChange.Replace(..., NodeManagerMonitoredItemTransitionMode.Invalidate)`
+does not migrate existing monitored items.
 Affected data-change items receive `BadNodeIdUnknown`, and clients may recreate
 items against the replacement model.
 
 The [node-manager reload matrix](NodeManagers.md#reload-modes) is authoritative for
-all three modes, including request draining, continuation points, and generation
-cleanup. Runtime NodeSet reload methods use those same lifecycle operations.
+both transitions, including request lifetimes, continuation points, and generation cleanup.
+Runtime NodeSet transactions use the same lifecycle pipeline.
 
 ## Quick-start examples
 
