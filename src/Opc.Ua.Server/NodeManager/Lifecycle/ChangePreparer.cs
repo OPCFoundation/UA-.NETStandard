@@ -402,6 +402,36 @@ namespace Opc.Ua.Server
                 => m_server.DeleteSubscriptionAsync(subscriptionId, cancellationToken);
 
             /// <summary>
+            /// Captures the contributions whose removal belongs to publication, not address-space deletion.
+            /// </summary>
+            /// <param name="references">The candidate's external contributions.</param>
+            internal void CaptureExternalReferences(Dictionary<NodeId, IList<IReference>> references)
+            {
+                foreach (KeyValuePair<NodeId, IList<IReference>> source in references)
+                {
+                    var contributed = new ReferenceDictionary<bool>();
+                    foreach (IReference reference in source.Value)
+                    {
+                        contributed[new NodeStateReference(
+                            reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)] = true;
+                    }
+                    m_externalReferences.Add(source.Key, contributed);
+                }
+            }
+
+            /// <summary>
+            /// Excludes transaction-owned contributions from legacy inverse-reference cleanup.
+            /// </summary>
+            /// <param name="references">The inverse references discovered during deletion.</param>
+            internal void ExcludePreparedReferences(List<LocalReference> references)
+            {
+                references.RemoveAll(reference =>
+                    m_externalReferences.TryGetValue(reference.SourceId, out ReferenceDictionary<bool>? contributed) &&
+                    contributed.ContainsKey(new NodeStateReference(
+                        reference.ReferenceTypeId, reference.IsInverse, reference.TargetId)));
+            }
+
+            /// <summary>
             /// Binds cached metadata handles to canonical storage after compatible publication.
             /// </summary>
             internal void Bind()
@@ -525,6 +555,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Retains root-notifier reference intent until external-reference publication.</summary>
             private readonly HashSet<NodeId> m_pendingRootNotifierReferences = [];
+
+            /// <summary>Frozen reference contributions reconciled by publication before physical deletion.</summary>
+            private readonly Dictionary<NodeId, ReferenceDictionary<bool>> m_externalReferences = [];
         }
     }
 }

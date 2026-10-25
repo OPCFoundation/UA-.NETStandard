@@ -887,7 +887,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await AddPredefinedNodeAsync(SystemContext, target, cancellationToken).ConfigureAwait(false);
             }
 
-            public override ValueTask<object> GetManagerHandleAsync(
+            public override async ValueTask<object> GetManagerHandleAsync(
                 NodeId nodeId,
                 CancellationToken cancellationToken = default)
             {
@@ -896,7 +896,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Interlocked.Increment(ref m_rejectedHandleLookups);
                     throw new ObjectDisposedException(nameof(TrackingLifecycleNodeManager));
                 }
-                return base.GetManagerHandleAsync(nodeId, cancellationToken);
+                if (ManagerHandleCallback is not null)
+                {
+                    await ManagerHandleCallback(nodeId, cancellationToken).ConfigureAwait(false);
+                }
+                return await base.GetManagerHandleAsync(nodeId, cancellationToken).ConfigureAwait(false);
             }
 
             private int m_rejectedHandleLookups;

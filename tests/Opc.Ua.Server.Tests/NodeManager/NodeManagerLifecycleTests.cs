@@ -8212,6 +8212,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public ServiceResult AllEventsUnsubscribeResult { get; set; } = ServiceResult.Good;
 
             /// <summary>
+            /// Gets or sets a barrier before physical address-space deletion.
+            /// </summary>
+            public Func<CancellationToken, ValueTask>? BeforeDeleteAddressSpaceAsync { get; set; }
+
+            /// <summary>
+            /// Gets or sets a barrier during explicit reference-owner discovery.
+            /// </summary>
+            public Func<NodeId, CancellationToken, ValueTask>? ManagerHandleCallback { get; set; }
+
+            /// <summary>
             /// Gets the number of all-events subscriptions dispatched to this generation.
             /// </summary>
             public int AllEventsSubscribeCount =>
@@ -8497,6 +8507,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (TryConsumeFailure(ref m_deleteAddressSpaceFailuresRemaining))
                 {
                     throw new SentinelException("DeleteAddressSpaceAsync failed.");
+                }
+                if (BeforeDeleteAddressSpaceAsync is not null)
+                {
+                    await BeforeDeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
                 }
                 await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             }

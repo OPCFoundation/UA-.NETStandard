@@ -687,7 +687,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                             It.IsAny<CancellationToken>())).Returns(async (
                                 ArrayOf<WotProjectionChange> changes, IWotPreparedViewPublication? views,
                                 CancellationToken ct) =>
-                            Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes));
+                        {
+                            if (probe.BeforePrepareAsync is { } before)
+                            {
+                                await before(ct).ConfigureAwait(false);
+                            }
+                            return Track(await admitted.PrepareAsync(changes, views, ct).ConfigureAwait(false), changes);
+                        });
                         invocation.Setup(value => value.PrepareReadImagesAsync(
                             It.IsAny<ArrayOf<INodeManagerReadImage>>(), It.IsAny<CancellationToken>()))
                             .Returns((ArrayOf<INodeManagerReadImage> images, CancellationToken ct) =>
@@ -721,6 +727,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
         private sealed class HandoffProbe
         {
+            /// <summary>
+            /// Gets or sets the callback before an invocation prepares its next publication unit.
+            /// </summary>
+            public Func<CancellationToken, ValueTask>? BeforePrepareAsync { get; set; }
+
             /// <summary>
             /// Gets or sets the before decision async for <c>HandoffProbe</c>.
             /// </summary>

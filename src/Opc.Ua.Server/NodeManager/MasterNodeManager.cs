@@ -628,6 +628,7 @@ namespace Opc.Ua.Server
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
                 ChangePreparer.GetServer(nodeManager)?.AppendRootNotifierReferences(externalReferences);
+                ChangePreparer.GetServer(nodeManager)?.CaptureExternalReferences(externalReferences);
                 prepared = true;
                 return new PreparedNodeManager(nodeManager, externalReferences);
             }
@@ -713,6 +714,9 @@ namespace Opc.Ua.Server
                     customNodeManager.GetRemovedExternalReferences(),
                 _ => []
             };
+            // Publication already reconciled these exact contributions. Replaying their removal could erase a
+            // replacement's same-identifier reference or invalidate an independent transaction's preparation.
+            ChangePreparer.GetServer(nodeManager)?.ExcludePreparedReferences(referencesToRemove);
             if (referencesToRemove.Count > 0)
             {
                 await RemoveReferencesAsync(referencesToRemove, ct).ConfigureAwait(false);

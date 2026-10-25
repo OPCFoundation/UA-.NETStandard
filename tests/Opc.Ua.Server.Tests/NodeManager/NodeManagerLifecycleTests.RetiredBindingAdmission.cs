@@ -39,6 +39,126 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        /// <summary>
+        /// Removes a real generation's contributed reference at publication, before physical deletion.
+        /// </summary>
+        [Test]
+        public async Task RemovedGenerationReferenceIsWithdrawnBeforePhysicalRetirementAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IServerInternal server = m_server.CurrentInstance;
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }), null, timeout.Token)
+                .ConfigureAwait(false);
+            var rootId = new NodeId(kRootNodeId, checked((ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri)));
+            BaseObjectState folder = RequireLifecycleValue(
+                server.FindPredefinedNode<BaseObjectState>(ObjectIds.ObjectsFolder));
+            Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.True);
+            NodeManagerRoutingTable.RoutingSnapshot oldView =
+                ((IDynamicNodeManagerBatchHost)server.NodeManager).RoutingRevision;
+            Assert.That(oldView.TryPin(out int stripe), Is.True);
+            NodeManagerBatchResult removal;
+            try
+            {
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Remove(registration, true)], null, timeout.Token).ConfigureAwait(false);
+                removal = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
+                Assert.That(removal.CleanupFailure, Is.Null);
+                Assert.That(removal.Retirement.IsCompleted, Is.False);
+                Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.False);
+            }
+            finally
+            {
+                oldView.Epoch.Exit(stripe);
+            }
+            await removal.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+            Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.False);
+        }
+
+        /// <summary>
+        /// Keeps transaction-owned inbound references intact after a same-identifier generation retires.
+        /// </summary>
+        /// <param name="overlap">Whether retirement completes after an independent source plan is captured.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetiredGenerationCannotRemoveReplacementOrganizesReferenceAsync(bool overlap)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IServerInternal server = m_server.CurrentInstance;
+            var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
+            TrackingLifecycleNodeManager? original = null;
+            NodeManagerRegistration registration = await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, manager => original = manager),
+                null, timeout.Token)
+                .ConfigureAwait(false);
+            var rootId = new NodeId(kRootNodeId, checked((ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri)));
+            BaseObjectState folder = RequireLifecycleValue(
+                server.FindPredefinedNode<BaseObjectState>(ObjectIds.ObjectsFolder));
+            Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.True);
+
+            var deleting = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            NodeManagerRoutingTable.RoutingSnapshot oldView =
+                ((IDynamicNodeManagerBatchHost)server.NodeManager).RoutingRevision;
+            Assert.That(oldView.TryPin(out int stripe), Is.True);
+            bool pinned = true;
+            RequireLifecycleValue(original).BeforeDeleteAddressSpaceAsync = async token =>
+            {
+                deleting.TrySetResult(true);
+                await release.Task.WaitAsync(token).ConfigureAwait(false);
+            };
+            try
+            {
+                await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
+                    [NodeManagerBatchChange.Replace(registration,
+                        CreateTrackingNodeManagementFactory(kGeneration2Value, _ => { }), true)],
+                    null, timeout.Token).ConfigureAwait(false);
+                NodeManagerBatchResult replacement = await prepared.CommitAsync(_ => default, timeout.Token)
+                    .ConfigureAwait(false);
+                Assert.That(replacement.CleanupFailure, Is.Null);
+                oldView.Epoch.Exit(stripe);
+                pinned = false;
+                await deleting.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.True);
+
+                int captured = 0;
+                if (overlap)
+                {
+                    await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                        303,
+                        manager => manager.ManagerHandleCallback = async (nodeId, _) =>
+                        {
+                            // The core owner is visited before candidates, so its reference plan is already frozen.
+                            if (nodeId == ObjectIds.ObjectsFolder &&
+                                Interlocked.Exchange(ref captured, 1) == 0)
+                            {
+                                release.TrySetResult(true);
+                                await replacement.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                            }
+                        },
+                        kReadinessProbeNamespaceUri), null, timeout.Token).ConfigureAwait(false);
+                    Assert.That(captured, Is.EqualTo(1));
+                }
+                else
+                {
+                    release.TrySetResult(true);
+                    await replacement.Retirement.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+
+                Assert.That(folder.ReferenceExists(ReferenceTypeIds.Organizes, false, rootId), Is.True,
+                    "Retirement must not repeat reference removal already owned by publication.");
+            }
+            finally
+            {
+                release.TrySetResult(true);
+                if (pinned)
+                {
+                    oldView.Epoch.Exit(stripe);
+                }
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         [Category("Integration")]
