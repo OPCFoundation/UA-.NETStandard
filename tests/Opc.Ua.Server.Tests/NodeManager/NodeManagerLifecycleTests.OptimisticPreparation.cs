@@ -196,9 +196,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri);
             Mock<INodeManagerMonitoredItemLifecycle> items = original.As<INodeManagerMonitoredItemLifecycle>();
-            items.Setup(value => value.GetMonitoredItemsSnapshotAsync(
-                It.IsAny<IReadOnlyCollection<NodeId>?>(), It.IsAny<CancellationToken>()))
-                .Returns((IReadOnlyCollection<NodeId>? _, CancellationToken token) => CaptureItemsAsync(token));
+            original.As<INodeManagerReloadParticipant>()
+                .Setup(value => value.PrepareReloadAsync(
+                    It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
+            Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
+            Mock<INodeManagerMonitoredItemLifecycle> incoming = replacement.As<INodeManagerMonitoredItemLifecycle>();
+            incoming.Setup(value => value.CanAttachMonitoredItemAsync(
+                It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()))
+                .Returns((IMonitoredItem _, CancellationToken token) => CheckCompatibilityAsync(token));
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
@@ -208,10 +214,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
             NodeManagerBatchResult initial = await addition.CommitAsync(_ => default, timeout.Token)
                 .ConfigureAwait(false);
-            await using IPreparedNodeManagerBatch removal = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Remove(initial.Registrations[0])], timeout.Token).ConfigureAwait(false);
+            NodeManagerGeneration generation = initial.Registrations[0].Identity;
+            var monitoredItem = new Mock<IMonitoredItem>();
+            monitoredItem.SetupGet(value => value.NodeManager).Returns(original.Object);
+            monitoredItem.SetupGet(value => value.MonitoredItemType).Returns(MonitoredItemTypeMask.DataChange);
+            factory.Setup(value => value.CreateAsync(
+                It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(replacement.Object);
+            await using IPreparedNodeManagerBatch reload = await lifecycle.PrepareAsync(
+                [NodeManagerBatchChange.Replace(initial.Registrations[0], factory.Object)], timeout.Token)
+                .ConfigureAwait(false);
+            generation.MonitoredItems[monitoredItem.Object] = new Mock<ISubscription>().Object;
             int decisions = 0;
-            Task<NodeManagerBatchResult> pending = removal.CommitAsync(_ =>
+            Task<NodeManagerBatchResult> pending = reload.CommitAsync(_ =>
             {
                 decisions++;
                 return default;
@@ -229,6 +244,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
+                generation.MonitoredItems.TryRemove(monitoredItem.Object, out _);
                 release.TrySetResult(true);
                 await Assert.ThatAsync(() => pending.WaitAsync(timeout.Token),
                     Throws.InstanceOf<InvalidOperationException>()).ConfigureAwait(false);
@@ -236,18 +252,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(decisions, Is.Zero);
-                Assert.That(removal.IsCommitted, Is.False);
+                Assert.That(reload.IsCommitted, Is.False);
                 Assert.That(lifecycle.Revision, Is.EqualTo(RequireLifecycleValue(independentResult).Revision));
                 Assert.That(lifecycle.Registrations.ToList(), Does.Contain(initial.Registrations[0]));
             }
             items.Verify(value => value.GetMonitoredItemsSnapshotAsync(
-                It.IsAny<IReadOnlyCollection<NodeId>?>(), It.IsAny<CancellationToken>()), Times.Once);
+                It.IsAny<IReadOnlyCollection<NodeId>?>(), It.IsAny<CancellationToken>()), Times.Never);
+            incoming.Verify(value => value.CanAttachMonitoredItemAsync(
+                monitoredItem.Object, It.IsAny<CancellationToken>()), Times.Once);
 
-            async ValueTask<IReadOnlyList<IMonitoredItem>> CaptureItemsAsync(CancellationToken token)
+            async ValueTask<ServiceResult> CheckCompatibilityAsync(CancellationToken token)
             {
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
-                return [];
+                return ServiceResult.Good;
             }
         }
 

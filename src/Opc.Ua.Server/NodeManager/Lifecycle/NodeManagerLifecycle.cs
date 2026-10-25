@@ -551,7 +551,7 @@ namespace Opc.Ua.Server
                 CancellationToken ct)
         {
             (INodeManagerMonitoredItemLifecycle lifecycle, IReadOnlyList<IMonitoredItem> items) =
-                await GetOwnedMonitoredItemsAsync(server, nodeManager, ct)
+                await GetOwnedMonitoredItemsAsync(nodeManager, ct)
                     .ConfigureAwait(false);
             return new MonitoredItemTransition(
                 server,
@@ -630,7 +630,7 @@ namespace Opc.Ua.Server
         {
             (INodeManagerMonitoredItemLifecycle currentLifecycle,
                 IReadOnlyList<IMonitoredItem> items) =
-                await GetOwnedMonitoredItemsAsync(server, current, ct)
+                await GetOwnedMonitoredItemsAsync(current, ct)
                     .ConfigureAwait(false);
             if (items.Count == 0)
             {
@@ -692,68 +692,29 @@ namespace Opc.Ua.Server
                 statusCode == StatusCodes.BadFilterLiteralInvalid;
         }
 
-        private static async ValueTask<(
+        private static ValueTask<(
             INodeManagerMonitoredItemLifecycle Lifecycle,
             IReadOnlyList<IMonitoredItem> Items)> GetOwnedMonitoredItemsAsync(
-                IServerInternal server,
                 IAsyncNodeManager nodeManager,
                 CancellationToken ct)
         {
-            var subscriptionItems = new List<IMonitoredItem>();
-            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
-            {
-                if (subscription.MonitoredItemCount == 0)
-                {
-                    continue;
-                }
-                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
-                {
-                    throw new NotSupportedException(
-                        "The configured subscription cannot verify NodeManager ownership.");
-                }
-                if (!tracker.HasMonitoredItems(nodeManager))
-                {
-                    continue;
-                }
-                if (subscription is not ISubscriptionMonitoredItemLifecycle lifecycle)
-                {
-                    throw new NotSupportedException(
-                        "The configured subscription does not support monitored-item transitions.");
-                }
-                subscriptionItems.AddRange(lifecycle.GetMonitoredItemsSnapshot(nodeManager));
-            }
+            ct.ThrowIfCancellationRequested();
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            IMonitoredItem[] items = [.. generation.MonitoredItems.Keys.Where(item =>
+                (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                item is not IDetachableMonitoredItem { IsDetached: true })];
 
             if (nodeManager is not INodeManagerMonitoredItemLifecycle nodeManagerLifecycle)
             {
-                if (subscriptionItems.Count > 0)
+                if (items.Length > 0)
                 {
                     throw new NotSupportedException(
                         "The NodeManager does not support monitored-item transitions.");
                 }
-                return (UnsupportedMonitoredItemLifecycle.Instance, []);
+                nodeManagerLifecycle = UnsupportedMonitoredItemLifecycle.Instance;
             }
-
-            IReadOnlyList<IMonitoredItem> managerItems =
-                await nodeManagerLifecycle.GetMonitoredItemsSnapshotAsync(
-                    cancellationToken: ct).ConfigureAwait(false);
-            var ownedManagerItems = managerItems
-                .Where(item =>
-                    (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                    item is not IDetachableMonitoredItem
-                    {
-                        IsDetached: true
-                    } &&
-                    AreSameNodeManager(item.NodeManager, nodeManager))
-                .ToList();
-            if (ownedManagerItems.Count != subscriptionItems.Count ||
-                ownedManagerItems.Any(managerItem =>
-                    !subscriptionItems.Any(subscriptionItem =>
-                        ReferenceEquals(subscriptionItem, managerItem))))
-            {
-                throw new NotSupportedException(
-                    "The subscription and NodeManager monitored-item ownership snapshots do not match.");
-            }
-            return (nodeManagerLifecycle, subscriptionItems);
+            return new ValueTask<(INodeManagerMonitoredItemLifecycle, IReadOnlyList<IMonitoredItem>)>(
+                (nodeManagerLifecycle, items));
         }
 
         private static bool AreSameNodeManager(
@@ -811,18 +772,15 @@ namespace Opc.Ua.Server
             IServerInternal server,
             IAsyncNodeManager nodeManager)
         {
-            foreach (ISubscription subscription in server.SubscriptionManager.GetSubscriptions())
+            if (server is null)
             {
-                if (subscription.MonitoredItemCount == 0)
-                {
-                    continue;
-                }
-                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
-                {
-                    throw new NotSupportedException(
-                        "The configured subscription cannot verify NodeManager ownership.");
-                }
-                if (tracker.HasMonitoredItems(nodeManager))
+                throw new ArgumentNullException(nameof(server));
+            }
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            foreach (IMonitoredItem item in generation.MonitoredItems.Keys)
+            {
+                if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                    item is not IDetachableMonitoredItem { IsDetached: true })
                 {
                     return true;
                 }
@@ -1501,15 +1459,8 @@ namespace Opc.Ua.Server
                     return m_isOwnedBySubscription(monitoredItem);
                 }
 
-                foreach (ISubscription subscription in m_server.SubscriptionManager.GetSubscriptions())
-                {
-                    if (subscription is ISubscriptionMonitoredItemLifecycle lifecycle &&
-                        lifecycle.ContainsMonitoredItem(monitoredItem))
-                    {
-                        return true;
-                    }
-                }
-                return false;
+                return monitoredItem.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle lifecycle &&
+                    lifecycle.ContainsMonitoredItem(monitoredItem);
             }
 
             /// <summary>

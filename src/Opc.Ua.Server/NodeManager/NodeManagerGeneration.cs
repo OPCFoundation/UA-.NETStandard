@@ -206,8 +206,10 @@ namespace Opc.Ua.Server
             Gate = new GenerationGate(state);
             Reference = new NodeManagerGenerationReference(this);
             SessionBindings = new ConcurrentDictionary<NodeId, GenerationSessionBindingRecord>();
+            MonitoredItems = new ConcurrentDictionary<IMonitoredItem, ISubscription>(
+                MonitoredItemReferenceComparer.Instance);
             EventBindings = new ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord>(
-                EventMonitoredItemReferenceComparer.Instance);
+                MonitoredItemReferenceComparer.Instance);
         }
 
         /// <summary>
@@ -239,6 +241,11 @@ namespace Opc.Ua.Server
         /// Gets the per-session binding records owned by this generation.
         /// </summary>
         internal ConcurrentDictionary<NodeId, GenerationSessionBindingRecord> SessionBindings { get; }
+
+        /// <summary>
+        /// Gets the subscription-owned items bound to this exact generation.
+        /// </summary>
+        internal ConcurrentDictionary<IMonitoredItem, ISubscription> MonitoredItems { get; }
 
         /// <summary>
         /// Gets the per-item all-events binding records owned by this generation.
@@ -427,21 +434,21 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Compares monitored items by reference identity.
     /// </summary>
-    internal sealed class EventMonitoredItemReferenceComparer : IEqualityComparer<IEventMonitoredItem>
+    internal sealed class MonitoredItemReferenceComparer : IEqualityComparer<IMonitoredItem>
     {
         /// <summary>
         /// Gets the shared reference comparer.
         /// </summary>
-        internal static EventMonitoredItemReferenceComparer Instance { get; } = new();
+        internal static MonitoredItemReferenceComparer Instance { get; } = new();
 
         /// <inheritdoc/>
-        public bool Equals(IEventMonitoredItem? x, IEventMonitoredItem? y)
+        public bool Equals(IMonitoredItem? x, IMonitoredItem? y)
         {
             return ReferenceEquals(x, y);
         }
 
         /// <inheritdoc/>
-        public int GetHashCode(IEventMonitoredItem obj)
+        public int GetHashCode(IMonitoredItem obj)
         {
             return RuntimeHelpers.GetHashCode(obj);
         }

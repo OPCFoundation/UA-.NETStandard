@@ -432,7 +432,11 @@ namespace Opc.Ua.Server
                     EndValuePublications();
                     foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> monitoredItemKVP in m_monitoredItems)
                     {
-                        monitoredItemKVP.Value?.Value?.Dispose();
+                        if (monitoredItemKVP.Value?.Value is { } monitoredItem)
+                        {
+                            ReleaseMonitoredItemOwnership(monitoredItem);
+                            monitoredItem.Dispose();
+                        }
                     }
 
                     m_monitoredItems.Clear();
@@ -764,6 +768,10 @@ namespace Opc.Ua.Server
                 lock (m_lock)
                 {
                     monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
+                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    {
+                        ReleaseMonitoredItemOwnership(monitoredItem);
+                    }
                     m_monitoredItems.Clear();
                     m_itemsToTrigger.Clear();
                     m_itemsToCheck.Clear();
@@ -1152,6 +1160,19 @@ namespace Opc.Ua.Server
         /// <remarks>The caller holds <c>m_lock</c>.</remarks>
         private void OnMonitoredItemAdded(IMonitoredItem monitoredItem)
         {
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.BindSubscription(this);
+            }
+            else
+            {
+                NodeManagerGeneration generation =
+                    NodeManagerGenerationRegistry.GetOrCreate(monitoredItem.NodeManager);
+                m_foreignItemGenerations ??= new Dictionary<IMonitoredItem, NodeManagerGeneration>(
+                    MonitoredItemReferenceComparer.Instance);
+                m_foreignItemGenerations.Add(monitoredItem, generation);
+                generation.MonitoredItems[monitoredItem] = this;
+            }
             CountPooledItems(1);
             if (monitoredItem is IReadySignalingMonitoredItem)
             {
@@ -1160,6 +1181,32 @@ namespace Opc.Ua.Server
                 // a value queued before the item was attached to the subscription was not
                 // signalled to it.
                 MarkReadyCandidate(monitoredItem);
+            }
+        }
+
+        /// <summary>
+        /// Removes the subscription's claim without changing the callback needed during manager cleanup.
+        /// </summary>
+        /// <param name="monitoredItem">The item leaving this subscription.</param>
+        private void ReleaseMonitoredItemOwnership(IMonitoredItem monitoredItem)
+        {
+            if (monitoredItem is IMonitoredItemGenerationBinding binding)
+            {
+                binding.UnbindSubscription(this);
+            }
+            else
+            {
+                if (m_foreignItemGenerations?.TryGetValue(
+                    monitoredItem, out NodeManagerGeneration? generation) != true)
+                {
+                    throw new InvalidOperationException("The monitored item's subscription claim is unavailable.");
+                }
+                generation!.MonitoredItems.TryRemove(monitoredItem, out _);
+                m_foreignItemGenerations.Remove(monitoredItem);
+                if (m_foreignItemGenerations.Count == 0)
+                {
+                    m_foreignItemGenerations = null;
+                }
             }
         }
 
@@ -3446,6 +3493,7 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    ReleaseMonitoredItemOwnership(monitoredItem);
                     if (monitoredItem is IReadySignalingMonitoredItem)
                     {
                         m_signalingItemCount--;
@@ -4339,6 +4387,10 @@ namespace Opc.Ua.Server
         private readonly Queue<MonitoredItemNotification> m_publishDataChanges = new();
         private readonly Queue<DiagnosticInfo> m_publishDataChangeDiagnostics = new();
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
+
+        /// <summary>Exact generation claims for items that do not manage their own generation binding.</summary>
+        private Dictionary<IMonitoredItem, NodeManagerGeneration>? m_foreignItemGenerations;
+
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
         private readonly LinkedList<IMonitoredItem> m_itemsToPublish;
         private readonly Lock m_readyIntakeLock = new();

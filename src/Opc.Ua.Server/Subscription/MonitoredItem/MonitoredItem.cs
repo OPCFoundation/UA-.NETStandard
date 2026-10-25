@@ -44,6 +44,7 @@ namespace Opc.Ua.Server
         IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
+        IMonitoredItemGenerationBinding,
         IMonitoredItemTransferState,
         IReadySignalingMonitoredItem,
         IMonitoredItemValuePublication
@@ -421,8 +422,18 @@ namespace Opc.Ua.Server
             get => m_nodeManager;
             private set
             {
-                m_nodeManager = value ?? throw new ArgumentNullException(nameof(value));
-                Generation = NodeManagerGenerationRegistry.GetOrCreate(value).Reference;
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(
+                    value ?? throw new ArgumentNullException(nameof(value)));
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
+                {
+                    previous!.MonitoredItems.TryRemove(this, out _);
+                }
+                m_nodeManager = value;
+                Generation = generation.Reference;
+                if (m_subscriptionOwned)
+                {
+                    generation.MonitoredItems[this] = m_subscription!;
+                }
             }
         }
 
@@ -2729,6 +2740,45 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <inheritdoc/>
+        void IMonitoredItemGenerationBinding.BindSubscription(ISubscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (m_isDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(MonitoredItem));
+                }
+                if (!ReferenceEquals(m_subscription, subscription))
+                {
+                    throw new InvalidOperationException("The monitored item belongs to another subscription.");
+                }
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) != true)
+                {
+                    throw new InvalidOperationException("The monitored item's generation is unavailable.");
+                }
+                m_subscriptionOwned = true;
+                generation!.MonitoredItems[this] = subscription;
+            }
+        }
+
+        /// <inheritdoc/>
+        void IMonitoredItemGenerationBinding.UnbindSubscription(ISubscription subscription)
+        {
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(m_subscription, subscription))
+                {
+                    return;
+                }
+                m_subscriptionOwned = false;
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true)
+                {
+                    generation!.MonitoredItems.TryRemove(this, out _);
+                }
+            }
+        }
+
         /// <summary>
         /// The number of milliseconds until the next sample.
         /// </summary>
@@ -3297,6 +3347,11 @@ namespace Opc.Ua.Server
                 }
 
                 m_isDisposed = true;
+                m_subscriptionOwned = false;
+                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) == true)
+                {
+                    generation!.MonitoredItems.TryRemove(this, out _);
+                }
                 m_valuePublication?.Complete(published: false);
                 SetDetachState(m_isDetached, m_isDeleted);
 
@@ -3421,6 +3476,10 @@ namespace Opc.Ua.Server
         };
         private readonly ILogger m_logger;
         private bool m_isDisposed;
+
+        /// <summary>Whether the subscription still owns this item's generation binding.</summary>
+        private bool m_subscriptionOwned;
+
         private bool m_isAttaching;
         private readonly TimeProvider m_timeProvider;
         private IServerInternal m_server;

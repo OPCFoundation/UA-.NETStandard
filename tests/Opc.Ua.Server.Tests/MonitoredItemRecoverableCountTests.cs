@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -34,7 +36,7 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Tests that every detach state transition of a <see cref="MonitoredItem"/> keeps
+    /// Tests generation-bound subscription ownership and that every detach state transition keeps
     /// <see cref="MonitoredItem.HasRecoverableItems"/> exact. Recovery of detached items is
     /// skipped while no item is counted, so a missed increment would suppress reattachment
     /// and a missed decrement would bring back the scans of every monitored item.
@@ -57,6 +59,156 @@ namespace Opc.Ua.Server.Tests
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
 
             Assert.That(item.IsCountedAsRecoverable, Is.False);
+        }
+
+        /// <summary>
+        /// Generation membership begins at subscription ownership, not item construction.
+        /// </summary>
+        [Test]
+        public void SubscriptionClaimTracksTheExactGenerationAndOwner()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            var owner = new Mock<ISubscription>().Object;
+            var binding = (IMonitoredItemGenerationBinding)item;
+
+            Assert.That(generation.MonitoredItems, Is.Empty);
+            item.SubscriptionCallback = owner;
+            Assert.That(generation.MonitoredItems, Is.Empty);
+            binding.BindSubscription(owner);
+            binding.BindSubscription(owner);
+
+            Assert.That(generation.MonitoredItems, Has.Count.EqualTo(1));
+            Assert.That(generation.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+            Assert.That(actualOwner, Is.SameAs(owner));
+            binding.UnbindSubscription(new Mock<ISubscription>().Object);
+            Assert.That(generation.MonitoredItems.ContainsKey(item), Is.True);
+        }
+
+        /// <summary>
+        /// A handoff moves the subscription claim without changing item identity.
+        /// </summary>
+        [Test]
+        public void RebindTransfersSubscriptionMembershipToTheReplacementGeneration()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
+            uint id = item.Id;
+
+            ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+
+            Assert.That(original.MonitoredItems, Is.Empty);
+            Assert.That(replacement.MonitoredItems, Has.Count.EqualTo(1));
+            Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
+            Assert.That(actualOwner, Is.SameAs(owner));
+            Assert.That(item.Generation!.Identifies(replacement), Is.True);
+            Assert.That(item.Id, Is.EqualTo(id));
+        }
+
+        /// <summary>
+        /// Neither ordering of deletion and handoff can restore a removed subscription claim.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SubscriptionReleaseAndRebindCannotResurrectMembership(bool releaseFirst)
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+            if (releaseFirst)
+            {
+                binding.UnbindSubscription(owner);
+            }
+
+            ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+            binding.UnbindSubscription(owner);
+
+            Assert.That(original.MonitoredItems, Is.Empty);
+            Assert.That(replacement.MonitoredItems, Is.Empty);
+            Assert.That(item.SubscriptionCallback, Is.SameAs(owner),
+                "Manager cleanup still needs the callback after subscription ownership ends.");
+        }
+
+        /// <summary>
+        /// Concurrent handoff and subscription removal leave neither generation retaining the item.
+        /// </summary>
+        [Test]
+        public async Task SubscriptionReleaseRacingRebindLeavesNoGenerationMembershipAsync()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration original = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
+                original, new Mock<IAsyncNodeManager>().Object);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+
+            await Task.WhenAll(
+                Task.Run(() => ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object())),
+                Task.Run(() => binding.UnbindSubscription(owner))).ConfigureAwait(false);
+
+            Assert.That(original.MonitoredItems, Is.Empty);
+            Assert.That(replacement.MonitoredItems, Is.Empty);
+        }
+
+        /// <summary>
+        /// Disposal releases the generation claim and refuses later attempts to reclaim the item.
+        /// </summary>
+        [Test]
+        public void DisposedItemCannotReenterGenerationMembership()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(item.NodeManager);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            var binding = (IMonitoredItemGenerationBinding)item;
+            binding.BindSubscription(owner);
+
+            item.Dispose();
+
+            Assert.That(generation.MonitoredItems, Is.Empty);
+            Assert.That(() => binding.BindSubscription(owner), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(generation.MonitoredItems, Is.Empty);
+        }
+
+        /// <summary>
+        /// An item detached from its node does not count as an active source binding.
+        /// </summary>
+        [Test]
+        public void DetachedSubscriptionItemDoesNotBlockItsOriginalGeneration()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
+            using MonitoredItem item = CreateItem(server);
+            IAsyncNodeManager manager = item.NodeManager;
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            var owner = new Mock<ISubscription>().Object;
+            item.SubscriptionCallback = owner;
+            ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
+            Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
+
+            ((IDetachableMonitoredItem)item).BeginDetach();
+
+            Assert.That(generation.MonitoredItems.ContainsKey(item), Is.True);
+            Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.False);
+            ((IDetachableMonitoredItem)item).Rebind(manager, new object());
+            Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
         }
 
         [Test]
