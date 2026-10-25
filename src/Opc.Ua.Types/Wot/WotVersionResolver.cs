@@ -143,10 +143,8 @@ namespace Opc.Ua.Wot
                 else
                 {
                     var eligible = resource.Versions.ToList().Where(version =>
-                    {
-                        var parsed = ParseStoredVersion(version.VersionId);
-                        return !parsed.IsPrerelease || allowPrerelease || floor?.IsPrerelease == true;
-                    }).ToList();
+                        WotSemanticVersion.TryParse(version.VersionId, out var parsed) &&
+                        (!parsed!.IsPrerelease || allowPrerelease || floor?.IsPrerelease == true)).ToList();
                     if (eligible.Count == 0)
                     {
                         throw new WotVersionException("unsatisfied");
@@ -155,7 +153,8 @@ namespace Opc.Ua.Wot
                     selected = Highest(eligible);
                 }
 
-                if (floor is not null && ParseStoredVersion(selected.VersionId).CompareTo(floor) < 0)
+                if (floor is not null && (!WotSemanticVersion.TryParse(selected.VersionId, out var selectedVersion) ||
+                    selectedVersion!.CompareTo(floor) < 0))
                 {
                     throw new WotVersionException("unsatisfied");
                 }
@@ -284,21 +283,28 @@ namespace Opc.Ua.Wot
             return parsed!;
         }
 
+        /// <summary>
+        /// Picks the highest SemVer Version. A legacy id that is not SemVer has no place in the
+        /// lineage, so it is skipped; it is returned only when no candidate is SemVer.
+        /// </summary>
         private static WotVersionSnapshot Highest(List<WotVersionSnapshot> versions)
         {
-            var highest = versions[0];
-            var highestVersion = ParseStoredVersion(highest.VersionId);
-            foreach (var candidate in versions.Skip(1))
+            WotVersionSnapshot? highest = null;
+            WotSemanticVersion? highestVersion = null;
+            foreach (var candidate in versions)
             {
-                var candidateVersion = ParseStoredVersion(candidate.VersionId);
-                if (candidateVersion.CompareTo(highestVersion) > 0)
+                if (!WotSemanticVersion.TryParse(candidate.VersionId, out var candidateVersion))
+                {
+                    continue;
+                }
+                if (highestVersion is null || candidateVersion!.CompareTo(highestVersion) > 0)
                 {
                     highest = candidate;
                     highestVersion = candidateVersion;
                 }
             }
 
-            return highest;
+            return highest ?? versions[0];
         }
 
         private static void ValidatePin(WotVersionPin? pin)

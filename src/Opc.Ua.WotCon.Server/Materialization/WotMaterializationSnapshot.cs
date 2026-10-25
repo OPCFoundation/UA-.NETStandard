@@ -610,7 +610,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                             continue;
                         }
                         if (metadata.References.Contains(reference =>
-                            ResolveReference(snapshot, resource, reference) is { } target &&
+                            ResolveReferenceTarget(snapshot, resource, reference) is { } target &&
                             selected.ContainsKey(target.Xid)))
                         {
                             selected.Add(resource.Xid, new WotSelectedResource(
@@ -657,10 +657,38 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     "sha256:" + version.DigestHex, version.ModelVersion)).ToArrayOf());
         }
 
-        private static WotResource? ResolveReference(
+        /// <summary>
+        /// Finds the Resource a stored reference names, without selecting a Version of it.
+        /// </summary>
+        /// <remarks>
+        /// Dependency walks ask which Resource an edge points at. Whether a Version of that
+        /// Resource satisfies the edge's floor is a separate question, and a floor that no
+        /// stored Version meets does not change which Resource the edge names.
+        /// </remarks>
+        private static WotResource? ResolveReferenceTarget(
             WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
             HashSet<string>? excluded = null)
         {
+            return ResolveReference(snapshot, source, reference, out _, excluded, selectVersion: false);
+        }
+
+        /// <summary>
+        /// Resolves a stored reference to a Resource pinned to the Version that satisfies it.
+        /// </summary>
+        /// <param name="snapshot">The registry snapshot.</param>
+        /// <param name="source">The Resource that carries the reference.</param>
+        /// <param name="reference">The stored reference.</param>
+        /// <param name="versionError">
+        /// Receives the version-domain error code when the Resource is found but no Version of
+        /// it satisfies the reference; the method then returns <c>null</c>.
+        /// </param>
+        /// <param name="excluded">Resources treated as absent.</param>
+        /// <param name="selectVersion">Whether to apply floors and select a Version.</param>
+        private static WotResource? ResolveReference(
+            WotRegistrySnapshot snapshot, WotResource source, WotResourceReference reference,
+            out string? versionError, HashSet<string>? excluded = null, bool selectVersion = true)
+        {
+            versionError = null;
             string raw = TrimFragment(reference.TargetUri);
             WotResource? target;
             if (reference.Lookup != WotResourceReferenceLookup.Document)
@@ -695,7 +723,8 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 {
                     return PinVersion(target, exact);
                 }
-                if (IsLocalFragmentReference(source, reference.TargetUri, reference.RefType, target))
+                if (!selectVersion ||
+                    IsLocalFragmentReference(source, reference.TargetUri, reference.RefType, target))
                 {
                     return target;
                 }
@@ -706,10 +735,18 @@ namespace Opc.Ua.WotCon.Server.Materialization
                         target.Versions.All(version => WotSemanticVersion.TryParse(version.VersionId, out _))))
                 {
                     WotResourceSnapshot resource = VersionSnapshot(target);
-                    WotResolutionResult selected = WotVersionResolver.Resolve([resource],
-                        new WotReferenceRequest(reference.RefType, resource.WotId, reference.RequiredVersion),
-                        "urn:opcua:registry-snapshot");
-                    return PinVersion(target, target.FindVersion(selected.VersionId)!);
+                    try
+                    {
+                        WotResolutionResult selected = WotVersionResolver.Resolve([resource],
+                            new WotReferenceRequest(reference.RefType, resource.WotId, reference.RequiredVersion),
+                            "urn:opcua:registry-snapshot");
+                        return PinVersion(target, target.FindVersion(selected.VersionId)!);
+                    }
+                    catch (WotVersionException exception)
+                    {
+                        versionError = exception.Code;
+                        return null;
+                    }
                 }
             }
             return target;

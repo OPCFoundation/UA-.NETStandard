@@ -64,6 +64,13 @@ namespace Opc.Ua.Wot
             {
                 throw new ArgumentNullException(nameof(document));
             }
+            // A reference that names one stored Version by its registry path is a pin, and a
+            // pin bypasses floor derivation (xRegistry WoT 5.4.2 step 2): neither its own
+            // floor nor the document's version.model is read, so neither can fail it.
+            if (IsVersionPin(ReadString(carryingNode, "href") ?? ReadString(carryingNode, "tm:ref")))
+            {
+                return null;
+            }
             string? floor = ReadFloor(carryingNode);
             if (kind == "type" && document.Kind == WotDocumentKind.ThingDescription)
             {
@@ -147,6 +154,27 @@ namespace Opc.Ua.Wot
             {
                 throw new WotVersionException("unsatisfied");
             }
+        }
+
+        /// <summary>
+        /// Gets whether a reference names one stored Version by its registry path, that is,
+        /// whether its path ends in <c>/versions/</c> followed by a single segment.
+        /// </summary>
+        internal static bool IsVersionPin(string? reference)
+        {
+            if (string.IsNullOrEmpty(reference))
+            {
+                return false;
+            }
+            int fragment = reference!.IndexOf('#', StringComparison.Ordinal);
+            string path = fragment < 0 ? reference : reference[..fragment];
+            int marker = path.LastIndexOf("/versions/", StringComparison.Ordinal);
+            if (marker < 0)
+            {
+                return false;
+            }
+            string versionId = path[(marker + "/versions/".Length)..];
+            return versionId.Length > 0 && versionId.IndexOf('/', StringComparison.Ordinal) < 0;
         }
 
         private static string? ReadFloor(JsonElement node)

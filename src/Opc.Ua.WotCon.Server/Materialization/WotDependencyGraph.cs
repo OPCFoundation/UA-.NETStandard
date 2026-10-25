@@ -442,7 +442,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 foreach (WotResourceReference reference in ReadMetadata(content, maxJsonDepth).References)
                 {
-                    WotResource? resolved = ResolveReference(snapshot, resource, reference);
+                    WotResource? resolved = ResolveReferenceTarget(snapshot, resource, reference);
                     if (IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, resolved))
                     {
                         continue;
@@ -518,7 +518,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             WotResourceReference reference,
             HashSet<string> removed)
         {
-            return ResolveReference(snapshot, source, reference, removed) is not null;
+            return ResolveReferenceTarget(snapshot, source, reference, removed) is not null;
         }
 
         /// <summary>
@@ -701,7 +701,12 @@ namespace Opc.Ua.WotCon.Server.Materialization
                 }
                 foreach (WotResourceReference reference in metadata.References)
                 {
-                    WotResource? target = ResolveReference(snapshot, resource, reference);
+                    WotResource? target = ResolveReference(snapshot, resource, reference, out string? versionError);
+                    if (versionError is not null)
+                    {
+                        // The edges pass below records the failure on this Resource's closure.
+                        continue;
+                    }
                     if (target is not null &&
                         !IsLocalFragmentReference(resource, reference.TargetUri, reference.RefType, target) &&
                         AddResource(target))
@@ -777,8 +782,19 @@ namespace Opc.Ua.WotCon.Server.Materialization
                     metadata.RequiredModelUris.ToList(), StringComparer.Ordinal);
                 foreach (WotResourceReference reference in metadata.References)
                 {
-                    WotResource? target = ResolveReference(snapshot, resource, reference);
-                    if (target is null && reference.Lookup != WotResourceReferenceLookup.Document &&
+                    WotResource? target = ResolveReference(snapshot, resource, reference, out string? versionError);
+                    if (versionError is not null)
+                    {
+                        // No Version satisfies this edge. That is a fact about this Resource's
+                        // closure, so it fails here and the other closures still refresh.
+                        failures.TryAdd(resource.Xid, new WotResourceAcquisitionFailure(
+                            resource, version, StatusCodes.BadNotFound,
+                            $"Reference '{reference.TargetUri}' ({reference.RefType}" +
+                            (reference.RequiredVersion is null ? string.Empty
+                                : ", minimum version " + reference.RequiredVersion) +
+                            $") selects no Version: {versionError}."));
+                    }
+                    else if (target is null && reference.Lookup != WotResourceReferenceLookup.Document &&
                         !snapshot.AllResources().Any(candidate => DefinesReferencedNode(candidate, reference)))
                     {
                         continue;

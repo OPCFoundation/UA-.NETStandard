@@ -196,13 +196,117 @@ namespace Opc.Ua.WotCon.Tests.Registry
             }
             else
             {
-                WotVersionException? error = await Assert.ThrowsAsync<WotVersionException>(async () =>
-                    await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
-                        service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false)).ConfigureAwait(false);
-                Assert.That(error!.Code, Is.EqualTo("unsatisfied"));
+                var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource!], 64,
+                    service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
+                WotDependencyClosure closure = closures.Single();
+                Assert.That(closure.IsProjectable, Is.False);
+                Assert.That(closure.AcquisitionFailures.ToList().Single().Message, Does.Contain("unsatisfied"));
             }
             Assert.That(service.Current.FindResource(WotRegistryGroups.ThingModels, "pump")!.DefaultVersionId,
                 Is.EqualTo("1.0.0"));
+        }
+
+        [Test]
+        public async Task UnsatisfiedFloorFailsOnlyItsOwnClosureAndNeverBlocksDeletionAsync()
+        {
+            using var service = new WotRegistryService();
+            await service.UpsertResourceAsync(Request("1.0.0")).ConfigureAwait(false);
+            WotRegistryMutationResult other = await service.UpsertResourceAsync(
+                Request("1.0.0", "other", "urn:other:v1")).ConfigureAwait(false);
+            WotRegistryMutationResult source = await service.UpsertResourceAsync(
+                Consumer("urn:pump:v1", "2.0.0")).ConfigureAwait(false);
+
+            var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current,
+                [source.Resource!, other.Resource!], 64, service.ReadContentAsync, CancellationToken.None)
+                .ConfigureAwait(false);
+            WotDependencyClosure failed = closures.Single(closure =>
+                closure.Members.Any(member => member.ResourceId == "consumer"));
+            WotDependencyClosure independent = closures.Single(closure =>
+                closure.Members.Any(member => member.ResourceId == "other"));
+            WotResource pump = service.Current.FindResource(WotRegistryGroups.ThingModels, "pump")!;
+            WotDependentSet dependents = await WotDependencyGraph.FindDependentsWithFaultsAsync(service.Current,
+                pump, 64, service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
+            WotDeleteResult deleted = await service.DeleteResourceAsync(WotRegistryGroups.ThingModels, "other",
+                WoTDeletePolicyEnum.Force).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(failed.IsProjectable, Is.False);
+                Assert.That(failed.AcquisitionFailures.ToList().Single().Message, Does.Contain("unsatisfied"));
+                Assert.That(independent.IsProjectable, Is.True);
+                Assert.That(dependents.Dependents.Select(dependent => dependent.Xid),
+                    Does.Contain(source.Resource!.Xid));
+                Assert.That(deleted.Outcome, Is.EqualTo(WoTOutcomeEnum.Success));
+                Assert.That(service.Current.FindResource(WotRegistryGroups.ThingModels, "other"), Is.Null);
+            });
+        }
+
+        [Test]
+        public async Task ATypeLinkPinnedToAVersionIgnoresTheDocumentFloorAsync()
+        {
+            using var service = new WotRegistryService();
+            await service.UpsertResourceAsync(Request("1.0.0")).ConfigureAwait(false);
+            await service.UpsertResourceAsync(Request("1.1.0")).ConfigureAwait(false);
+            WotResource model = service.Current.FindResource(WotRegistryGroups.ThingModels, "pump")!;
+            WotRegistryMutationResult source = await service.UpsertResourceAsync(new WotUpsertResourceRequest
+            {
+                GroupId = WotRegistryGroups.ThingDescriptions,
+                ResourceId = "consumer",
+                Kind = WoTDocumentKindEnum.ThingDescription,
+                Content = ByteString.From(Encoding.UTF8.GetBytes(
+                    "{\"@type\":\"Thing\",\"id\":\"urn:consumer\",\"version\":{\"model\":\"invalid\"}," +
+                    "\"links\":[{\"rel\":\"type\",\"href\":\"" + model.Xid + "/versions/1.0.0\"}]}"))
+            }).ConfigureAwait(false);
+            Assert.That(source.Resource!.DefaultVersion!.Dependencies!.Error, Is.Empty);
+            var closures = await WotDependencyGraph.BuildClosuresAsync(service.Current, [source.Resource], 64,
+                service.ReadContentAsync, CancellationToken.None).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(closures.Single().IsProjectable, Is.True);
+                Assert.That(closures.Single().Members.Single(member => member.ResourceId == "pump").DefaultVersionId,
+                    Is.EqualTo("1.0.0"));
+            });
+        }
+
+        [Test]
+        public async Task AssignedVersionIdThatDiffersOnlyByCaseIsRejectedAsync()
+        {
+            using var service = new WotRegistryService();
+            await service.UpsertResourceAsync(Request("1.0.0-alpha")).ConfigureAwait(false);
+            WotRegistrySnapshot before = service.Current;
+            ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await service.UpsertResourceAsync(Request("1.0.0-ALPHA")).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdExists));
+                Assert.That(service.Current, Is.SameAs(before));
+            });
+        }
+
+        [Test]
+        public void LegacyNonSemVerVersionIdsNeitherBlockAssignmentNorWinSelection()
+        {
+            ArrayOf<WotResourceSnapshot> resources =
+            [
+                new WotResourceSnapshot("urn:pump:v1", false, "v1",
+                [
+                    new WotVersionSnapshot("v1", "authored", "sha256:1", null),
+                    new WotVersionSnapshot("1.0.0", "authored", "sha256:2", "1.0.0")
+                ])
+            ];
+            WotPublicationAssignment authored =
+                WotVersionResolver.AssignPublishedVersion(resources, "urn:pump:v1", null, "1.1.0");
+            WotPublicationAssignment generated =
+                WotVersionResolver.AssignPublishedVersion(resources, "urn:pump:v1", null, null);
+            WotResolutionResult selected = WotVersionResolver.Resolve(resources,
+                new WotReferenceRequest("tm:extends", "urn:pump:v1", "1.0.0"), "urn:test");
+            Assert.Multiple(() =>
+            {
+                Assert.That(authored.VersionId, Is.EqualTo("1.1.0"));
+                Assert.That(authored.DefaultVersionId, Is.EqualTo("1.1.0"));
+                Assert.That(generated.VersionId, Is.EqualTo("0.0.0-1"));
+                Assert.That(selected.VersionId, Is.EqualTo("1.0.0"));
+            });
         }
 
         [TestCase(null)]
@@ -285,18 +389,19 @@ namespace Opc.Ua.WotCon.Tests.Registry
             };
         }
 
-        private static WotUpsertResourceRequest Request(string? model)
+        private static WotUpsertResourceRequest Request(string? model, string resourceId = "pump",
+            string id = "urn:pump:v1")
         {
             string version = model is null ? string.Empty : ",\"version\":{\"model\":\"" + model + "\"}";
             return new WotUpsertResourceRequest
             {
                 GroupId = WotRegistryGroups.ThingModels,
-                ResourceId = "pump",
+                ResourceId = resourceId,
                 Kind = WoTDocumentKindEnum.ThingModel,
                 Content = ByteString.From(Encoding.UTF8.GetBytes(
                     "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
                     "{\"tm\":\"https://www.w3.org/2019/wot/tm#\"}],\"@type\":\"tm:ThingModel\"," +
-                    "\"id\":\"urn:pump:v1\"" + version + "}"))
+                    "\"id\":\"" + id + "\"" + version + "}"))
             };
         }
     }

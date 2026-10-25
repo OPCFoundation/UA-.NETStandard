@@ -995,6 +995,131 @@ namespace Opc.Ua.Types.Tests.Wot
             return WotDocument.Parse(Encoding.UTF8.GetBytes(json));
         }
 
+        [Test]
+        public async Task AHeldDefinitionBelowTheReferenceFloorIsNotTakenAsync()
+        {
+            IReadOnlyList<WotDiagnostic> diagnostics;
+            using (WotDocument document = Parse(TwoEvents(
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"",
+                "\"tm:ref\":\"urn:test:alarm\",\"tm:minVersion\":\"2.0.0\"")))
+            {
+                var resolver = new WotEventSelectionResolver(new VersionedStub(
+                    ("./types.tm.jsonld", "1.0.0", VersionedTypesDocument("1.0.0", 6001))));
+                WotConversionResult<WotEventSelectionCatalog> result =
+                    await resolver.ResolveAsync(document).ConfigureAwait(false);
+                Assert.That(result.Value, Is.Null);
+                diagnostics = result.Diagnostics;
+            }
+            AssertReports(diagnostics, "unsatisfied");
+        }
+
+        [Test]
+        public async Task APreloadedDocumentIsSelectedAgainUnderEachFloorAsync()
+        {
+            using WotDocument document = Parse(TwoEvents(
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"",
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\",\"tm:minVersion\":\"2.0.0-beta\""));
+            var resolver = new WotEventSelectionResolver(new VersionedStub(
+                ("./types.tm.jsonld", "1.0.0", VersionedTypesDocument("1.0.0", 6001)),
+                ("./types.tm.jsonld", "2.0.0-beta", VersionedTypesDocument("2.0.0-beta", 6002))));
+            WotConversionResult<WotEventSelectionCatalog> result =
+                await resolver.ResolveAsync(document).ConfigureAwait(false);
+            Assert.That(result.Value, Is.Not.Null, Describe(result.Diagnostics));
+            Assert.That(result.Value!.TryGetSelection("alarm", out ArrayOf<WotResolvedEventSelectClause> first),
+                Is.True);
+            Assert.That(result.Value.TryGetSelection("alarm2", out ArrayOf<WotResolvedEventSelectClause> second),
+                Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(first[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6001"));
+                Assert.That(second[0].TypeDefinitionId, Is.EqualTo("nsu=urn:test:pump;i=6002"));
+            });
+        }
+
+        [Test]
+        public async Task AFloorNoStoredVersionMeetsIsADiagnosticAsync()
+        {
+            IReadOnlyList<WotDiagnostic> diagnostics;
+            using (WotDocument document = Parse(TwoEvents(
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\"",
+                "\"tm:ref\":\"./types.tm.jsonld#/events/alarm\",\"tm:minVersion\":\"3.0.0\"")))
+            {
+                var resolver = new WotEventSelectionResolver(new VersionedStub(
+                    ("./types.tm.jsonld", "1.0.0", VersionedTypesDocument("1.0.0", 6001))));
+                WotConversionResult<WotEventSelectionCatalog> result =
+                    await resolver.ResolveAsync(document).ConfigureAwait(false);
+                Assert.That(result.Value, Is.Null);
+                diagnostics = result.Diagnostics;
+            }
+            AssertReports(diagnostics, "unsatisfied");
+        }
+
+        private static string TwoEvents(string first, string second)
+        {
+            return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"pump\":\"urn:test:pump\"}]," +
+                "\"@type\":\"tm:ThingModel\",\"title\":\"Pump\"," +
+                "\"events\":{\"alarm\":{\"@type\":\"uav:eventType\"," + first + "}," +
+                "\"alarm2\":{\"@type\":\"uav:eventType\"," + second + "}}}";
+        }
+
+        private static string VersionedTypesDocument(string model, int typeId)
+        {
+            return AlarmTypeDocument()
+                .Replace("\"title\":\"PumpAlarms\",",
+                    "\"title\":\"PumpAlarms\",\"version\":{\"model\":\"" + model + "\"},", StringComparison.Ordinal)
+                .Replace("\"alarm\":{\"@type\":\"uav:eventType\",",
+                    "\"alarm\":{\"@type\":\"uav:eventType\",\"@id\":\"urn:test:alarm\",", StringComparison.Ordinal)
+                .Replace("nsu=urn:test:pump;i=6001", "nsu=urn:test:pump;i=" + typeId, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Serves several Versions of one document and selects among them by the
+        /// reference's floor, the way a versioned registry does.
+        /// </summary>
+        private sealed class VersionedStub : IWotVersionedThingResolver
+        {
+            public VersionedStub(params (string Href, string Model, string Json)[] documents)
+            {
+                m_documents = documents;
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                WotReferenceRequest reference, WotResolutionContext context, CancellationToken cancellationToken)
+            {
+                WotSemanticVersion? floor = reference.MinimumVersion is null
+                    ? null : WotSemanticVersion.Parse(reference.MinimumVersion);
+                var candidates = m_documents
+                    .Where(document => document.Href == reference.Target)
+                    .Select(document => (Version: WotSemanticVersion.Parse(document.Model), document.Json))
+                    .Where(document => floor is null
+                        ? !document.Version.IsPrerelease
+                        : document.Version.CompareTo(floor) >= 0 &&
+                            (!document.Version.IsPrerelease || floor.IsPrerelease))
+                    .OrderByDescending(document => document.Version)
+                    .ToList();
+                if (candidates.Count == 0)
+                {
+                    if (m_documents.Any(document => document.Href == reference.Target))
+                    {
+                        throw new WotVersionException("unsatisfied");
+                    }
+                    return new ValueTask<WotResolverResult>(WotResolverResult.NotFound);
+                }
+                return new ValueTask<WotResolverResult>(
+                    WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(candidates[0].Json)));
+            }
+
+            public ValueTask<WotResolverResult> ResolveThingAsync(
+                string reference, WotResolutionContext context, CancellationToken cancellationToken)
+            {
+                throw new InvalidOperationException("The version-aware overload must be used.");
+            }
+
+            private readonly (string Href, string Model, string Json)[] m_documents;
+        }
+
         private static string Affordance(string members)
         {
             return "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +

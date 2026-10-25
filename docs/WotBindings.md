@@ -1691,7 +1691,7 @@ run the WoT tests.
 
 `tests/Opc.Ua.Types.Tests/Wot/Resolution` is an unmodified copy of the shared
 reference-resolution corpus at xRegistry spec commit
-`9864057fe8d39ae69d8e178d7240f8f88b4c4b34`. The same corpus is mirrored in the
+`222527c643364d70bdf4ec687f6421397a96800a`. The same corpus is mirrored in the
 xRegistry .NET implementation, so both resolvers are tested against one set of
 expected results. Its `MANIFEST.sha256` covers the vectors, the schema, the
 README and the Python reference checker.
@@ -1732,17 +1732,33 @@ otherwise unconstrained.
 Thing Model takes its id from `version.model`; build metadata and a mismatch
 between the requested id and `version.model` are rejected. A Thing Model with
 no `version.model`, or one that is not SemVer, gets the lowest free
-`0.0.0-N`. TD instance revision ids stay manual. A native FileType writer
-allocates the Version of an authored Thing Model from its `version.model`
-before opening the file, while a TM Version without content gets a generated
-id. Because generated ids are prereleases, a deployment of unversioned models
-can select one explicitly as the sticky default with `SetDefaultVersionAsync`.
+`0.0.0-N`. A Thing Description's instance revision comes from
+`version.instance`: a valid SemVer value without build metadata becomes its
+`versionid`; a missing or non-SemVer value gets the lowest free `0.0.0-N`.
+Supplied mismatches and build metadata are rejected. `version.model` remains
+the TD's model version and is used only as the implicit floor for its
+`rel: "type"` link.
+
+TD-to-TD `td:extends`, `td:subthing` and `td:ref` references use
+`td:minVersion`. A floor `X.Y.Z` selects a target version at or above that
+floor and below `(X+1).0.0`, including for a `0.y.z` floor. Without a floor,
+the highest eligible target version can be selected across major versions.
+The referencing TD's `version.instance` and `version.model` do not supply an
+implicit floor for these references. A major-version change is a breaking
+revision under the same TD `id`.
+
+A native FileType writer allocates an authored Thing Model Version from its
+`version.model` before opening the file, while a TM Version without content
+gets a generated id. Because generated ids are prereleases, a deployment of
+unversioned models can select one explicitly as the sticky default with
+`SetDefaultVersionAsync`.
 
 `IWotVersionedThingResolver` extends `IWotThingResolver` for stores that hold
 several versions; existing implementations of `IWotThingResolver` are
 unaffected. The converter passes `tm:minVersion` from `extends` and submodel
-links and from beside `tm:ref`, and derives the implicit floor of a TD type
-link from `version.model`. A provider that implements only
+links and from beside `tm:ref`, and passes `td:minVersion` from TD composition
+links and beside `td:ref`. It derives the implicit floor of a TD type link
+from `version.model`. A provider that implements only
 `IWotThingResolver` returns one document regardless of floor.
 `WotVersionedReference` checks that document against the floor, so an older
 document cannot satisfy a newer floor unnoticed. Registry dependency metadata

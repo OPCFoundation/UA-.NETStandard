@@ -158,7 +158,7 @@ namespace Opc.Ua.Types.Tests.Wot
         [TestCase("1.0.0+a")]
         [TestCase("v1.0.0")]
         [TestCase("1.0.0\n")]
-        [TestCase("1.0.0-é")]
+        [TestCase("1.0.0-ï¿½")]
         public void InvalidVersionIdentifiersAreRejected(string text)
         {
             Assert.That(WotSemanticVersion.TryParse(text, out _), Is.False);
@@ -219,6 +219,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"rel\":\"type\",\"href\":\"urn:b\",\"tm:minVersion\":\"9.0.0\"}]" + version + "}"));
             Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"),
                 Is.EqualTo(expected));
+        }
+
+        [TestCase("https://registry.example/groups/tms/resources/pump/versions/1.1.0")]
+        [TestCase("/groups/tms/resources/pump/versions/1.1.0#/properties/p")]
+        public void AVersionPinBypassesFloorDerivation(string href)
+        {
+            using WotDocument document = WotDocument.Parse(System.Text.Encoding.UTF8.GetBytes(
+                "{\"@type\":\"Thing\",\"version\":{\"model\":\"invalid\"}," +
+                "\"links\":[{\"rel\":\"type\",\"href\":\"" + href + "\"}," +
+                "{\"rel\":\"type\",\"href\":\"urn:b\"}]}"));
+            Assert.That(WotVersionedReference.GetRequiredVersion(document, document.Links[0], "type"), Is.Null);
+            Assert.Throws<WotVersionException>(() =>
+                WotVersionedReference.GetRequiredVersion(document, document.Links[1], "type"));
         }
 
         [Test]

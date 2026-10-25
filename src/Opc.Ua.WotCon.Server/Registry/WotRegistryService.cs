@@ -1175,6 +1175,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                     }
                     versionId = assignment.VersionId;
                     current = existing?.FindVersion(versionId);
+                    if (current is null)
+                    {
+                        RejectCaseVariantVersionId(existing, versionId);
+                    }
                 }
                 else if (explicitVersionId is null)
                 {
@@ -1193,16 +1197,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                     if (current is null)
                     {
                         ValidateExplicitVersionId(versionId, nameof(request.VersionId));
-                        if (existing?.Versions.Any(version => string.Equals(
-                                version.VersionId,
-                                versionId,
-                                StringComparison.OrdinalIgnoreCase)) == true)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdExists,
-                                $"Version '{versionId}' differs only by case from an " +
-                                "existing sibling Version.");
-                        }
+                        RejectCaseVariantVersionId(existing, versionId);
                     }
                 }
                 if (request.ExpectedVersionIncarnation is { } expectedIncarnation &&
@@ -3180,6 +3175,24 @@ namespace Opc.Ua.WotCon.Server.Registry
             int protectedCommittedCount = resource.Versions.Count(version =>
                 version.HasContent && (protectedIds.Contains(version.VersionId) || IsVersionLeased(version)));
             return protectedCommittedCount + 1 <= max;
+        }
+
+        /// <summary>
+        /// Rejects a new Version id that differs only by case from a sibling, because Version
+        /// ids are unique case-insensitively within their Resource.
+        /// </summary>
+        private static void RejectCaseVariantVersionId(WotResource? existing, string versionId)
+        {
+            if (existing?.Versions.Any(version => string.Equals(
+                    version.VersionId,
+                    versionId,
+                    StringComparison.OrdinalIgnoreCase)) == true)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdExists,
+                    $"Version '{versionId}' differs only by case from an " +
+                    "existing sibling Version.");
+            }
         }
 
         private static string NextVersionId(WotResource? existing, bool generated = false)
