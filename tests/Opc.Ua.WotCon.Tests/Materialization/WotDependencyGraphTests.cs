@@ -66,7 +66,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             using var service = new WotRegistryService();
             foreach ((WoTDocumentKindEnum kind, string id, byte[] content) in docs)
             {
-                ByteString bytes = ByteString.From(content);
+                ByteString bytes = ByteString.From(kind == WoTDocumentKindEnum.ThingModel
+                    ? TestMaterialization.WithModelVersion(content, "1.0.0")
+                    : content);
                 byDigest[WotContentDigest.ToHex(WotContentDigest.Compute(bytes))] = bytes;
                 await service.UpsertResourceAsync(new WotUpsertResourceRequest
                 {

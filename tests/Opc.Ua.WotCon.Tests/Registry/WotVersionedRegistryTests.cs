@@ -333,7 +333,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase("1.2.0")]
         public void DependencyProjectionSetsTheOptionalFloorBit(string? floor)
         {
-            var observation = new WotDependencySnapshot("1.0.0", 1, "request", DateTime.UnixEpoch, false,
+            var observation = new WotDependencySnapshot("1.0.0", 1, "request",
+                new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), false,
                 default, [new WotDependency("source", "urn:target", null, "tm:extends", false)
                 { RequiredVersion = floor }], []);
             WoTDependencyDataType edge = observation.ToDataType().Edges[0];

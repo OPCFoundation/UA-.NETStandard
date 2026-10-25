@@ -62,9 +62,6 @@ namespace Opc.Ua.WotCon.Tests
             var builder = new StringBuilder();
             builder.Append("{\"@context\":\"https://www.w3.org/2022/wot/td/v1.1\",")
                 .Append("\"@type\":\"tm:ThingModel\",")
-                .Append("\"version\":{\"model\":\"").Append(variant.StartsWith('v')
-                    ? variant[1..] + ".0.0" : char.IsDigit(variant[0]) && !variant.Contains('.', System.StringComparison.Ordinal)
-                        ? variant + ".0.0" : variant.Contains('.', System.StringComparison.Ordinal) ? variant : "1.0.0").Append("\"},")
                 .Append("\"id\":\"").Append(id).Append("\",")
                 .Append("\"title\":\"").Append(id).Append('-').Append(variant).Append("\",")
                 .Append("\"properties\":{\"value\":{\"type\":\"number\",\"forms\":[{\"href\":\"x\"}]}}");

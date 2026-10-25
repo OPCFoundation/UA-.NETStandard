@@ -1753,6 +1753,14 @@ gets a generated id. Because generated ids are prereleases, a deployment of
 unversioned models can select one explicitly as the sticky default with
 `SetDefaultVersionAsync`.
 
+Native registry CRUD and FileType writes retain an explicitly allocated Version
+id when the document has no `version.model` (TM) or `version.instance` (TD).
+Resources with opaque native Version ids also retain these controls on
+implicit updates. These writes use the native default/desired-version controls rather than
+reassigning the Version on close. An authored document version still has to
+match the requested Version id; implicit publication uses the assignment rules
+above.
+
 `IWotVersionedThingResolver` extends `IWotThingResolver` for stores that hold
 several versions; existing implementations of `IWotThingResolver` are
 unaffected. The converter passes `tm:minVersion` from `extends` and submodel

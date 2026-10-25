@@ -1144,10 +1144,17 @@ namespace Opc.Ua.WotCon.Server.Registry
                 WotResourceVersion? current;
                 string versionId;
                 WotPublicationAssignment? assignment = null;
-                if ((request.Kind == WoTDocumentKindEnum.ThingModel &&
+                // Native CRUD and FileType writes retain their allocated identity and
+                // selection controls when no document version is declared.
+                bool nativeVersionWrite =
+                    (request.Kind == WoTDocumentKindEnum.ThingDescription ? instanceVersion : modelVersion) is null &&
+                    (explicitVersionId is not null ||
+                        existing?.Versions.Any(version =>
+                            !WotSemanticVersion.TryParse(version.VersionId, out _)) == true);
+                if (!nativeVersionWrite && ((request.Kind == WoTDocumentKindEnum.ThingModel &&
                         parsedKind == WotDocumentKind.ThingModel) ||
                     (request.Kind == WoTDocumentKindEnum.ThingDescription &&
-                        parsedKind == WotDocumentKind.ThingDescription))
+                        parsedKind == WotDocumentKind.ThingDescription)))
                 {
                     string targetKind = request.Kind == WoTDocumentKindEnum.ThingDescription ? "td" : "tm";
                     string? authoredVersion = targetKind == "td" ? instanceVersion : modelVersion;

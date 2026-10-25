@@ -881,7 +881,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 GroupId = groupId,
                 ResourceId = resourceId,
                 Kind = kind,
-                Content = ByteString.From(content)
+                Content = ByteString.From(kind == WoTDocumentKindEnum.ThingModel
+                    ? TestMaterialization.WithModelVersion(content, "1.0.0")
+                    : content)
             });
         }
 
