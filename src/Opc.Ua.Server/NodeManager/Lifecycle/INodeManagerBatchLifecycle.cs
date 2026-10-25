@@ -42,9 +42,8 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Source-compatible entry points for ordinary external callers of the batch lifecycle.
-    /// They forward to the canonical overload with a null caller context and hold no ambient state.
-    /// Code running inside an OPC UA request or binding callback must use the explicit context overload.
+    /// Source-compatible entry points that forward to the canonical context-free transaction members.
+    /// Request and binding callbacks do not require explicit contexts to release global binding admission.
     /// </summary>
     public static class NodeManagerBatchLifecycleExtensions
     {
@@ -69,7 +68,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Reserves an invocation for an ordinary external caller that is not running under a request.
+        /// Reserves an invocation without an explicit request context.
         /// </summary>
         /// <param name="capture">The publication capture.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>

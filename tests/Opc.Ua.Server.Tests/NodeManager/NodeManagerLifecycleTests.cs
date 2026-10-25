@@ -2914,9 +2914,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// An all-events deletion that already owns the monitored-item mutation gate completes
-        /// before shadow retirement snapshots subscriptions. The retired manager receives that
-        /// unsubscribe exactly once and final disposal does not replay it.
+        /// An in-flight deletion is absent from replacement bindings while its original owner finishes
+        /// exactly one unsubscribe. Retirement waits for that admitted callback, not replacement publication.
         /// </summary>
         [Test]
         public async Task InFlightAllEventsDeleteIsNotRetainedOrUnsubscribedTwiceAsync()
@@ -2970,42 +2969,28 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .WaitAsync(TimeSpan.FromSeconds(10))
                 .ConfigureAwait(false);
 
-            var replacementBound =
-                new TaskCompletionSource<bool>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
+            TrackingLifecycleNodeManager? replacementManager = null;
             Task<NodeManagerRegistration> reloadTask = m_server.NodeManagerLifecycle
                 .ShadowReloadAsync(
                     original,
                     CreateTrackingNodeManagementFactory(
                         kGeneration2Value,
-                        manager => manager.AllEventsCallback = (
-                                monitoredItem,
-                                unsubscribe,
-                                _) =>
-                            {
-                                if (!unsubscribe &&
-                                    monitoredItem.Id == eventMonitoredItemId)
-                                {
-                                    replacementBound.TrySetResult(true);
-                                }
-                                return default;
-                            }))
+                        manager => replacementManager = manager))
                 .AsTask();
             NodeManagerRegistration reloaded;
             try
             {
-                await replacementBound.Task
-                    .WaitAsync(TimeSpan.FromSeconds(10))
-                    .ConfigureAwait(false);
                 // The reload returns once the replacement is live; only the retired generation's drain waits
                 // for the in-flight monitored-item mutation.
                 reloaded = await reloadTask
                     .WaitAsync(TimeSpan.FromSeconds(10))
                     .ConfigureAwait(false);
-                await Task.Delay(100).ConfigureAwait(false);
+                AssertLifecycleValue(replacementManager);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(deleteTask.IsCompleted, Is.False);
+                    Assert.That(replacementManager.SubscribedAllEventIds.ToList(), Is.Empty,
+                        "The deleting item must never be rebound on the replacement generation.");
                     Assert.That(
                         retiredManager.DisposeCount,
                         Is.Zero,

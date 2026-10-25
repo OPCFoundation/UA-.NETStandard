@@ -3364,7 +3364,7 @@ namespace Opc.Ua.Server
         /// <param name="readImages">Read images to publish together with the changes.</param>
         /// <param name="validationOnly">Whether the batch is a validation candidate that can never be
         /// committed.</param>
-        /// <param name="retainWriter">Whether the prepared batch keeps the lifecycle writer and binding admission
+        /// <param name="retainWriter">Whether the prepared batch keeps the lifecycle writer
         /// until it is committed or disposed, so no other lifecycle operation can interleave.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
@@ -3412,7 +3412,7 @@ namespace Opc.Ua.Server
                 operation = EnterLifecycleOperation(publication?.Capture);
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     GetRunningServer(allowRequestCallback, callerContext);
-                if (host is not IDynamicNodeManagerBatchHost batchHost)
+                if (host is not IDynamicNodeManagerBatchHost)
                 {
                     throw new NotSupportedException("The server host does not support prepared publication.");
                 }
@@ -3422,8 +3422,6 @@ namespace Opc.Ua.Server
                 }
                 using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                     EnterRequestLifecycleWaiter(server, callerContext);
-                var bindingAdmission = new TransferableAdmission(batchHost.SuspendBindingAdmission(callerContext));
-                await using var bindingAdmissionScope = bindingAdmission.ConfigureAwait(false);
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
                 bool releaseWriter = true;
                 ChangePreparer? preparation = null;
@@ -3514,7 +3512,7 @@ namespace Opc.Ua.Server
                     if (retainWriter)
                     {
                         // Direct Add/Reload are one writer operation: keep the captured metadata revision current.
-                        prepared.RetainWriter(bindingAdmission.Transfer());
+                        prepared.RetainWriter();
                         releaseWriter = false;
                     }
                     operation = null;
@@ -3562,13 +3560,9 @@ namespace Opc.Ua.Server
         {
             ThrowIfDecisionCallbackActive();
 
-            await using var retainedAdmission = batch.TakeWriter(out bool writerHeld).ConfigureAwait(false);
+            bool writerHeld = batch.TakeWriter();
             using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
                 writerHeld ? null : EnterRequestLifecycleWaiter(batch.Server);
-            await using var bindingAdmission = (writerHeld
-                ? new TransferableAdmission(null)
-                : ((IDynamicNodeManagerBatchHost)batch.Host).SuspendBindingAdmission(batch.CallerContext))
-                    .ConfigureAwait(false);
             if (!writerHeld)
             {
                 await WaitForLifecycleSemaphoreAsync(waiter, cancellationToken).ConfigureAwait(false);
@@ -3577,6 +3571,8 @@ namespace Opc.Ua.Server
             var failures = new List<Exception>();
             var monitoredItemTransitions = new List<MonitoredItemTransition>();
             var semanticChanges = new List<SemanticChangeStructureDataType>();
+            long publishedRevision = 0;
+            NodeManagerSlot[] publishedSlots = [];
             try
             {
                 EnsureSameRunningServer(batch.Server, batch.Host, batch.AllowRequestCallback);
@@ -3704,6 +3700,14 @@ namespace Opc.Ua.Server
                                     }
                                 }
                                 m_retiredNodeManagers.AddRange(retired);
+                                publishedRevision =
+                                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision.Revision;
+                                publishedSlots =
+                                [
+                                    .. m_registrations.Values
+                                        .Select(state => state.Registration.Slot)
+                                        .Where(slot => slot.TryGetCurrent(out _))
+                                ];
                             }
                             try
                             {
@@ -3744,17 +3748,25 @@ namespace Opc.Ua.Server
                                         throw new InvalidOperationException(
                                             "A committed NodeManager has no generation identity.");
                                     }
-                                    GenerationReconciler.Bindings bindings = await GetGenerationReconciler(batch.Server)
-                                        .BindAsync(
-                                        generation,
-                                        batch.CallerContext,
-                                        CancellationToken.None).ConfigureAwait(false);
-                                    await GetGenerationReconciler(batch.Server).ReconcileAsync(
-                                        entry.Manager,
-                                        bindings,
-                                        batch.CallerContext,
-                                        CancellationToken.None)
-                                        .ConfigureAwait(false);
+                                    if (!generation.Gate.TryEnter(out int admissionSlot))
+                                    {
+                                        continue;
+                                    }
+                                    m_lifecycleSemaphore.Release();
+                                    try
+                                    {
+                                        GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
+                                        GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
+                                            generation, CancellationToken.None).ConfigureAwait(false);
+                                        await reconciler.ReconcileAsync(
+                                            generation, bindings, CancellationToken.None).ConfigureAwait(false);
+                                    }
+                                    finally
+                                    {
+                                        generation.Gate.Exit(admissionSlot);
+                                        await m_lifecycleSemaphore.WaitAsync(CancellationToken.None)
+                                            .ConfigureAwait(false);
+                                    }
                                 }
                                 catch (Exception failure) when (failure is not OutOfMemoryException)
                                 {
@@ -3787,6 +3799,12 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
+                    NodeManagerGeneration generation = entry.Next.Registration.Identity;
+                    if (!generation.Gate.TryEnter(out int admissionSlot))
+                    {
+                        ReleaseReadinessClaim(entry.Next);
+                        continue;
+                    }
                     try
                     {
                         if (entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate)
@@ -3808,6 +3826,7 @@ namespace Opc.Ua.Server
                     }
                     finally
                     {
+                        generation.Gate.Exit(admissionSlot);
                         ReleaseReadinessClaim(entry.Next);
                     }
                 }
@@ -3869,24 +3888,16 @@ namespace Opc.Ua.Server
                     }
                 }
                 uint completed;
-                NodeManagerSlot[] slots;
-                long revision = ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision.Revision;
                 lock (m_registrationLock)
                 {
                     completed = (uint)retired.Count(item => !m_retiredNodeManagers.Contains(item));
-                    slots =
-                    [
-                        .. m_registrations.Values
-                            .Select(state => state.Registration.Slot)
-                            .Where(slot => slot.TryGetCurrent(out _))
-                    ];
                 }
                 return new NodeManagerBatchResult(
                     batch.Registrations, completed,
                     failures.Count == 0 ? null : new AggregateException(
                         "The batch committed; generation reconciliation remains pending.", failures),
-                    revision,
-                    slots,
+                    publishedRevision,
+                    publishedSlots,
                     Task.WhenAll(retired.Select(item => item.Retirement)));
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
@@ -4119,26 +4130,20 @@ namespace Opc.Ua.Server
             public IOperationContext? CallerContext { get; }
 
             /// <summary>
-            /// Transfers the held lifecycle writer and binding-admission suspension to this batch.
+            /// Transfers the held lifecycle writer to this batch.
             /// </summary>
-            /// <param name="bindingAdmission">The binding-admission suspension held with the writer.</param>
-            public void RetainWriter(IAsyncDisposable bindingAdmission)
+            public void RetainWriter()
             {
-                m_retainedAdmission = bindingAdmission;
                 Volatile.Write(ref m_writerRetained, 1);
             }
 
             /// <summary>
             /// Takes ownership of a lifecycle writer retained from preparation.
             /// </summary>
-            /// <param name="writerHeld">True when the caller now owns the held writer.</param>
-            /// <returns>The retained binding-admission suspension the caller must dispose; empty when no writer
-            /// was retained.</returns>
-            public TransferableAdmission TakeWriter(out bool writerHeld)
+            /// <returns>True when the caller now owns the held writer.</returns>
+            public bool TakeWriter()
             {
-                writerHeld = Interlocked.Exchange(ref m_writerRetained, 0) != 0;
-                return new TransferableAdmission(
-                    writerHeld ? Interlocked.Exchange(ref m_retainedAdmission, null) : null);
+                return Interlocked.Exchange(ref m_writerRetained, 0) != 0;
             }
 
             /// <summary>
@@ -4309,7 +4314,7 @@ namespace Opc.Ua.Server
                     await m_finished.Task.ConfigureAwait(false);
                 }
                 OperationLifetime? operation = Interlocked.Exchange(ref m_operation, null);
-                await using var retainedAdmission = TakeWriter(out bool writerHeld).ConfigureAwait(false);
+                bool writerHeld = TakeWriter();
                 try
                 {
                     if (operation is null)
@@ -4399,43 +4404,9 @@ namespace Opc.Ua.Server
             private readonly TaskCompletionSource<bool> m_finished =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             private OperationLifetime? m_operation;
-            private IAsyncDisposable? m_retainedAdmission;
             private int m_writerRetained;
             private int m_state;
             private bool m_readImagesBound;
-        }
-
-        /// <summary>
-        /// Holds a binding-admission suspension whose ownership can move to a prepared batch.
-        /// </summary>
-        private sealed class TransferableAdmission : IAsyncDisposable
-        {
-            /// <summary>
-            /// Creates the holder.
-            /// </summary>
-            /// <param name="inner">The held suspension, or null when there is nothing to hold.</param>
-            public TransferableAdmission(IAsyncDisposable? inner)
-            {
-                m_inner = inner;
-            }
-
-            /// <summary>
-            /// Transfers the held suspension to the caller.
-            /// </summary>
-            /// <returns>The suspension, which this holder no longer disposes.</returns>
-            public IAsyncDisposable Transfer()
-            {
-                return Interlocked.Exchange(ref m_inner, null) ??
-                    throw new InvalidOperationException("The binding admission was already transferred.");
-            }
-
-            /// <inheritdoc/>
-            public ValueTask DisposeAsync()
-            {
-                return Interlocked.Exchange(ref m_inner, null)?.DisposeAsync() ?? default;
-            }
-
-            private IAsyncDisposable? m_inner;
         }
 
         /// <inheritdoc/>

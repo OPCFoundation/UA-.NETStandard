@@ -86,40 +86,10 @@ namespace Opc.Ua.Server
         NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
 
         /// <summary>
-        /// Releases the binding admission captured for the specified request context while a callback waits for
-        /// and executes lifecycle work. A null or unadmitted context is an ordinary external caller and suspends
-        /// nothing. Async disposal resumes admission after lifecycle serialization has been released.
-        /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <returns>A suspension that resumes admission when disposed asynchronously.</returns>
-        IAsyncDisposable SuspendBindingAdmission(IOperationContext? context);
-
-        /// <summary>
         /// Stops routing item deletions to a retired generation after its all-events bindings were released.
         /// </summary>
         /// <param name="generation">The retired generation whose bindings were released.</param>
         void ReleaseRetiringEventGeneration(NodeManagerGeneration generation);
-
-        /// <summary>
-        /// Checks whether the request admitted for the context is already removing this exact monitored item.
-        /// A null or unadmitted context is removing nothing.
-        /// </summary>
-        /// <param name="context">The operation context the admitted request was started with, or null.</param>
-        /// <param name="monitoredItem">The monitored item to check.</param>
-        /// <returns><c>true</c> if the admitted operation is removing the item.</returns>
-        bool IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem);
-
-        /// <summary>
-        /// Dispatches Session activation and its notifications against the published bindings.
-        /// </summary>
-        /// <param name="context">The ActivateSession request context, or null for an independent caller.</param>
-        /// <param name="activateAsync">The callback performing the Session activation.</param>
-        /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The server nonce and activation status produced by <paramref name="activateAsync"/>.</returns>
-        ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)> DispatchSessionActivationAsync(
-            IOperationContext? context,
-            Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
-            CancellationToken cancellationToken);
 
         /// <summary>
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.

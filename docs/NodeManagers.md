@@ -1073,7 +1073,8 @@ pass an `OperationContext`.
   must await teardown. `result.Retired` counts generations already cleaned up when the result was
   created. `result.Revision` identifies the published routing view, and `result.Slots` contains the
   stable application slots in that view. `INodeManagerLifecycle.Revision` and `Slots` expose the
-  same information for the current view.
+  corresponding information for the current view. A nested lifecycle change during reconciliation
+  or readiness can advance the current view without changing the original result's revision or slot set.
 - Before the durable decision callback runs, the batch reserves the serving routing revision. All
   routing writers fail with `InvalidOperationException` while it is held; readers are unaffected.
   Retry after it releases. A noncommit or cancellation releases only that batch's reservation.
@@ -1082,7 +1083,7 @@ pass an `OperationContext`.
 
 #### Invocation publication units
 
-`INodeManagerLifecycle.CapturePublication` records the serving revisions; `BeginAsync(callerContext, ct)`
+`INodeManagerLifecycle.CapturePublication` records the serving revisions; `BeginAsync(ct)`
 reserves the invocation, and `IsCurrent` reports whether the revisions still match. A stale
 invocation must be disposed and recaptured. Units are prepared with
 `INodeManagerPublication.PrepareAsync` and follow the same decision and cleanup contracts.
@@ -1101,13 +1102,18 @@ the decision is accepted, the host publishes the new routing and binds the candi
 Sessions and all-events MonitoredItems. New activations and MonitoredItem create, modify and delete
 operations reconcile against the published routes through per-generation binding records. Reconciliation
 joins an in-flight bind or reuses a completed binding without repeating its initial callback. A
-MonitoredItem modification still dispatches its updated subscription to the owner.
+MonitoredItem modification still dispatches its updated subscription to the owner. Unrelated item and
+Session callbacks are not serialized by a global binding semaphore. Lifecycle calls from a callback do
+not require an operation context to suspend or resume binding admission. The lifecycle writer is released
+while binding callbacks run; a generation admission keeps their owner alive until reconciliation finishes.
 
 Retirement seals record admission before enumerating the generation's bindings, so no new binding can
 escape cleanup. Deleting an all-events MonitoredItem during its subscribe callback marks the binding
 for release without waiting for that callback; the subscribing operation releases it when the callback
 finishes. If that release fails, the pending removal remains recorded for retirement to retry and cannot
 be treated as a new subscription. `BadNotSupported` from an all-events owner does not abort publication.
+Deletion removes the item from the server's event registry before invoking unsubscribe callbacks, so
+a lifecycle operation started inside a callback cannot bind the deleted item to a new generation.
 
 Closed Sessions and deleted MonitoredItems are not restored. Exceptions and bad subscription
 results after publication are reported in `NodeManagerBatchResult.CleanupFailure`; they do not turn

@@ -54,20 +54,21 @@ namespace Opc.Ua.Server
         /// Binds a generation to the currently active sessions and all-events monitored items.
         /// </summary>
         /// <param name="generation">The generation to bind.</param>
-        /// <param name="callerContext">The lifecycle caller context, if any.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>The bindings successfully established for this generation.</returns>
         internal async ValueTask<Bindings> BindAsync(
             NodeManagerGeneration generation,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            IAsyncNodeManager nodeManager = generation.NodeManager;
             var bindings = new Bindings();
             try
             {
                 foreach (ISession session in m_server.SessionManager.GetSessions())
                 {
+                    if (generation.Gate.State != NodeManagerGenerationState.Live)
+                    {
+                        break;
+                    }
                     if (!session.Activated || session.IsClosing)
                     {
                         continue;
@@ -83,13 +84,17 @@ namespace Opc.Ua.Server
 
                 foreach (IEventMonitoredItem monitoredItem in m_server.EventManager.GetMonitoredItems())
                 {
+                    if (generation.Gate.State != NodeManagerGenerationState.Live)
+                    {
+                        break;
+                    }
                     if (!monitoredItem.MonitoringAllEvents)
                     {
                         continue;
                     }
 
                     if (await SubscribeToAllEventsAsync(
-                        nodeManager, monitoredItem, callerContext, cancellationToken).ConfigureAwait(false))
+                        generation, monitoredItem, cancellationToken).ConfigureAwait(false))
                     {
                         bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
                     }
@@ -114,18 +119,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Reconciles bindings after publication against the server's current session and item sets.
         /// </summary>
-        /// <param name="nodeManager">The generation's manager.</param>
+        /// <param name="generation">The generation to reconcile.</param>
         /// <param name="bindings">The bindings established before publication.</param>
-        /// <param name="callerContext">The lifecycle caller context, if any.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>A task that completes when the current binding set has been reconciled.</returns>
         internal async ValueTask ReconcileAsync(
-            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             Bindings bindings,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            NodeManagerGeneration generation = GetCurrentGeneration(nodeManager);
+            if (generation.Gate.State != NodeManagerGenerationState.Live)
+            {
+                return;
+            }
+            IAsyncNodeManager nodeManager = generation.NodeManager;
             ISession[] currentSessions =
             [
                 .. m_server.SessionManager
@@ -147,6 +154,10 @@ namespace Opc.Ua.Server
 
             foreach (ISession session in currentSessions)
             {
+                if (generation.Gate.State != NodeManagerGenerationState.Live)
+                {
+                    return;
+                }
                 SessionBinding? newBinding = await ActivateSessionAsync(
                     generation, session, cancellationToken).ConfigureAwait(false);
                 if (newBinding is not null)
@@ -179,56 +190,20 @@ namespace Opc.Ua.Server
 
             foreach (IEventMonitoredItem monitoredItem in currentItems)
             {
+                if (generation.Gate.State != NodeManagerGenerationState.Live)
+                {
+                    return;
+                }
                 if (!monitoredItem.MonitoringAllEvents)
                 {
                     continue;
                 }
 
                 if (await SubscribeToAllEventsAsync(
-                    nodeManager, monitoredItem, callerContext, cancellationToken).ConfigureAwait(false))
+                    generation, monitoredItem, cancellationToken).ConfigureAwait(false))
                 {
                     bindings.EventMonitoredItems[monitoredItem.Id] = monitoredItem;
                 }
-            }
-        }
-
-        /// <summary>
-        /// Removes a manager's server bindings by enumerating the current server state.
-        /// </summary>
-        /// <param name="nodeManager">The manager to unbind.</param>
-        /// <param name="cancellationToken">The cancellation token.</param>
-        /// <param name="unsubscribeAllEvents">Whether to remove all-events subscriptions.</param>
-        /// <returns>A task that completes when the bindings have been removed.</returns>
-        internal async ValueTask UnbindAsync(
-            IAsyncNodeManager nodeManager,
-            CancellationToken cancellationToken,
-            bool unsubscribeAllEvents = true)
-        {
-            if (unsubscribeAllEvents)
-            {
-                foreach (IEventMonitoredItem monitoredItem in m_server.EventManager.GetMonitoredItems())
-                {
-                    if (!monitoredItem.MonitoringAllEvents)
-                    {
-                        continue;
-                    }
-
-                    using var eventContext = new OperationContext(monitoredItem);
-                    ServiceResult result = await nodeManager.SubscribeToAllEventsAsync(
-                        eventContext, monitoredItem.SubscriptionId, monitoredItem, true, cancellationToken)
-                        .ConfigureAwait(false);
-                    if (ServiceResult.IsBad(result) && result.StatusCode != StatusCodes.BadNotSupported)
-                    {
-                        throw new ServiceResultException(result);
-                    }
-                }
-            }
-
-            foreach (ISession session in m_server.SessionManager.GetSessions())
-            {
-                using var context = new OperationContext(session, DiagnosticsMasks.None);
-                await nodeManager.SessionClosingAsync(
-                    context, session.Id, deleteSubscriptions: false, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -247,17 +222,14 @@ namespace Opc.Ua.Server
             bool unsubscribeAllEvents,
             CancellationToken cancellationToken)
         {
-            IAsyncNodeManager nodeManager = generation.NodeManager;
             if (unsubscribeAllEvents)
             {
                 await ReleaseRetiredEventsAsync(generation, cancellationToken).ConfigureAwait(false);
             }
 
-            foreach (ISession session in m_server.SessionManager.GetSessions())
+            foreach (NodeId sessionId in generation.SessionBindings.Keys)
             {
-                using var context = new OperationContext(session, DiagnosticsMasks.None);
-                await nodeManager.SessionClosingAsync(
-                    context, session.Id, deleteSubscriptions: false, cancellationToken).ConfigureAwait(false);
+                await CloseSessionAsync(generation, sessionId, cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -352,16 +324,6 @@ namespace Opc.Ua.Server
                         sessionContext, binding.Key, deleteSubscriptions: false, cancellationToken).ConfigureAwait(false);
                 }
             }
-        }
-
-        private NodeManagerGeneration GetCurrentGeneration(IAsyncNodeManager nodeManager)
-        {
-            if (m_server.NodeManager is MasterNodeManager master &&
-                master.TryGetCurrentGeneration(nodeManager, out NodeManagerGeneration? generation))
-            {
-                return generation!;
-            }
-            throw new InvalidOperationException("The NodeManager is not present in the current routing view.");
         }
 
         internal async ValueTask<SessionBinding?> ActivateSessionAsync(
@@ -513,18 +475,16 @@ namespace Opc.Ua.Server
         }
 
         private async ValueTask<bool> SubscribeToAllEventsAsync(
-            IAsyncNodeManager nodeManager,
+            NodeManagerGeneration generation,
             IEventMonitoredItem monitoredItem,
-            IOperationContext? callerContext,
             CancellationToken cancellationToken)
         {
-            if ((m_server.NodeManager as IDynamicNodeManagerBatchHost)?.IsRemovingBinding(
-                callerContext, monitoredItem) == true)
+            if (!m_server.EventManager.Contains(monitoredItem))
             {
                 return false;
             }
 
-            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
+            IAsyncNodeManager nodeManager = generation.NodeManager;
             ServiceResult result = await ChangeAllEventsSubscriptionAsync(
                 generation,
                 monitoredItem,

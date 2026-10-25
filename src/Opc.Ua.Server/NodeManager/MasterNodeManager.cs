@@ -300,7 +300,6 @@ namespace Opc.Ua.Server
                 m_startupShutdownSemaphoreSlim.Release();
                 m_startupShutdownSemaphoreSlim.Dispose();
                 m_dynamicMutationSemaphore.Dispose();
-                m_bindingSemaphore.Dispose();
             }
             if (errors.Count > 0)
             {
@@ -434,7 +433,6 @@ namespace Opc.Ua.Server
             await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
             m_dynamicMutationSemaphore.Release();
 
-            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             await m_startupShutdownSemaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -487,7 +485,6 @@ namespace Opc.Ua.Server
             NodeId sessionId,
             CancellationToken cancellationToken = default)
         {
-            await using var bindingResumption = DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
@@ -1833,7 +1830,6 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly SemaphoreSlim m_dynamicMutationSemaphore = new(1, 1);
         private readonly SemaphoreSlim m_startupShutdownSemaphoreSlim = new(1, 1);
-        private readonly SemaphoreSlim m_bindingSemaphore = new(1, 1);
         private readonly NodeManagerRoutingTable m_nodeManagers;
         private readonly HashSet<object> m_shutdownCompletedNodeManagers =
             new(RefEqualityComparer.Default);

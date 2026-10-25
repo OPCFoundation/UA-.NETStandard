@@ -42,8 +42,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
-        [Test]
-        public async Task OverlappingBindingSuspensionsRestoreAdmissionOnlyAfterTheirLastReleaseAsync()
+        /// <summary>
+        /// Verifies that a held event callback does not serialize unrelated client operations.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BlockedEventCallbackAllowsUnrelatedCreateModifyDeleteAndActivationAsync(bool unsubscribe)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -55,153 +59,102 @@ namespace Opc.Ua.Server.Tests.NodeManager
             CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
                 m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
             uint subscriptionId = subscription.SubscriptionId;
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            var suspended = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            uint unrelatedItem = await CreateEventMonitoredItemAsync(
+                services, subscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
+            uint heldItem = unsubscribe
+                ? await CreateEventMonitoredItemAsync(
+                    services, subscriptionId, ObjectIds.Server, 2).ConfigureAwait(false)
+                : 0;
+            var entered = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
-            manager.AllEventsContextCallback = async (context, unsubscribe, token) =>
+            manager.AllEventsCallback = async (item, removing, _) =>
             {
-                if (unsubscribe || Interlocked.Increment(ref callbacks) != 1)
+                if (removing != unsubscribe || Interlocked.Increment(ref callbacks) != 1)
                 {
                     return;
                 }
-                await using IAsyncDisposable first = host.SuspendBindingAdmission(context);
-                await using IAsyncDisposable second = host.SuspendBindingAdmission(context);
-                await first.DisposeAsync().ConfigureAwait(false);
-                suspended.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
+                entered.TrySetResult(item.Id);
+                await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             };
-            Task<uint> firstAdmission = CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 1);
-            Task<uint>? secondAdmission = null;
-            bool blockedByEarlyRelease = false;
+            Task held = unsubscribe
+                ? DeleteMonitoredItemAsync(services, subscriptionId, heldItem)
+                : CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 2);
+            Task<(RequestHeader, SecureChannelContext)>? activation = null;
+            Task<uint>? creation = null;
             try
             {
-                await suspended.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(firstAdmission.IsCompleted, Is.False);
-                secondAdmission = CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 2);
-                try
+                heldItem = await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                creation = CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 3);
+                activation = m_server.CreateAndActivateSessionAsync(
+                    "IndependentOfHeldEventCallback", clientApplicationUri: kClientApplicationUri);
+                uint createdItem = await creation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                (RequestHeader header, _) = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeId sessionId = RequireLifecycleValue(m_server.CurrentInstance.SessionManager
+                    .GetSession(header.AuthenticationToken)).Id;
+                var filter = new EventFilter();
+                filter.AddSelectClause(ObjectTypeIds.BaseEventType, QualifiedName.From(BrowseNames.EventType));
+                m_requestHeader.Timestamp = DateTimeUtc.Now;
+                ModifyMonitoredItemsResponse modified = await services.ModifyMonitoredItemsAsync(
+                    m_requestHeader, subscriptionId, TimestampsToReturn.Both,
+                    [
+                        new MonitoredItemModifyRequest
+                        {
+                            MonitoredItemId = unrelatedItem,
+                            RequestedParameters = new MonitoringParameters
+                            {
+                                ClientHandle = 1,
+                                Filter = new ExtensionObject(filter),
+                                QueueSize = 2,
+                                DiscardOldest = true
+                            }
+                        }
+                    ]).AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+                await DeleteMonitoredItemAsync(services, subscriptionId, unrelatedItem)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
                 {
-                    await secondAdmission.WaitAsync(TimeSpan.FromSeconds(5), timeout.Token).ConfigureAwait(false);
-                }
-                catch (TimeoutException)
-                {
-                    blockedByEarlyRelease = !secondAdmission.IsCompleted && Volatile.Read(ref callbacks) == 1;
+                    Assert.That(held.IsCompleted, Is.False,
+                        "Unrelated requests must finish before the held callback is released.");
+                    Assert.That(modified.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(modified.Results[0].RevisedQueueSize, Is.EqualTo(2));
+                    Assert.That(manager.ActivatedSessionIds.ToList().Count(id => id == sessionId), Is.EqualTo(1));
+                    Assert.That(manager.SubscribedAllEventIds.ToList().Count(id => id == createdItem), Is.EqualTo(1));
+                    Assert.That(manager.UnsubscribedAllEventIds.ToList().Count(id => id == unrelatedItem),
+                        Is.EqualTo(1));
                 }
             }
             finally
             {
                 release.TrySetResult(true);
-                manager.AllEventsContextCallback = null!;
                 manager.AllEventsCallback = (_, _, _) => default;
-                await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (secondAdmission is not null)
+                await held.WaitAsync(timeout.Token).ConfigureAwait(false);
+                if (creation is not null)
                 {
-                    await secondAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await creation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                if (activation is not null)
+                {
+                    (RequestHeader header, SecureChannelContext channel) =
+                        await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    header.Timestamp = DateTimeUtc.Now;
+                    await m_server.CloseSessionAsync(channel, header, true, RequestLifetime.None).ConfigureAwait(false);
                 }
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
-            Assert.That(blockedByEarlyRelease, Is.False,
-                "Completing one nested lifecycle operation must not resume admission still suspended by another.");
-            Assert.That(manager.AllEventsSubscribeCount, Is.EqualTo(2));
-        }
-
-        [Test]
-        public async Task OverlappingBindingResumptionsAcquireAdmissionOnlyOnceAsync()
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(manager);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            var suspended = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var peerEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var resume = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var resumptionsQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var releasePeer = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            int callbacks = 0;
-            manager.AllEventsContextCallback = async (context, unsubscribe, token) =>
+            using (Assert.EnterMultipleScope())
             {
-                if (unsubscribe)
-                {
-                    return;
-                }
-                if (Interlocked.Increment(ref callbacks) == 1)
-                {
-                    await using IAsyncDisposable first = host.SuspendBindingAdmission(context);
-                    suspended.TrySetResult(true);
-                    await resume.Task.WaitAsync(token).ConfigureAwait(false);
-                    Task firstResumption = first.DisposeAsync().AsTask();
-                    await using IAsyncDisposable second = host.SuspendBindingAdmission(context);
-                    Task secondResumption = second.DisposeAsync().AsTask();
-                    resumptionsQueued.TrySetResult(true);
-                    await Task.WhenAll(firstResumption, secondResumption).WaitAsync(timeout.Token)
-                        .ConfigureAwait(false);
-                }
-                else
-                {
-                    peerEntered.TrySetResult(true);
-                    await releasePeer.Task.WaitAsync(token).ConfigureAwait(false);
-                }
-            };
-            Task<uint> firstAdmission = CreateEventMonitoredItemAsync(
-                services, subscription.SubscriptionId, ObjectIds.Server, 1);
-            Task<uint>? secondAdmission = null;
-            try
-            {
-                await suspended.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                secondAdmission = CreateEventMonitoredItemAsync(
-                    services, subscription.SubscriptionId, ObjectIds.Server, 2);
-                await peerEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                resume.TrySetResult(true);
-                await resumptionsQueued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(firstAdmission.IsCompleted, Is.False);
-                releasePeer.TrySetResult(true);
-                await Task.WhenAll(firstAdmission, secondAdmission).WaitAsync(timeout.Token).ConfigureAwait(false);
-                manager.AllEventsCallback = (_, _, _) => default;
-                await CreateEventMonitoredItemAsync(services, subscription.SubscriptionId, ObjectIds.Server, 3)
-                    .WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(manager.AllEventsSubscribeCount, Is.EqualTo(3));
-            }
-            finally
-            {
-                resume.TrySetResult(true);
-                releasePeer.TrySetResult(true);
-                manager.AllEventsContextCallback = null!;
-                manager.AllEventsCallback = (_, _, _) => default;
-                await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (secondAdmission is not null)
-                {
-                    await secondAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
+                Assert.That(manager.SubscribedAllEventIds.ToList().Count(id => id == heldItem), Is.EqualTo(1));
+                Assert.That(manager.UnsubscribedAllEventIds.ToList().Count(id => id == heldItem), Is.EqualTo(1));
             }
         }
 
-        [Test]
-        public async Task ExplicitContextWithoutAdmissionSuspendsNothingAsync()
-        {
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            IOperationContext custom = Mock.Of<IOperationContext>();
-            IMonitoredItem item = Mock.Of<IMonitoredItem>();
-
-            await using (host.SuspendBindingAdmission(custom).ConfigureAwait(false))
-            {
-                Assert.That(host.IsRemovingBinding(custom, item), Is.False);
-            }
-            await using (host.SuspendBindingAdmission((IOperationContext?)null).ConfigureAwait(false))
-            {
-                Assert.That(host.IsRemovingBinding(null, item), Is.False);
-            }
-        }
-
+        /// <summary>
+        /// Verifies that nested lifecycle calls need no callback context and cannot affect a peer binding.
+        /// </summary>
         [TestCase(true)]
         [TestCase(false)]
-        public async Task NullOrUnadmittedContextCallbackSuspendsNothingAsync(bool nullContext)
+        public async Task NullOrUnrelatedContextNestedAddLeavesPeerBindingIndependentAsync(bool nullContext)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -212,64 +165,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
                 m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            IOperationContext? custom = nullContext ? null : Mock.Of<IOperationContext>();
-            var suspended = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            int callbacks = 0;
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
-            {
-                if (unsubscribe || Interlocked.Increment(ref callbacks) != 1)
-                {
-                    return;
-                }
-                await using IAsyncDisposable suspension = host.SuspendBindingAdmission(custom);
-                suspended.TrySetResult(true);
-                await release.Task.WaitAsync(token).ConfigureAwait(false);
-            };
-            Task<uint> firstAdmission = CreateEventMonitoredItemAsync(
-                services, subscription.SubscriptionId, ObjectIds.Server, 1);
-            Task<uint>? secondAdmission = null;
-            try
-            {
-                await suspended.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                secondAdmission = CreateEventMonitoredItemAsync(
-                    services, subscription.SubscriptionId, ObjectIds.Server, 2);
-                Task completed = await Task.WhenAny(
-                    secondAdmission, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token)).ConfigureAwait(false);
-                // Neither a null nor an unregistered context may release the admission of the callback it runs in.
-                Assert.That(ReferenceEquals(completed, secondAdmission), Is.False);
-            }
-            finally
-            {
-                release.TrySetResult(true);
-                manager.AllEventsCallback = (_, _, _) => default;
-                await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (secondAdmission is not null)
-                {
-                    await secondAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
-            }
-        }
-
-        [Test]
-        public async Task NullContextLifecycleCallFromAdmittedCallbackCompletesIndependentlyAsync()
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(manager);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
-                304, _ => { }, kReadinessProbeNamespaceUri);
+                304, value => nested = value, kReadinessProbeNamespaceUri);
             var callbackFactory = new CallbackSafeNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
-            var attempted = new TaskCompletionSource<Task<NodeManagerRegistration>>(
+            IOperationContext? custom = nullContext ? null : Mock.Of<IOperationContext>();
+            var added = new TaskCompletionSource<NodeManagerRegistration>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             int callbacks = 0;
@@ -279,30 +181,37 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     return;
                 }
-                // A null context is an ordinary external caller: it borrows neither the admission nor the
-                // request of the callback it was started from, and is not awaited here so the request can end.
-                Task<NodeManagerRegistration> add = m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, CancellationToken.None)
-                    .AsTask();
-                attempted.TrySetResult(add);
+                NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
+                    callbackFactory, custom, timeout.Token).ConfigureAwait(false);
+                added.TrySetResult(registration);
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
             Task<uint>? admission = null;
+            Task<uint>? peer = null;
             try
             {
                 admission = CreateEventMonitoredItemAsync(
                     services, subscription.SubscriptionId, ObjectIds.Server, 1);
-                Task<NodeManagerRegistration> add =
-                    await attempted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                // Adding an unrelated manager neither borrows nor waits for the admitted request: there is no
-                // global request drain, so the add publishes while the callback is still running.
-                NodeManagerRegistration registration = await add.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(admission.IsCompleted, Is.False);
-                release.TrySetResult(true);
-                await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                NodeManagerRegistration registration = await added.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                peer = CreateEventMonitoredItemAsync(
+                    services, subscription.SubscriptionId, ObjectIds.Server, 2);
+                uint peerId = await peer.WaitAsync(timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(nested);
                 using (Assert.EnterMultipleScope())
                 {
-                    Assert.That(registration, Is.Not.Null);
+                    Assert.That(registration.NodeManager, Is.SameAs(nested));
+                    Assert.That(admission.IsCompleted, Is.False,
+                        "The peer must complete while the original callback is still held.");
                     Assert.That(callbackFactory.CreateCount, Is.EqualTo(1));
+                    Assert.That(manager.SubscribedAllEventIds.ToList().Count(id => id == peerId), Is.EqualTo(1));
+                    Assert.That(nested.SubscribedAllEventIds.ToList().Count(id => id == peerId), Is.EqualTo(1));
+                }
+                release.TrySetResult(true);
+                uint itemId = await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(manager.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { itemId, peerId }));
+                    Assert.That(nested.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { itemId, peerId }));
                 }
             }
             finally
@@ -313,12 +222,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
+                if (peer is not null)
+                {
+                    await peer.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
                 await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
             }
         }
 
+        /// <summary>
+        /// Verifies that deletion is visible before unsubscribe and a nested publication cannot replay the item.
+        /// </summary>
         [Test]
-        public async Task DeleteRequestCallbackLifecycleCallUsesItsOwnContextAndSucceedsAsync()
+        public async Task DeleteRemovesEventRegistryEntryBeforeUnsubscribeAndNestedAddAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             TrackingLifecycleNodeManager? manager = null;
@@ -331,327 +247,298 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
             uint itemId = await CreateEventMonitoredItemAsync(
                 services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
-                305, _ => { }, kReadinessProbeNamespaceUri);
+                305, value => nested = value, kReadinessProbeNamespaceUri);
             var callbackFactory = new CallbackSafeNodeManagerFactory(
                 [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
-            OperationContext? deleteContext = null;
             NodeManagerRegistration? added = null;
-            manager.AllEventsContextCallback = (context, unsubscribe, _) =>
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            manager.AllEventsCallback = async (item, unsubscribe, token) =>
             {
-                if (unsubscribe)
+                if (unsubscribe && item.Id == itemId)
                 {
-                    Volatile.Write(ref deleteContext, context);
-                }
-                return default;
-            };
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
-            {
-                if (unsubscribe && added is null)
-                {
+                    Assert.That(m_server.CurrentInstance.EventManager.GetMonitoredItems()
+                        .Any(current => current.Id == itemId), Is.False,
+                        "The unsubscribe callback must observe the registry removal.");
                     added = await m_server.NodeManagerLifecycle.AddAsync(
-                        callbackFactory, Volatile.Read(ref deleteContext), token).ConfigureAwait(false);
+                        callbackFactory, null, token).ConfigureAwait(false);
+                    AssertLifecycleValue(nested);
+                    Assert.That(nested.SubscribedAllEventIds.ToList(), Is.Empty,
+                        "A nested Add must not subscribe the item being deleted.");
+                    entered.TrySetResult(true);
+                    await release.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
             };
+            Task<DeleteMonitoredItemsResponse>? deletion = null;
             try
             {
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
-                DeleteMonitoredItemsResponse response = await services.DeleteMonitoredItemsAsync(
-                    m_requestHeader, subscription.SubscriptionId, [itemId])
-                    .AsTask().WaitAsync(TimeSpan.FromSeconds(15), timeout.Token).ConfigureAwait(false);
+                deletion = services.DeleteMonitoredItemsAsync(
+                    m_requestHeader, subscription.SubscriptionId, [itemId]).AsTask();
+                await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(deletion.IsCompleted, Is.False);
+                Assert.That(m_server.CurrentInstance.EventManager.GetMonitoredItems()
+                    .Any(item => item.Id == itemId), Is.False);
+                release.TrySetResult(true);
+                DeleteMonitoredItemsResponse response = await deletion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(nested);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
-                    Assert.That(deleteContext, Is.Not.Null);
                     Assert.That(added, Is.Not.Null);
                     Assert.That(callbackFactory.CreateCount, Is.EqualTo(1));
+                    Assert.That(manager.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(nested.SubscribedAllEventIds.ToList(), Is.Empty);
+                    Assert.That(nested.UnsubscribedAllEventIds.ToList(), Is.Empty);
                 }
-            }
-            finally
-            {
-                manager.AllEventsCallback = (_, _, _) => default;
-                manager.AllEventsContextCallback = null!;
-                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
-            }
-        }
-
-        [Test]
-        public async Task RealRequestContextSuspendsOnlyItsOwnAdmissionAndNestedSuspensionRestoresOuterAsync()
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(manager);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            var requestContext = new TaskCompletionSource<OperationContext>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-            var admitted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            int callbacks = 0;
-            manager.AllEventsContextCallback = (context, unsubscribe, _) =>
-            {
-                if (!unsubscribe && Interlocked.Increment(ref callbacks) == 1)
-                {
-                    requestContext.TrySetResult(context);
-                }
-                return default;
-            };
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
-            {
-                if (!unsubscribe && Volatile.Read(ref callbacks) == 1 && !admitted.Task.IsCompleted)
-                {
-                    admitted.TrySetResult(true);
-                    await release.Task.WaitAsync(token).ConfigureAwait(false);
-                }
-            };
-            Task<uint> held = CreateEventMonitoredItemAsync(
-                services, subscription.SubscriptionId, ObjectIds.Server, 1);
-            Task<uint>? blocked = null;
-            IAsyncDisposable? outer = null;
-            IAsyncDisposable? inner = null;
-            try
-            {
-                await admitted.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                OperationContext context = await requestContext.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-
-                // A different context does not release the request that is holding admission.
-                IOperationContext other = Mock.Of<IOperationContext>();
-                await using (host.SuspendBindingAdmission(other).ConfigureAwait(false))
-                {
-                    blocked = CreateEventMonitoredItemAsync(
-                        services, subscription.SubscriptionId, ObjectIds.Server, 2);
-                    Assert.That(await Task.WhenAny(blocked, Task.Delay(TimeSpan.FromSeconds(2), timeout.Token))
-                        .ConfigureAwait(false), Is.Not.SameAs(blocked));
-                }
-
-                // The request's own context releases admission, and an inner suspension of the same
-                // context restores the outer one when it ends instead of resuming admission.
-                outer = host.SuspendBindingAdmission(context);
-                await blocked.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
-                inner = host.SuspendBindingAdmission(context);
-                await inner.DisposeAsync().ConfigureAwait(false);
-                inner = null;
-                await CreateEventMonitoredItemAsync(services, subscription.SubscriptionId, ObjectIds.Server, 3)
-                    .WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
+                uint later = await CreateEventMonitoredItemAsync(
+                    services, subscription.SubscriptionId, ObjectIds.Server, 2)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(nested.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { later }),
+                    "The nested manager must still bind later live items exactly once.");
             }
             finally
             {
                 release.TrySetResult(true);
                 manager.AllEventsCallback = (_, _, _) => default;
-                manager.AllEventsContextCallback = null!;
-                if (inner is not null)
+                if (deletion is not null)
                 {
-                    await inner.DisposeAsync().ConfigureAwait(false);
-                }
-                if (outer is not null)
-                {
-                    await outer.DisposeAsync().ConfigureAwait(false);
-                }
-                await held.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (blocked is not null)
-                {
-                    await blocked.WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await deletion.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
             }
         }
 
-        [Test]
-        public async Task ConcurrentRequestContextsKeepAdmissionIndependentAsync()
+        /// <summary>
+        /// Verifies that cancellation after registry withdrawal is surfaced only after all owners are released.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CancellationDuringFirstEventUnsubscribeStillReleasesLaterOwnersAsync(bool throwCancellation)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? manager = null;
+            using var cancellation = new CancellationTokenSource();
+            TrackingLifecycleNodeManager? first = null;
+            TrackingLifecycleNodeManager? second = null;
             await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(manager);
+                kGeneration1Value, value => first = value), null, timeout.Token).ConfigureAwait(false);
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kGeneration2Value, value => second = value, kSecondModelNamespaceUri), null, timeout.Token)
+                .ConfigureAwait(false);
+            AssertLifecycleValue(first);
+            AssertLifecycleValue(second);
+            IServerInternal server = m_server.CurrentInstance;
             var services = new ServerTestServices(m_server, m_secureChannelContext);
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            var contexts = new TaskCompletionSource<OperationContext>[2];
-            var entered = new TaskCompletionSource<bool>[2];
-            var release = new TaskCompletionSource<bool>[2];
-            for (int index = 0; index < 2; index++)
+            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            IEventMonitoredItem item = server.EventManager.GetMonitoredItems().Single(value => value.Id == itemId);
+            var secondEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSecond = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            first.AllEventsCallback = (current, unsubscribe, token) =>
             {
-                contexts[index] = new TaskCompletionSource<OperationContext>(
-                    TaskCreationOptions.RunContinuationsAsynchronously);
-                entered[index] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                release[index] = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            }
-            int callbacks = 0;
-            var current = new AsyncLocal<int>();
-            manager.AllEventsContextCallback = (context, unsubscribe, _) =>
-            {
-                int slot = unsubscribe ? 0 : Interlocked.Increment(ref callbacks);
-                current.Value = slot;
-                if (slot is 1 or 2)
+                if (unsubscribe && ReferenceEquals(current, item))
                 {
-                    contexts[slot - 1].TrySetResult(context);
-                }
-                return default;
-            };
-            manager.AllEventsCallback = async (_, unsubscribe, token) =>
-            {
-                int slot = current.Value;
-                if (unsubscribe || slot is not (1 or 2))
-                {
-                    return;
-                }
-                entered[slot - 1].TrySetResult(true);
-                await release[slot - 1].Task.WaitAsync(token).ConfigureAwait(false);
-            };
-            Task<uint> first = CreateEventMonitoredItemAsync(
-                services, subscription.SubscriptionId, ObjectIds.Server, 1);
-            Task<uint>? second = null;
-            Task<uint>? third = null;
-            IAsyncDisposable? suspendFirst = null;
-            IAsyncDisposable? suspendFirstAgain = null;
-            IAsyncDisposable? suspendSecond = null;
-            try
-            {
-                await entered[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                OperationContext firstContext = await contexts[0].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                suspendFirst = host.SuspendBindingAdmission(firstContext);
-                second = CreateEventMonitoredItemAsync(
-                    services, subscription.SubscriptionId, ObjectIds.Server, 2);
-                await entered[1].Task.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
-                OperationContext secondContext = await contexts[1].Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(secondContext, Is.Not.SameAs(firstContext));
-
-                third = CreateEventMonitoredItemAsync(
-                    services, subscription.SubscriptionId, ObjectIds.Server, 3);
-                Assert.That(await Task.WhenAny(third, Task.Delay(TimeSpan.FromSeconds(2), timeout.Token))
-                    .ConfigureAwait(false), Is.Not.SameAs(third), "Second request holds admission.");
-
-                // Suspending the first request again must not release the second request's admission.
-                suspendFirstAgain = host.SuspendBindingAdmission(firstContext);
-                Assert.That(await Task.WhenAny(third, Task.Delay(TimeSpan.FromSeconds(2), timeout.Token))
-                    .ConfigureAwait(false), Is.Not.SameAs(third), "First context released the second admission.");
-
-                suspendSecond = host.SuspendBindingAdmission(secondContext);
-                await third.WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
-            }
-            finally
-            {
-                release[0].TrySetResult(true);
-                release[1].TrySetResult(true);
-                manager.AllEventsCallback = (_, _, _) => default;
-                manager.AllEventsContextCallback = null!;
-                foreach (IAsyncDisposable? suspension in new[] { suspendSecond, suspendFirstAgain, suspendFirst })
-                {
-                    if (suspension is not null)
+                    Assert.That(server.EventManager.GetMonitoredItems().Any(value => ReferenceEquals(value, item)),
+                        Is.False, "Registry withdrawal must precede the first unsubscribe callback.");
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    cancellation.Cancel();
+                    if (throwCancellation)
                     {
-                        await suspension.DisposeAsync().ConfigureAwait(false);
+                        throw new OperationCanceledException(cancellation.Token);
                     }
                 }
-                await first.WaitAsync(timeout.Token).ConfigureAwait(false);
-                if (second is not null)
-                {
-                    await second.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                if (third is not null)
-                {
-                    await third.WaitAsync(timeout.Token).ConfigureAwait(false);
-                }
-                await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
-            }
-        }
-
-        [Test]
-        public async Task DeleteRequestReportsRemovalOnlyForItsOwnContextWhileAdmittedAsync()
-        {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager? manager = null;
-            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
-                kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
-            AssertLifecycleValue(manager);
-            var services = new ServerTestServices(m_server, m_secureChannelContext);
-            m_requestHeader.Timestamp = DateTimeUtc.Now;
-            CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
-                m_requestHeader, 100, 100, 10, 0, true, 0).ConfigureAwait(false);
-            var host = (IDynamicNodeManagerBatchHost)m_server.CurrentInstance.NodeManager;
-            uint itemId = await CreateEventMonitoredItemAsync(
-                services, subscription.SubscriptionId, ObjectIds.Server, 1).ConfigureAwait(false);
-            OperationContext? deleteContext = null;
-            bool? removingOwn = null;
-            bool? removingUnrelated = null;
-            IOperationContext unrelated = Mock.Of<IOperationContext>();
-            manager.AllEventsContextCallback = (context, unsubscribe, _) =>
-            {
-                if (unsubscribe)
-                {
-                    deleteContext = context;
-                }
                 return default;
             };
-            IEventMonitoredItem? deletedItem = null;
-            manager.AllEventsCallback = (item, unsubscribe, _) =>
+            second.AllEventsCallback = async (current, unsubscribe, token) =>
             {
-                if (unsubscribe && deleteContext is not null)
+                if (unsubscribe && ReferenceEquals(current, item))
                 {
-                    deletedItem = item;
-                    removingOwn = host.IsRemovingBinding(deleteContext, item);
-                    removingUnrelated = host.IsRemovingBinding(unrelated, item);
+                    Assert.That(cancellation.IsCancellationRequested, Is.True,
+                        "The later owner must be released after the first owner cancels the caller.");
+                    Assert.That(token.CanBeCanceled, Is.False);
+                    secondEntered.TrySetResult(true);
+                    await releaseSecond.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
-                return default;
             };
+            using var context = new OperationContext(item);
+            ServiceResult[] errors = [ServiceResult.Good];
+            Task deletion = server.NodeManager.DeleteMonitoredItemsAsync(
+                context, subscriptionId, [item], errors, cancellation.Token).AsTask();
             try
             {
-                m_requestHeader.Timestamp = DateTimeUtc.Now;
-                DeleteMonitoredItemsResponse response = await services.DeleteMonitoredItemsAsync(
-                    m_requestHeader, subscription.SubscriptionId, [itemId]).ConfigureAwait(false);
-                Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
+                await secondEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(deletion.IsCompleted, Is.False,
+                        "Caller cancellation must not surface before the release sweep finishes.");
+                    Assert.That(server.EventManager.GetMonitoredItems().Any(value => ReferenceEquals(value, item)),
+                        Is.False);
+                    Assert.That(first.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(second.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                }
+                releaseSecond.TrySetResult(true);
+                await Assert.ThatAsync(
+                    async () => await deletion.WaitAsync(timeout.Token).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>()
+                        .With.Property(nameof(OperationCanceledException.CancellationToken))
+                        .EqualTo(cancellation.Token)).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(first.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(second.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(server.EventManager.GetMonitoredItems().Any(value => ReferenceEquals(value, item)),
+                        Is.False);
+                }
             }
             finally
             {
-                manager.AllEventsCallback = (_, _, _) => default;
-                manager.AllEventsContextCallback = null!;
+                releaseSecond.TrySetResult(true);
+                first.AllEventsCallback = (_, _, _) => default;
+                second.AllEventsCallback = (_, _, _) => default;
+                try
+                {
+                    await deletion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException failure) when (failure.CancellationToken == cancellation.Token)
+                {
+                    // Caller cancellation is expected after the release sweep.
+                }
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
-            Assert.Multiple(() =>
-            {
-                Assert.That(removingOwn, Is.True, "The delete request's own context reports the item as removing.");
-                Assert.That(removingUnrelated, Is.False, "An unrelated context never inherits the removal.");
-                Assert.That(deleteContext, Is.Not.Null);
-                Assert.That(deletedItem, Is.Not.Null);
-            });
-
-            // After the request ends its context is closed: no admission is retained for it.
-            Assert.That(host.IsRemovingBinding(deleteContext, deletedItem!), Is.False);
-            await using (host.SuspendBindingAdmission(deleteContext).ConfigureAwait(false))
-            {
-                await CreateEventMonitoredItemAsync(services, subscription.SubscriptionId, ObjectIds.Server, 2)
-                    .WaitAsync(TimeSpan.FromSeconds(10), timeout.Token).ConfigureAwait(false);
-            }
-            await DeleteSubscriptionAsync(services, subscription.SubscriptionId).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a captured in-flight generation bind releases a deleted item exactly once.
+        /// </summary>
+        [Test]
+        public async Task DeletedEventCapturedByInFlightBindIsReleasedWithoutNestedRebindAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            TrackingLifecycleNodeManager? original = null;
+            await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
+                kGeneration1Value, value => original = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(original);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? nested = null;
+            var bindEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseBind = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var nestedAdded = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
+                306, value => nested = value, kReadinessProbeNamespaceUri);
+            var callbackFactory = new CallbackSafeNodeManagerFactory(
+                [kReadinessProbeNamespaceUri], nestedFactory.CreateAsync);
+            original.AllEventsCallback = async (item, unsubscribe, token) =>
+            {
+                if (unsubscribe && item.Id == itemId)
+                {
+                    Assert.That(m_server.CurrentInstance.EventManager.GetMonitoredItems()
+                        .Any(current => current.Id == itemId), Is.False);
+                    await m_server.NodeManagerLifecycle.AddAsync(callbackFactory, null, token).ConfigureAwait(false);
+                    nestedAdded.TrySetResult(true);
+                }
+            };
+            Task<NodeManagerRegistration> adding = m_server.NodeManagerLifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration2Value, value =>
+                {
+                    candidate = value;
+                    value.AllEventsCallback = async (item, unsubscribe, _) =>
+                    {
+                        if (!unsubscribe && item.Id == itemId)
+                        {
+                            bindEntered.TrySetResult(true);
+                            await releaseBind.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                        }
+                    };
+                }, kSecondModelNamespaceUri), null, timeout.Token).AsTask();
+            Task? deletion = null;
+            try
+            {
+                await bindEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                deletion = DeleteMonitoredItemAsync(services, subscriptionId, itemId);
+                await nestedAdded.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await deletion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                AssertLifecycleValue(candidate);
+                AssertLifecycleValue(nested);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(adding.IsCompleted, Is.False);
+                    Assert.That(m_server.CurrentInstance.EventManager.GetMonitoredItems()
+                        .Any(item => item.Id == itemId), Is.False);
+                    Assert.That(nested.SubscribedAllEventIds.ToList(), Is.Empty);
+                    Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.Empty,
+                        "An in-flight subscribe owns its own release after its callback returns.");
+                    Assert.That(original.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                }
+                releaseBind.TrySetResult(true);
+                NodeManagerRegistration registration = await adding.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(registration.NodeManager, Is.SameAs(candidate));
+                    Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(nested.SubscribedAllEventIds.ToList(), Is.Empty);
+                    Assert.That(nested.UnsubscribedAllEventIds.ToList(), Is.Empty);
+                    Assert.That(callbackFactory.CreateCount, Is.EqualTo(1));
+                }
+                uint later = await CreateEventMonitoredItemAsync(
+                    services, subscriptionId, ObjectIds.Server, 2).WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { itemId, later }));
+                Assert.That(nested.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { later }));
+                await DeleteMonitoredItemAsync(services, subscriptionId, later)
+                    .WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(candidate.UnsubscribedAllEventIds.ToList(), Is.EquivalentTo(new[] { itemId, later }));
+                Assert.That(nested.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { later }));
+            }
+            finally
+            {
+                releaseBind.TrySetResult(true);
+                original.AllEventsCallback = (_, _, _) => default;
+                if (deletion is not null)
+                {
+                    await deletion.WaitAsync(timeout.Token).ConfigureAwait(false);
+                }
+                await adding.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a queued nested event callback completes after a batch decision or cancellation.
+        /// </summary>
         [TestCase(false, false)]
         [TestCase(false, true)]
         [TestCase(true, false)]
         [TestCase(true, true)]
-        public async Task PreparedBatchCallbackAdmissionResumesAfterDecisionOrCancellationAsync(
+        public async Task PreparedBatchNestedEventAddCompletesAfterDecisionOrCancellationAsync(
             bool rejectDecision, bool cancelNested)
         {
-            await VerifyCallbackAdmissionCompletionAsync(rejectDecision, cancelNested, false).ConfigureAwait(false);
+            await VerifyNestedLifecycleCallbackCompletionAsync(rejectDecision, cancelNested, false)
+                .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a failed event create releases bindings established by nested lifecycle operations.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task FailedAdmittedEventDoesNotRetainNewLifecycleBindingsAsync(bool rejectDecision)
+        public async Task FailedEventCreateDoesNotRetainNewLifecycleBindingsAsync(bool rejectDecision)
         {
-            await VerifyCallbackAdmissionCompletionAsync(rejectDecision, false, true).ConfigureAwait(false);
+            await VerifyNestedLifecycleCallbackCompletionAsync(rejectDecision, false, true).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Verifies that a native client session activates before an unrelated event unsubscribe returns.
+        /// </summary>
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task IndependentActivationDoesNotInheritHeldDeleteAdmissionAsync()
+        public async Task IndependentActivationCompletesWhileDeleteCallbackIsBlockedAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create())
@@ -699,22 +586,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 activation = client.ConnectAsync(
                     new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
 
-                // Control, not a deterministic RED: the activation is an independent request that must wait at
-                // the binding gate of the held delete instead of inheriting its admission.
-                Task finished = await Task.WhenAny(activation, Task.Delay(TimeSpan.FromSeconds(3), timeout.Token))
-                    .ConfigureAwait(false);
-                Assert.That(finished, Is.Not.SameAs(activation), "Activation inherited the delete admission.");
-                Assert.That(Volatile.Read(ref activations), Is.Zero);
-                var known = manager.ActivatedSessionIds.ToList();
-
+                activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(delete.IsCompleted, Is.False,
+                        "The native activation must finish before the unrelated delete callback is released.");
+                    Assert.That(Volatile.Read(ref activations), Is.EqualTo(1));
+                    Assert.That(manager.ActivatedSessionIds.ToList()
+                        .Count(id => id == activatedSession.SessionId), Is.EqualTo(1));
+                }
                 deleteRelease.TrySetResult(true);
                 DeleteMonitoredItemsResponse response = await delete.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(response.Results[0], Is.EqualTo(StatusCodes.Good));
-                activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(Volatile.Read(ref activations), Is.GreaterThanOrEqualTo(1));
-                Assert.That(known, Does.Not.Contain(activatedSession.SessionId));
-                Assert.That(manager.ActivatedSessionIds.ToList(), Does.Contain(activatedSession.SessionId),
-                    "The new session itself, not an earlier one, was activated after the delete finished.");
+                Assert.That(manager.UnsubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
             }
             finally
             {
@@ -736,9 +620,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// Verifies that a session callback can await a nested Add without forwarding its operation context.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public async Task PreparedBatchAllowsAdmittedSessionCallbackToAddAsync(bool rejectDecision)
+        public async Task PreparedBatchAllowsNestedSessionCallbackAddWithoutContextAsync(bool rejectDecision)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             using var cancellation = new CancellationTokenSource();
@@ -767,11 +654,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            original.SessionActivatedContextCallback = async (context, _) =>
+            original.SessionActivatedCallback = async _ =>
             {
-                Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
                 Task<NodeManagerRegistration> adding = lifecycle.AddAsync(
-                    factory, context, cancellation.Token).AsTask();
+                    factory, null, cancellation.Token).AsTask();
                 queued.TrySetResult(true);
                 await adding.ConfigureAwait(false);
             };
@@ -822,7 +708,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 cancellation.Cancel();
-                original.SessionActivatedContextCallback = null!;
                 original.SessionActivatedCallback = _ => default;
                 if (activatedSession is not null)
                 {
@@ -830,13 +715,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     activatedSession.Dispose();
                 }
             }
-
         }
 
+        /// <summary>
+        /// Verifies that a binding callback can await a nested Add after a concurrent batch publishes.
+        /// </summary>
         [Test]
         [Category("Integration")]
         [Category("NativeTcp")]
-        public async Task PreparedBatchAllowsAdmittedBindingCallbackToAddAsync()
+        public async Task PreparedBatchAllowsNestedBindingCallbackAddWithoutContextAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             using var cleanup = new CancellationTokenSource();
@@ -872,26 +759,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycleQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             NodeManagerRegistration? added = null;
             int decisions = 0;
-            OperationContext? admitted = null;
-            original.AllEventsContextCallback = (context, unsubscribe, _) =>
-            {
-                if (!unsubscribe)
-                {
-                    Volatile.Write(ref admitted, context);
-                }
-                return default;
-            };
             original.AllEventsCallback = async (item, unsubscribe, _) =>
             {
                 if (unsubscribe)
                 {
                     return;
                 }
-                Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
                 callbackEntered.TrySetResult(item.Id);
                 await releaseCallback.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Task<NodeManagerRegistration> operation = lifecycle.AddAsync(
-                    callbackFactory, Volatile.Read(ref admitted), cleanup.Token).AsTask();
+                    callbackFactory, null, cleanup.Token).AsTask();
                 lifecycleQueued.TrySetResult(true);
                 try
                 {
@@ -1011,7 +888,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
-        private async Task VerifyCallbackAdmissionCompletionAsync(
+        /// <summary>
+        /// Checks nested Add completion and provisional event cleanup across batch decisions and cancellation.
+        /// </summary>
+        private async Task VerifyNestedLifecycleCallbackCompletionAsync(
             bool rejectDecision, bool cancelNested, bool failAdmission)
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
@@ -1046,15 +926,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             uint eventId = 0;
             bool nestedCancelled = false;
-            OperationContext? admitted = null;
-            original.AllEventsContextCallback = (context, unsubscribe, _) =>
-            {
-                if (!unsubscribe)
-                {
-                    Volatile.Write(ref admitted, context);
-                }
-                return default;
-            };
             original.AllEventsCallback = async (item, unsubscribe, _) =>
             {
                 if (unsubscribe)
@@ -1063,7 +934,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 eventId = item.Id;
                 Task<NodeManagerRegistration> adding = lifecycle.AddAsync(
-                    nestedFactory, Volatile.Read(ref admitted), nestedCancellation.Token).AsTask();
+                    nestedFactory, null, nestedCancellation.Token).AsTask();
                 queued.TrySetResult(true);
                 try
                 {
@@ -1144,7 +1015,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateMonitoredItemsResponse later = await CreateEventAsync(2).WaitAsync(timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(later.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
-                    "A completed or cancelled nested lifecycle operation must restore ordinary binding admission.");
+                    "Later client creates must succeed after a nested lifecycle operation completes or is cancelled.");
             }
             finally
             {

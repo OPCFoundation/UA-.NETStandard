@@ -1270,11 +1270,7 @@ namespace Opc.Ua.Server
 
             try
             {
-                (serverNonce, ServiceResult activationStatus) =
-                    ServerInternal.NodeManager is IDynamicNodeManagerBatchHost batchHost
-                        ? await batchHost.DispatchSessionActivationAsync(
-                            context, ActivateAndNotifyAsync, requestLifetime.CancellationToken).ConfigureAwait(false)
-                        : await ActivateAndNotifyAsync().ConfigureAwait(false);
+                (serverNonce, ServiceResult activationStatus) = await ActivateAndNotifyAsync().ConfigureAwait(false);
                 ISession session = GetActivatedSessionOrThrowClosed(requestHeader.AuthenticationToken);
 
                 AdditionalParametersType? parameters = null;

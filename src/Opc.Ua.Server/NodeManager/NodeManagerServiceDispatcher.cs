@@ -2191,7 +2191,6 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             using OperationContext.RoutingScope requestRouting = CaptureRouting(context);
-            await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
             IAsyncNodeManager[] activeNodeManagers = [.. GetRouting(context).VisibleNodeManagers];
             NotificationDispatchLease[] dispatches =
                 m_owner.GetConditionRefreshDispatches(
@@ -3088,7 +3087,6 @@ namespace Opc.Ua.Server
                 ServiceResult subscriptionResult = ServiceResult.Good;
                 if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.AllEvents) != 0)
                 {
-                    await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
                     IAsyncNodeManager[] activeNodeManagers = [.. GetRouting(context).VisibleNodeManagers];
                     NotificationDispatchLease[] dispatches =
                         m_owner.GetAllEventNotificationDispatches(
@@ -3467,7 +3465,10 @@ namespace Opc.Ua.Server
                 processedItems[ii] = true;
                 ServiceResult result = ServiceResult.Good;
 
-                await using var bindingResumption = m_owner.DeferBindingAdmissionResumption(context).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                // Once withdrawn, finish the release sweep even if the caller cancels during a callback.
+                // A nested publication must not bind an item whose unsubscribe callbacks have already started.
+                Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
                 NotificationDispatchLease[]? dispatches = null;
                 try
                 {
@@ -3488,7 +3489,7 @@ namespace Opc.Ua.Server
                                     ct),
                                 allEvents: true,
                                 unsubscribe: true,
-                                cancellationToken)
+                                CancellationToken.None)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
                             {
@@ -3502,7 +3503,7 @@ namespace Opc.Ua.Server
                                 continue;
                             }
                             ServiceResult unsubscribe = await ReleaseRetiringEventBindingAsync(
-                                context, subscriptionId, retiring, monitoredItem, cancellationToken)
+                                context, subscriptionId, retiring, monitoredItem, CancellationToken.None)
                                 .ConfigureAwait(false);
                             if (ServiceResult.IsBad(unsubscribe) && ServiceResult.IsGood(result))
                             {
@@ -3521,11 +3522,9 @@ namespace Opc.Ua.Server
                                 context, monitoredItem.ManagerHandle, subscriptionId, monitoredItem, unsubscribe, ct),
                             allEvents: false,
                             unsubscribe: true,
-                            cancellationToken).ConfigureAwait(false);
+                            CancellationToken.None).ConfigureAwait(false);
                     }
 
-                    // Remove the binding before retiring notification owners can finish their drain.
-                    Server.EventManager.DeleteMonitoredItem(monitoredItem.Id);
                     retiredGenerationDrained |= !m_nodeManagers.Contains(owningNodeManager);
 
                     // success.
@@ -3544,6 +3543,7 @@ namespace Opc.Ua.Server
             {
                 m_owner.NotifyRetiredGenerationDrainObserver();
             }
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         /// <summary>

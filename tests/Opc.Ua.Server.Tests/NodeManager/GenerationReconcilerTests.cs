@@ -254,10 +254,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
 
                 GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
-                    generation, null, CancellationToken.None).ConfigureAwait(false);
+                    generation, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(bindings.EventMonitoredItems, Is.Empty);
                 Assert.That(generation.EventBindings.ContainsKey(item), Is.True);
-                await reconciler.BindAsync(generation, null, CancellationToken.None).ConfigureAwait(false);
+                await reconciler.BindAsync(generation, CancellationToken.None).ConfigureAwait(false);
                 manager.Verify(value => value.SubscribeToAllEventsAsync(
                     It.IsAny<OperationContext>(), It.IsAny<uint>(), item, false,
                     It.IsAny<CancellationToken>()), Times.Once);
@@ -310,6 +310,44 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 manager.Verify(value => value.SubscribeToAllEventsAsync(
                     It.IsAny<OperationContext>(), It.IsAny<uint>(), item, true,
                     It.IsAny<CancellationToken>()), Times.Once);
+            }
+        }
+
+        /// <summary>
+        /// Retirement releases its exact session records even after sessions leave the server registry.
+        /// </summary>
+        [Test]
+        public async Task RetirementClosesOnlyRecordedSessionsIncludingRemovedSessionsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var reconciler = new GenerationReconciler(server.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                var generation = new NodeManagerGeneration(
+                    new NodeManagerSlot(), 1, manager.Object, NodeManagerGenerationState.Retiring);
+                var session = new Mock<ISession>();
+                var sessionId = new NodeId("RemovedSession", 2);
+                var identity = new UserIdentity();
+                session.SetupGet(value => value.Id).Returns(sessionId);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+                generation.SessionBindings[sessionId] = new GenerationSessionBindingRecord
+                {
+                    Binding = new GenerationReconciler.SessionBinding(session.Object, identity, generation.Reference)
+                };
+
+                await reconciler.UnbindRetiredAsync(
+                    generation, false, CancellationToken.None).ConfigureAwait(false);
+                await reconciler.UnbindRetiredAsync(
+                    generation, false, CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(generation.SessionBindings, Is.Empty);
+                manager.Verify(value => value.SessionClosingAsync(
+                    It.Is<OperationContext>(context => ReferenceEquals(context.Session, session.Object)),
+                    sessionId, false, It.IsAny<CancellationToken>()), Times.Once);
             }
         }
 

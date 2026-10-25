@@ -101,30 +101,6 @@ namespace Opc.Ua.Server
             }
         }
 
-        IAsyncDisposable IDynamicNodeManagerBatchHost.SuspendBindingAdmission(IOperationContext? context)
-        {
-            return SuspendBindingAdmission(context);
-        }
-
-        /// <inheritdoc/>
-        bool IDynamicNodeManagerBatchHost.IsRemovingBinding(IOperationContext? context, IMonitoredItem monitoredItem)
-        {
-            return IsRemovingBinding(context, monitoredItem);
-        }
-
-        /// <inheritdoc/>
-        async ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>
-            IDynamicNodeManagerBatchHost.DispatchSessionActivationAsync(
-                IOperationContext? context,
-                Func<ValueTask<(ByteString ServerNonce, ServiceResult ActivationStatus)>> activateAsync,
-                CancellationToken cancellationToken)
-        {
-            await m_bindingSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            using BindingAdmission admission = EnterBindingAdmission(context);
-            return await activateAsync().ConfigureAwait(false);
-        }
-
-        /// <inheritdoc/>
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             NodeManagerBatchContext context)
         {

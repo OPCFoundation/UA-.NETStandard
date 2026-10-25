@@ -46,6 +46,78 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private const string kReadinessProbeNamespaceUri = kModelNamespaceUri + ":ReadinessProbe";
 
         /// <summary>
+        /// Reconciliation permits a nested writer while its result retains the revision and slots it published.
+        /// </summary>
+        [Test]
+        public async Task BindingReconciliationAwaitsNestedAddWithoutChangingPublishedResultAsync()
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
+            await lifecycle.AddAsync(
+                CreateTrackingNodeManagementFactory(kGeneration1Value, _ => { }), null, timeout.Token)
+                .ConfigureAwait(false);
+            var services = new ServerTestServices(m_server, m_secureChannelContext);
+            (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
+                services, ObjectIds.Server).ConfigureAwait(false);
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? child = null;
+            NodeManagerRegistration? childRegistration = null;
+            long revisionBeforeChild = 0;
+            var childFactory = new CallbackSafeNodeManagerFactory(
+                [kReadinessProbeNamespaceUri],
+                CreateTrackingNodeManagementFactory(
+                    304, value => child = value, kReadinessProbeNamespaceUri).CreateAsync);
+            try
+            {
+                await using IPreparedNodeManagerBatch prepared =
+                    await ((INodeManagerBatchLifecycle)lifecycle).PrepareAsync(
+                        [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
+                            kSecondRegistrationValue,
+                            value =>
+                            {
+                                candidate = value;
+                                value.AllEventsCallback = async (item, unsubscribe, token) =>
+                                {
+                                    if (!unsubscribe && item.Id == itemId)
+                                    {
+                                        revisionBeforeChild = lifecycle.Revision;
+                                        childRegistration = await lifecycle.AddAsync(
+                                            childFactory, null, token).ConfigureAwait(false);
+                                    }
+                                };
+                            },
+                            kSecondModelNamespaceUri))],
+                        null, timeout.Token).ConfigureAwait(false);
+
+                NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default, timeout.Token)
+                    .AsTask().WaitAsync(timeout.Token).ConfigureAwait(false);
+
+                AssertLifecycleValue(candidate);
+                AssertLifecycleValue(child);
+                AssertLifecycleValue(childRegistration);
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(result.CleanupFailure, Is.Null);
+                    Assert.That(result.Revision, Is.EqualTo(revisionBeforeChild));
+                    Assert.That(lifecycle.Revision, Is.GreaterThan(result.Revision));
+                    Assert.That(result.Slots.ToList(), Does.Contain(result.Registrations[0].Slot));
+                    Assert.That(result.Slots.ToList(), Does.Not.Contain(childRegistration.Slot));
+                    Assert.That(candidate.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(child.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { itemId }));
+                    Assert.That(childFactory.CreateCount, Is.EqualTo(1));
+                }
+            }
+            finally
+            {
+                if (candidate is not null)
+                {
+                    candidate.AllEventsCallback = (_, _, _) => default;
+                }
+                await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Readiness runs on the published manager, can register a real child, and remains
         /// part of the Add operation even when a synchronous factory exposes both adapters.
         /// </summary>
