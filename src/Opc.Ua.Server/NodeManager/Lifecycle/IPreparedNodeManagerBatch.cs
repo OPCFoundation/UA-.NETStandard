@@ -85,7 +85,9 @@ namespace Opc.Ua.Server
         /// Publishes the same unit and its already-prepared in-memory state at the routing-view
         /// commit point, before readiness and retirement reconciliation.
         /// The publication callback must perform no I/O or additional durable decision.
-        /// A callback failure occurs after commit and cannot make the batch uncommitted.
+        /// A callback failure occurs after commit and cannot make the batch uncommitted. The callback may
+        /// have partially applied state; it must be idempotent when retried through the committed result,
+        /// and must not overwrite a newer durable recovery decision.
         /// </summary>
         /// <param name="decideAsync">The callback performing the durable decision.</param>
         /// <param name="publishCommittedState">The callback publishing the prepared in-memory state.</param>
@@ -232,6 +234,116 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
+    /// Identifies a post-publication reconciliation stage.
+    /// </summary>
+    public enum NodeManagerReconciliationStage
+    {
+        /// <summary>
+        /// Prepared application state publication.
+        /// </summary>
+        ApplicationState,
+
+        /// <summary>
+        /// Cross-manager reference reconciliation.
+        /// </summary>
+        References,
+
+        /// <summary>
+        /// Session and all-events bindings.
+        /// </summary>
+        Bindings,
+
+        /// <summary>
+        /// Monitored item recovery.
+        /// </summary>
+        MonitoredItems,
+
+        /// <summary>
+        /// Server readiness notification.
+        /// </summary>
+        Readiness,
+
+        /// <summary>
+        /// Identity policy notification.
+        /// </summary>
+        Identity,
+
+        /// <summary>
+        /// Namespace table notification.
+        /// </summary>
+        Namespaces,
+
+        /// <summary>
+        /// Model change event delivery.
+        /// </summary>
+        ModelChange,
+
+        /// <summary>
+        /// Semantic change event delivery.
+        /// </summary>
+        SemanticChange,
+
+        /// <summary>
+        /// An unexpected host publication completion failure.
+        /// </summary>
+        Publication,
+
+        /// <summary>
+        /// Independently owned retired-generation cleanup.
+        /// </summary>
+        Retirement
+    }
+
+    /// <summary>
+    /// A pending or superseded post-publication reconciliation step.
+    /// </summary>
+    public sealed class NodeManagerReconciliationIssue
+    {
+        /// <summary>
+        /// Creates an immutable issue snapshot.
+        /// </summary>
+        internal NodeManagerReconciliationIssue(
+            NodeManagerReconciliationStage stage,
+            Exception initialFailure,
+            Exception currentFailure,
+            bool superseded,
+            bool retryable = true)
+        {
+            Stage = stage;
+            InitialFailure = initialFailure;
+            CurrentFailure = currentFailure;
+            IsSuperseded = superseded;
+            IsRetryable = retryable && !superseded;
+        }
+
+        /// <summary>
+        /// Gets the failed stage.
+        /// </summary>
+        public NodeManagerReconciliationStage Stage { get; }
+
+        /// <summary>
+        /// Gets the original failure, retained across retry attempts.
+        /// </summary>
+        public Exception InitialFailure { get; }
+
+        /// <summary>
+        /// Gets the latest failure.
+        /// </summary>
+        public Exception CurrentFailure { get; }
+
+        /// <summary>
+        /// Gets whether the owning generation or server was superseded. Such work cannot be retried.
+        /// </summary>
+        public bool IsSuperseded { get; }
+
+        /// <summary>
+        /// Gets whether this result can retry the failed step. Retirement and legacy handoff failures
+        /// remain owned by their respective cleanup paths rather than being replayed here.
+        /// </summary>
+        public bool IsRetryable { get; }
+    }
+
+    /// <summary>
     /// The committed registrations and any post-decision reconciliation failure.
     /// </summary>
     public sealed class NodeManagerBatchResult
@@ -245,13 +357,15 @@ namespace Opc.Ua.Server
         /// <param name="retirement">The task that completes after every retired generation is cleaned up.</param>
         /// <param name="revision">The published routing revision.</param>
         /// <param name="slots">The stable slots in the published routing view.</param>
+        /// <param name="reconciliation">The non-owning reconciliation status ticket.</param>
         internal NodeManagerBatchResult(
             ArrayOf<NodeManagerRegistration> registrations,
             uint retired,
             Exception? cleanupFailure,
             long revision,
             NodeManagerSlot[] slots,
-            Task retirement)
+            Task retirement,
+            GenerationReconciler.Reconciliation? reconciliation = null)
         {
             Registrations = registrations;
             Retired = retired;
@@ -259,6 +373,7 @@ namespace Opc.Ua.Server
             Revision = revision;
             Slots = new ArrayOf<NodeManagerSlot>(slots);
             Retirement = retirement ?? throw new ArgumentNullException(nameof(retirement));
+            m_reconciliation = reconciliation;
         }
 
         /// <summary>
@@ -291,5 +406,27 @@ namespace Opc.Ua.Server
         /// or faults if asynchronous cleanup fails.
         /// </summary>
         public Task Retirement { get; }
+
+        /// <summary>
+        /// Gets current reconciliation issues. Successful steps disappear; superseded steps remain explicit.
+        /// The original commit's failure is retained in <see cref="CleanupFailure"/>.
+        /// </summary>
+        public ArrayOf<NodeManagerReconciliationIssue> Issues => m_reconciliation?.Issues ?? [];
+
+        /// <summary>
+        /// Retries only unfinished reconciliation, without another durable decision or view publication.
+        /// Concurrent callers join one attempt. Cancellation cancels only this caller's wait, not admitted work.
+        /// Application callbacks that throw may already have partially applied state and must be idempotent.
+        /// </summary>
+        /// <param name="cancellationToken">Cancels waiting for the shared attempt.</param>
+        /// <returns>A task completing after the attempt; inspect <see cref="Issues"/> for remaining failures.</returns>
+        public ValueTask RetryReconciliationAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return m_reconciliation?.RetryAsync(cancellationToken) ?? default;
+        }
+
+        /// <summary>The result-owned status ticket, which does not retain callback ownership.</summary>
+        private readonly GenerationReconciler.Reconciliation? m_reconciliation;
     }
 }

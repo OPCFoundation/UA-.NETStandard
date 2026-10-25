@@ -8009,6 +8009,13 @@ namespace Opc.Ua.Server
                 return;
             }
 
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
+            if (stagingServer?.IsStaging == true)
+            {
+                stagingServer.StageRootNotifierReference(notifier.NodeId);
+                return;
+            }
+
             ServerObjectState? serverObject = Server.ServerObject;
             if (serverObject != null &&
                 serverObject.ReferenceExists(
@@ -8046,8 +8053,13 @@ namespace Opc.Ua.Server
             NodeState notifier,
             CancellationToken cancellationToken = default)
         {
+            ChangePreparer.StagingServer? stagingServer = ChangePreparer.GetServer(this);
             if (RootNotifiers.TryRemove(notifier.NodeId, out notifier!))
             {
+                if (stagingServer?.IsStaging == true)
+                {
+                    stagingServer.UnstageRootNotifierReference(notifier.NodeId);
+                }
                 var detached = new List<MonitoredNode2>();
                 using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                 {
@@ -8085,7 +8097,9 @@ namespace Opc.Ua.Server
                     ObjectIds.Server);
 
                 ServerObjectState? serverObject = Server.ServerObject;
-                if (serverObject != null &&
+                if (stagingServer?.IsStaging != true &&
+                    stagingServer?.IsDetached != true &&
+                    serverObject != null &&
                     serverObject.ReferenceExists(
                         ReferenceTypeIds.HasNotifier,
                         false,

@@ -39,7 +39,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Reconciles a published NodeManager generation with the server's active sessions and all-events items.
     /// </summary>
-    internal sealed class GenerationReconciler
+    internal sealed partial class GenerationReconciler
     {
         /// <summary>
         /// Creates a reconciler for one running server instance.

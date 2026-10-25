@@ -34,7 +34,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Compatibility marker for lifecycles that support invocation-wide publication isolation.
+    /// Compatibility marker for lifecycles that support captured-view publication transactions.
     /// New callers should use the transaction members on <see cref="INodeManagerLifecycle"/>.
     /// </summary>
     public interface INodeManagerPublicationLifecycle : INodeManagerBatchLifecycle
@@ -47,30 +47,35 @@ namespace Opc.Ua.Server
     public interface INodeManagerPublicationCapture
     {
         /// <summary>
-        /// Reserves one invocation without requiring an explicit request context.
+        /// Begins one independently owned invocation without requiring an explicit request context.
+        /// Other invocations and ordinary lifecycle operations may proceed concurrently.
         /// A stale capture returns an invocation whose <see cref="INodeManagerPublication.IsCurrent"/>
         /// is false and cannot prepare units.
         /// </summary>
         /// <param name="cancellationToken">The token to cancel the operation.</param>
-        /// <returns>The invocation that retains publication admission until disposed.</returns>
+        /// <returns>The invocation that retains operation ownership and its prepared units until disposed.</returns>
         ValueTask<INodeManagerPublication> BeginAsync(
             CancellationToken cancellationToken = default);
 
     }
 
     /// <summary>
-    /// Retains publication admission across all units of one invocation.
+    /// Retains optimistic serving-revision evidence and operation ownership across sequential publication units.
+    /// Conflicts with other publications are rejected before a durable decision.
+    /// Factories are never retried implicitly.
     /// </summary>
     public interface INodeManagerPublication : IAsyncDisposable
     {
         /// <summary>
-        /// Gets whether all captured revisions matched when publication admission was reserved.
+        /// Gets whether the invocation's expected routing, type and factory revisions are still current.
+        /// Successful units advance this evidence only to their own published revision.
         /// </summary>
         bool IsCurrent { get; }
 
         /// <summary>
-        /// Prepares a unit on the existing lifecycle owner. Dispose each unit before the invocation.
-        /// Ordinary lifecycle mutations, including mutations from callbacks, must retry after the invocation.
+        /// Prepares a unit on the existing lifecycle owner without holding the mutation writer during factories.
+        /// Dispose each unit before the invocation. An unrelated publication makes this invocation stale;
+        /// the caller must explicitly capture a new invocation rather than retrying a factory implicitly.
         /// </summary>
         /// <param name="changes">The additions, replacements and retirements to prepare.</param>
         /// <param name="cancellationToken">The token to cancel the operation.</param>

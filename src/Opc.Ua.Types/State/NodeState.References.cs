@@ -237,34 +237,67 @@ namespace Opc.Ua
                     {
                         return;
                     }
-                    m_notified = true;
+                    if (m_notifying)
+                    {
+                        throw new InvalidOperationException("Reference observers are already being notified.");
+                    }
+                    if (m_notifications is null)
+                    {
+                        m_notifications = [];
+                        foreach (IReference reference in removed)
+                        {
+                            if (owner.OnReferenceRemoved is not { } removedCallback)
+                            {
+                                continue;
+                            }
+                            foreach (NodeStateReferenceRemoved callback in removedCallback.GetInvocationList())
+                            {
+                                m_notifications.Add(() => callback(
+                                    owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                            }
+                        }
+                        foreach (IReference reference in added)
+                        {
+                            if (owner.OnReferenceAdded is not { } addedCallback)
+                            {
+                                continue;
+                            }
+                            foreach (NodeStateReferenceAdded callback in addedCallback.GetInvocationList())
+                            {
+                                m_notifications.Add(() => callback(
+                                    owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId));
+                            }
+                        }
+                        m_notifying = true;
+                    }
                 }
                 if (added.Count != 0 || removed.Count != 0)
                 {
                     owner.m_changeMasks |= NodeStateChangeMasks.References;
                 }
-                foreach (IReference reference in removed)
+                bool complete = true;
+                try
                 {
-                    try
+                    for (int ii = 0; ii < m_notifications.Count; ii++)
                     {
-                        owner.OnReferenceRemoved?.Invoke(
-                            owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        reportFailure(failure);
+                        try
+                        {
+                            m_notifications[ii]?.Invoke();
+                            m_notifications[ii] = null;
+                        }
+                        catch (Exception failure) when (failure is not OutOfMemoryException)
+                        {
+                            complete = false;
+                            reportFailure(failure);
+                        }
                     }
                 }
-                foreach (IReference reference in added)
+                finally
                 {
-                    try
+                    lock (owner.m_referencesLock)
                     {
-                        owner.OnReferenceAdded?.Invoke(
-                            owner, reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        reportFailure(failure);
+                        m_notifying = false;
+                        m_notified = complete;
                     }
                 }
             }
@@ -297,6 +330,12 @@ namespace Opc.Ua
 
             /// <summary>Prevents duplicate observer callbacks.</summary>
             private bool m_notified;
+
+            /// <summary>Excludes overlapping observer attempts without holding a lock during callbacks.</summary>
+            private bool m_notifying;
+
+            /// <summary>Captures observer identity and retains only callbacks that still need notification.</summary>
+            private List<Action?>? m_notifications;
         }
     }
 }

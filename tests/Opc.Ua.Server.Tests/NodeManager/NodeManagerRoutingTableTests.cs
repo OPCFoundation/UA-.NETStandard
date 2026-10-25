@@ -65,7 +65,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             table.RegisterNamespace(3, unrelated, visible: false);
             var prepared = new PreparedNodeManager(candidate, [])
             {
-                Staged = true,
                 ReplacedNodeManager = replace ? original : null
             };
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(

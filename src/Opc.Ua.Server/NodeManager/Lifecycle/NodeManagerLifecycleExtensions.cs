@@ -104,7 +104,8 @@ namespace Opc.Ua.Server
         {
             return CommitRegistrationAsync(
                 lifecycle,
-                NodeManagerBatchChange.Replace(RequireRegistration(registration), RequireReplacement(replacement)),
+                NodeManagerBatchChange.Replace(
+                    factory: RequireReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -121,7 +122,7 @@ namespace Opc.Ua.Server
             return CommitRegistrationAsync(
                 lifecycle,
                 NodeManagerBatchChange.Replace(
-                    RequireRegistration(registration), AdaptReplacement(replacement)),
+                    factory: AdaptReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -138,7 +139,8 @@ namespace Opc.Ua.Server
         {
             return CommitRegistrationAsync(
                 lifecycle,
-                NodeManagerBatchChange.Replace(RequireRegistration(registration), RequireReplacement(replacement)),
+                NodeManagerBatchChange.Replace(
+                    factory: RequireReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -156,7 +158,7 @@ namespace Opc.Ua.Server
             return CommitRegistrationAsync(
                 lifecycle,
                 NodeManagerBatchChange.Replace(
-                    RequireRegistration(registration), AdaptReplacement(replacement)),
+                    factory: AdaptReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -172,7 +174,8 @@ namespace Opc.Ua.Server
         {
             return CommitRegistrationAsync(
                 lifecycle,
-                NodeManagerBatchChange.Replace(RequireRegistration(registration), RequireReplacement(replacement)),
+                NodeManagerBatchChange.Replace(
+                    factory: RequireReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -189,7 +192,7 @@ namespace Opc.Ua.Server
             return CommitRegistrationAsync(
                 lifecycle,
                 NodeManagerBatchChange.Replace(
-                    RequireRegistration(registration), AdaptReplacement(replacement)),
+                    factory: AdaptReplacement(replacement), current: RequireRegistration(registration)),
                 ct);
         }
 
@@ -206,9 +209,9 @@ namespace Opc.Ua.Server
             return CommitRegistrationAsync(
                 lifecycle,
                 NodeManagerBatchChange.Replace(
-                    RequireRegistration(registration),
-                    RequireReplacement(replacement),
-                    NodeManagerMonitoredItemTransitionMode.Invalidate),
+                    factory: RequireReplacement(replacement),
+                    current: RequireRegistration(registration),
+                    transitionMode: NodeManagerMonitoredItemTransitionMode.Invalidate),
                 ct);
         }
 
@@ -225,9 +228,9 @@ namespace Opc.Ua.Server
             return CommitRegistrationAsync(
                 lifecycle,
                 NodeManagerBatchChange.Replace(
-                    RequireRegistration(registration),
-                    AdaptReplacement(replacement),
-                    NodeManagerMonitoredItemTransitionMode.Invalidate),
+                    factory: AdaptReplacement(replacement),
+                    current: RequireRegistration(registration),
+                    transitionMode: NodeManagerMonitoredItemTransitionMode.Invalidate),
                 ct);
         }
 
@@ -333,7 +336,7 @@ namespace Opc.Ua.Server
             }
             if (failure is not null)
             {
-                throw new NodeManagerRemovalCommittedException(registration, result, UnwrapFailure(failure));
+                throw new NodeManagerRemovalCommittedException(registration, result, failure);
             }
         }
 

@@ -65,7 +65,6 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerGeneration? originalGeneration = replace ? table.GetGeneration(original) : null;
             var prepared = new PreparedNodeManager(candidate, [])
             {
-                Staged = true,
                 ReplacedNodeManager = replace ? original : null
             };
             using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
@@ -112,7 +111,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     return null!;
                 });
-                var prepared = new PreparedNodeManager(manager.Object, []) { Staged = true };
+                var prepared = new PreparedNodeManager(manager.Object, []);
                 using NodeManagerRoutingTable.PreparedRoutes routes = table.PrepareBatch(
                     [prepared], [], _ => BatchNamespaceIndexes,
                     preparation.OriginalTypes, preparation.OriginalFactory);

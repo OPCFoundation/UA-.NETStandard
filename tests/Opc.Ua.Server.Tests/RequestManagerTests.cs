@@ -846,28 +846,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public void RegisterLifecycleExtensionTwiceReturnsSameExtension()
-        {
-            RequestManagerLifecycleExtension first = RegisterLifecycleExtension();
-            RequestManagerLifecycleExtension second = RegisterLifecycleExtension();
-
-            Assert.That(second, Is.SameAs(first));
-        }
-
-        [Test]
-        [Category("NodeManagerLifecycle")]
-        public void RegisterLifecycleExtensionAfterDisposeThrowsObjectDisposedException()
-        {
-            m_requestManager.Dispose();
-
-            Assert.That(
-                () => m_requestManager.RegisterLifecycleExtension(),
-                Throws.TypeOf<ObjectDisposedException>());
-        }
-
-        [Test]
-        [Category("NodeManagerLifecycle")]
-        public void RequestManagerWithoutLifecycleExtensionAdmitsValidationAndRequests()
+        public void RequestManagerAdmitsValidationAndRequests()
         {
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(15, requestLifetime);
@@ -883,7 +862,7 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public async Task RequestManagerWithoutLifecycleExtensionDoesNotRepeatDrainAsync()
+        public async Task ValidationDrainDoesNotResnapshotPromotedRequestsAsync()
         {
             using var requestLifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(16, requestLifetime);
@@ -899,7 +878,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 requestLifetime.TryCancel(StatusCodes.BadTimeout),
                 Is.True,
-                "Without the lifecycle extension, the drain must not resnapshot promoted requests.");
+                "The drain must not resnapshot requests promoted from the captured validation scopes.");
         }
 
         [Test]
@@ -1047,9 +1026,8 @@ namespace Opc.Ua.Server.Tests
 
         [Test]
         [Category("NodeManagerLifecycle")]
-        public async Task WaitForCurrentRequestsAsyncExcludesEveryLifecycleWaiterAsync()
+        public async Task WaitForCurrentRequestsAsyncWaitsForEveryAdmittedRequestAsync()
         {
-            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
             using var requestLifetimeA = new RequestLifetime();
             using var requestLifetimeB = new RequestLifetime();
             using var requestLifetimeC = new RequestLifetime();
@@ -1058,13 +1036,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext contextC = CreateOperationContext(12, requestLifetimeC);
 
             using IDisposable requestScopeA = m_requestManager.EnterRequestScope(contextA);
-            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScopeA =
-                extension.EnterLifecycleWaiter();
-            waiterScopeA.MarkSemaphoreWaitStarted();
             using IDisposable requestScopeB = m_requestManager.EnterRequestScope(contextB);
-            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScopeB =
-                extension.EnterLifecycleWaiter();
-            waiterScopeB.MarkSemaphoreWaitStarted();
             m_requestManager.RequestReceived(contextC);
 
             Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
@@ -1072,64 +1044,19 @@ namespace Opc.Ua.Server.Tests
 
             m_requestManager.RequestCompleted(contextC);
 
+            Assert.That(drain.IsCompleted, Is.False, "Both scoped requests are still executing.");
+            requestScopeA.Dispose();
+            Assert.That(drain.IsCompleted, Is.False, "The second scoped request is still executing.");
+            requestScopeB.Dispose();
             await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
             Assert.That(
                 requestLifetimeA.TryCancel(StatusCodes.BadTimeout),
-                Is.True,
-                "The first excluded request must still be executing.");
+                Is.False,
+                "The first scoped request must have completed.");
             Assert.That(
                 requestLifetimeB.TryCancel(StatusCodes.BadTimeout),
-                Is.True,
-                "The second excluded request must still be executing.");
-        }
-
-        [Test]
-        [Category("NodeManagerLifecycle")]
-        public async Task SemaphoreWaitStartReleasesAlreadyActiveDrainAsync()
-        {
-            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
-            using var requestLifetime = new RequestLifetime();
-            OperationContext context = CreateOperationContext(13, requestLifetime);
-            using IDisposable requestScope = m_requestManager.EnterRequestScope(context);
-
-            Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
-            Assert.That(drain.IsCompleted, Is.False);
-
-            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope waiterScope =
-                extension.EnterLifecycleWaiter();
-
-            Assert.That(
-                drain.IsCompleted,
                 Is.False,
-                "Registration must not release a drain before the semaphore wait is queued.");
-
-            waiterScope.MarkSemaphoreWaitStarted();
-
-            await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
-            Assert.That(
-                requestLifetime.TryCancel(StatusCodes.BadTimeout),
-                Is.True,
-                "Waiting for the lifecycle semaphore must not complete the request itself.");
-        }
-
-        [Test]
-        [Category("NodeManagerLifecycle")]
-        public async Task DisposedLifecycleWaiterIsIncludedInNextDrainAsync()
-        {
-            RequestManagerLifecycleExtension extension = RegisterLifecycleExtension();
-            using var requestLifetime = new RequestLifetime();
-            OperationContext context = CreateOperationContext(14, requestLifetime);
-            IDisposable requestScope = m_requestManager.EnterRequestScope(context);
-            using (extension.EnterLifecycleWaiter())
-            {
-            }
-
-            Task drain = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
-            Assert.That(drain.IsCompleted, Is.False);
-
-            requestScope.Dispose();
-
-            await AssertCompletesWithinTimeoutAsync(drain).ConfigureAwait(false);
+                "The second scoped request must have completed.");
         }
 
         [Test]
@@ -1444,7 +1371,7 @@ namespace Opc.Ua.Server.Tests
             m_requestManager.AttachRequestScope(context);
 
             Assert.That(m_requestManager.IsExecutingRequest(context), Is.True);
-            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(context.RequestId));
             Task waiter = m_requestManager.WaitForCurrentRequestsAsync().AsTask();
             Assert.That(waiter.IsCompleted, Is.False);
 
@@ -1482,15 +1409,15 @@ namespace Opc.Ua.Server.Tests
         [Category("NodeManagerLifecycle")]
         public void AttachedRequestOutsideADispatchScopeRestoresTheAmbientRequestId()
         {
-            uint? before = m_requestManager.GetCurrentRequestIdForLifecycleExtension();
+            uint? before = m_requestManager.GetCurrentRequestId();
             using var lifetime = new RequestLifetime();
             OperationContext context = CreateOperationContext(91, lifetime, 60000);
 
             m_requestManager.AttachRequestScope(context);
-            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(context.RequestId));
+            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(context.RequestId));
 
             context.Dispose();
-            Assert.That(m_requestManager.GetCurrentRequestIdForLifecycleExtension(), Is.EqualTo(before));
+            Assert.That(m_requestManager.GetCurrentRequestId(), Is.EqualTo(before));
             Assert.That(m_requestManager.IsExecutingRequest(context), Is.False);
         }
 
@@ -1562,11 +1489,6 @@ namespace Opc.Ua.Server.Tests
             RequestLifetime requestLifetime)
         {
             return CreateOperationContext(requestHandle, requestLifetime, 0);
-        }
-
-        private RequestManagerLifecycleExtension RegisterLifecycleExtension()
-        {
-            return m_requestManager.RegisterLifecycleExtension();
         }
 
         private static OperationContext CreateOperationContext(

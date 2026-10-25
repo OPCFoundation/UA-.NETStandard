@@ -56,6 +56,8 @@ namespace Opc.Ua.Server
     /// <param name="ReportCleanupFailure">The callback receiving cleanup failures.</param>
     /// <param name="CancellationToken">The token to cancel the operation.</param>
     /// <param name="Preparation">The explicit private metadata staging context.</param>
+    /// <param name="Reconciliation">The server-owned post-commit checkpoints.</param>
+    /// <param name="References">Reference edits discovered before publication serialization.</param>
     internal sealed record NodeManagerBatchContext(
         ArrayOf<PreparedNodeManager> Candidates,
         ArrayOf<IAsyncNodeManager> Removed,
@@ -68,12 +70,14 @@ namespace Opc.Ua.Server
         ArrayOf<INodeManagerReadImage> ReadImages,
         Func<CancellationToken, ValueTask>? DecideAsync,
         Action ViewPublished,
-        Action Published,
+        Func<ValueTask> Published,
         Func<ValueTask> ReconcileBindingsAsync,
         Action<IAsyncNodeManager, List<LocalReference>> DeferReferenceRemoval,
         Action<Exception> ReportCleanupFailure,
         ChangePreparer Preparation,
-        CancellationToken CancellationToken);
+        GenerationReconciler.ReconciliationWork Reconciliation,
+        CancellationToken CancellationToken,
+        PreparedAddressSpaceReferences? References = null);
 
     /// <summary>
     /// Optional host support for a single prepared routing publication.
@@ -90,6 +94,20 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="generation">The retired generation whose bindings were released.</param>
         void ReleaseRetiringEventGeneration(NodeManagerGeneration generation);
+
+        /// <summary>
+        /// Resolves reference owners under the captured view without holding lifecycle mutation ownership.
+        /// </summary>
+        /// <param name="candidates">Private additions and replacements.</param>
+        /// <param name="removed">Explicit removals.</param>
+        /// <param name="view">The serving view captured by the transaction.</param>
+        /// <param name="cancellationToken">Cancels reference discovery.</param>
+        /// <returns>The versioned reference edits to reserve before deciding.</returns>
+        ValueTask<PreparedAddressSpaceReferences> PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Reserves and checks the complete candidate, then publishes it when a decision is supplied.

@@ -4366,7 +4366,6 @@ namespace Opc.Ua.Server
                 RequestManager requestManager = CreateRequestManager(
                     m_serverInternal,
                     configuration);
-                requestManager.RegisterLifecycleExtension();
 
                 //create the main node manager factory
                 IMainNodeManagerFactory mainNodeManagerFactory = CreateMainNodeManagerFactory(m_serverInternal, configuration);

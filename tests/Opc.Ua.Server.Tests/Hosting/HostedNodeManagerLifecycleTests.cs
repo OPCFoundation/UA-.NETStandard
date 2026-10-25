@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     async () => await lifecycle.Object.RemoveAsync(registration).ConfigureAwait(false))
                     .ConfigureAwait(false)
             };
-            Assert.That(exception!.InnerException, Is.SameAs(failure));
+            Assert.That(exception!.InnerException, Is.SameAs(operation == "Remove" ? result.CleanupFailure : failure));
             Assert.That(exception switch
             {
                 NodeManagerAddCommittedException added => added.Registration,

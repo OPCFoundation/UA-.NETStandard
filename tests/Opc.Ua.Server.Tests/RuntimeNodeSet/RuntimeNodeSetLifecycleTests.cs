@@ -655,7 +655,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             }
             finally
             {
-                await host.RollbackAsync(prepared).ConfigureAwait(false);
+                await host.AbortAsync(prepared).ConfigureAwait(false);
                 (replacement as IDisposable)?.Dispose();
             }
         }

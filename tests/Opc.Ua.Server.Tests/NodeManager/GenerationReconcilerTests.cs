@@ -40,7 +40,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
     /// </summary>
     [TestFixture]
     [Parallelizable(ParallelScope.All)]
-    public sealed class GenerationReconcilerTests
+    public sealed partial class GenerationReconcilerTests
     {
         /// <summary>
         /// A failed committed bind preserves earlier successful records so recovery never replays their callbacks.

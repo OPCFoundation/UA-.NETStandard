@@ -37,7 +37,7 @@ using Opc.Ua.Identity;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Owns explicit private metadata for a lifecycle preparation. Only the lifecycle writer uses this object.
+    /// Owns the private metadata captured under the lifecycle writer and used by candidate preparation callbacks.
     /// </summary>
     internal sealed class ChangePreparer
     {
@@ -154,34 +154,6 @@ namespace Opc.Ua.Server
                 throw new NodeManagerAlreadyRegisteredException();
             }
             return manager;
-        }
-
-        /// <summary>
-        /// Publishes compatible metadata for legacy single-manager commits under the lifecycle writer.
-        /// </summary>
-        internal void Publish()
-        {
-            TypeTable mergedTypes = OriginalTypes.PrepareAdditiveMerge(TypeTree, OriginalTypes, TypeRevision);
-            EncodeableFactory mergedFactory = OriginalFactory.PrepareAdditiveMerge(
-                Factory, OriginalFactory, FactoryRevision, NamespaceUris);
-            using TypeTable.Publication types = OriginalTypes.BeginPublication(OriginalTypes, TypeRevision);
-            using EncodeableFactory.Publication factory =
-                OriginalFactory.BeginPublication(OriginalFactory, FactoryRevision);
-            using StringTable.Publication namespaces =
-                Server.NamespaceUris.BeginPublication(NamespaceUris, NamespaceRevision);
-            using StringTable.Publication servers = Server.ServerUris.BeginPublication(ServerUris, ServerRevision);
-            namespaces.Complete();
-            servers.Complete();
-            types.Complete(mergedTypes);
-            factory.Complete(mergedFactory);
-        }
-
-        /// <summary>
-        /// Associates candidate-owned handles with the manager before address-space creation.
-        /// </summary>
-        internal static void Attach(IAsyncNodeManager manager, StagingServer server)
-        {
-            server.Attach(manager);
         }
 
         /// <summary>
@@ -357,6 +329,11 @@ namespace Opc.Ua.Server
             internal bool IsStaging { get; private set; } = true;
 
             /// <summary>
+            /// Gets whether this facade has been detached from its published generation.
+            /// </summary>
+            internal bool IsDetached { get; private set; }
+
+            /// <summary>
             /// Gets explicit namespace registrations retained until routing publication.
             /// </summary>
             internal IEnumerable<string> NamespaceRegistrations => m_pendingNamespaces;
@@ -453,6 +430,65 @@ namespace Opc.Ua.Server
             }
 
             /// <summary>
+            /// Retains a root-notifier reference contribution until external-reference publication.
+            /// </summary>
+            internal void StageRootNotifierReference(NodeId notifierId)
+            {
+                m_pendingRootNotifierReferences.Add(notifierId);
+            }
+
+            /// <summary>
+            /// Removes a root-notifier reference contribution that was withdrawn during preparation.
+            /// </summary>
+            internal void UnstageRootNotifierReference(NodeId notifierId)
+            {
+                m_pendingRootNotifierReferences.Remove(notifierId);
+            }
+
+            /// <summary>
+            /// Merges retained root-notifier contributions into the prepared external-reference set.
+            /// </summary>
+            internal void AppendRootNotifierReferences(
+                IDictionary<NodeId, IList<IReference>> externalReferences)
+            {
+                if (m_pendingRootNotifierReferences.Count == 0)
+                {
+                    return;
+                }
+
+                if (!externalReferences.TryGetValue(
+                    ObjectIds.Server,
+                    out IList<IReference>? serverReferences))
+                {
+                    externalReferences.Add(ObjectIds.Server, serverReferences = []);
+                }
+
+                foreach (NodeId notifierId in m_pendingRootNotifierReferences)
+                {
+                    bool exists = false;
+                    foreach (IReference reference in serverReferences)
+                    {
+                        if (reference.ReferenceTypeId == ReferenceTypeIds.HasNotifier &&
+                            !reference.IsInverse &&
+                            reference.TargetId == notifierId)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+                    if (!exists)
+                    {
+                        serverReferences.Add(new ReferenceNode
+                        {
+                            ReferenceTypeId = ReferenceTypeIds.HasNotifier,
+                            IsInverse = false,
+                            TargetId = notifierId
+                        });
+                    }
+                }
+            }
+
+            /// <summary>
             /// Claims the candidate without publishing its namespace registrations.
             /// </summary>
             internal void Attach(IAsyncNodeManager manager)
@@ -468,6 +504,7 @@ namespace Opc.Ua.Server
             /// </summary>
             internal void Detach()
             {
+                IsDetached = true;
                 TypeTree.Detach();
                 ((EncodeableFactory)Factory).Detach();
                 NamespaceUris.Detach();
@@ -485,6 +522,9 @@ namespace Opc.Ua.Server
 
             /// <summary>Retains namespace registration intent until routing publication.</summary>
             private readonly HashSet<string> m_pendingNamespaces = [];
+
+            /// <summary>Retains root-notifier reference intent until external-reference publication.</summary>
+            private readonly HashSet<NodeId> m_pendingRootNotifierReferences = [];
         }
     }
 }

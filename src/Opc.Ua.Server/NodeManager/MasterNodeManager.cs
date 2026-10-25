@@ -611,7 +611,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(nodeManager));
             }
 
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
             bool prepared = false;
             bool preparationStarted = false;
             try
@@ -627,6 +627,7 @@ namespace Opc.Ua.Server
                 await nodeManager
                     .CreateAddressSpaceAsync(externalReferences, ct)
                     .ConfigureAwait(false);
+                ChangePreparer.GetServer(nodeManager)?.AppendRootNotifierReferences(externalReferences);
                 prepared = true;
                 return new PreparedNodeManager(nodeManager, externalReferences);
             }
@@ -667,145 +668,6 @@ namespace Opc.Ua.Server
                         nodeManager,
                         suppress: false);
                 }
-                m_startupShutdownSemaphoreSlim.Release();
-            }
-        }
-
-        async ValueTask IDynamicNodeManagerHost.PublishAsync(
-            PreparedNodeManager prepared,
-            CancellationToken ct)
-        {
-            ValidatePreparedNodeManager(prepared);
-
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (prepared.Staged)
-                {
-                    throw new InvalidOperationException(
-                        "The prepared NodeManager has already been staged.");
-                }
-                if (m_dynamicExternalReferences.ContainsKey(
-                    prepared.NodeManager))
-                {
-                    throw new InvalidOperationException(
-                        "The NodeManager is already registered.");
-                }
-                prepared.Staged = true;
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
-            }
-        }
-
-        async ValueTask IDynamicNodeManagerHost.ReplaceAsync(
-            IAsyncNodeManager current,
-            PreparedNodeManager replacement,
-            CancellationToken ct)
-        {
-            if (current is null)
-            {
-                throw new ArgumentNullException(nameof(current));
-            }
-            ValidatePreparedNodeManager(replacement);
-
-            await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                if (!m_dynamicExternalReferences.ContainsKey(current))
-                {
-                    throw new InvalidOperationException(
-                        "The NodeManager is not owned by the live lifecycle provider.");
-                }
-                if (replacement.Staged)
-                {
-                    throw new InvalidOperationException(
-                        "The replacement NodeManager has already been staged.");
-                }
-                replacement.ReplacedNodeManager = current;
-                replacement.Generation = NodeManagerGenerationRegistry.CreateReplacement(
-                    m_nodeManagers.GetGeneration(current),
-                    replacement.NodeManager);
-                replacement.Staged = true;
-            }
-            finally
-            {
-                m_startupShutdownSemaphoreSlim.Release();
-            }
-        }
-
-        async ValueTask IDynamicNodeManagerHost.UnpublishAsync(
-            IAsyncNodeManager nodeManager,
-            CancellationToken ct)
-        {
-            if (nodeManager is null)
-            {
-                throw new ArgumentNullException(nameof(nodeManager));
-            }
-
-            await m_dynamicMutationSemaphore.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                await m_startupShutdownSemaphoreSlim.WaitAsync(ct).ConfigureAwait(false);
-                bool routeRemoved = false;
-                bool referenceMutationStarted = false;
-                bool wasVisible = m_nodeManagers.IsVisible(nodeManager);
-                NodeManagerRoutingTable.NodeManagerRoutingPosition? routingPosition = null;
-                try
-                {
-                    if (!m_dynamicExternalReferences.TryGetValue(
-                        nodeManager,
-                        out Dictionary<NodeId, IList<IReference>>? externalReferences))
-                    {
-                        throw new InvalidOperationException(
-                            "The NodeManager is not owned by the live lifecycle provider.");
-                    }
-
-                    EnsureNoActiveMonitoredItems(nodeManager);
-                    referenceMutationStarted = true;
-                    await RemoveExternalReferencesAsync(
-                        externalReferences,
-                        CancellationToken.None).ConfigureAwait(false);
-                    routingPosition = m_nodeManagers.RemoveAndCapturePosition(nodeManager);
-                    routeRemoved = true;
-                    m_dynamicExternalReferences.Remove(nodeManager);
-                }
-                catch
-                {
-                    if (routeRemoved)
-                    {
-                        m_nodeManagers.Restore(
-                            nodeManager,
-                            routingPosition!,
-                            visible: false);
-                    }
-                    if (referenceMutationStarted &&
-                        m_dynamicExternalReferences.TryGetValue(
-                            nodeManager,
-                            out Dictionary<NodeId, IList<IReference>>? externalReferences))
-                    {
-                        await AddExternalReferencesAsync(
-                            externalReferences,
-                            nodeManager,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    if (routeRemoved)
-                    {
-                        m_nodeManagers.SetVisible(
-                            nodeManager,
-                            wasVisible);
-                    }
-                    throw;
-                }
-                finally
-                {
-                    m_startupShutdownSemaphoreSlim.Release();
-                }
-            }
-            finally
-            {
-                m_dynamicMutationSemaphore.Release();
             }
         }
 
@@ -866,20 +728,15 @@ namespace Opc.Ua.Server
             }
         }
 
-        async ValueTask IDynamicNodeManagerHost.RollbackAsync(
+        async ValueTask IDynamicNodeManagerHost.AbortAsync(
             PreparedNodeManager prepared,
             CancellationToken ct)
         {
-            ValidatePreparedNodeManager(prepared, allowPublished: true);
-
-            if (prepared.Published)
+            ValidatePreparedNodeManager(prepared);
+            if (m_nodeManagers.Contains(prepared.NodeManager))
             {
-                await ((IDynamicNodeManagerHost)this)
-                    .UnpublishAsync(prepared.NodeManager, ct: ct)
-                    .ConfigureAwait(false);
-                prepared.Published = false;
+                throw new InvalidOperationException("A serving NodeManager cannot be aborted.");
             }
-            prepared.Staged = false;
             if (ChangePreparer.GetServer(prepared.NodeManager)?.IsStaging != true)
             {
                 m_nodeManagers.RemoveNamespaceManager(prepared.NodeManager);
@@ -1041,7 +898,14 @@ namespace Opc.Ua.Server
             }
 
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
-            generation.Gate.Retire();
+            if (generation.Gate.State == NodeManagerGenerationState.Prepared)
+            {
+                generation.Gate.Abort();
+            }
+            else
+            {
+                generation.Gate.Retire();
+            }
             await generation.Gate.WaitForDrainAsync().WaitAsync(ct).ConfigureAwait(false);
             await GenerationReconciler.ReleaseRetiredEventsAsync(generation, ct).ConfigureAwait(false);
         }
@@ -1438,41 +1302,16 @@ namespace Opc.Ua.Server
                 nodeManager);
         }
 
-        private static void ValidatePreparedNodeManager(
-            PreparedNodeManager prepared,
-            bool allowPublished = false)
+        private static void ValidatePreparedNodeManager(PreparedNodeManager prepared)
         {
             if (prepared is null)
             {
                 throw new ArgumentNullException(nameof(prepared));
             }
-            if (prepared.Published && !allowPublished)
+            if (prepared.Published)
             {
                 throw new InvalidOperationException(
                     "The prepared NodeManager has already been published.");
-            }
-        }
-
-        private void EnsureNoActiveMonitoredItems(
-            IAsyncNodeManager nodeManager)
-        {
-            foreach (ISubscription subscription in
-                Server.SubscriptionManager.GetSubscriptions())
-            {
-                if (subscription.MonitoredItemCount == 0)
-                {
-                    continue;
-                }
-                if (subscription is not ISubscriptionMonitoredItemLifecycle tracker)
-                {
-                    throw new NotSupportedException(
-                        "The configured subscription cannot verify NodeManager ownership.");
-                }
-                if (tracker.HasMonitoredItems(nodeManager))
-                {
-                    throw new InvalidOperationException(
-                        "The NodeManager cannot be reloaded or removed while it owns monitored items.");
-                }
             }
         }
 

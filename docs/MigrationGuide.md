@@ -112,6 +112,19 @@ shims retain `NodeManagerAddCommittedException`, `NodeManagerReloadCommittedExce
 `NodeManagerRemovalCommittedException`; each carries the authoritative registration and committed
 `Result`. Add/reload exceptions created using their legacy constructors have no result.
 Uncommitted preparation or decision failures must still dispose the prepared owner.
+Use `result.Issues` and `await result.RetryReconciliationAsync(ct)` to retry unfinished
+post-commit callbacks without another durable decision or routing publication. `CleanupFailure`
+keeps the original failure; current issues identify retryable or superseded work. Concurrent retries
+join one attempt, and canceling a caller's wait does not cancel admitted callbacks. Application
+publication callbacks must be idempotent because a throwing attempt may have partially applied state.
+
+Candidate factories, address-space preparation, and monitored-item transition discovery no
+longer hold the lifecycle writer.
+Concurrent changes can therefore complete while a candidate is preparing. A serving-view
+or metadata change makes that candidate stale; commit fails with `InvalidOperationException`
+before invoking the durable decision. This also applies to the obsolete convenience
+extensions. Handle the conflict explicitly and prepare a new transaction if appropriate:
+the lifecycle never silently reruns a factory or rebases its private namespace indexes.
 
 See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 

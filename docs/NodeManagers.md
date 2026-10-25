@@ -1053,6 +1053,22 @@ the decision callback; use new type and encoding identifiers for incompatible de
 Preparation also requires the same serving identity and revision at commit: even an unrelated
 concurrent metadata addition makes the batch stale and requires preparation again.
 
+Preparation captures its serving view and private metadata under the lifecycle writer, then
+releases the writer before invoking factories, address-space creation, reload participants or
+NodeId policy preparation. A generation admission protects a current participant while these
+callbacks run. Unrelated changes may publish concurrently. Commit rejects a changed serving
+view with `InvalidOperationException` before the durable decision; it does not silently rerun
+factories or rebase private namespace indexes. The obsolete convenience extensions expose the
+same conflict rather than retrying application callbacks.
+
+Commit also releases the writer while discovering monitored-item transitions. The current
+generation remains admitted until discovery ends and the writer revalidates the captured view.
+A concurrent publication makes the transaction stale before its durable decision is invoked.
+Reference-owner discovery also runs outside the writer and host publication semaphores.
+It pins the captured view and admits each existing owner callback through that generation's
+gate. Reference edits capture each source's version before later owner callbacks run;
+publication revalidates the view, contribution map, and source versions before deciding.
+
 ```csharp
 await using IPreparedNodeManagerBatch batch = await batchLifecycle.PrepareAsync(
     [NodeManagerBatchChange.Add(factory)], ct);
@@ -1082,6 +1098,59 @@ it does not implement a second convenience-operation pipeline. For a runtime Nod
   Retry after it releases. A noncommit or cancellation releases only that batch's reservation.
 - Prepared batches need the default `EncodeableFactory`; a custom factory is rejected before
   candidate creation.
+
+#### Retrying committed reconciliation
+
+`NodeManagerBatchResult.Issues` reports the current failed reconciliation stages. Retry the
+committed result, not the prepared transaction or durable decision:
+
+```csharp
+NodeManagerBatchResult result = await prepared.CommitAsync(
+    PersistDecisionAsync, PublishPreparedApplicationState, ct);
+if (result.Issues.Count != 0)
+{
+    await result.RetryReconciliationAsync(ct);
+}
+foreach (NodeManagerReconciliationIssue issue in result.Issues)
+{
+    // InitialFailure preserves the first exception; CurrentFailure describes the latest attempt.
+    // IsSuperseded means the original generation/view is gone and this work cannot be retried.
+}
+```
+
+Retries never decide again, replace a view, change `Revision` or `Slots`, or replace the
+`Retirement` task. `CleanupFailure` retains the original commit's failure even after a successful
+retry; inspect `Issues` for current status. Concurrent retry callers join one attempt. Canceling a
+caller's token cancels its wait only; already admitted work runs with an uncancelable token.
+
+The server-owned reconciler checkpoints application publication, reference callbacks, bindings,
+monitored-item recovery, readiness, identity policy, namespace notifications, and model/semantic
+events separately. Successful stages and reference observers are not replayed. Retry callbacks
+acquire a fresh lifecycle operation and only their exact generation gates; they do not hold the
+mutation writer. A newer removal or reload makes unfinished work explicitly superseded instead
+of invoking a disposed manager. Result status does not retain callback ownership or an admission.
+Retirement remains independently owned by the reclaimer.
+Application state publication additionally requires its original routing revision: any newer committed
+unit supersedes an unfinished application callback, even if its original managers remain live.
+`IsRetryable` distinguishes callbacks this result can retry from cleanup owned elsewhere.
+Legacy monitored-item handoff failures and retirement failures remain explicit issues, but
+are not replayed against a retiring source; the existing handoff/reclaimer recovery paths own them.
+
+A throwing application publication callback may already have applied part of its prepared
+in-memory state. It **must be idempotent** if retried, must not repeat durable I/O, and must not
+overwrite a newer application's durable recovery decision. A callback or event sink that performs
+an effect and then throws has an ambiguous outcome: retries provide at-least-once attempts for
+that failed callback, not transactional exactly-once delivery to an external sink.
+
+The fallback `AddReferencesAsync` broadcast is checkpointed **per receiving owner**, not per
+reference inside a custom owner. A throwing owner may already have applied a prefix of its additions.
+Retry sends that same owner's additions again, without rolling back the committed routes or replaying
+successful owners. External owners and overrides must therefore implement idempotent/set-style
+reference insertion; arbitrary callback side effects receive at-least-once attempts, not exactly-once
+delivery. The stack's asynchronous custom manager uses `AddReferenceIfMissing`, its synchronous
+counterpart checks `ReferenceExists`, and runtime NodeSet reference tracking deduplicates reference
+keys. These storage guarantees do not imply that an arbitrary custom override or external sink is
+transactional.
 
 #### Invocation publication units
 

@@ -485,13 +485,10 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Enters a lifecycle operation that is tracked until it is disposed.
         /// </summary>
-        /// <param name="publication">The publication capture that owns admission, or null for a regular
-        /// operation.</param>
         /// <returns>The scope that ends the operation when disposed.</returns>
-        private OperationLifetime EnterLifecycleOperation(
-            LifecycleWriter.PublicationReservation? publication = null)
+        private OperationLifetime EnterLifecycleOperation()
         {
-            return m_writer.EnterOperation(publication);
+            return m_writer.EnterOperation();
         }
 
         private void EnsureSameRunningServer(
@@ -536,30 +533,6 @@ namespace Opc.Ua.Server
                             retired.NodeManager,
                             nodeManager));
             }
-        }
-
-        private ValueTask<LifecycleWriter.Mutation> BeginMutationAsync(
-            RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? requestWaiter,
-            CancellationToken ct)
-        {
-            return m_writer.BeginMutationAsync(ct, requestWaiter is null ? null : requestWaiter.MarkSemaphoreWaitStarted);
-        }
-
-        private static RequestManagerLifecycleExtension.RequestLifecycleWaiterScope?
-            EnterRequestLifecycleWaiter(IServerInternal server)
-        {
-            RequestManagerLifecycleExtension? extension =
-                server.RequestManager.LifecycleExtension;
-            if (extension is null)
-            {
-                return null;
-            }
-
-            uint? currentRequestId =
-                server.RequestManager.GetCurrentRequestIdForLifecycleExtension();
-            return currentRequestId.HasValue && currentRequestId.Value != uint.MaxValue
-                ? extension.EnterLifecycleWaiter()
-                : null;
         }
 
         /// <summary>
@@ -1118,19 +1091,11 @@ namespace Opc.Ua.Server
             return true;
         }
 
-        private static async ValueTask NotifyCommittedChangeAsync(
+        private static async ValueTask ReportModelChangeAsync(
             IServerInternal server,
             string operation,
-            int namespaceCountBefore,
-            CancellationToken ct,
-            ArrayOf<SemanticChangeStructureDataType> semanticChanges = default)
+            CancellationToken ct)
         {
-            await RebindIdentityAsync(server, ct).ConfigureAwait(false);
-            await NotifyNamespaceTableChangedAsync(
-                server,
-                namespaceCountBefore,
-                ct).ConfigureAwait(false);
-
             var modelChange = new BaseModelChangeEventState(null);
             var message = new TranslationInfo(
                 "LiveNodeManagerModelChange",
@@ -1152,7 +1117,16 @@ namespace Opc.Ua.Server
                 "Server",
                 false);
             await server.ReportEventAsync(modelChange, ct).ConfigureAwait(false);
+        }
 
+        /// <summary>
+        /// Reports semantic changes independently of successful model change delivery.
+        /// </summary>
+        private static async ValueTask ReportSemanticChangeAsync(
+            IServerInternal server,
+            ArrayOf<SemanticChangeStructureDataType> semanticChanges,
+            CancellationToken ct)
+        {
             if (semanticChanges.Count > 0)
             {
                 var semanticChange = new SemanticChangeEventState(null);
@@ -1183,7 +1157,8 @@ namespace Opc.Ua.Server
         private static async ValueTask NotifyNamespaceTableChangedAsync(
             IServerInternal server,
             int namespaceCountBefore,
-            CancellationToken ct)
+            GenerationReconciler.ReconciliationWork reconciliation,
+            NodeManagerGeneration[] generations)
         {
             ServerObjectState serverObject =
                 server.DiagnosticsNodeManager.FindPredefinedNode<ServerObjectState>(
@@ -1193,12 +1168,13 @@ namespace Opc.Ua.Server
                 serverObject.NamespaceArray?.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 if (serverObject.NamespaceArray is not null)
                 {
-                    await serverObject.NamespaceArray
-                        .ClearChangeMasksAsync(
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.Namespaces,
+                        generations,
+                        () => serverObject.NamespaceArray.ClearChangeMasksAsync(
                             server.DefaultSystemContext,
                             includeChildren: false,
-                            ct)
-                        .ConfigureAwait(false);
+                            CancellationToken.None)).ConfigureAwait(false);
                 }
 
                 if (serverObject.UrisVersion is not null)
@@ -1209,12 +1185,13 @@ namespace Opc.Ua.Server
                         Utils.IncrementIdentifier(ref version);
                     serverObject.UrisVersion.Timestamp = now;
                     serverObject.UrisVersion.UpdateChangeMasks(NodeStateChangeMasks.Value);
-                    await serverObject.UrisVersion
-                        .ClearChangeMasksAsync(
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.Namespaces,
+                        generations,
+                        () => serverObject.UrisVersion.ClearChangeMasksAsync(
                             server.DefaultSystemContext,
                             includeChildren: false,
-                            ct)
-                        .ConfigureAwait(false);
+                            CancellationToken.None)).ConfigureAwait(false);
                 }
             }
         }
@@ -1743,38 +1720,53 @@ namespace Opc.Ua.Server
             OperationLifetime? operation = null;
             try
             {
-                operation = EnterLifecycleOperation(publication?.Reservation);
+                operation = EnterLifecycleOperation();
                 (IServerInternal server, IDynamicNodeManagerHost host) =
                     GetRunningServer(allowRequestCallback);
-                if (host is not IDynamicNodeManagerBatchHost)
+                if (host is not IDynamicNodeManagerBatchHost batchHost)
                 {
                     throw new NotSupportedException("The server host does not support prepared publication.");
                 }
-                if (server.Factory is not EncodeableFactory servingFactory)
+                if (server.Factory is not EncodeableFactory)
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
                 }
                 await m_reclaimer.ReclaimReadyAsync().ConfigureAwait(false);
-                using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
-                    EnterRequestLifecycleWaiter(server);
-                LifecycleWriter.Mutation mutation = await BeginMutationAsync(waiter, cancellationToken)
+                LifecycleWriter.Mutation mutation = await m_writer.BeginMutationAsync(cancellationToken)
                     .ConfigureAwait(false);
-                ChangePreparer? preparation = null;
+                var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
                 try
                 {
                     EnsureSameRunningServer(server, host, allowRequestCallback);
-                    preparation = new ChangePreparer(server);
+                    publication?.Session.ValidateRevision();
+                    var preparation = new ChangePreparer(server);
+                    NodeManagerRoutingTable.RoutingSnapshot routingRevision = batchHost.RoutingRevision;
                     IDataTypeDefinitionResolver? resolver = null;
                     int namespaceCount = server.NamespaceUris.Count;
                     for (int index = 0; index < changes.Count; index++)
                     {
                         NodeManagerBatchChange change = changes[index];
-                        cancellationToken.ThrowIfCancellationRequested();
                         RegistrationState? current = change.Current is null
                             ? null
                             : GetCurrentState(change.Current);
-                        var entry = new BatchEntry(change, current);
-                        entries.Add(entry);
+                        if (current is not null)
+                        {
+                            NodeManagerGeneration generation = current.Registration.Identity;
+                            if (!generation.Gate.TryEnter(out int stripe))
+                            {
+                                throw new InvalidOperationException(
+                                    "A registration retired before its preparation could be admitted.");
+                            }
+                            admissions.Add((generation, stripe));
+                        }
+                        entries.Add(new BatchEntry(change, current));
+                    }
+                    mutation.Dispose();
+                    foreach (BatchEntry entry in entries)
+                    {
+                        NodeManagerBatchChange change = entry.Change;
+                        RegistrationState? current = entry.Current;
+                        cancellationToken.ThrowIfCancellationRequested();
                         if (change.Factory is null)
                         {
                             continue;
@@ -1789,9 +1781,15 @@ namespace Opc.Ua.Server
                         try
                         {
                             stagingServer.Attach(entry.Manager);
+                            NodeManagerGeneration generation = current is null
+                                ? NodeManagerGenerationRegistry.CreateAddition(entry.Manager)
+                                : NodeManagerGenerationRegistry.CreateReplacement(
+                                    current.Registration.Identity, entry.Manager);
                             entry.Prepared = await host.PrepareAsync(entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
                             entry.Prepared.Preparation = preparation;
+                            entry.Prepared.Generation = generation;
+                            entry.Prepared.ReplacedNodeManager = current?.Prepared.NodeManager;
                             await ValidateDataTypeCompatibilityAsync(stagingServer, entry.Manager, cancellationToken)
                                 .ConfigureAwait(false);
                             if (current is not null)
@@ -1805,13 +1803,6 @@ namespace Opc.Ua.Server
                                     .. await participant.PrepareReloadAsync(entry.Manager, cancellationToken)
                                         .ConfigureAwait(false)
                                 ];
-                                await host.ReplaceAsync(
-                                    current.Prepared.NodeManager, entry.Prepared,
-                                    ct: cancellationToken).ConfigureAwait(false);
-                            }
-                            else
-                            {
-                                await host.PublishAsync(entry.Prepared, cancellationToken).ConfigureAwait(false);
                             }
                             resolver = await m_server.RefreshComplexTypesAsync(
                                 stagingServer, entry.Manager, publishResolver: false, cancellationToken: cancellationToken)
@@ -1821,7 +1812,6 @@ namespace Opc.Ua.Server
                                 current?.Registration.Id ?? Guid.NewGuid(),
                                 (current?.Registration.Generation ?? 0) + 1,
                                 entry.Manager);
-                            entry.Prepared.Generation = registration.Identity;
                             entry.Next = new RegistrationState(registration, entry.Prepared, allowRequestCallback)
                             {
                                 ReadinessPending = entry.Manager is INodeManagerReadinessNotification
@@ -1832,12 +1822,26 @@ namespace Opc.Ua.Server
                             stagingServer?.Dispose();
                         }
                     }
-                    // Staging can register hidden namespace routes; freeze its completed routing image.
+                    if (server is INodeIdFactoryProvider
+                        { NodeIdFactory: INodeIdFactoryPolicy policy })
+                    {
+                        foreach (BatchEntry entry in entries)
+                        {
+                            if (entry.Manager is not null)
+                            {
+                                await policy.PrepareNodeManagerAsync(
+                                    ChangePreparer.GetServer(entry.Manager)!,
+                                    entry.Manager,
+                                    entry.Current?.Prepared.NodeManager,
+                                    cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                    }
                     var prepared = new PreparedBatch(
-                        this, server, host, entries, operation, namespaceCount, allowRequestCallback,
+                        this, server, host, entries, operation, namespaceCount, routingRevision, allowRequestCallback,
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
-                        preparation.FactoryRevision, resolver, validationOnly, preparation);
+                        preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -1848,6 +1852,7 @@ namespace Opc.Ua.Server
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
                     mutation.Dispose();
+                    ReleaseAdmissions();
                     Exception? cleanup = await AbortBatchEntriesAsync(host, entries)
                         .ConfigureAwait(false);
                     if (cleanup is not null)
@@ -1859,6 +1864,16 @@ namespace Opc.Ua.Server
                 finally
                 {
                     mutation.Dispose();
+                    ReleaseAdmissions();
+                }
+
+                void ReleaseAdmissions()
+                {
+                    foreach ((NodeManagerGeneration generation, int stripe) in admissions)
+                    {
+                        generation.Gate.Exit(stripe);
+                    }
+                    admissions.Clear();
                 }
             }
             finally
@@ -1885,20 +1900,27 @@ namespace Opc.Ua.Server
         {
             ThrowIfDecisionCallbackActive();
 
-            using RequestManagerLifecycleExtension.RequestLifecycleWaiterScope? waiter =
-                EnterRequestLifecycleWaiter(batch.Server);
             LifecycleWriter.Mutation mutation =
-                await BeginMutationAsync(waiter, cancellationToken).ConfigureAwait(false);
+                await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
             var retired = new List<RetiredGeneration>();
             bool releaseWriter = true;
             var failures = new List<Exception>();
             var monitoredItemTransitions = new List<MonitoredItemTransition>();
             var semanticChanges = new List<SemanticChangeStructureDataType>();
+            var preparationAdmissions = new List<(NodeManagerGeneration Generation, int Stripe)>(batch.Entries.Count);
             long publishedRevision = 0;
             NodeManagerSlot[] publishedSlots = [];
+            GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
+            GenerationReconciler.ReconciliationWork reconciliation =
+                reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
             try
             {
                 EnsureSameRunningServer(batch.Server, batch.Host, batch.AllowRequestCallback);
+                if (!ReferenceEquals(
+                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision, batch.RoutingRevision))
+                {
+                    throw new InvalidOperationException("The address space changed while the batch was prepared.");
+                }
                 foreach (BatchEntry entry in batch.Entries)
                 {
                     if (entry.Current is not null &&
@@ -1906,6 +1928,20 @@ namespace Opc.Ua.Server
                     {
                         throw new InvalidOperationException("A registration changed while the batch was prepared.");
                     }
+                    if (entry.Current is not null)
+                    {
+                        NodeManagerGeneration generation = entry.Current.Registration.Identity;
+                        if (!generation.Gate.TryEnter(out int stripe))
+                        {
+                            throw new InvalidOperationException(
+                                "A registration retired before its transition preparation could be admitted.");
+                        }
+                        preparationAdmissions.Add((generation, stripe));
+                    }
+                }
+                mutation.Dispose();
+                foreach (BatchEntry entry in batch.Entries)
+                {
                     if (entry.Current is not null)
                     {
                         if (decideAsync is not null && entry.Manager is not null)
@@ -1949,23 +1985,22 @@ namespace Opc.Ua.Server
                     .Where(entry => entry.Current is not null && entry.Prepared is null)
                     .Select(entry => entry.Current!.Prepared.NodeManager)
                     .ToArrayOf();
+                using PreparedAddressSpaceReferences references =
+                    await ((IDynamicNodeManagerBatchHost)batch.Host).PrepareReferencesAsync(
+                        candidates, removed, batch.RoutingRevision, cancellationToken).ConfigureAwait(false);
 
-                foreach (BatchEntry entry in batch.Entries)
+                mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
+                EnsureSameRunningServer(batch.Server, batch.Host, batch.AllowRequestCallback);
+                if (!ReferenceEquals(
+                    ((IDynamicNodeManagerBatchHost)batch.Host).RoutingRevision, batch.RoutingRevision))
                 {
-                    if (entry.Manager is null || entry.Prepared is null)
-                    {
-                        continue;
-                    }
-                    if (batch.Server is INodeIdFactoryProvider
-                        { NodeIdFactory: INodeIdFactoryPolicy policy })
-                    {
-                        await policy.PrepareNodeManagerAsync(
-                            batch.Server,
-                            entry.Manager,
-                            entry.Current?.Prepared.NodeManager,
-                            cancellationToken).ConfigureAwait(false);
-                    }
+                    throw new InvalidOperationException("The address space changed while transitions were prepared.");
                 }
+                foreach ((NodeManagerGeneration generation, int stripe) in preparationAdmissions)
+                {
+                    generation.Gate.Exit(stripe);
+                }
+                preparationAdmissions.Clear();
 
                 Dictionary<Guid, RegistrationState> committedRegistrations;
                 lock (m_registrationLock)
@@ -2001,21 +2036,30 @@ namespace Opc.Ua.Server
                     m_reclaimer.Reserve(retired.Count);
                 }
 
-                bool committedStatePublished = false;
-                void PublishCommittedState()
+                NodeManagerGeneration[] candidateGenerations =
+                    (candidates.ToArray() ?? []).Select(candidate => candidate.Generation!).ToArray();
+                bool reconciliationStarted = false;
+                async ValueTask PublishCommittedStateAsync()
                 {
-                    if (committedStatePublished)
+                    if (reconciliationStarted)
                     {
                         return;
                     }
-                    committedStatePublished = true;
-                    try
+                    reconciliationStarted = true;
+                    mutation.Dispose();
+                    releaseWriter = false;
+                    reconciliation.Publish(publishedRevision);
+                    if (publishCommittedState is not null)
                     {
-                        publishCommittedState?.Invoke();
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        failures.Add(failure);
+                        await reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.ApplicationState,
+                            candidateGenerations,
+                            () =>
+                            {
+                                publishCommittedState();
+                                return default;
+                            },
+                            requireOriginalView: true).ConfigureAwait(false);
                     }
                 }
 
@@ -2033,9 +2077,14 @@ namespace Opc.Ua.Server
                         ReadImages: batch.ReadImages,
                         DecideAsync: decideAsync is null
                             ? null
-                            : token => mutation.DecideAsync(decideAsync, token),
+                            : token =>
+                            {
+                                batch.Publication?.ValidateRevision();
+                                return mutation.DecideAsync(decideAsync, token);
+                            },
                         ViewPublished: () =>
                         {
+                            batch.Publication?.AdvanceRevision();
                             lock (m_registrationLock)
                             {
                                 if (batch.IsCommitted)
@@ -2059,13 +2108,9 @@ namespace Opc.Ua.Server
                             {
                                 m_server.ComplexTypeResolverHolder?.SetResolver(batch.Resolver);
                             }
+                            reconciler.SupersedeReconciliations();
                         },
-                        Published: () =>
-                        {
-                            mutation.Dispose();
-                            releaseWriter = false;
-                            PublishCommittedState();
-                        },
+                        Published: PublishCommittedStateAsync,
                         ReconcileBindingsAsync: async () =>
                         {
                             // Retired generations are cut off by their gate; physical source bindings are released
@@ -2075,12 +2120,17 @@ namespace Opc.Ua.Server
                                 try
                                 {
                                     await transition.DetachCurrentAsync(CancellationToken.None).ConfigureAwait(false);
-                                    failures.AddRange(await transition.AttachCompatibleAsync(CancellationToken.None)
-                                        .ConfigureAwait(false));
+                                    foreach (Exception failure in await transition.AttachCompatibleAsync(
+                                        CancellationToken.None).ConfigureAwait(false))
+                                    {
+                                        reconciliation.ReportOwnedFailure(
+                                            NodeManagerReconciliationStage.MonitoredItems, failure);
+                                    }
                                 }
                                 catch (Exception failure) when (failure is not OutOfMemoryException)
                                 {
-                                    failures.Add(failure);
+                                    reconciliation.ReportOwnedFailure(
+                                        NodeManagerReconciliationStage.MonitoredItems, failure);
                                 }
                             }
                             foreach (BatchEntry entry in batch.Entries)
@@ -2089,33 +2139,18 @@ namespace Opc.Ua.Server
                                 {
                                     continue;
                                 }
-                                try
+                                if (entry.Prepared?.Generation is { } generation)
                                 {
-                                    if (entry.Prepared?.Generation is not { } generation)
+                                    await reconciliation.RunAsync(
+                                        NodeManagerReconciliationStage.Bindings,
+                                        [generation],
+                                        async () =>
                                     {
-                                        throw new InvalidOperationException(
-                                            "A committed NodeManager has no generation identity.");
-                                    }
-                                    if (!generation.Gate.TryEnter(out int admissionSlot))
-                                    {
-                                        continue;
-                                    }
-                                    try
-                                    {
-                                        GenerationReconciler reconciler = GetGenerationReconciler(batch.Server);
                                         GenerationReconciler.Bindings bindings = await reconciler.BindAsync(
                                             generation, CancellationToken.None).ConfigureAwait(false);
                                         await reconciler.ReconcileAsync(
                                             generation, bindings, CancellationToken.None).ConfigureAwait(false);
-                                    }
-                                    finally
-                                    {
-                                        generation.Gate.Exit(admissionSlot);
-                                    }
-                                }
-                                catch (Exception failure) when (failure is not OutOfMemoryException)
-                                {
-                                    failures.Add(failure);
+                                    }).ConfigureAwait(false);
                                 }
                             }
                         },
@@ -2130,14 +2165,17 @@ namespace Opc.Ua.Server
                             }
                             retirement.PendingReferences.AddRange(references);
                         },
-                        ReportCleanupFailure: failures.Add,
+                        ReportCleanupFailure: failure => reconciliation.ReportOwnedFailure(
+                            NodeManagerReconciliationStage.Publication, failure),
                         CancellationToken: cancellationToken,
-                        Preparation: batch.Preparation);
+                        Preparation: batch.Preparation,
+                        Reconciliation: reconciliation,
+                        References: references);
                     await ((IDynamicNodeManagerBatchHost)batch.Host).CommitBatchAsync(context).ConfigureAwait(false);
                 }
                 catch (Exception failure) when (batch.IsCommitted && failure is not OutOfMemoryException)
                 {
-                    failures.Add(failure);
+                    reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Publication, failure);
                 }
                 if (decideAsync is null)
                 {
@@ -2145,7 +2183,7 @@ namespace Opc.Ua.Server
                 }
                 mutation.Dispose();
                 releaseWriter = false;
-                PublishCommittedState();
+                await PublishCommittedStateAsync().ConfigureAwait(false);
 
                 foreach (BatchEntry entry in batch.Entries)
                 {
@@ -2154,31 +2192,24 @@ namespace Opc.Ua.Server
                         continue;
                     }
                     NodeManagerGeneration generation = entry.Next.Registration.Identity;
-                    if (!generation.Gate.TryEnter(out int admissionSlot))
-                    {
-                        ReleaseReadinessClaim(entry.Next);
-                        continue;
-                    }
                     try
                     {
                         if (entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate)
                         {
-                            await RecoverDetachedMonitoredItemsAsync(
-                                batch.Server, entry.Manager, CancellationToken.None).ConfigureAwait(false);
+                            await reconciliation.RunAsync(
+                                NodeManagerReconciliationStage.MonitoredItems,
+                                [generation],
+                                () => RecoverDetachedMonitoredItemsAsync(
+                                    batch.Server, entry.Manager, CancellationToken.None)).ConfigureAwait(false);
                         }
-                        await CompleteReadinessAsync(
-                            batch.Server,
-                            batch.Host,
-                            entry.Next,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        failures.Add(failure);
+                        await reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.Readiness,
+                            [generation],
+                            () => CompleteReadinessAsync(
+                                batch.Server, batch.Host, entry.Next, CancellationToken.None)).ConfigureAwait(false);
                     }
                     finally
                     {
-                        generation.Gate.Exit(admissionSlot);
                         ReleaseReadinessClaim(entry.Next);
                     }
                 }
@@ -2192,7 +2223,7 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception failure) when (failure is not OutOfMemoryException)
                 {
-                    failures.Add(failure);
+                    reconciliation.ReportOwnedFailure(NodeManagerReconciliationStage.Retirement, failure);
                 }
                 ScheduleRetiredGenerationDrainCleanup();
                 if (batch.Entries.Count != 0)
@@ -2204,20 +2235,30 @@ namespace Opc.Ua.Server
                                 ? "removed"
                                 : "reloaded"
                         : "batch";
-                    try
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.Identity,
+                        candidateGenerations,
+                        () => RebindIdentityAsync(batch.Server, CancellationToken.None)).ConfigureAwait(false);
+                    await NotifyNamespaceTableChangedAsync(
+                        batch.Server, batch.NamespaceCount, reconciliation, candidateGenerations).ConfigureAwait(false);
+                    await reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.ModelChange,
+                        candidateGenerations,
+                        () => ReportModelChangeAsync(batch.Server, operation, CancellationToken.None))
+                        .ConfigureAwait(false);
+                    if (semanticChanges.Count != 0)
                     {
-                        await NotifyCommittedChangeAsync(
-                            batch.Server,
-                            operation,
-                            batch.NamespaceCount,
-                            CancellationToken.None,
-                            semanticChanges.ToArrayOf()).ConfigureAwait(false);
-                    }
-                    catch (Exception failure) when (failure is not OutOfMemoryException)
-                    {
-                        failures.Add(failure);
+                        await reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.SemanticChange,
+                            candidateGenerations,
+                            () => ReportSemanticChangeAsync(
+                                batch.Server, semanticChanges.ToArrayOf(), CancellationToken.None))
+                            .ConfigureAwait(false);
                     }
                 }
+                reconciliation.Seal();
+                failures.AddRange((reconciliation.Ticket.Issues.ToArray() ?? [])
+                    .Select(issue => issue.CurrentFailure));
                 uint completed;
                 lock (m_registrationLock)
                 {
@@ -2229,7 +2270,8 @@ namespace Opc.Ua.Server
                         "The batch committed; generation reconciliation remains pending.", failures),
                     publishedRevision,
                     publishedSlots,
-                    Task.WhenAll(retired.Select(item => item.Retirement)));
+                    Task.WhenAll(retired.Select(item => item.Retirement)),
+                    reconciliation.Ticket);
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
@@ -2260,6 +2302,10 @@ namespace Opc.Ua.Server
             }
             finally
             {
+                foreach ((NodeManagerGeneration generation, int stripe) in preparationAdmissions)
+                {
+                    generation.Gate.Exit(stripe);
+                }
                 if (releaseWriter)
                 {
                     mutation.Dispose();
@@ -2281,8 +2327,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Rolls back the entries of a batch that was not published by cleaning up prepared node managers and disposing
-        /// created managers, in reverse order.
+        /// Aborts private candidates and disposes created managers in reverse preparation order.
         /// </summary>
         /// <param name="host">The dynamic node manager host.</param>
         /// <param name="entries">The batch entries to abort.</param>
@@ -2299,7 +2344,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        await host.RollbackAsync(entry.Prepared, CancellationToken.None).ConfigureAwait(false);
+                        await host.AbortAsync(entry.Prepared, CancellationToken.None).ConfigureAwait(false);
                     }
                     catch (Exception failure) when (failure is not OutOfMemoryException)
                     {
@@ -2308,6 +2353,11 @@ namespace Opc.Ua.Server
                 }
                 if (entry.Manager is not null && entry.Prepared?.Published != true)
                 {
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(entry.Manager);
+                    if (generation.Gate.State == NodeManagerGenerationState.Prepared)
+                    {
+                        generation.Gate.Abort();
+                    }
                     Exception? failure = await TryDisposeNodeManagerAsync(entry.Manager).ConfigureAwait(false);
                     if (failure is not null)
                     {
@@ -2379,6 +2429,7 @@ namespace Opc.Ua.Server
             /// <param name="entries">The prepared entries.</param>
             /// <param name="operation">The lifecycle operation held until the batch ends.</param>
             /// <param name="namespaceCount">The number of namespaces when the batch was prepared.</param>
+            /// <param name="routingRevision">The serving view captured before candidate callbacks.</param>
             /// <param name="allowRequestCallback">Whether the batch may be completed from a request callback.</param>
             /// <param name="typeTree">The private type tree image.</param>
             /// <param name="originalTypes">The published type tree to restore.</param>
@@ -2389,6 +2440,7 @@ namespace Opc.Ua.Server
             /// <param name="resolver">The data type definition resolver, or null.</param>
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <param name="preparation">The explicit private staging metadata.</param>
+            /// <param name="publication">The optimistic publication session, or null for a standalone batch.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
@@ -2396,6 +2448,7 @@ namespace Opc.Ua.Server
                 List<BatchEntry> entries,
                 OperationLifetime operation,
                 int namespaceCount,
+                NodeManagerRoutingTable.RoutingSnapshot routingRevision,
                 bool allowRequestCallback,
                 TypeTable typeTree,
                 TypeTable originalTypes,
@@ -2405,7 +2458,8 @@ namespace Opc.Ua.Server
                 long factoryRevision,
                 IDataTypeDefinitionResolver? resolver,
                 bool validationOnly,
-                ChangePreparer preparation)
+                ChangePreparer preparation,
+                LifecycleWriter.PublicationSession? publication)
             {
                 m_owner = owner;
                 Preparation = preparation;
@@ -2414,6 +2468,7 @@ namespace Opc.Ua.Server
                 Entries = entries;
                 m_operation = operation;
                 NamespaceCount = namespaceCount;
+                RoutingRevision = routingRevision;
                 AllowRequestCallback = allowRequestCallback;
                 TypeTree = typeTree;
                 OriginalTypes = originalTypes;
@@ -2423,6 +2478,7 @@ namespace Opc.Ua.Server
                 FactoryRevision = factoryRevision;
                 Resolver = resolver;
                 IsValidationOnly = validationOnly;
+                Publication = publication;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
@@ -2431,6 +2487,11 @@ namespace Opc.Ua.Server
             /// Gets the explicit staging metadata owned by this preparation.
             /// </summary>
             public ChangePreparer Preparation { get; }
+
+            /// <summary>
+            /// Gets the optimistic publication session that owns this prepared batch, if any.
+            /// </summary>
+            public LifecycleWriter.PublicationSession? Publication { get; }
 
             /// <summary>
             /// Gets the registrations the batch publishes.
@@ -2466,6 +2527,11 @@ namespace Opc.Ua.Server
             /// Gets the number of namespaces when the batch was prepared.
             /// </summary>
             public int NamespaceCount { get; }
+
+            /// <summary>
+            /// Gets the serving view that must remain current until publication admission.
+            /// </summary>
+            public NodeManagerRoutingTable.RoutingSnapshot RoutingRevision { get; }
 
             /// <summary>
             /// Gets whether the batch may be completed from a request callback.
@@ -2690,8 +2756,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Begins a publication invocation for a capture if no other lifecycle operation owns admission and the
-        /// captured revisions are still current.
+        /// Begins independent publication ownership for captured serving revisions without excluding other callers.
         /// </summary>
         /// <param name="capture">The capture the invocation belongs to.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
@@ -2702,8 +2767,8 @@ namespace Opc.Ua.Server
         {
             cancellationToken.ThrowIfCancellationRequested();
             EnsureSameRunningServer(capture.Revision.Server, capture.Revision.OwnerHost, allowRequestCallback: true);
-            LifecycleWriter.PublicationReservation reservation = m_writer.ReservePublication(capture.Revision);
-            return new PublicationInvocation(this, capture, reservation);
+            LifecycleWriter.PublicationSession session = m_writer.BeginPublication(capture.Revision);
+            return new PublicationInvocation(this, session);
         }
 
         /// <summary>
@@ -2725,30 +2790,23 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Admitted publication that prepares and owns batches until it is disposed.
+        /// Optimistic publication that prepares and owns batches until it is disposed.
         /// </summary>
         /// <param name="owner">The lifecycle that admitted the publication.</param>
-        /// <param name="capture">The capture the publication belongs to.</param>
-        /// <param name="reservation">The writer-owned invocation reservation.</param>
+        /// <param name="session">The independently owned invocation and its expected serving revisions.</param>
         private sealed class PublicationInvocation(
             NodeManagerLifecycle owner,
-            PublicationCapture capture,
-            LifecycleWriter.PublicationReservation reservation) : INodeManagerValidationPublication
+            LifecycleWriter.PublicationSession session) : INodeManagerValidationPublication
         {
             /// <summary>
-            /// Gets whether the captured revisions were current when the publication was admitted.
+            /// Gets whether the invocation's expected serving revisions remain current.
             /// </summary>
-            public bool IsCurrent => Reservation.IsCurrent;
+            public bool IsCurrent => Session.IsCurrent;
 
             /// <summary>
-            /// Gets the capture the publication belongs to.
+            /// Gets the independently owned invocation and its expected serving revisions.
             /// </summary>
-            public PublicationCapture Capture { get; } = capture;
-
-            /// <summary>
-            /// Gets a task that completes when the publication ends.
-            /// </summary>
-            public LifecycleWriter.PublicationReservation Reservation { get; } = reservation;
+            public LifecycleWriter.PublicationSession Session { get; } = session;
 
             /// <inheritdoc/>
             public ValueTask<IPreparedNodeManagerBatch> PrepareAsync(
@@ -2805,7 +2863,7 @@ namespace Opc.Ua.Server
                 CancellationToken cancellationToken,
                 bool validationOnly = false)
             {
-                return Reservation.PrepareAsync(() => owner.PrepareBatchAsync(
+                return Session.PrepareAsync(() => owner.PrepareBatchAsync(
                     changes, this, cancellationToken, images, validationOnly));
             }
 
@@ -2814,7 +2872,7 @@ namespace Opc.Ua.Server
             {
                 try
                 {
-                    await Reservation.DisposeAsync().ConfigureAwait(false);
+                    await Session.DisposeAsync().ConfigureAwait(false);
                 }
                 finally
                 {

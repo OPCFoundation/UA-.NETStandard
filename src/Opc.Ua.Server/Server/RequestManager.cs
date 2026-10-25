@@ -101,7 +101,6 @@ namespace Opc.Ua.Server
                     requestDrains = [.. m_requestDrains];
                     m_requestDrains.Clear();
                     PublishDrainCountLocked();
-                    m_lifecycleExtension?.DisposeLocked();
                 }
 
                 foreach (OperationContext operation in operations)
@@ -276,7 +275,7 @@ namespace Opc.Ua.Server
         /// <returns><c>true</c> when the current flow belongs to an executing request.</returns>
         internal bool IsCurrentRequestExecuting()
         {
-            uint? requestId = GetCurrentRequestIdForLifecycleExtension();
+            uint? requestId = GetCurrentRequestId();
             if (!requestId.HasValue || requestId.Value == uint.MaxValue)
             {
                 return false;
@@ -294,35 +293,6 @@ namespace Opc.Ua.Server
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Gets the optional request lifecycle extension registered for server shutdown and
-        /// NodeManager lifecycle coordination.
-        /// </summary>
-        internal RequestManagerLifecycleExtension? LifecycleExtension =>
-            Volatile.Read(ref m_lifecycleExtension);
-
-        /// <summary>
-        /// Registers the optional request lifecycle extension. Calling this method more than once
-        /// returns the extension that is already registered.
-        /// </summary>
-        /// <returns>The registered request lifecycle extension.</returns>
-        /// <exception cref="ObjectDisposedException">
-        /// The request manager has already been disposed.
-        /// </exception>
-        internal RequestManagerLifecycleExtension RegisterLifecycleExtension()
-        {
-            lock (m_requestsLock)
-            {
-                if (m_disposed)
-                {
-                    throw new ObjectDisposedException(nameof(RequestManager));
-                }
-
-                m_lifecycleExtension ??= new RequestManagerLifecycleExtension(this);
-                return m_lifecycleExtension;
-            }
         }
 
         /// <summary>
@@ -438,15 +408,14 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Enters a service dispatch scope for the current request-processing flow. The scope is
         /// opened at the top of request dispatch, before validation assigns a request id, and
-        /// carries that id forward once <see cref="RequestReceived"/> registers the request. A
-        /// NodeManager lifecycle operation started from inside a request callback reads the id
-        /// through <see cref="GetCurrentRequestIdForLifecycleExtension"/> so it can exclude its own
-        /// request from the drain it performs and avoid waiting on itself.
+        /// carries that id forward once <see cref="RequestReceived"/> registers the request.
+        /// <see cref="IsCurrentRequestExecuting"/> uses this identity to distinguish live request
+        /// callbacks from independent background work.
         /// <para>
         /// The scope is needed because the request id is assigned by validation, which runs in a
         /// deeper asynchronous flow whose ambient value never propagates back to the dispatch flow.
         /// The scope is a reference captured in the dispatch flow, so the id that validation stamps
-        /// onto it is observed by the callback that runs the lifecycle operation.
+        /// onto it is observed by the callback.
         /// </para>
         /// </summary>
         /// <returns>The scope to dispose once the request has been dispatched.</returns>
@@ -460,8 +429,7 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Waits until every request that is currently executing or being validated has finished.
-        /// A lifecycle operation calls this before it retires a NodeManager, so that no request
-        /// can still be dispatching to it once it is torn down.
+        /// NodeManager retirement instead drains its captured view epochs and generation gate.
         /// <para>
         /// For a lifecycle drain, only the requests present when the call starts are awaited.
         /// Requests that arrive later already observe the new routing table, so they never reach
@@ -566,61 +534,13 @@ namespace Opc.Ua.Server
             return Interlocked.CompareExchange(ref m_drainCount, 0, 0) != 0;
         }
 
-        internal uint? GetCurrentRequestIdForLifecycleExtension()
+        /// <summary>
+        /// Gets the identity associated with the current request-processing flow, if any.
+        /// </summary>
+        internal uint? GetCurrentRequestId()
         {
             return m_currentServiceDispatchScope.Value?.RequestId ??
                 m_currentRequestId.Value;
-        }
-
-        internal void EnterLifecycleWaiter(
-            RequestManagerLifecycleExtension extension,
-            uint requestId)
-        {
-            lock (m_requestsLock)
-            {
-                EnsureLifecycleExtensionRegisteredLocked(extension);
-                extension.EnterWaiterLocked(requestId, m_requests);
-            }
-        }
-
-        internal void MarkLifecycleWaiterWaiting(
-            RequestManagerLifecycleExtension extension,
-            uint requestId)
-        {
-            lock (m_requestsLock)
-            {
-                EnsureLifecycleExtensionRegisteredLocked(extension);
-                extension.MarkWaiterWaitingLocked(requestId, m_requestDrains);
-                PublishDrainCountLocked();
-            }
-        }
-
-        internal void ExitLifecycleWaiter(
-            RequestManagerLifecycleExtension extension,
-            uint requestId,
-            bool waiting)
-        {
-            lock (m_requestsLock)
-            {
-                if (ReferenceEquals(m_lifecycleExtension, extension))
-                {
-                    extension.ExitWaiterLocked(requestId, waiting);
-                }
-            }
-        }
-
-        private void EnsureLifecycleExtensionRegisteredLocked(
-            RequestManagerLifecycleExtension extension)
-        {
-            if (m_disposed)
-            {
-                throw new ObjectDisposedException(nameof(RequestManager));
-            }
-            if (!ReferenceEquals(m_lifecycleExtension, extension))
-            {
-                throw new InvalidOperationException(
-                    "The request lifecycle extension is not registered with this request manager.");
-            }
         }
 
         /// <summary>
@@ -653,11 +573,6 @@ namespace Opc.Ua.Server
 
             foreach (OperationContext request in requests)
             {
-                if (m_lifecycleExtension?.ShouldExcludeRequestLocked(request.RequestId) == true)
-                {
-                    continue;
-                }
-
                 // A Publish never dispatches into a NodeManager, but stays parked until the next
                 // notification or keep-alive, so waiting for it would stall every drain.
                 if (request.RequestType == RequestType.Publish)
@@ -1112,7 +1027,6 @@ namespace Opc.Ua.Server
             new RequestValidationScope?[kSpareStripes];
         private const int kSpareStripes = 16;
 
-        private RequestManagerLifecycleExtension? m_lifecycleExtension;
         private ITimer? m_requestTimer;
         private bool m_disposed;
         private event RequestCancelledEventHandler? m_RequestCancelled;

@@ -101,6 +101,78 @@ namespace Opc.Ua.Server
             }
         }
 
+        async ValueTask<PreparedAddressSpaceReferences> IDynamicNodeManagerBatchHost.PrepareReferencesAsync(
+            ArrayOf<PreparedNodeManager> candidates,
+            ArrayOf<IAsyncNodeManager> removed,
+            NodeManagerRoutingTable.RoutingSnapshot view,
+            CancellationToken cancellationToken)
+        {
+            if (!view.TryPin(out int stripe))
+            {
+                throw new InvalidOperationException("The reference preparation view has retired.");
+            }
+            try
+            {
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previous;
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousSnapshot;
+                Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> next;
+                HashSet<IAsyncNodeManager> retiring = [.. removed];
+                await m_dynamicMutationSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    if (!ReferenceEquals(view, m_nodeManagers.Revision))
+                    {
+                        throw new InvalidOperationException("The address space changed before reference discovery.");
+                    }
+                    previous = m_dynamicExternalReferences;
+                    previousSnapshot = previous.ToDictionary(entry => entry.Key, entry => entry.Value);
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        ValidatePreparedNodeManager(candidate);
+                        if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
+                        {
+                            throw new InvalidOperationException("A batch candidate has no prepared generation.");
+                        }
+                        if (candidate.ReplacedNodeManager is { } old)
+                        {
+                            retiring.Add(old);
+                        }
+                    }
+                    next = previousSnapshot.Where(entry => !retiring.Contains(entry.Key))
+                        .ToDictionary(entry => entry.Key, entry => entry.Value);
+                    foreach (PreparedNodeManager candidate in candidates)
+                    {
+                        next.Add(candidate.NodeManager, candidate.ExternalReferences);
+                    }
+                }
+                finally
+                {
+                    m_dynamicMutationSemaphore.Release();
+                }
+
+                (
+                    ArrayOf<PreparedReferenceSource> sources,
+                    Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> additions,
+                    Dictionary<IAsyncNodeManager, List<LocalReference>> deferredRemovals) =
+                    await PrepareReferenceSourcesAsync(
+                        candidates, retiring, previousSnapshot, next, view, cancellationToken)
+                        .ConfigureAwait(false);
+                var owners = new Dictionary<NodeState.ReferenceUpdate, NodeManagerGeneration>();
+                foreach (PreparedReferenceSource source in sources)
+                {
+                    owners.Add(source.Update,
+                        (candidates.ToArray() ?? []).FirstOrDefault(candidate =>
+                            ReferenceEquals(candidate.NodeManager, source.Owner))?.Generation ??
+                        view.GetGeneration(source.Owner));
+                }
+                return new PreparedAddressSpaceReferences(view, previous, next, owners, additions, deferredRemovals);
+            }
+            finally
+            {
+                view.Epoch.Exit(stripe);
+            }
+        }
+
         async ValueTask IDynamicNodeManagerBatchHost.CommitBatchAsync(
             NodeManagerBatchContext context)
         {
@@ -119,12 +191,13 @@ namespace Opc.Ua.Server
             long factoryRevision = context.FactoryRevision;
             ArrayOf<INodeManagerReadImage> readImages = context.ReadImages;
             Func<CancellationToken, ValueTask>? decideAsync = context.DecideAsync;
-            Action published = context.Published;
+            Func<ValueTask> published = context.Published;
             Func<ValueTask> reconcileBindingsAsync = context.ReconcileBindingsAsync;
-            Action<Exception> reportCleanupFailure = context.ReportCleanupFailure;
             CancellationToken cancellationToken = context.CancellationToken;
 
             var referenceUpdates = new List<NodeState.ReferenceUpdate>();
+            var referenceOwners = new Dictionary<NodeState.ReferenceUpdate, NodeManagerGeneration>();
+            NodeManagerGeneration[] publishedOwners = [];
             var referenceAdditions = new Dictionary<
                 IAsyncNodeManager,
                 Dictionary<NodeId, IList<IReference>>>();
@@ -145,9 +218,9 @@ namespace Opc.Ua.Server
                         {
                             PreparedNodeManager candidate = candidates[candidateIndex];
                             ValidatePreparedNodeManager(candidate);
-                            if (!candidate.Staged)
+                            if (candidate.Generation is not { Gate.State: NodeManagerGenerationState.Prepared })
                             {
-                                throw new InvalidOperationException("A batch candidate is not staged.");
+                                throw new InvalidOperationException("A batch candidate has no prepared generation.");
                             }
                         }
                         HashSet<IAsyncNodeManager> retiring = [.. removed];
@@ -171,27 +244,25 @@ namespace Opc.Ua.Server
                         typeTree = originalTypes.PrepareAdditiveMerge(typeTree, originalTypes, typeRevision);
                         factory = originalFactory.PrepareAdditiveMerge(
                             factory, originalFactory, factoryRevision, context.Preparation.NamespaceUris);
-                        var nextReferences = m_dynamicExternalReferences
-                            .Where(entry => !retiring.Contains(entry.Key))
-                            .ToDictionary(entry => entry.Key, entry => entry.Value);
-                        foreach (PreparedNodeManager candidate in candidates)
+                        PreparedAddressSpaceReferences references = context.References ??
+                            throw new InvalidOperationException("Reference discovery must precede publication.");
+                        if (!ReferenceEquals(references.View, m_nodeManagers.Revision) ||
+                            !ReferenceEquals(references.Previous, m_dynamicExternalReferences))
                         {
-                            nextReferences.Add(candidate.NodeManager, candidate.ExternalReferences);
+                            throw new InvalidOperationException("The reference preparation is stale.");
                         }
-                        (
-                            ArrayOf<PreparedReferenceSource> sources,
-                            Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> additions,
-                            Dictionary<IAsyncNodeManager, List<LocalReference>> deferredRemovals) =
-                            await PrepareReferenceSourcesAsync(
-                                candidates, retiring, nextReferences, cancellationToken).ConfigureAwait(false);
-                        referenceAdditions = additions;
-                        foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in deferredRemovals)
+                        var nextReferences = references.Next;
+                        referenceAdditions = references.Additions;
+                        foreach (KeyValuePair<IAsyncNodeManager, List<LocalReference>> deferred in
+                            references.DeferredRemovals)
                         {
                             context.DeferReferenceRemoval(deferred.Key, deferred.Value);
                         }
-                        foreach (PreparedReferenceSource source in sources)
+                        foreach (KeyValuePair<NodeState.ReferenceUpdate, NodeManagerGeneration> source in
+                            references.Owners)
                         {
-                            referenceUpdates.Add(source.Node.PrepareReferences(source.Additions, source.Removals));
+                            referenceUpdates.Add(source.Key);
+                            referenceOwners.Add(source.Key, source.Value);
                         }
 
                         using NodeManagerRoutingTable.PreparedRoutes routes =
@@ -231,7 +302,6 @@ namespace Opc.Ua.Server
                                 TrackRetiringEventGenerations(retiringGenerations);
                                 foreach (PreparedNodeManager candidate in candidates)
                                 {
-                                    candidate.Staged = false;
                                     candidate.Published = true;
                                     candidate.ReplacedNodeManager = null;
                                     SetPreparing(candidate.NodeManager, preparing: false);
@@ -255,6 +325,8 @@ namespace Opc.Ua.Server
                         // The publication invocation remains an active lifecycle operation until
                         // reconciliation finishes, so shutdown cannot tear down this host first.
                         publisher.Publish();
+                        publishedOwners =
+                            m_nodeManagers.Select(manager => m_nodeManagers.GetGeneration(manager)).ToArray();
                         // Callbacks may mutate the committed image after internal publication bookkeeping.
                         routes.Dispose();
                         namespaces.Dispose();
@@ -265,7 +337,7 @@ namespace Opc.Ua.Server
                         {
                             update.Dispose();
                         }
-                        published();
+                        await published().ConfigureAwait(false);
                     }
                     finally
                     {
@@ -293,37 +365,32 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    try
+                    foreach (NodeManagerGeneration owner in publishedOwners)
                     {
-                        await AddExternalReferencesAsync(
-                            additions,
-                            candidate.NodeManager,
-                            CancellationToken.None).ConfigureAwait(false);
-                    }
-                    catch (Exception addFailure) when (addFailure is not OutOfMemoryException)
-                    {
-                        try
-                        {
-                            await RemoveExternalReferencesAsync(
-                                additions,
-                                CancellationToken.None).ConfigureAwait(false);
-                        }
-                        catch (Exception rollbackFailure) when (
-                            rollbackFailure is not OutOfMemoryException)
-                        {
-                            reportCleanupFailure(new AggregateException(
-                                "NodeManager reference reconciliation and rollback both failed.",
-                                addFailure,
-                                rollbackFailure));
-                            continue;
-                        }
-                        reportCleanupFailure(addFailure);
+                        await context.Reconciliation.RunAsync(
+                            NodeManagerReconciliationStage.References,
+                            [candidate.Generation!, owner],
+                            () => owner.NodeManager.AddReferencesAsync(additions, CancellationToken.None))
+                            .ConfigureAwait(false);
                     }
                 }
                 await reconcileBindingsAsync().ConfigureAwait(false);
                 foreach (NodeState.ReferenceUpdate update in referenceUpdates)
                 {
-                    update.Notify(reportCleanupFailure);
+                    await context.Reconciliation.RunAsync(
+                        NodeManagerReconciliationStage.References,
+                        (candidates.ToArray() ?? []).Select(candidate => candidate.Generation!)
+                            .Append(referenceOwners[update]).Distinct().ToArray(),
+                        () =>
+                        {
+                            var failures = new List<Exception>();
+                            update.Notify(failures.Add);
+                            if (failures.Count != 0)
+                            {
+                                throw new AggregateException("Reference observers remain pending.", failures);
+                            }
+                            return default;
+                        }).ConfigureAwait(false);
                 }
             }
             catch (Exception failure) when (failure is not OutOfMemoryException && !decisionCommitted)
@@ -349,7 +416,9 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="candidates">The prepared node managers.</param>
         /// <param name="retiring">The node managers that are retired.</param>
+        /// <param name="previousReferences">Captured contributions before the batch.</param>
         /// <param name="nextReferences">The external references after the batch.</param>
+        /// <param name="view">The pinned serving view used for owner discovery.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>The reference sources to update.</returns>
         private async ValueTask<(
@@ -359,10 +428,12 @@ namespace Opc.Ua.Server
             PrepareReferenceSourcesAsync(
             ArrayOf<PreparedNodeManager> candidates,
             HashSet<IAsyncNodeManager> retiring,
+            Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> previousReferences,
             Dictionary<IAsyncNodeManager, Dictionary<NodeId, IList<IReference>>> nextReferences,
+            NodeManagerRoutingTable.RoutingSnapshot view,
             CancellationToken cancellationToken)
         {
-            Dictionary<NodeId, ReferenceDictionary<bool>> previous = Collect(m_dynamicExternalReferences.Values);
+            Dictionary<NodeId, ReferenceDictionary<bool>> previous = Collect(previousReferences.Values);
             Dictionary<NodeId, ReferenceDictionary<bool>> next = Collect(nextReferences.Values);
             var sources = new List<PreparedReferenceSource>();
             var referenceAdditions =
@@ -375,7 +446,7 @@ namespace Opc.Ua.Server
             }
             IAsyncNodeManager[] owners =
             [
-                .. m_nodeManagers.Where(manager => !retiring.Contains(manager)),
+                .. view.VisibleNodeManagers.Where(manager => !retiring.Contains(manager)),
                 .. newOwners
             ];
             var nodes = new HashSet<NodeState>();
@@ -392,8 +463,22 @@ namespace Opc.Ua.Server
                 foreach (IAsyncNodeManager owner in owners)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    object handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
-                        .ConfigureAwait(false);
+                    NodeManagerGeneration? generation = newOwners.Contains(owner) ? null : view.GetGeneration(owner);
+                    int stripe = 0;
+                    if (generation is not null && !generation.Gate.TryEnter(out stripe))
+                    {
+                        throw new InvalidOperationException("A reference owner retired during discovery.");
+                    }
+                    object handle;
+                    try
+                    {
+                        handle = await owner.GetManagerHandleAsync(sourceId, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        generation?.Gate.Exit(stripe);
+                    }
                     if (handle is null)
                     {
                         continue;
@@ -410,11 +495,8 @@ namespace Opc.Ua.Server
                             "A prepared reference source has multiple NodeManager owners.");
                     }
                     ownerNodes.Add((owner, node));
-                }
-                foreach ((IAsyncNodeManager owner, NodeState node) in ownerNodes)
-                {
                     sources.Add(new PreparedReferenceSource(
-                        owner, node, additions, newOwners.Contains(owner) ? [] : removals));
+                        owner, node.PrepareReferences(additions, newOwners.Contains(owner) ? [] : removals)));
                 }
                 if (hasUnsupportedOwner && ownerNodes.Count > 0)
                 {
@@ -428,7 +510,7 @@ namespace Opc.Ua.Server
                         foreach (IReference removal in removals)
                         {
                             IAsyncNodeManager? retirementOwner = retiring.FirstOrDefault(manager =>
-                                m_dynamicExternalReferences.TryGetValue(
+                                previousReferences.TryGetValue(
                                     manager,
                                     out Dictionary<NodeId, IList<IReference>>? contributed) &&
                                 contributed.TryGetValue(sourceId, out IList<IReference>? references) &&
@@ -534,13 +616,9 @@ namespace Opc.Ua.Server
         /// Describes the reference changes for one source node.
         /// </summary>
         /// <param name="Owner">The node manager that owns the node.</param>
-        /// <param name="Node">The source node.</param>
-        /// <param name="Additions">The references to add.</param>
-        /// <param name="Removals">The references to remove.</param>
+        /// <param name="Update">Versioned reference edits captured before subsequent owner callbacks.</param>
         private sealed record PreparedReferenceSource(
             IAsyncNodeManager Owner,
-            NodeState Node,
-            ArrayOf<IReference> Additions,
-            ArrayOf<IReference> Removals);
+            NodeState.ReferenceUpdate Update);
     }
 }

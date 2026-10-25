@@ -677,7 +677,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).ConfigureAwait(false);
+                Task requestDrain = server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).AsTask();
+                Assert.That(requestDrain.IsCompleted, Is.False,
+                    "Ordinary drain must include the activation awaiting its nested lifecycle operation.");
                 Assert.That(factory.CreateCount, Is.Zero);
                 release.TrySetResult(true);
                 if (rejectDecision)
@@ -691,6 +693,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
                 activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await requestDrain.WaitAsync(timeout.Token).ConfigureAwait(false);
                 NodeId initialId = RequireLifecycleValue(
                     server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)).Id;
                 AssertLifecycleValue(nested);
@@ -795,7 +798,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 uint itemId = await callbackEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                 releaseCallback.TrySetResult(true);
                 await lifecycleQueued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).ConfigureAwait(false);
+                Task requestDrain = server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).AsTask();
+                Assert.That(requestDrain.IsCompleted, Is.False,
+                    "Ordinary drain must include the event admission awaiting its nested lifecycle operation.");
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(commit.IsCompleted, Is.False);
@@ -809,6 +814,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 try
                 {
                     await Task.WhenAll(commit, admission).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                    await requestDrain.WaitAsync(timeout.Token).ConfigureAwait(false);
                 }
                 catch (TimeoutException)
                 {
@@ -821,7 +827,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await Task.WhenAll(commit, admission).WaitAsync(timeout.Token).ConfigureAwait(false);
                     Assert.That(circularWait, Is.False,
                         "The accepted batch waits for the admitted binding callback while its nested Add waits " +
-                        "for lifecycle admission; the request drain confirmed the callback was a lifecycle waiter.");
+                        "for lifecycle admission; neither operation may depend on ordinary request drain.");
                 }
                 NodeManagerBatchResult result = await commit.ConfigureAwait(false);
                 NodeId sessionId = RequireLifecycleValue(
@@ -965,7 +971,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             try
             {
                 await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
-                await server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).ConfigureAwait(false);
+                Task requestDrain = server.RequestManager.WaitForCurrentRequestsAsync(timeout.Token).AsTask();
+                Assert.That(requestDrain.IsCompleted, Is.False,
+                    "Ordinary drain must include the event request awaiting its nested lifecycle operation.");
                 Assert.That(nestedFactory.CreateCount, Is.Zero);
                 Assert.That(candidate.SubscribedAllEventIds.IsEmpty, Is.True);
                 if (cancelNested)
@@ -986,6 +994,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
                 CreateMonitoredItemsResponse response = await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
+                await requestDrain.WaitAsync(timeout.Token).ConfigureAwait(false);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(response.Results[0].StatusCode,

@@ -228,7 +228,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Task<NodeManagerRegistration>? adding = null;
             originalManager.SessionActivatedCallback = _ =>
             {
-                Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
+                Assert.That(server.RequestManager.GetCurrentRequestId().HasValue, Is.True);
                 // A callback has no request context, so the add is an ordinary external call. It is not awaited
                 // here: awaiting it would make the admitted callback wait for the commit that drains it.
                 adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();

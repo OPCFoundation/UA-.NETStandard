@@ -37,12 +37,9 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Hosts NodeManagers that are added, replaced, or retired while the server is running.
     /// <para>
-    /// A lifecycle operation runs in stages so that a failure never leaves a partially visible
-    /// address space. A NodeManager is first prepared, which builds its address space without
-    /// making it reachable. It is then staged as an addition or replacement,
-    /// and finally published by the unified batch host, which is when Clients observe the change.
-    /// Preparation and staging failures use the matching rollback. A failure after
-    /// client-visible commit may retain the live generation for recovery or removal.
+    /// Candidates are prepared privately and published by the unified batch host.
+    /// Failed preparation can only abort private candidates; committed generations are
+    /// reconciled or removed through another transaction, never structurally rolled back.
     /// </para>
     /// </summary>
     internal interface IDynamicNodeManagerHost
@@ -60,37 +57,6 @@ namespace Opc.Ua.Server
         /// <param name="ct">The token used to cancel the operation.</param>
         /// <returns>The prepared NodeManager, which is the input to every later stage.</returns>
         ValueTask<PreparedNodeManager> PrepareAsync(
-            IAsyncNodeManager nodeManager,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Stages a prepared NodeManager addition without changing the serving routing view.
-        /// </summary>
-        /// <param name="prepared">The prepared NodeManager.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask PublishAsync(
-            PreparedNodeManager prepared,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Stages <paramref name="replacement"/> in place of <paramref name="current"/> so that
-        /// the replaced NodeManager can be restored if a later stage fails.
-        /// </summary>
-        /// <param name="current">The NodeManager that is being replaced.</param>
-        /// <param name="replacement">The prepared replacement.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask ReplaceAsync(
-            IAsyncNodeManager current,
-            PreparedNodeManager replacement,
-            CancellationToken ct = default);
-
-        /// <summary>
-        /// Removes a published candidate during structural rollback. External reference failures
-        /// restore its original routing position.
-        /// </summary>
-        /// <param name="nodeManager">The NodeManager to hide.</param>
-        /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask UnpublishAsync(
             IAsyncNodeManager nodeManager,
             CancellationToken ct = default);
 
@@ -120,12 +86,12 @@ namespace Opc.Ua.Server
             CancellationToken ct = default);
 
         /// <summary>
-        /// Undoes a prepared, published, or staged NodeManager after a failed lifecycle operation
-        /// and returns the address space to the state it had before the operation started.
+        /// Destroys a private candidate after preparation fails or its transaction is abandoned.
+        /// A candidate that has already been published cannot be aborted.
         /// </summary>
         /// <param name="prepared">The prepared NodeManager to undo.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
-        ValueTask RollbackAsync(
+        ValueTask AbortAsync(
             PreparedNodeManager prepared,
             CancellationToken ct = default);
 
@@ -185,7 +151,7 @@ namespace Opc.Ua.Server
 
     /// <summary>
     /// Carries a NodeManager and the bookkeeping a lifecycle operation needs to move it through
-    /// the preparation, staging, batch publication, and rollback stages.
+    /// private preparation, batch publication, and abort cleanup.
     /// </summary>
     internal sealed class PreparedNodeManager
     {
@@ -231,19 +197,12 @@ namespace Opc.Ua.Server
         public bool AllowLifecycleFromRequestCallback { get; set; }
 
         /// <summary>
-        /// Gets or sets whether the NodeManager was added to the routing table and therefore has
-        /// to be removed again by a rollback.
+        /// Gets or sets whether the candidate crossed the routing-view commit point.
         /// </summary>
         public bool Published { get; set; }
 
         /// <summary>
-        /// Gets or sets whether the NodeManager was staged in place of another one and therefore
-        /// has to be swapped back by a rollback.
-        /// </summary>
-        public bool Staged { get; set; }
-
-        /// <summary>
-        /// Gets or sets the NodeManager this one replaces, which a rollback restores.
+        /// Gets or sets the exact predecessor withdrawn by this candidate's publication.
         /// </summary>
         public IAsyncNodeManager? ReplacedNodeManager { get; set; }
 

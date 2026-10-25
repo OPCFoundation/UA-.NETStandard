@@ -179,5 +179,70 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(failures, Has.Count.EqualTo(1));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(1000)), Is.True);
         }
+
+        /// <summary>
+        /// Retrying a partial observer fan-out preserves every successful observer and exact failure.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RetryingReferenceNotificationsInvokesOnlyFailedObservers(bool removal)
+        {
+            var node = new BaseObjectState(null);
+            var reference = new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(1000));
+            if (removal)
+            {
+                node.AddReference(reference.ReferenceTypeId, reference.IsInverse, reference.TargetId);
+            }
+            int firstCount = 0;
+            int failedCount = 0;
+            int lastCount = 0;
+            bool fail = true;
+            var original = new InvalidOperationException("Partial reference observer failure.");
+            void First() => firstCount++;
+            void Failed()
+            {
+                failedCount++;
+                if (fail)
+                {
+                    throw original;
+                }
+            }
+            void Last() => lastCount++;
+            if (removal)
+            {
+                node.OnReferenceRemoved += (_, _, _, _) => First();
+                node.OnReferenceRemoved += (_, _, _, _) => Failed();
+                node.OnReferenceRemoved += (_, _, _, _) => Last();
+            }
+            else
+            {
+                node.OnReferenceAdded += (_, _, _, _) => First();
+                node.OnReferenceAdded += (_, _, _, _) => Failed();
+                node.OnReferenceAdded += (_, _, _, _) => Last();
+            }
+            using NodeState.ReferenceUpdate update = node.PrepareReferences(
+                removal ? [] : [reference], removal ? [reference] : []);
+            update.Reserve();
+            update.Remove();
+            update.Complete();
+            update.Dispose();
+            var failures = new List<Exception>();
+            update.Notify(failures.Add);
+            Assert.That(failures, Is.EqualTo(new[] { original }));
+            Assert.That(lastCount, Is.EqualTo(1), "One failed subscriber cannot suppress later observers.");
+            fail = false;
+            failures.Clear();
+            update.Notify(failures.Add);
+            update.Notify(failures.Add);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(failures, Is.Empty);
+                Assert.That(firstCount, Is.EqualTo(1));
+                Assert.That(failedCount, Is.EqualTo(2));
+                Assert.That(lastCount, Is.EqualTo(1));
+                Assert.That(node.ReferenceExists(
+                    reference.ReferenceTypeId, reference.IsInverse, reference.TargetId), Is.EqualTo(!removal));
+            }
+        }
     }
 }

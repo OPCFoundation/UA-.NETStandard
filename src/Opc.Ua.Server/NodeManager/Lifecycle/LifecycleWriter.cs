@@ -35,7 +35,7 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Owns lifecycle mutation admission, publication reservations and durable-decision reentrancy.
+    /// Owns lifecycle mutation admission, optimistic publication sessions and durable-decision reentrancy.
     /// Operation ownership outlives mutation serialization, including reconciliation and retirement handoff.
     /// </summary>
     internal sealed class LifecycleWriter : IDisposable
@@ -98,21 +98,12 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Admits an operation independently of whether it currently owns mutation serialization.
         /// </summary>
-        internal OperationLifetime EnterOperation(PublicationReservation? reservation = null)
+        internal OperationLifetime EnterOperation()
         {
             ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
-                if (m_publicationFinished is not null && m_publicationId != reservation?.Id)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadServerTooBusy, "An invocation owns lifecycle publication admission.");
-                }
-                if (reservation is not null && m_publicationId != reservation.Id)
-                {
-                    throw new ObjectDisposedException(nameof(INodeManagerPublication));
-                }
                 m_activeOperations++;
                 var operation = new OperationLifetime(this, m_currentOperation.Value);
                 m_currentOperation.Value = operation;
@@ -124,80 +115,50 @@ namespace Opc.Ua.Server
         /// Acquires transferable mutation ownership. Application callbacks other than a durable decision
         /// must suspend or relinquish this ownership.
         /// </summary>
-        internal async ValueTask<Mutation> BeginMutationAsync(
-            CancellationToken cancellationToken,
-            Action? waiting = null)
+        internal async ValueTask<Mutation> BeginMutationAsync(CancellationToken cancellationToken)
         {
             ThrowIfDecisionCallbackActive();
-            Task pending = m_mutation.WaitAsync(cancellationToken);
-            waiting?.Invoke();
-            await pending.ConfigureAwait(false);
+            await m_mutation.WaitAsync(cancellationToken).ConfigureAwait(false);
             return new Mutation(this);
         }
 
         /// <summary>
-        /// Reserves an invocation before any candidate factory can run, capturing revision validity once.
+        /// Begins independent invocation ownership without excluding other lifecycle operations.
         /// </summary>
-        internal PublicationReservation ReservePublication(PublicationRevision revision)
+        internal PublicationSession BeginPublication(PublicationRevision revision)
         {
             ThrowIfDecisionCallbackActive();
             lock (m_state)
             {
                 EnsureRunning();
-                int ancestors = 0;
-                for (OperationLifetime? operation = m_currentOperation.Value; operation is not null;
-                    operation = operation.Parent)
-                {
-                    if (operation.IsOwnedBy(this))
-                    {
-                        ancestors++;
-                    }
-                }
-                if (m_publicationFinished is not null || m_activeOperations != ancestors)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadServerTooBusy, "Another lifecycle operation owns publication admission.");
-                }
                 if (!ReferenceEquals(revision.Owner, this))
                 {
                     throw new InvalidOperationException("The publication revision belongs to another writer.");
                 }
-                var reservation = new PublicationReservation(this, revision.IsCurrent());
-                m_publicationId = reservation.Id;
-                m_publicationFinished = reservation.Finished;
-                reservation.Operation = EnterOperation(reservation);
-                return reservation;
+                return new PublicationSession(this, revision, EnterOperation());
             }
         }
 
         /// <summary>
-        /// Excludes new operations after the admitted invocation ends. Never holds mutation ownership while
-        /// waiting for invocation disposal or outstanding operations.
+        /// Excludes new operations and waits for all independently admitted operations, including invocations.
+        /// Never holds mutation ownership while waiting for invocation disposal.
         /// </summary>
-        internal async ValueTask<Task> BeginShutdownAsync(CancellationToken cancellationToken)
+        internal ValueTask<Task> BeginShutdownAsync(CancellationToken cancellationToken)
         {
             ThrowIfDecisionCallbackActive();
-            while (true)
+            cancellationToken.ThrowIfCancellationRequested();
+            lock (m_state)
             {
-                Task finished;
-                lock (m_state)
+                if (m_synchronizationDisposed)
                 {
-                    if (m_publicationFinished is null)
-                    {
-                        if (m_synchronizationDisposed)
-                        {
-                            throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
-                        }
-                        m_shuttingDown = true;
-                        m_activeShutdownMethods++;
-                        return m_activeOperations == 0
-                            ? Task.CompletedTask
-                            : (m_operationsDrained ??= new TaskCompletionSource<bool>(
-                                TaskCreationOptions.RunContinuationsAsynchronously)).Task;
-                    }
-                    finished = m_publicationFinished;
+                    throw new ObjectDisposedException(nameof(NodeManagerLifecycle));
                 }
-                await finished.WaitAsync(cancellationToken).ConfigureAwait(false);
+                m_shuttingDown = true;
+                m_activeShutdownMethods++;
+                return new ValueTask<Task>(m_activeOperations == 0
+                    ? Task.CompletedTask
+                    : (m_operationsDrained ??= new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously)).Task);
             }
         }
 
@@ -294,6 +255,18 @@ namespace Opc.Ua.Server
             {
                 throw new NotSupportedException("The server cannot capture publication revisions.");
             }
+            return CaptureRevisionCore(server, host, batchHost, factory);
+        }
+
+        /// <summary>
+        /// Captures serving metadata for an already owned publication, including during shutdown drain.
+        /// </summary>
+        private PublicationRevision CaptureRevisionCore(
+            IServerInternal server,
+            IDynamicNodeManagerHost host,
+            IDynamicNodeManagerBatchHost batchHost,
+            EncodeableFactory factory)
+        {
             _ = server.TypeTree.CaptureSnapshot(out TypeTable types, out long typeRevision);
             _ = factory.CaptureSnapshot(out EncodeableFactory originalFactory, out long factoryRevision);
             return new PublicationRevision(
@@ -302,7 +275,7 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Immutable revisions whose validity is checked before preparation has any effects.
+        /// Immutable revisions checked before preparation and again before the durable publication decision.
         /// </summary>
         internal sealed record PublicationRevision(
             LifecycleWriter Owner,
@@ -384,24 +357,54 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Owns an invocation's admission, sequential preparation and prepared transaction disposal.
+        /// Owns an invocation's optimistic revision, sequential preparation and prepared transaction disposal.
         /// </summary>
-        internal sealed class PublicationReservation(LifecycleWriter owner, bool current) : IAsyncDisposable
+        internal sealed class PublicationSession(
+            LifecycleWriter owner,
+            PublicationRevision revision,
+            OperationLifetime operation) : IAsyncDisposable
         {
             /// <summary>
-            /// Gets the unforgeable admission identity of this invocation.
+            /// Gets whether this invocation's expected serving revisions remain current.
             /// </summary>
-            internal Guid Id { get; } = Guid.NewGuid();
+            internal bool IsCurrent
+            {
+                get
+                {
+                    lock (owner.m_state)
+                    {
+                        return !m_closing && m_revision.IsCurrent();
+                    }
+                }
+            }
 
             /// <summary>
-            /// Gets whether all captured publication revisions were current when admitted.
+            /// Rejects stale captured evidence under mutation ownership before preparation or a durable decision.
             /// </summary>
-            internal bool IsCurrent { get; } = current;
+            internal void ValidateRevision()
+            {
+                lock (owner.m_state)
+                {
+                    if (!m_revision.IsCurrent())
+                    {
+                        throw new InvalidOperationException(
+                            "The publication invocation conflicts with a newer address-space revision.");
+                    }
+                }
+            }
 
             /// <summary>
-            /// Gets or sets the operation held until every prepared transaction has ended.
+            /// Observes only this invocation's successful publication, immediately after its swap under the writer.
             /// </summary>
-            internal OperationLifetime? Operation { get; set; }
+            internal void AdvanceRevision()
+            {
+                lock (owner.m_state)
+                {
+                    m_revision = owner.CaptureRevisionCore(
+                        m_revision.Server, m_revision.OwnerHost, m_revision.Host,
+                        (EncodeableFactory)m_revision.Server.Factory);
+                }
+            }
 
             /// <summary>
             /// Gets completion of invocation disposal, including its transactions.
@@ -418,10 +421,12 @@ namespace Opc.Ua.Server
                 owner.ThrowIfDecisionCallbackActive();
                 lock (owner.m_state)
                 {
-                    if (m_closing || owner.m_publicationId != Id || !IsCurrent)
+                    owner.EnsureRunning();
+                    if (m_closing)
                     {
-                        throw new InvalidOperationException("The publication invocation is stale or closed.");
+                        throw new ObjectDisposedException(nameof(INodeManagerPublication));
                     }
+                    ValidateRevision();
                     if (m_preparing)
                     {
                         throw new InvalidOperationException("Prepare invocation units sequentially.");
@@ -487,18 +492,17 @@ namespace Opc.Ua.Server
                 }
                 finally
                 {
-                    lock (owner.m_state)
-                    {
-                        owner.m_publicationId = Guid.Empty;
-                        owner.m_publicationFinished = null;
-                    }
-                    Operation?.Dispose();
+                    m_batches.Clear();
+                    operation.Dispose();
                     m_finished.TrySetResult(true);
                 }
             }
 
             /// <summary>Transactions retained until invocation disposal.</summary>
             private readonly List<IAsyncDisposable> m_batches = [];
+
+            /// <summary>Expected serving metadata, advanced only by this invocation's own publication.</summary>
+            private PublicationRevision m_revision = revision;
 
             /// <summary>Completion shared by disposal and shutdown waiters.</summary>
             private readonly TaskCompletionSource<bool> m_finished =
@@ -533,14 +537,6 @@ namespace Opc.Ua.Server
             /// Gets the parent operation in the originating execution context.
             /// </summary>
             internal OperationLifetime? Parent { get; }
-
-            /// <summary>
-            /// Determines whether the operation still belongs to a writer.
-            /// </summary>
-            internal bool IsOwnedBy(LifecycleWriter writer)
-            {
-                return ReferenceEquals(Volatile.Read(ref m_owner), writer);
-            }
 
             /// <summary>
             /// Activates a transferred operation for nested invocation admission.
@@ -630,17 +626,11 @@ namespace Opc.Ua.Server
         /// <summary>Protects operation and invocation admission.</summary>
         private readonly Lock m_state = new();
 
-        /// <summary>Active operation ancestry for reentrant invocation admission.</summary>
+        /// <summary>Active transferred operation context for lifecycle callbacks.</summary>
         private readonly AsyncLocal<OperationLifetime?> m_currentOperation = new();
 
         /// <summary>Active durable decision in the current execution context.</summary>
         private readonly AsyncLocal<DecisionScope?> m_decision = new();
-
-        /// <summary>Completion of the sole caller-owned invocation, if any.</summary>
-        private Task? m_publicationFinished;
-
-        /// <summary>Identity of the sole invocation admitted by the writer.</summary>
-        private Guid m_publicationId;
 
         /// <summary>Completion of outstanding operations after shutdown admission.</summary>
         private TaskCompletionSource<bool>? m_operationsDrained;
