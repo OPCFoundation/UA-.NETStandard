@@ -79,21 +79,40 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="clientUrl">The Url of the reverse connect client.</param>
         /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
+        /// <param name="configEntry">If this is an application configuration entry.</param>
+        /// <param name="enabled">If the connection is enabled.</param>
+        public ReverseConnectProperty(
+            Uri clientUrl,
+            int timeout,
+            bool configEntry,
+            bool enabled = true)
+        {
+            ClientUrl = clientUrl;
+            Timeout = timeout > 0 ? timeout : ReverseConnectServer.DefaultReverseConnectTimeout;
+            ConfigEntry = configEntry;
+            Enabled = enabled;
+        }
+
+        /// <summary>
+        /// Initialize a reverse connect server property.
+        /// </summary>
+        /// <param name="clientUrl">The Url of the reverse connect client.</param>
+        /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
         /// <param name="maxSessionCount">The maximum number of sessions allowed to the client.</param>
         /// <param name="configEntry">If this is an application configuration entry.</param>
         /// <param name="enabled">If the connection is enabled.</param>
+        [Obsolete("MaxSessionCount is no longer supported and has been removed from configuration.")]
         public ReverseConnectProperty(
             Uri clientUrl,
             int timeout,
             int maxSessionCount,
             bool configEntry,
             bool enabled = true)
+            : this(clientUrl, timeout, configEntry, enabled)
         {
-            ClientUrl = clientUrl;
-            Timeout = timeout > 0 ? timeout : ReverseConnectServer.DefaultReverseConnectTimeout;
+#pragma warning disable CS0618
             MaxSessionCount = maxSessionCount;
-            ConfigEntry = configEntry;
-            Enabled = enabled;
+#pragma warning restore CS0618
         }
 
         /// <summary>
@@ -124,7 +143,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// The maximum number of sessions allowed to the client.
         /// </summary>
-        public int MaxSessionCount;
+        [Obsolete("MaxSessionCount is no longer supported and has been removed from configuration.")]
+        public int MaxSessionCount { get; set; }
 
         /// <summary>
         /// If the connection is enabled.
@@ -235,7 +255,6 @@ namespace Opc.Ua.Server
         public virtual void AddReverseConnection(
             Uri url,
             int timeout = 0,
-            int maxSessionCount = 0,
             bool enabled = true)
         {
             if (m_connections.ContainsKey(url))
@@ -247,7 +266,6 @@ namespace Opc.Ua.Server
             var reverseConnection = new ReverseConnectProperty(
                 url,
                 timeout,
-                maxSessionCount,
                 false,
                 enabled);
 
@@ -258,6 +276,24 @@ namespace Opc.Ua.Server
 
                 StartTimer(false);
             }
+        }
+
+        /// <summary>
+        /// Add a reverse connection url.
+        /// </summary>
+        /// <param name="url">The Url of the reverse connect client.</param>
+        /// <param name="timeout">The timeout to use for a reverse connect attempt.</param>
+        /// <param name="maxSessionCount">The maximum number of sessions allowed (deprecated and ignored).</param>
+        /// <param name="enabled">If the connection is enabled.</param>
+        [Obsolete("The maxSessionCount parameter is no longer supported and will be ignored.")]
+        public virtual void AddReverseConnection(
+            Uri url,
+            int timeout,
+            int maxSessionCount,
+            bool enabled = true)
+        {
+            _ = maxSessionCount;
+            AddReverseConnection(url, timeout, enabled);
         }
 
         /// <summary>
@@ -329,12 +365,8 @@ namespace Opc.Ua.Server
 
                         // try the reverse connect
                         if (reverseConnection.Enabled &&
-                            (
-                                (reverseConnection.MaxSessionCount == 0 &&
-                                 reverseConnection.LastState != ReverseConnectState.Connecting &&
-                                 reverseConnection.LastState != ReverseConnectState.Rejected) ||
-                                reverseConnection.LastState == ReverseConnectState.Closed ||
-                                reverseConnection.LastState == ReverseConnectState.Errored))
+                            (reverseConnection.LastState == ReverseConnectState.Closed ||
+                             reverseConnection.LastState == ReverseConnectState.Errored))
                         {
                             try
                             {
@@ -523,7 +555,6 @@ namespace Opc.Ua.Server
                                 {
                                     if (existing.ConfigEntry)
                                     {
-                                        existing.MaxSessionCount = client.MaxSessionCount;
                                         existing.Enabled = client.Enabled;
                                     }
                                     else
@@ -536,7 +567,6 @@ namespace Opc.Ua.Server
                                     m_connections[uri] = new ReverseConnectProperty(
                                         uri,
                                         client.Timeout,
-                                        client.MaxSessionCount,
                                         true,
                                         client.Enabled);
                                     m_logger.ReverseConnectionAddedForEndpointUrlUri(uri);

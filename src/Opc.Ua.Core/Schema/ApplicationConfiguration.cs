@@ -1588,19 +1588,9 @@ namespace Opc.Ua
         public int Timeout { get; set; }
 
         /// <summary>
-        /// The maximum count of active reverse connect sessions.
-        ///  0 or undefined means unlimited number of sessions.
-        ///  1 means a single connection is created at a time.
-        ///  n disables reverse hello once the total number of sessions
-        ///  in the server reaches n.
-        /// </summary>
-        [DataTypeField(Order = 2)]
-        public int MaxSessionCount { get; set; }
-
-        /// <summary>
         /// Specifies whether the sending of reverse connect attempts is enabled.
         /// </summary>
-        [DataTypeField(Order = 3, DefaultValueHandling = DefaultValueHandling.Emit)]
+        [DataTypeField(Order = 2, DefaultValueHandling = DefaultValueHandling.Emit)]
         public bool Enabled { get; set; } = true;
     }
 

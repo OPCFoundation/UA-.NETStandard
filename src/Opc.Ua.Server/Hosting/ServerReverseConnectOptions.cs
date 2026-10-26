@@ -93,13 +93,6 @@ namespace Opc.Ua.Server.Hosting
         public int Timeout { get; set; }
 
         /// <summary>
-        /// Maximum simultaneous reverse-connect sessions for this client.
-        /// Zero means unlimited; <c>1</c> permits a single connection at a
-        /// time.
-        /// </summary>
-        public int MaxSessionCount { get; set; }
-
-        /// <summary>
         /// Whether this client entry is active. Defaults to <c>true</c>.
         /// </summary>
         public bool Enabled { get; set; } = true;
