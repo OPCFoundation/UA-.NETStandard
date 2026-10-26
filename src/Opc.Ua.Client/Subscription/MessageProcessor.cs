@@ -319,9 +319,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// server). The manager uses this signal to re-evaluate the
         /// publish worker pool.
         /// </summary>
-        protected void NotifyManagerOfCreation()
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown.</param>
+        protected void NotifyManagerOfCreation(DateTimeUtc createdAt = default)
         {
-            AckQueue.OnSubscriptionCreated(this, Id);
+            AckQueue.OnSubscriptionCreated(this, Id, createdAt);
             AckQueue.Update();
         }
 

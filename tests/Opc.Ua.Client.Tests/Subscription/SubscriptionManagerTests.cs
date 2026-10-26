@@ -913,6 +913,81 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// A response to a request sent before a reused id was claimed is not delivered to the
+        /// new owner when the server published its message before the owner was created: it
+        /// belongs to the id's previous subscription and would move the owner's cursor past its
+        /// own first messages. Messages published later, or without the times to compare, are
+        /// delivered as before.
+        /// </summary>
+        /// <param name="scenario">How the stale message relates to the owner's creation.</param>
+        /// <param name="delivered">Whether the stale message is expected to be delivered.</param>
+        /// <param name="testCt">Test cancellation token.</param>
+        [TestCase("published-before-creation", false)]
+        [TestCase("published-after-creation", true)]
+        [TestCase("unknown-creation-time", true)]
+        [TestCase("unknown-publish-time", true)]
+        [CancelAfter(10_000)]
+        public async Task MessagesOfAPreviousSubscriptionAreNotDeliveredToTheNewOwnerAsync(
+            string scenario, bool delivered, CancellationToken testCt)
+        {
+            var createdAt = new DateTimeUtc(new DateTime(2026, 10, 26, 12, 0, 0, DateTimeKind.Utc));
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var firstSent = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseFirst = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                PublishResponse response = CreatePublishResponse(1, acknowledgements);
+                int call = Interlocked.Increment(ref calls);
+                if (call == 1)
+                {
+                    firstSent.TrySetResult(true);
+                    await releaseFirst.Task.WaitAsync(ct).ConfigureAwait(false);
+                    response.NotificationMessage = CreateDataMessage(50000);
+                    response.NotificationMessage.PublishTime = scenario switch
+                    {
+                        "published-after-creation" => createdAt.AddMilliseconds(1000),
+                        "unknown-publish-time" => DateTimeUtc.MinValue,
+                        _ => createdAt.AddMilliseconds(-1000)
+                    };
+                    return response;
+                }
+                if (call == 2)
+                {
+                    response.NotificationMessage = CreateDataMessage(1);
+                    response.NotificationMessage.PublishTime = createdAt.AddMilliseconds(2000);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return response;
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            var received = new ConcurrentQueue<uint>();
+            owner.OnPublishReceivedAsyncFunc = (message, _, _) =>
+            {
+                received.Enqueue(message.SequenceNumber);
+                return default;
+            };
+            manager.Resume();
+            await firstSent.Task.WaitAsync(testCt).ConfigureAwait(false);
+
+            manager.OnSubscriptionCreated(
+                owner, 1, scenario == "unknown-creation-time" ? default : createdAt);
+            releaseFirst.TrySetResult(true);
+
+            await WaitUntilAsync(() => received.Contains(1u), testCt).ConfigureAwait(false);
+            Assert.That(received.Contains(50000u), Is.EqualTo(delivered));
+        }
+
+        /// <summary>
         /// While a stale subscription and its replacement share a reused id, Publish
         /// responses are dispatched to the most recently created one.
         /// </summary>
@@ -1066,6 +1141,67 @@ namespace Opc.Ua.Client.Subscriptions
             await WaitUntilAsync(() => sent.Any(ack => ack.SequenceNumber == 5), testCt).ConfigureAwait(false);
             Assert.That(sent.Any(ack => ack.SequenceNumber == 4), Is.False, "A stale acknowledgement is not sent.");
             Assert.That(context.PrepareCalls, Is.Zero);
+        }
+
+        /// <summary>
+        /// The batch is validated again after the deferral callback: an owner that is retired
+        /// while the callback runs does not acknowledge, while other subscriptions still do.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementsOfAnOwnerRetiredDuringTheCallbackAreNotSentAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            int retired = 0;
+            for (int i = 0; i < 2; i++)
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                    new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            }
+            FakeManagedSubscription owner = partitions[0];
+            FakeManagedSubscription control = partitions[1];
+            context.OnPrepareAcknowledgements = acknowledgements =>
+            {
+                // Simulates the owner being recreated while the application decides.
+                if (acknowledgements.Any(ack => ack.SubscriptionId == 1) &&
+                    Interlocked.Exchange(ref retired, 1) == 0)
+                {
+                    owner.MessageGeneration++;
+                }
+                return (acknowledgements, []);
+            };
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 7 },
+                testCt).ConfigureAwait(false);
+            await WaitUntilAsync(() => Volatile.Read(ref retired) != 0, testCt).ConfigureAwait(false);
+            await manager.QueueAsync(control, control.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 9 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SubscriptionId == 2), testCt).ConfigureAwait(false);
+            Assert.That(sent.Any(ack => ack.SubscriptionId == 1), Is.False,
+                "An acknowledgement whose owner was retired during the callback must not be sent.");
         }
 
         /// <summary>

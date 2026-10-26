@@ -63,7 +63,11 @@ namespace Opc.Ua.Client.Subscriptions
         /// </summary>
         /// <param name="owner">The created subscription.</param>
         /// <param name="subscriptionId">The server-assigned id.</param>
-        void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId);
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown. A message the server published
+        /// earlier belongs to the id's previous subscription.</param>
+        void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default);
 
         /// <summary>
         /// Complete subscription

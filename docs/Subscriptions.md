@@ -408,6 +408,15 @@ Validation is constant time per acknowledgement. Acknowledgements the server rej
 logged (`Bad_SubscriptionIdInvalid` at information level, `Bad_SequenceNumberUnknown`,
 which is expected after a retried request, at debug level).
 
+A Publish response to a request sent before a reused id was claimed can still carry a
+message of the id's previous subscription. Such a message is not delivered to the new owner
+(it would move the owner's sequence cursor past its own first messages) when the server
+published it before the new subscription was created: its `PublishTime` is earlier than the
+`CreateSubscription` response's `ResponseHeader.Timestamp`, both from the server's clock. It
+is not acknowledged and the id is not deleted. A message wrongly discarded this way, for example
+after a server clock change, stays in the server's retransmission queue and is republished when
+the owner receives its next message. Without both timestamps, messages are delivered as before.
+
 V2 publishing also honors the existing
 `ISession.PublishSequenceNumbersToAcknowledge` event. A handler can move entries
 from `AcknowledgementsToSend` to `DeferredAcknowledgementsToSend` until the

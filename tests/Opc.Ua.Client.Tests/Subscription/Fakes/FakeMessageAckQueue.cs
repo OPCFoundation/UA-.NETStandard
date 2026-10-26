@@ -237,10 +237,17 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public List<uint> CreatedSubscriptions { get; } = [];
 
+        /// <summary>
+        /// Creation times reported through <see cref="OnSubscriptionCreated"/>.
+        /// </summary>
+        public List<DateTimeUtc> CreatedAt { get; } = [];
+
         /// <inheritdoc/>
-        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId)
+        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default)
         {
             CreatedSubscriptions.Add(subscriptionId);
+            CreatedAt.Add(createdAt);
         }
 
         /// <summary>

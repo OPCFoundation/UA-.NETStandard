@@ -361,7 +361,8 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId)
+        public void OnSubscriptionCreated(IMessageProcessor owner, uint subscriptionId,
+            DateTimeUtc createdAt = default)
         {
             if (owner == null)
             {
@@ -389,7 +390,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 m_superseded.Remove(owner);
                 m_claims[subscriptionId] = new SubscriptionClaim(
-                    owner, Interlocked.Increment(ref m_claimSequence));
+                    owner, Interlocked.Increment(ref m_claimSequence), createdAt);
                 m_windows.Remove(owner);
             }
         }
@@ -2240,6 +2241,36 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Whether a Publish response was produced for the subscription that held the
+        /// owner's id before the server reused it. Only a response to a request sent before
+        /// the id was claimed can be one, and its message was published before the owner was
+        /// created; both times come from the server's clock. A message that is wrongly
+        /// discarded stays in the server's retransmission queue and is republished once the
+        /// owner receives its next message.
+        /// </summary>
+        /// <param name="owner">The subscription the response resolves to.</param>
+        /// <param name="message">The response's notification message.</param>
+        /// <param name="claimMark">The claim sequence when the request was sent.</param>
+        private bool IsMessageOfPreviousSubscription(
+            IManagedSubscription owner,
+            NotificationMessage message,
+            long claimMark)
+        {
+            if (message.PublishTime.IsNull)
+            {
+                return false;
+            }
+            lock (m_subscriptionLock)
+            {
+                return m_claims.TryGetValue(owner.Id, out SubscriptionClaim claim) &&
+                    ReferenceEquals(claim.Owner, owner) &&
+                    claim.Sequence > claimMark &&
+                    !claim.CreatedAt.IsNull &&
+                    message.PublishTime < claim.CreatedAt;
+            }
+        }
+
+        /// <summary>
         /// Records the retransmission queue a Publish response reported for its subscription.
         /// The list is prepared after the request's acknowledgements were processed, and a
         /// message older than the response that is not listed is no longer held by the server.
@@ -2446,7 +2477,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="Owner">The owner.</param>
         /// <param name="Sequence">Orders claims, so a response to a request sent before the
         /// claim can be told apart from one the current owner's server subscription sent.</param>
-        private readonly record struct SubscriptionClaim(IMessageProcessor Owner, long Sequence);
+        /// <param name="CreatedAt">The server time when the owner was created, from the
+        /// CreateSubscription response header, or null if unknown.</param>
+        private readonly record struct SubscriptionClaim(
+            IMessageProcessor Owner,
+            long Sequence,
+            DateTimeUtc CreatedAt);
 
         /// <summary>
         /// The retransmission queue the server last reported for an owner. Reused across
@@ -2731,7 +2767,22 @@ namespace Opc.Ua.Client.Subscriptions
                         publishLatency = m_outer.m_timeProvider.GetElapsedTime(
                             publishLatencyStart);
                         publishLatencyRunning = false;
-                        if (subscription != null)
+                        if (subscription != null &&
+                            m_outer.IsMessageOfPreviousSubscription(subscription, notificationMessage, claimMark))
+                        {
+                            //
+                            // The server reused the id and produced this message for the
+                            // subscription that held it before. Delivering it would move the
+                            // new owner's sequence cursor past its own first messages. It is
+                            // not acknowledged either: that subscription no longer exists.
+                            // The id still belongs to the new owner, so it is not deleted.
+                            //
+                            m_outer.EndPublishRequest();
+                            publishActive = false;
+                            m_logger.PublishWorkerDiscardedMessageOfPreviousSubscription(
+                                Index, handle, subscriptionId, notificationMessage.SequenceNumber);
+                        }
+                        else if (subscription != null)
                         {
                             m_outer.RecordAvailability(
                                 subscription, notificationMessage, availableSequenceNumbers, claimMark);
@@ -3537,6 +3588,17 @@ namespace Opc.Ua.Client.Subscriptions
             int handle,
             int count,
             int total);
+
+        [LoggerMessage(EventId = ClientEventIds.SubscriptionManagerContinued + 0, Level = LogLevel.Information,
+            Message = "PUBLISH Worker #{Handle}-{Id} - Discarded message #{SequenceNumber} of " +
+                "SubscriptionId={SubscriptionId}: it was published before the subscription that " +
+                "now holds the reused id was created.")]
+        public static partial void PublishWorkerDiscardedMessageOfPreviousSubscription(
+            this ILogger logger,
+            int handle,
+            uint id,
+            uint subscriptionId,
+            uint sequenceNumber);
 
         [LoggerMessage(EventId = ClientEventIds.SubscriptionManager + 35, Level = LogLevel.Information,
             Message = "PUBLISH Worker #{Handle}-{Id} - Received Publish Response for Unknown " +

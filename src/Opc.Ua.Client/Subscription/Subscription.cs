@@ -1409,7 +1409,7 @@ namespace Opc.Ua.Client.Subscriptions
                         response.RevisedPublishingInterval, options.PublishingInterval),
                     response.RevisedMaxKeepAliveCount, response.RevisedLifetimeCount,
                     options.Priority, options.MaxNotificationsPerPublish,
-                    options.PublishingEnabled);
+                    options.PublishingEnabled, response.ResponseHeader.Timestamp);
             }
             finally
             {
@@ -1502,11 +1502,13 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="priority"></param>
         /// <param name="maxNotificationsPerPublish"></param>
         /// <param name="publishingEnabled"></param>
+        /// <param name="createdAt">The server time of the CreateSubscription
+        /// response, or null if unknown.</param>
         internal void OnSubscriptionUpdateComplete(bool created,
             uint subscriptionId, TimeSpan revisedPublishingInterval,
             uint revisedKeepAliveCount, uint revisedLifetimeCount,
             byte priority, uint maxNotificationsPerPublish,
-            bool publishingEnabled)
+            bool publishingEnabled, DateTimeUtc createdAt = default)
         {
             bool keepAliveSettingsChanged =
                 CurrentKeepAliveCount != revisedKeepAliveCount ||
@@ -1575,7 +1577,7 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 Id = subscriptionId;
                 StartKeepAliveTimer();
-                NotifyManagerOfCreation();
+                NotifyManagerOfCreation(createdAt);
                 m_createdEvent.Set();
             }
             else if (keepAliveSettingsChanged)
