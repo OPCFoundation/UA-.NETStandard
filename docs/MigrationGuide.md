@@ -597,8 +597,10 @@ Observe failures from `StopAsync` or
 `DisposeAsync`, correct their cause, then retry. A failed disposal can be retried too; it does
 not permanently cache a failed attempt. Custom stop overrides must support retry and avoid
 replaying successfully completed cleanup.
-Hosted `MasterNodeManager.ShutdownAsync` joins this same stop attempt and closes the owner's
-transports. Treat a hosted master as borrowed: stop and dispose its server instead of disposing
+An explicit call to hosted `MasterNodeManager.ShutdownAsync` defensively joins this same stop
+attempt and closes the owner's transports. Ordinary server stop drives the lifecycle directly,
+not through this master entry point.
+Treat a hosted master as borrowed: stop and dispose its server instead of disposing
 the master directly. Direct master disposal throws while serving or retired generations still
 require their owner.
 See [NodeManager shutdown](NodeManagers.md#concurrent-operations-cancellation-and-failure).

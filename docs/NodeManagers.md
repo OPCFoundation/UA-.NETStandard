@@ -884,9 +884,11 @@ generations and server internals intact for retry; physical retirement cannot
 run ahead of an unfinished consumer shutdown.
 A failed retirement retains unfinished cleanup and the server internals for retry. `StopAsync`
 and `DisposeAsync` report the failure; retry the failed operation to finish remaining stages.
-Successful deletion and disposal callbacks are not repeated. Hosted `MasterNodeManager.ShutdownAsync`
-joins the same stop attempt as `ServerBase.StopAsync`, including transport closure and failure
-propagation. The hosted master is borrowed from its owning server: stop and dispose the server
+Successful deletion and disposal callbacks are not repeated. An explicit call to hosted
+`MasterNodeManager.ShutdownAsync` defensively joins the same stop attempt as `ServerBase.StopAsync`,
+including transport closure and failure propagation. Ordinary server stop drives the lifecycle
+directly; it does not route through this master entry point.
+The hosted master is borrowed from its owning server: stop and dispose the server
 rather than disposing the master directly. Direct master disposal is rejected while serving or
 retired generations still own resources. A standalone master retains its own cleanup because
 it has no hosting lifetime owner.
