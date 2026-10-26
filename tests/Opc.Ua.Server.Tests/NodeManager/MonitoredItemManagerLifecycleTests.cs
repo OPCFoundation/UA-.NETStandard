@@ -3165,7 +3165,9 @@ namespace Opc.Ua.Server.Tests
                     nodeManager.Object,
                     new object(),
                     new NodeId("Restored", 1));
-                ((IMonitoredItemGenerationBinding)source).Invalidate(terminal: false);
+                var binding = (IMonitoredItemGenerationBinding)source;
+                binding.Invalidate(terminal: false);
+                Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
                 IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
                 var node = new BaseDataVariableState(null)
                 {

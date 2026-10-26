@@ -315,10 +315,22 @@ namespace Opc.Ua.Server
                     handle,
                     storedMonitoredItem);
 
-                // save the monitored item.
-                m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
-
-                return monitoredItem;
+                try
+                {
+                    var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+                    if (!binding.TryBindSource(binding.SourceRevision, nodeManager, handle, out _))
+                    {
+                        throw new InvalidOperationException(
+                            "The restored event source binding changed before registration.");
+                    }
+                    m_monitoredItems.Add(monitoredItem.Id, monitoredItem);
+                    return monitoredItem;
+                }
+                catch
+                {
+                    monitoredItem.Dispose();
+                    throw;
+                }
             }
         }
 

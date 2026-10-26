@@ -1009,6 +1009,11 @@ Failed handoff or slot-local recovery reports a lost node only after that incarn
 A newer binding is never cleared or made terminal by an earlier attempt's finalization, including
 when both attempts use the same generation.
 
+Source availability is derived from the item's generation binding, not an independently
+mutable detached flag. Persistence retains the `IsDetached` compatibility field; restoring
+it preserves the original slot and queues without installing a manager or node handle.
+Native restoration must commit a real source binding before the item can receive new samples.
+
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.

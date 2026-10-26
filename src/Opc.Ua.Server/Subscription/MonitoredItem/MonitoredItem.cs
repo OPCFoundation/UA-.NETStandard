@@ -335,13 +335,21 @@ namespace Opc.Ua.Server
             m_server = server;
             if (nodeManager is not null)
             {
-                NodeManager = nodeManager;
+                if (storedMonitoredItem.IsDetached ||
+                    storedMonitoredItem is IStoredMonitoredItemInvalidation { IsTerminal: true })
+                {
+                    m_slot = NodeManagerGenerationRegistry.GetOrCreate(nodeManager).Slot;
+                }
+                else
+                {
+                    NodeManager = nodeManager;
+                }
             }
             else
             {
                 m_slot = new NodeManagerSlot();
             }
-            ManagerHandle = managerHandle;
+            ManagerHandle = Generation is null ? null : managerHandle;
             SubscriptionId = storedMonitoredItem.SubscriptionId;
             Id = storedMonitoredItem.Id;
             NodeId = storedMonitoredItem.NodeId;
@@ -416,7 +424,7 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 m_isTerminal = (storedMonitoredItem as IStoredMonitoredItemInvalidation)?.IsTerminal ?? false;
-                SetDetachState(storedMonitoredItem.IsDetached, storedMonitoredItem.IsDeleted);
+                SetLostNodeState(storedMonitoredItem.IsDeleted);
             }
         }
 
@@ -491,11 +499,10 @@ namespace Opc.Ua.Server
         internal NodeState? SourceMetadata { get; private set; }
 
         /// <summary>
-        /// Sets the lost-node flags and updates slot ownership while the item lock is held.
+        /// Sets the lost-node status and updates slot ownership while the item lock is held.
         /// </summary>
-        private void SetDetachState(bool isDetached, bool isDeleted)
+        private void SetLostNodeState(bool isDeleted)
         {
-            m_isDetached = isDetached;
             m_isDeleted = isDeleted;
 
             UpdateUnresolvedOwnership();
@@ -507,7 +514,7 @@ namespace Opc.Ua.Server
         private void UpdateUnresolvedOwnership()
         {
             if (m_subscriptionOwnership == SubscriptionOwnership.Bound &&
-                !m_isDisposed && !m_isTerminal && (m_isDetached || m_isDeleted))
+                !m_isDisposed && !m_isTerminal && (Generation is null || m_isDeleted))
             {
                 m_slot.UnresolvedItems[this] = m_subscription!;
             }
@@ -524,7 +531,7 @@ namespace Opc.Ua.Server
             {
                 lock (m_lock)
                 {
-                    return m_isDetached;
+                    return Generation is null || m_isTerminal;
                 }
             }
         }
@@ -790,11 +797,11 @@ namespace Opc.Ua.Server
                 m_isTerminal |= terminal;
                 if (m_isDeleted)
                 {
-                    SetDetachState(m_isDetached || terminal, isDeleted: true);
+                    SetLostNodeState(isDeleted: true);
                     return;
                 }
                 m_valuePublication?.Fail(StatusCodes.BadNodeIdUnknown);
-                SetDetachState(m_isDetached || terminal, isDeleted: true);
+                SetLostNodeState(isDeleted: true);
                 QueueNodeIdUnknown();
             }
         }
@@ -850,7 +857,7 @@ namespace Opc.Ua.Server
                 m_nodeManager = null;
                 Generation = null;
                 ManagerHandle = null;
-                SetDetachState(isDetached: true, m_isDeleted);
+                UpdateUnresolvedOwnership();
                 return true;
             }
         }
@@ -860,7 +867,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                SetDetachState(m_isDetached, isDeleted: true);
+                SetLostNodeState(isDeleted: true);
 
                 QueueNodeIdUnknown();
             }
@@ -931,7 +938,7 @@ namespace Opc.Ua.Server
                 NodeManager = nodeManager ?? throw new ArgumentNullException(nameof(nodeManager));
                 ManagerHandle = managerHandle;
                 SourceMetadata = metadata;
-                SetDetachState(isDetached: false, isDeleted: false);
+                SetLostNodeState(isDeleted: false);
                 m_finalValuePublished = false;
                 boundRevision = m_sourceRevision = unchecked(m_sourceRevision + 1);
                 return true;
@@ -1262,7 +1269,7 @@ namespace Opc.Ua.Server
                 {
                     return (StatusCodes.BadMonitoredItemIdInvalid, null);
                 }
-                if (!m_isDetached)
+                if (Generation is not null && !m_isTerminal)
                 {
                     return (StatusCodes.BadInvalidState, null);
                 }
@@ -1794,7 +1801,7 @@ namespace Opc.Ua.Server
                 }
                 if ((sourceEmission ?? emission) is { Generation: var generation } &&
                     !IsBoundToGeneration(generation) &&
-                    !(capturedSourceEmission && m_isDetached && ReferenceEquals(m_slot, generation.Slot)))
+                    !(capturedSourceEmission && Generation is null && ReferenceEquals(m_slot, generation.Slot)))
                 {
                     return;
                 }
@@ -1808,7 +1815,7 @@ namespace Opc.Ua.Server
 
                 // check monitoring mode.
                 if (MonitoringMode == MonitoringMode.Disabled ||
-                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || m_isDetached)) ||
+                    (m_finalValuePublished && (m_isDisposed || m_isDeleted || Generation is null || m_isTerminal)) ||
                     (!capturedSourceEmission &&
                         !CanQueueSourceEmission() &&
                         !IsBadNodeIdUnknown(value, error)))
@@ -3037,7 +3044,7 @@ namespace Opc.Ua.Server
                     DiscardOldest = m_discardOldest,
                     IsDurable = IsDurable,
                     IsDeleted = m_isDeleted,
-                    IsDetached = m_isDetached,
+                    IsDetached = Generation is null || m_isTerminal,
                     IsTerminal = m_isTerminal,
                     Encoding = DataEncoding,
                     FilterToUse = FilterToUse!,
@@ -3061,7 +3068,7 @@ namespace Opc.Ua.Server
 
         private bool CanQueueSourceEmission()
         {
-            return !m_isDetached &&
+            return Generation is not null && !m_isTerminal &&
                 (!m_isDeleted ||
                     (!UsesExternalValueSource && (MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0));
         }
@@ -3084,7 +3091,7 @@ namespace Opc.Ua.Server
             return generation is null ||
                 MonitoringAllEvents ||
                 IsBoundToGeneration(generation) ||
-                (m_isDetached && ReferenceEquals(m_slot, generation.Slot));
+                (Generation is null && ReferenceEquals(m_slot, generation.Slot));
         }
 
         /// <summary>
@@ -3572,7 +3579,7 @@ namespace Opc.Ua.Server
                     generation!.MonitoredItems.TryRemove(this, out _);
                 }
                 m_valuePublication?.Complete(published: false);
-                SetDetachState(m_isDetached, m_isDeleted);
+                UpdateUnresolvedOwnership();
             }
 
             DisposeQueueHandlers();
@@ -3747,7 +3754,6 @@ namespace Opc.Ua.Server
         private HashSet<string>? m_filteredRetainConditionIds;
         private RejectedSelectClauses? m_rejectedSelectClauses;
         private EventFilterContext? m_eventFilterContext;
-        private bool m_isDetached;
         private bool m_isDeleted;
     }
 

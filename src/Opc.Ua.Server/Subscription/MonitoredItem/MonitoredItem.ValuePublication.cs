@@ -80,7 +80,7 @@ namespace Opc.Ua.Server
                             "Final-value observation requires a non-aggregate Value item " +
                             "and the standard Publish pipeline.");
                     }
-                    if (m_isDeleted || m_isDetached)
+                    if (m_isDeleted || Generation is null || m_isTerminal)
                     {
                         throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
                     }

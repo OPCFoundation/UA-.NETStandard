@@ -899,15 +899,26 @@ namespace Opc.Ua.Server.Tests
                 IsDeleted = isDeleted
             };
 
+            var manager = new Mock<IAsyncNodeManager>().Object;
+            var handle = new object();
             using var item = new MonitoredItem(
                 CreateServer(telemetry, queueFactory).Object,
-                new Mock<IAsyncNodeManager>().Object,
-                new object(),
+                manager,
+                handle,
                 stored,
                 null);
 
-            NodeManagerSlot slot = GetBoundGeneration(item).Slot;
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(manager);
+            NodeManagerSlot slot = generation.Slot;
             Assert.That(slot.UnresolvedItems, Is.Empty);
+            Assert.Multiple(() =>
+            {
+                Assert.That(item.Generation is null, Is.EqualTo(isDetached));
+                Assert.That(item.NodeManager, isDetached ? Is.Null : Is.SameAs(manager));
+                Assert.That(item.ManagerHandle, isDetached ? Is.Null : Is.SameAs(handle));
+                Assert.That(generation.MonitoredItems, Is.Empty);
+                Assert.That(item.ToStorableMonitoredItem().IsDetached, Is.EqualTo(isDetached));
+            });
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
