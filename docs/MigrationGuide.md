@@ -158,8 +158,8 @@ creation, without retaining system generations that would require that factory f
 
 The `MasterNodeManager` constructors accepting preconstructed managers are obsolete.
 They remain available for standalone dispatch, but hosted startup rejects preconstructed
-applications instead of adopting them after construction. Use the three-argument constructor
-and assign `InitialFactories`, or register factories through `AddNodeManager`. A factory must
+applications instead of adopting them after construction. Pass `initialFactories` to the
+four-argument constructor, or register factories through `AddNodeManager`. A factory must
 construct its manager against the supplied server; it must not return an instance constructed
 earlier against the serving metadata.
 
