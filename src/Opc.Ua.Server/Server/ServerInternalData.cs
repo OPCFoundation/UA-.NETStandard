@@ -69,6 +69,7 @@ namespace Opc.Ua.Server
         IHistoryContinuationPointStoreProvider,
         ITransportListenerRegistryProvider,
         IServerEndpointRegistryProvider,
+        IConformanceUnitsManagerProvider,
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,

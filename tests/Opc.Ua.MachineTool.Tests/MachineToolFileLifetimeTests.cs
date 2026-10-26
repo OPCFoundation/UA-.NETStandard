@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -222,6 +223,13 @@ namespace Opc.Ua.MachineTool.Tests
             public FileServer(ITelemetryContext telemetry)
                 : base(telemetry)
             {
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new ModelProvider()],
+                    options));
             }
 
             /// <summary>
@@ -230,22 +238,12 @@ namespace Opc.Ua.MachineTool.Tests
             public MachineryNodeManager Manager { get; private set; } = null!;
 
             /// <inheritdoc/>
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+            protected override async ValueTask OnNodeManagerStartedAsync(
                 IServerInternal server,
-                ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.Jobs
-                };
-                Manager = new MachineryNodeManager(
-                    server,
-                    configuration,
-                    [new MachineryModelProvider(options.Parts), new ModelProvider()],
-                    options);
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, [Manager]));
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
             }
         }
 

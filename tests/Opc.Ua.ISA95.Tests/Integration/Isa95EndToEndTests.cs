@@ -973,36 +973,23 @@ namespace Opc.Ua.ISA95.Tests.Integration
                 IReadOnlyList<IIsa95ModelConfigurator> configurators)
                 : base(telemetry)
             {
-                m_options = options;
-                m_providers = providers;
-                m_configurators = configurators;
+                AddNodeManager(new Isa95NodeManagerFactory(options, providers, configurators));
             }
 
-            protected override ValueTask<IMasterNodeManager>
-                CreateMasterNodeManagerAsync(
-                    IServerInternal server,
-                    ApplicationConfiguration configuration,
-                    CancellationToken cancellationToken = default)
-            {
-                Manager = new Isa95NodeManager(
-                    server,
-                    configuration,
-                    m_options,
-                    m_providers,
-                    m_configurators);
-                IMasterNodeManager master = new MasterNodeManager(
-                    server,
-                    configuration,
-                    null,
-                    [Manager]);
-                return new ValueTask<IMasterNodeManager>(master);
-            }
-
+            /// <summary>
+            /// Gets the published ISA-95 owner, retained for teardown assertions.
+            /// </summary>
             public Isa95NodeManager? Manager { get; private set; }
 
-            private readonly Isa95ServerOptions m_options;
-            private readonly Isa95ServerProviders m_providers;
-            private readonly IReadOnlyList<IIsa95ModelConfigurator> m_configurators;
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<Isa95NodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            }
+
         }
 
         private sealed class DelegateModelConfigurator : IIsa95ModelConfigurator

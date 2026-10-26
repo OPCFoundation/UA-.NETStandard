@@ -195,7 +195,8 @@ namespace Opc.Ua.Server
         /// </summary>
         internal sealed class StagingServer :
             IServerInternal, INodeIdFactoryProvider, ITimeProviderProvider,
-            IHistorianRegistryProvider, IHistorianBuilderRegistry, AliasNames.IAliasNameStoreRegistryProvider
+            IHistorianRegistryProvider, IHistorianBuilderRegistry,
+            AliasNames.IAliasNameStoreRegistryProvider, IConformanceUnitsManagerProvider
         {
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
@@ -289,6 +290,11 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public AggregateManager AggregateManager => m_server.AggregateManager;
+
+            /// <inheritdoc/>
+            public ConformanceUnitsManager? ConformanceUnitsManager => IsStaging || IsDetached
+                ? null
+                : (m_server as IConformanceUnitsManagerProvider)?.ConformanceUnitsManager;
 
             /// <inheritdoc/>
             public ISessionManager SessionManager => m_server.SessionManager;

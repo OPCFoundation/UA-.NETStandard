@@ -64,6 +64,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(((ITimeProviderProvider)facade).TimeProvider, Is.SameAs(clock));
                 var historian = (IHistorianRegistryProvider)facade;
                 var aliases = (IAliasNameStoreRegistryProvider)facade;
+                Assert.That(facade, Is.InstanceOf<IConformanceUnitsManagerProvider>());
+                var conformance = (IConformanceUnitsManagerProvider)facade;
+                Assert.That(conformance.ConformanceUnitsManager, Is.Null);
                 Assert.That(
                     () => historian.HistorianRegistry,
                     Throws.TypeOf<InvalidOperationException>());
@@ -71,6 +74,9 @@ namespace Opc.Ua.Server.Tests
                     () => aliases.AliasNameStoreRegistry,
                     Throws.TypeOf<InvalidOperationException>());
                 staging.Bind();
+                Assert.That(conformance.ConformanceUnitsManager,
+                    Is.Not.Null.And.SameAs(
+                        ((IConformanceUnitsManagerProvider)server.CurrentInstance).ConformanceUnitsManager));
                 Assert.That(
                     historian.HistorianRegistry,
                     Is.SameAs(((IHistorianRegistryProvider)server.CurrentInstance).HistorianRegistry));
@@ -78,6 +84,7 @@ namespace Opc.Ua.Server.Tests
                     aliases.AliasNameStoreRegistry,
                     Is.SameAs(((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry));
                 staging.Detach();
+                Assert.That(conformance.ConformanceUnitsManager, Is.Null);
                 Assert.That(((ITimeProviderProvider)facade).TimeProvider, Is.SameAs(clock));
                 Assert.That(
                     () => historian.HistorianRegistry,

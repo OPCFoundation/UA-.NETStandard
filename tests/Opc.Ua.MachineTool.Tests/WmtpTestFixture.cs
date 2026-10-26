@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -110,8 +111,14 @@ namespace Opc.Ua.MachineTool.Tests
             internal RuntimeServer(ITelemetryContext telemetry, MachineToolParts parts, bool reordered)
                 : base(telemetry)
             {
-                m_parts = parts;
                 m_reordered = reordered;
+                var options = new MachineryServerOptions
+                {
+                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues |
+                        ((parts & MachineToolParts.MachineTool) != 0 ? MachineryParts.Jobs : MachineryParts.None)
+                };
+                AddNodeManager(new MachineryNodeManagerFactory(
+                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(parts)], options));
             }
 
             /// <summary>
@@ -130,19 +137,17 @@ namespace Opc.Ua.MachineTool.Tests
                     server.NamespaceUris.GetIndexOrAppend("urn:wmtp-tests:unrelated:2");
                     server.NamespaceUris.GetIndexOrAppend(Opc.Ua.MachineTool.WMTP.Namespaces.WMTP);
                 }
-                var options = new MachineryServerOptions
-                {
-                    Parts = MachineryParts.BuildingBlocks | MachineryParts.ProcessValues |
-                        ((m_parts & MachineToolParts.MachineTool) != 0 ? MachineryParts.Jobs : MachineryParts.None)
-                };
-                Manager = new MachineryNodeManager(server, configuration,
-                    [new MachineryModelProvider(options.Parts), new MachineToolModelProvider(m_parts)], options);
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, [Manager]));
+                return base.CreateMasterNodeManagerAsync(server, configuration, cancellationToken);
             }
 
-            /// <summary>The selected model parts.</summary>
-            private readonly MachineToolParts m_parts;
+            /// <inheritdoc/>
+            protected override async ValueTask OnNodeManagerStartedAsync(
+                IServerInternal server,
+                CancellationToken cancellationToken = default)
+            {
+                Manager = server.NodeManager.AsyncNodeManagers.OfType<MachineryNodeManager>().Single();
+                await base.OnNodeManagerStartedAsync(server, cancellationToken).ConfigureAwait(false);
+            }
 
             /// <summary>Whether unrelated namespace entries precede the models.</summary>
             private readonly bool m_reordered;

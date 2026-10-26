@@ -1161,6 +1161,12 @@ Prepared transactions, publication capture, and validation are part of this cano
 contract. `INodeManagerBatchLifecycle` and `INodeManagerPublicationLifecycle` remain compatibility
 markers; callers do not need to downcast the lifecycle to discover those operations.
 
+Use typed service-provider interfaces on the supplied server rather than casting it to
+`ServerInternalData`. For example, `IConformanceUnitsManagerProvider` exposes the shared
+conformance catalog after publication and initialization. Its catalog is unavailable while the
+generation is private or detached, so candidate construction and retirement cannot republish
+the serving capabilities. The server retains ownership of the catalog.
+
 Publication merges compatible additions into the shared metadata tables and rebinds the candidate's
 cached handles to their canonical storage. Those handles also observe subsequent compatible additions.
 Metadata is not pinned per request; application-value images and routing generations still are.

@@ -35,6 +35,18 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
+    /// Exposes the server's initialized conformance catalog without depending on its datastore implementation.
+    /// </summary>
+    public interface IConformanceUnitsManagerProvider
+    {
+        /// <summary>
+        /// Gets the shared catalog, or null before initialization or while a generation is private or detached.
+        /// The provider retains ownership of the catalog.
+        /// </summary>
+        ConformanceUnitsManager? ConformanceUnitsManager { get; }
+    }
+
+    /// <summary>
     /// An object that manages the conformance units and server profiles the
     /// server advertises on <c>Server/ServerCapabilities/ConformanceUnits</c>
     /// and <c>Server/ServerCapabilities/ServerProfileArray</c> (OPC UA Part 7).
