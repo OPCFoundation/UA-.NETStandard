@@ -2745,7 +2745,6 @@ namespace Opc.Ua.Server
                 var monitoredItem = new MonitoredItem(
                     Server,
                     storedItem);
-                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                 ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: true);
                 monitoredItems[ii] = monitoredItem;
                 storedItem.IsRestored = true;
@@ -2778,8 +2777,6 @@ namespace Opc.Ua.Server
                 var monitoredItem = new MonitoredItem(
                     Server,
                     storedItem);
-                var lifecycle = (IDetachableMonitoredItem)monitoredItem;
-                lifecycle.Detach(Server);
                 ((IMonitoredItemGenerationBinding)monitoredItem).Invalidate(terminal: false);
                 storedItem.IsRestored = true;
                 monitoredItems[ii] = monitoredItem;
@@ -2970,7 +2967,7 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                if (monitoredItems[ii] is IDetachableMonitoredItem { IsDetached: true } &&
+                if (monitoredItems[ii] is IMonitoredItemGenerationBinding { IsSourceUnavailable: true } &&
                     (monitoredItems[ii].MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                 {
                     itemsToModify[ii].Processed = true;
@@ -3138,7 +3135,7 @@ namespace Opc.Ua.Server
                     }
                 }
                 // only subscribe to the node manager that owns the node.
-                else if (monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
+                else if (monitoredItem is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     if (monitoredItem.NodeManager is { } owner && monitoredItem.ManagerHandle is { } handle)
                     {
@@ -3252,9 +3249,9 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < monitoredItems.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = monitoredItems[ii];
-                bool isDetached = monitoredItem is IDetachableMonitoredItem
+                bool isDetached = monitoredItem is IMonitoredItemGenerationBinding
                 {
-                    IsDetached: true
+                    IsSourceUnavailable: true
                 };
                 processedItems.Add(
                     monitoredItem == null ||
@@ -3361,12 +3358,12 @@ namespace Opc.Ua.Server
                     {
                         continue;
                     }
-                    if (monitoredItem is IDetachableMonitoredItem
+                    if (monitoredItem is IMonitoredItemGenerationBinding
                         {
-                            IsDetached: true
+                            IsSourceUnavailable: true
                         } detachedMonitoredItem)
                     {
-                        detachedMonitoredItem.QueueNodeIdUnknown();
+                        detachedMonitoredItem.EnsureLostNodeNotification();
                     }
                     else
                     {
@@ -3409,9 +3406,9 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToDelete.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToDelete[ii];
-                bool isDetached = monitoredItem is IDetachableMonitoredItem
+                bool isDetached = monitoredItem is IMonitoredItemGenerationBinding
                 {
-                    IsDetached: true
+                    IsSourceUnavailable: true
                 };
                 processedItems.Add(
                     ServiceResult.IsBad(errors[ii]) ||
@@ -3606,9 +3603,9 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < itemsToModify.Count; ii++)
             {
                 IMonitoredItem? monitoredItem = itemsToModify[ii];
-                bool isDetached = monitoredItem is IDetachableMonitoredItem
+                bool isDetached = monitoredItem is IMonitoredItemGenerationBinding
                 {
-                    IsDetached: true
+                    IsSourceUnavailable: true
                 };
                 processedItems.Add(
                     ServiceResult.IsBad(errors[ii]) ||
@@ -3621,7 +3618,7 @@ namespace Opc.Ua.Server
                     if (monitoringMode == MonitoringMode.Reporting &&
                         previousMode != MonitoringMode.Reporting)
                     {
-                        ((IDetachableMonitoredItem)monitoredItem).QueueNodeIdUnknown();
+                        ((IMonitoredItemGenerationBinding)monitoredItem).EnsureLostNodeNotification();
                     }
                     errors[ii] = ServiceResult.Good;
                 }

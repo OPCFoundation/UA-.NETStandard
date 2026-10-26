@@ -43,7 +43,6 @@ namespace Opc.Ua.Server
         ISampledDataChangeMonitoredItem,
         IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
-        IDetachableMonitoredItem,
         IMonitoredItemGenerationBinding,
         IMonitoredItemTransferState,
         IReadySignalingMonitoredItem,
@@ -525,7 +524,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool IDetachableMonitoredItem.IsDetached
+        bool IMonitoredItemGenerationBinding.IsSourceUnavailable
         {
             get
             {
@@ -537,7 +536,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        bool IDetachableMonitoredItem.IsDeleted
+        bool IMonitoredItemGenerationBinding.IsDeleted
         {
             get
             {
@@ -807,17 +806,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IDetachableMonitoredItem.Detach(IServerInternal server)
-        {
-            if (server is null)
-            {
-                throw new ArgumentNullException(nameof(server));
-            }
-
-            ClearSource(sourceRevision: null);
-        }
-
-        /// <inheritdoc/>
         bool IMonitoredItemGenerationBinding.TryClearSource(long sourceRevision)
         {
             return ClearSource(sourceRevision);
@@ -841,11 +829,11 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Clears native ownership while preserving the binding's revision and lost-node state.
         /// </summary>
-        private bool ClearSource(long? sourceRevision)
+        private bool ClearSource(long sourceRevision)
         {
             lock (m_lock)
             {
-                if (sourceRevision is long expected && expected != m_sourceRevision)
+                if (sourceRevision != m_sourceRevision)
                 {
                     return false;
                 }
@@ -863,20 +851,15 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IDetachableMonitoredItem.QueueNodeIdUnknown()
+        void IMonitoredItemGenerationBinding.EnsureLostNodeNotification()
         {
             lock (m_lock)
             {
-                SetLostNodeState(isDeleted: true);
-
-                QueueNodeIdUnknown();
+                if (m_isDeleted)
+                {
+                    QueueNodeIdUnknown();
+                }
             }
-        }
-
-        /// <inheritdoc/>
-        void IDetachableMonitoredItem.Rebind(IAsyncNodeManager nodeManager, object managerHandle)
-        {
-            BindSource(nodeManager, managerHandle, sourceRevision: null, out _);
         }
 
         /// <inheritdoc/>
@@ -916,14 +899,14 @@ namespace Opc.Ua.Server
         private bool BindSource(
             IAsyncNodeManager nodeManager,
             object managerHandle,
-            long? sourceRevision,
+            long sourceRevision,
             out long boundRevision)
         {
             NodeState? metadata = CaptureSourceMetadata(m_server, managerHandle);
             lock (m_lock)
             {
                 boundRevision = m_sourceRevision;
-                if (sourceRevision is long expected && expected != m_sourceRevision)
+                if (sourceRevision != m_sourceRevision)
                 {
                     return false;
                 }

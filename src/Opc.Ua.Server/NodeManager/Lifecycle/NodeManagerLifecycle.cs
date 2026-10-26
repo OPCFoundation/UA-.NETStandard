@@ -546,7 +546,6 @@ namespace Opc.Ua.Server
 
         private static async ValueTask<MonitoredItemTransition>
             PrepareMonitoredItemRemovalAsync(
-                IServerInternal server,
                 IAsyncNodeManager nodeManager,
                 CancellationToken ct)
         {
@@ -554,7 +553,6 @@ namespace Opc.Ua.Server
                 await GetOwnedMonitoredItemsAsync(nodeManager, ct)
                     .ConfigureAwait(false);
             return new MonitoredItemTransition(
-                server,
                 lifecycle,
                 replacement: null,
                 compatibleItems: [],
@@ -574,7 +572,6 @@ namespace Opc.Ua.Server
         {
             MonitoredItemTransition monitoredItemTransition =
                 await PrepareMonitoredItemRemovalAsync(
-                    server,
                     nodeManager,
                     CancellationToken.None).ConfigureAwait(false);
             await monitoredItemTransition
@@ -604,7 +601,6 @@ namespace Opc.Ua.Server
 
             MonitoredItemTransition monitoredItemTransition =
                 await PrepareMonitoredItemTransitionAsync(
-                    server,
                     retired,
                     replacement,
                     CancellationToken.None).ConfigureAwait(false);
@@ -622,7 +618,6 @@ namespace Opc.Ua.Server
 
         private static async ValueTask<MonitoredItemTransition>
             PrepareMonitoredItemTransitionAsync(
-                IServerInternal server,
                 IAsyncNodeManager current,
                 IAsyncNodeManager replacement,
                 CancellationToken ct)
@@ -634,7 +629,6 @@ namespace Opc.Ua.Server
             if (items.Count == 0)
             {
                 return new MonitoredItemTransition(
-                    server,
                     currentLifecycle,
                     replacement: null,
                     compatibleItems: [],
@@ -668,7 +662,6 @@ namespace Opc.Ua.Server
             }
 
             return new MonitoredItemTransition(
-                server,
                 currentLifecycle,
                 replacementLifecycle,
                 compatibleItems,
@@ -701,7 +694,7 @@ namespace Opc.Ua.Server
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
             var ownedItems = new HashSet<IMonitoredItem>(generation.MonitoredItems.Keys.Where(item =>
                 (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                item is not IDetachableMonitoredItem { IsDetached: true }),
+                item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true }),
                 MonitoredItemReferenceComparer.Instance);
             foreach (IMonitoredItem item in generation.CapturePendingSourceItems())
             {
@@ -792,7 +785,7 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem item in generation.MonitoredItems.Keys)
             {
                 if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                    item is not IDetachableMonitoredItem { IsDetached: true })
+                    item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     return true;
                 }
@@ -1167,7 +1160,6 @@ namespace Opc.Ua.Server
             /// Creates a monitored item transition with the item sets selected during reload
             /// preparation.
             /// </summary>
-            /// <param name="server">The server that owns the subscriptions being inspected.</param>
             /// <param name="current">The lifecycle endpoint for the retiring NodeManager.</param>
             /// <param name="replacement">The lifecycle endpoint for the replacement NodeManager, if any.</param>
             /// <param name="compatibleItems">Items that can be handed to the replacement NodeManager.</param>
@@ -1175,7 +1167,6 @@ namespace Opc.Ua.Server
             /// <param name="isOwnedBySubscription">Optional test hook that verifies subscription ownership.</param>
             /// <param name="terminal">Whether lost items require client-side recreation.</param>
             public MonitoredItemTransition(
-                IServerInternal server,
                 INodeManagerMonitoredItemLifecycle current,
                 INodeManagerMonitoredItemLifecycle? replacement,
                 IReadOnlyList<IMonitoredItem> compatibleItems,
@@ -1183,7 +1174,6 @@ namespace Opc.Ua.Server
                 Func<IMonitoredItem, bool>? isOwnedBySubscription = null,
                 bool terminal = false)
             {
-                m_server = server;
                 m_current = current;
                 m_replacement = replacement;
                 m_compatibleItems = compatibleItems;
@@ -1247,7 +1237,6 @@ namespace Opc.Ua.Server
                     }
 
                     var binding = monitoredItem as IMonitoredItemGenerationBinding;
-                    var detachable = monitoredItem as IDetachableMonitoredItem;
                     if (binding is { IsRemoved: true } or { IsTerminal: true })
                     {
                         continue;
@@ -1298,8 +1287,7 @@ namespace Opc.Ua.Server
                         catch (ServiceResultException ex) when (
                             binding?.IsRemoved == true && ex.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
                         {
-                            // Rebinding lost to subscription removal; native adoption rolls its registration back.
-                            detachable?.Detach(m_server);
+                            // Native rollback owns cleanup; preserve any registration it retains for retry.
                         }
                         catch (Exception ex) when (ex is not OutOfMemoryException)
                         {
@@ -1331,7 +1319,6 @@ namespace Opc.Ua.Server
                             {
                                 failures.Add(ex);
                             }
-                            detachable?.Detach(m_server);
                         }
                     }
                 }
@@ -1390,7 +1377,6 @@ namespace Opc.Ua.Server
                     lifecycle.ContainsMonitoredItem(monitoredItem);
             }
 
-            private readonly IServerInternal m_server;
             private readonly INodeManagerMonitoredItemLifecycle m_current;
             private readonly INodeManagerMonitoredItemLifecycle? m_replacement;
             private readonly IReadOnlyList<IMonitoredItem> m_compatibleItems;
@@ -1764,12 +1750,10 @@ namespace Opc.Ua.Server
                                 entry.Change.TransitionMode == NodeManagerMonitoredItemTransitionMode.Migrate &&
                                 entry.Manager is { } replacement
                                     ? await PrepareMonitoredItemTransitionAsync(
-                                        batch.Server,
                                         entry.Current.Prepared.NodeManager,
                                         replacement,
                                         cancellationToken).ConfigureAwait(false)
                                     : await PrepareMonitoredItemRemovalAsync(
-                                        batch.Server,
                                         entry.Current.Prepared.NodeManager,
                                         cancellationToken).ConfigureAwait(false);
                             monitoredItemTransitions.Add(transition);

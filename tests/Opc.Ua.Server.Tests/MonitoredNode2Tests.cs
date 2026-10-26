@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         NodeManagerGeneration replacement = NodeManagerGenerationRegistry.CreateReplacement(
                             generation, new Mock<IAsyncNodeManager>().Object);
-                        ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                        ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object());
                     }
                     if (dispose)
                     {

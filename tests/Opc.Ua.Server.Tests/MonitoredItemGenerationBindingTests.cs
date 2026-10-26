@@ -318,7 +318,7 @@ namespace Opc.Ua.Server.Tests
             if (matchesOwner)
             {
                 ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
-                    ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object()));
+                    ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object()));
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
                 Assert.That(() => binding.BindSubscription(owner), Throws.InvalidOperationException);
                 Assert.That(item.NodeManager, Is.SameAs(original.NodeManager));
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server.Tests
             }
             else
             {
-                ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object());
                 binding.BindSubscription(owner);
                 Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
                 Assert.That(actualOwner, Is.SameAs(owner));
@@ -351,7 +351,7 @@ namespace Opc.Ua.Server.Tests
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
             uint id = item.Id;
 
-            ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+            ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object());
 
             Assert.That(original.MonitoredItems, Is.Empty);
             Assert.That(replacement.MonitoredItems, Has.Count.EqualTo(1));
@@ -444,7 +444,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(item.ManagerHandle, Is.SameAs(handle));
                 Assert.That(binding.SourceRevision, Is.EqualTo(boundRevision));
                 Assert.That(binding.IsTerminal, Is.False);
-                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+                Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.False);
                 Assert.That(replacement.MonitoredItems.TryGetValue(item, out ISubscription? actualOwner), Is.True);
                 Assert.That(actualOwner, Is.SameAs(owner));
                 Assert.That(replacement.Slot.UnresolvedItems, Is.Empty);
@@ -455,14 +455,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(binding.TryClearSource(boundRevision), Is.True);
             Assert.That(binding.TryInvalidateSource(releasedRevision, terminal), Is.False,
                 "An older handoff cannot invalidate a newer handoff's temporarily unbound source.");
-            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.False);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.False);
             Assert.That(binding.TryInvalidateSource(boundRevision, terminal), Is.True);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(item.NodeManager, Is.Null);
                 Assert.That(item.ManagerHandle, Is.Null);
                 Assert.That(binding.IsTerminal, Is.EqualTo(terminal));
-                Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+                Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
                 Assert.That(replacement.MonitoredItems, Is.Empty);
                 Assert.That(replacement.Slot.UnresolvedItems.ContainsKey(item), Is.EqualTo(!terminal));
             }
@@ -488,13 +488,13 @@ namespace Opc.Ua.Server.Tests
             {
                 binding.UnbindSubscription(owner);
                 ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
-                    ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object()));
+                    ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object()));
                 Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
                 Assert.That(item.NodeManager, Is.SameAs(original.NodeManager));
             }
             else
             {
-                ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object());
             }
 
             binding.UnbindSubscription(owner);
@@ -529,7 +529,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     try
                     {
-                        ((IDetachableMonitoredItem)item).Rebind(replacement.NodeManager, new object());
+                        ((IMonitoredItemGenerationBinding)item).BindSource(replacement.NodeManager, new object());
                     }
                     catch (ServiceResultException failure) when (
                         failure.StatusCode == StatusCodes.BadMonitoredItemIdInvalid)
@@ -566,7 +566,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(binding.IsDisposed, Is.True);
             Assert.That(binding.IsRemoved, Is.True);
             ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
-                ((IDetachableMonitoredItem)item).Rebind(new Mock<IAsyncNodeManager>().Object, new object()));
+                ((IMonitoredItemGenerationBinding)item).BindSource(new Mock<IAsyncNodeManager>().Object, new object()));
             Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
             Assert.That(item.NodeManager, Is.SameAs(generation.NodeManager));
             Assert.That(() => binding.BindSubscription(owner), Throws.TypeOf<ObjectDisposedException>());
@@ -594,7 +594,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(generation.MonitoredItems, Is.Empty);
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.False);
-            ((IDetachableMonitoredItem)item).Rebind(manager, new object());
+            ((IMonitoredItemGenerationBinding)item).BindSource(manager, new object());
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
         }
 
@@ -614,9 +614,9 @@ namespace Opc.Ua.Server.Tests
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
 
-            lifecycle.Detach(server.Object);
+            lifecycle.ReleaseSource();
             ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
 
@@ -626,7 +626,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(item.NodeManager, Is.Null, "A lost item has no synthetic parking manager.");
             Assert.That(item.Generation, Is.Null);
 
-            lifecycle.Rebind(replacement.NodeManager, new object());
+            lifecycle.BindSource(replacement.NodeManager, new object());
 
             Assert.That(original.Slot.UnresolvedItems, Is.Empty);
             Assert.That(replacement.MonitoredItems.ContainsKey(item), Is.True);
@@ -686,11 +686,12 @@ namespace Opc.Ua.Server.Tests
             binding.Invalidate(terminal: false);
 
             Assert.That(binding.IsTerminal, Is.True);
-            Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
-            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsSourceUnavailable, Is.True);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
             Assert.That(slot.UnresolvedItems, Is.Empty);
             Assert.That(
-                () => ((IDetachableMonitoredItem)item).Rebind(new Mock<IAsyncNodeManager>().Object, new object()),
+                () => ((IMonitoredItemGenerationBinding)item).BindSource(
+                    new Mock<IAsyncNodeManager>().Object, new object()),
                 Throws.InvalidOperationException);
             IStoredMonitoredItem stored = item.ToStorableMonitoredItem();
             Assert.That(((IStoredMonitoredItemInvalidation)stored).IsTerminal, Is.True);
@@ -707,7 +708,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(slot.UnresolvedItems, Is.Empty);
             Assert.That(restoredBinding.IsDisposed, Is.False);
             Assert.That(
-                () => ((IDetachableMonitoredItem)restored).Rebind(generation.NodeManager, new object()),
+                () => ((IMonitoredItemGenerationBinding)restored).BindSource(generation.NodeManager, new object()),
                 Throws.InvalidOperationException);
         }
 
@@ -747,15 +748,15 @@ namespace Opc.Ua.Server.Tests
                 null);
 
             Assert.That(((IMonitoredItemGenerationBinding)item).IsTerminal, Is.False);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
             var replacement = new Mock<IAsyncNodeManager>().Object;
             var handle = new object();
-            lifecycle.Rebind(replacement, handle);
+            lifecycle.BindSource(replacement, handle);
             Assert.Multiple(() =>
             {
                 Assert.That(item.NodeManager, Is.SameAs(replacement));
                 Assert.That(item.ManagerHandle, Is.SameAs(handle));
-                Assert.That(lifecycle.IsDetached, Is.False);
+                Assert.That(lifecycle.IsSourceUnavailable, Is.False);
                 Assert.That(lifecycle.IsDeleted, Is.False);
             });
         }
@@ -791,6 +792,32 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Client requests during a compatible handoff cannot declare the temporarily unbound node lost.
+        /// </summary>
+        [Test]
+        public void TemporarySourceReleaseDoesNotInventLostNodeNotification()
+        {
+            using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
+            var binding = (IMonitoredItemGenerationBinding)item;
+            Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+            binding.EnsureLostNodeNotification();
+            Assert.That(binding.IsSourceUnavailable, Is.True);
+            Assert.That(binding.IsDeleted, Is.False);
+            using var context = new OperationContext(item);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            item.Publish(context, notifications, diagnostics, 10, telemetry.CreateLogger<MonitoredItem>());
+            Assert.That(notifications, Is.Empty);
+
+            binding.Invalidate(terminal: false);
+            binding.EnsureLostNodeNotification();
+            item.Publish(context, notifications, diagnostics, 10, telemetry.CreateLogger<MonitoredItem>());
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+        }
+
+        /// <summary>
         /// Repeated lost-node transitions keep one recovery claim until the item is rebound.
         /// </summary>
         [Test]
@@ -798,7 +825,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MonitoredItemQueueFactory queueFactory = CreateQueueFactory(out ITelemetryContext telemetry);
             using MonitoredItem item = CreateItem(CreateServer(telemetry, queueFactory));
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
             NodeManagerSlot slot = GetBoundGeneration(item).Slot;
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;
@@ -808,10 +835,10 @@ namespace Opc.Ua.Server.Tests
             Assert.That(slot.UnresolvedItems.TryGetValue(item, out ISubscription? subscription), Is.True);
             Assert.That(subscription, Is.SameAs(owner));
 
-            lifecycle.QueueNodeIdUnknown();
+            lifecycle.Invalidate(terminal: false);
             Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(1));
 
-            lifecycle.Rebind(new Mock<IAsyncNodeManager>().Object, new object());
+            lifecycle.BindSource(new Mock<IAsyncNodeManager>().Object, new object());
             Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 
@@ -825,7 +852,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = CreateServer(telemetry, queueFactory);
             server.Setup(s => s.CoreNodeManager).Returns(new Mock<ICoreNodeManager>().Object);
             using MonitoredItem item = CreateItem(server);
-            var lifecycle = (IDetachableMonitoredItem)item;
+            var lifecycle = (IMonitoredItemGenerationBinding)item;
             NodeManagerSlot slot = GetBoundGeneration(item).Slot;
 
             var binding = (IMonitoredItemGenerationBinding)item;
@@ -836,12 +863,12 @@ namespace Opc.Ua.Server.Tests
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
             Assert.That(slot.UnresolvedItems, Has.Count.EqualTo(1));
 
-            lifecycle.Detach(server.Object);
-            Assert.That(lifecycle.IsDetached, Is.True);
+            lifecycle.ReleaseSource();
+            Assert.That(lifecycle.IsSourceUnavailable, Is.True);
             Assert.That(slot.UnresolvedItems.ContainsKey(item), Is.True);
 
-            lifecycle.Rebind(new Mock<IAsyncNodeManager>().Object, new object());
-            Assert.That(lifecycle.IsDetached, Is.False);
+            lifecycle.BindSource(new Mock<IAsyncNodeManager>().Object, new object());
+            Assert.That(lifecycle.IsSourceUnavailable, Is.False);
             Assert.That(slot.UnresolvedItems, Is.Empty);
         }
 

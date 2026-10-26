@@ -432,15 +432,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var retired = context.CreateRetirement();
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(value => value.NodeId).Returns(new NodeId(1));
-            item.As<IDetachableMonitoredItem>();
             Mock<IMonitoredItemGenerationBinding> binding = item.As<IMonitoredItemGenerationBinding>();
             int marks = 0;
-            binding.Setup(value => value.Invalidate(false)).Callback(() =>
+            binding.Setup(value => value.TryInvalidateSource(0, false)).Returns(() =>
             {
                 if (Interlocked.Increment(ref marks) == 1 && failFirst)
                 {
                     throw new InvalidOperationException("Transition finalization failed.");
                 }
+                return true;
             });
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -454,7 +454,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var current = new Mock<INodeManagerMonitoredItemLifecycle>();
             current.Setup(value => value.GetNotificationDrain(item.Object.NodeId)).Returns(drain);
             retired.Transition = new NodeManagerLifecycle.MonitoredItemTransition(
-                retired.Server, current.Object, null, [], [item.Object], _ => true);
+                current.Object, null, [], [item.Object], _ => true);
             Assert.That(
                 await retired.Transition.AdoptAsync(timeout.Token).ConfigureAwait(false),
                 Is.Empty);

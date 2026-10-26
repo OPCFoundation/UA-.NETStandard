@@ -35,6 +35,16 @@ namespace Opc.Ua.Server
     internal interface IMonitoredItemGenerationBinding
     {
         /// <summary>
+        /// Gets whether the item has no usable source or requires client-side recreation.
+        /// </summary>
+        bool IsSourceUnavailable { get; }
+
+        /// <summary>
+        /// Gets whether the source node has been reported lost.
+        /// </summary>
+        bool IsDeleted { get; }
+
+        /// <summary>
         /// Gets whether the client must create a new item instead of rebinding this one.
         /// </summary>
         bool IsTerminal { get; }
@@ -94,6 +104,11 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="terminal">Whether the item requires client-side recreation.</param>
         void Invalidate(bool terminal);
+
+        /// <summary>
+        /// Reschedules an already-lost node's status after a client monitoring-mode or transfer request.
+        /// </summary>
+        void EnsureLostNodeNotification();
 
         /// <summary>
         /// Claims the item after its subscription has added it.

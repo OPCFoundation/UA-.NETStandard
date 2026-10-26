@@ -1013,6 +1013,10 @@ Source availability is derived from the item's generation binding, not an indepe
 mutable detached flag. Persistence retains the `IsDetached` compatibility field; restoring
 it preserves the original slot and queues without installing a manager or node handle.
 Native restoration must commit a real source binding before the item can receive new samples.
+Monitoring-mode changes and transfers while a compatible handoff is temporarily unbound
+do not declare its node lost. They reschedule `BadNodeIdUnknown` only after reconciliation
+has established actual node loss. Only native release clears a live source; client deletion
+or failed handoff finalization cannot discard ownership whose cleanup still needs to run.
 
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after

@@ -608,9 +608,9 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 return m_monitoredItems.Values.Any(monitoredItem =>
-                    monitoredItem.Value is not IDetachableMonitoredItem
+                    monitoredItem.Value is not IMonitoredItemGenerationBinding
                     {
-                        IsDetached: true
+                        IsSourceUnavailable: true
                     } &&
                     IsOwnedBy(monitoredItem.Value, nodeManager));
             }
@@ -1393,7 +1393,7 @@ namespace Opc.Ua.Server
             {
                 if ((item.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
                     item is not IEventMonitoredItem ||
-                    item is IDetachableMonitoredItem { IsDetached: true })
+                    item is IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     continue;
                 }

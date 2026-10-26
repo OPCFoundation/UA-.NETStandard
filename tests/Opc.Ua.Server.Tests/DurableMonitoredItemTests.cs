@@ -1314,7 +1314,7 @@ namespace Opc.Ua.Server.Tests
                     new Mock<IAsyncNodeManager>().Object,
                     new object(),
                     stored);
-                var restoredLifecycle = (IDetachableMonitoredItem)restored;
+                var restoredLifecycle = (IMonitoredItemGenerationBinding)restored;
                 var restoredNotifications = new Queue<MonitoredItemNotification>();
                 if (disabledBeforeStore)
                 {
@@ -1331,7 +1331,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.Multiple(() =>
                 {
                     Assert.That(restoredLifecycle.IsDeleted, Is.True);
-                    Assert.That(restoredLifecycle.IsDetached, Is.True);
+                    Assert.That(restoredLifecycle.IsSourceUnavailable, Is.True);
                     if (disabledBeforeStore)
                     {
                         // leaving DISABLED reports the deleted node once more, as it does for

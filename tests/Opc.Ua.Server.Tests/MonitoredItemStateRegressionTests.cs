@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
             item.SetMonitoringMode(MonitoringMode.Disabled);
             ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(item.ItemsInQueue, Is.Zero);
-            Assert.That(((IDetachableMonitoredItem)item).IsDeleted, Is.True);
+            Assert.That(((IMonitoredItemGenerationBinding)item).IsDeleted, Is.True);
 
             item.SetMonitoringMode(monitoringMode);
             if (monitoringMode == MonitoringMode.Sampling)

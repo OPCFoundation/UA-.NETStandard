@@ -72,10 +72,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     SubscriptionCallback = subscription.Object
                 };
-                var detachable = (IDetachableMonitoredItem)monitoredItem;
+                var detachable = (IMonitoredItemGenerationBinding)monitoredItem;
                 var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-                detachable.Detach(server.Object);
-                detachable.QueueNodeIdUnknown();
+                detachable.ReleaseSource();
+                detachable.Invalidate(terminal: false);
                 var master = new Mock<IMasterNodeManager>();
                 Mock<IDynamicNodeManagerHost> recovery = master.As<IDynamicNodeManagerHost>();
                 master.SetupGet(value => value.ConfigurationNodeManager)
@@ -143,7 +143,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(manager.NodeCount, Is.Zero);
                     Assert.That(snapshot, Is.Empty);
                     Assert.That(detachable.IsDeleted, Is.True);
-                    Assert.That(detachable.IsDetached, Is.True);
+                    Assert.That(detachable.IsSourceUnavailable, Is.True);
                     Assert.That(monitoredItem.NodeManager, Is.Null);
                     Assert.That(monitoredItem.ManagerHandle, Is.Null);
                 });
@@ -160,7 +160,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(retriedId, Is.EqualTo(nodeId));
                 Assert.That(detachable.IsDeleted, Is.False);
-                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(detachable.IsSourceUnavailable, Is.False);
                 Assert.That(monitoredItem.NodeManager, Is.SameAs(manager));
                 snapshot = manager.CaptureMonitoredItems();
                 Assert.That(snapshot, Is.EqualTo(new IMonitoredItem[] { monitoredItem }));

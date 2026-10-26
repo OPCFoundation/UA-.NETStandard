@@ -1284,7 +1284,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
-            ((IDetachableMonitoredItem)item).QueueNodeIdUnknown();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             Assert.That(item.IsReadyToPublish, Is.True);
             var request = new MonitoredItemModifyRequest
             {
@@ -1317,7 +1317,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(item.ClientHandle, Is.EqualTo(43U));
                 Assert.That(item.SamplingInterval, Is.EqualTo(2000));
                 Assert.That(item.QueueSize, Is.EqualTo(4U));
-                Assert.That(((IDetachableMonitoredItem)item).IsDetached, Is.True);
+                Assert.That(((IMonitoredItemGenerationBinding)item).IsSourceUnavailable, Is.True);
                 Assert.That(notifications, Has.Count.EqualTo(1));
             });
             Assert.That(notifications.Peek().ClientHandle, Is.EqualTo(43U));
@@ -1364,7 +1364,7 @@ namespace Opc.Ua.Server.Tests
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
-            ((IDetachableMonitoredItem)item).QueueNodeIdUnknown();
+            ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
             var request = new MonitoredItemModifyRequest
             {
                 MonitoredItemId = item.Id,
@@ -1431,11 +1431,18 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
-        [Test]
-        public async Task SetMonitoringModeAsyncDetachedItemUpdatesLocallyAndQueuesBadAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SetMonitoringModeAsyncUnboundItemReportsOnlyConfirmedNodeLossAsync(bool lost)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem(MonitoringMode.Disabled);
+            var binding = (IMonitoredItemGenerationBinding)item;
+            if (lost)
+            {
+                binding.Invalidate(terminal: false);
+            }
+            long revision = binding.SourceRevision;
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             await sut.SetMonitoringModeAsync(
@@ -1447,7 +1454,15 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(item.MonitoringMode, Is.EqualTo(MonitoringMode.Reporting));
-            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.That(notifications, Has.Count.EqualTo(lost ? 1 : 0));
+            Assert.That(binding.IsDeleted, Is.EqualTo(lost));
+            Assert.That(binding.SourceRevision, Is.EqualTo(revision));
+            Assert.That(item.NodeManager, Is.Null);
+            if (lost)
+            {
+                Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
         }
 
         [Test]
@@ -1487,11 +1502,19 @@ namespace Opc.Ua.Server.Tests
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
         }
 
-        [Test]
-        public async Task TransferMonitoredItemsAsyncDetachedItemSucceedsAndQueuesBadAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task TransferMonitoredItemsAsyncUnboundItemReportsOnlyConfirmedNodeLossAsync(bool lost)
         {
             using MasterNodeManager sut = CreateMasterNodeManager();
             using MonitoredItem item = CreateDetachedMonitoredItem();
+            var binding = (IMonitoredItemGenerationBinding)item;
+            if (lost)
+            {
+                binding.Invalidate(terminal: false);
+                Assert.That(Publish(item), Has.Count.EqualTo(1));
+            }
+            long revision = binding.SourceRevision;
             var errors = new List<ServiceResult> { ServiceResult.Good };
 
             await sut.TransferMonitoredItemsAsync(
@@ -1503,7 +1526,15 @@ namespace Opc.Ua.Server.Tests
                 cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(Publish(item).Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            Queue<MonitoredItemNotification> notifications = Publish(item);
+            Assert.That(notifications, Has.Count.EqualTo(lost ? 1 : 0));
+            Assert.That(binding.IsDeleted, Is.EqualTo(lost));
+            Assert.That(binding.SourceRevision, Is.EqualTo(revision));
+            Assert.That(item.NodeManager, Is.Null);
+            if (lost)
+            {
+                Assert.That(notifications.Peek().Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+            }
         }
 
         [Test]
@@ -1777,7 +1808,7 @@ namespace Opc.Ua.Server.Tests
                 queueSize: 1,
                 discardOldest: true,
                 sourceSamplingInterval: 1000);
-            ((IDetachableMonitoredItem)monitoredItem).Detach(m_server.CurrentInstance);
+            ((IMonitoredItemGenerationBinding)monitoredItem).ReleaseSource();
             return monitoredItem;
         }
 

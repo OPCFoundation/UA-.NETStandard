@@ -984,7 +984,7 @@ namespace Opc.Ua.Server
                     sourceEmission is
                     { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
                     !IsInCurrentGeneration(item) &&
-                    item is not IDetachableMonitoredItem { IsDetached: true })
+                    item is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     continue;
                 }
@@ -1439,7 +1439,7 @@ namespace Opc.Ua.Server
                 if (snapshot.SourceEmission is
                     { Generation.Gate.State: not NodeManagerGenerationState.Live } &&
                     !IsInCurrentGeneration(monitoredItem) &&
-                    monitoredItem is not IDetachableMonitoredItem { IsDetached: true })
+                    monitoredItem is not IMonitoredItemGenerationBinding { IsSourceUnavailable: true })
                 {
                     continue;
                 }

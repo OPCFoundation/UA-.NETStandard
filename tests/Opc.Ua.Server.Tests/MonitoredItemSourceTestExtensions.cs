@@ -27,37 +27,32 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-namespace Opc.Ua.Server
+using NUnit.Framework;
+
+namespace Opc.Ua.Server.Tests
 {
     /// <summary>
-    /// Provides the internal lifecycle contract used when a monitored node is deleted or rebound.
+    /// Commits explicit source changes for deterministic item-state tests without a native manager.
     /// </summary>
-    internal interface IDetachableMonitoredItem
+    internal static class MonitoredItemSourceTestExtensions
     {
         /// <summary>
-        /// Gets whether the monitored item is detached from its node manager dispatch path.
+        /// Requires the captured source to be released without erasing another incarnation.
         /// </summary>
-        bool IsDetached { get; }
+        internal static void ReleaseSource(this IMonitoredItemGenerationBinding binding)
+        {
+            Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
+        }
 
         /// <summary>
-        /// Gets whether the monitored node is currently deleted.
+        /// Requires the prepared source to bind without replacing an intervening incarnation.
         /// </summary>
-        bool IsDeleted { get; }
-
-        /// <summary>
-        /// Releases the current manager binding while preserving the item's stable slot and queues.
-        /// </summary>
-        /// <param name="server">The server owning the item.</param>
-        void Detach(IServerInternal server);
-
-        /// <summary>
-        /// Ensures that the missing-node status is scheduled for publication.
-        /// </summary>
-        void QueueNodeIdUnknown();
-
-        /// <summary>
-        /// Rebinds the monitored item to a compatible node manager and handle.
-        /// </summary>
-        void Rebind(IAsyncNodeManager nodeManager, object managerHandle);
+        internal static void BindSource(
+            this IMonitoredItemGenerationBinding binding,
+            IAsyncNodeManager nodeManager,
+            object managerHandle)
+        {
+            Assert.That(binding.TryBindSource(binding.SourceRevision, nodeManager, managerHandle, out _), Is.True);
+        }
     }
 }

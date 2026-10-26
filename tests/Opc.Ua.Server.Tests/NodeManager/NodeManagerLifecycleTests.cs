@@ -6118,7 +6118,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(migrated, Is.SameAs(originalItem));
                     Assert.That(migrated.Id, Is.EqualTo(monitoredItemId));
                     Assert.That(migrated.NodeManager, Is.SameAs(replacementManager));
-                    Assert.That(((IDetachableMonitoredItem)migrated).IsDetached, Is.False);
+                    Assert.That(((IMonitoredItemGenerationBinding)migrated).IsSourceUnavailable, Is.False);
                     Assert.That(replacementManager.ReadinessCount, Is.EqualTo(1));
                     Assert.That(replacementManager.ReadinessCompletedCount, Is.Zero);
                     Assert.That(failures, Is.EquivalentTo(new[] { publicationFailure, readinessFailure }));

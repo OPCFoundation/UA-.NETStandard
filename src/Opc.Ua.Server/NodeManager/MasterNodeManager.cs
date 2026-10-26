@@ -1054,8 +1054,8 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in monitoredItems)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var itemLifecycle = (IDetachableMonitoredItem)monitoredItem;
-                if (!itemLifecycle.IsDetached)
+                var itemLifecycle = (IMonitoredItemGenerationBinding)monitoredItem;
+                if (!itemLifecycle.IsSourceUnavailable)
                 {
                     if (monitoredItem.NodeManager is not
                         INodeManagerMonitoredItemLifecycle currentLifecycle)

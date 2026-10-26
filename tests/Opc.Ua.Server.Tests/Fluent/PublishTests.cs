@@ -1338,9 +1338,9 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
                 SubscriptionCallback = subscription.Object
             };
-            var detachable = (IDetachableMonitoredItem)item;
+            var detachable = (IMonitoredItemGenerationBinding)item;
             var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-            detachable.Detach(m_mockServer.Object);
+            detachable.ReleaseSource();
             ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
             Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
             var originalFailure = new InvalidOperationException("Event unsubscribe failed after stopping its source.");
@@ -1380,7 +1380,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 Assert.That(failure.InnerExceptions[1],
                     Is.InstanceOf<OperationCanceledException>().Or.InstanceOf<TimeoutException>());
                 Assert.That(replacement.Ready.Task.IsCompleted, Is.False);
-                Assert.That(detachable.IsDetached, Is.False);
+                Assert.That(detachable.IsSourceUnavailable, Is.False);
                 Assert.That(item.NodeManager, Is.SameAs(manager));
                 Assert.That(source.AreEventsMonitored, Is.True);
                 Assert.That(manager.Find(source.NodeId), Is.SameAs(source));

@@ -368,7 +368,7 @@ namespace Opc.Ua.Server
             // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
             // node must not override it with a Good value.
             if (enabled &&
-                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true } &&
+                monitoredItem is not IMonitoredItemGenerationBinding { IsDeleted: true } &&
                 monitoredItem is not MonitoredItem { UsesExternalValueSource: true })
             {
                 var initialValue = new DataValue(
@@ -449,7 +449,13 @@ namespace Opc.Ua.Server
                 storedMonitoredItem,
                 savedOwnerIdentity);
 
-            ((IDetachableMonitoredItem)monitoredItem).Rebind(m_nodeManager, handle);
+            var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+            if (!binding.TryBindSource(binding.SourceRevision, m_nodeManager, handle, out _))
+            {
+                m_samplingGroupManager.StopMonitoring(monitoredItem);
+                monitoredItem.Dispose();
+                throw new InvalidOperationException("The restored source changed before native registration.");
+            }
 
             // save monitored item.
             if (!MonitoredItems.TryAdd(monitoredItem.Id, monitoredItem))
@@ -555,7 +561,7 @@ namespace Opc.Ua.Server
                 : 0;
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
-                return sourceRelease && monitoredItem is IDetachableMonitoredItem { IsDetached: true }
+                return sourceRelease && monitoredItem is IMonitoredItemGenerationBinding { IsSourceUnavailable: true }
                     ? (ServiceResult.Good, false)
                     : (StatusCodes.BadMonitoredItemIdInvalid, false);
             }
@@ -628,6 +634,7 @@ namespace Opc.Ua.Server
 
             if (sourceRelease)
             {
+                // A newer source may already own the item; its incarnation must survive this native release.
                 ((IMonitoredItemGenerationBinding)monitoredItem).TryClearSource(sourceRevision);
             }
             return (ServiceResult.Good, true);
@@ -643,8 +650,7 @@ namespace Opc.Ua.Server
             long? sourceRevision,
             MonitoredItemAdoption? adoption)
         {
-            if (monitoredItem is not IDetachableMonitoredItem lifecycle ||
-                monitoredItem is not IMonitoredItemGenerationBinding binding)
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
@@ -657,7 +663,7 @@ namespace Opc.Ua.Server
                     return (StatusCodes.BadMonitoredItemIdInvalid, false);
                 }
 
-                return lifecycle.IsDetached
+                return binding.IsSourceUnavailable
                     ? (StatusCodes.BadInvalidState, false)
                     : (ServiceResult.Good, false);
             }
@@ -666,7 +672,7 @@ namespace Opc.Ua.Server
                 return (StatusCodes.BadInvalidState, false);
             }
 
-            if (!lifecycle.IsDetached)
+            if (!binding.IsSourceUnavailable)
             {
                 return (StatusCodes.BadInvalidState, false);
             }
