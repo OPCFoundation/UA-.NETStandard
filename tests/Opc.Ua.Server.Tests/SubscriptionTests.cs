@@ -1172,6 +1172,68 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.MonitoredItemCount, Is.Zero);
         }
 
+        /// <summary>
+        /// Internal deletion releases its routing context on success and failure without disposing a caller's context.
+        /// </summary>
+        [TestCase(false, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(true, false, false)]
+        [TestCase(true, true, false)]
+        [TestCase(false, false, true)]
+        [TestCase(false, true, true)]
+        public async Task DeleteReleasesOnlyItsOwnedRoutingContextAsync(
+            bool borrowedContext,
+            bool failDelete,
+            bool abortedRestore)
+        {
+            using Subscription subscription = CreateSubscription();
+            using var caller = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+            Mock<IDataChangeMonitoredItem> item = CreateDataChangeMonitoredItem(7, 1, []);
+            await RegisterMonitoredItemsAsync(subscription, item.Object).ConfigureAwait(false);
+            var routing = new NodeManagerRoutingTable();
+            OperationContext? observed = null;
+            m_nodeManagerMock.Setup(manager => manager.DeleteMonitoredItemsAsync(
+                    It.IsAny<OperationContext>(), subscription.Id, It.IsAny<IList<IMonitoredItem>>(),
+                    It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                .Returns((OperationContext context, uint _, IList<IMonitoredItem> items,
+                    IList<ServiceResult> errors, CancellationToken _) =>
+                {
+                    observed = context;
+                    context.PinRouting(routing);
+                    Assert.That(items, Is.EqualTo([item.Object]));
+                    errors[0] = ServiceResult.Good;
+                    if (failDelete)
+                    {
+                        throw new InvalidOperationException("Injected monitored item deletion failure.");
+                    }
+                    return default;
+                });
+
+            if (abortedRestore)
+            {
+                await subscription.ReleaseAbortedRestoreAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                await subscription.DeleteAsync(borrowedContext ? caller : null!).ConfigureAwait(false);
+            }
+
+            Assert.That(observed, Is.Not.Null);
+            if (borrowedContext)
+            {
+                Assert.That(observed, Is.SameAs(caller));
+                Assert.That(observed!.RoutingSnapshot, Is.SameAs(routing.Revision));
+                Assert.DoesNotThrow(() => observed.PinRouting(routing));
+            }
+            else
+            {
+                Assert.That(observed!.RoutingSnapshot, Is.Null);
+                Assert.Throws<ObjectDisposedException>(() => observed.PinRouting(routing));
+            }
+            item.Verify(value => value.Dispose(), Times.Once);
+            Assert.That(subscription.MonitoredItemCount, Is.Zero);
+        }
+
         [TestCase("caller-cancelled")]
         [TestCase("diagnostics-cancelled")]
         [TestCase("diagnostics-stopping")]

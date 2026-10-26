@@ -729,19 +729,16 @@ namespace Opc.Ua.Server
 
                 if (monitoredItems.Count > 0)
                 {
-                    // the context may be null if the server is cleaning up expired subscriptions.
-                    // in this case we create a context with a dummy request and use the current session.
-                    if (context == null)
-                    {
-                        var requestHeader = new RequestHeader
-                        {
-                            ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
-                        };
-                        // The context tracks no request, so there is nothing to release when this scope ends.
-#pragma warning disable CA2000
-                        context = new OperationContext(requestHeader, null, RequestType.Unknown, RequestLifetime.None);
-#pragma warning restore CA2000
-                    }
+                    using OperationContext? ownedContext = context is null
+                        ? new OperationContext(
+                            new RequestHeader
+                            {
+                                ReturnDiagnostics = (int)DiagnosticsMasks.OperationSymbolicIdAndText
+                            },
+                            null,
+                            RequestType.Unknown,
+                            RequestLifetime.None)
+                        : null;
 
                     var errors = new List<ServiceResult>(monitoredItems.Count);
                     for (int ii = 0; ii < monitoredItems.Count; ii++)
@@ -752,7 +749,8 @@ namespace Opc.Ua.Server
                     try
                     {
                         await m_server.NodeManager
-                            .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
+                            .DeleteMonitoredItemsAsync(
+                                context ?? ownedContext!, Id, monitoredItems, errors, CancellationToken.None)
                             .ConfigureAwait(false);
                     }
                     finally
