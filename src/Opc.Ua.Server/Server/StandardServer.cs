@@ -5428,10 +5428,7 @@ namespace Opc.Ua.Server
             MasterNodeManager? master = null;
             try
             {
-                master = new MasterNodeManager(server, configuration, null)
-                {
-                    InitialFactories = initialFactories
-                };
+                master = new MasterNodeManager(server, configuration, null, initialFactories);
                 IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master)
                     .ConfigureAwait(false);
                 master = null;

@@ -143,7 +143,8 @@ the lifecycle never silently reruns a factory or rebases its private namespace i
 Startup factories now run after the system address space is initialized, against private staged
 metadata, and enter the same Add transaction as runtime factories. Overrides of
 `CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` should return a master configured with
-`InitialFactories = GetInitialNodeManagerFactories()` instead of invoking registered factories
+`new MasterNodeManager(server, configuration, dynamicNamespaceUri, GetInitialNodeManagerFactories())`
+instead of invoking registered factories
 themselves. Include additional application factories in that list in their initialization order.
 Do not rely on a candidate already being routable from its factory or `CreateAddressSpaceAsync`.
 Move serving-service registrations, such as historian builder/provider bindings, to

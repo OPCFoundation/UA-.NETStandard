@@ -46,7 +46,7 @@ namespace Opc.Ua.Server
         IDynamicNodeManagerHost
     {
         /// <summary>
-        /// Creates the system slots. Register hosted application managers through <see cref="InitialFactories"/>.
+        /// Creates the system slots without hosted application factories.
         /// </summary>
         /// <param name="server">The server hosting the NodeManagers.</param>
         /// <param name="configuration">The application configuration.</param>
@@ -56,6 +56,22 @@ namespace Opc.Ua.Server
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri)
             : this(server, configuration, dynamicNamespaceUri, (null, null))
+        {
+        }
+
+        /// <summary>
+        /// Creates system slots after reserving configured application namespace declarations in startup order.
+        /// </summary>
+        /// <param name="server">The server hosting the NodeManagers.</param>
+        /// <param name="configuration">The application configuration.</param>
+        /// <param name="dynamicNamespaceUri">The dynamic namespace URI, or null.</param>
+        /// <param name="initialFactories">The application factories to publish through the initial Add pipeline.</param>
+        public MasterNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories)
+            : this(server, configuration, dynamicNamespaceUri, (null, null), initialFactories)
         {
         }
 
@@ -119,11 +135,13 @@ namespace Opc.Ua.Server
         /// <param name="configuration">The server configuration.</param>
         /// <param name="dynamicNamespaceUri">The dynamic namespace URI, or null.</param>
         /// <param name="additionalManagers">Preconstructed managers for standalone dispatch only.</param>
+        /// <param name="initialFactories">The configured factories whose declarations precede system namespaces.</param>
         private MasterNodeManager(
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri,
-            (IEnumerable<IAsyncNodeManager>? Async, IEnumerable<INodeManager>? Sync) additionalManagers)
+            (IEnumerable<IAsyncNodeManager>? Async, IEnumerable<INodeManager>? Sync) additionalManagers,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = default)
         {
             if (configuration == null)
             {
@@ -148,6 +166,19 @@ namespace Opc.Ua.Server
                 if (dynamicNamespaceIndex == -1)
                 {
                     dynamicNamespaceIndex = server.NamespaceUris.Append(dynamicNamespaceUri!);
+                }
+            }
+
+            InitialFactories = initialFactories;
+            foreach (IAsyncNodeManagerFactory initialFactory in initialFactories)
+            {
+                if (initialFactory is null)
+                {
+                    throw new ArgumentException("An initial factory cannot be null.", nameof(initialFactories));
+                }
+                foreach (string namespaceUri in initialFactory.NamespacesUris)
+                {
+                    server.NamespaceUris.GetIndexOrAppend(namespaceUri);
                 }
             }
 
@@ -386,7 +417,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the application factories that server startup publishes as initial Add changes.
         /// </summary>
-        public ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; init; } = [];
+        public ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; }
 
         /// <inheritdoc/>
         void IDynamicNodeManagerHost.ValidateStartupFactories()

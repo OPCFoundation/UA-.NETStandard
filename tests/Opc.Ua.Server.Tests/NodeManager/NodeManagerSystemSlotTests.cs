@@ -44,6 +44,96 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed class NodeManagerSystemSlotTests
     {
         /// <summary>
+        /// Configured namespace order survives failed creation and restart without publishing candidate discoveries.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [NonParallelizable]
+        public async Task InitialFactoryNamespaceBootstrapOrderSurvivesAbortAndRestartAsync(bool failFirst)
+        {
+            const string firstUri = "urn:opcfoundation:tests:bootstrap:first";
+            const string secondUri = "urn:opcfoundation:tests:bootstrap:second";
+            const string discoveredUri = "urn:opcfoundation:tests:bootstrap:discovered";
+            string pki = Path.Combine(TestContext.CurrentContext.WorkDirectory,
+                nameof(NodeManagerSystemSlotTests), Guid.NewGuid().ToString("N"));
+            StandardServer? owner = null;
+            NamespaceTable? sharedNamespaces = null;
+            int firstIndexDuringCreate = -1;
+            int secondIndexDuringCreate = -1;
+            bool reject = failFirst;
+            var factory = new Mock<IAsyncNodeManagerFactory>();
+            factory.SetupGet(value => value.NamespacesUris).Returns([firstUri, firstUri, secondUri]);
+            factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
+                    It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
+                .Returns((IServerInternal staged, ApplicationConfiguration _, CancellationToken _) =>
+                {
+                    IServerInternal shared = owner!.CurrentInstance;
+                    sharedNamespaces = shared.NamespaceUris;
+                    firstIndexDuringCreate = sharedNamespaces.GetIndex(firstUri);
+                    secondIndexDuringCreate = sharedNamespaces.GetIndex(secondUri);
+                    staged.NamespaceUris.GetIndexOrAppend(discoveredUri);
+                    Assert.That(sharedNamespaces.GetIndex(discoveredUri), Is.EqualTo(-1),
+                        "Only configured declarations are bootstrap metadata; candidate discoveries stay private.");
+                    if (reject)
+                    {
+                        throw new InvalidOperationException("Injected initial factory creation failure.");
+                    }
+                    var manager = new Mock<IAsyncNodeManager>();
+                    manager.SetupGet(value => value.NamespaceUris).Returns([firstUri, secondUri, discoveredUri]);
+                    Assert.That(shared.NodeManager.AsyncNodeManagers, Does.Not.Contain(manager.Object));
+                    return new ValueTask<IAsyncNodeManager>(manager.Object);
+                });
+            var fixture = new ServerFixture<StandardServer>(telemetry =>
+            {
+                owner = new StandardServer(telemetry);
+                owner.AddNodeManager(factory.Object);
+                return owner;
+            })
+            {
+                UriScheme = Utils.UriSchemeOpcTcp,
+                SecurityNone = true,
+                AutoAccept = true
+            };
+            try
+            {
+                for (int attempt = 0; attempt < 2; attempt++)
+                {
+                    if (reject)
+                    {
+                        ServiceResultException? failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                            await fixture.StartAsync(pki).ConfigureAwait(false)).ConfigureAwait(false);
+                        Assert.That(failure!.InnerException, Is.TypeOf<InvalidOperationException>()
+                            .With.Message.EqualTo("Injected initial factory creation failure."));
+                    }
+                    else
+                    {
+                        StandardServer started = await fixture.StartAsync(pki).ConfigureAwait(false);
+                        Assert.That(started.CurrentInstance.NamespaceUris.GetIndex(discoveredUri),
+                            Is.GreaterThan(3), "A successful initial publication retains candidate discoveries.");
+                    }
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(firstIndexDuringCreate, Is.EqualTo(2));
+                        Assert.That(secondIndexDuringCreate, Is.EqualTo(3),
+                            "Repeated declarations must not consume an extra namespace index.");
+                        Assert.That(sharedNamespaces!.GetIndex(Ua.Namespaces.OpcUa + "Diagnostics"), Is.EqualTo(4));
+                        Assert.That(sharedNamespaces.GetIndex(discoveredUri) >= 0, Is.EqualTo(!reject));
+                    }
+                    await fixture.StopAsync().ConfigureAwait(false);
+                    reject = false;
+                }
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+                if (Directory.Exists(pki))
+                {
+                    Directory.Delete(pki, recursive: true);
+                }
+            }
+        }
+
+        /// <summary>
         /// Hosted master shutdown joins the same attempt as server stop and preserves its failure for retry.
         /// </summary>
         [TestCase(false)]

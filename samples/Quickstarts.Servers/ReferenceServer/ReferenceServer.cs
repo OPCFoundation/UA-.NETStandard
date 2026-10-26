@@ -161,12 +161,18 @@ namespace Quickstarts.ReferenceServer
             // service of standard categories; apps wanting their own
             // categories with full Add/Delete support add an
             // AliasNameNodeManager configured with their own namespace.
-            ConfigureAliasNameStore(server);
-
-            return new MasterNodeManager(server, configuration, null)
+            var master = new MasterNodeManager(
+                server, configuration, null, GetReferenceInitialNodeManagerFactories());
+            try
             {
-                InitialFactories = GetReferenceInitialNodeManagerFactories()
-            };
+                ConfigureAliasNameStore(server);
+                return master;
+            }
+            catch
+            {
+                master.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

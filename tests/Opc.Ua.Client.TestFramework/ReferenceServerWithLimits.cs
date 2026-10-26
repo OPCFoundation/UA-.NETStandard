@@ -109,10 +109,8 @@ namespace Opc.Ua.Client.TestFramework
             MasterNodeManagerReference = new MasterNodeManagerWithLimits(
                 server,
                 configuration,
-                null)
-            {
-                InitialFactories = GetReferenceInitialNodeManagerFactories()
-            };
+                null,
+                GetReferenceInitialNodeManagerFactories());
             return MasterNodeManagerReference;
         }
 
@@ -248,7 +246,19 @@ namespace Opc.Ua.Client.TestFramework
             IServerInternal server,
             ApplicationConfiguration configuration,
             string? dynamicNamespaceUri)
-            : base(server, configuration, dynamicNamespaceUri)
+            : this(server, configuration, dynamicNamespaceUri, [])
+        {
+        }
+
+        /// <summary>
+        /// Creates system roles after the configured application namespace declarations.
+        /// </summary>
+        public MasterNodeManagerWithLimits(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            string? dynamicNamespaceUri,
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories)
+            : base(server, configuration, dynamicNamespaceUri, initialFactories)
         {
             m_logger = server.Telemetry.CreateLogger<MasterNodeManagerWithLimits>();
         }
@@ -256,7 +266,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <summary>
         /// Creates a standalone compatibility dispatcher with preconstructed managers.
         /// </summary>
-        [Obsolete("Use the three-argument constructor and InitialFactories for hosted managers.")]
+        [Obsolete("Pass initial factories to the constructor for hosted managers.")]
         public MasterNodeManagerWithLimits(
             IServerInternal server,
             ApplicationConfiguration configuration,

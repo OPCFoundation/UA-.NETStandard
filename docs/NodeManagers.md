@@ -783,14 +783,25 @@ including when no application factories are registered. They retain their stable
 but are not included in the public application `Registrations` or `Slots` collections.
 
 A `CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` override composes registered
-factories with `GetInitialNodeManagerFactories()` and assigns the result to
-`MasterNodeManager.InitialFactories`. Collect factories without invoking them. The server
+factories with `GetInitialNodeManagerFactories()` and passes the result to the
+`MasterNodeManager` constructor. Collect factories without invoking them. The server
 owns their creation, publication and readiness; the override must not initialize them again.
 The reference server uses this path for its reference model, optional file system and
 registered application models.
 
-Construct the master with `new MasterNodeManager(server, configuration, dynamicNamespaceUri)`
-and assign its `InitialFactories`. Preconstructed-manager constructors are obsolete and remain
+Construct the master with
+`new MasterNodeManager(server, configuration, dynamicNamespaceUri, initialFactories)`.
+Its read-only `InitialFactories` exposes the same configured factory list.
+Before constructing system managers, cold bootstrap reserves the URI strings declared by those
+factories' `NamespacesUris` in configuration order. Repeated declarations reuse their indexes.
+These reservations preserve application namespace order independently of manager construction;
+they do not install application managers, routes, nodes, types or encodeable registrations.
+A failed initial factory leaves its configured URI reservations, but constructor-discovered
+namespaces and other candidate contributions remain private and are discarded on abort.
+Restarting with the same declarations reproduces their order. Runtime additions reserve nothing
+in the serving namespace table until publication, including their declared namespace strings.
+
+Preconstructed-manager constructors are obsolete and remain
 available only for standalone dispatch. Hosted startup rejects preconstructed applications:
 their construction cannot be retroactively isolated from the serving metadata.
 

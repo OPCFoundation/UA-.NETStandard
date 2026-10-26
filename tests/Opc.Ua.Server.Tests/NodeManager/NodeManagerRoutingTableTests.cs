@@ -628,14 +628,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void ReplaceThrowsWhenCurrentIsNotLifecycleManaged()
+        public void ReplaceInitialManagerPreservesItsRoutingPosition()
         {
             NodeManagerRoutingTable table = CreateTable(
-                out IAsyncNodeManager firstPermanent,
-                out _);
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
+            IAsyncNodeManager replacement = CreateManager();
 
-            Assert.Throws<InvalidOperationException>(
-                () => table.Replace(firstPermanent, CreateManager(), ReplaceNamespaceIndexes));
+            var position = table.Replace(firstInitial, replacement, ReplaceNamespaceIndexes);
+
+            Assert.That(position.ManagerPosition.Index, Is.Zero);
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([replacement, secondInitial]));
+            Assert.That(table, Does.Not.Contain(firstInitial));
+            foreach (int namespaceIndex in ReplaceNamespaceIndexes)
+            {
+                AssertSingleManagerRoute(table.NamespaceManagers, namespaceIndex, replacement);
+            }
         }
 
         [Test]
@@ -662,11 +671,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
-        public void RemoveThrowsWhenNodeManagerIsNotLifecycleManaged()
+        public void RemoveInitialManagerRemovesItsRoutes()
         {
-            NodeManagerRoutingTable table = CreateTable(out IAsyncNodeManager firstPermanent, out _);
+            NodeManagerRoutingTable table = CreateTable(
+                out IAsyncNodeManager firstInitial,
+                out IAsyncNodeManager secondInitial);
+            table.RegisterNamespace(2, firstInitial);
 
-            Assert.Throws<InvalidOperationException>(() => table.Remove(firstPermanent));
+            table.Remove(firstInitial);
+
+            Assert.That(table.Revision.NodeManagers, Is.EqualTo([secondInitial]));
+            Assert.That(table.NamespaceManagers.ContainsKey(2), Is.False);
         }
 
         [Test]

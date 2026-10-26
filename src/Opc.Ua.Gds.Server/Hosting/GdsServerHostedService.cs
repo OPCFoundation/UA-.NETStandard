@@ -771,10 +771,7 @@ namespace Opc.Ua.Gds.Server.Hosting
                 MasterNodeManager? master = null;
                 try
                 {
-                    master = new MasterNodeManager(server, configuration, null)
-                    {
-                        InitialFactories = factories.ToArrayOf()
-                    };
+                    master = new MasterNodeManager(server, configuration, null, factories.ToArrayOf());
                     IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
                     master = null;
                     return result;

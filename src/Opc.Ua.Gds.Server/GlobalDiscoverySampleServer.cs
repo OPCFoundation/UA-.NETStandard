@@ -213,14 +213,11 @@ namespace Opc.Ua.Gds.Server
             MasterNodeManager? master = null;
             try
             {
-                master = new MasterNodeManager(server, configuration, null)
-                {
-                    InitialFactories =
+                master = new MasterNodeManager(server, configuration, null,
                     [
                         new ApplicationsStartupFactory(m_database, m_request, m_certificateGroup, m_autoApprove),
                         .. GetInitialNodeManagerFactories()
-                    ]
-                };
+                    ]);
                 IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
                 master = null;
                 return result;
