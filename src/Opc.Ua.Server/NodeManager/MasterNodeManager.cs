@@ -349,6 +349,11 @@ namespace Opc.Ua.Server
         public IConfigurationNodeManager? ConfigurationNodeManager
             => m_configurationSlot.Current?.NodeManager as IConfigurationNodeManager;
 
+        /// <summary>
+        /// Gets the application factories that server startup publishes as initial Add changes.
+        /// </summary>
+        public ArrayOf<IAsyncNodeManagerFactory> InitialFactories { get; init; } = [];
+
         /// <inheritdoc/>
         public virtual async ValueTask StartupAsync(CancellationToken cancellationToken = default)
         {

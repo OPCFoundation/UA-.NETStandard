@@ -104,9 +104,20 @@ namespace Opc.Ua.Gds.Tests
         [Test]
         public async Task RegisteredAliasNameServerIsAggregatedAndRemovedAgainAsync()
         {
+            ApplicationsNodeManager manager = ReferenceServer.CurrentInstance.NodeManager.AsyncNodeManagers
+                .OfType<ApplicationsNodeManager>().Single();
+            Assert.That(manager.AliasNameAggregationEnabled, Is.True);
+            Assert.That(manager.AliasNameAggregator, Is.Not.Null, "Startup must await GDS registry readiness.");
             NodeId applicationId = await RegisterAsync(AliasSourceRecord(m_sourceUrl)).ConfigureAwait(false);
             try
             {
+                Assert.That(manager.AliasNameAggregator!.GetView().Aliases.Count, Is.GreaterThan(0),
+                    "RegisterApplication must complete source aggregation before returning.");
+                Assert.That(manager.AliasNameAggregator.NamespaceIndex, Is.EqualTo(m_aggregateNamespace),
+                    "The Client and the published manager must agree on the application namespace.");
+                Assert.That(
+                    manager.AliasNameAggregator.GetView().Aliases.ToArray()!.Select(alias => alias.Name),
+                    Does.Contain("TIC101_PV"));
                 // Annex C.2: the aliases are merged before RegisterApplication returns.
                 ReferenceDescription alias = await FindAggregatedChildAsync(
                     Ua.ObjectIds.TagVariables, "TIC101_PV").ConfigureAwait(false);

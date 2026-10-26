@@ -33,6 +33,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Identity;
+using Opc.Ua.Server.Historian;
 
 namespace Opc.Ua.Server
 {
@@ -192,7 +193,9 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Candidate-specific server facade. Metadata handles are stable even when copied into a system context.
         /// </summary>
-        internal sealed class StagingServer : IServerInternal, INodeIdFactoryProvider
+        internal sealed class StagingServer :
+            IServerInternal, INodeIdFactoryProvider, ITimeProviderProvider,
+            IHistorianRegistryProvider, IHistorianBuilderRegistry, AliasNames.IAliasNameStoreRegistryProvider
         {
             /// <summary>
             /// Creates a candidate's metadata handles over the preparation's shared private storage.
@@ -249,6 +252,9 @@ namespace Opc.Ua.Server
             public IServiceMessageContext MessageContext { get; }
 
             /// <inheritdoc/>
+            public TimeProvider TimeProvider => (m_server as ITimeProviderProvider)?.TimeProvider ?? TimeProvider.System;
+
+            /// <inheritdoc/>
             public IRebasableNodeIdFactory? NodeIdFactory => (m_server as INodeIdFactoryProvider)?.NodeIdFactory;
 
             /// <inheritdoc/>
@@ -295,6 +301,40 @@ namespace Opc.Ua.Server
 
             /// <inheritdoc/>
             public UserManagement.IUserManagement? UserManagement => m_server.UserManagement;
+
+            /// <inheritdoc/>
+            public IHistorianProviderRegistry HistorianRegistry
+            {
+                get
+                {
+                    EnsurePublishedRegistryAccess();
+                    return m_server is IHistorianRegistryProvider provider
+                        ? provider.HistorianRegistry
+                        : throw new NotSupportedException("The server does not provide a historian registry.");
+                }
+            }
+
+            /// <inheritdoc/>
+            void IHistorianBuilderRegistry.RegisterHistorianBuilder(HistorianBuilder builder)
+            {
+                EnsurePublishedRegistryAccess();
+                if (m_server is IHistorianBuilderRegistry registry)
+                {
+                    registry.RegisterHistorianBuilder(builder);
+                }
+            }
+
+            /// <inheritdoc/>
+            public AliasNames.IAliasNameStoreRegistry AliasNameStoreRegistry
+            {
+                get
+                {
+                    EnsurePublishedRegistryAccess();
+                    return m_server is AliasNames.IAliasNameStoreRegistryProvider provider
+                        ? provider.AliasNameStoreRegistry
+                        : throw new NotSupportedException("The server does not provide an alias-name registry.");
+                }
+            }
 
             /// <inheritdoc/>
             public ISubscriptionManager SubscriptionManager => m_server.SubscriptionManager;
@@ -539,6 +579,17 @@ namespace Opc.Ua.Server
                 ((EncodeableFactory)Factory).Detach();
                 NamespaceUris.Detach();
                 ServerUris.Detach();
+            }
+
+            /// <summary>
+            /// Keeps shared registries out of private preparation; runtime services bind during readiness.
+            /// </summary>
+            private void EnsurePublishedRegistryAccess()
+            {
+                if (IsStaging || IsDetached)
+                {
+                    throw new InvalidOperationException("Registry access requires a published generation.");
+                }
             }
 
             /// <summary>The running server whose non-metadata services are forwarded.</summary>

@@ -750,43 +750,71 @@ namespace Opc.Ua.Gds.Server.Hosting
                 return ConfiguredRoleManager ?? base.CreateRoleManager(server, configuration);
             }
 
-            protected override ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
+            protected override async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
                 IServerInternal server,
                 ApplicationConfiguration configuration,
                 CancellationToken cancellationToken = default)
             {
-                var applications = new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    m_database,
-                    m_request,
-                    m_certificateGroup,
-                    m_autoApprove);
-
-                if (m_accessTokenProvider != null)
+                cancellationToken.ThrowIfCancellationRequested();
+                var factories = new List<IAsyncNodeManagerFactory>
                 {
-                    applications.AccessTokenProvider = m_accessTokenProvider;
-                }
-
-                if (m_keyCredentialStore != null)
-                {
-                    applications.KeyCredentialRequestStore = m_keyCredentialStore;
-                }
-
-                var nodeManagers = new List<IAsyncNodeManager> { applications };
-
+                    new ApplicationsStartupFactory(
+                        m_database, m_request, m_certificateGroup, m_autoApprove,
+                        m_accessTokenProvider, m_keyCredentialStore)
+                };
                 if (m_configurationStore != null)
                 {
-                    nodeManagers.Add(new DefaultManagedApplicationsNodeManager(
-                        server,
-                        configuration,
-                        m_configurationStore));
+                    factories.Add(new ManagedApplicationsStartupFactory(m_configurationStore));
                 }
+                factories.AddRange(GetInitialNodeManagerFactories().ToList());
 
-#pragma warning disable CA2000 // ownership of MasterNodeManager transfers to the caller via the returned ValueTask<IMasterNodeManager>
-                return new ValueTask<IMasterNodeManager>(
-                    new MasterNodeManager(server, configuration, null, nodeManagers, null));
-#pragma warning restore CA2000
+                MasterNodeManager? master = null;
+                try
+                {
+                    master = new MasterNodeManager(server, configuration, null, [], null)
+                    {
+                        InitialFactories = factories.ToArrayOf()
+                    };
+                    IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master).ConfigureAwait(false);
+                    master = null;
+                    return result;
+                }
+                finally
+                {
+                    master?.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// Creates managed-application nodes privately with the injected configuration store.
+            /// </summary>
+            private sealed class ManagedApplicationsStartupFactory(IConfigurationDataStore store)
+                : IAsyncNodeManagerFactory
+            {
+                /// <inheritdoc/>
+                public ArrayOf<string> NamespacesUris =>
+                    [DefaultManagedApplicationsNodeManager.ManagedApplicationsNamespaceUri];
+
+                /// <inheritdoc/>
+                public async ValueTask<IAsyncNodeManager> CreateAsync(
+                    IServerInternal server,
+                    ApplicationConfiguration configuration,
+                    CancellationToken cancellationToken = default)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    DefaultManagedApplicationsNodeManager? manager = null;
+                    try
+                    {
+                        manager = new DefaultManagedApplicationsNodeManager(server, configuration, store);
+                        IAsyncNodeManager result = await new ValueTask<IAsyncNodeManager>(manager).ConfigureAwait(false);
+                        manager = null;
+                        return result;
+                    }
+                    finally
+                    {
+                        manager?.Dispose();
+                    }
+                }
             }
         }
     }

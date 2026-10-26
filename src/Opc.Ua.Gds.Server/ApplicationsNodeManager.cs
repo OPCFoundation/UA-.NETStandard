@@ -89,7 +89,7 @@ namespace Opc.Ua.Gds.Server
         AdditionalNamespaceUris = [ApplicationsNamespaceUri],
         GenerateFactory = false,
         GenerateDefaultConstructor = false)]
-    public partial class ApplicationsNodeManager
+    public partial class ApplicationsNodeManager : INodeManagerReadinessNotification
     {
         /// <summary>
         /// Namespace the GDS mints application records, certificate
@@ -215,12 +215,6 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        // --- Fluent wiring of the GDS companion model -------------
-        // Everything the Directory object, its certificate groups and
-        // the authorization service need is resolved against the
-        // loaded address space here, once, from the source-generated
-        // CreateAddressSpaceAsync.
-
         /// <summary>
         /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
@@ -271,8 +265,22 @@ namespace Opc.Ua.Gds.Server
             // stages the node, finalises its NodeIds before handing it back,
             // and registers it once this pass returns.
             ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+        }
 
-            InitializeAliasNameAggregation();
+        /// <inheritdoc/>
+        public ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            TaskCompletionSource<bool> operation = BeginAliasNameOperation();
+            try
+            {
+                InitializeAliasNameAggregation();
+            }
+            finally
+            {
+                CompleteAliasNameOperation(operation);
+            }
+            return default;
         }
 
         /// <summary>
@@ -3321,29 +3329,57 @@ namespace Opc.Ua.Gds.Server
         /// (events, simulation, monitored sources) are torn down by the base
         /// class.
         /// </remarks>
-        protected override void Dispose(bool disposing)
+        public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
-            if (disposing)
-            {
-                DisposeAliasNameAggregation();
+            await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
+        }
 
-                // Every group this manager created is in the owning list, so
-                // a startup that failed before Configure could bind and index
-                // the groups still releases them.
-                foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
+        {
+            var failures = new List<Exception>();
+            try
+            {
+                await StopAliasNameAggregationAsync().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            try
+            {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                failures.Add(error);
+            }
+            foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
+            {
+                try
                 {
-                    // The TrustList handler holds its store instances open
-                    // for reuse across operations; the node manager owns the
-                    // node and therefore the handler's lifetime.
                     (certificateGroup.DefaultTrustList?.Handle as IDisposable)?.Dispose();
+                }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
+                try
+                {
                     certificateGroup.Dispose();
                 }
-
-                m_ownedCertificateGroups.Clear();
-                m_certificateGroups.Clear();
+                catch (Exception error) when (error is not OutOfMemoryException)
+                {
+                    failures.Add(error);
+                }
             }
-
-            base.Dispose(disposing);
+            m_ownedCertificateGroups.Clear();
+            m_certificateGroups.Clear();
+            if (failures.Count > 0)
+            {
+                throw new AggregateException("GDS resource disposal failed.", failures);
+            }
         }
 
         private readonly bool m_autoApprove;

@@ -139,6 +139,16 @@ before invoking the durable decision. This also applies to the obsolete convenie
 extensions. Handle the conflict explicitly and prepare a new transaction if appropriate:
 the lifecycle never silently reruns a factory or rebases its private namespace indexes.
 
+Startup factories now run after the system address space is initialized, against private staged
+metadata, and enter the same Add transaction as runtime factories. Overrides of
+`CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` should return a master configured with
+`InitialFactories = GetInitialNodeManagerFactories()` instead of invoking registered factories
+themselves. Include additional application factories in that list in their initialization order.
+Do not rely on a candidate already being routable from its factory or `CreateAddressSpaceAsync`.
+Move serving-service registrations, such as historian builder/provider bindings, to
+`INodeManagerReadinessNotification.OnServerReadyAsync`; this callback runs after publication and
+runtime initialization and is awaited before startup succeeds.
+
 See [runtime registration](NodeManagers.md#runtime-registration) for complete examples.
 
 Unresolved monitored items are no longer parked on the Core manager. `IMonitoredItem.NodeManager`

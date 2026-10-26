@@ -771,6 +771,20 @@ set of models has to change without restarting the server.
 builds its address space from all factories while it starts. Each application NodeManager then
 appears as a [generation-1 entry](#registration-generations) in `INodeManagerLifecycle.Registrations`.
 
+`StandardServer` installs and initializes the system managers before invoking application
+factories. Application factories and `CreateAddressSpaceAsync` receive private staged metadata;
+their candidates are not routable during preparation. The initial additions use the same
+transaction pipeline as runtime additions. The initial view is published before runtime
+subsystems finish initialization; binding and readiness wait until sessions, subscriptions and
+events are available. Public lifecycle operations remain unavailable until the server is Running.
+
+A `CreateMasterNodeManager` or `CreateMasterNodeManagerAsync` override composes registered
+factories with `GetInitialNodeManagerFactories()` and assigns the result to
+`MasterNodeManager.InitialFactories`. Collect factories without invoking them. The server
+owns their creation, publication and readiness; the override must not initialize them again.
+The reference server uses this path for its reference model, optional file system and
+registered application models.
+
 ```csharp
 services.AddOpcUa()
     .AddServer(o => { /* … */ })
@@ -818,6 +832,15 @@ sync adapters forward the callback. Readiness runs:
 
 A manager added by a readiness callback gets its own callback through its transaction, not a second one
 as an initial manager.
+
+Historian builders, provider registrations, and alias-name contributors belong in readiness rather
+than private preparation. A staged candidate cannot access those serving registries. The reference
+model loads its nodes privately, then registers and seeds its historian during its awaited readiness
+callback and refreshes the server capability rollup. GDS alias aggregation likewise starts after
+publication. Its source reads and periodic worker are canceled and joined before address-space
+removal releases their registry contribution, cancellation source, or semaphore.
+The reference sample seeds its tag aliases after the application namespace is published and awaits
+their materialization before accepting clients, so discovery by browsing sees the complete snapshot.
 
 #### Concurrent operations, cancellation and failure
 

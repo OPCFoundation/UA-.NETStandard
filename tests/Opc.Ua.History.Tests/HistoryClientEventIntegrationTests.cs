@@ -77,9 +77,11 @@ namespace Opc.Ua.History.Tests
             };
 
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
-            await m_server.NodeManagerLifecycle.AddAsync(
-                new EventHistoryNodeManagerFactory(),
-                callerContext: null).ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch prepared = await m_server.NodeManagerLifecycle
+                .PrepareAsync([NodeManagerBatchChange.Add(new EventHistoryNodeManagerFactory())])
+                .ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
 
             m_clientFixture = new ClientFixture(telemetry: m_telemetry);
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -546,7 +548,7 @@ namespace Opc.Ua.History.Tests
             }
         }
 
-        private sealed class EventHistoryNodeManager : AsyncCustomNodeManager
+        private sealed class EventHistoryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
         {
             public EventHistoryNodeManager(
                 IServerInternal server,
@@ -600,24 +602,31 @@ namespace Opc.Ua.History.Tests
                 variable.DataType = DataTypeIds.Double;
                 variable.ValueRank = ValueRanks.Scalar;
                 variable.Value = new Variant(0.0);
-                variable.AccessLevel = AccessLevels.CurrentRead;
-                variable.UserAccessLevel = AccessLevels.CurrentRead;
-
-                await using (var builder = new HistorianBuilder(Server))
-                {
-                    builder
-                        .UseProvider(m_provider)
-                        .Historize(
-                            variable,
-                            historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                            systemContext: SystemContext,
-                            capabilities: HistorianNodeCapabilities.ReadWrite,
-                            autoCapture: false);
-                }
+                variable.Historizing = true;
+                variable.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                variable.UserAccessLevel = variable.AccessLevel;
+                m_provider.Register(variable.NodeId, HistorianNodeCapabilities.ReadWrite);
                 await AddPredefinedNodeAsync(
                     SystemContext,
                     variable,
                     cancellationToken).ConfigureAwait(false);
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                BaseDataVariableState variable = FindPredefinedNode<BaseDataVariableState>(
+                    new NodeId(AnnotationVariableIdentifier, NamespaceIndex));
+                await using var builder = new HistorianBuilder(Server);
+                builder
+                    .UseProvider(m_provider)
+                    .Historize(
+                        variable,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        systemContext: SystemContext,
+                        capabilities: HistorianNodeCapabilities.ReadWrite,
+                        autoCapture: false);
+                await AddPredefinedNodeAsync(SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
 
             protected override IHistorianProvider? GetHistorianProvider(NodeState node)

@@ -55,9 +55,13 @@ namespace Opc.Ua.History.Tests
         [OneTimeSetUp]
         public async Task RegisterHistoryNodesAsync()
         {
-            await ReferenceServer.NodeManagerLifecycle.AddAsync(
-                new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock),
-                callerContext: null).ConfigureAwait(false);
+            await using IPreparedNodeManagerBatch prepared = await ReferenceServer.NodeManagerLifecycle
+                .PrepareAsync(
+                    [NodeManagerBatchChange.Add(
+                        new HistoryRegressionNodeManagerFactory(m_streamingProvider, m_retentionClock))])
+                .ConfigureAwait(false);
+            NodeManagerBatchResult result = await prepared.CommitAsync(static _ => default).ConfigureAwait(false);
+            Assert.That(result.CleanupFailure, Is.Null);
             await Session.FetchNamespaceTablesAsync().ConfigureAwait(false);
             int namespaceIndex = Session.NamespaceUris.GetIndex(kNamespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThanOrEqualTo(0));
@@ -545,7 +549,7 @@ namespace Opc.Ua.History.Tests
         /// <summary>
         /// Hosts history-enabled variables and event notifiers with distinct aggregate capabilities.
         /// </summary>
-        private sealed class HistoryRegressionNodeManager : AsyncCustomNodeManager
+        private sealed class HistoryRegressionNodeManager : AsyncCustomNodeManager, INodeManagerReadinessNotification
         {
             /// <summary>
             /// Creates the history regression manager with its controlled output-limit provider.
@@ -609,6 +613,24 @@ namespace Opc.Ua.History.Tests
                     m_retentionProvider).ConfigureAwait(false);
             }
 
+            /// <inheritdoc/>
+            public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+            {
+                await using var builder = new HistorianBuilder(Server);
+                foreach ((BaseDataVariableState variable, InMemoryHistorianProvider provider,
+                    HistorianNodeCapabilities capabilities) in m_historyVariables)
+                {
+                    await builder.UseProvider(provider).HistorizeAsync(
+                        variable,
+                        SystemContext,
+                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+                        capabilities: capabilities,
+                        autoCapture: false,
+                        cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddPredefinedNodeAsync(SystemContext, variable, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
             /// <summary>
             /// Uses the controlled paging provider only for the output-limit node.
             /// </summary>
@@ -655,20 +677,11 @@ namespace Opc.Ua.History.Tests
                 variable.DataType = DataTypeIds.Double;
                 variable.ValueRank = ValueRanks.Scalar;
                 variable.Value = new Variant(0.0);
-                variable.AccessLevel = AccessLevels.CurrentRead;
-                variable.UserAccessLevel = AccessLevels.CurrentRead;
-
-                await using (var builder = new HistorianBuilder(Server))
-                {
-                    builder.UseProvider(provider).Historize(
-                        variable,
-                        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-                        systemContext: SystemContext,
-                        capabilities: capabilities,
-                        autoCapture: false);
-                }
-                await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
-                    SystemContext, variable, provider, cancellationToken).ConfigureAwait(false);
+                variable.Historizing = true;
+                variable.AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead | AccessLevels.HistoryWrite;
+                variable.UserAccessLevel = variable.AccessLevel;
+                provider.Register(variable.NodeId, capabilities);
+                m_historyVariables.Add((variable, provider, capabilities));
                 await AddPredefinedNodeAsync(
                     SystemContext, variable, cancellationToken).ConfigureAwait(false);
             }
@@ -702,6 +715,10 @@ namespace Opc.Ua.History.Tests
                 new(new InMemoryHistorianOptions(), s_timeProvider);
 
             private readonly InMemoryHistorianProvider m_retentionProvider;
+
+            /// <summary>The private variables whose fluent history bindings complete after publication.</summary>
+            private readonly List<(BaseDataVariableState Variable, InMemoryHistorianProvider Provider,
+                HistorianNodeCapabilities Capabilities)> m_historyVariables = [];
 
             /// <summary>
             /// Supplies the specially spaced raw values for output-limit testing.

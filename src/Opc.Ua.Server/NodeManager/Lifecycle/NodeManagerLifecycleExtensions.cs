@@ -374,7 +374,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Adapts legacy factory creation to the canonical asynchronous preparation contract.
         /// </summary>
-        private sealed class SyncFactoryAdapter(INodeManagerFactory factory) : IAsyncNodeManagerFactory
+        internal sealed class SyncFactoryAdapter(INodeManagerFactory factory) : IAsyncNodeManagerFactory
         {
             /// <inheritdoc/>
             public ArrayOf<string> NamespacesUris => m_factory.NamespacesUris;

@@ -51,7 +51,7 @@ namespace Quickstarts.ReferenceServer
     /// A node manager for a server that exposes several variables.
     /// </summary>
     [NodeManager(NamespaceUri = Namespaces.ReferenceServer)]
-    public partial class ReferenceNodeManager : IConformanceContributor
+    public partial class ReferenceNodeManager : IConformanceContributor, INodeManagerReadinessNotification
     {
         /// <summary>
         /// Initializes the node manager.
@@ -89,26 +89,19 @@ namespace Quickstarts.ReferenceServer
 
         private HistorianBuilder? EventHistorianBuilder { get; set; }
 
-        /// <summary>
-        /// An overrideable version of the Dispose.
-        /// </summary>
-        protected override void Dispose(bool disposing)
+        /// <inheritdoc/>
+        protected override async ValueTask DisposeAsyncCore()
         {
-            if (disposing)
+            try
             {
+                await base.DisposeAsyncCore().ConfigureAwait(false);
+            }
+            finally
+            {
+                // Node-owned captures and admitted simulation work drain before their provider and gate.
                 m_historian?.Dispose();
                 m_historian = null;
-            }
-
-            // Let the base FluentNodeManagerBase drain the fluent simulation
-            // loop (Simulations.Dispose) before the semaphore the OnTick
-            // handler takes is disposed, so no in-flight tick can ever observe
-            // a disposed semaphore.
-            base.Dispose(disposing);
-
-            if (disposing)
-            {
-                m_semaphore?.Dispose();
+                m_semaphore.Dispose();
             }
         }
 
@@ -123,9 +116,8 @@ namespace Quickstarts.ReferenceServer
         public override bool AllowNodeManagement => true;
 
         /// <summary>
-        /// Loads the predefined nodes from the NodeSet2 model and then enables
-        /// the runtime history archiving behaviour, once every node has been
-        /// materialized and its reverse references established.
+        /// Loads and indexes the predefined model and initializes its simulation values.
+        /// Runtime historian registration follows in the published generation's readiness callback.
         /// </summary>
         protected override async ValueTask LoadPredefinedNodesAsync(
             ISystemContext context,
@@ -153,23 +145,23 @@ namespace Quickstarts.ReferenceServer
                 // fluent simulation loop (registered in Configure and started
                 // after Seal) always has a generator ready for the first tick.
                 ResetRandomGenerator(100, 1);
+            }
+            finally
+            {
+                m_semaphore.Release();
+            }
+        }
 
-                // Prio 1 / Prio 2 not possible: history archiving registers an
-                // in-memory historian provider, seeds the sample history and
-                // refreshes the HistoricalDataConfiguration companion objects at
-                // runtime. The Historizing attribute, the history access-level
-                // bits and the companion nodes are all baked into the NodeSet2
-                // model; the archive contents and provider wiring remain runtime
-                // services and therefore run here, after every predefined node
-                // has been loaded.
-                //
-                // The CTT root folder, its EventNotifier attribute and the
-                // inverse Server -> HasNotifier reference are baked into the
-                // model, so base.AddReverseReferencesAsync (invoked by
-                // base.LoadPredefinedNodesAsync above) both materializes the root
-                // and auto-registers it with the runtime notifier table - no
-                // explicit root creation or notifier registration is required.
-                await EnableHistoryArchivingAsync(cancellationToken).ConfigureAwait(false);
+        /// <inheritdoc/>
+        public async ValueTask OnServerReadyAsync(CancellationToken cancellationToken = default)
+        {
+            await m_semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                m_historyInitialization ??= EnableHistoryArchivingAsync(cancellationToken);
+                await m_historyInitialization.ConfigureAwait(false);
+                await Server.DiagnosticsNodeManager.UpdateServerEventNotifierAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
             finally
             {
@@ -585,6 +577,8 @@ namespace Quickstarts.ReferenceServer
             };
         }
 
+        /// <summary>The one history initialization attempt, including its failure on readiness retry.</summary>
+        private Task? m_historyInitialization;
         private InMemoryHistorianProvider? m_historian;
         private BaseObjectState? m_historicalEventNotifier;
 
@@ -867,9 +861,8 @@ namespace Quickstarts.ReferenceServer
                 StartOfOnlineArchive = startOfArchive
             };
 
-            // ServerInternalData owns registered builders and disposes their
-            // capture pipelines during shutdown.
             EventHistorianBuilder ??= new HistorianBuilder(Server);
+            RegisterNodeResource(notifier, EventHistorianBuilder);
             EventHistorianBuilder.UseProvider(m_historian!);
             HistoricalEventConfigurationState? configuration =
                 await EventHistorianBuilder.HistorizeEventsAsync(

@@ -44,7 +44,7 @@ namespace Opc.Ua.Server
     /// <summary>
     /// Default live NodeManager lifecycle provider owned by a <see cref="StandardServer"/>.
     /// </summary>
-    public sealed class NodeManagerLifecycle : INodeManagerPublicationLifecycle, IDisposable
+    public sealed partial class NodeManagerLifecycle : INodeManagerPublicationLifecycle, IDisposable
     {
         /// <summary>
         /// Creates a lifecycle provider for a directly constructed server.
@@ -393,13 +393,15 @@ namespace Opc.Ua.Server
         /// <param name="host">The dynamic node manager host.</param>
         /// <param name="state">The registration being completed.</param>
         /// <param name="ct">The token used to cancel the operation.</param>
+        /// <param name="initial">The explicit startup capability, or null for runtime readiness.</param>
         /// <returns>A task that completes when the readiness callback finished and the registration is still
         /// current.</returns>
         private async ValueTask CompleteReadinessAsync(
             IServerInternal server,
             IDynamicNodeManagerHost host,
             RegistrationState state,
-            CancellationToken ct)
+            CancellationToken ct,
+            InitialPublication? initial = null)
         {
             if (state.Prepared.NodeManager is not INodeManagerReadinessNotification participant)
             {
@@ -410,7 +412,7 @@ namespace Opc.Ua.Server
             await participant.OnServerReadyAsync(ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
 
-            EnsureSameRunningServer(server, host);
+            EnsurePublicationServer(server, host, initial);
             if (!IsCurrentRegistration(state.Registration))
             {
                 throw new InvalidOperationException(
@@ -437,13 +439,13 @@ namespace Opc.Ua.Server
         {
             m_writer.EnsureRunning();
 
-            if (m_server.CurrentState is not (ServerState.Running or ServerState.NoConfiguration))
+            IServerInternal server = m_server.CurrentInstance;
+            if (!server.IsRunning)
             {
                 throw new InvalidOperationException(
                     "NodeManagers can only be changed while the server is running.");
             }
 
-            IServerInternal server = m_server.CurrentInstance;
             if (server.NodeManager is not IDynamicNodeManagerHost host)
             {
                 throw new NotSupportedException(
@@ -1475,13 +1477,15 @@ namespace Opc.Ua.Server
         /// <param name="readImages">Read images to publish together with the changes.</param>
         /// <param name="validationOnly">Whether the batch is a validation candidate that can never be
         /// committed.</param>
+        /// <param name="initial">The explicit startup capability, or null for runtime preparation.</param>
         /// <returns>The prepared batch, which must be disposed if it is not committed.</returns>
         private async ValueTask<IPreparedNodeManagerBatch> PrepareBatchAsync(
             ArrayOf<NodeManagerBatchChange> changes,
             PublicationInvocation? publication,
             CancellationToken cancellationToken,
             ArrayOf<INodeManagerReadImage> readImages = default,
-            bool validationOnly = false)
+            bool validationOnly = false,
+            InitialPublication? initial = null)
         {
             if (changes.IsNull || (changes.Count == 0 && readImages.Count == 0))
             {
@@ -1516,7 +1520,7 @@ namespace Opc.Ua.Server
             {
                 operation = EnterLifecycleOperation();
                 (IServerInternal server, IDynamicNodeManagerHost host) =
-                    GetRunningServer();
+                    initial is null ? GetRunningServer() : initial.GetServer();
                 if (server.Factory is not EncodeableFactory)
                 {
                     throw new NotSupportedException("The server factory does not support prepared publication.");
@@ -1527,7 +1531,7 @@ namespace Opc.Ua.Server
                 var admissions = new List<(NodeManagerGeneration Generation, int Stripe)>(changes.Count);
                 try
                 {
-                    EnsureSameRunningServer(server, host);
+                    EnsurePublicationServer(server, host, initial);
                     publication?.Session.ValidateRevision();
                     var preparation = new ChangePreparer(server);
                     NodeManagerRoutingTable.RoutingSnapshot routingRevision = host.RoutingRevision;
@@ -1631,7 +1635,8 @@ namespace Opc.Ua.Server
                         this, server, host, entries, operation, namespaceCount, routingRevision,
                         preparation.TypeTree, preparation.OriginalTypes,
                         preparation.TypeRevision, preparation.Factory, preparation.OriginalFactory,
-                        preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session);
+                        preparation.FactoryRevision, resolver, validationOnly, preparation, publication?.Session,
+                        initial);
                     if (readImages.Count != 0)
                     {
                         prepared.BindReadImages(readImages);
@@ -1705,7 +1710,7 @@ namespace Opc.Ua.Server
                 reconciler.CreateReconciliation(() => EnterLifecycleOperation(), () => m_writer.IsShuttingDown);
             try
             {
-                EnsureSameRunningServer(batch.Server, batch.Host);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial);
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
@@ -1778,7 +1783,7 @@ namespace Opc.Ua.Server
                         candidates, removed, batch.RoutingRevision, cancellationToken).ConfigureAwait(false);
 
                 mutation = await m_writer.BeginMutationAsync(cancellationToken).ConfigureAwait(false);
-                EnsureSameRunningServer(batch.Server, batch.Host);
+                EnsurePublicationServer(batch.Server, batch.Host, batch.Initial);
                 if (!ReferenceEquals(
                     batch.Host.RoutingRevision, batch.RoutingRevision))
                 {
@@ -1901,6 +1906,10 @@ namespace Opc.Ua.Server
                         Published: PublishCommittedStateAsync,
                         ReconcileBindingsAsync: async () =>
                         {
+                            if (batch.Initial is { } initial)
+                            {
+                                await initial.WaitForRuntimeAsync().ConfigureAwait(false);
+                            }
                             // Retired generations are cut off by their gate; physical source bindings are released
                             // by retirement cleanup once admitted work has drained.
                             foreach (MonitoredItemTransition transition in monitoredItemTransitions)
@@ -1972,6 +1981,10 @@ namespace Opc.Ua.Server
                 mutation.Dispose();
                 releaseWriter = false;
                 await PublishCommittedStateAsync().ConfigureAwait(false);
+                if (batch.Initial is { } initialPublication)
+                {
+                    await initialPublication.WaitForRuntimeAsync().ConfigureAwait(false);
+                }
 
                 foreach (BatchEntry entry in batch.Entries)
                 {
@@ -1994,7 +2007,8 @@ namespace Opc.Ua.Server
                             NodeManagerReconciliationStage.Readiness,
                             [generation],
                             () => CompleteReadinessAsync(
-                                batch.Server, batch.Host, entry.Next, CancellationToken.None)).ConfigureAwait(false);
+                                batch.Server, batch.Host, entry.Next, CancellationToken.None, batch.Initial))
+                            .ConfigureAwait(false);
                     }
                     finally
                     {
@@ -2193,6 +2207,7 @@ namespace Opc.Ua.Server
             /// <param name="validationOnly">Whether the batch is a validation candidate.</param>
             /// <param name="preparation">The explicit private staging metadata.</param>
             /// <param name="publication">The optimistic publication session, or null for a standalone batch.</param>
+            /// <param name="initial">The explicit initial-publication capability, or null for runtime changes.</param>
             public PreparedBatch(
                 NodeManagerLifecycle owner,
                 IServerInternal server,
@@ -2210,7 +2225,8 @@ namespace Opc.Ua.Server
                 IDataTypeDefinitionResolver? resolver,
                 bool validationOnly,
                 ChangePreparer preparation,
-                LifecycleWriter.PublicationSession? publication)
+                LifecycleWriter.PublicationSession? publication,
+                InitialPublication? initial)
             {
                 m_owner = owner;
                 Preparation = preparation;
@@ -2229,6 +2245,7 @@ namespace Opc.Ua.Server
                 Resolver = resolver;
                 IsValidationOnly = validationOnly;
                 Publication = publication;
+                Initial = initial;
                 Registrations = entries.Where(entry => entry.Next is not null)
                     .Select(entry => entry.Next!.Registration).ToArrayOf();
             }
@@ -2242,6 +2259,11 @@ namespace Opc.Ua.Server
             /// Gets the optimistic publication session that owns this prepared batch, if any.
             /// </summary>
             public LifecycleWriter.PublicationSession? Publication { get; }
+
+            /// <summary>
+            /// Gets the bootstrap capability that keeps runtime readiness separate from view publication.
+            /// </summary>
+            public InitialPublication? Initial { get; }
 
             /// <summary>
             /// Gets the registrations the batch publishes.

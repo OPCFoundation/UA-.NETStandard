@@ -75,7 +75,7 @@ namespace Opc.Ua.Server
             : base(telemetry)
         {
             TimeProvider = timeProvider ?? TimeProvider.System;
-            NodeManagerLifecycle = new NodeManagerLifecycle(this);
+            m_nodeManagerLifecycle = new NodeManagerLifecycle(this);
             m_eventLogger = telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
         }
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Gets the provider used to add, reload, and remove NodeManagers at runtime.
         /// </summary>
-        public INodeManagerLifecycle NodeManagerLifecycle { get; }
+        public INodeManagerLifecycle NodeManagerLifecycle => m_nodeManagerLifecycle;
 
         /// <summary>
         /// Gets or sets the factory that every <see cref="AsyncCustomNodeManager"/>
@@ -292,7 +292,7 @@ namespace Opc.Ua.Server
             m_configurationWatcher?.Dispose();
             m_configurationWatcher = null;
 
-            (NodeManagerLifecycle as IDisposable)?.Dispose();
+            m_nodeManagerLifecycle.Dispose();
 
             // dispose a rate-limiter provider the server created; caller-supplied providers
             // are owned by the caller.
@@ -4246,18 +4246,17 @@ namespace Opc.Ua.Server
         {
             await base.StartApplicationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
-            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
-            {
-                lifecycle.PrepareForStartup();
-            }
+            m_nodeManagerLifecycle.PrepareForStartup();
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             // The managers belong to the datastore once registered with it; until then a
             // failed startup must release them itself.
             ISessionManager? unregisteredSessionManager = null;
             ISubscriptionManager? unregisteredSubscriptionManager = null;
+            ArrayOf<IAsyncNodeManager> initialManagers = [];
+            NodeManagerLifecycle.InitialPublication? initialPublication = null;
             try
             {
-                ((NodeManagerLifecycle)NodeManagerLifecycle).BeginStartup();
+                m_nodeManagerLifecycle.BeginStartup();
                 m_logger.ServerStartApplicationApplicationName(configuration.ApplicationName);
 
                 // Setup the minimum nonce length
@@ -4348,6 +4347,14 @@ namespace Opc.Ua.Server
                 // put the node manager into a state that allows it to be used by other objects.
                 await masterNodeManager.StartupAsync(cancellationToken)
                     .ConfigureAwait(false);
+                initialManagers = [.. masterNodeManager.AsyncNodeManagers];
+                if (masterNodeManager is MasterNodeManager { InitialFactories.Count: > 0 } initialHost)
+                {
+                    initialPublication = await m_nodeManagerLifecycle
+                        .BeginInitialPublicationAsync(
+                            m_serverInternal, initialHost.InitialFactories, cancellationToken)
+                        .ConfigureAwait(false);
+                }
 
                 // create the manager responsible for handling events.
                 m_logger.ServerCreateEventManager();
@@ -4535,61 +4542,80 @@ namespace Opc.Ua.Server
                     }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException cancellation)
                 when (cancellationToken.IsCancellationRequested)
             {
-                await DisposeUnregisteredManagersAsync(
+                Exception? publicationFailure = await CleanupFailedStartupAsync(
+                    initialPublication,
                     unregisteredSessionManager,
                     unregisteredSubscriptionManager).ConfigureAwait(false);
-                m_serverInternal?.Dispose();
-                m_serverInternal = null;
+                if (publicationFailure is not null)
+                {
+                    throw new AggregateException(
+                        "Startup cancellation and initial-publication cleanup failed.", cancellation, publicationFailure);
+                }
                 throw;
             }
             catch (Exception e)
             {
                 const string message = "Unexpected error starting application";
                 m_logger.Message(e, message);
-                await DisposeUnregisteredManagersAsync(
+                Exception? publicationFailure = await CleanupFailedStartupAsync(
+                    initialPublication,
                     unregisteredSessionManager,
                     unregisteredSubscriptionManager).ConfigureAwait(false);
-                m_serverInternal?.Dispose();
-                m_serverInternal = null;
-                var error = ServiceResult.Create(e, StatusCodes.BadInternalError, message);
-                ServerError = error;
-                throw new ServiceResultException(error);
+                Exception failure = publicationFailure is null
+                    ? e
+                    : new AggregateException("Startup and initial-publication cleanup failed.", e, publicationFailure);
+                var error = new ServiceResultException(StatusCodes.BadInternalError, message, failure);
+                ServerError = error.Result;
+                throw error;
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
 
-            // Capture initial ownership before Running admits runtime registrations.
-            ArrayOf<IAsyncNodeManager> initialManagers = [.. m_serverInternal.NodeManager.AsyncNodeManagers];
             // set the server status as running, or NoConfiguration while the
             // application is in the application setup state (OPC 10000-12 G.2).
             SetServerState(StartupServerState);
 
             try
             {
-                await ((NodeManagerLifecycle)NodeManagerLifecycle)
+                await m_nodeManagerLifecycle
                     .CompleteStartupAsync(initialManagers, cancellationToken)
                     .ConfigureAwait(false);
+                if (initialPublication is not null)
+                {
+                    await initialPublication.CompleteAsync().ConfigureAwait(false);
+                }
             }
             catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 m_logger.Message(ex, "A NodeManager failed during startup readiness.");
-                Exception? cleanupFailure = null;
+                Exception? cleanupFailure = initialPublication is null
+                    ? null
+                    : await initialPublication.AbortAsync().ConfigureAwait(false);
+                if (ReferenceEquals(cleanupFailure, ex))
+                {
+                    cleanupFailure = null;
+                }
                 try
                 {
                     await StopAsync(CancellationToken.None).ConfigureAwait(false);
                     if (ServiceResult.IsBad(ServerError))
                     {
-                        cleanupFailure = new ServiceResultException(ServerError);
+                        Exception failure = new ServiceResultException(ServerError);
+                        cleanupFailure = cleanupFailure is null
+                            ? failure
+                            : new AggregateException(cleanupFailure, failure);
                     }
                 }
                 catch (Exception cleanupException) when (cleanupException is not OutOfMemoryException)
                 {
-                    cleanupFailure = cleanupException;
+                    cleanupFailure = cleanupFailure is null
+                        ? cleanupException
+                        : new AggregateException(cleanupFailure, cleanupException);
                 }
                 if (cleanupFailure is not null)
                 {
@@ -4658,25 +4684,29 @@ namespace Opc.Ua.Server
         /// </summary>
         private async ValueTask DisposeUnregisteredManagersAsync(
             ISessionManager? sessionManager,
-            ISubscriptionManager? subscriptionManager)
+            ISubscriptionManager? subscriptionManager,
+            List<Exception> failures)
         {
-            try
+            if (sessionManager is not null)
             {
-                if (sessionManager != null)
+                try
                 {
-                    try
-                    {
-                        await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        sessionManager.Dispose();
-                    }
+                    await sessionManager.ShutdownAsync(CancellationToken.None).ConfigureAwait(false);
                 }
-            }
-            catch (Exception e)
-            {
-                m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                    failures.Add(e);
+                }
+                try
+                {
+                    sessionManager.Dispose();
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                    failures.Add(e);
+                }
             }
 
             try
@@ -4690,10 +4720,47 @@ namespace Opc.Ua.Server
                     subscriptionManager?.Dispose();
                 }
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OutOfMemoryException)
             {
                 m_logger.ReleasingManagerOfFailedStartupFailed(e);
+                failures.Add(e);
             }
+        }
+
+        /// <summary>
+        /// Joins the initial commit before reclaiming a partially initialized address space.
+        /// </summary>
+        /// <returns>The cleanup failures to surface together with the original startup failure.</returns>
+        private async ValueTask<Exception?> CleanupFailedStartupAsync(
+            NodeManagerLifecycle.InitialPublication? initialPublication,
+            ISessionManager? sessionManager,
+            ISubscriptionManager? subscriptionManager)
+        {
+            var failures = new List<Exception>();
+            if (initialPublication is not null &&
+                await initialPublication.AbortAsync().ConfigureAwait(false) is { } publicationFailure)
+            {
+                failures.Add(publicationFailure);
+            }
+            await DisposeUnregisteredManagersAsync(sessionManager, subscriptionManager, failures).ConfigureAwait(false);
+            ServerInternalData? serverInternal = m_serverInternal;
+            if (serverInternal is not null)
+            {
+                await RunShutdownStageAsync(failures, serverInternal.DrainRoleStateBindingAsync).ConfigureAwait(false);
+                if (serverInternal.NodeManager is not null)
+                {
+                    await RunShutdownStageAsync(
+                        failures,
+                        () => m_nodeManagerLifecycle
+                            .BeginShutdownAsync(serverInternal, CancellationToken.None)).ConfigureAwait(false);
+                    await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
+                }
+                await RunShutdownStageAsync(failures, serverInternal.DisposeAsync).ConfigureAwait(false);
+                m_serverInternal = null;
+            }
+            return failures.Count == 0
+                ? null
+                : new AggregateException("Failed startup address-space cleanup failed.", failures);
         }
 
         /// <summary>
@@ -4741,14 +4808,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             await base.OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
-            if (NodeManagerLifecycle is NodeManagerLifecycle lifecycle)
-            {
-                await lifecycle
-                    .AdoptStartupNodeManagersAsync(
-                        CurrentInstance,
-                        cancellationToken)
-                    .ConfigureAwait(false);
-            }
+            await m_nodeManagerLifecycle
+                .AdoptStartupNodeManagersAsync(
+                    CurrentInstance,
+                    cancellationToken)
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -4817,7 +4881,6 @@ namespace Opc.Ua.Server
             ServerInternalData serverInternal,
             CancellationToken cancellationToken)
         {
-            var lifecycle = NodeManagerLifecycle as NodeManagerLifecycle;
             var failures = new List<Exception>();
 
             // Drain in-flight requests by disposing the request queue before the address space
@@ -4831,13 +4894,10 @@ namespace Opc.Ua.Server
                     serverInternal.DrainRoleStateBindingAsync)
                 .ConfigureAwait(false);
 
-            if (lifecycle is not null)
-            {
-                await RunShutdownStageAsync(
-                        failures,
-                        () => lifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
-                    .ConfigureAwait(false);
-            }
+            await RunShutdownStageAsync(
+                    failures,
+                    () => m_nodeManagerLifecycle.BeginShutdownAsync(serverInternal, cancellationToken))
+                .ConfigureAwait(false);
 
             await RunShutdownStageAsync(
                     failures,
@@ -4850,18 +4910,7 @@ namespace Opc.Ua.Server
                     () => serverInternal.SessionManager.ShutdownAsync(cancellationToken))
                 .ConfigureAwait(false);
 
-            await RunShutdownStageAsync(
-                    failures,
-                    () => serverInternal.NodeManager.ShutdownAsync(CancellationToken.None))
-                .ConfigureAwait(false);
-
-            if (lifecycle is not null)
-            {
-                await RunShutdownStageAsync(
-                        failures,
-                        () => lifecycle.CompleteShutdownAsync(serverInternal, CancellationToken.None))
-                    .ConfigureAwait(false);
-            }
+            await CompleteNodeManagerShutdownAsync(serverInternal, failures).ConfigureAwait(false);
 
             serverInternal.Dispose();
 
@@ -4873,6 +4922,22 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Reclaims the address space through the same ownership path during shutdown and failed startup.
+        /// </summary>
+        private async ValueTask CompleteNodeManagerShutdownAsync(
+            ServerInternalData serverInternal,
+            List<Exception> failures)
+        {
+            await RunShutdownStageAsync(
+                failures,
+                () => serverInternal.NodeManager.ShutdownAsync(CancellationToken.None)).ConfigureAwait(false);
+            await RunShutdownStageAsync(
+                failures,
+                () => m_nodeManagerLifecycle
+                    .CompleteShutdownAsync(serverInternal, CancellationToken.None)).ConfigureAwait(false);
+        }
+
         private static async Task RunShutdownStageAsync(
             List<Exception> failures,
             Func<ValueTask> stage)
@@ -4881,7 +4946,7 @@ namespace Opc.Ua.Server
             {
                 await stage().ConfigureAwait(false);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OutOfMemoryException)
             {
                 failures.Add(ex);
             }
@@ -5308,6 +5373,20 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Gets registered factories in their initial address-space creation order.
+        /// </summary>
+        /// <returns>The asynchronous factories followed by adapted synchronous factories.</returns>
+        protected ArrayOf<IAsyncNodeManagerFactory> GetInitialNodeManagerFactories()
+        {
+            return
+            [
+                .. m_asyncNodeManagerFactories,
+                .. m_nodeManagerFactories.Select(
+                    static factory => new NodeManagerLifecycleExtensions.SyncFactoryAdapter(factory))
+            ];
+        }
+
+        /// <summary>
         /// Creates the master node manager for the server (async).
         /// </summary>
         /// <param name="server">The server.</param>
@@ -5318,29 +5397,31 @@ namespace Opc.Ua.Server
         /// Subclasses that need to plug in custom async node-manager factories should
         /// override this method. The default implementation awaits each registered
         /// <see cref="IAsyncNodeManagerFactory"/> and delegates the synchronous
-        /// factories to <see cref="CreateMasterNodeManager"/>.
+        /// factories to the same initial Add pipeline after the system address spaces are initialized.
         /// </remarks>
         protected virtual async ValueTask<IMasterNodeManager> CreateMasterNodeManagerAsync(
             IServerInternal server,
             ApplicationConfiguration configuration,
             CancellationToken cancellationToken = default)
         {
-            var nodeManagers = new List<INodeManager>();
-
-            foreach (INodeManagerFactory nodeManagerFactory in m_nodeManagerFactories)
+            cancellationToken.ThrowIfCancellationRequested();
+            ArrayOf<IAsyncNodeManagerFactory> initialFactories = GetInitialNodeManagerFactories();
+            MasterNodeManager? master = null;
+            try
             {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
+                master = new MasterNodeManager(server, configuration, null, [], null)
+                {
+                    InitialFactories = initialFactories
+                };
+                IMasterNodeManager result = await new ValueTask<IMasterNodeManager>(master)
+                    .ConfigureAwait(false);
+                master = null;
+                return result;
             }
-
-            var asyncNodeManagers = new List<IAsyncNodeManager>();
-
-            foreach (IAsyncNodeManagerFactory nodeManagerFactory in m_asyncNodeManagerFactories)
+            finally
             {
-                asyncNodeManagers.Add(await nodeManagerFactory.CreateAsync(server, configuration, cancellationToken)
-                    .ConfigureAwait(false));
+                master?.Dispose();
             }
-
-            return new MasterNodeManager(server, configuration, null, asyncNodeManagers, nodeManagers);
         }
 
         /// <summary>
@@ -5729,6 +5810,9 @@ namespace Opc.Ua.Server
             "CA2213:Disposable fields should be disposed",
             Justification = "Disposed by OnServerStoppingAsync while the server is stopped.")]
         private ServerInternalData? m_serverInternal;
+
+        /// <summary>The canonical lifecycle owned by this server and exposed through its public provider.</summary>
+        private readonly NodeManagerLifecycle m_nodeManagerLifecycle;
 
         private Task? m_disposeTask;
 

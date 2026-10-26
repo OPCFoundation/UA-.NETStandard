@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -173,6 +174,44 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Startup retains the original error and both independent session-manager cleanup errors.
+        /// </summary>
+        [Test]
+        public async Task FailedStartupReportsSessionShutdownAndDisposalFailuresAsync()
+        {
+            var startupFailure = new InvalidOperationException("Controlled session startup failure.");
+            var shutdownFailure = new InvalidOperationException("Controlled session shutdown failure.");
+            var disposalFailure = new InvalidOperationException("Controlled session disposal failure.");
+            var sessions = new Mock<ISessionManager>();
+            sessions.Setup(value => value.StartupAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(startupFailure)));
+            sessions.Setup(value => value.ShutdownAsync(It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(shutdownFailure)));
+            sessions.Setup(value => value.Dispose()).Throws(disposalFailure);
+            var fixture = new ServerFixture<FailingSessionStartupServer>(
+                telemetry => new FailingSessionStartupServer(telemetry, sessions.Object));
+            try
+            {
+                ServiceResultException failure = await Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await fixture.StartAsync().ConfigureAwait(false));
+                Assert.That(failure.InnerException, Is.InstanceOf<AggregateException>());
+                var aggregate = (AggregateException)failure.InnerException!;
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                    Assert.That(aggregate.Flatten().InnerExceptions,
+                        Is.EquivalentTo(new[] { startupFailure, shutdownFailure, disposalFailure }));
+                }
+                sessions.Verify(value => value.ShutdownAsync(It.IsAny<CancellationToken>()), Times.Once);
+                sessions.Verify(value => value.Dispose(), Times.Once);
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// The server only tracks a listener once it opened, so a listener
         /// that fails to open has no other owner: the server disposes it
         /// before it rethrows the error. A dispose that fails as well is
@@ -274,6 +313,32 @@ namespace Opc.Ua.Server.Tests
                         new SocketException((int)SocketError.ConnectionRefused)),
                     Is.False);
             });
+        }
+
+        /// <summary>
+        /// Supplies a failing session manager before runtime ownership transfers to the server.
+        /// </summary>
+        private sealed class FailingSessionStartupServer : StandardServer
+        {
+            /// <summary>
+            /// Creates a server with the supplied fault-injection session manager.
+            /// </summary>
+            public FailingSessionStartupServer(ITelemetryContext telemetry, ISessionManager sessions)
+                : base(telemetry)
+            {
+                m_sessions = sessions;
+            }
+
+            /// <inheritdoc/>
+            protected override ISessionManager CreateSessionManager(
+                IServerInternal server,
+                ApplicationConfiguration configuration)
+            {
+                return m_sessions;
+            }
+
+            /// <summary>The session manager whose independent failure stages are observed.</summary>
+            private readonly ISessionManager m_sessions;
         }
     }
 }

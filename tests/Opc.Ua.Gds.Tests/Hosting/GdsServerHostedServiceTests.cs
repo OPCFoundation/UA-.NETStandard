@@ -41,6 +41,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server;
+using Opc.Ua.Gds.Server.AliasNames;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Hosting;
 using Opc.Ua.Identity;
@@ -60,6 +61,74 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [NonParallelizable]
     public sealed partial class GdsServerHostedServiceTests
     {
+        /// <summary>
+        /// Both teardown paths cancel and join an admitted source read before disposing its shared resources.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AliasSourceReadsDrainBeforeManagerResourcesAreReleasedAsync(bool deleteAddressSpace)
+        {
+            var reader = new BlockingAliasSourceReader();
+            using var certificateGroup = new StubCertificateGroup();
+            var database = new StubApplicationsDatabase
+            {
+                Application = new ApplicationRecordDataType
+                {
+                    ApplicationUri = "urn:tests:alias-source-drain",
+                    ApplicationType = ApplicationType.Server,
+                    DiscoveryUrls = ["opc.tcp://localhost:4840"],
+                    ServerCapabilities = ["ALIAS"]
+                }
+            };
+            var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry));
+            ApplicationsNodeManager? manager = null;
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                manager = new ApplicationsNodeManager(
+                    server.CurrentInstance, fixture.Config, database,
+                    new StubCertificateRequest(), certificateGroup)
+                {
+                    AliasNameAggregationEnabled = true,
+                    AliasNameSourceReader = reader
+                };
+                await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>())
+                    .ConfigureAwait(false);
+                await manager.OnServerReadyAsync().ConfigureAwait(false);
+                var applicationId = new NodeId(9001, 2);
+                Task<bool> read = manager.RefreshAliasNameSourceAsync(applicationId).AsTask();
+                await reader.Started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Task cleanup = deleteAddressSpace
+                    ? manager.DeleteAddressSpaceAsync().AsTask()
+                    : manager.DisposeAsync().AsTask();
+                await reader.Canceled.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(cleanup.IsCompleted, Is.False, "Cancellation alone does not establish source quiescence.");
+                await Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await manager.RefreshAliasNameSourceAsync(applicationId).ConfigureAwait(false));
+                Task? concurrentDisposal = deleteAddressSpace ? null : manager.DisposeAsync().AsTask();
+                if (concurrentDisposal is not null)
+                {
+                    Assert.That(concurrentDisposal.IsCompleted, Is.False);
+                }
+                reader.Release.TrySetResult(true);
+                Assert.That(await read.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.False);
+                await cleanup.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                if (concurrentDisposal is not null)
+                {
+                    await concurrentDisposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                reader.Release.TrySetResult(true);
+                if (manager is not null)
+                {
+                    await manager.DisposeAsync().ConfigureAwait(false);
+                }
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry()
         {
@@ -99,6 +168,14 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             using ServiceProvider provider = services.BuildServiceProvider();
             var hostedService = (GdsServerHostedService)provider.GetServices<IHostedService>().Single();
+            int initialPreparationCount = 0;
+            bool publishedDuringPreparation = false;
+            certificateGroup.OnInitialize = () =>
+            {
+                initialPreparationCount++;
+                publishedDuringPreparation |= GetServer(hostedService).CurrentInstance.NodeManager
+                    .AsyncNodeManagers.Any(static manager => manager is ApplicationsNodeManager);
+            };
 
             try
             {
@@ -110,6 +187,12 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(authenticator.Identity));
                 Assert.That(authenticator.CallCount, Is.EqualTo(1));
+                Assert.That(initialPreparationCount, Is.GreaterThan(0));
+                Assert.That(publishedDuringPreparation, Is.False);
+                Assert.That(
+                    GetServer(hostedService).NodeManagerLifecycle.Registrations.ToArray(),
+                    Has.Some.Matches<NodeManagerRegistration>(registration =>
+                        registration is { NodeManager: ApplicationsNodeManager, Generation: 1 }));
 
                 // OPC 10000-12 §7.8.3.3: without configured groups the hosted GDS
                 // still serves the mandatory DefaultApplicationGroup.
@@ -527,8 +610,49 @@ namespace Opc.Ua.Gds.Tests.Hosting
             }
         }
 
+        /// <summary>
+        /// Observes cancellation but defers completion until the test permits teardown to finish.
+        /// </summary>
+        private sealed class BlockingAliasSourceReader : IAliasNameSourceReader
+        {
+            /// <summary>
+            /// Signals that the source reader owns the supplied cancellation token.
+            /// </summary>
+            public TaskCompletionSource<bool> Started { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Signals that teardown has requested cancellation.
+            /// </summary>
+            public TaskCompletionSource<bool> Canceled { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <summary>
+            /// Allows the source reader to finish after the drain has been observed.
+            /// </summary>
+            public TaskCompletionSource<bool> Release { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            /// <inheritdoc/>
+            public async ValueTask<AliasNameSourceSnapshot> ReadAsync(
+                ApplicationRecordDataType application,
+                CancellationToken ct = default)
+            {
+                using CancellationTokenRegistration registration = ct.Register(() => Canceled.TrySetResult(true));
+                Started.TrySetResult(true);
+                await Release.Task.ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                return new AliasNameSourceSnapshot(application.ApplicationUri!, [], []);
+            }
+        }
+
         private sealed class StubApplicationsDatabase : IApplicationsDatabase
         {
+            /// <summary>
+            /// Supplies one direct-read application without populating the periodic discovery query.
+            /// </summary>
+            public ApplicationRecordDataType? Application { get; set; }
+
             public ushort NamespaceIndex { get; set; }
 
             public void Initialize()
@@ -552,7 +676,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ApplicationRecordDataType GetApplication(NodeId applicationId)
             {
-                return null!;
+                return Application!;
             }
 
             public ApplicationRecordDataType[] FindApplications(string applicationUri)
@@ -693,6 +817,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private sealed class StubCertificateGroup : ICertificateGroup
         {
+            /// <summary>
+            /// Observes model preparation without depending on private lifecycle implementation types.
+            /// </summary>
+            public Action? OnInitialize { get; set; }
+
             public void Dispose()
             {
                 // Nothing owned by the stub.
@@ -725,6 +854,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public Task InitAsync(CancellationToken ct = default)
             {
+                OnInitialize?.Invoke();
                 return Task.CompletedTask;
             }
 

@@ -31,6 +31,8 @@ using System;
 using System.Reflection;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Server.AliasNames;
+using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.TestFramework;
 
 namespace Opc.Ua.Server.Tests
@@ -44,6 +46,59 @@ namespace Opc.Ua.Server.Tests
     [NonParallelizable]
     public sealed class MasterNodeManagerViewOwnershipTests
     {
+        /// <summary>
+        /// Candidate facades retain the host's clock and expose host registries only while published.
+        /// </summary>
+        [Test]
+        public async Task CandidateServerPreservesClockAndGatesHistorianRegistrationAsync()
+        {
+            var clock = new CandidateTimeProvider();
+            var fixture = new ServerFixture<StandardServer>(telemetry => new StandardServer(telemetry, clock));
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var preparation = new ChangePreparer(server.CurrentInstance);
+                using ChangePreparer.StagingServer staging = preparation.CreateServer();
+                IServerInternal facade = staging;
+                Assert.That(facade, Is.InstanceOf<ITimeProviderProvider>());
+                Assert.That(((ITimeProviderProvider)facade).TimeProvider, Is.SameAs(clock));
+                var historian = (IHistorianRegistryProvider)facade;
+                var aliases = (IAliasNameStoreRegistryProvider)facade;
+                Assert.That(
+                    () => historian.HistorianRegistry,
+                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(
+                    () => aliases.AliasNameStoreRegistry,
+                    Throws.TypeOf<InvalidOperationException>());
+                staging.Bind();
+                Assert.That(
+                    historian.HistorianRegistry,
+                    Is.SameAs(((IHistorianRegistryProvider)server.CurrentInstance).HistorianRegistry));
+                Assert.That(
+                    aliases.AliasNameStoreRegistry,
+                    Is.SameAs(((IAliasNameStoreRegistryProvider)server.CurrentInstance).AliasNameStoreRegistry));
+                staging.Detach();
+                Assert.That(((ITimeProviderProvider)facade).TimeProvider, Is.SameAs(clock));
+                Assert.That(
+                    () => historian.HistorianRegistry,
+                    Throws.TypeOf<InvalidOperationException>());
+                Assert.That(
+                    () => aliases.AliasNameStoreRegistry,
+                    Throws.TypeOf<InvalidOperationException>());
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Identifies a host-owned clock independently of the system singleton.
+        /// </summary>
+        private sealed class CandidateTimeProvider : TimeProvider
+        {
+        }
+
         /// <summary>
         /// Verifies that a secondary manager on a running server does not own the shared tables and that
         /// its disposal leaves the canonical publication intact.

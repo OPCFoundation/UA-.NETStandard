@@ -106,32 +106,15 @@ namespace Opc.Ua.Client.TestFramework
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
-            m_logger.LogInformation(
-                Utils.TraceMasks.StartStop,
-                "Creating the Reference Server Node Manager.");
-
-            var nodeManagers = new List<INodeManager>();
-
-            // create the custom node manager (ownership transfers to MasterNodeManager).
-#pragma warning disable CA2000 // Dispose objects before losing scope - ownership transfers to MasterNodeManagerWithLimits
-            var referenceNodeManager = new ReferenceNodeManager(
-                server,
-                configuration);
-#pragma warning restore CA2000
-            List<IAsyncNodeManager> asyncNodeManagers = [referenceNodeManager];
-
-            foreach (INodeManagerFactory nodeManagerFactory in NodeManagerFactories)
-            {
-                nodeManagers.Add(nodeManagerFactory.Create(server, configuration));
-            }
-            //this.MasterNodeManagerReference = new MasterNodeManager(server, configuration, null, nodeManagers.ToArray());
             MasterNodeManagerReference = new MasterNodeManagerWithLimits(
                 server,
                 configuration,
                 null!,
-                asyncNodeManagers,
-                [.. nodeManagers]);
-            // create master node manager.
+                [],
+                [])
+            {
+                InitialFactories = GetReferenceInitialNodeManagerFactories()
+            };
             return MasterNodeManagerReference;
         }
 
