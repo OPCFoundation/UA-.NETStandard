@@ -486,12 +486,11 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            bool closed = dispatch.Generation.Gate.State == NodeManagerGenerationState.Live &&
-                                await GenerationReconciler.CloseSessionAsync(
-                                    dispatch.Generation,
-                                    sessionId,
-                                    cancellationToken,
-                                    deleteSubscriptions).ConfigureAwait(false);
+                            bool closed = await GenerationReconciler.CloseSessionAsync(
+                                dispatch.Generation,
+                                sessionId,
+                                cancellationToken,
+                                deleteSubscriptions).ConfigureAwait(false);
                             if (!closed)
                             {
                                 await dispatch.NodeManager.SessionClosingAsync(
@@ -529,16 +528,15 @@ namespace Opc.Ua.Server
             IAsyncNodeManager[] activeNodeManagers = [.. m_nodeManagers];
             NotificationDispatchLease[] dispatches =
                 GetSessionNotificationDispatches(activeNodeManagers);
-            ISession? activatedSession = Server.SessionManager.GetSessions().FirstOrDefault(
-                current => current.Id == sessionId);
             try
             {
+                ISession? activatedSession = Server.SessionManager.GetSessions().FirstOrDefault(
+                    current => current.Id == sessionId);
                 foreach (NotificationDispatchLease dispatch in dispatches)
                 {
                     try
                     {
-                        if (dispatch.Generation.Gate.State == NodeManagerGenerationState.Live &&
-                            activatedSession is not null)
+                        if (activatedSession is not null)
                         {
                             await GenerationReconciler.ActivateSessionAsync(
                                 dispatch.Generation,

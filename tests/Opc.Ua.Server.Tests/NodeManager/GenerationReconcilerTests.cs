@@ -43,6 +43,103 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class GenerationReconcilerTests
     {
         /// <summary>
+        /// A failed session snapshot releases every notification admission before propagating the failure.
+        /// </summary>
+        [Test]
+        public async Task FailedSessionLookupReleasesAdmittedGenerationsAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions())
+                    .Throws(new InvalidOperationException("The session snapshot failed."));
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                await using MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                    server, [Mock.Of<IAsyncNodeManager>()]);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.ActivateSession, RequestLifetime.None);
+
+                await Assert.ThatAsync(
+                    () => master.SessionActivatedAsync(context, new NodeId("LookupFailure", 2)).AsTask(),
+                    Throws.TypeOf<InvalidOperationException>().With.Message.EqualTo("The session snapshot failed."))
+                    .ConfigureAwait(false);
+
+                foreach (IAsyncNodeManager manager in master.AsyncNodeManagers)
+                {
+                    Assert.That(NodeManagerGenerationRegistry.GetOrCreate(manager).Gate.ActiveCount, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Notifications admitted before retirement preserve exactly one recorded session release.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdmittedSessionNotificationRetirementPreservesBindingReleaseAsync(
+            bool retireDuringActivation)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var session = new Mock<ISession>();
+                session.SetupGet(value => value.Id).Returns(new NodeId("RetiringSession", 2));
+                session.SetupGet(value => value.Activated).Returns(true);
+                session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
+                var sessions = new Mock<ISessionManager>();
+                NodeManagerGeneration? generation = null;
+                bool retireOnEnumeration = retireDuringActivation;
+                sessions.Setup(value => value.GetSessions()).Returns(() =>
+                {
+                    if (retireOnEnumeration)
+                    {
+                        retireOnEnumeration = false;
+                        Assert.That(generation!.Gate.ActiveCount, Is.EqualTo(1),
+                            "Session lookup runs after this notification's generation admission.");
+                        generation.Gate.Retire();
+                    }
+                    return [session.Object];
+                });
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                await using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [manager.Object]);
+                generation = NodeManagerGenerationRegistry.GetOrCreate(manager.Object);
+                if (!retireDuringActivation)
+                {
+                    Mock.Get(master.ConfigurationNodeManager!).Setup(value => value.SessionClosingAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, true, It.IsAny<CancellationToken>()))
+                        .Callback(() =>
+                        {
+                            Assert.That(generation.Gate.ActiveCount, Is.EqualTo(1),
+                                "The earlier manager closes after all notification admissions were captured.");
+                            generation.Gate.Retire();
+                        })
+                        .Returns(default(ValueTask));
+                }
+                using var context = new OperationContext(session.Object, DiagnosticsMasks.None);
+                await master.SessionActivatedAsync(context, session.Object.Id).ConfigureAwait(false);
+                await master.SessionClosingAsync(context, session.Object.Id, deleteSubscriptions: true)
+                    .ConfigureAwait(false);
+                await master.GenerationReconciler.UnbindRetiredAsync(
+                    generation, unsubscribeAllEvents: false, CancellationToken.None).ConfigureAwait(false);
+
+                using (Assert.EnterMultipleScope())
+                {
+                    manager.Verify(value => value.SessionActivatedAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<CancellationToken>()), Times.Once);
+                    manager.Verify(value => value.SessionClosingAsync(
+                        It.IsAny<OperationContext>(), session.Object.Id, It.IsAny<bool>(),
+                        It.IsAny<CancellationToken>()), Times.Once);
+                    Assert.That(generation.SessionBindings, Is.Empty);
+                    Assert.That(generation.Gate.State, Is.EqualTo(NodeManagerGenerationState.Retiring));
+                    Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                }
+            }
+        }
+
+        /// <summary>
         /// A failed committed bind preserves earlier successful records so recovery never replays their callbacks.
         /// </summary>
         [TestCase(false)]
