@@ -42,7 +42,8 @@ namespace Opc.Ua.Client
         /// Adapter that implements <see cref="ISubscriptionEngineContext"/>
         /// by delegating to the owning <see cref="Session"/> instance.
         /// </summary>
-        private sealed class SessionEngineContext : ISubscriptionEngineContext
+        private sealed class SessionEngineContext : ISubscriptionEngineContext,
+            IAcknowledgementPolicyCapability
         {
             public SessionEngineContext(Session session)
             {
@@ -65,6 +66,10 @@ namespace Opc.Ua.Client
 
             /// <inheritdoc/>
             public bool KeepAliveStopped => m_session.KeepAliveStopped;
+
+            /// <inheritdoc/>
+            public bool HasAcknowledgementPolicy =>
+                m_session.m_PublishSequenceNumbersToAcknowledge != null;
 
             /// <inheritdoc/>
             public DateTime LastKeepAliveTime => m_session.LastKeepAliveTime;

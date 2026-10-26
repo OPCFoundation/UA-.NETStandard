@@ -134,11 +134,21 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         /// <inheritdoc/>
-        public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-            PrepareAcknowledgementsToSend(
-                List<SubscriptionAcknowledgement> acknowledgements)
+        public bool HasAcknowledgementPolicy => OnPrepareAcknowledgements != null;
+
+        /// <summary>
+        /// Number of calls to <see cref="PrepareAcknowledgementsToSend"/>.
+        /// </summary>
+        public int PrepareCalls => Volatile.Read(ref m_prepareCalls);
+
+        /// <inheritdoc/>
+        public AcknowledgementSelection PrepareAcknowledgementsToSend(
+            List<SubscriptionAcknowledgement> acknowledgements)
         {
-            return OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
+            Interlocked.Increment(ref m_prepareCalls);
+            (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
+                OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
+            return new AcknowledgementSelection(toSend, deferred);
         }
 
         public ValueTask<PublishResponse> PublishAsync(
@@ -204,6 +214,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         private int m_sessionDispatchCount;
+        private int m_prepareCalls;
 
         /// <summary>
         /// Appends a recorded call. Publish workers run on background

@@ -81,9 +81,7 @@ namespace Opc.Ua.Client.Subscriptions
             m_acks = Channel.CreateUnboundedPrioritized(
                 new UnboundedPrioritizedChannelOptions<PendingAcknowledgement>
                 {
-                    Comparer = Comparer<PendingAcknowledgement>
-                        .Create((x, y) => x.Acknowledgement.SequenceNumber
-                            .CompareTo(y.Acknowledgement.SequenceNumber))
+                    Comparer = SequenceNumberComparer.Instance
                 });
         }
 
@@ -2009,6 +2007,13 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     return acknowledgements;
                 }
+                if (deferredCount == 0 && !m_session.HasAcknowledgementPolicy)
+                {
+                    // Without a deferral policy the batch is only validated: nothing is copied
+                    // or presented, and no callback can change ownership before it is sent.
+                    RemoveStaleAcknowledgements(acknowledgements);
+                    return acknowledgements;
+                }
 
                 List<PendingAcknowledgement> candidates = acknowledgements;
                 List<PendingAcknowledgement>? previouslyDeferred = null;
@@ -2399,6 +2404,26 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionAcknowledgement Acknowledgement,
             IMessageProcessor Owner,
             long Generation);
+
+        /// <summary>
+        /// Orders queued acknowledgements by sequence number, so that older messages are
+        /// acknowledged first. <see cref="PendingAcknowledgement"/> does not implement
+        /// <see cref="IComparable{T}"/>: this order ignores the subscription and the owner, so
+        /// it is not consistent with the record's equality.
+        /// </summary>
+        private sealed class SequenceNumberComparer : IComparer<PendingAcknowledgement>
+        {
+            /// <summary>
+            /// The shared instance.
+            /// </summary>
+            public static SequenceNumberComparer Instance { get; } = new();
+
+            /// <inheritdoc/>
+            public int Compare(PendingAcknowledgement x, PendingAcknowledgement y)
+            {
+                return x.Acknowledgement.SequenceNumber.CompareTo(y.Acknowledgement.SequenceNumber);
+            }
+        }
 
         /// <summary>
         /// Whether an owned acknowledgement may be sent.

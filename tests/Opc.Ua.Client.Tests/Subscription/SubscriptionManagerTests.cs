@@ -1024,6 +1024,51 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
+        /// Without a deferral policy, acknowledgements are validated and sent without the
+        /// policy round-trip, and stale ones are still discarded.
+        /// </summary>
+        /// <param name="testCt">Test cancellation token.</param>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task AcknowledgementsAreSentWithoutPolicyRoundTripWhenNoPolicyIsRegisteredAsync(
+            CancellationToken testCt)
+        {
+            var context = new FakeSubscriptionManagerContext();
+            List<FakeManagedSubscription> partitions = AddPartitionFactory(context);
+            await using var manager = new SubscriptionManager(
+                context, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 1,
+                MaxPublishWorkerCount = 1
+            };
+            var sent = new ConcurrentQueue<SubscriptionAcknowledgement>();
+            context.OnPublishAsync = async (_, acknowledgements, ct) =>
+            {
+                foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
+                {
+                    sent.Enqueue(acknowledgement);
+                }
+                await Task.Delay(5, ct).ConfigureAwait(false);
+                return CreatePublishResponse(1, acknowledgements);
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, new OptionsMonitor<SubscriptionOptions>(
+                new SubscriptionOptions { DisableUnboundedItemMode = true }));
+            FakeManagedSubscription owner = partitions[0];
+            manager.Resume();
+
+            await manager.QueueAsync(owner, owner.MessageGeneration - 1,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 4 },
+                testCt).ConfigureAwait(false);
+            await manager.QueueAsync(owner, owner.MessageGeneration,
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                testCt).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => sent.Any(ack => ack.SequenceNumber == 5), testCt).ConfigureAwait(false);
+            Assert.That(sent.Any(ack => ack.SequenceNumber == 4), Is.False, "A stale acknowledgement is not sent.");
+            Assert.That(context.PrepareCalls, Is.Zero);
+        }
+
+        /// <summary>
         /// Acknowledgements a deferral handler adds itself are attributed to the live owner of
         /// their id and validated like queued ones; those without a live owner are not sent.
         /// </summary>

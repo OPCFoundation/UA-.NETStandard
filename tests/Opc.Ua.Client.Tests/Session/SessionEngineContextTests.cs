@@ -131,6 +131,26 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
+        /// <summary>
+        /// The context reports whether a deferral handler is registered, so that the V2
+        /// engine only applies the policy when there is one.
+        /// </summary>
+        [Test]
+        public void AcknowledgementPolicyIsReportedWhileAHandlerIsRegistered()
+        {
+            using TestSessionScope scope = CreateSessionScope();
+            var capability = (IAcknowledgementPolicyCapability)scope.Context;
+            static void handler(ISession _1, PublishSequenceNumbersToAcknowledgeEventArgs _2)
+            {
+            }
+
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+            scope.Session.PublishSequenceNumbersToAcknowledge += handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.True);
+            scope.Session.PublishSequenceNumbersToAcknowledge -= handler;
+            Assert.That(capability.HasAcknowledgementPolicy, Is.False);
+        }
+
         [Test]
         public void PrepareAcknowledgementsWithoutCallbackSendsAllAcknowledgements()
         {

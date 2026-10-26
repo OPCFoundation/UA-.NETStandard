@@ -264,10 +264,17 @@ namespace Opc.Ua.Client
             }
 
             /// <inheritdoc/>
-            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-                PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements)
+            public bool HasAcknowledgementPolicy =>
+                m_context is not IAcknowledgementPolicyCapability capability ||
+                capability.HasAcknowledgementPolicy;
+
+            /// <inheritdoc/>
+            public AcknowledgementSelection PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements)
             {
-                return m_context.PrepareAcknowledgementsToSend(acknowledgements);
+                (List<SubscriptionAcknowledgement> toSend, List<SubscriptionAcknowledgement> deferred) =
+                    m_context.PrepareAcknowledgementsToSend(acknowledgements);
+                return new AcknowledgementSelection(toSend, deferred);
             }
 
             /// <inheritdoc/>

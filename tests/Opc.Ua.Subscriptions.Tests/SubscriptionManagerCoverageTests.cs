@@ -614,11 +614,13 @@ namespace Opc.Ua.Subscriptions.Tests
             }
 
             /// <inheritdoc/>
-            public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-                PrepareAcknowledgementsToSend(
-                    List<SubscriptionAcknowledgement> acknowledgements)
+            public bool HasAcknowledgementPolicy => false;
+
+            /// <inheritdoc/>
+            public AcknowledgementSelection PrepareAcknowledgementsToSend(
+                List<SubscriptionAcknowledgement> acknowledgements)
             {
-                return (acknowledgements, []);
+                return new AcknowledgementSelection(acknowledgements, []);
             }
 
             public ValueTask<PublishResponse> PublishAsync(
