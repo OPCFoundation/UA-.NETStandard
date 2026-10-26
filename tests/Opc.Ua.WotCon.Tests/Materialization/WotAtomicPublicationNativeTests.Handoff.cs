@@ -660,6 +660,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             var host = new Mock<IWotPreparedProjectionHost>(MockBehavior.Strict);
             host.SetupGet(owner => owner.SupportsPreparedPublication).Returns(() => inner.SupportsPreparedPublication);
+            host.Setup(owner => owner.RemoveAsync(
+                    It.IsAny<WotProjectionHandle>(), It.IsAny<CancellationToken>()))
+                .Returns((WotProjectionHandle handle, CancellationToken token) => inner.RemoveAsync(handle, token));
             host.Setup(owner => owner.PrepareAsync(
                 It.IsAny<ArrayOf<WotProjectionChange>>(), It.IsAny<IWotPreparedViewPublication?>(),
                 It.IsAny<IOperationContext?>(), It.IsAny<CancellationToken>())).Returns(async (
