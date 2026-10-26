@@ -596,7 +596,8 @@ namespace Opc.Ua.Server
             IAsyncNodeManager retired,
             IAsyncNodeManager replacement)
         {
-            if (!HasActiveMonitoredItems(server, retired))
+            if (!HasActiveMonitoredItems(server, retired) &&
+                !NodeManagerGenerationRegistry.GetOrCreate(retired).HasPendingSourceReleases)
             {
                 return;
             }
@@ -698,9 +699,22 @@ namespace Opc.Ua.Server
         {
             ct.ThrowIfCancellationRequested();
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(nodeManager);
-            IMonitoredItem[] items = [.. generation.MonitoredItems.Keys.Where(item =>
+            var ownedItems = new HashSet<IMonitoredItem>(generation.MonitoredItems.Keys.Where(item =>
                 (item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
-                item is not IDetachableMonitoredItem { IsDetached: true })];
+                item is not IDetachableMonitoredItem { IsDetached: true }),
+                MonitoredItemReferenceComparer.Instance);
+            foreach (IMonitoredItem item in generation.CapturePendingSourceItems())
+            {
+                if ((item.MonitoredItemType & MonitoredItemTypeMask.AllEvents) == 0 &&
+                    item is IMonitoredItemGenerationBinding { IsRemoved: false, IsTerminal: false } binding &&
+                    binding.CaptureSource().Generation is null &&
+                    item.SubscriptionCallback is ISubscriptionMonitoredItemLifecycle subscription &&
+                    subscription.ContainsMonitoredItem(item))
+                {
+                    ownedItems.Add(item);
+                }
+            }
+            IMonitoredItem[] items = [.. ownedItems];
 
             if (nodeManager is not INodeManagerMonitoredItemLifecycle nodeManagerLifecycle)
             {

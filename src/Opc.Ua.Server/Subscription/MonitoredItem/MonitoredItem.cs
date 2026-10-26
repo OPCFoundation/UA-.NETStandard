@@ -800,16 +800,6 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        void IDetachableMonitoredItem.BeginDetach()
-        {
-            lock (m_lock)
-            {
-                m_valuePublication?.Fail(StatusCodes.BadInvalidState);
-                SetDetachState(isDetached: true, m_isDeleted);
-            }
-        }
-
-        /// <inheritdoc/>
         void IDetachableMonitoredItem.Detach(IServerInternal server)
         {
             if (server is null)
@@ -837,6 +827,7 @@ namespace Opc.Ua.Server
                 {
                     return false;
                 }
+                m_valuePublication?.Fail(StatusCodes.BadInvalidState);
                 if (Generation?.TryGetGeneration(out NodeManagerGeneration? previous) == true)
                 {
                     previous!.MonitoredItems.TryRemove(this, out _);
@@ -875,6 +866,15 @@ namespace Opc.Ua.Server
                 {
                     return m_sourceRevision;
                 }
+            }
+        }
+
+        /// <inheritdoc/>
+        MonitoredItemSourceSnapshot IMonitoredItemGenerationBinding.CaptureSource()
+        {
+            lock (m_lock)
+            {
+                return new MonitoredItemSourceSnapshot(Generation, ManagerHandle as NodeHandle, m_sourceRevision);
             }
         }
 
@@ -2932,12 +2932,16 @@ namespace Opc.Ua.Server
                 {
                     throw new InvalidOperationException("The monitored item belongs to another subscription.");
                 }
-                if (Generation?.TryGetGeneration(out NodeManagerGeneration? generation) != true)
+                NodeManagerGeneration? generation = null;
+                if (Generation is { } source && !source.TryGetGeneration(out generation))
                 {
                     throw new InvalidOperationException("The monitored item's generation is unavailable.");
                 }
                 m_subscriptionOwnership = SubscriptionOwnership.Bound;
-                generation!.MonitoredItems[this] = subscription;
+                if (generation is not null)
+                {
+                    generation.MonitoredItems[this] = subscription;
+                }
                 UpdateUnresolvedOwnership();
             }
         }

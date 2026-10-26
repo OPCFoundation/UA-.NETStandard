@@ -286,9 +286,9 @@ namespace Opc.Ua.Server.Tests
             // restored item cannot silently disagree with the item it was stored from.
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using MonitoredItem source = CreateMonitoredItem(telemetry, queueSize: 2);
-            var sourceLifecycle = (IDetachableMonitoredItem)source;
-            ((IMonitoredItemGenerationBinding)source).Invalidate(terminal: false);
-            sourceLifecycle.BeginDetach();
+            var sourceBinding = (IMonitoredItemGenerationBinding)source;
+            sourceBinding.Invalidate(terminal: false);
+            Assert.That(sourceBinding.TryClearSource(sourceBinding.SourceRevision), Is.True);
 
             IStoredMonitoredItem stored = source.ToStorableMonitoredItem();
 

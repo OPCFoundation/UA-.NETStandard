@@ -55,6 +55,12 @@ namespace Opc.Ua.Server
         long SourceRevision { get; }
 
         /// <summary>
+        /// Captures the current native source identity under the item's existing lock.
+        /// </summary>
+        /// <returns>The source generation, handle and incarnation observed together.</returns>
+        MonitoredItemSourceSnapshot CaptureSource();
+
+        /// <summary>
         /// Commits a native source only if no other binding was installed during preparation.
         /// </summary>
         /// <param name="sourceRevision">The revision captured before source preparation.</param>
@@ -93,4 +99,15 @@ namespace Opc.Ua.Server
         /// <param name="subscription">The subscription releasing the item.</param>
         void UnbindSubscription(ISubscription subscription);
     }
+
+    /// <summary>
+    /// Identifies one native source without retaining mutable half-released item state.
+    /// </summary>
+    /// <param name="Generation">The source generation, when the item is bound.</param>
+    /// <param name="Handle">The native source handle, when supported by the base managers.</param>
+    /// <param name="Revision">The item's binding incarnation.</param>
+    internal readonly record struct MonitoredItemSourceSnapshot(
+        NodeManagerGenerationReference? Generation,
+        NodeHandle? Handle,
+        long Revision);
 }

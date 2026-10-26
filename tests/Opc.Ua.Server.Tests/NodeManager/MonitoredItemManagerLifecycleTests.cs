@@ -782,6 +782,178 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, false, true)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true, true)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, false, true)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, true, false)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode, true, true)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, false, true)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, true, false)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup, true, true)]
+        public async Task FailedEventSourceReleaseRetriesProviderCleanupWhenNativeOwnershipCannotBeRestoredAsync(
+            ManagerPath path,
+            bool removeBeforeRetry,
+            bool failFirstRetry)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("EventSourceCleanup", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("EventSourceCleanup", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object,
+                    new Mock<IAsyncNodeManager>().Object,
+                    new object(),
+                    node.NodeId);
+                ((IDetachableMonitoredItem)item).Detach(server.Object);
+                Assert.That(
+                    (await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)).StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(
+                    ((IMonitoredItemGenerationBinding)item).CaptureSource().Generation!
+                        .TryGetGeneration(out NodeManagerGeneration? generation),
+                    Is.True);
+
+                var failure = new InvalidOperationException("Injected provider source-release failure.");
+                var retryFailure = new InvalidOperationException("Injected source-release retry failure.");
+                int unsubscribeCount = 0;
+                var conflictingItem = new Mock<IMonitoredItem>();
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (unsubscribe && ++unsubscribeCount == 1)
+                    {
+                        Assert.That(
+                            owner.TryAddNativeItem(item.Id, conflictingItem.Object),
+                            Is.True);
+                        throw failure;
+                    }
+                    if (unsubscribe && failFirstRetry && unsubscribeCount == 2)
+                    {
+                        throw retryFailure;
+                    }
+                });
+
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed, Is.SameAs(failure));
+                    Assert.That(unsubscribeCount, Is.EqualTo(1));
+                    Assert.That(node.AreEventsMonitored, Is.False);
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                });
+                Assert.That(owner.TryRemoveNativeItem(item.Id), Is.True);
+                if (removeBeforeRetry)
+                {
+                    item.Dispose();
+                }
+                if (failFirstRetry)
+                {
+                    InvalidOperationException? retriedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                        async () => await generation!.CompleteSourceReleasesAsync(null, CancellationToken.None)
+                            .ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(retriedFailure, Is.SameAs(retryFailure));
+                    Assert.That(unsubscribeCount, Is.EqualTo(2));
+                }
+
+                if (removeBeforeRetry)
+                {
+                    await generation!.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+                }
+                else
+                {
+                    ServiceResult retried = await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                    Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
+                }
+                await generation!.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(unsubscribeCount, Is.EqualTo(failFirstRetry ? 3 : 2));
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(node.AreEventsMonitored, Is.False);
+                });
+            }
+        }
+
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task FailedEventAdoptionRetainsProviderCleanupForGenerationReclamationAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("FailedTargetProvider", owner.NamespaceIndex),
+                    BrowseName = new QualifiedName("FailedTargetProvider", owner.NamespaceIndex),
+                    EventNotifier = EventNotifiers.SubscribeToEvents
+                };
+                node.CreateAsPredefinedNode(owner.SystemContext);
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateEventMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new object(), node.NodeId);
+                ((IDetachableMonitoredItem)item).Detach(server.Object);
+                var adoptionFailure = new InvalidOperationException("Injected target-provider failure.");
+                var cleanupFailure = new InvalidOperationException("Injected target-provider cleanup failure.");
+                int unsubscribes = 0;
+                owner.SetEventSubscriptionCallback(unsubscribe =>
+                {
+                    if (!unsubscribe)
+                    {
+                        throw adoptionFailure;
+                    }
+                    if (++unsubscribes == 1)
+                    {
+                        throw cleanupFailure;
+                    }
+                });
+                AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
+                    async () => await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false))
+                    .ConfigureAwait(false);
+                NodeManagerGeneration generation =
+                    NodeManagerGenerationRegistry.GetOrCreate((IAsyncNodeManager)owner.Lifecycle);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed!.InnerExceptions, Has.Count.EqualTo(2));
+                    Assert.That(observed.InnerExceptions[0], Is.SameAs(adoptionFailure));
+                    Assert.That(observed.InnerExceptions[1], Is.SameAs(cleanupFailure));
+                    Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                    Assert.That(item.NodeManager, Is.Null);
+                    Assert.That(item.ManagerHandle, Is.Null);
+                    Assert.That(node.AreEventsMonitored, Is.False);
+                    Assert.That(generation.HasPendingSourceReleases, Is.True);
+                });
+                item.Dispose();
+                await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+                await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(unsubscribes, Is.EqualTo(2));
+                Assert.That(generation.HasPendingSourceReleases, Is.False);
+            }
+        }
+
         [TestCase(ManagerPath.AsyncMonitoredNode)]
         [TestCase(ManagerPath.AsyncSamplingGroup)]
         public Task EventAttachmentReadinessDoesNotBlockUnrelatedMonitoredItemServiceAsync(ManagerPath path)
@@ -1567,8 +1739,92 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// A failed source release relinquishes the reservation without calling the replacement.
+        /// Late handoff retries retain provider ownership after native membership has been released.
         /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task LateHandoffResumesPendingProviderCleanupWithoutNativeMembershipAsync(bool migrate)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var current = new Mock<IAsyncNodeManager>();
+                Mock<INodeManagerMonitoredItemLifecycle> source = current.As<INodeManagerMonitoredItemLifecycle>();
+                var replacement = new Mock<IAsyncNodeManager>();
+                Mock<INodeManagerMonitoredItemLifecycle> target =
+                    replacement.As<INodeManagerMonitoredItemLifecycle>();
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, current.Object, new NodeHandle(), new NodeId("LatePendingSource", 1));
+                var binding = (IMonitoredItemGenerationBinding)item;
+                var subscription = new Mock<ISubscription>();
+                subscription.As<ISubscriptionMonitoredItemLifecycle>()
+                    .Setup(value => value.ContainsMonitoredItem(item)).Returns(true);
+                item.SubscriptionCallback = subscription.Object;
+                binding.BindSubscription(subscription.Object);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
+                int sourceCalls = 0;
+                int cleanupCalls = 0;
+                var failure = new InvalidOperationException("Injected late source-provider failure.");
+                source.Setup(value => value.DetachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
+                    .Returns(async (IMonitoredItem _, CancellationToken ct) =>
+                    {
+                        if (++sourceCalls == 1)
+                        {
+                            long revision = binding.SourceRevision;
+                            Assert.That(binding.TryClearSource(revision), Is.True);
+                            generation.RetainSourceRelease(item, revision, _ =>
+                            {
+                                cleanupCalls++;
+                                return default;
+                            });
+                            throw failure;
+                        }
+                        await generation.CompleteSourceReleasesAsync(item, ct).ConfigureAwait(false);
+                        return ServiceResult.Good;
+                    });
+                target.Setup(value => value.CanAttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(ServiceResult.Good);
+                target.Setup(value => value.AttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
+                    .Returns(() =>
+                    {
+                        Assert.That(binding.TryBindSource(
+                            binding.SourceRevision, replacement.Object, new NodeHandle(), out _), Is.True);
+                        return new ValueTask<ServiceResult>(ServiceResult.Good);
+                    });
+                InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                    async () => await ExecuteAsync().ConfigureAwait(false)).ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed, Is.SameAs(failure));
+                    Assert.That(generation.MonitoredItems, Is.Empty);
+                    Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, current.Object), Is.False);
+                    Assert.That(generation.HasPendingSourceReleases, Is.True);
+                });
+
+                await ExecuteAsync().ConfigureAwait(false);
+                await ExecuteAsync().ConfigureAwait(false);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(sourceCalls, Is.EqualTo(2));
+                    Assert.That(cleanupCalls, Is.EqualTo(1));
+                    Assert.That(generation.HasPendingSourceReleases, Is.False);
+                    Assert.That(binding.IsTerminal, Is.EqualTo(!migrate));
+                    Assert.That(item.Id, Is.EqualTo(2));
+                    Assert.That(item.NodeManager, migrate ? Is.SameAs(replacement.Object) : Is.Null);
+                });
+                target.Verify(value => value.AttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()),
+                    migrate ? Times.Once : Times.Never);
+
+                ValueTask ExecuteAsync()
+                {
+                    return migrate
+                        ? NodeManagerLifecycle.MigrateLateMonitoredItemsAsync(
+                            server.Object, current.Object, replacement.Object)
+                        : NodeManagerLifecycle.DetachActiveMonitoredItemsAsync(server.Object, current.Object);
+                }
+            }
+        }
+
         /// <summary>
         /// Client disposal is immediate and forbids queue use even while generation adoption is running.
         /// </summary>
@@ -2922,12 +3178,16 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                     }
 
+                    object? originalHandle = item.ManagerHandle;
                     Task<ServiceResult> original = failAttachment
                         ? owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask()
                         : owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
                     transitions.Add(original);
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                    object? originalHandle = item.ManagerHandle;
+                    if (failAttachment)
+                    {
+                        originalHandle = item.ManagerHandle;
+                    }
                     using (Assert.EnterMultipleScope())
                     {
                         Assert.That(original.IsCompleted, Is.False);
@@ -2935,6 +3195,19 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(source.AreEventsMonitored, Is.EqualTo(failAttachment));
                         Assert.That(Volatile.Read(ref subscribeCalls), Is.EqualTo(1));
                         Assert.That(Volatile.Read(ref unsubscribeCalls), Is.EqualTo(failAttachment ? 0 : 1));
+                    }
+                    if (!failAttachment)
+                    {
+                        MonitoredItemSourceSnapshot released =
+                            ((IMonitoredItemGenerationBinding)item).CaptureSource();
+                        using (Assert.EnterMultipleScope())
+                        {
+                            Assert.That(item.ManagerHandle, Is.Null);
+                            Assert.That(item.NodeManager, Is.Null);
+                            Assert.That(released.Generation, Is.Null);
+                            Assert.That(released.Handle, Is.Null);
+                            Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                        }
                     }
                     if (failAttachment)
                     {
@@ -3583,6 +3856,26 @@ namespace Opc.Ua.Server.Tests
                 return m_asyncManager is not null
                     ? [.. m_asyncManager.MonitoredItems.Values]
                     : [.. m_syncManager!.MonitoredItems.Values];
+            }
+
+            /// <summary>
+            /// Injects a conflicting native entry while a provider callback is outside the manager gate.
+            /// </summary>
+            public bool TryAddNativeItem(uint id, IMonitoredItem item)
+            {
+                return m_asyncManager is not null
+                    ? m_asyncManager.MonitoredItems.TryAdd(id, item)
+                    : m_syncManager.MonitoredItems.TryAdd(id, item);
+            }
+
+            /// <summary>
+            /// Removes the exact test-owned conflicting entry.
+            /// </summary>
+            public bool TryRemoveNativeItem(uint id)
+            {
+                return m_asyncManager is not null
+                    ? m_asyncManager.MonitoredItems.TryRemove(id, out _)
+                    : m_syncManager.MonitoredItems.TryRemove(id, out _);
             }
 
             public ValueTask AddNodeAsync(NodeState node)

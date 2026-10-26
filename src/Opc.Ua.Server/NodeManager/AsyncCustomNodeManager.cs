@@ -839,31 +839,21 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
+                monitoredItem is not IMonitoredItemGenerationBinding)
             {
                 return StatusCodes.BadNotSupported;
             }
 
             ServerSystemContext context = SystemContext.Copy(new OperationContext(monitoredItem));
-            object? previousHandle = sampledMonitoredItem.ManagerHandle;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+            await NodeManagerGenerationRegistry.GetOrCreate(this)
+                .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+            return await DetachMonitoredItemForLifecycleAsync(
                 context,
                 sampledMonitoredItem,
                 lifecycle,
                 cancellationToken).ConfigureAwait(false);
-
-            if (ServiceResult.IsGood(result) &&
-                previousHandle is NodeHandle handle &&
-                monitoredItem is IDetachableMonitoredItem { IsDetached: true })
-            {
-                await OnMonitoredItemDetachedAsync(
-                    context,
-                    handle,
-                    sampledMonitoredItem,
-                    cancellationToken).ConfigureAwait(false);
-            }
-            return result;
         }
 
         /// <inheritdoc/>
@@ -999,6 +989,11 @@ namespace Opc.Ua.Server
             NodeState? eventSource = null;
             NodeHandle? handle = null;
             bool changed = false;
+            bool providerReleased = true;
+            bool restoredNative = false;
+            long sourceRevision = 0;
+            var binding = (IMonitoredItemGenerationBinding)monitoredItem;
+            NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
             bool isEvent =
                 (monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) != 0;
             ServiceResult result;
@@ -1006,7 +1001,9 @@ namespace Opc.Ua.Server
             {
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    handle = monitoredItem.ManagerHandle as NodeHandle;
+                    MonitoredItemSourceSnapshot source = binding.CaptureSource();
+                    sourceRevision = source.Revision;
+                    handle = source.Handle;
                     monitoredNode = isEvent ? handle?.MonitoredNode : null;
                     eventSource = isEvent ? handle?.Node : null;
                     (result, changed) = lifecycle.DetachMonitoredItem(
@@ -1017,56 +1014,52 @@ namespace Opc.Ua.Server
                     {
                         return result;
                     }
-                    if (monitoredNode == null || eventSource == null)
+                    providerReleased = monitoredNode == null || eventSource == null;
+                    if (!providerReleased)
                     {
-                        ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
-                        return result;
+                        eventSource!.SetAreEventsMonitored(context, false, true);
                     }
-                    eventSource.SetAreEventsMonitored(context, false, true);
                 }
 
-                await OnSubscribeToEventsAsync(
-                    context,
-                    monitoredNode,
-                    true,
-                    cancellationToken).ConfigureAwait(false);
+                await CompleteSourceReleaseAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OutOfMemoryException &&
-                changed &&
-                handle != null &&
-                monitoredNode != null &&
-                eventSource != null)
+            catch (Exception ex) when (ex is not OutOfMemoryException && changed)
             {
                 var compensationFailures = new List<Exception>();
                 MonitoredNode2? restoredNode = null;
-                using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+                if (!providerReleased && handle != null && monitoredNode != null && eventSource != null)
                 {
-                    if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
-                        ReferenceEquals(monitoredItem.NodeManager, this) &&
-                        !MonitoredItems.ContainsKey(monitoredItem.Id))
+                    using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
                     {
-                        try
+                        MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                        if (current.Revision == sourceRevision && current.Generation is null &&
+                            !binding.IsRemoved && !MonitoredItems.ContainsKey(monitoredItem.Id))
                         {
-                            (ServiceResult restoreResult, bool restored) = lifecycle.AttachMonitoredItem(
-                                context,
-                                handle,
-                                monitoredItem,
-                                AddNodeToComponentCache,
-                                RemoveNodeFromComponentCache);
-                            if (ServiceResult.IsBad(restoreResult))
+                            try
                             {
-                                compensationFailures.Add(new ServiceResultException(restoreResult));
+                                (ServiceResult restoreResult, bool restored) = lifecycle.AttachMonitoredItem(
+                                    context,
+                                    handle,
+                                    monitoredItem,
+                                    AddNodeToComponentCache,
+                                    RemoveNodeFromComponentCache,
+                                    sourceRevision);
+                                if (ServiceResult.IsBad(restoreResult))
+                                {
+                                    compensationFailures.Add(new ServiceResultException(restoreResult));
+                                }
+                                else if (restored)
+                                {
+                                    restoredNative = true;
+                                    eventSource.SetAreEventsMonitored(context, true, true);
+                                    restoredNode = handle.MonitoredNode;
+                                }
                             }
-                            else if (restored)
+                            catch (Exception compensationException) when (
+                                compensationException is not OutOfMemoryException)
                             {
-                                eventSource.SetAreEventsMonitored(context, true, true);
-                                restoredNode = handle.MonitoredNode;
+                                compensationFailures.Add(compensationException);
                             }
-                        }
-                        catch (Exception compensationException) when (
-                            compensationException is not OutOfMemoryException)
-                        {
-                            compensationFailures.Add(compensationException);
                         }
                     }
                 }
@@ -1083,6 +1076,10 @@ namespace Opc.Ua.Server
                         compensationFailures.Add(compensationException);
                     }
                 }
+                if (!restoredNative)
+                {
+                    generation.RetainSourceRelease(monitoredItem, sourceRevision, CompleteSourceReleaseAsync);
+                }
 
                 if (compensationFailures.Count > 0)
                 {
@@ -1094,16 +1091,47 @@ namespace Opc.Ua.Server
                 throw;
             }
 
-            using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+            return result;
+
+            async ValueTask CompleteSourceReleaseAsync(CancellationToken ct)
             {
-                if (ReferenceEquals(monitoredItem.ManagerHandle, handle) &&
-                    ReferenceEquals(monitoredItem.NodeManager, this) &&
-                    !MonitoredItems.ContainsKey(monitoredItem.Id))
+                if (await HasNewerNativeSourceAsync(monitoredItem, binding, generation, sourceRevision)
+                    .ConfigureAwait(false))
                 {
-                    ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
+                    return;
+                }
+                if (!providerReleased)
+                {
+                    await OnSubscribeToEventsAsync(context, monitoredNode!, true, ct).ConfigureAwait(false);
+                    providerReleased = true;
+                }
+                if (handle != null &&
+                    !await HasNewerNativeSourceAsync(monitoredItem, binding, generation, sourceRevision)
+                        .ConfigureAwait(false))
+                {
+                    await OnMonitoredItemDetachedAsync(context, handle, monitoredItem, ct).ConfigureAwait(false);
                 }
             }
-            return result;
+
+        }
+
+        /// <summary>
+        /// Detects a newer native binding that has assumed this generation's provider ownership.
+        /// </summary>
+        private async ValueTask<bool> HasNewerNativeSourceAsync(
+            ISampledDataChangeMonitoredItem monitoredItem,
+            IMonitoredItemGenerationBinding binding,
+            NodeManagerGeneration generation,
+            long sourceRevision)
+        {
+            using (await AcquireMonitoredItemCommitAsync().ConfigureAwait(false))
+            {
+                MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                return current.Generation?.Identifies(generation) == true &&
+                    current.Revision != sourceRevision &&
+                    MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? nativeItem) &&
+                    ReferenceEquals(nativeItem, monitoredItem);
+            }
         }
 
         /// <summary>
@@ -1182,6 +1210,7 @@ namespace Opc.Ua.Server
 
             MonitoredNode2? monitoredNode = null;
             bool changed = false;
+            long boundRevision = 0;
             ServiceResult result;
             try
             {
@@ -1198,6 +1227,7 @@ namespace Opc.Ua.Server
                     {
                         return result;
                     }
+                    boundRevision = binding.SourceRevision;
                     if (!isEvent)
                     {
                         if (!externalValues)
@@ -1262,7 +1292,6 @@ namespace Opc.Ua.Server
                             {
                                 removed = true;
                                 source.SetAreEventsMonitored(context, false, true);
-                                ((IDetachableMonitoredItem)monitoredItem).Detach(Server);
                             }
                         }
                         catch (Exception compensationException) when (
@@ -1289,6 +1318,16 @@ namespace Opc.Ua.Server
                         compensationException is not OutOfMemoryException)
                     {
                         compensationFailures.Add(compensationException);
+                        NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(this);
+                        generation.RetainSourceRelease(monitoredItem, boundRevision, async _ =>
+                        {
+                            if (!await HasNewerNativeSourceAsync(
+                                sampledMonitoredItem, binding, generation, boundRevision).ConfigureAwait(false))
+                            {
+                                await CompensateEventSubscriptionAsync(context, monitoredNode, true)
+                                    .ConfigureAwait(false);
+                            }
+                        });
                     }
                 }
                 if (compensationFailures.Count > 0)

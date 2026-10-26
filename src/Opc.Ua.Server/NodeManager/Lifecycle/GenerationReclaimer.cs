@@ -336,6 +336,8 @@ namespace Opc.Ua.Server
                         retired.Server, retired.NodeManager, target).ConfigureAwait(false);
                     retired.LateMonitoredItemsMigrated = true;
                 }
+                await retired.Generation.CompleteSourceReleasesAsync(
+                    null, CancellationToken.None, joinActiveCleanup: true).ConfigureAwait(false);
                 retired.Generation.DisposeRetiredResources();
                 if (await CleanupRetiredGenerationCoreAsync(retired.Server, retired.Host, retired)
                     .ConfigureAwait(false))

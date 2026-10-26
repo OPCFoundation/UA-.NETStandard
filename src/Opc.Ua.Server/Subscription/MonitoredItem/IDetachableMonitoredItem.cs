@@ -45,11 +45,6 @@ namespace Opc.Ua.Server
         bool IsDeleted { get; }
 
         /// <summary>
-        /// Enters the manager-detach transition while preserving rollback ownership.
-        /// </summary>
-        void BeginDetach();
-
-        /// <summary>
         /// Releases the current manager binding while preserving the item's stable slot and queues.
         /// </summary>
         /// <param name="server">The server owning the item.</param>

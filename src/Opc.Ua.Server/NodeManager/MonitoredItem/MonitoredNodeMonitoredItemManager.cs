@@ -513,7 +513,7 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IDetachableMonitoredItem)
+            if (monitoredItem is not IMonitoredItemGenerationBinding)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
@@ -535,6 +535,9 @@ namespace Opc.Ua.Server
             Action<ISystemContext, NodeHandle>? removeNodeFromComponentCache,
             bool sourceRelease)
         {
+            long sourceRevision = sourceRelease
+                ? ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision
+                : 0;
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
                 return sourceRelease && monitoredItem is IDetachableMonitoredItem { IsDetached: true }
@@ -602,7 +605,7 @@ namespace Opc.Ua.Server
 
             if (sourceRelease)
             {
-                ((IDetachableMonitoredItem)monitoredItem).BeginDetach();
+                ((IMonitoredItemGenerationBinding)monitoredItem).TryClearSource(sourceRevision);
             }
             else if (!keepAllEventsOwner)
             {

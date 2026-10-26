@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
@@ -46,6 +47,208 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public sealed class MonitoredItemGenerationBindingTests
     {
+        /// <summary>
+        /// Concurrent retry refuses recursive waiting and never duplicates a provider callback.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PendingSourceCleanupCoordinatesConcurrentRetryWithoutRecursiveWaitingAsync(
+            bool independentReclamation)
+        {
+            using MonitoredItemQueueFactory queues = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queues));
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            int calls = 0;
+            generation.RetainSourceRelease(item, 0, async ct =>
+            {
+                calls++;
+                entered.TrySetResult(true);
+                await finish.Task.WaitAsync(ct).ConfigureAwait(false);
+            });
+            Task active = generation.CompleteSourceReleasesAsync(item, CancellationToken.None).AsTask();
+            Task? joined = null;
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (independentReclamation)
+                {
+                    joined = generation.CompleteSourceReleasesAsync(
+                        null, CancellationToken.None, joinActiveCleanup: true).AsTask();
+                    Assert.That(joined.IsCompleted, Is.False);
+                }
+                else
+                {
+                    ServiceResultException? error = await Assert.ThrowsAsync<ServiceResultException>(
+                        async () => await generation.CompleteSourceReleasesAsync(item, CancellationToken.None)
+                            .ConfigureAwait(false)).ConfigureAwait(false);
+                    Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                }
+                Assert.Multiple(() =>
+                {
+                    Assert.That(active.IsCompleted, Is.False);
+                    Assert.That(calls, Is.EqualTo(1));
+                    Assert.That(generation.HasPendingSourceReleases, Is.True);
+                });
+            }
+            finally
+            {
+                finish.TrySetResult(true);
+                await active.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                if (joined is not null)
+                {
+                    await joined.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+            }
+            await generation.CompleteSourceReleasesAsync(item, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(generation.HasPendingSourceReleases, Is.False);
+        }
+
+        /// <summary>
+        /// Joined cleanup observes the exact provider error and leaves the failed stage retryable.
+        /// </summary>
+        [Test]
+        public async Task PendingSourceCleanupJoinedFailureRemainsOwnedForRetryAsync()
+        {
+            using MonitoredItemQueueFactory queues = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queues));
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var finish = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var failure = new InvalidOperationException("Injected joined provider-cleanup failure.");
+            int calls = 0;
+            generation.RetainSourceRelease(item, 0, async ct =>
+            {
+                if (++calls == 1)
+                {
+                    entered.TrySetResult(true);
+                    await finish.Task.WaitAsync(ct).ConfigureAwait(false);
+                    throw failure;
+                }
+            });
+            Task owner = generation.CompleteSourceReleasesAsync(item, CancellationToken.None).AsTask();
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Task joined = generation.CompleteSourceReleasesAsync(
+                null, CancellationToken.None, joinActiveCleanup: true).AsTask();
+            finish.TrySetResult(true);
+            InvalidOperationException? ownerFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await owner.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            InvalidOperationException? joinedFailure = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await joined.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false))
+                .ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ownerFailure, Is.SameAs(failure));
+                Assert.That(joinedFailure, Is.SameAs(failure));
+                Assert.That(generation.HasPendingSourceReleases, Is.True);
+                Assert.That(calls, Is.EqualTo(1));
+            });
+            await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(generation.HasPendingSourceReleases, Is.False);
+        }
+
+        /// <summary>
+        /// Cancellation before retry does not invoke the provider or discard its cleanup.
+        /// </summary>
+        [Test]
+        public async Task PendingSourceCleanupCancellationPreservesWorkWithoutInvokingProviderAsync()
+        {
+            using MonitoredItemQueueFactory queues = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queues));
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            int calls = 0;
+            generation.RetainSourceRelease(item, 0, _ =>
+            {
+                calls++;
+                return default;
+            });
+            await Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await generation.CompleteSourceReleasesAsync(item, new CancellationToken(true))
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.That(calls, Is.Zero);
+            Assert.That(generation.HasPendingSourceReleases, Is.True);
+            await generation.CompleteSourceReleasesAsync(item, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(calls, Is.EqualTo(1));
+            Assert.That(generation.HasPendingSourceReleases, Is.False);
+        }
+
+        /// <summary>
+        /// Distinct failed callbacks on one incarnation retain independent cleanup progress.
+        /// </summary>
+        [Test]
+        public async Task PendingSourceCleanupPreservesDistinctWorkOnTheSameRevisionAsync()
+        {
+            using MonitoredItemQueueFactory queues = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queues));
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            var completed = new List<int>();
+            generation.RetainSourceRelease(item, 0, _ =>
+            {
+                completed.Add(1);
+                return default;
+            });
+            generation.RetainSourceRelease(item, 0, _ =>
+            {
+                completed.Add(2);
+                return default;
+            });
+            await generation.CompleteSourceReleasesAsync(item, CancellationToken.None).ConfigureAwait(false);
+            await generation.CompleteSourceReleasesAsync(item, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(completed, Has.Count.EqualTo(2));
+            Assert.That(completed[0], Is.EqualTo(1));
+            Assert.That(completed[1], Is.EqualTo(2));
+            Assert.That(generation.HasPendingSourceReleases, Is.False);
+        }
+
+        /// <summary>
+        /// One failing provider cannot prevent independent cleanup progress within its generation.
+        /// </summary>
+        [Test]
+        public async Task PendingSourceCleanupRetainsFailuresWithoutStarvingOtherItemsAsync()
+        {
+            using MonitoredItemQueueFactory queues = CreateQueueFactory(out ITelemetryContext telemetry);
+            using MonitoredItem item = CreateItem(CreateServer(telemetry, queues));
+            NodeManagerGeneration generation = GetBoundGeneration(item);
+            var other = new Mock<IMonitoredItem>().Object;
+            var failure = new InvalidOperationException("Injected source-provider cleanup failure.");
+            bool fail = true;
+            int failedCalls = 0;
+            int otherCalls = 0;
+            generation.RetainSourceRelease(item, 0, _ =>
+            {
+                failedCalls++;
+                if (fail)
+                {
+                    throw failure;
+                }
+                return default;
+            });
+            generation.RetainSourceRelease(other, 0, _ =>
+            {
+                otherCalls++;
+                return default;
+            });
+            InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
+                async () => await generation.CompleteSourceReleasesAsync(null, CancellationToken.None)
+                    .ConfigureAwait(false)).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(observed, Is.SameAs(failure));
+                Assert.That(otherCalls, Is.EqualTo(1));
+                Assert.That(failedCalls, Is.EqualTo(1));
+                Assert.That(generation.CapturePendingSourceItems(), Is.EqualTo(new[] { item }));
+            });
+            fail = false;
+            await generation.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
+            Assert.That(otherCalls, Is.EqualTo(1));
+            Assert.That(failedCalls, Is.EqualTo(2));
+            Assert.That(generation.HasPendingSourceReleases, Is.False);
+        }
+
         /// <summary>
         /// Construction alone does not enroll an item in slot-local recovery.
         /// </summary>
@@ -330,9 +533,10 @@ namespace Opc.Ua.Server.Tests
             ((IMonitoredItemGenerationBinding)item).BindSubscription(owner);
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
 
-            ((IDetachableMonitoredItem)item).BeginDetach();
+            var binding = (IMonitoredItemGenerationBinding)item;
+            Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
 
-            Assert.That(generation.MonitoredItems.ContainsKey(item), Is.True);
+            Assert.That(generation.MonitoredItems, Is.Empty);
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.False);
             ((IDetachableMonitoredItem)item).Rebind(manager, new object());
             Assert.That(NodeManagerLifecycle.HasActiveMonitoredItems(server.Object, manager), Is.True);
@@ -568,7 +772,8 @@ namespace Opc.Ua.Server.Tests
             var lifecycle = (IDetachableMonitoredItem)item;
             NodeManagerSlot slot = GetBoundGeneration(item).Slot;
 
-            lifecycle.BeginDetach();
+            var binding = (IMonitoredItemGenerationBinding)item;
+            Assert.That(binding.TryClearSource(binding.SourceRevision), Is.True);
             Assert.That(slot.UnresolvedItems, Is.Empty);
             var owner = new Mock<ISubscription>().Object;
             item.SubscriptionCallback = owner;

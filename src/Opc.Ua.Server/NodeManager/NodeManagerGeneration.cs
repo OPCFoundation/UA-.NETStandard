@@ -31,6 +31,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -259,6 +260,20 @@ namespace Opc.Ua.Server
         internal ConcurrentDictionary<IEventMonitoredItem, GenerationEventBindingRecord> EventBindings { get; }
 
         /// <summary>
+        /// Gets whether failed source releases still need provider cleanup.
+        /// </summary>
+        internal bool HasPendingSourceReleases
+        {
+            get
+            {
+                lock (m_sourceReleasesLock)
+                {
+                    return m_sourceReleases is { Count: > 0 };
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets whether the all-events bindings are sealed because the generation retired. A sealed
         /// generation accepts no new bindings and keeps released records so a release happens once.
         /// </summary>
@@ -410,6 +425,109 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Retains failed source-provider cleanup independently of subscription membership.
+        /// </summary>
+        /// <param name="item">The item whose native source was released.</param>
+        /// <param name="sourceRevision">The released source incarnation.</param>
+        /// <param name="cleanup">The remaining provider and notification work.</param>
+        internal void RetainSourceRelease(
+            IMonitoredItem item,
+            long sourceRevision,
+            Func<CancellationToken, ValueTask> cleanup)
+        {
+            lock (m_sourceReleasesLock)
+            {
+                m_sourceReleases ??= new(MonitoredItemReferenceComparer.Instance);
+                if (!m_sourceReleases.TryGetValue(item, out List<GenerationSourceRelease>? releases))
+                {
+                    m_sourceReleases.Add(item, releases = []);
+                }
+                releases.Add(new GenerationSourceRelease(item, sourceRevision, cleanup));
+            }
+        }
+
+        /// <summary>
+        /// Captures cleanup-owned items so a failed late handoff can resume after native release.
+        /// </summary>
+        /// <returns>The exact items with unfinished source work.</returns>
+        internal IMonitoredItem[] CapturePendingSourceItems()
+        {
+            lock (m_sourceReleasesLock)
+            {
+                return m_sourceReleases is null ? [] : [.. m_sourceReleases.Keys];
+            }
+        }
+
+        /// <summary>
+        /// Completes retained cleanup before retrying an item or reclaiming its generation.
+        /// </summary>
+        /// <param name="item">The item to retry, or null to drain the entire generation.</param>
+        /// <param name="ct">Cancels provider cleanup.</param>
+        /// <param name="joinActiveCleanup">Whether independent reclamation may join work already running.</param>
+        internal async ValueTask CompleteSourceReleasesAsync(
+            IMonitoredItem? item,
+            CancellationToken ct,
+            bool joinActiveCleanup = false)
+        {
+            GenerationSourceRelease[] releases;
+            lock (m_sourceReleasesLock)
+            {
+                if (m_sourceReleases is null || m_sourceReleases.Count == 0)
+                {
+                    return;
+                }
+                if (item is not null)
+                {
+                    releases = m_sourceReleases.TryGetValue(item, out List<GenerationSourceRelease>? pending)
+                        ? [.. pending]
+                        : [];
+                }
+                else
+                {
+                    var pending = new List<GenerationSourceRelease>();
+                    foreach (List<GenerationSourceRelease> values in m_sourceReleases.Values)
+                    {
+                        pending.AddRange(values);
+                    }
+                    releases = [.. pending];
+                }
+            }
+            List<Exception>? failures = null;
+            foreach (GenerationSourceRelease release in releases)
+            {
+                try
+                {
+                    await release.CompleteAsync(joinActiveCleanup, ct).ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException &&
+                    !(failure is OperationCanceledException && ct.IsCancellationRequested))
+                {
+                    (failures ??= []).Add(failure);
+                    continue;
+                }
+                lock (m_sourceReleasesLock)
+                {
+                    if (m_sourceReleases.TryGetValue(release.Item, out List<GenerationSourceRelease>? pending))
+                    {
+                        pending.Remove(release);
+                        if (pending.Count == 0)
+                        {
+                            m_sourceReleases.Remove(release.Item);
+                        }
+                    }
+                }
+            }
+            if (failures is { Count: 1 })
+            {
+                ExceptionDispatchInfo.Capture(failures[0]).Throw();
+            }
+            if (failures is { Count: > 1 })
+            {
+                throw new AggregateException("Monitored-item source-provider cleanup failed.", failures);
+            }
+        }
+
         /// <summary>Protects epoch registration, which occurs only while publishing views.</summary>
         private readonly Lock m_epochLock = new();
 
@@ -430,6 +548,114 @@ namespace Opc.Ua.Server
 
         /// <summary>Whether reclamation has assumed exclusive responsibility for pending disposals.</summary>
         private bool m_retirementResourcesSealed;
+
+        /// <summary>Protects exceptional source-cleanup ownership, never provider callbacks.</summary>
+        private readonly Lock m_sourceReleasesLock = new();
+
+        /// <summary>Failed source releases, allocated only when provider cleanup needs retry.</summary>
+        private Dictionary<IMonitoredItem, List<GenerationSourceRelease>>? m_sourceReleases;
+    }
+
+    /// <summary>
+    /// Owns retryable cleanup for one exact native source incarnation.
+    /// </summary>
+    internal sealed class GenerationSourceRelease
+    {
+        /// <summary>
+        /// Captures cleanup that must survive removal of the item's subscription.
+        /// </summary>
+        internal GenerationSourceRelease(
+            IMonitoredItem item,
+            long sourceRevision,
+            Func<CancellationToken, ValueTask> cleanup)
+        {
+            Item = item;
+            SourceRevision = sourceRevision;
+            m_cleanup = cleanup;
+        }
+
+        /// <summary>
+        /// Gets the exact item whose provider must be released.
+        /// </summary>
+        internal IMonitoredItem Item { get; }
+
+        /// <summary>
+        /// Gets the released native source incarnation.
+        /// </summary>
+        internal long SourceRevision { get; }
+
+        /// <summary>
+        /// Retries without holding a generation lock; only independent reclamation joins active callbacks.
+        /// </summary>
+        internal async ValueTask CompleteAsync(bool joinActiveCleanup, CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            TaskCompletionSource<Exception?>? owner = null;
+            Task<Exception?>? active = null;
+            lock (m_sync)
+            {
+                if (m_completed)
+                {
+                    return;
+                }
+                if (m_completion is not null)
+                {
+                    if (!joinActiveCleanup)
+                    {
+                        throw new ServiceResultException(
+                            StatusCodes.BadInvalidState, "The monitored-item source release is already being retried.");
+                    }
+                    active = m_completion.Task;
+                }
+                else
+                {
+                    m_completion = owner = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+            }
+            if (active is not null)
+            {
+                Exception? failure = await active.WaitAsync(ct).ConfigureAwait(false);
+                if (failure is not null)
+                {
+                    ExceptionDispatchInfo.Capture(failure).Throw();
+                }
+                return;
+            }
+            try
+            {
+                await m_cleanup(ct).ConfigureAwait(false);
+                lock (m_sync)
+                {
+                    m_completed = true;
+                }
+                owner!.TrySetResult(null);
+            }
+            catch (Exception failure)
+            {
+                // Publish even a fatal escape so an independent join cannot be left waiting forever.
+                owner!.TrySetResult(failure);
+                throw;
+            }
+            finally
+            {
+                lock (m_sync)
+                {
+                    m_completion = null;
+                }
+            }
+        }
+
+        /// <summary>The remaining cold-path cleanup, including its progress.</summary>
+        private readonly Func<CancellationToken, ValueTask> m_cleanup;
+
+        /// <summary>Protects only cleanup claims and completion publication.</summary>
+        private readonly Lock m_sync = new();
+
+        /// <summary>Publishes a callback's result without creating unobserved faulted tasks.</summary>
+        private TaskCompletionSource<Exception?>? m_completion;
+
+        /// <summary>Whether every stage of this retained cleanup has completed.</summary>
+        private bool m_completed;
     }
 
     /// <summary>

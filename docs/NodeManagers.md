@@ -998,6 +998,12 @@ Disposed items reject rebinding and source notifications, including already-admi
 If deletion wins during a replacement callback, reconciliation removes its late native registration;
 cleanup failures remain visible on the committed result.
 
+Native registration and the item's binding are released together, before awaiting provider
+unsubscribe callbacks. If provider cleanup cannot finish or restore native ownership, the source
+generation retains the remaining work independently of subscription membership. Client deletion
+does not discard that work. Retries preserve completed cleanup stages, and retirement completes
+pending provider releases before disposing retired consumers or destroying the address space.
+
 Native reads, sampling groups and report-by-exception value deliveries carry an explicit
 source-generation admission through their final enqueue. Already-admitted work can finish after
 the source stops accepting new work, but cannot deliver a stale value into a replacement binding.
