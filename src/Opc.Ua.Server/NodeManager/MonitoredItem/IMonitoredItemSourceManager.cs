@@ -32,28 +32,30 @@ using System;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Provides internal ownership operations for a monitored-item manager.
+    /// Commits native source ownership under the base manager's existing mutation gate.
+    /// Subscription ownership and unresolved policy remain outside the native item manager.
     /// </summary>
-    internal interface IMonitoredItemManagerLifecycle
+    internal interface IMonitoredItemSourceManager
     {
         /// <summary>
-        /// Removes an item from the manager without disposing it.
+        /// Releases native registration without disposing the subscription item.
         /// </summary>
-        (ServiceResult Result, bool Changed) DetachMonitoredItem(
+        (ServiceResult Result, bool Changed) ReleaseSource(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
+            long sourceRevision,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache);
 
         /// <summary>
-        /// Adds an existing item to the manager and rebinds its ownership.
+        /// Adopts an item only while the caller's captured source incarnation is still current.
         /// </summary>
-        (ServiceResult Result, bool Changed) AttachMonitoredItem(
+        (ServiceResult Result, bool Changed) AdoptSource(
             ServerSystemContext context,
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            long? sourceRevision = null,
+            long sourceRevision,
             MonitoredItemAdoption? adoption = null);
     }
 }

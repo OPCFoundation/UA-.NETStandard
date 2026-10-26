@@ -138,7 +138,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IAsyncNodeManager? receivedManager = null;
             IReadOnlyCollection<NodeId>? receivedNodes = null;
             var failure = new InvalidOperationException("asynchronous recovery failed");
-            recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+            recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
                     It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId>? nodeIds, CancellationToken ct) =>
@@ -189,7 +189,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await addition.ConfigureAwait(false);
                 }
             }
-            recovery.Verify(value => value.RecoverDetachedMonitoredItemsAsync(
+            recovery.Verify(value => value.ResolveUnresolvedSourcesAsync(
                 It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
         }

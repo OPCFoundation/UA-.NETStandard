@@ -549,7 +549,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager nodeManager,
                 CancellationToken ct)
         {
-            (INodeManagerMonitoredItemLifecycle lifecycle, IReadOnlyList<IMonitoredItem> items) =
+            (INodeManagerMonitoredItemSource lifecycle, IReadOnlyList<IMonitoredItem> items) =
                 await GetOwnedMonitoredItemsAsync(nodeManager, ct)
                     .ConfigureAwait(false);
             return new MonitoredItemTransition(
@@ -622,7 +622,7 @@ namespace Opc.Ua.Server
                 IAsyncNodeManager replacement,
                 CancellationToken ct)
         {
-            (INodeManagerMonitoredItemLifecycle currentLifecycle,
+            (INodeManagerMonitoredItemSource currentLifecycle,
                 IReadOnlyList<IMonitoredItem> items) =
                 await GetOwnedMonitoredItemsAsync(current, ct)
                     .ConfigureAwait(false);
@@ -634,7 +634,7 @@ namespace Opc.Ua.Server
                     compatibleItems: [],
                     deletedItems: []);
             }
-            if (replacement is not INodeManagerMonitoredItemLifecycle replacementLifecycle)
+            if (replacement is not INodeManagerMonitoredItemSource replacementLifecycle)
             {
                 throw new NotSupportedException(
                     "The replacement NodeManager does not support monitored-item transitions.");
@@ -645,7 +645,7 @@ namespace Opc.Ua.Server
             foreach (IMonitoredItem monitoredItem in items)
             {
                 ServiceResult result = await replacementLifecycle
-                    .CanAttachMonitoredItemAsync(monitoredItem, ct)
+                    .ValidateSourceAsync(monitoredItem, ct)
                     .ConfigureAwait(false);
                 if (ServiceResult.IsGood(result))
                 {
@@ -685,7 +685,7 @@ namespace Opc.Ua.Server
         }
 
         private static ValueTask<(
-            INodeManagerMonitoredItemLifecycle Lifecycle,
+            INodeManagerMonitoredItemSource Lifecycle,
             IReadOnlyList<IMonitoredItem> Items)> GetOwnedMonitoredItemsAsync(
                 IAsyncNodeManager nodeManager,
                 CancellationToken ct)
@@ -709,7 +709,7 @@ namespace Opc.Ua.Server
             }
             IMonitoredItem[] items = [.. ownedItems];
 
-            if (nodeManager is not INodeManagerMonitoredItemLifecycle nodeManagerLifecycle)
+            if (nodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
             {
                 if (items.Length > 0)
                 {
@@ -718,7 +718,7 @@ namespace Opc.Ua.Server
                 }
                 nodeManagerLifecycle = UnsupportedMonitoredItemLifecycle.Instance;
             }
-            return new ValueTask<(INodeManagerMonitoredItemLifecycle, IReadOnlyList<IMonitoredItem>)>(
+            return new ValueTask<(INodeManagerMonitoredItemSource, IReadOnlyList<IMonitoredItem>)>(
                 (nodeManagerLifecycle, items));
         }
 
@@ -739,13 +739,13 @@ namespace Opc.Ua.Server
                     secondSyncNodeManager);
         }
 
-        private static ValueTask RecoverDetachedMonitoredItemsAsync(
+        private static ValueTask ResolveUnresolvedSourcesAsync(
             IServerInternal server,
             IAsyncNodeManager nodeManager,
             CancellationToken ct)
         {
             return server.NodeManager is IDynamicNodeManagerHost recovery
-                ? recovery.RecoverDetachedMonitoredItemsAsync(
+                ? recovery.ResolveUnresolvedSourcesAsync(
                     nodeManager,
                     cancellationToken: ct)
                 : default;
@@ -1167,8 +1167,8 @@ namespace Opc.Ua.Server
             /// <param name="isOwnedBySubscription">Optional test hook that verifies subscription ownership.</param>
             /// <param name="terminal">Whether lost items require client-side recreation.</param>
             public MonitoredItemTransition(
-                INodeManagerMonitoredItemLifecycle current,
-                INodeManagerMonitoredItemLifecycle? replacement,
+                INodeManagerMonitoredItemSource current,
+                INodeManagerMonitoredItemSource? replacement,
                 IReadOnlyList<IMonitoredItem> compatibleItems,
                 IReadOnlyList<IMonitoredItem> deletedItems,
                 Func<IMonitoredItem, bool>? isOwnedBySubscription = null,
@@ -1246,8 +1246,9 @@ namespace Opc.Ua.Server
                     long sourceRevision = binding?.SourceRevision ?? 0;
                     try
                     {
-                        ServiceResult result = await m_current.DetachMonitoredItemAsync(
+                        ServiceResult result = await m_current.ReleaseSourceAsync(
                             monitoredItem,
+                            sourceRevision,
                             ct)
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result))
@@ -1267,7 +1268,7 @@ namespace Opc.Ua.Server
                         var adoption = new MonitoredItemAdoption(sourceRevision);
                         try
                         {
-                            result = await m_replacement.AttachMonitoredItemAsync(
+                            result = await m_replacement.AdoptSourceAsync(
                                 monitoredItem,
                                 adoption,
                                 ct).ConfigureAwait(false);
@@ -1307,8 +1308,9 @@ namespace Opc.Ua.Server
                             // Client deletion during handoff must also stop replacement sampling.
                             try
                             {
-                                ServiceResult result = await m_replacement!.DetachMonitoredItemAsync(
+                                ServiceResult result = await m_replacement!.ReleaseSourceAsync(
                                     monitoredItem,
+                                    sourceRevision,
                                     ct).ConfigureAwait(false);
                                 if (ServiceResult.IsBad(result))
                                 {
@@ -1377,8 +1379,8 @@ namespace Opc.Ua.Server
                     lifecycle.ContainsMonitoredItem(monitoredItem);
             }
 
-            private readonly INodeManagerMonitoredItemLifecycle m_current;
-            private readonly INodeManagerMonitoredItemLifecycle? m_replacement;
+            private readonly INodeManagerMonitoredItemSource m_current;
+            private readonly INodeManagerMonitoredItemSource? m_replacement;
             private readonly IReadOnlyList<IMonitoredItem> m_compatibleItems;
             private readonly IReadOnlyList<IMonitoredItem> m_deletedItems;
             private readonly Func<IMonitoredItem, bool>? m_isOwnedBySubscription;
@@ -1397,7 +1399,7 @@ namespace Opc.Ua.Server
         }
 
         private sealed class UnsupportedMonitoredItemLifecycle :
-            INodeManagerMonitoredItemLifecycle
+            INodeManagerMonitoredItemSource
         {
             public static UnsupportedMonitoredItemLifecycle Instance { get; } = new();
 
@@ -1406,7 +1408,7 @@ namespace Opc.Ua.Server
                 return null;
             }
 
-            public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
+            public ValueTask<ServiceResult> ValidateSourceAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {
@@ -1414,17 +1416,18 @@ namespace Opc.Ua.Server
                     new ServiceResult(StatusCodes.BadNotSupported));
             }
 
-            public ValueTask<ServiceResult> DetachMonitoredItemAsync(
+            public ValueTask<ServiceResult> ReleaseSourceAsync(
                 IMonitoredItem monitoredItem,
+                long sourceRevision,
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
             }
 
-            public ValueTask<ServiceResult> AttachMonitoredItemAsync(
+            public ValueTask<ServiceResult> AdoptSourceAsync(
                 IMonitoredItem monitoredItem,
-                MonitoredItemAdoption? adoption = null,
+                MonitoredItemAdoption adoption,
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<ServiceResult>(
@@ -1984,7 +1987,7 @@ namespace Opc.Ua.Server
                             await reconciliation.RunAsync(
                                 NodeManagerReconciliationStage.MonitoredItems,
                                 [generation],
-                                () => RecoverDetachedMonitoredItemsAsync(
+                                () => ResolveUnresolvedSourcesAsync(
                                     batch.Server, entry.Manager, CancellationToken.None)).ConfigureAwait(false);
                         }
                         await reconciliation.RunAsync(

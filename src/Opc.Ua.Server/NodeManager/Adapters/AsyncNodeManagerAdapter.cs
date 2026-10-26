@@ -73,7 +73,7 @@ namespace Opc.Ua.Server
         IAsyncNodeManager,
         IDisposable,
         IAsyncDisposable,
-        INodeManagerMonitoredItemLifecycle,
+        INodeManagerMonitoredItemSource,
         INodeManagerReadinessNotification
     {
         /// <summary>
@@ -142,41 +142,42 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
+        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemSource.GetNotificationDrain(NodeId nodeId)
         {
-            return (SyncNodeManager as INodeManagerMonitoredItemLifecycle)?.GetNotificationDrain(nodeId);
+            return (SyncNodeManager as INodeManagerMonitoredItemSource)?.GetNotificationDrain(nodeId);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ValidateSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
-            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.CanAttachMonitoredItemAsync(monitoredItem, cancellationToken)
+            return SyncNodeManager is INodeManagerMonitoredItemSource lifecycle
+                ? lifecycle.ValidateSourceAsync(monitoredItem, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ReleaseSourceAsync(
             IMonitoredItem monitoredItem,
+            long sourceRevision,
             CancellationToken cancellationToken)
         {
-            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.DetachMonitoredItemAsync(monitoredItem, cancellationToken)
+            return SyncNodeManager is INodeManagerMonitoredItemSource lifecycle
+                ? lifecycle.ReleaseSourceAsync(monitoredItem, sourceRevision, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.AdoptSourceAsync(
             IMonitoredItem monitoredItem,
-            MonitoredItemAdoption? adoption,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
-            return SyncNodeManager is INodeManagerMonitoredItemLifecycle lifecycle
-                ? lifecycle.AttachMonitoredItemAsync(monitoredItem, adoption, cancellationToken)
+            return SyncNodeManager is INodeManagerMonitoredItemSource lifecycle
+                ? lifecycle.AdoptSourceAsync(monitoredItem, adoption, cancellationToken)
                 : new ValueTask<ServiceResult>(
                     new ServiceResult(StatusCodes.BadNotSupported));
         }

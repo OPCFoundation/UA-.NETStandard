@@ -42,7 +42,7 @@ namespace Opc.Ua.Server
     /// </summary>
     public class MonitoredNodeMonitoredItemManager :
         IMonitoredItemManager,
-        IMonitoredItemManagerLifecycle,
+        IMonitoredItemSourceManager,
         ICustomMonitoredItemManager
     {
         /// <inheritdoc/>
@@ -513,21 +513,27 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        (ServiceResult Result, bool Changed) IMonitoredItemManagerLifecycle.DetachMonitoredItem(
+        (ServiceResult Result, bool Changed) IMonitoredItemSourceManager.ReleaseSource(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
+            long sourceRevision,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache)
         {
-            if (monitoredItem is not IMonitoredItemGenerationBinding)
+            if (monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
+            }
+            if (binding.SourceRevision != sourceRevision)
+            {
+                return (ServiceResult.Good, false);
             }
             return RemoveRegistration(
                 context,
                 monitoredItem,
                 monitoredItem.ManagerHandle as NodeHandle,
                 removeNodeFromComponentCache,
-                sourceRelease: true);
+                sourceRelease: true,
+                sourceRevision);
         }
 
         /// <summary>
@@ -538,11 +544,9 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             NodeHandle? handle,
             Action<ISystemContext, NodeHandle>? removeNodeFromComponentCache,
-            bool sourceRelease)
+            bool sourceRelease,
+            long sourceRevision = 0)
         {
-            long sourceRevision = sourceRelease
-                ? ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision
-                : 0;
             if (!MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {
                 return sourceRelease && monitoredItem is IMonitoredItemGenerationBinding { IsSourceUnavailable: true }
@@ -621,20 +625,20 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        (ServiceResult Result, bool Changed) IMonitoredItemManagerLifecycle.AttachMonitoredItem(
+        (ServiceResult Result, bool Changed) IMonitoredItemSourceManager.AdoptSource(
             ServerSystemContext context,
             NodeHandle handle,
             ISampledDataChangeMonitoredItem monitoredItem,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            long? sourceRevision,
+            long sourceRevision,
             MonitoredItemAdoption? adoption)
         {
             if (monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
             }
-            long expectedRevision = sourceRevision ?? binding.SourceRevision;
+            long expectedRevision = sourceRevision;
 
             if (MonitoredItems.TryGetValue(monitoredItem.Id, out IMonitoredItem? existing))
             {

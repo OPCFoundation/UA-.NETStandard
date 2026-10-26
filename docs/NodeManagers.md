@@ -1001,13 +1001,17 @@ cleanup failures remain visible on the committed result.
 Native registration and the item's binding are released together, before awaiting provider
 unsubscribe callbacks. If provider cleanup cannot finish or restore native ownership, the source
 generation retains the remaining work independently of subscription membership. Client deletion
-does not discard that work. Retries preserve completed cleanup stages, and retirement completes
+does not discard that work. Adoption retries finish that generation's pending provider release
+before installing another native source. Retries preserve completed cleanup stages, and retirement completes
 pending provider releases before disposing retired consumers or destroying the address space.
 
 Each adoption carries its own source incarnation through native registration and rollback.
 Failed handoff or slot-local recovery reports a lost node only after that incarnation is unbound.
 A newer binding is never cleared or made terminal by an earlier attempt's finalization, including
 when both attempts use the same generation.
+Native release and adoption require the caller's captured incarnation; neither operation
+refreshes it after waiting for another operation. An older release cannot consume a newer
+registration. Subscription identity, queues and unresolved policy remain outside native ownership.
 
 A post-native adoption callback failure releases that attempt's native source before
 reporting the failure. This compensation ignores caller cancellation and cannot release

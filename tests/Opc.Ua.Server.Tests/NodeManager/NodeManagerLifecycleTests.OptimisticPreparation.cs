@@ -195,14 +195,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             Mock<IAsyncNodeManager> original = CreateLifecycleNodeManager(kModelNamespaceUri);
-            original.As<INodeManagerMonitoredItemLifecycle>();
+            original.As<INodeManagerMonitoredItemSource>();
             original.As<INodeManagerReloadParticipant>()
                 .Setup(value => value.PrepareReloadAsync(
                     It.IsAny<IAsyncNodeManager>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ArrayOf<LocalReference>>([]));
             Mock<IAsyncNodeManager> replacement = CreateLifecycleNodeManager(kModelNamespaceUri);
-            Mock<INodeManagerMonitoredItemLifecycle> incoming = replacement.As<INodeManagerMonitoredItemLifecycle>();
-            incoming.Setup(value => value.CanAttachMonitoredItemAsync(
+            Mock<INodeManagerMonitoredItemSource> incoming = replacement.As<INodeManagerMonitoredItemSource>();
+            incoming.Setup(value => value.ValidateSourceAsync(
                 It.IsAny<IMonitoredItem>(), It.IsAny<CancellationToken>()))
                 .Returns((IMonitoredItem _, CancellationToken token) => CheckCompatibilityAsync(token));
             var factory = new Mock<IAsyncNodeManagerFactory>();
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(lifecycle.Revision, Is.EqualTo(RequireLifecycleValue(independentResult).Revision));
                 Assert.That(lifecycle.Registrations.ToList(), Does.Contain(initial.Registrations[0]));
             }
-            incoming.Verify(value => value.CanAttachMonitoredItemAsync(
+            incoming.Verify(value => value.ValidateSourceAsync(
                 monitoredItem.Object, It.IsAny<CancellationToken>()), Times.Once);
 
             async ValueTask<ServiceResult> CheckCompatibilityAsync(CancellationToken token)

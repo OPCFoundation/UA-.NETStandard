@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests
                     server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
                 var state = (IMonitoredItemGenerationBinding)item;
                 state.ReleaseSource();
-                ServiceResult attached = await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+                ServiceResult attached = await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
                 Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
                 var subscription = new Mock<ISubscription>();
                 subscription.SetupGet(value => value.EffectiveIdentity).Returns(Mock.Of<IUserIdentity>());
@@ -409,14 +409,14 @@ namespace Opc.Ua.Server.Tests
                 uint id = item.Id;
 
                 ServiceResult attachResult = await owner.Lifecycle
-                    .AttachMonitoredItemAsync(item)
+                    .AdoptSourceAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> attached = owner.CaptureMonitoredItems();
                 object? attachedHandle = item.ManagerHandle;
                 bool ownedAfterAttach = owner.Owns(item.NodeManager);
 
                 ServiceResult detachResult = await owner.Lifecycle
-                    .DetachMonitoredItemAsync(item)
+                    .ReleaseSourceAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> detached = owner.CaptureMonitoredItems();
                 bool wasDetached = itemLifecycle.IsSourceUnavailable;
@@ -429,13 +429,13 @@ namespace Opc.Ua.Server.Tests
                         ServiceResult.Good));
 
                 ServiceResult restoreResult = await owner.Lifecycle
-                    .AttachMonitoredItemAsync(item)
+                    .AdoptSourceAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> restored = owner.CaptureMonitoredItems();
                 object? restoredHandle = item.ManagerHandle;
                 bool wasAttachedAfterRestore = !itemLifecycle.IsSourceUnavailable;
                 bool ownedAfterRestore = owner.Owns(item.NodeManager);
-                await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
 
                 Assert.Multiple(() =>
                 {
@@ -496,21 +496,21 @@ namespace Opc.Ua.Server.Tests
                     node.NodeId);
                 var itemLifecycle = (IMonitoredItemGenerationBinding)item;
                 itemLifecycle.ReleaseSource();
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 ServerSystemContext context = server.Object.DefaultSystemContext.Copy(
                     new OperationContext(item));
 
-                (ServiceResult firstAttach, bool firstChanged) = lifecycle.AttachMonitoredItem(
+                (ServiceResult firstAttach, bool firstChanged) = lifecycle.AdoptSource(
                     context,
                     handle,
                     item,
                     static (_, _, nodeToCache) => nodeToCache,
                     static (_, _) => { });
-                (ServiceResult detach, bool detachChanged) = lifecycle.DetachMonitoredItem(
+                (ServiceResult detach, bool detachChanged) = lifecycle.ReleaseSource(
                     context,
                     item,
                     static (_, _) => { });
-                (ServiceResult secondAttach, bool secondChanged) = lifecycle.AttachMonitoredItem(
+                (ServiceResult secondAttach, bool secondChanged) = lifecycle.AdoptSource(
                     context,
                     new NodeHandle(node.NodeId, node),
                     item,
@@ -532,7 +532,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(itemLifecycle.IsSourceUnavailable, Is.False);
                 });
 
-                lifecycle.DetachMonitoredItem(context, item, static (_, _) => { });
+                lifecycle.ReleaseSource(context, item, static (_, _) => { });
             }
         }
 
@@ -642,13 +642,13 @@ namespace Opc.Ua.Server.Tests
                 var lifecycle = (IMonitoredItemGenerationBinding)item;
                 lifecycle.ReleaseSource();
                 Assert.That(
-                    (await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false))
+                    (await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false))
                         .StatusCode,
                     Is.EqualTo(StatusCodes.Good));
 
                 ((IMonitoredItemGenerationBinding)item).Invalidate(terminal: false);
                 ServiceResult detachResult = await owner.Lifecycle
-                    .DetachMonitoredItemAsync(item)
+                    .ReleaseSourceAsync(item)
                     .ConfigureAwait(false);
                 IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
 
@@ -701,7 +701,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(
                     async () => await owner.Lifecycle
-                        .AttachMonitoredItemAsync(item)
+                        .AdoptSourceAsync(item)
                         .ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>());
                 IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
@@ -749,7 +749,7 @@ namespace Opc.Ua.Server.Tests
                 var lifecycle = (IMonitoredItemGenerationBinding)item;
                 lifecycle.ReleaseSource();
                 Assert.That(
-                    (await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false))
+                    (await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false))
                         .StatusCode,
                     Is.EqualTo(StatusCodes.Good));
 
@@ -764,7 +764,7 @@ namespace Opc.Ua.Server.Tests
                 });
                 Assert.That(
                     async () => await owner.Lifecycle
-                        .DetachMonitoredItemAsync(item)
+                        .ReleaseSourceAsync(item)
                         .ConfigureAwait(false),
                     Throws.TypeOf<InvalidOperationException>());
                 IReadOnlyList<IMonitoredItem> remaining = owner.CaptureMonitoredItems();
@@ -778,7 +778,7 @@ namespace Opc.Ua.Server.Tests
                 });
 
                 owner.SetEventSubscriptionCallback(static _ => { });
-                await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
             }
         }
 
@@ -823,7 +823,7 @@ namespace Opc.Ua.Server.Tests
                     node.NodeId);
                 ((IMonitoredItemGenerationBinding)item).ReleaseSource();
                 Assert.That(
-                    (await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)).StatusCode,
+                    (await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)).StatusCode,
                     Is.EqualTo(StatusCodes.Good));
                 Assert.That(
                     ((IMonitoredItemGenerationBinding)item).CaptureSource().Generation!
@@ -850,7 +850,7 @@ namespace Opc.Ua.Server.Tests
                 });
 
                 InvalidOperationException? observed = await Assert.ThrowsAsync<InvalidOperationException>(
-                    async () => await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false))
+                    async () => await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 Assert.Multiple(() =>
                 {
@@ -880,7 +880,7 @@ namespace Opc.Ua.Server.Tests
                 }
                 else
                 {
-                    ServiceResult retried = await owner.Lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                    ServiceResult retried = await owner.Lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
                     Assert.That(retried.StatusCode, Is.EqualTo(StatusCodes.Good));
                 }
                 await generation!.CompleteSourceReleasesAsync(null, CancellationToken.None).ConfigureAwait(false);
@@ -931,7 +931,7 @@ namespace Opc.Ua.Server.Tests
                     }
                 });
                 AggregateException? observed = await Assert.ThrowsAsync<AggregateException>(
-                    async () => await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false))
+                    async () => await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 NodeManagerGeneration generation =
                     NodeManagerGenerationRegistry.GetOrCreate((IAsyncNodeManager)owner.Lifecycle);
@@ -1020,7 +1020,7 @@ namespace Opc.Ua.Server.Tests
                 var lifecycle = (IMonitoredItemGenerationBinding)item;
                 lifecycle.ReleaseSource();
                 Assert.That(
-                    (await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false))
+                    (await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false))
                         .StatusCode,
                     Is.EqualTo(StatusCodes.Good));
                 owner.SetNodeRemovedCallback(static _ =>
@@ -1086,9 +1086,9 @@ namespace Opc.Ua.Server.Tests
                 rootLifecycle.ReleaseSource();
                 childLifecycle.ReleaseSource();
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(rootItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(rootItem).ConfigureAwait(false)), Is.True);
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(childItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(childItem).ConfigureAwait(false)), Is.True);
                 var failure = new InvalidOperationException("Injected partial removal failure.");
                 owner.SetNodeRemovedCallback(removed =>
                 {
@@ -1176,9 +1176,9 @@ namespace Opc.Ua.Server.Tests
                 valueLifecycle.ReleaseSource();
                 eventLifecycle.ReleaseSource();
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(valueItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(valueItem).ConfigureAwait(false)), Is.True);
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(eventItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(eventItem).ConfigureAwait(false)), Is.True);
                 var deletionFailure = new InvalidOperationException("Injected deletion failure.");
                 var restorationFailure = new InvalidOperationException("Injected restoration failure.");
                 bool restoring = false;
@@ -1267,9 +1267,9 @@ namespace Opc.Ua.Server.Tests
                 firstLifecycle.ReleaseSource();
                 secondLifecycle.ReleaseSource();
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(firstItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(firstItem).ConfigureAwait(false)), Is.True);
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(secondItem).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(secondItem).ConfigureAwait(false)), Is.True);
 
                 var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1423,7 +1423,7 @@ namespace Opc.Ua.Server.Tests
                     recoverableManager.SystemContext,
                     node).ConfigureAwait(false);
                 isRunning = true;
-                await master.RecoverMonitoredItemsAsync(
+                await master.ResolveMonitoredItemSourcesAsync(
                     recoverableManager,
                     [recoverableItem],
                     CancellationToken.None).ConfigureAwait(false);
@@ -1441,8 +1441,8 @@ namespace Opc.Ua.Server.Tests
                         Is.SameAs(recoverableItem));
                 });
 
-                await ((INodeManagerMonitoredItemLifecycle)recoverableManager)
-                    .DetachMonitoredItemAsync(recoverableItem)
+                await ((INodeManagerMonitoredItemSource)recoverableManager)
+                    .ReleaseSourceAsync(recoverableItem)
                     .ConfigureAwait(false);
             }
         }
@@ -1734,7 +1734,7 @@ namespace Opc.Ua.Server.Tests
                     return default;
                 };
                 Exception actual = (await Assert.CatchAsync<Exception>(async () =>
-                    await owner.Lifecycle.AttachMonitoredItemAsync(item, cancellationToken: cancellation.Token)
+                    await owner.Lifecycle.AdoptSourceAsync(item, cancellationToken: cancellation.Token)
                         .ConfigureAwait(false)))!;
                 if (failCleanup)
                 {
@@ -1760,7 +1760,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.EqualTo(failCleanup ? 2 : 1));
                 owner.AsyncManager.MonitoredItemAttachedCallback = null;
                 Assert.That(ServiceResult.IsGood(
-                    await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)), Is.True);
+                    await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)), Is.True);
                 Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
                 Assert.That(binding.IsDeleted, Is.False);
                 Assert.That(binding.IsSourceUnavailable, Is.False);
@@ -1795,7 +1795,7 @@ namespace Opc.Ua.Server.Tests
                     callbacks++;
                     throw new InvalidOperationException("An unchanged adoption must not notify providers.");
                 };
-                ServiceResult result = await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+                ServiceResult result = await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(result), Is.True);
                 Assert.That(callbacks, Is.Zero);
                 Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.Zero);
@@ -1835,15 +1835,15 @@ namespace Opc.Ua.Server.Tests
                 {
                     owner.AsyncManager.MonitoredItemAttachedCallback = null;
                     Assert.That(ServiceResult.IsGood(
-                        await owner.Lifecycle.DetachMonitoredItemAsync(item, ct).ConfigureAwait(false)), Is.True);
+                        await owner.Lifecycle.ReleaseSourceAsync(item, ct).ConfigureAwait(false)), Is.True);
                     Assert.That(ServiceResult.IsGood(
-                        await owner.Lifecycle.AttachMonitoredItemAsync(item, cancellationToken: ct)
+                        await owner.Lifecycle.AdoptSourceAsync(item, cancellationToken: ct)
                             .ConfigureAwait(false)), Is.True);
                     newerRevision = binding.SourceRevision;
                     throw failure;
                 };
                 Exception actual = (await Assert.CatchAsync<Exception>(async () =>
-                    await owner.Lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false)))!;
+                    await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)))!;
                 Assert.That(actual, Is.SameAs(failure));
                 Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
                 Assert.That(owner.Owns(item.NodeManager), Is.True);
@@ -1956,6 +1956,60 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Slot-local recovery reports a rolled-back source as lost and drains failed provider cleanup before retry.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode, false)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, false)]
+        [TestCase(ManagerPath.AsyncMonitoredNode, true)]
+        [TestCase(ManagerPath.AsyncSamplingGroup, true)]
+        public async Task FailedSlotRecoveryAfterNativeCallbackRemainsRetryableAsync(ManagerPath path, bool failCleanup)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            using (MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(
+                server, [owner.AsyncManager]))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("FailedNativeSlotRecovery", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, owner.AsyncManager, new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+                var failure = new InvalidOperationException("Slot recovery provider failed after native adoption.");
+                var cleanupFailure = new InvalidOperationException("Slot recovery provider release failed.");
+                owner.AsyncManager.MonitoredItemAttachedCallback = _ => throw failure;
+                if (failCleanup)
+                {
+                    owner.AsyncManager.MonitoredItemDetachedCallback = _ => throw cleanupFailure;
+                }
+                Exception observed = (await Assert.CatchAsync<Exception>(async () =>
+                    await master.ResolveMonitoredItemSourcesAsync(owner.AsyncManager, [item]).ConfigureAwait(false)))!;
+                Assert.That(observed, failCleanup ? Is.TypeOf<AggregateException>() : Is.SameAs(failure));
+                Assert.That(owner.CaptureMonitoredItems(), Is.Empty);
+                Assert.That(binding.IsDeleted, Is.True);
+                Assert.That(binding.IsSourceUnavailable, Is.True);
+                NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(owner.AsyncManager);
+                Assert.That(generation.HasPendingSourceReleases, Is.EqualTo(failCleanup));
+                owner.AsyncManager.MonitoredItemAttachedCallback = null;
+                owner.AsyncManager.MonitoredItemDetachedCallback = null;
+
+                await master.ResolveMonitoredItemSourcesAsync(owner.AsyncManager, [item]).ConfigureAwait(false);
+                Assert.That(generation.HasPendingSourceReleases, Is.False);
+                Assert.That(owner.AsyncManager.DetachedNotificationCount, Is.EqualTo(failCleanup ? 2 : 1));
+                Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                Assert.That(owner.Owns(item.NodeManager), Is.True);
+                Assert.That(binding.IsDeleted, Is.False);
+                Assert.That(binding.IsSourceUnavailable, Is.False);
+            }
+        }
+
+        /// <summary>
         /// Slot-local recovery must preserve a newer source installed before an older adoption reports failure.
         /// </summary>
         [TestCase(false)]
@@ -1965,7 +2019,7 @@ namespace Opc.Ua.Server.Tests
             Mock<IServerInternal> server = DeterministicServerMock.Create(
                 out MonitoredItemQueueFactory queueFactory);
             var target = new Mock<IAsyncNodeManager>();
-            Mock<INodeManagerMonitoredItemLifecycle> lifecycle = target.As<INodeManagerMonitoredItemLifecycle>();
+            Mock<INodeManagerMonitoredItemSource> lifecycle = target.As<INodeManagerMonitoredItemSource>();
             using (queueFactory)
             using (MasterNodeManager master = DeterministicServerMock.CreateMasterNodeManager(server, [target.Object]))
             using (MonitoredItem item = CreateMonitoredItem(
@@ -1976,7 +2030,7 @@ namespace Opc.Ua.Server.Tests
                 var newerOwner = Mock.Of<IAsyncNodeManager>();
                 var newerHandle = new NodeHandle();
                 var failure = new InvalidOperationException("An older slot recovery failed after a newer binding.");
-                lifecycle.Setup(value => value.AttachMonitoredItemAsync(
+                lifecycle.Setup(value => value.AdoptSourceAsync(
                         item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()))
                     .Returns((IMonitoredItem monitoredItem, MonitoredItemAdoption? adoption, CancellationToken _) =>
                     {
@@ -1993,13 +2047,13 @@ namespace Opc.Ua.Server.Tests
                 if (throwFailure)
                 {
                     InvalidOperationException observed = (await Assert.ThrowsAsync<InvalidOperationException>(
-                        async () => await master.RecoverMonitoredItemsAsync(target.Object, [item])
+                        async () => await master.ResolveMonitoredItemSourcesAsync(target.Object, [item])
                             .ConfigureAwait(false)))!;
                     Assert.That(observed, Is.SameAs(failure));
                 }
                 else
                 {
-                    await master.RecoverMonitoredItemsAsync(target.Object, [item]).ConfigureAwait(false);
+                    await master.ResolveMonitoredItemSourcesAsync(target.Object, [item]).ConfigureAwait(false);
                 }
                 using (Assert.EnterMultipleScope())
                 {
@@ -2009,7 +2063,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(((IMonitoredItemGenerationBinding)item).IsSourceUnavailable, Is.False);
                     Assert.That(binding.IsTerminal, Is.False);
                 }
-                lifecycle.Verify(value => value.AttachMonitoredItemAsync(
+                lifecycle.Verify(value => value.AdoptSourceAsync(
                     item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()), Times.Once);
             }
         }
@@ -2108,9 +2162,9 @@ namespace Opc.Ua.Server.Tests
         {
             var server = new Mock<IServerInternal>();
             var current = new Mock<IAsyncNodeManager>();
-            Mock<INodeManagerMonitoredItemLifecycle> source = current.As<INodeManagerMonitoredItemLifecycle>();
+            Mock<INodeManagerMonitoredItemSource> source = current.As<INodeManagerMonitoredItemSource>();
             var replacement = new Mock<IAsyncNodeManager>();
-            Mock<INodeManagerMonitoredItemLifecycle> target = replacement.As<INodeManagerMonitoredItemLifecycle>();
+            Mock<INodeManagerMonitoredItemSource> target = replacement.As<INodeManagerMonitoredItemSource>();
             var item = new Mock<IMonitoredItem>();
             item.SetupGet(value => value.NodeId).Returns(new NodeId("RetainedFailure", 1));
             item.As<IMonitoredItemGenerationBinding>();
@@ -2120,11 +2174,12 @@ namespace Opc.Ua.Server.Tests
             item.SetupGet(value => value.SubscriptionCallback).Returns(subscription.Object);
             NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(current.Object);
             generation.MonitoredItems.TryAdd(item.Object, subscription.Object);
-            source.Setup(value => value.DetachMonitoredItemAsync(item.Object, It.IsAny<CancellationToken>()))
+            source.Setup(value => value.ReleaseSourceAsync(
+                item.Object, It.IsAny<long>(), It.IsAny<CancellationToken>()))
                 .Returns(() => throws
                     ? throw new InvalidOperationException("Injected retirement handoff failure.")
                     : new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadInvalidState)));
-            target.Setup(value => value.CanAttachMonitoredItemAsync(item.Object, It.IsAny<CancellationToken>()))
+            target.Setup(value => value.ValidateSourceAsync(item.Object, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(ServiceResult.Good);
 
             for (int attempt = 1; attempt <= 2; attempt++)
@@ -2148,10 +2203,10 @@ namespace Opc.Ua.Server.Tests
                         throws ? typeof(InvalidOperationException) : typeof(ServiceResultException)));
                     Assert.That(generation.MonitoredItems.ContainsKey(item.Object), Is.True);
                 });
-                source.Verify(value => value.DetachMonitoredItemAsync(
-                    item.Object, It.IsAny<CancellationToken>()), Times.Exactly(attempt));
+                source.Verify(value => value.ReleaseSourceAsync(
+                    item.Object, It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Exactly(attempt));
             }
-            target.Verify(value => value.AttachMonitoredItemAsync(
+            target.Verify(value => value.AdoptSourceAsync(
                 It.IsAny<IMonitoredItem>(), It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
                 Times.Never);
         }
@@ -2167,10 +2222,10 @@ namespace Opc.Ua.Server.Tests
             using (queues)
             {
                 var current = new Mock<IAsyncNodeManager>();
-                Mock<INodeManagerMonitoredItemLifecycle> source = current.As<INodeManagerMonitoredItemLifecycle>();
+                Mock<INodeManagerMonitoredItemSource> source = current.As<INodeManagerMonitoredItemSource>();
                 var replacement = new Mock<IAsyncNodeManager>();
-                Mock<INodeManagerMonitoredItemLifecycle> target =
-                    replacement.As<INodeManagerMonitoredItemLifecycle>();
+                Mock<INodeManagerMonitoredItemSource> target =
+                    replacement.As<INodeManagerMonitoredItemSource>();
                 using MonitoredItem item = CreateMonitoredItem(
                     server.Object, current.Object, new NodeHandle(), new NodeId("LatePendingSource", 1));
                 var binding = (IMonitoredItemGenerationBinding)item;
@@ -2183,8 +2238,8 @@ namespace Opc.Ua.Server.Tests
                 int sourceCalls = 0;
                 int cleanupCalls = 0;
                 var failure = new InvalidOperationException("Injected late source-provider failure.");
-                source.Setup(value => value.DetachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
-                    .Returns(async (IMonitoredItem _, CancellationToken ct) =>
+                source.Setup(value => value.ReleaseSourceAsync(item, It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                    .Returns(async (IMonitoredItem _, long sourceRevision, CancellationToken ct) =>
                     {
                         if (++sourceCalls == 1)
                         {
@@ -2200,9 +2255,9 @@ namespace Opc.Ua.Server.Tests
                         await generation.CompleteSourceReleasesAsync(item, ct).ConfigureAwait(false);
                         return ServiceResult.Good;
                     });
-                target.Setup(value => value.CanAttachMonitoredItemAsync(item, It.IsAny<CancellationToken>()))
+                target.Setup(value => value.ValidateSourceAsync(item, It.IsAny<CancellationToken>()))
                     .ReturnsAsync(ServiceResult.Good);
-                target.Setup(value => value.AttachMonitoredItemAsync(
+                target.Setup(value => value.AdoptSourceAsync(
                     item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()))
                     .Returns(() =>
                     {
@@ -2231,7 +2286,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(item.Id, Is.EqualTo(2));
                     Assert.That(item.NodeManager, migrate ? Is.SameAs(replacement.Object) : Is.Null);
                 });
-                target.Verify(value => value.AttachMonitoredItemAsync(
+                target.Verify(value => value.AdoptSourceAsync(
                     item, It.IsAny<MonitoredItemAdoption>(), It.IsAny<CancellationToken>()),
                     migrate ? Times.Once : Times.Never);
 
@@ -2328,7 +2383,7 @@ namespace Opc.Ua.Server.Tests
                 using MonitoredItem item = CreateMonitoredItem(
                     server.Object, nodeManager, new NodeHandle(node.NodeId, node), node.NodeId);
                 var binding = (IMonitoredItemGenerationBinding)item;
-                var native = (IMonitoredItemManagerLifecycle)manager;
+                var native = (IMonitoredItemSourceManager)manager;
                 ServerSystemContext context = server.Object.DefaultSystemContext.Copy(new OperationContext(item));
                 int cacheRemovals = 0;
                 var current = new TestNodeManagerLifecycle
@@ -2341,7 +2396,7 @@ namespace Opc.Ua.Server.Tests
                 };
                 var replacement = new TestNodeManagerLifecycle
                 {
-                    AttachCallback = _ => native.AttachMonitoredItem(
+                    AttachCallback = _ => native.AdoptSource(
                         context,
                         new NodeHandle(node.NodeId, node),
                         item,
@@ -2755,9 +2810,9 @@ namespace Opc.Ua.Server.Tests
                 var handle = new NodeHandle(source.NodeId, source);
                 using MonitoredItem item = CreateMonitoredItem(server.Object, owner, handle, source.NodeId);
                 using MonitoredItem conflicting = CreateMonitoredItem(server.Object, owner, handle, source.NodeId);
-                var registration = (IMonitoredItemManagerLifecycle)manager;
+                var registration = (IMonitoredItemSourceManager)manager;
                 ((IMonitoredItemGenerationBinding)item).ReleaseSource();
-                Assert.That(registration.AttachMonitoredItem(
+                Assert.That(registration.AdoptSource(
                     server.Object.DefaultSystemContext, handle, item,
                     static (_, _, node) => node, static (_, _) => { }).Result.StatusCode,
                     Is.EqualTo(StatusCodes.Good));
@@ -2785,6 +2840,100 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Native source release and adoption cannot consume an earlier incarnation.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NativeSourceOperationsRejectStaleIncarnations(bool useSamplingGroups)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var owner = Mock.Of<IAsyncNodeManager>();
+                using var sampling = new TrackingSamplingGroupManager(server.Object, owner);
+                using IMonitoredItemManager manager = useSamplingGroups
+                    ? new SamplingGroupMonitoredItemManager(owner, server.Object, sampling)
+                    : new MonitoredNodeMonitoredItemManager(owner, server.Object);
+                var native = (IMonitoredItemSourceManager)manager;
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("StaleNativeSource", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                var handle = new NodeHandle(node.NodeId, node);
+                using MonitoredItem item = CreateMonitoredItem(server.Object, owner, handle, node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+                Assert.That(native.AdoptSource(server.Object.DefaultSystemContext, handle, item,
+                    static (_, _, source) => source, static (_, _) => { }).Changed, Is.True);
+                long oldRevision = binding.SourceRevision;
+                Assert.That(native.ReleaseSource(server.Object.DefaultSystemContext, item,
+                    oldRevision, static (_, _) => { }).Changed, Is.True);
+                Assert.That(native.AdoptSource(server.Object.DefaultSystemContext, handle, item,
+                    static (_, _, source) => source, static (_, _) => { }).Changed, Is.True);
+                long currentRevision = binding.SourceRevision;
+                (ServiceResult result, bool changed) = native.ReleaseSource(
+                    server.Object.DefaultSystemContext, item, oldRevision, static (_, _) => { });
+                Assert.That(ServiceResult.IsGood(result), Is.True);
+                Assert.That(changed, Is.False);
+                Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                Assert.That(binding.SourceRevision, Is.EqualTo(currentRevision));
+                Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                Assert.That(native.ReleaseSource(server.Object.DefaultSystemContext, item,
+                    currentRevision, static (_, _) => { }).Changed, Is.True);
+                (result, changed) = native.AdoptSource(server.Object.DefaultSystemContext, handle, item,
+                    static (_, _, source) => source, static (_, _) => { }, oldRevision);
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(changed, Is.False);
+                Assert.That(manager.MonitoredItems, Is.Empty);
+                Assert.That(binding.IsSourceUnavailable, Is.True);
+            }
+        }
+
+        /// <summary>
+        /// A delayed source release cannot remove a replacement installed in the same generation.
+        /// </summary>
+        [TestCase(ManagerPath.AsyncMonitoredNode)]
+        [TestCase(ManagerPath.AsyncSamplingGroup)]
+        [TestCase(ManagerPath.SyncAdapterMonitoredNode)]
+        [TestCase(ManagerPath.SyncAdapterSamplingGroup)]
+        public async Task BaseManagerSourceReleaseCannotRemoveNewerIncarnationAsync(ManagerPath path)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (ManagerOwner owner = CreateManager(server.Object, path))
+            {
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("StaleBaseSource", owner.NamespaceIndex),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                await owner.AddNodeAsync(node).ConfigureAwait(false);
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, Mock.Of<IAsyncNodeManager>(), new NodeHandle(), node.NodeId);
+                var binding = (IMonitoredItemGenerationBinding)item;
+                binding.ReleaseSource();
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)), Is.True);
+                long oldRevision = binding.SourceRevision;
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.ReleaseSourceAsync(item, oldRevision).ConfigureAwait(false)), Is.True);
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.AdoptSourceAsync(item).ConfigureAwait(false)), Is.True);
+                MonitoredItemSourceSnapshot current = binding.CaptureSource();
+                Assert.That(ServiceResult.IsGood(
+                    await owner.Lifecycle.ReleaseSourceAsync(item, oldRevision).ConfigureAwait(false)), Is.True);
+                Assert.That(owner.CaptureMonitoredItems(), Is.EqualTo(new[] { item }));
+                Assert.That(item.ManagerHandle, Is.SameAs(current.Handle));
+                Assert.That(item.Generation, Is.SameAs(current.Generation));
+                Assert.That(binding.SourceRevision, Is.EqualTo(current.Revision));
+                Assert.That(binding.IsDeleted, Is.False);
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void ManagerLifecycleHandlesIdempotenceAndConflictingOwnership(bool useSamplingGroups)
@@ -2803,7 +2952,7 @@ namespace Opc.Ua.Server.Tests
                         server.Object,
                         samplingGroups!)
                     : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 var node = new BaseDataVariableState(null)
                 {
                     NodeId = new NodeId("Idempotent", 1),
@@ -2827,20 +2976,20 @@ namespace Opc.Ua.Server.Tests
                 ServerSystemContext context = server.Object.DefaultSystemContext.Copy(
                     new OperationContext(item));
 
-                (ServiceResult firstAttach, bool firstChanged) = lifecycle.AttachMonitoredItem(
+                (ServiceResult firstAttach, bool firstChanged) = lifecycle.AdoptSource(
                     context,
                     handle,
                     item,
                     static (_, _, nodeToCache) => nodeToCache,
                     static (_, _) => { });
-                (ServiceResult repeatedAttach, bool repeatedChanged) = lifecycle.AttachMonitoredItem(
+                (ServiceResult repeatedAttach, bool repeatedChanged) = lifecycle.AdoptSource(
                     context,
                     handle,
                     item,
                     static (_, _, nodeToCache) => nodeToCache,
                     static (_, _) => { });
                 (ServiceResult conflictingAttach, bool conflictingChanged) =
-                    lifecycle.AttachMonitoredItem(
+                    lifecycle.AdoptSource(
                         context,
                         new NodeHandle(node.NodeId, node),
                         conflictingItem,
@@ -2849,7 +2998,7 @@ namespace Opc.Ua.Server.Tests
 
                 itemLifecycle.ReleaseSource();
                 (ServiceResult detachedExistingAttach, bool detachedExistingChanged) =
-                    lifecycle.AttachMonitoredItem(
+                    lifecycle.AdoptSource(
                         context,
                         handle,
                         item,
@@ -2857,12 +3006,12 @@ namespace Opc.Ua.Server.Tests
                         static (_, _) => { });
                 itemLifecycle.BindSource(nodeManager.Object, handle);
 
-                (ServiceResult detach, bool detachChanged) = lifecycle.DetachMonitoredItem(
+                (ServiceResult detach, bool detachChanged) = lifecycle.ReleaseSource(
                     context,
                     item,
                     static (_, _) => { });
                 (ServiceResult repeatedDetach, bool repeatedDetachChanged) =
-                    lifecycle.DetachMonitoredItem(
+                    lifecycle.ReleaseSource(
                         context,
                         item,
                         static (_, _) => { });
@@ -2907,7 +3056,7 @@ namespace Opc.Ua.Server.Tests
                         server.Object,
                         samplingGroups!)
                     : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 var unsupported = new Mock<ISampledDataChangeMonitoredItem>();
                 unsupported.SetupGet(value => value.Id).Returns(55);
                 unsupported.SetupGet(value => value.NodeId).Returns(new NodeId("Unsupported", 1));
@@ -2916,16 +3065,18 @@ namespace Opc.Ua.Server.Tests
                     NodeId = unsupported.Object.NodeId
                 };
 
-                (ServiceResult detach, bool detachChanged) = lifecycle.DetachMonitoredItem(
+                (ServiceResult detach, bool detachChanged) = lifecycle.ReleaseSource(
                     server.Object.DefaultSystemContext,
                     unsupported.Object,
+                    0,
                     static (_, _) => { });
-                (ServiceResult attach, bool attachChanged) = lifecycle.AttachMonitoredItem(
+                (ServiceResult attach, bool attachChanged) = lifecycle.AdoptSource(
                     server.Object.DefaultSystemContext,
                     new NodeHandle(node.NodeId, node),
                     unsupported.Object,
                     static (_, _, nodeToCache) => nodeToCache,
-                    static (_, _) => { });
+                    static (_, _) => { },
+                    0);
 
                 Assert.Multiple(() =>
                 {
@@ -2992,7 +3143,7 @@ namespace Opc.Ua.Server.Tests
                 using var manager = new MonitoredNodeMonitoredItemManager(
                     nodeManager.Object,
                     server.Object);
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 var cachedNode = new BaseDataVariableState(null)
                 {
                     NodeId = new NodeId("CacheConflict", 1),
@@ -3008,7 +3159,7 @@ namespace Opc.Ua.Server.Tests
                 ((IMonitoredItemGenerationBinding)existingItem).ReleaseSource();
                 var existingHandle = new NodeHandle(cachedNode.NodeId, cachedNode);
                 Assert.That(
-                    lifecycle.AttachMonitoredItem(
+                    lifecycle.AdoptSource(
                         server.Object.DefaultSystemContext,
                         existingHandle,
                         existingItem,
@@ -3032,7 +3183,7 @@ namespace Opc.Ua.Server.Tests
                 var conflictingHandle = new NodeHandle(freshNode.NodeId, freshNode);
                 int removeCacheCount = 0;
 
-                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                (ServiceResult result, bool changed) = lifecycle.AdoptSource(
                     server.Object.DefaultSystemContext,
                     conflictingHandle,
                     conflictingItem,
@@ -3050,7 +3201,7 @@ namespace Opc.Ua.Server.Tests
                         Is.EqualTo([existingItem]));
                 });
 
-                lifecycle.DetachMonitoredItem(
+                lifecycle.ReleaseSource(
                     server.Object.DefaultSystemContext,
                     existingItem,
                     static (_, _) => { });
@@ -3080,7 +3231,7 @@ namespace Opc.Ua.Server.Tests
                     nodeManager.Object,
                     server.Object,
                     samplingGroups);
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 var node = new BaseDataVariableState(null)
                 {
                     NodeId = new NodeId("ApplyFailure", 1),
@@ -3097,7 +3248,7 @@ namespace Opc.Ua.Server.Tests
 
                 void Attach()
                 {
-                    lifecycle.AttachMonitoredItem(
+                    lifecycle.AdoptSource(
                         server.Object.DefaultSystemContext,
                         new NodeHandle(node.NodeId, node),
                         item,
@@ -3128,7 +3279,7 @@ namespace Opc.Ua.Server.Tests
                         Is.Null);
                 });
 
-                (ServiceResult result, bool changed) = lifecycle.AttachMonitoredItem(
+                (ServiceResult result, bool changed) = lifecycle.AdoptSource(
                     server.Object.DefaultSystemContext,
                     new NodeHandle(node.NodeId, node),
                     item,
@@ -3144,7 +3295,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(samplingGroups.StartCount, Is.EqualTo(2));
                     Assert.That(samplingGroups.ApplyCount, Is.EqualTo(3));
                 });
-                lifecycle.DetachMonitoredItem(
+                lifecycle.ReleaseSource(
                     server.Object.DefaultSystemContext,
                     item,
                     static (_, _) => { });
@@ -3183,14 +3334,14 @@ namespace Opc.Ua.Server.Tests
                     : CreateMonitoredItem(server.Object, nodeManager.Object, new object(), node.NodeId);
                 var state = (IMonitoredItemGenerationBinding)item;
                 state.ReleaseSource();
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var lifecycle = (IMonitoredItemSourceManager)manager;
                 var handle = new NodeHandle(node.NodeId, node);
                 var failure = new InvalidOperationException("Injected release flush failure.");
                 if (eventItem)
                 {
                     samplingGroups.ApplyFailures.Enqueue(failure);
                 }
-                Assert.That(lifecycle.AttachMonitoredItem(
+                Assert.That(lifecycle.AdoptSource(
                     server.Object.DefaultSystemContext, handle, item,
                     static (_, _, nodeToCache) => nodeToCache, static (_, _) => { }).Result.StatusCode,
                     Is.EqualTo(StatusCodes.Good));
@@ -3218,7 +3369,7 @@ namespace Opc.Ua.Server.Tests
                     if (failRestoration)
                     {
                         AggregateException aggregate = Assert.Throws<AggregateException>(() =>
-                            lifecycle.DetachMonitoredItem(
+                            lifecycle.ReleaseSource(
                                 server.Object.DefaultSystemContext, item, static (_, _) => { }));
                         Assert.That(aggregate.InnerExceptions,
                             Is.EqualTo(new Exception[] { failure, restorationFailure }));
@@ -3226,7 +3377,7 @@ namespace Opc.Ua.Server.Tests
                     else
                     {
                         InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
-                            lifecycle.DetachMonitoredItem(
+                            lifecycle.ReleaseSource(
                                 server.Object.DefaultSystemContext, item, static (_, _) => { }));
                         Assert.That(error, Is.SameAs(failure));
                     }
@@ -3240,7 +3391,7 @@ namespace Opc.Ua.Server.Tests
                     }
                 }
 
-                (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                (ServiceResult result, bool changed) = lifecycle.ReleaseSource(
                     server.Object.DefaultSystemContext, item, static (_, _) => { });
                 using (Assert.EnterMultipleScope())
                 {
@@ -3304,8 +3455,8 @@ namespace Opc.Ua.Server.Tests
                 var state = (IMonitoredItemGenerationBinding)item;
                 state.ReleaseSource();
                 samplingGroups.MarkInitialValueQueued(item);
-                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
-                Assert.That(lifecycle.AttachMonitoredItem(
+                var lifecycle = (IMonitoredItemSourceManager)manager;
+                Assert.That(lifecycle.AdoptSource(
                     server.Object.DefaultSystemContext, new NodeHandle(node.NodeId, node), item,
                     static (_, _, nodeToCache) => nodeToCache, static (_, _) => { }).Result.StatusCode,
                     Is.EqualTo(StatusCodes.Good));
@@ -3322,7 +3473,7 @@ namespace Opc.Ua.Server.Tests
                 if (failRestoration)
                 {
                     AggregateException aggregate = Assert.Throws<AggregateException>(() =>
-                        lifecycle.DetachMonitoredItem(
+                        lifecycle.ReleaseSource(
                             server.Object.DefaultSystemContext, item, static (_, _) => { }));
                     Assert.That(aggregate.InnerExceptions,
                         Is.EqualTo(new Exception[] { failure, restorationFailure }));
@@ -3330,7 +3481,7 @@ namespace Opc.Ua.Server.Tests
                 else
                 {
                     InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
-                        lifecycle.DetachMonitoredItem(
+                        lifecycle.ReleaseSource(
                             server.Object.DefaultSystemContext, item, static (_, _) => { }));
                     Assert.That(error, Is.SameAs(failure));
                 }
@@ -3355,7 +3506,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
                 Assert.That(actual, Is.EqualTo(73));
 
-                (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                (ServiceResult result, bool changed) = lifecycle.ReleaseSource(
                     server.Object.DefaultSystemContext, item, static (_, _) => { });
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(changed, Is.True);
@@ -3441,7 +3592,7 @@ namespace Opc.Ua.Server.Tests
                         Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
                     });
 
-                    ((IMonitoredItemManagerLifecycle)manager).DetachMonitoredItem(
+                    ((IMonitoredItemSourceManager)manager).ReleaseSource(
                         server.Object.DefaultSystemContext,
                         item,
                         static (_, _) => { });
@@ -3525,13 +3676,13 @@ namespace Opc.Ua.Server.Tests
                 try
                 {
                     Assert.That(references, Is.EqualTo(2));
-                    var lifecycle = (IMonitoredItemManagerLifecycle)manager;
-                    Assert.That(ServiceResult.IsGood(lifecycle.DetachMonitoredItem(
+                    var lifecycle = (IMonitoredItemSourceManager)manager;
+                    Assert.That(ServiceResult.IsGood(lifecycle.ReleaseSource(
                         server.Object.DefaultSystemContext, items[0], RemoveReference).Result), Is.True);
                     Assert.That(references, Is.EqualTo(1));
                     Assert.That(
                         manager.MonitoredNodes[node.NodeId].DataChangeMonitoredItems.ContainsKey(items[1].Id), Is.True);
-                    Assert.That(ServiceResult.IsGood(lifecycle.DetachMonitoredItem(
+                    Assert.That(ServiceResult.IsGood(lifecycle.ReleaseSource(
                         server.Object.DefaultSystemContext, items[1], RemoveReference).Result), Is.True);
                     Assert.That(references, Is.Zero);
                     Assert.That(manager.MonitoredNodes, Is.Empty);
@@ -3592,7 +3743,7 @@ namespace Opc.Ua.Server.Tests
                 {
                     if (!failAttachment)
                     {
-                        Task<ServiceResult> initial = owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask();
+                        Task<ServiceResult> initial = owner.Lifecycle.AdoptSourceAsync(item).AsTask();
                         transitions.Add(initial);
                         ServiceResult result = await initial.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                         Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -3600,8 +3751,8 @@ namespace Opc.Ua.Server.Tests
 
                     object? originalHandle = item.ManagerHandle;
                     Task<ServiceResult> original = failAttachment
-                        ? owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask()
-                        : owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                        ? owner.Lifecycle.AdoptSourceAsync(item).AsTask()
+                        : owner.Lifecycle.ReleaseSourceAsync(item).AsTask();
                     transitions.Add(original);
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                     if (failAttachment)
@@ -3631,7 +3782,7 @@ namespace Opc.Ua.Server.Tests
                     }
                     if (failAttachment)
                     {
-                        Task<ServiceResult> detach = owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                        Task<ServiceResult> detach = owner.Lifecycle.ReleaseSourceAsync(item).AsTask();
                         transitions.Add(detach);
                         ServiceResult result = await detach.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                         using (Assert.EnterMultipleScope())
@@ -3642,7 +3793,7 @@ namespace Opc.Ua.Server.Tests
                         }
                     }
 
-                    Task<ServiceResult> replacement = owner.Lifecycle.AttachMonitoredItemAsync(item).AsTask();
+                    Task<ServiceResult> replacement = owner.Lifecycle.AdoptSourceAsync(item).AsTask();
                     transitions.Add(replacement);
                     ServiceResult attached = await replacement.WaitAsync(TimeSpan.FromSeconds(10))
                         .ConfigureAwait(false);
@@ -3690,7 +3841,7 @@ namespace Opc.Ua.Server.Tests
                             Is.EqualTo(failAttachment ? 1 : 0));
                     }
 
-                    Task<ServiceResult> finalDetach = owner.Lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                    Task<ServiceResult> finalDetach = owner.Lifecycle.ReleaseSourceAsync(item).AsTask();
                     transitions.Add(finalDetach);
                     ServiceResult finalResult = await finalDetach.WaitAsync(TimeSpan.FromSeconds(10))
                         .ConfigureAwait(false);
@@ -3724,7 +3875,7 @@ namespace Opc.Ua.Server.Tests
                         }
                     }
                     owner.AsyncManager.EventSubscriptionCallback = static (_, _) => default;
-                    await owner.Lifecycle.DetachMonitoredItemAsync(item)
+                    await owner.Lifecycle.ReleaseSourceAsync(item)
                         .AsTask().WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 }
             }
@@ -3767,7 +3918,7 @@ namespace Opc.Ua.Server.Tests
                 lifecycle.ReleaseSource();
                 if (compensateDetach)
                 {
-                    ServiceResult attached = await owner.Lifecycle.AttachMonitoredItemAsync(eventItem)
+                    ServiceResult attached = await owner.Lifecycle.AdoptSourceAsync(eventItem)
                         .ConfigureAwait(false);
                     Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
                 }
@@ -3798,8 +3949,8 @@ namespace Opc.Ua.Server.Tests
                 else
                 {
                     lifecycleTransition = compensateDetach
-                        ? owner.Lifecycle.DetachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask()
-                        : owner.Lifecycle.AttachMonitoredItemAsync(
+                        ? owner.Lifecycle.ReleaseSourceAsync(eventItem, transitionCancellation.Token).AsTask()
+                        : owner.Lifecycle.AdoptSourceAsync(
                             eventItem, cancellationToken: transitionCancellation.Token).AsTask();
                     transition = lifecycleTransition;
                 }
@@ -3895,10 +4046,10 @@ namespace Opc.Ua.Server.Tests
                     }
                     if (created != null)
                     {
-                        await owner.Lifecycle.DetachMonitoredItemAsync(created).ConfigureAwait(false);
+                        await owner.Lifecycle.ReleaseSourceAsync(created).ConfigureAwait(false);
                         created.Dispose();
                     }
-                    await owner.Lifecycle.DetachMonitoredItemAsync(eventItem).ConfigureAwait(false);
+                    await owner.Lifecycle.ReleaseSourceAsync(eventItem).ConfigureAwait(false);
                 }
             }
         }
@@ -4192,7 +4343,7 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
-        private sealed class TestNodeManagerLifecycle : INodeManagerMonitoredItemLifecycle
+        private sealed class TestNodeManagerLifecycle : INodeManagerMonitoredItemSource
         {
             public Func<IMonitoredItem, ServiceResult> AttachCallback { get; set; } =
                 static _ => ServiceResult.Good;
@@ -4212,20 +4363,20 @@ namespace Opc.Ua.Server.Tests
                 return null;
             }
 
-            public ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
+            public ValueTask<ServiceResult> ValidateSourceAsync(
                 IMonitoredItem monitoredItem,
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<ServiceResult>(ServiceResult.Good);
             }
 
-            public ValueTask<ServiceResult> DetachMonitoredItemAsync(
+            public ValueTask<ServiceResult> ReleaseSourceAsync(
                 IMonitoredItem monitoredItem,
+                long sourceRevision,
                 CancellationToken cancellationToken = default)
             {
                 DetachCount++;
                 var binding = monitoredItem as IMonitoredItemGenerationBinding;
-                long sourceRevision = binding?.SourceRevision ?? 0;
                 ServiceResult result = DetachCallback(monitoredItem);
                 if (ServiceResult.IsGood(result))
                 {
@@ -4234,9 +4385,9 @@ namespace Opc.Ua.Server.Tests
                 return new ValueTask<ServiceResult>(result);
             }
 
-            public ValueTask<ServiceResult> AttachMonitoredItemAsync(
+            public ValueTask<ServiceResult> AdoptSourceAsync(
                 IMonitoredItem monitoredItem,
-                MonitoredItemAdoption? adoption = null,
+                MonitoredItemAdoption adoption,
                 CancellationToken cancellationToken = default)
             {
                 AttachCount++;
@@ -4261,12 +4412,12 @@ namespace Opc.Ua.Server.Tests
             {
                 m_syncManager = manager;
                 IAsyncNodeManager adapter = manager.ToAsyncNodeManager();
-                Lifecycle = (INodeManagerMonitoredItemLifecycle)adapter;
+                Lifecycle = (INodeManagerMonitoredItemSource)adapter;
                 NamespaceIndex = manager.NamespaceIndex;
                 SystemContext = manager.SystemContext;
             }
 
-            public INodeManagerMonitoredItemLifecycle Lifecycle { get; }
+            public INodeManagerMonitoredItemSource Lifecycle { get; }
 
             public TestableAsyncCustomNodeManager AsyncManager => m_asyncManager ??
                 throw new InvalidOperationException("This scenario requires an async node manager.");

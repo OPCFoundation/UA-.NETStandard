@@ -1339,9 +1339,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 SubscriptionCallback = subscription.Object
             };
             var detachable = (IMonitoredItemGenerationBinding)item;
-            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+            var lifecycle = (INodeManagerMonitoredItemSource)manager;
             detachable.ReleaseSource();
-            ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(item).ConfigureAwait(false);
+            ServiceResult attached = await lifecycle.AdoptSourceAsync(item).ConfigureAwait(false);
             Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
             var originalFailure = new InvalidOperationException("Event unsubscribe failed after stopping its source.");
             manager.UnsubscribeCallback = async ct =>
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             Task transition = deleteNode
                 ? manager.DeleteNodeAsync(manager.SystemContext, source.NodeId).AsTask()
-                : lifecycle.DetachMonitoredItemAsync(item).AsTask();
+                : lifecycle.ReleaseSourceAsync(item).AsTask();
             var independentItem = new Mock<IEventMonitoredItem>();
             independentItem.SetupGet(value => value.Id).Returns(38);
             independentItem.SetupGet(value => value.NodeId).Returns(independent.NodeId);
@@ -1399,7 +1399,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 {
                 }
                 manager.UnsubscribeCallback = null!;
-                await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
+                await lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false);
                 await manager.SubscribeEventAsync(independent, independentItem.Object, true).ConfigureAwait(false);
             }
         }

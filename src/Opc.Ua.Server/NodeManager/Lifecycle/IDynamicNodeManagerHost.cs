@@ -127,7 +127,7 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The NodeManager that gained the Nodes.</param>
         /// <param name="nodeIds">The Nodes that became available, or <c>null</c> for all.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        ValueTask RecoverDetachedMonitoredItemsAsync(
+        ValueTask ResolveUnresolvedSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds = null,
             CancellationToken cancellationToken = default);

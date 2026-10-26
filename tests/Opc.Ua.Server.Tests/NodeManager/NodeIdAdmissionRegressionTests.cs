@@ -73,7 +73,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     SubscriptionCallback = subscription.Object
                 };
                 var detachable = (IMonitoredItemGenerationBinding)monitoredItem;
-                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+                var lifecycle = (INodeManagerMonitoredItemSource)manager;
                 detachable.ReleaseSource();
                 detachable.Invalidate(terminal: false);
                 var master = new Mock<IMasterNodeManager>();
@@ -82,14 +82,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .Returns(server.Object.NodeManager.ConfigurationNodeManager);
                 master.SetupGet(value => value.CoreNodeManager).Returns(server.Object.CoreNodeManager);
                 server.SetupGet(value => value.NodeManager).Returns(master.Object);
-                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
                         It.IsAny<IAsyncNodeManager>(), It.IsAny<IReadOnlyCollection<NodeId>>(),
                         It.IsAny<CancellationToken>()))
                     .Returns(async (IAsyncNodeManager owner, IReadOnlyCollection<NodeId> ids, CancellationToken ct) =>
                     {
                         Assert.That(owner, Is.SameAs(manager));
                         Assert.That(ids, Does.Contain(nodeId));
-                        ServiceResult attached = await lifecycle.AttachMonitoredItemAsync(
+                        ServiceResult attached = await lifecycle.AdoptSourceAsync(
                             monitoredItem, cancellationToken: ct)
                             .ConfigureAwait(false);
                         Assert.That(attached.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ? new ServiceResultException(StatusCodes.BadResourceUnavailable)
                         : new InvalidOperationException("Registration failed after indexing.");
                 }
-                recovery.Setup(value => value.RecoverDetachedMonitoredItemsAsync(
+                recovery.Setup(value => value.ResolveUnresolvedSourcesAsync(
                         It.IsAny<IAsyncNodeManager>(),
                         It.IsAny<IReadOnlyCollection<NodeId>>(),
                         It.IsAny<CancellationToken>()))

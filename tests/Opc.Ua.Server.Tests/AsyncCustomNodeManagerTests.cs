@@ -4107,7 +4107,7 @@ namespace Opc.Ua.Server.Tests
             // the sync manager once allocated a fresh adapter per created item.
             Assert.That(monitoredItems[1].NodeManager, Is.SameAs(monitoredItem.NodeManager));
 
-            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemLifecycle>());
+            Assert.That(monitoredItem.NodeManager, Is.InstanceOf<INodeManagerMonitoredItemSource>());
             Assert.That(manager.MonitoredItems[monitoredItem.Id], Is.SameAs(monitoredItem));
         }
 

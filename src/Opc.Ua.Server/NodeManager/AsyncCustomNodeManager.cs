@@ -57,7 +57,7 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ILocalAddressSpaceSource,
         IPredefinedNodeSubtypeReplacer,
-        INodeManagerMonitoredItemLifecycle,
+        INodeManagerMonitoredItemSource,
         INodeValuePublication
     {
         /// <summary>
@@ -820,26 +820,27 @@ namespace Opc.Ua.Server
             => m_monitoredItemManager.MonitoredItems;
 
         /// <inheritdoc/>
-        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemLifecycle.GetNotificationDrain(NodeId nodeId)
+        Func<CancellationToken, ValueTask>? INodeManagerMonitoredItemSource.GetNotificationDrain(NodeId nodeId)
         {
             return m_monitoredItemManager.GetNotificationDrain(nodeId);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.CanAttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ValidateSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
-            return ValidateMonitoredItemForLifecycleAsync(monitoredItem, cancellationToken);
+            return ValidateMonitoredItemSourceAsync(monitoredItem, cancellationToken);
         }
 
         /// <inheritdoc/>
-        async ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.DetachMonitoredItemAsync(
+        async ValueTask<ServiceResult> INodeManagerMonitoredItemSource.ReleaseSourceAsync(
             IMonitoredItem monitoredItem,
+            long sourceRevision,
             CancellationToken cancellationToken)
         {
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
                 monitoredItem is not IMonitoredItemGenerationBinding)
             {
                 return StatusCodes.BadNotSupported;
@@ -849,39 +850,40 @@ namespace Opc.Ua.Server
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             await NodeManagerGenerationRegistry.GetOrCreate(this)
                 .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
-            return await DetachMonitoredItemForLifecycleAsync(
+            return await ReleaseMonitoredItemSourceAsync(
                 context,
                 sampledMonitoredItem,
                 lifecycle,
-                expectedSourceRevision: null,
+                sourceRevision,
                 cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        ValueTask<ServiceResult> INodeManagerMonitoredItemLifecycle.AttachMonitoredItemAsync(
+        ValueTask<ServiceResult> INodeManagerMonitoredItemSource.AdoptSourceAsync(
             IMonitoredItem monitoredItem,
-            MonitoredItemAdoption? adoption,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
-            return AttachMonitoredItemAndNotifyAsync(
+            return AdoptMonitoredItemSourceAndNotifyAsync(
                 monitoredItem,
                 adoption,
                 cancellationToken);
         }
 
-        private async ValueTask<ServiceResult> AttachMonitoredItemAndNotifyAsync(
+        private async ValueTask<ServiceResult> AdoptMonitoredItemSourceAndNotifyAsync(
             IMonitoredItem monitoredItem,
-            MonitoredItemAdoption? adoption,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            if (monitoredItem is not IMonitoredItemGenerationBinding binding ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle)
+            if (monitoredItem is not IMonitoredItemGenerationBinding ||
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle)
             {
                 return StatusCodes.BadNotSupported;
             }
-            adoption ??= new MonitoredItemAdoption(binding.SourceRevision);
-            (ServiceResult result, bool changed) = await AttachMonitoredItemForLifecycleAsync(
+            await NodeManagerGenerationRegistry.GetOrCreate(this)
+                .CompleteSourceReleasesAsync(monitoredItem, cancellationToken).ConfigureAwait(false);
+            (ServiceResult result, bool changed) = await AdoptMonitoredItemSourceAsync(
                 monitoredItem,
                 adoption,
                 cancellationToken).ConfigureAwait(false);
@@ -904,7 +906,7 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        ServiceResult release = await DetachMonitoredItemForLifecycleAsync(
+                        ServiceResult release = await ReleaseMonitoredItemSourceAsync(
                             context, sampled, lifecycle, sourceRevision, CancellationToken.None).ConfigureAwait(false);
                         if (ServiceResult.IsBad(release))
                         {
@@ -949,13 +951,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validates whether a sampled item can be rebound to this node manager's current address space.
         /// </summary>
-        private async ValueTask<ServiceResult> ValidateMonitoredItemForLifecycleAsync(
+        private async ValueTask<ServiceResult> ValidateMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle)
+                m_monitoredItemManager is not IMonitoredItemSourceManager)
             {
                 return StatusCodes.BadNotSupported;
             }
@@ -1012,11 +1014,11 @@ namespace Opc.Ua.Server
                 : ServiceResult.Good;
         }
 
-        private async ValueTask<ServiceResult> DetachMonitoredItemForLifecycleAsync(
+        private async ValueTask<ServiceResult> ReleaseMonitoredItemSourceAsync(
             ServerSystemContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IMonitoredItemManagerLifecycle lifecycle,
-            long? expectedSourceRevision,
+            IMonitoredItemSourceManager lifecycle,
+            long expectedSourceRevision,
             CancellationToken cancellationToken)
         {
             MonitoredNode2? monitoredNode = null;
@@ -1036,8 +1038,8 @@ namespace Opc.Ua.Server
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
                     MonitoredItemSourceSnapshot source = binding.CaptureSource();
-                    if (expectedSourceRevision is long expected &&
-                        (source.Revision != expected || source.Generation?.Identifies(generation) != true))
+                    if (source.Revision != expectedSourceRevision ||
+                        source.Generation is not null && !source.Generation.Identifies(generation))
                     {
                         return ServiceResult.Good;
                     }
@@ -1045,9 +1047,10 @@ namespace Opc.Ua.Server
                     handle = source.Handle;
                     monitoredNode = isEvent ? handle?.MonitoredNode : null;
                     eventSource = isEvent ? handle?.Node : null;
-                    (result, changed) = lifecycle.DetachMonitoredItem(
+                    (result, changed) = lifecycle.ReleaseSource(
                         context,
                         monitoredItem,
+                        sourceRevision,
                         RemoveNodeFromComponentCache);
                     if (ServiceResult.IsBad(result) || !changed)
                     {
@@ -1076,7 +1079,7 @@ namespace Opc.Ua.Server
                         {
                             try
                             {
-                                (ServiceResult restoreResult, bool restored) = lifecycle.AttachMonitoredItem(
+                                (ServiceResult restoreResult, bool restored) = lifecycle.AdoptSource(
                                     context,
                                     handle,
                                     monitoredItem,
@@ -1177,14 +1180,14 @@ namespace Opc.Ua.Server
         /// Resolves the current node and attaches an existing sampled item to its monitoring manager.
         /// </summary>
         /// <exception cref="AggregateException"></exception>
-        private async ValueTask<(ServiceResult Result, bool Changed)> AttachMonitoredItemForLifecycleAsync(
+        private async ValueTask<(ServiceResult Result, bool Changed)> AdoptMonitoredItemSourceAsync(
             IMonitoredItem monitoredItem,
             MonitoredItemAdoption? adoption = null,
             CancellationToken cancellationToken = default)
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             if (monitoredItem is not ISampledDataChangeMonitoredItem sampledMonitoredItem ||
-                m_monitoredItemManager is not IMonitoredItemManagerLifecycle lifecycle ||
+                m_monitoredItemManager is not IMonitoredItemSourceManager lifecycle ||
                 monitoredItem is not IMonitoredItemGenerationBinding binding)
             {
                 return (StatusCodes.BadNotSupported, false);
@@ -1257,7 +1260,7 @@ namespace Opc.Ua.Server
             {
                 using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
                 {
-                    (result, changed) = lifecycle.AttachMonitoredItem(
+                    (result, changed) = lifecycle.AdoptSource(
                         context,
                         handle,
                         sampledMonitoredItem,
@@ -1322,9 +1325,10 @@ namespace Opc.Ua.Server
                     {
                         try
                         {
-                            (ServiceResult detachResult, bool detached) = lifecycle.DetachMonitoredItem(
+                            (ServiceResult detachResult, bool detached) = lifecycle.ReleaseSource(
                                 context,
                                 sampledMonitoredItem,
+                                boundRevision,
                                 RemoveNodeFromComponentCache);
                             if (ServiceResult.IsBad(detachResult))
                             {
@@ -2664,11 +2668,11 @@ namespace Opc.Ua.Server
             var detachedItems = new List<IMonitoredItem>();
             Exception? failure = null;
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
-            IMonitoredItemManagerLifecycle lifecycle;
+            IMonitoredItemSourceManager lifecycle;
             IReadOnlyList<IMonitoredItem> monitoredItems;
             using (await AcquireSemaphoreAsync(m_monitoredItemSemaphore, cancellationToken).ConfigureAwait(false))
             {
-                if (m_monitoredItemManager is not IMonitoredItemManagerLifecycle managerLifecycle)
+                if (m_monitoredItemManager is not IMonitoredItemSourceManager managerLifecycle)
                 {
                     if (!MonitoredItems.IsEmpty)
                     {
@@ -2706,11 +2710,11 @@ namespace Opc.Ua.Server
                 {
                     ServerSystemContext itemContext =
                         SystemContext.Copy(new OperationContext(monitoredItem));
-                    ServiceResult result = await DetachMonitoredItemForLifecycleAsync(
+                    ServiceResult result = await ReleaseMonitoredItemSourceAsync(
                         itemContext,
                         sampledItem,
                         lifecycle,
-                        expectedSourceRevision: null,
+                        ((IMonitoredItemGenerationBinding)monitoredItem).SourceRevision,
                         cancellationToken).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
                     {
@@ -2728,7 +2732,7 @@ namespace Opc.Ua.Server
 
             if (failure is not null)
             {
-                await RestoreDetachedMonitoredItemsAsync(
+                await RestoreReleasedSourcesAsync(
                     detachedItems,
                     CancellationToken.None).ConfigureAwait(false);
                 throw failure;
@@ -2754,7 +2758,7 @@ namespace Opc.Ua.Server
             }
             try
             {
-                await RestoreDetachedMonitoredItemsAsync(survivingItems, CancellationToken.None).ConfigureAwait(false);
+                await RestoreReleasedSourcesAsync(survivingItems, CancellationToken.None).ConfigureAwait(false);
             }
             catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
             {
@@ -2763,7 +2767,7 @@ namespace Opc.Ua.Server
             }
         }
 
-        private async ValueTask RestoreDetachedMonitoredItemsAsync(
+        private async ValueTask RestoreReleasedSourcesAsync(
             List<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken)
         {
@@ -2775,7 +2779,7 @@ namespace Opc.Ua.Server
                 {
                     using CancellationTokenSource timeout = clock.CreateCancellationTokenSource(TimeSpan.FromSeconds(5));
                     using var cleanup = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
-                    (ServiceResult result, _) = await AttachMonitoredItemForLifecycleAsync(
+                    (ServiceResult result, _) = await AdoptMonitoredItemSourceAsync(
                         monitoredItems[ii],
                         cancellationToken: cleanup.Token).ConfigureAwait(false);
                     if (ServiceResult.IsBad(result))
@@ -3639,7 +3643,7 @@ namespace Opc.Ua.Server
 
             if (Server.NodeManager is IDynamicNodeManagerHost recovery)
             {
-                await recovery.RecoverDetachedMonitoredItemsAsync(
+                await recovery.ResolveUnresolvedSourcesAsync(
                     this,
                     [activeNode.NodeId],
                     cancellationToken).ConfigureAwait(false);

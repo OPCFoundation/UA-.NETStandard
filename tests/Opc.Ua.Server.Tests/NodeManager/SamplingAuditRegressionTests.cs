@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
-                    Assert.That(() => ((INodeManagerMonitoredItemLifecycle)manager)
+                    Assert.That(() => ((INodeManagerMonitoredItemSource)manager)
                             .GetNotificationDrain(manager.RetainedNode.NodeId),
                         Throws.TypeOf<ObjectDisposedException>());
                     monitoredItems.VerifyGet(value => value.MonitoredNodes, Times.Never);
@@ -488,7 +488,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         if (lifecycleCall)
                         {
-                            notificationDrain = ((INodeManagerMonitoredItemLifecycle)manager)
+                            notificationDrain = ((INodeManagerMonitoredItemSource)manager)
                                 .GetNotificationDrain(manager.RetainedNode.NodeId);
                         }
                         else
@@ -761,7 +761,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             OperationContext context,
             string operationName)
         {
-            var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
+            var lifecycle = (INodeManagerMonitoredItemSource)manager;
             switch (operationName)
             {
                 case "Read":
@@ -818,14 +818,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     lifecycle.GetNotificationDrain(manager.RetainedNode.NodeId);
                     break;
                 case "CanAttach":
-                    await lifecycle.CanAttachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.ValidateSourceAsync(null!, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Attach":
-                    await lifecycle.AttachMonitoredItemAsync(null!, cancellationToken: CancellationToken.None)
+                    await lifecycle.AdoptSourceAsync(null!, new MonitoredItemAdoption(0), CancellationToken.None)
                         .ConfigureAwait(false);
                     break;
                 case "Detach":
-                    await lifecycle.DetachMonitoredItemAsync(null!, CancellationToken.None).ConfigureAwait(false);
+                    await lifecycle.ReleaseSourceAsync(null!, 0, CancellationToken.None).ConfigureAwait(false);
                     break;
                 case "Find":
                     Assert.That(manager.Find(manager.RetainedNode.NodeId), Is.Null);

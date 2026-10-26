@@ -150,8 +150,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 node.OnReadValueAsync = (_, _, _, _, _) => new ValueTask<AttributeReadResult>(CurrentValue(1));
                 using MonitoredItem item = await CreateItemAsync(manager, node).ConfigureAwait(false);
                 AttachSession(item);
-                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-                Assert.That((await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false)).StatusCode,
+                var lifecycle = (INodeManagerMonitoredItemSource)manager;
+                Assert.That((await lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false)).StatusCode,
                     Is.EqualTo(StatusCodes.Good));
                 Drain(item);
                 int reads = 0;
@@ -164,9 +164,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
-                ServiceResult validation = await lifecycle.CanAttachMonitoredItemAsync(item, cancellation.Token)
+                ServiceResult validation = await lifecycle.ValidateSourceAsync(item, cancellation.Token)
                     .ConfigureAwait(false);
-                ServiceResult recovered = await lifecycle.AttachMonitoredItemAsync(
+                ServiceResult recovered = await lifecycle.AdoptSourceAsync(
                     item, cancellationToken: cancellation.Token)
                     .ConfigureAwait(false);
                 Queue<MonitoredItemNotification> notifications = Drain(item);
@@ -200,8 +200,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 node.OnReadValueAsync = (_, _, _, _, _) => new ValueTask<AttributeReadResult>(CurrentValue(1));
                 using MonitoredItem item = await CreateItemAsync(manager, node).ConfigureAwait(false);
                 AttachSession(item);
-                var lifecycle = (INodeManagerMonitoredItemLifecycle)manager;
-                Assert.That((await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false)).StatusCode,
+                var lifecycle = (INodeManagerMonitoredItemSource)manager;
+                Assert.That((await lifecycle.ReleaseSourceAsync(item).ConfigureAwait(false)).StatusCode,
                     Is.EqualTo(StatusCodes.Good));
                 Drain(item);
                 var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -213,7 +213,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await release.Task.WaitAsync(ct).ConfigureAwait(false);
                     return CurrentValue(73);
                 };
-                Task<ServiceResult> staleAdoption = lifecycle.AttachMonitoredItemAsync(
+                Task<ServiceResult> staleAdoption = lifecycle.AdoptSourceAsync(
                     item, cancellationToken: cancellation.Token)
                     .AsTask();
                 try
@@ -222,13 +222,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     node.OnReadValueAsync = (_, _, _, _, _) =>
                         new ValueTask<AttributeReadResult>(CurrentValue(91));
                     Assert.That(
-                        (await lifecycle.AttachMonitoredItemAsync(item, cancellationToken: cancellation.Token)
+                        (await lifecycle.AdoptSourceAsync(item, cancellationToken: cancellation.Token)
                             .ConfigureAwait(false)).StatusCode,
                         Is.EqualTo(StatusCodes.Good));
                     if (releaseReplacement)
                     {
                         Assert.That(
-                            (await lifecycle.DetachMonitoredItemAsync(item, cancellation.Token)
+                            (await lifecycle.ReleaseSourceAsync(item, cancellation.Token)
                                 .ConfigureAwait(false)).StatusCode,
                             Is.EqualTo(StatusCodes.Good));
                     }

@@ -451,7 +451,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
             };
-            var current = new Mock<INodeManagerMonitoredItemLifecycle>();
+            var current = new Mock<INodeManagerMonitoredItemSource>();
             current.Setup(value => value.GetNotificationDrain(item.Object.NodeId)).Returns(drain);
             retired.Transition = new NodeManagerLifecycle.MonitoredItemTransition(
                 current.Object, null, [], [item.Object], _ => true);

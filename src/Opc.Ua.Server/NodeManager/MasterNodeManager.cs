@@ -994,7 +994,7 @@ namespace Opc.Ua.Server
         }
 
         /// <inheritdoc/>
-        async ValueTask IDynamicNodeManagerHost.RecoverDetachedMonitoredItemsAsync(
+        async ValueTask IDynamicNodeManagerHost.ResolveUnresolvedSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyCollection<NodeId>? nodeIds,
             CancellationToken cancellationToken)
@@ -1004,7 +1004,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            await RecoverMonitoredItemsAsync(
+            await ResolveMonitoredItemSourcesAsync(
                 visibleNodeManager,
                 GetUnresolvedMonitoredItems(visibleNodeManager, nodeIds),
                 cancellationToken).ConfigureAwait(false);
@@ -1039,13 +1039,13 @@ namespace Opc.Ua.Server
         /// <param name="nodeManager">The node manager associated with the operation.</param>
         /// <param name="monitoredItems">The monitored items included in the operation.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        internal async ValueTask RecoverMonitoredItemsAsync(
+        internal async ValueTask ResolveMonitoredItemSourcesAsync(
             IAsyncNodeManager nodeManager,
             IReadOnlyList<IMonitoredItem> monitoredItems,
             CancellationToken cancellationToken = default)
         {
             IAsyncNodeManager? visibleNodeManager = GetVisibleNodeManager(nodeManager);
-            if (visibleNodeManager is not INodeManagerMonitoredItemLifecycle nodeManagerLifecycle)
+            if (visibleNodeManager is not INodeManagerMonitoredItemSource nodeManagerLifecycle)
             {
                 return;
             }
@@ -1058,7 +1058,7 @@ namespace Opc.Ua.Server
                 if (!itemLifecycle.IsSourceUnavailable)
                 {
                     if (monitoredItem.NodeManager is not
-                        INodeManagerMonitoredItemLifecycle currentLifecycle)
+                        INodeManagerMonitoredItemSource currentLifecycle)
                     {
                         failures.Add(new InvalidOperationException(
                             "The current NodeManager cannot detach a deleted monitored item."));
@@ -1066,7 +1066,7 @@ namespace Opc.Ua.Server
                     }
 
                     ServiceResult detachResult = await currentLifecycle
-                        .DetachMonitoredItemAsync(monitoredItem, cancellationToken)
+                        .ReleaseSourceAsync(monitoredItem, itemLifecycle.SourceRevision, cancellationToken)
                         .ConfigureAwait(false);
                     if (ServiceResult.IsBad(detachResult))
                     {
@@ -1077,9 +1077,26 @@ namespace Opc.Ua.Server
 
                 var binding = (IMonitoredItemGenerationBinding)monitoredItem;
                 var adoption = new MonitoredItemAdoption(binding.SourceRevision);
-                ServiceResult attachResult = await nodeManagerLifecycle
-                    .AttachMonitoredItemAsync(monitoredItem, adoption, cancellationToken)
-                    .ConfigureAwait(false);
+                ServiceResult attachResult;
+                try
+                {
+                    attachResult = await nodeManagerLifecycle
+                        .AdoptSourceAsync(monitoredItem, adoption, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                catch (Exception failure) when (failure is not OutOfMemoryException)
+                {
+                    try
+                    {
+                        binding.TryInvalidateSource(adoption.SourceRevision, terminal: false);
+                    }
+                    catch (Exception finalizationFailure) when (finalizationFailure is not OutOfMemoryException)
+                    {
+                        throw new AggregateException(
+                            "Source recovery and lost-node finalization both failed.", failure, finalizationFailure);
+                    }
+                    throw;
+                }
                 if (ServiceResult.IsGood(attachResult))
                 {
                     continue;

@@ -34,16 +34,15 @@ using System.Threading.Tasks;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Moves existing MonitoredItems between NodeManager generations while the server is running.
+    /// Performs native source operations for generation-owned MonitoredItems.
     /// <para>
-    /// When a NodeManager is reloaded, its MonitoredItems are detached from the outgoing
-    /// generation and attached to the incoming one, so a Client keeps the same MonitoredItem and
-    /// does not observe a transient bad status for Nodes that still exist. This is unrelated to
-    /// restoring durable Subscriptions at server startup, which is handled by the synchronous
-    /// <see cref="IMonitoredItemManager.RestoreMonitoredItem"/> path.
+    /// The generation coordinator owns the one-pass handoff. These operations release or adopt
+    /// one exact source incarnation; they do not own subscription membership, queues, unresolved
+    /// state or recovery policy. Native durable restoration uses
+    /// <see cref="IMonitoredItemManager.RestoreMonitoredItem"/> instead.
     /// </para>
     /// </summary>
-    internal interface INodeManagerMonitoredItemLifecycle
+    internal interface INodeManagerMonitoredItemSource
     {
         /// <summary>
         /// Captures a fence for notifications already queued on one node's consumer.
@@ -54,39 +53,39 @@ namespace Opc.Ua.Server
         Func<CancellationToken, ValueTask>? GetNotificationDrain(NodeId nodeId);
 
         /// <summary>
-        /// Reports whether an existing MonitoredItem could attach to this NodeManager, which is
-        /// checked before publication so that an incompatible reload is rejected before any
-        /// serving binding changes.
+        /// Validates a candidate source before publication without changing the serving binding.
         /// </summary>
         /// <param name="monitoredItem">The MonitoredItem to test.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
         /// <returns>
-        /// A good result when the MonitoredItem can attach, otherwise the reason why it cannot.
+        /// A good result when the candidate source is compatible, otherwise the incompatibility.
         /// </returns>
-        ValueTask<ServiceResult> CanAttachMonitoredItemAsync(
+        ValueTask<ServiceResult> ValidateSourceAsync(
             IMonitoredItem monitoredItem,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Detaches a MonitoredItem from this NodeManager without disposing it, so it keeps its
-        /// identity and queue while it has no owner.
+        /// Releases native ownership of the captured source without disposing the subscription item.
+        /// A newer incarnation cannot be released by this operation.
         /// </summary>
-        /// <param name="monitoredItem">The MonitoredItem to detach.</param>
+        /// <param name="monitoredItem">The subscription item whose source is released.</param>
+        /// <param name="sourceRevision">The exact source incarnation captured by the caller.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        ValueTask<ServiceResult> DetachMonitoredItemAsync(
+        ValueTask<ServiceResult> ReleaseSourceAsync(
             IMonitoredItem monitoredItem,
+            long sourceRevision,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Attaches a detached MonitoredItem to the matching Node in this NodeManager, which is
-        /// how it is handed to the incoming generation once a reload is committed.
+        /// Commits a compatible native source while preserving the item's subscription identity and queue.
+        /// The attempt carries the expected source incarnation and records only its own committed incarnation.
         /// </summary>
-        /// <param name="monitoredItem">The MonitoredItem to attach.</param>
+        /// <param name="monitoredItem">The subscription item whose source is adopted.</param>
         /// <param name="cancellationToken">The token used to cancel the operation.</param>
-        /// <param name="adoption">The optional attempt whose exact native source incarnation is recorded.</param>
-        ValueTask<ServiceResult> AttachMonitoredItemAsync(
+        /// <param name="adoption">The attempt whose exact native source incarnation is recorded.</param>
+        ValueTask<ServiceResult> AdoptSourceAsync(
             IMonitoredItem monitoredItem,
-            MonitoredItemAdoption? adoption = null,
+            MonitoredItemAdoption adoption,
             CancellationToken cancellationToken = default);
     }
 
