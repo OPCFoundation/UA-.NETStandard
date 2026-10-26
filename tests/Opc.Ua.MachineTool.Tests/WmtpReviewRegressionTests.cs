@@ -293,7 +293,7 @@ namespace Opc.Ua.MachineTool.Tests
             WmtpPeripheralBuilder builder = equipment.Builder(m_fixture.Context, name)
                 .WithOwnedResource(resource.Object);
             using var cancellation = new CancellationTokenSource();
-            var server = (ServerInternalData)m_fixture.Context.Manager.Server;
+            var server = (IConformanceUnitsManagerProvider)m_fixture.Context.Manager.Server;
             ConformanceUnitsManager catalog = server.ConformanceUnitsManager!;
             var contributor = new Mock<IConformanceContributor>(MockBehavior.Strict);
             bool armed = true;
