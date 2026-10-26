@@ -7688,7 +7688,7 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 72, Level = LogLevel.Information,
             Message = "Closed the replaced session {SessionId} on the Server it was created on.")]
         public static partial void SessionRetiredPreviousSession(this ILogger logger, NodeId? sessionId);
-		
+
         [LoggerMessage(EventId = ClientEventIds.Session + 73, Level = LogLevel.Warning,
             Message = "Sending a UserName identity token without encryption over a {SecurityMode} channel " +
                 "to {EndpointUrl} because AllowUnencryptedUserNameTokens is enabled. " +
