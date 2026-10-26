@@ -72,7 +72,8 @@ namespace Opc.Ua.Types.Tests.Wot
         [
             "Opc.Ua.Types.Tests",
             "Opc.Ua.WotCon.Tests",
-            "Opc.Ua.WotCon.Bindings.Tests"
+            "Opc.Ua.WotCon.Bindings.Tests",
+            "Opc.Ua.Tools.Tests"
         ];
 
         /// <summary>

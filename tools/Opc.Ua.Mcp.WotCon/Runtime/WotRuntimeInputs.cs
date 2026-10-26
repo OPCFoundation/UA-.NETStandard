@@ -129,11 +129,13 @@ namespace Opc.Ua.Mcp
         [JsonConstructor]
         public WotRuntimeOpenOptions(
             string baseUri = "https://mcp.invalid/root.json",
-            bool documentSetArchive = false, string? sessionName = null)
+            bool documentSetArchive = false, string? sessionName = null,
+            WotBindingProcessingMode bindingProcessingMode = WotBindingProcessingMode.Current)
         {
             BaseUri = baseUri;
             DocumentSetArchive = documentSetArchive;
             SessionName = sessionName;
+            BindingProcessingMode = bindingProcessingMode;
         }
 
         /// <summary>
@@ -153,6 +155,12 @@ namespace Opc.Ua.Mcp
         /// </summary>
         [Description("Existing named ManagedSession for OPC UA; not an endpoint alias or a new connection request.")]
         public string? SessionName { get; init; }
+
+        /// <summary>
+        /// Gets the caller-selected OPC UA WoT Binding interpretation.
+        /// </summary>
+        [Description("Explicitly selects current processing or published OPC 10101 v1.00 processing; never inferred.")]
+        public WotBindingProcessingMode BindingProcessingMode { get; init; }
     }
 
     /// <summary>

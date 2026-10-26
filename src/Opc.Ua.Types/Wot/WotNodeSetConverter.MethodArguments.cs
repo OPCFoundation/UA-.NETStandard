@@ -169,6 +169,25 @@ namespace Opc.Ua.Wot
             JsonElement action,
             string member)
         {
+            return GetMethodArgumentLayout(action, member, allowUnresolvedNamedOrder: false);
+        }
+
+        /// <summary>
+        /// Resolves an action schema into native argument positions, optionally deferring
+        /// a named-property order until the live Method metadata is available.
+        /// </summary>
+        /// <param name="action">The resolved action affordance.</param>
+        /// <param name="member">Either <c>input</c> or <c>output</c>.</param>
+        /// <param name="allowUnresolvedNamedOrder">
+        /// Whether multiple named properties without an authored order may be resolved by a consumer later.
+        /// </param>
+        /// <returns>The immutable layout and any argument-mapping diagnostic.</returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static WotConversionResult<WotMethodArgumentLayout> GetMethodArgumentLayout(
+            JsonElement action,
+            string member,
+            bool allowUnresolvedNamedOrder)
+        {
             if (member is not (InputMember or OutputMember))
             {
                 throw new ArgumentOutOfRangeException(nameof(member));
@@ -176,6 +195,16 @@ namespace Opc.Ua.Wot
             WotArgumentShape shape = action.ValueKind == JsonValueKind.Object
                 ? AnalyzeArgumentSchema(action, member)
                 : new WotArgumentShape(WotArgumentShapeKind.Invalid, []);
+            if (shape.Kind == WotArgumentShapeKind.AmbiguousOrder && allowUnresolvedNamedOrder)
+            {
+                action.TryGetProperty(member, out JsonElement unorderedSchema);
+                return new WotConversionResult<WotMethodArgumentLayout>(
+                    new WotMethodArgumentLayout(
+                        WotMethodArgumentLayoutKind.NamedUnresolved, unorderedSchema, [],
+                        member == InputMember ? DefaultInputArgumentName : DefaultOutputArgumentName,
+                        [.. shape.Members]),
+                    []);
+            }
             if (shape.Kind is WotArgumentShapeKind.Invalid or WotArgumentShapeKind.AmbiguousOrder)
             {
                 return new WotConversionResult<WotMethodArgumentLayout>(

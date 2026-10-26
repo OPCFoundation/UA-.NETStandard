@@ -29,6 +29,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using System.Text.Json;
 
 namespace Opc.Ua.Wot
@@ -149,6 +152,117 @@ namespace Opc.Ua.Wot
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Captures an original action's component ownership declaration in portable form.
+        /// </summary>
+        /// <param name="document">The owning source document.</param>
+        /// <param name="affordance">The action declaration.</param>
+        /// <param name="json">The captured array JSON, when present.</param>
+        /// <returns><see langword="true"/> when source action ownership was captured.</returns>
+        public static bool TryCaptureActionComponentOf(
+            WotDocument document, JsonElement affordance, out string json)
+        {
+            if (document is null)
+            {
+                throw new ArgumentNullException(nameof(document));
+            }
+            if (document.TryGetSourceCallComponentOf(affordance, out json))
+            {
+                return true;
+            }
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                document.Kind == WotDocumentKind.ThingModel ||
+                affordance.ValueKind != JsonValueKind.Object ||
+                affordance.TryGetProperty("uav:resolvedFrom", out _) ||
+                !affordance.TryGetProperty("uav:componentOf", out JsonElement componentOf))
+            {
+                json = string.Empty;
+                return false;
+            }
+            json = NormalizeComponentOf(document, affordance, componentOf);
+            return true;
+        }
+
+        private static string NormalizeComponentOf(
+            WotDocument document, JsonElement affordance, JsonElement componentOf)
+        {
+            if (componentOf.ValueKind != JsonValueKind.Array)
+            {
+                return componentOf.GetRawText();
+            }
+            var values = new List<string>();
+            foreach (JsonElement candidate in componentOf.EnumerateArray())
+            {
+                if (candidate.ValueKind != JsonValueKind.String ||
+                    candidate.GetString() is not { } text ||
+                    !TryNormalizeComponentId(document, affordance, text, out string normalized))
+                {
+                    return componentOf.GetRawText();
+                }
+                values.Add(normalized);
+            }
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartArray();
+                foreach (string value in values)
+                {
+                    writer.WriteStringValue(value);
+                }
+                writer.WriteEndArray();
+            }
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private static bool TryNormalizeComponentId(
+            WotDocument document, JsonElement affordance, string value, out string normalized)
+        {
+            normalized = string.Empty;
+            if (WotPortableIdentity.IsPortableNodeId(value))
+            {
+                normalized = WotPortableIdentity.CanonicalNodeId(value);
+                return true;
+            }
+            if (!value.StartsWith("ns=", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int separator = value.IndexOf(';', StringComparison.Ordinal);
+            if (separator < 3 ||
+                !TryParseNamespaceIndex(value, separator, out ushort namespaceIndex) ||
+                !NodeId.TryParse(value.Substring(separator + 1), out NodeId nodeId) ||
+                nodeId.NamespaceIndex != 0)
+            {
+                return false;
+            }
+            if (namespaceIndex == 0)
+            {
+                normalized = nodeId.ToString();
+                return true;
+            }
+            if (!document.TryGetContextPrefix(
+                namespaceIndex.ToString(CultureInfo.InvariantCulture), out string namespaceUri, affordance))
+            {
+                return false;
+            }
+            normalized = WotPortableIdentity.CanonicalNodeId(
+                "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + nodeId);
+            return true;
+        }
+
+        private static bool TryParseNamespaceIndex(string value, int separator, out ushort namespaceIndex)
+        {
+#if NETFRAMEWORK || NETSTANDARD2_0
+            return ushort.TryParse(
+                value.Substring(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#else
+            return ushort.TryParse(
+                value.AsSpan(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#endif
         }
 
         /// <summary>

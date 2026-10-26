@@ -144,6 +144,51 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         // ----------------------------------------------------------------
+        // URL shortcuts and transport quotas
+        // ----------------------------------------------------------------
+
+        /// <summary>
+        /// The URL shortcuts build their endpoint from the application's
+        /// transport quotas instead of the built-in defaults (issue #4905).
+        /// </summary>
+        [TestCase("opc.tcp://server:4840")]
+        [TestCase("https://server:4843/")]
+        [TestCase("wss://server:4843/")]
+        public void UrlShortcutUsesApplicationTransportQuotas(string url)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ApplicationConfiguration configuration = CreateConfig(telemetry);
+            configuration.TransportQuotas = new TransportQuotas
+            {
+                OperationTimeout = 60_000,
+                MaxStringLength = 1024 * 1024,
+                MaxByteStringLength = 2 * 1024 * 1024,
+                MaxArrayLength = 300_000,
+                MaxMessageSize = 8 * 1024 * 1024,
+                MaxBufferSize = 128 * 1024
+            };
+            var builder = new ManagedSessionBuilder(configuration, telemetry);
+            builder = url.StartsWith("https", StringComparison.Ordinal)
+                ? builder.UseWebApiEndpoint(url)
+                : url.StartsWith("wss", StringComparison.Ordinal)
+                    ? builder.UseWssOpenApiEndpoint(url)
+                    : builder.UseEndpoint(url, MessageSecurityMode.None, SecurityPolicies.None);
+
+            EndpointConfiguration? quotas = builder.Build().Endpoint?.Configuration;
+
+            Assert.That(quotas, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(quotas!.OperationTimeout, Is.EqualTo(60_000));
+                Assert.That(quotas.MaxStringLength, Is.EqualTo(1024 * 1024));
+                Assert.That(quotas.MaxByteStringLength, Is.EqualTo(2 * 1024 * 1024));
+                Assert.That(quotas.MaxArrayLength, Is.EqualTo(300_000));
+                Assert.That(quotas.MaxMessageSize, Is.EqualTo(8 * 1024 * 1024));
+                Assert.That(quotas.MaxBufferSize, Is.EqualTo(128 * 1024));
+            });
+        }
+
+        // ----------------------------------------------------------------
         // WithWebApiAuthentication
         // ----------------------------------------------------------------
 
