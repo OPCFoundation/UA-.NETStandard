@@ -104,7 +104,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
 
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
-            Assert.That(result.Error, Does.Contain("uav:callObjectId"));
             session.Verify(value => value.CallAsync(
                 It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
                 Times.Never);
@@ -580,7 +579,6 @@ namespace Opc.Ua.WotCon.Bindings.Tests
             WotInvokeResult result = await channel.InvokeAsync([]).ConfigureAwait(false);
 
             Assert.That(result.Status, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
-            Assert.That(result.Error, Does.Contain("uav:callObjectId"));
             session.Verify(value => value.CallAsync(
                 It.IsAny<RequestHeader>(), It.IsAny<ArrayOf<CallMethodRequest>>(), It.IsAny<CancellationToken>()),
                 Times.Never);

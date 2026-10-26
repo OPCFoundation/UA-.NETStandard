@@ -227,6 +227,11 @@ endpoint or session security validation. If no peer address was learned before
 the primary became unreachable, a reachable discovery service or a custom
 `IRedundantServerEndpointResolver` is still required to translate its application URI.
 
+When the members reach the Client only over Reverse Connect, set
+`ServerRedundancyOptions.MemberConnections`: members are then resolved, probed
+and failed over to over the connections they open, see
+[Reverse Connect](ReverseConnect.md).
+
 Failover is reactive. There is no public method to trigger it: when reconnecting to the current server fails and the reconnect policy or retry budget is exhausted, the session's connection state moves to `ConnectionState.Failover`. `ManagedSession` then refreshes the redundancy snapshot, asks the handler's `SelectFailoverTarget` for a peer (the default handler picks the Running peer with the highest `ServiceLevel` that is not the current server) and recreates the session in place against that endpoint. The inner `Session` object, the V2 subscription engine and the application's subscriptions survive the switch. Subscriptions are recreated on the new server, or transferred when `WithTransferSubscriptionsOnRecreate()` is enabled and the server supports it. For `Transparent` sets the default handler returns no target, because the server infrastructure moves the session.
 
 `ManagedSession` does not keep sessions or subscriptions open on backup servers. The Table 107 client patterns map onto it as follows:

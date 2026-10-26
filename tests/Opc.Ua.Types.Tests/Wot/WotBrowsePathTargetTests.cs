@@ -311,6 +311,87 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
         }
 
+        /// <summary>
+        /// Verifies that a numeric browse-path namespace index resolves through its carrying document context.
+        /// </summary>
+        [Test]
+        public void NumericNamespacePrefixResolvesThroughItsCarryingContext()
+        {
+            const string path = "/1:Value";
+            JsonObject root = Document(path);
+            root["properties"]!["Value"]!["forms"]![0]!["@context"] =
+                new JsonObject { ["1"] = "urn:form" };
+            using WotDocument document = Parse(root);
+
+            WotBrowsePathTarget? target = WotBrowsePathTarget.FromForm(
+                document, FormPointer, allowNumericNamespacePrefixes: true);
+
+            Assert.That(target, Is.Not.Null);
+            Assert.That(target!.Elements[0].TargetName, Is.EqualTo(new WotBrowsePathElement("urn:form", "Value")));
+        }
+
+        /// <summary>
+        /// An absolute source path starts at the OPC UA Objects folder and
+        /// captures every qualified target step in order.
+        /// </summary>
+        [Test]
+        public void AbsolutePathCapturesAddressSpaceRootAndOrderedQualifiedTarget()
+        {
+            JsonObject root = Document("/Objects/p:Pump/p:Temperature");
+            root["properties"]!["Value"]!["forms"]![0]!["@context"] =
+                new JsonObject { ["p"] = "urn:pump" };
+            using WotDocument document = Parse(root);
+
+            WotBrowsePathTarget? target =
+                WotBrowsePathTarget.FromForm(document, FormPointer);
+
+            Assert.That(target, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(target!.AnchorId, Is.EqualTo("i=84"));
+                Assert.That(target.Path, Is.EqualTo("/Objects/p:Pump/p:Temperature"));
+                Assert.That(target.JsonPointer, Is.EqualTo("/properties/Value/forms/0/uav:browsePath"));
+                Assert.That(target.Elements.Count, Is.EqualTo(3));
+                Assert.That(
+                    target.Elements[0].TargetName,
+                    Is.EqualTo(new WotBrowsePathElement(WotVocabulary.OpcUaNamespace, "Objects")));
+                Assert.That(
+                    target.Elements[1].TargetName,
+                    Is.EqualTo(new WotBrowsePathElement("urn:pump", "Pump")));
+                Assert.That(
+                    target.Elements[2].TargetName,
+                    Is.EqualTo(new WotBrowsePathElement("urn:pump", "Temperature")));
+            });
+        }
+
+        /// <summary>
+        /// A relative path with no explicit browse-path anchor retains the
+        /// current rule that its enclosing portable identity supplies the
+        /// starting Node.
+        /// </summary>
+        [Test]
+        public void RelativePathWithoutExplicitAnchorUsesEnclosingIdentity()
+        {
+            JsonObject root = Document("p:Temperature");
+            root["properties"]!["Value"]!["forms"]![0]!["@context"] =
+                new JsonObject { ["p"] = "urn:pump" };
+            using WotDocument document = Parse(root);
+
+            WotBrowsePathTarget? target =
+                WotBrowsePathTarget.FromForm(document, FormPointer);
+
+            Assert.That(target, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(target!.AnchorId, Is.EqualTo("nsu=urn:source;s=Root"));
+                Assert.That(target.Path, Is.EqualTo("p:Temperature"));
+                Assert.That(target.Elements.Count, Is.EqualTo(1));
+                Assert.That(
+                    target.Elements[0].TargetName,
+                    Is.EqualTo(new WotBrowsePathElement("urn:pump", "Temperature")));
+            });
+        }
+
         private static JsonObject Document(string path)
         {
             return new JsonObject

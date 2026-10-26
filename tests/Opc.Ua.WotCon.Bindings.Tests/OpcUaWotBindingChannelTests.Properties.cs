@@ -161,13 +161,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that property read retains source namespace context.
         /// </summary>
         /// <param name="qualifiedName">The qualified-name flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task PropertyReadRetainsSourceNamespaceContext(bool qualifiedName)
+        [TestCase(false, WotBindingProcessingMode.Current)]
+        [TestCase(true, WotBindingProcessingMode.Current)]
+        [TestCase(false, WotBindingProcessingMode.PublishedOneZero)]
+        [TestCase(true, WotBindingProcessingMode.PublishedOneZero)]
+        public async Task PropertyReadRetainsSourceNamespaceContext(
+            bool qualifiedName, WotBindingProcessingMode processingMode)
         {
             string nodeName = qualifiedName ? "Scalar_Static_QualifiedName" : "Scalar_Static_NodeId";
             WotBindingPlan plan = CreatePropertyPlan(
-                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName, """{ "type": "string" }""");
+                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName,
+                """{ "type": "string" }""", processingMode);
             WotCompiledForm write = plan.CompiledForms.Single(
                 form => form.Operation == WoTBindingCapabilityEnum.WriteProperty);
             WotCompiledForm read = plan.CompiledForms.Single(
@@ -194,13 +198,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that property observation retains source namespace context.
         /// </summary>
         /// <param name="qualifiedName">The qualified-name flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task PropertyObservationRetainsSourceNamespaceContext(bool qualifiedName)
+        [TestCase(false, WotBindingProcessingMode.Current)]
+        [TestCase(true, WotBindingProcessingMode.Current)]
+        [TestCase(false, WotBindingProcessingMode.PublishedOneZero)]
+        [TestCase(true, WotBindingProcessingMode.PublishedOneZero)]
+        public async Task PropertyObservationRetainsSourceNamespaceContext(
+            bool qualifiedName, WotBindingProcessingMode processingMode)
         {
             string nodeName = qualifiedName ? "Scalar_Static_QualifiedName" : "Scalar_Static_NodeId";
             WotBindingPlan plan = CreatePropertyPlan(
-                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName, """{ "type": "string" }""");
+                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName,
+                """{ "type": "string" }""", processingMode);
             WotCompiledForm write = plan.CompiledForms.Single(
                 form => form.Operation == WoTBindingCapabilityEnum.WriteProperty);
             WotCompiledForm observe = plan.CompiledForms.Single(
@@ -232,13 +240,17 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         /// Verifies that property write translates caller namespace before writing.
         /// </summary>
         /// <param name="qualifiedName">The qualified-name flag for this test case.</param>
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task PropertyWriteTranslatesCallerNamespaceBeforeWriting(bool qualifiedName)
+        [TestCase(false, WotBindingProcessingMode.Current)]
+        [TestCase(true, WotBindingProcessingMode.Current)]
+        [TestCase(false, WotBindingProcessingMode.PublishedOneZero)]
+        [TestCase(true, WotBindingProcessingMode.PublishedOneZero)]
+        public async Task PropertyWriteTranslatesCallerNamespaceBeforeWriting(
+            bool qualifiedName, WotBindingProcessingMode processingMode)
         {
             string nodeName = qualifiedName ? "Scalar_Static_QualifiedName" : "Scalar_Static_NodeId";
             WotBindingPlan plan = CreatePropertyPlan(
-                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName, """{ "type": "string" }""");
+                "nsu=" + ReferenceServerNamespace + ";s=" + nodeName,
+                """{ "type": "string" }""", processingMode);
             WotCompiledForm write = plan.CompiledForms.Single(
                 form => form.Operation == WoTBindingCapabilityEnum.WriteProperty);
             WotCompiledForm read = plan.CompiledForms.Single(
@@ -290,7 +302,9 @@ namespace Opc.Ua.WotCon.Bindings.Tests
         }
 
         private WotBindingPlan CreatePropertyPlan(
-            string nodeId, [StringSyntax(StringSyntaxAttribute.Json)] string schema)
+            string nodeId,
+            [StringSyntax(StringSyntaxAttribute.Json)] string schema,
+            WotBindingProcessingMode processingMode = WotBindingProcessingMode.Current)
         {
             string href = new UriBuilder("opc.tcp", "localhost", m_serverFixture.Port).Uri.AbsoluteUri;
             string document = $$"""
@@ -311,7 +325,10 @@ namespace Opc.Ua.WotCon.Bindings.Tests
                 }
                 """;
             WotBindingPlan plan = m_registry.Prepare(WotBindingPlanRequest.FromDocument(
-                "native-property", WoTDocumentKindEnum.ThingDescription, Encoding.UTF8.GetBytes(document)));
+                "native-property",
+                WoTDocumentKindEnum.ThingDescription,
+                Encoding.UTF8.GetBytes(document),
+                selection: new WotBindingSelectionContext([], [], processingMode)));
             Assert.That(plan.Diagnostics.Where(diagnostic => diagnostic.IsError), Is.Empty);
             return plan;
         }

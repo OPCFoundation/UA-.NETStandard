@@ -390,17 +390,9 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
             DiagnosticsMasks diagnosticsMask,
             CancellationToken cancellationToken)
         {
-            const string receiverTerm = "uav:callObjectId";
-            if (!Form.Addressing.Metadata.TryGetValue("callObjectId", out string? objectRef) ||
-                string.IsNullOrEmpty(objectRef) ||
-                !WotPortableIdentity.IsPortableNodeId(objectRef))
-            {
-                return new WotInvokeResult(
-                    StatusCodes.BadNodeIdInvalid, null,
-                    $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
-            }
             try
             {
+                WotPayloadDescriptor payload = Form.Payload;
                 if (Form.ConditionInvocation is { } invocation)
                 {
                     inputs = invocation.NormalizeInputs(inputs);
@@ -412,16 +404,16 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                                 "only an explicitly optional Comment can be supplied as a typed null.");
                     }
                 }
-                Form.Payload.ValidateInputs(inputs, inputContext ?? CreateSourceContext());
+                if (payload.InputLayout?.Kind != WotMethodArgumentLayoutKind.NamedUnresolved)
+                {
+                    payload.ValidateInputs(inputs, inputContext ?? CreateSourceContext());
+                }
                 ResolvedPathTarget target = await ResolveTargetAsync(NodeClass.Method, cancellationToken)
                     .ConfigureAwait(false);
-                if (!TryResolveNodeId(objectRef!, out NodeId objectId, target.State?.NamespaceUris))
-                {
-                    return new WotInvokeResult(
-                        StatusCodes.BadNodeIdInvalid, null,
-                        $"An OPC UA action requires a valid {receiverTerm} receiver NodeId.");
-                }
-                await ValidateSourceCallReceiverAsync(objectId, target, cancellationToken).ConfigureAwait(false);
+                NodeId objectId = await ResolveCallReceiverAsync(target, cancellationToken).ConfigureAwait(false);
+                payload = await ResolveNativeMethodPayloadAsync(
+                    target, cancellationToken).ConfigureAwait(false);
+                payload.ValidateInputs(inputs, inputContext ?? CreateSourceContext());
                 if (inputContext is not null)
                 {
                     ServiceMessageContext sourceContext = target.State?.CreateContext() ?? CreateSourceContext();
@@ -470,7 +462,7 @@ namespace Opc.Ua.WotCon.Bindings.OpcUa
                 }
                 ArrayOf<Variant> outputs = result.OutputArguments;
                 ServiceMessageContext outputContext = target.State?.CreateContext() ?? CreateSourceContext();
-                Form.Payload.ValidateOutputs(outputs, outputContext);
+                payload.ValidateOutputs(outputs, outputContext);
                 var results = new DataValue[outputs.Count];
                 for (int i = 0; i < outputs.Count; i++)
                 {
