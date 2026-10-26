@@ -30,6 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
+using System.IO;
+using System.Text;
+using System.Text.Json;
 using Opc.Ua.Wot;
 
 namespace Opc.Ua.WotCon.Bindings.Planners
@@ -110,7 +114,35 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             string? authority;
             try
             {
-                nodeId = ResolveNodeId(form, out nodeIdInPath);
+                if (context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                    form.HasPublishedTargetCapture)
+                {
+                    if (form.PublishedTargetError is { } targetError)
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            targetError,
+                            form.Pointer("uav:id"),
+                            "uav:id"));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                    nodeId = form.PublishedNodeId ?? form.PublishedHrefNodeId;
+                    nodeIdInPath = form.PublishedHrefNodeIdInPath;
+                }
+                else
+                {
+                    nodeId = ResolveNodeId(form, out nodeIdInPath);
+                    if (context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                        WotPortableIdentity.IsSessionLocalNodeId(nodeId))
+                    {
+                        diagnostics.Add(WotBindingDiagnostic.Error(
+                            WotBindingDiagnosticCode.InvalidFieldValue,
+                            "A numeric NodeId namespace index requires its mapping in the original document context.",
+                            form.Pointer("uav:id"),
+                            "uav:id"));
+                        return WotBindingCompilation.Unsupported([.. diagnostics]);
+                    }
+                }
                 if (!form.TryGetBrowsePath(context, out pathTarget, out string? pathError))
                 {
                     diagnostics.Add(WotBindingDiagnostic.Error(
@@ -187,7 +219,12 @@ namespace Opc.Ua.WotCon.Bindings.Planners
             {
                 metadata = metadata.Add("nodeId", nodeId!);
             }
-            if (pathTarget is not null && ResolveHrefNodeId(form.Href, out _) is { } hrefTarget)
+            string? capturedHrefTarget =
+                context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero &&
+                form.HasPublishedTargetCapture
+                    ? form.PublishedHrefNodeId
+                    : ResolveHrefNodeId(form.Href, out _);
+            if (pathTarget is not null && capturedHrefTarget is { } hrefTarget)
             {
                 if (string.IsNullOrWhiteSpace(hrefTarget))
                 {
@@ -198,7 +235,7 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                 }
                 metadata = metadata.Add("pathHrefNodeId", hrefTarget);
             }
-            if (!TryCompileCallReceiver(form, endpoint, diagnostics, ref metadata))
+            if (!TryCompileCallReceiver(form, endpoint, context, diagnostics, ref metadata))
             {
                 return WotBindingCompilation.Unsupported([.. diagnostics]);
             }
@@ -855,9 +892,15 @@ namespace Opc.Ua.WotCon.Bindings.Planners
         private static bool TryCompileCallReceiver(
             WotAffordanceForm form,
             WotEndpointDescriptor endpoint,
+            WotBindingPlanContext context,
             List<WotBindingDiagnostic> diagnostics,
             ref ImmutableDictionary<string, string> metadata)
         {
+            if (form.Kind == WotAffordanceKind.Action &&
+                context.ProcessingMode == WotBindingProcessingMode.PublishedOneZero)
+            {
+                return TryCompilePublishedCallReceiver(form, context, diagnostics, ref metadata);
+            }
             const string term = "uav:callObjectId";
             if (form.AffordanceElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
                 form.AffordanceElement.TryGetProperty(term, out _))
@@ -911,6 +954,173 @@ namespace Opc.Ua.WotCon.Bindings.Planners
                     " Otherwise, author a form-scoped uav:callObjectId; local containment does not identify it.",
                 form.Pointer(term), term));
             return false;
+        }
+
+        private static bool TryCompilePublishedCallReceiver(
+            WotAffordanceForm form,
+            WotBindingPlanContext context,
+            List<WotBindingDiagnostic> diagnostics,
+            ref ImmutableDictionary<string, string> metadata)
+        {
+            const string componentTerm = "uav:componentOf";
+            const string receiverTerm = "uav:callObjectId";
+            if (form.AffordanceElement.ValueKind == JsonValueKind.Object &&
+                form.AffordanceElement.TryGetProperty(receiverTerm, out _))
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    "A Call receiver belongs on the selected form, not on the action affordance.",
+                    form.AffordancePointer(receiverTerm), receiverTerm));
+                return false;
+            }
+            string? declaration = form.SourceComponentOf;
+            if (declaration is null &&
+                form.AffordanceElement.ValueKind == JsonValueKind.Object &&
+                !form.AffordanceElement.TryGetProperty("uav:resolvedFrom", out _) &&
+                form.AffordanceElement.TryGetProperty(componentTerm, out JsonElement authored))
+            {
+                declaration = authored.GetRawText();
+            }
+            if (declaration is null)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.MissingRequiredField,
+                    "Published OPC 10101 v1.00 actions require an array-valued action-level uav:componentOf.",
+                    form.AffordancePointer(componentTerm), componentTerm));
+                return false;
+            }
+
+            List<string> candidates = [];
+            try
+            {
+                using JsonDocument json = JsonDocument.Parse(declaration);
+                JsonElement array = json.RootElement;
+                if (array.ValueKind != JsonValueKind.Array || array.GetArrayLength() == 0)
+                {
+                    throw new FormatException("uav:componentOf must be a non-empty array of portable NodeIds.");
+                }
+                var unique = new HashSet<string>(StringComparer.Ordinal);
+                foreach (JsonElement item in array.EnumerateArray())
+                {
+                    if (item.ValueKind != JsonValueKind.String ||
+                        item.GetString() is not { } value ||
+                        (form.SourceComponentOf is not null && !WotPortableIdentity.IsPortableNodeId(value)) ||
+                        !TryCanonicalOwnerId(value, context.NamespacePrefixes, out string candidate) ||
+                        !unique.Add(candidate))
+                    {
+                        throw new FormatException(
+                            "Every uav:componentOf entry must be a unique, resolvable portable NodeId.");
+                    }
+                    candidates.Add(candidate);
+                }
+            }
+            catch (Exception exception) when (exception is JsonException or FormatException)
+            {
+                diagnostics.Add(WotBindingDiagnostic.Error(
+                    WotBindingDiagnosticCode.InvalidFieldValue,
+                    exception.Message, form.AffordancePointer(componentTerm), componentTerm));
+                return false;
+            }
+
+            if (form.FormElement.ValueKind == JsonValueKind.Object &&
+                form.FormElement.TryGetProperty(receiverTerm, out _))
+            {
+                if (form.PublishedCallObjectIdError is { } receiverError)
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.InvalidFieldValue,
+                        receiverError, form.Pointer(receiverTerm), receiverTerm));
+                    return false;
+                }
+                string? capturedReceiver = form.PublishedCallObjectId;
+                bool validReceiver = capturedReceiver is not null;
+                string canonicalReceiver = capturedReceiver ?? string.Empty;
+                if (!validReceiver &&
+                    form.TryGetString(receiverTerm, out string receiver) &&
+                    !WotPortableIdentity.IsSessionLocalNodeId(receiver))
+                {
+                    validReceiver = TryCanonicalOwnerId(receiver, context.NamespacePrefixes, out canonicalReceiver);
+                }
+                if (!validReceiver ||
+                    !candidates.Contains(canonicalReceiver))
+                {
+                    diagnostics.Add(WotBindingDiagnostic.Error(
+                        WotBindingDiagnosticCode.ConflictingFields,
+                        "The explicit Call receiver must match an action-level uav:componentOf candidate.",
+                        form.Pointer(receiverTerm), receiverTerm));
+                    return false;
+                }
+                metadata = metadata.Add("callObjectId", canonicalReceiver);
+            }
+            metadata = metadata
+                .Add("componentOfCandidates", SerializeOwnerIds(candidates))
+                .Add("sourceCallReceiver", "componentOf")
+                .Add("bindingProcessingMode", "published-one-zero");
+            return true;
+        }
+
+        private static bool TryCanonicalOwnerId(
+            string value, ImmutableDictionary<string, string> namespacePrefixes, out string canonical)
+        {
+            canonical = string.Empty;
+            if (WotPortableIdentity.IsPortableNodeId(value))
+            {
+                canonical = WotPortableIdentity.CanonicalNodeId(value);
+                return true;
+            }
+            if (!value.StartsWith("ns=", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            int separator = value.IndexOf(';', StringComparison.Ordinal);
+            if (separator < 3 ||
+                !TryParseNamespaceIndex(value, separator, out ushort namespaceIndex) ||
+                !NodeId.TryParse(value.Substring(separator + 1), out NodeId nodeId) ||
+                nodeId.NamespaceIndex != 0)
+            {
+                return false;
+            }
+            if (namespaceIndex == 0)
+            {
+                canonical = nodeId.ToString();
+                return true;
+            }
+            if (!namespacePrefixes.TryGetValue(
+                namespaceIndex.ToString(CultureInfo.InvariantCulture), out string? namespaceUri))
+            {
+                return false;
+            }
+            canonical = WotPortableIdentity.CanonicalNodeId(
+                "nsu=" + CoreUtils.EscapeUri(namespaceUri) + ";" + nodeId);
+            return true;
+        }
+
+        private static bool TryParseNamespaceIndex(string value, int separator, out ushort namespaceIndex)
+        {
+#if NETFRAMEWORK || NETSTANDARD2_0
+            return ushort.TryParse(
+                value.Substring(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#else
+            return ushort.TryParse(
+                value.AsSpan(3, separator - 3), NumberStyles.None, CultureInfo.InvariantCulture,
+                out namespaceIndex);
+#endif
+        }
+
+        private static string SerializeOwnerIds(List<string> candidates)
+        {
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartArray();
+                foreach (string candidate in candidates)
+                {
+                    writer.WriteStringValue(candidate);
+                }
+                writer.WriteEndArray();
+            }
+            return Encoding.UTF8.GetString(stream.ToArray());
         }
 
         private static string OpcUaService(WoTBindingCapabilityEnum operation)
