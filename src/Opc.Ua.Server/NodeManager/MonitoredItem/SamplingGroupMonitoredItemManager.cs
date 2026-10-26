@@ -285,7 +285,8 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             NodeHandle handle)
         {
-            (ServiceResult result, _) = RemoveRegistration(monitoredItem, handle.NodeId, sourceRelease: false);
+            (ServiceResult result, _) = RemoveRegistration(
+                monitoredItem, handle is null ? NodeId.Null : handle.NodeId, sourceRelease: false);
             return result.StatusCode;
         }
 
@@ -585,6 +586,31 @@ namespace Opc.Ua.Server
             else
             {
                 m_samplingGroupManager.StopMonitoring(monitoredItem);
+                if (sourceRelease)
+                {
+                    // The caller's manager gate preserves the verified native entry until removal below.
+                    try
+                    {
+                        m_samplingGroupManager.ApplyChanges();
+                    }
+                    catch (Exception failure) when (failure is not OutOfMemoryException)
+                    {
+                        try
+                        {
+                            using var operation = new OperationContext(monitoredItem);
+                            m_samplingGroupManager.MarkInitialValueQueued(monitoredItem);
+                            m_samplingGroupManager.StartMonitoring(
+                                operation, monitoredItem, monitoredItem.EffectiveIdentity);
+                            m_samplingGroupManager.ApplyChanges();
+                        }
+                        catch (Exception restorationFailure) when (restorationFailure is not OutOfMemoryException)
+                        {
+                            throw new AggregateException(
+                                "Sampling source release and restoration both failed.", failure, restorationFailure);
+                        }
+                        throw;
+                    }
+                }
             }
 
             bool keepAllEventsOwner = !sourceRelease &&
@@ -600,7 +626,6 @@ namespace Opc.Ua.Server
             if (sourceRelease)
             {
                 ((IDetachableMonitoredItem)monitoredItem).BeginDetach();
-                m_samplingGroupManager.ApplyChanges();
             }
             return (ServiceResult.Good, true);
         }

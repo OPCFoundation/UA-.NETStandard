@@ -2440,6 +2440,219 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public void SamplingGroupSourceReleasePreservesOwnershipUntilSamplingChangesCommit(
+            bool eventItem,
+            bool failRestoration)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                using var samplingGroups = new TrackingSamplingGroupManager(server.Object, nodeManager.Object);
+                using var manager = new SamplingGroupMonitoredItemManager(
+                    nodeManager.Object, server.Object, samplingGroups);
+                NodeState node = eventItem
+                    ? new BaseObjectState(null)
+                    {
+                        NodeId = new NodeId("ReleaseCommit", 1),
+                        EventNotifier = EventNotifiers.SubscribeToEvents
+                    }
+                    : new BaseDataVariableState(null)
+                    {
+                        NodeId = new NodeId("ReleaseCommit", 1),
+                        DataType = DataTypeIds.Int32,
+                        Value = 1
+                    };
+                using MonitoredItem item = eventItem
+                    ? CreateEventMonitoredItem(server.Object, nodeManager.Object, new object(), node.NodeId)
+                    : CreateMonitoredItem(server.Object, nodeManager.Object, new object(), node.NodeId);
+                var state = (IDetachableMonitoredItem)item;
+                state.Detach(server.Object);
+                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                var handle = new NodeHandle(node.NodeId, node);
+                Assert.That(lifecycle.AttachMonitoredItem(
+                    server.Object.DefaultSystemContext, handle, item,
+                    static (_, _, nodeToCache) => nodeToCache, static (_, _) => { }).Result.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                var subscription = new Mock<ISubscription>();
+                item.SubscriptionCallback = subscription.Object;
+                ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
+                Assert.That(item.Generation!.TryGetGeneration(out NodeManagerGeneration? generation), Is.True);
+                int applyCount = samplingGroups.ApplyCount;
+                var failure = new InvalidOperationException("Injected release flush failure.");
+                var restorationFailure = new InvalidOperationException("Injected restoration flush failure.");
+                samplingGroups.ApplyFailures.Enqueue(failure);
+                if (failRestoration)
+                {
+                    samplingGroups.ApplyFailures.Enqueue(restorationFailure);
+                }
+
+                if (!eventItem)
+                {
+                    if (failRestoration)
+                    {
+                        AggregateException aggregate = Assert.Throws<AggregateException>(() =>
+                            lifecycle.DetachMonitoredItem(
+                                server.Object.DefaultSystemContext, item, static (_, _) => { }));
+                        Assert.That(aggregate.InnerExceptions,
+                            Is.EqualTo(new Exception[] { failure, restorationFailure }));
+                    }
+                    else
+                    {
+                        InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+                            lifecycle.DetachMonitoredItem(
+                                server.Object.DefaultSystemContext, item, static (_, _) => { }));
+                        Assert.That(error, Is.SameAs(failure));
+                    }
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(manager.MonitoredItems[item.Id], Is.SameAs(item));
+                        Assert.That(state.IsDetached, Is.False);
+                        Assert.That(item.ManagerHandle, Is.SameAs(handle));
+                        Assert.That(generation!.MonitoredItems.ContainsKey(item), Is.True);
+                        Assert.That(samplingGroups.StartCount, Is.EqualTo(2));
+                    }
+                }
+
+                (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                    server.Object.DefaultSystemContext, item, static (_, _) => { });
+                using (Assert.EnterMultipleScope())
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(changed, Is.True);
+                    Assert.That(manager.MonitoredItems, Is.Empty);
+                    Assert.That(manager.MonitoredNodes, Is.Empty);
+                    Assert.That(state.IsDetached, Is.True);
+                    Assert.That(samplingGroups.ApplyCount, Is.EqualTo(applyCount + (eventItem ? 0 : 3)));
+                    Assert.That(samplingGroups.ApplyFailures, Has.Count.EqualTo(eventItem ? 1 : 0));
+                }
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task RealSamplingResumesAfterReleaseFlushFailureAsync(
+            bool failAfterApply,
+            bool failRestoration)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                var releaseRead = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager.Setup(value => value.ReadAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<double>(), It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<IList<DataValue>>(), It.IsAny<IList<ServiceResult>>(), It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                        IList<ServiceResult>, CancellationToken>((_, _, reads, values, errors, ct) =>
+                            new ValueTask(ReadAsync(reads, values, errors, ct)));
+                nodeManager.Setup(value => value.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(), It.IsAny<NodeId>(), It.IsAny<PermissionType>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                using var samplingGroups = new TrackingSamplingGroupManager(
+                    server.Object, nodeManager.Object, forwardToBase: true);
+                using var manager = new SamplingGroupMonitoredItemManager(
+                    nodeManager.Object, server.Object, samplingGroups);
+                var node = new BaseDataVariableState(null)
+                {
+                    NodeId = new NodeId("RealReleaseCommit", 1),
+                    DataType = DataTypeIds.Int32,
+                    Value = 1
+                };
+                using MonitoredItem item = CreateMonitoredItem(
+                    server.Object, nodeManager.Object, new object(), node.NodeId);
+                ISession session = item.Session;
+                IUserIdentity identity = item.EffectiveIdentity;
+                var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var subscription = new Mock<ISubscription>();
+                subscription.SetupGet(value => value.Session).Returns(session);
+                subscription.SetupGet(value => value.EffectiveIdentity).Returns(identity);
+                subscription.As<IMonitoredItemReadySink>()
+                    .Setup(value => value.OnMonitoredItemReady(item))
+                    .Callback(() => queued.TrySetResult(true));
+                item.SubscriptionCallback = subscription.Object;
+                var state = (IDetachableMonitoredItem)item;
+                state.Detach(server.Object);
+                samplingGroups.MarkInitialValueQueued(item);
+                var lifecycle = (IMonitoredItemManagerLifecycle)manager;
+                Assert.That(lifecycle.AttachMonitoredItem(
+                    server.Object.DefaultSystemContext, new NodeHandle(node.NodeId, node), item,
+                    static (_, _, nodeToCache) => nodeToCache, static (_, _) => { }).Result.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
+                ((IMonitoredItemGenerationBinding)item).BindSubscription(subscription.Object);
+                var failure = new InvalidOperationException("Injected real sampling flush failure.");
+                var restorationFailure = new InvalidOperationException("Injected real sampling restoration failure.");
+                samplingGroups.ApplyFailures.Enqueue(failure);
+                if (failRestoration)
+                {
+                    samplingGroups.ApplyFailures.Enqueue(restorationFailure);
+                }
+                samplingGroups.FailAfterApply = failAfterApply;
+
+                if (failRestoration)
+                {
+                    AggregateException aggregate = Assert.Throws<AggregateException>(() =>
+                        lifecycle.DetachMonitoredItem(
+                            server.Object.DefaultSystemContext, item, static (_, _) => { }));
+                    Assert.That(aggregate.InnerExceptions,
+                        Is.EqualTo(new Exception[] { failure, restorationFailure }));
+                }
+                else
+                {
+                    InvalidOperationException error = Assert.Throws<InvalidOperationException>(() =>
+                        lifecycle.DetachMonitoredItem(
+                            server.Object.DefaultSystemContext, item, static (_, _) => { }));
+                    Assert.That(error, Is.SameAs(failure));
+                }
+                Assert.That(state.IsDetached, Is.False);
+                item.SetSamplingInterval(2000);
+                using (var modification = new OperationContext(item))
+                {
+                    samplingGroups.ModifyMonitoring(modification, item);
+                    samplingGroups.ApplyChanges();
+                }
+                releaseRead.TrySetResult(true);
+                await queued.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.Publish, RequestLifetime.None);
+                var notifications = new Queue<MonitoredItemNotification>();
+                item.SetupResendDataTrigger();
+                item.Publish(context, notifications, new Queue<DiagnosticInfo>(), 100, server.Object.Telemetry
+                    .CreateLogger<MonitoredItemManagerLifecycleTests>());
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                DataValue value = notifications.Dequeue().Value;
+                Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(value.WrappedValue.TryGetValue(out int actual), Is.True);
+                Assert.That(actual, Is.EqualTo(73));
+
+                (ServiceResult result, bool changed) = lifecycle.DetachMonitoredItem(
+                    server.Object.DefaultSystemContext, item, static (_, _) => { });
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(changed, Is.True);
+                Assert.That(manager.MonitoredItems, Is.Empty);
+
+                async Task ReadAsync(
+                    ArrayOf<ReadValueId> reads,
+                    IList<DataValue> values,
+                    IList<ServiceResult> errors,
+                    CancellationToken ct)
+                {
+                    Assert.That(reads, Has.Count.EqualTo(1));
+                    await releaseRead.Task.WaitAsync(ct).ConfigureAwait(false);
+                    values[0] = new DataValue(new Variant(73), StatusCodes.Good);
+                    errors[0] = ServiceResult.Good;
+                }
+            }
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void RestoreMonitoredItemMarksFoundNodeAsAttached(bool useSamplingGroups)
@@ -3403,9 +3616,11 @@ namespace Opc.Ua.Server.Tests
         {
             public TrackingSamplingGroupManager(
                 IServerInternal server,
-                IAsyncNodeManager nodeManager)
+                IAsyncNodeManager nodeManager,
+                bool forwardToBase = false)
                 : base(server, nodeManager, 100, 200, [])
             {
+                m_forwardToBase = forwardToBase;
             }
 
             public int StartCount { get; private set; }
@@ -3416,28 +3631,57 @@ namespace Opc.Ua.Server.Tests
 
             public bool FailNextApply { get; set; }
 
+            /// <summary>
+            /// Gets ordered failures injected into sampling commits.
+            /// </summary>
+            public Queue<Exception> ApplyFailures { get; } = [];
+
+            /// <summary>
+            /// Gets or sets whether an injected failure follows real sampling publication.
+            /// </summary>
+            public bool FailAfterApply { get; set; }
+
             public override void StartMonitoring(
                 OperationContext context,
                 ISampledDataChangeMonitoredItem monitoredItem,
                 IUserIdentity? savedOwnerIdentity = null)
             {
                 StartCount++;
+                if (m_forwardToBase)
+                {
+                    base.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
+                }
             }
 
             public override void StopMonitoring(ISampledDataChangeMonitoredItem monitoredItem)
             {
                 StopCount++;
+                if (m_forwardToBase)
+                {
+                    base.StopMonitoring(monitoredItem);
+                }
             }
 
             public override void ApplyChanges()
             {
                 ApplyCount++;
+                if (m_forwardToBase && (ApplyFailures.Count == 0 || FailAfterApply))
+                {
+                    base.ApplyChanges();
+                }
+                if (ApplyFailures.Count > 0)
+                {
+                    throw ApplyFailures.Dequeue();
+                }
                 if (FailNextApply)
                 {
                     FailNextApply = false;
                     throw new InvalidOperationException("Injected apply failure.");
                 }
             }
+
+            /// <summary>Whether real sampling runs below the failure injection points.</summary>
+            private readonly bool m_forwardToBase;
         }
     }
 }
