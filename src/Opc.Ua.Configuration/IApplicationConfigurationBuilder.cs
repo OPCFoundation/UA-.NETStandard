@@ -608,6 +608,18 @@ namespace Opc.Ua.Configuration
             bool suppressNonceValidationErrors);
 
         /// <summary>
+        /// Whether a client may send a UserName identity token without encryption over a
+        /// channel that does not encrypt messages, i.e. transmit the password in plain text.
+        /// Allowing this is a security risk and exposes the password to anyone who can observe
+        /// the network traffic.
+        /// Only use for interoperability with legacy devices which offer no encrypted user
+        /// token policy, and only in closed and secured networks.
+        /// </summary>
+        /// <param name="allowUnencryptedUserNameTokens"><see langword="true"/> to allow unencrypted UserName tokens.</param>
+        IApplicationConfigurationBuilderSecurityOptions SetAllowUnencryptedUserNameTokens(
+            bool allowUnencryptedUserNameTokens);
+
+        /// <summary>
         /// Whether a certificate chain should be sent with the application certificate.
         /// Only used if the application certificate is CA signed.
         /// </summary>

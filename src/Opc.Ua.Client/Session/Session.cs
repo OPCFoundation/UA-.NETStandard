@@ -5855,9 +5855,20 @@ namespace Opc.Ua.Client
                 effectiveTokenPolicyUri == SecurityPolicies.None &&
                 m_endpoint.Description.SecurityMode != MessageSecurityMode.SignAndEncrypt)
             {
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "A UserName identity token without token encryption requires a SignAndEncrypt channel.");
+                // The password would be sent in plain text. Legacy devices which offer
+                // no encrypted user token policy can be allowed explicitly through
+                // SecurityConfiguration.AllowUnencryptedUserNameTokens.
+                if (!m_configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "A UserName identity token without token encryption requires a SignAndEncrypt channel. " +
+                        "Set SecurityConfiguration.AllowUnencryptedUserNameTokens to allow sending the password in plain text.");
+                }
+
+                m_logger.SendingUnencryptedUserNameToken(
+                    m_endpoint.Description.SecurityMode,
+                    m_endpoint.EndpointUrl?.ToString());
             }
 
             requireEncryption = securityPolicyUri != SecurityPolicies.None;
@@ -7677,5 +7688,14 @@ namespace Opc.Ua.Client
         [LoggerMessage(EventId = ClientEventIds.Session + 72, Level = LogLevel.Information,
             Message = "Closed the replaced session {SessionId} on the Server it was created on.")]
         public static partial void SessionRetiredPreviousSession(this ILogger logger, NodeId? sessionId);
+		
+        [LoggerMessage(EventId = ClientEventIds.Session + 73, Level = LogLevel.Warning,
+            Message = "Sending a UserName identity token without encryption over a {SecurityMode} channel " +
+                "to {EndpointUrl} because AllowUnencryptedUserNameTokens is enabled. " +
+                "The password is transmitted in plain text.")]
+        public static partial void SendingUnencryptedUserNameToken(
+            this ILogger logger,
+            MessageSecurityMode securityMode,
+            string? endpointUrl);
     }
 }

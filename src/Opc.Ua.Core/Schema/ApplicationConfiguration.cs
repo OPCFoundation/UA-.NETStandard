@@ -836,6 +836,23 @@ namespace Opc.Ua
         public bool SuppressNonceValidationErrors { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether a client may send a
+        /// UserName identity token whose password is not encrypted over
+        /// a channel that does not encrypt messages.
+        /// By default the client refuses to open a session with a UserName
+        /// token when the effective user token security policy is
+        /// <see cref="SecurityPolicies.None"/> and the channel security
+        /// mode is not SignAndEncrypt, because the password would be
+        /// transmitted in plain text.
+        /// Set this flag to true only for interoperability with legacy
+        /// devices which offer no encrypted user token policy, and only
+        /// in closed and secured networks, since the password is readable
+        /// by anyone who can observe the network traffic.
+        /// </summary>
+        [DataTypeField(Order = 20)]
+        public bool AllowUnencryptedUserNameTokens { get; set; }
+
+        /// <summary>
         /// The type of Configuration (deprecated or not)
         /// </summary>
         public bool IsDeprecatedConfiguration { get; set; }

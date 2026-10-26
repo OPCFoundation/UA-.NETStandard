@@ -10,6 +10,7 @@
 - [User Identity Providers](#user-identity-providers)
   - [`SessionManager.ImpersonateUser` → registry authenticators](#sessionmanagerimpersonateuser--registry-authenticators)
   - [`ManagedSessionOptions.Identity` → `IdentityProvider`](#managedsessionoptionsidentity--identityprovider)
+  - [Unencrypted UserName tokens are rejected by default](#unencrypted-username-tokens-are-rejected-by-default)
 - [Secrets — caller-supplied passwords go through a secret registry](#secrets--caller-supplied-passwords-go-through-a-secret-registry)
 
 ## User Identity Token Handlers
@@ -177,6 +178,27 @@ var options = new ManagedSessionOptions
     IdentityProvider = provider
 };
 ```
+
+### Unencrypted UserName tokens are rejected by default
+
+A 1.5.x client sent a `UserName` token to any endpoint, including one whose
+user token security policy is `None`, where the password travels in plain
+text. A 2.0.x client refuses to open a session with such a token unless the
+channel is `SignAndEncrypt`. The open fails with `Bad_SecurityChecksFailed`
+before anything is sent to the server.
+
+Prefer an endpoint whose `UserName` policy encrypts the password. If a legacy
+device offers no such policy, opt in explicitly:
+
+```csharp
+configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+```
+
+The configuration builder exposes the same switch as
+`SetAllowUnencryptedUserNameTokens(true)`, and an XML configuration accepts
+`<AllowUnencryptedUserNameTokens>true</AllowUnencryptedUserNameTokens>` in the
+`SecurityConfiguration` element. The session logs a warning each time it sends
+an unencrypted password. Use this only in closed and secured networks.
 
 ## Secrets — caller-supplied passwords go through a secret registry
 

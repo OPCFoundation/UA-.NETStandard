@@ -884,6 +884,29 @@ ManagedSession managed = await ManagedSession.CreateAsync(
     configuration, endpoint, sessionFactory, identityProvider: provider, ct: ct);
 ```
 
+### Allowing unencrypted UserName tokens
+
+A `UserName` token whose effective user token security policy is `None` is
+sent with the password in plain text. The client therefore refuses to open a
+session with such a token unless the channel itself is `SignAndEncrypt`; the
+open fails with `Bad_SecurityChecksFailed` before anything is sent to the
+server.
+
+Some legacy devices offer no encrypted `UserName` policy at all. To connect to
+them anyway, opt in on the client's security configuration:
+
+```csharp
+configuration.SecurityConfiguration.AllowUnencryptedUserNameTokens = true;
+```
+
+With the configuration builder use
+`.AddSecurityConfiguration(...).SetAllowUnencryptedUserNameTokens(true)`; in
+an XML configuration add
+`<AllowUnencryptedUserNameTokens>true</AllowUnencryptedUserNameTokens>` to the
+`SecurityConfiguration` element. The session logs a warning each time it sends
+a password without encryption. Prefer an encrypted policy whenever the device
+offers one, and enable this only in closed and secured networks.
+
 ## How-to: migrate from `SessionManager.ImpersonateUser`
 
 The event remains as a compatibility fallback, but it is marked
