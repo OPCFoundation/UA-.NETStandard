@@ -55,6 +55,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public uint ServerId => Id;
 
         public bool Created { get; set; }
+
         public bool IsCreationInProgress
         {
             get => OnIsCreationInProgress?.Invoke() ?? m_isCreationInProgress;

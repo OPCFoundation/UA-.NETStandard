@@ -224,33 +224,12 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// </summary>
         public List<uint> DroppedSubscriptions { get; } = [];
 
-        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId,
-            bool deferNotification = false)
+        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId)
         {
             // Like the manager, queued entries are not scanned: they fail send-time
             // validation because their owner's generation advanced.
             DroppedSubscriptions.Add(subscriptionId);
-            if (deferNotification)
-            {
-                DeferredRetirements++;
-            }
             return 0;
-        }
-
-        /// <summary>
-        /// Number of retirements whose notification was deferred.
-        /// </summary>
-        public int DeferredRetirements { get; private set; }
-
-        /// <summary>
-        /// Number of calls to <see cref="ReportRetiredAcknowledgements"/>.
-        /// </summary>
-        public int RetirementReports { get; private set; }
-
-        /// <inheritdoc/>
-        public void ReportRetiredAcknowledgements()
-        {
-            RetirementReports++;
         }
 
         /// <summary>

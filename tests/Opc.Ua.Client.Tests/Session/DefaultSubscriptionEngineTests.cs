@@ -94,7 +94,7 @@ namespace Opc.Ua.Client.Tests
                 .Returns((List<SubscriptionAcknowledgement> acknowledgements) => (acknowledgements, []));
             m_mockContext
                 .Setup(c => c.Subscriptions)
-                .Returns(new List<Subscription>());
+                .Returns([]);
         }
 
         [Test]

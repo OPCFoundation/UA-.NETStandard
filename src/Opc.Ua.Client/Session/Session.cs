@@ -229,8 +229,6 @@ namespace Opc.Ua.Client
                 m_PublishError = template.m_PublishError;
                 m_PublishSequenceNumbersToAcknowledge = template
                     .m_PublishSequenceNumbersToAcknowledge;
-                PublishAcknowledgementsCompleted = template.PublishAcknowledgementsCompleted;
-                SubscriptionAcknowledgementsDiscarded = template.SubscriptionAcknowledgementsDiscarded;
                 m_SubscriptionsChanged = template.m_SubscriptionsChanged;
                 m_SessionClosing = template.m_SessionClosing;
                 m_SessionConfigurationChanged = template.m_SessionConfigurationChanged;
@@ -624,9 +622,6 @@ namespace Opc.Ua.Client
                 m_keepAliveTimer.Dispose();
 
                 // suppress spurious events
-                OnAcknowledgementsDiscarded(0);
-                PublishAcknowledgementsCompleted = null;
-                SubscriptionAcknowledgementsDiscarded = null;
                 m_KeepAlive = null;
                 m_Publish = null;
                 m_PublishError = null;
@@ -1227,7 +1222,6 @@ namespace Opc.Ua.Client
                     sessionConfiguration.SessionId,
                     sessionConfiguration.AuthenticationToken);
             }
-            RaisePendingAcknowledgementDiscards();
         }
 
         /// <inheritdoc/>
@@ -1584,7 +1578,6 @@ namespace Opc.Ua.Client
                 // save session id and cookie in base
                 SessionCreated(sessionId, sessionCookie);
             }
-            RaisePendingAcknowledgementDiscards();
 
             m_logger.RevisedSessionTimeoutValueSessionTimeout(m_sessionTimeout, SessionId);
             m_logger.MaxResponseMessageSizeValueMaxMessageSize(
@@ -1793,7 +1786,6 @@ namespace Opc.Ua.Client
                     {
                         SessionCreated(default, default);
                     }
-                    RaisePendingAcknowledgementDiscards();
                 }
                 if (closeChannel)
                 {
@@ -3502,7 +3494,6 @@ namespace Opc.Ua.Client
             {
                 SessionCreated(default, default);
             }
-            RaisePendingAcknowledgementDiscards();
         }
 
         internal Task ReactivateMirroredSessionAsync(
@@ -3793,103 +3784,84 @@ namespace Opc.Ua.Client
 
                 if (!reused)
                 {
-                    // Subscriptions that will be transferred keep their acknowledgement
-                    // state; any that fail to transfer are retired individually on recreate.
-                    bool retainAcknowledgements = recreateSubscriptions && WillTransferSubscriptionsOnRecreate();
-                    if (retainAcknowledgements)
+                    // Clear server-assigned identity so OpenAsync below
+                    // performs a full CreateSession rather than a re-
+                    // activation of the (now invalid) prior session id.
+                    lock (m_lock)
                     {
-                        BeginRetainingAcknowledgements();
+                        SessionCreated(default, default);
                     }
-                    try
+
+                    if (retirePreviousSession && !previousAuthenticationToken.IsNull)
                     {
-                        // Clear server-assigned identity so OpenAsync below
-                        // performs a full CreateSession rather than a re-
-                        // activation of the (now invalid) prior session id.
-                        lock (m_lock)
+                        ITransportChannel? previousChannel = manager == null
+                            ? retainedChannel
+                            : ReferenceEquals(oldManagedLease, newManagedLease) ? null : oldManagedLease;
+                        if (previousChannel != null)
                         {
-                            SessionCreated(default, default);
-                        }
-                        RaisePendingAcknowledgementDiscards();
-
-                        if (retirePreviousSession && !previousAuthenticationToken.IsNull)
-                        {
-                            ITransportChannel? previousChannel = manager == null
-                                ? retainedChannel
-                                : ReferenceEquals(oldManagedLease, newManagedLease) ? null : oldManagedLease;
-                            if (previousChannel != null)
-                            {
-                                retired = new RetiredServerSession(
-                                    previousSessionId,
-                                    previousAuthenticationToken,
-                                    previousChannel);
-                                retainedChannel = null;
-                            }
-                        }
-
-                        UserIdentity? tempIdentity = m_identity == null
-                            ? new UserIdentity()
-                            : null;
-
-                        // Only tear the channel down on activation failure when this
-                        // method created it. A caller supplied channel or a channel
-                        // manager lease is owned elsewhere and the error handling
-                        // below restores the previous lease.
-                        bool ownsChannel = channel == null && manager == null;
-                        ArrayOf<EndpointDescription> refreshedEndpoints = default;
-                        if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
-                        {
-                            using var discovery = new RecoveryDiscoveryClient(
-                                (recoveryClient ?? this).TransportChannel, m_telemetry);
-                            try
-                            {
-                                GetEndpointsResponse response = await discovery.GetEndpointsAsync(
-                                    null, m_endpoint.Description.EndpointUrl, default, default, ct)
-                                    .ConfigureAwait(false);
-                                if (response.Endpoints.IsEmpty)
-                                {
-                                    throw new ServiceResultException(
-                                        StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
-                                }
-                                refreshedEndpoints = response.Endpoints;
-                            }
-                            catch (ServiceResultException exception) when (
-                                exception.StatusCode == StatusCodes.BadServiceUnsupported ||
-                                exception.StatusCode == StatusCodes.BadNotSupported ||
-                                exception.StatusCode == StatusCodes.BadTimeout ||
-                                exception.StatusCode == StatusCodes.BadNotConnected ||
-                                exception.StatusCode == StatusCodes.BadConnectionClosed ||
-                                exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
-                                exception.StatusCode == StatusCodes.BadCommunicationError ||
-                                exception.StatusCode == StatusCodes.BadNoCommunication)
-                            {
-                                ct.ThrowIfCancellationRequested();
-                                m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
-                            }
-                            catch (TimeoutException exception)
-                            {
-                                ct.ThrowIfCancellationRequested();
-                                m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
-                            }
-                        }
-                        await OpenCoreAsync(
-                                recoveryClient ?? this,
-                                m_sessionName,
-                                (uint)m_sessionTimeout,
-                                m_identity ?? tempIdentity!,
-                                m_preferredLocales,
-                                m_checkDomain,
-                                ownsChannel,
-                                ct,
-                                refreshedEndpoints)
-                            .ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        if (retainAcknowledgements)
-                        {
-                            EndRetainingAcknowledgements();
+                            retired = new RetiredServerSession(
+                                previousSessionId,
+                                previousAuthenticationToken,
+                                previousChannel);
+                            retainedChannel = null;
                         }
                     }
+
+                    UserIdentity? tempIdentity = m_identity == null
+                        ? new UserIdentity()
+                        : null;
+
+                    // Only tear the channel down on activation failure when this
+                    // method created it. A caller supplied channel or a channel
+                    // manager lease is owned elsewhere and the error handling
+                    // below restores the previous lease.
+                    bool ownsChannel = channel == null && manager == null;
+                    ArrayOf<EndpointDescription> refreshedEndpoints = default;
+                    if (!m_endpoint.DiscoveryEndpoints.IsEmpty)
+                    {
+                        using var discovery = new RecoveryDiscoveryClient(
+                            (recoveryClient ?? this).TransportChannel, m_telemetry);
+                        try
+                        {
+                            GetEndpointsResponse response = await discovery.GetEndpointsAsync(
+                                null, m_endpoint.Description.EndpointUrl, default, default, ct).ConfigureAwait(false);
+                            if (response.Endpoints.IsEmpty)
+                            {
+                                throw new ServiceResultException(
+                                    StatusCodes.BadSecurityChecksFailed, "Discovery returned no server endpoints.");
+                            }
+                            refreshedEndpoints = response.Endpoints;
+                        }
+                        catch (ServiceResultException exception) when (
+                            exception.StatusCode == StatusCodes.BadServiceUnsupported ||
+                            exception.StatusCode == StatusCodes.BadNotSupported ||
+                            exception.StatusCode == StatusCodes.BadTimeout ||
+                            exception.StatusCode == StatusCodes.BadNotConnected ||
+                            exception.StatusCode == StatusCodes.BadConnectionClosed ||
+                            exception.StatusCode == StatusCodes.BadSecureChannelClosed ||
+                            exception.StatusCode == StatusCodes.BadCommunicationError ||
+                            exception.StatusCode == StatusCodes.BadNoCommunication)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
+                        catch (TimeoutException exception)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            m_logger.RecreationDiscoveryUnavailableUsingStoredSnapshot(exception);
+                        }
+                    }
+                    await OpenCoreAsync(
+                            recoveryClient ?? this,
+                            m_sessionName,
+                            (uint)m_sessionTimeout,
+                            m_identity ?? tempIdentity!,
+                            m_preferredLocales,
+                            m_checkDomain,
+                            ownsChannel,
+                            ct,
+                            refreshedEndpoints)
+                        .ConfigureAwait(false);
                 }
 
                 if (recreateSubscriptions && (!networkRecovery || !reused))
@@ -4206,7 +4178,6 @@ namespace Opc.Ua.Client
                         {
                             SessionCreated(default, default);
                         }
-                        RaisePendingAcknowledgementDiscards();
                     }
                 }
 
@@ -4933,10 +4904,8 @@ namespace Opc.Ua.Client
         /// <inheritdoc/>
         public override void SessionCreated(NodeId sessionId, NodeId sessionCookie)
         {
-            bool changed;
             lock (m_requestContextIdentity)
             {
-                changed = SessionId != sessionId;
                 base.SessionCreated(sessionId, sessionCookie);
                 if (!sessionCookie.IsNull)
                 {
@@ -4944,10 +4913,6 @@ namespace Opc.Ua.Client
                 }
                 m_requestContextGeneration++;
                 RequestContextChanged?.Invoke();
-            }
-            if (changed && Volatile.Read(ref m_retainAcknowledgementsAcrossSessionChange) == 0)
-            {
-                OnAcknowledgementsDiscarded(0);
             }
         }
 
@@ -5008,7 +4973,6 @@ namespace Opc.Ua.Client
             }
 
             base.RequestCompleted(request, response!, serviceName);
-            OnAcknowledgementServiceCompleted(request, response);
         }
 
         /// <summary>
@@ -7289,18 +7253,6 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Creates a new instance that can report subscription generations.
-        /// </summary>
-        internal PublishSequenceNumbersToAcknowledgeEventArgs(
-            List<SubscriptionAcknowledgement> acknowledgementsToSend,
-            List<SubscriptionAcknowledgement> deferredAcknowledgementsToSend,
-            Func<SubscriptionAcknowledgement, long>? generations)
-            : this(acknowledgementsToSend, deferredAcknowledgementsToSend)
-        {
-            m_generations = generations;
-        }
-
-        /// <summary>
         /// The acknowledgements which are sent with the next publish request.
         /// </summary>
         /// <remarks>
@@ -7317,31 +7269,6 @@ namespace Opc.Ua.Client
         /// to this list to defer the acknowledge of a sequence number to the next publish request.
         /// </remarks>
         public List<SubscriptionAcknowledgement> DeferredAcknowledgementsToSend { get; }
-
-        /// <summary>
-        /// Gets the generation of the subscription that produced an acknowledgement.
-        /// </summary>
-        /// <remarks>
-        /// The server can reuse a subscription identifier, and sequence numbers restart
-        /// for every new subscription, so an identifier and sequence number alone do not
-        /// identify a message. Track pending approvals by (subscription id, generation,
-        /// sequence number) and drop them when
-        /// <see cref="ISubscriptionAcknowledgementEvents.SubscriptionAcknowledgementsDiscarded"/>
-        /// reports a generation greater than or equal to theirs. Returns zero when the
-        /// subscription was not created in this session (for example, after a transfer) or
-        /// the generation is unknown.
-        /// </remarks>
-        /// <param name="acknowledgement">An acknowledgement presented in this callback.</param>
-        public long GetSubscriptionGeneration(SubscriptionAcknowledgement acknowledgement)
-        {
-            if (acknowledgement == null)
-            {
-                throw new ArgumentNullException(nameof(acknowledgement));
-            }
-            return m_generations?.Invoke(acknowledgement) ?? 0;
-        }
-
-        private readonly Func<SubscriptionAcknowledgement, long>? m_generations;
     }
 
     /// <summary>

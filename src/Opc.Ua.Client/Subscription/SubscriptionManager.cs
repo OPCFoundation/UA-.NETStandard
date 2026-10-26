@@ -331,15 +331,8 @@ namespace Opc.Ua.Client.Subscriptions
                 lock (m_subscriptionLock)
                 {
                     m_claims.Clear();
+                    m_superseded.Clear();
                     m_windows.Clear();
-                }
-                while (m_retirementsToReport.TryDequeue(out _))
-                {
-                }
-                if (m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
-                {
-                    // Zero resolves to the latest generation the session assigned.
-                    lifecycle.OnAcknowledgementsDiscarded(0, lifecycle.GetSubscriptionGeneration(0));
                 }
                 GC.SuppressFinalize(this);
             }
@@ -380,15 +373,25 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 return;
             }
-            // The session assigns the generation when the CreateSubscription response
-            // completes, which happens before the subscription publishes its new id.
-            long generation = m_session is ISubscriptionAcknowledgementLifecycle lifecycle
-                ? lifecycle.GetSubscriptionGeneration(subscriptionId)
-                : 0;
             lock (m_subscriptionLock)
             {
+                if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim previous) &&
+                    !ReferenceEquals(previous.Owner, owner) &&
+                    IsLiveOwnerLocked(previous.Owner, subscriptionId))
+                {
+                    m_superseded.Add(previous.Owner);
+                }
+                foreach (IManagedSubscription registered in m_subscriptions)
+                {
+                    // An owner registered without a claim (for example, transferred) is superseded too.
+                    if (registered.Id == subscriptionId && !ReferenceEquals(registered, owner))
+                    {
+                        m_superseded.Add(registered);
+                    }
+                }
+                m_superseded.Remove(owner);
                 m_claims[subscriptionId] = new SubscriptionClaim(
-                    owner, generation, Interlocked.Increment(ref m_claimSequence));
+                    owner, Interlocked.Increment(ref m_claimSequence));
                 m_windows.Remove(owner);
             }
         }
@@ -419,7 +422,6 @@ namespace Opc.Ua.Client.Subscriptions
                     throw new ObjectDisposedException(nameof(SubscriptionManager));
                 }
                 SetPublishingQuiesced(true);
-                Interlocked.Increment(ref m_quiescedOperations);
                 try
                 {
                     await DrainAsync(linkedToken).ConfigureAwait(false);
@@ -427,14 +429,12 @@ namespace Opc.Ua.Client.Subscriptions
                 }
                 finally
                 {
-                    Interlocked.Decrement(ref m_quiescedOperations);
                     SetPublishingQuiesced(false);
                 }
             }
             finally
             {
                 m_publishQuiescenceGate.Release();
-                ReportRetiredAcknowledgements();
             }
         }
 
@@ -516,61 +516,22 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <inheritdoc/>
-        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId,
-            bool deferNotification = false)
+        public int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId)
         {
             if (owner == null)
             {
                 throw new ArgumentNullException(nameof(owner));
             }
-            long generation;
-            bool sharedId;
-            bool report;
             lock (m_subscriptionLock)
             {
-                report = ForgetOwnerLocked(owner, subscriptionId, out generation);
-                sharedId = HasOtherLiveOwnerLocked(owner, subscriptionId);
+                ForgetOwnerLocked(owner, subscriptionId);
             }
-            int dropped;
             lock (m_acknowledgementPolicyLock)
             {
-                // Unowned entries (created by a deferral handler) only carry the id; keep
-                // them when another live subscription still uses it.
-                dropped = m_deferredAcknowledgements.RemoveAll(pending =>
-                    ReferenceEquals(pending.Owner, owner) ||
-                    (!sharedId && pending.Owner == null &&
-                        pending.Acknowledgement.SubscriptionId == subscriptionId));
+                int dropped = m_deferredAcknowledgements.RemoveAll(
+                    pending => ReferenceEquals(pending.Owner, owner));
                 UpdateDeferredWarning();
-            }
-            if (subscriptionId != 0 && report)
-            {
-                m_retirementsToReport.Enqueue((subscriptionId, generation));
-                if (!deferNotification)
-                {
-                    ReportRetiredAcknowledgements();
-                }
-            }
-            return dropped;
-        }
-
-        /// <inheritdoc/>
-        public void ReportRetiredAcknowledgements()
-        {
-            if (Volatile.Read(ref m_quiescedOperations) != 0)
-            {
-                // Raised when the quiesced operation completes.
-                return;
-            }
-            if (m_session is not ISubscriptionAcknowledgementLifecycle lifecycle)
-            {
-                while (m_retirementsToReport.TryDequeue(out _))
-                {
-                }
-                return;
-            }
-            while (m_retirementsToReport.TryDequeue(out (uint SubscriptionId, long Generation) retired))
-            {
-                lifecycle.OnAcknowledgementsDiscarded(retired.SubscriptionId, retired.Generation);
+                return dropped;
             }
         }
 
@@ -651,8 +612,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Retires the acknowledgement state a removed subscription owned. The retirement is
-        /// not reported while another live subscription owns the id.
+        /// Retires the acknowledgement state a removed subscription owned.
         /// </summary>
         private void RetireOwner(IMessageProcessor owner, uint subscriptionId)
         {
@@ -663,7 +623,7 @@ namespace Opc.Ua.Client.Subscriptions
             }
             lock (m_subscriptionLock)
             {
-                ForgetOwnerLocked(owner, subscriptionId, out _);
+                ForgetOwnerLocked(owner, subscriptionId);
             }
         }
 
@@ -1845,7 +1805,7 @@ namespace Opc.Ua.Client.Subscriptions
                 // find the subscription.
                 foreach (IManagedSubscription subscription in m_subscriptions)
                 {
-                    if (subscription.Id == subscriptionId)
+                    if (subscription.Id == subscriptionId && !m_superseded.Contains(subscription))
                     {
                         return subscription;
                     }
@@ -2067,7 +2027,9 @@ namespace Opc.Ua.Client.Subscriptions
                     return candidates;
                 }
 
-                var presented = new List<SubscriptionAcknowledgement>(candidates.Count);
+                // Reused under the policy lock; the callback must not keep the list.
+                List<SubscriptionAcknowledgement> presented = m_presentedAcknowledgements;
+                presented.Clear();
                 foreach (PendingAcknowledgement candidate in candidates)
                 {
                     presented.Add(candidate.Acknowledgement);
@@ -2078,7 +2040,7 @@ namespace Opc.Ua.Client.Subscriptions
                 List<SubscriptionAcknowledgement> retained;
                 try
                 {
-                    (toSend, retained) = m_session.PrepareAcknowledgementsToSend(presented, GetGeneration);
+                    (toSend, retained) = m_session.PrepareAcknowledgementsToSend(presented);
                 }
                 catch
                 {
@@ -2090,41 +2052,65 @@ namespace Opc.Ua.Client.Subscriptions
                     throw;
                 }
 
-                // Without a deferral policy, or when it changed nothing, the candidates are sent as is.
+                // Without a deferral policy, or when it changed nothing, the candidates are sent
+                // as is. They are validated again, since a subscription can retire during the callback.
                 if (retained.Count == 0 && IsUnchanged(toSend, candidates))
                 {
                     UpdateDeferredWarning();
+                    RemoveStaleAcknowledgements(candidates);
                     return candidates;
                 }
+                int unresolved = 0;
                 foreach (SubscriptionAcknowledgement acknowledgement in retained)
                 {
-                    m_deferredAcknowledgements.Add(Resolve(acknowledgement));
+                    if (TryResolve(acknowledgement, out PendingAcknowledgement pending))
+                    {
+                        m_deferredAcknowledgements.Add(pending);
+                    }
+                    else
+                    {
+                        unresolved++;
+                    }
                 }
                 UpdateDeferredWarning();
                 var result = new List<PendingAcknowledgement>(toSend.Count);
                 foreach (SubscriptionAcknowledgement acknowledgement in toSend)
                 {
-                    result.Add(Resolve(acknowledgement));
+                    if (TryResolve(acknowledgement, out PendingAcknowledgement pending))
+                    {
+                        result.Add(pending);
+                    }
+                    else
+                    {
+                        unresolved++;
+                    }
                 }
+                if (unresolved != 0)
+                {
+                    m_logger.StaleAcknowledgementsDiscarded(unresolved);
+                }
+                // Entries the handler created are validated like queued ones before sending.
+                RemoveStaleAcknowledgements(result);
                 return result;
 
-                // A handler may add acknowledgements it created itself; they carry no owner.
-                PendingAcknowledgement Resolve(SubscriptionAcknowledgement acknowledgement)
+                // A handler may add acknowledgements it created itself. They are attributed to
+                // the current owner of their id, so they are validated like any other entry.
+                bool TryResolve(SubscriptionAcknowledgement acknowledgement, out PendingAcknowledgement pending)
                 {
-                    return TryLookup(acknowledgement, out PendingAcknowledgement pending)
-                        ? pending
-                        : new PendingAcknowledgement(acknowledgement, null, 0,
-                            GetSessionGeneration(acknowledgement.SubscriptionId));
+                    if (TryLookup(acknowledgement, out pending))
+                    {
+                        return true;
+                    }
+                    IManagedSubscription? owner = GetById(acknowledgement.SubscriptionId);
+                    if (owner == null)
+                    {
+                        return false;
+                    }
+                    pending = new PendingAcknowledgement(acknowledgement, owner, owner.MessageGeneration);
+                    return true;
                 }
 
-                long GetGeneration(SubscriptionAcknowledgement acknowledgement)
-                {
-                    return TryLookup(acknowledgement, out PendingAcknowledgement pending)
-                        ? pending.SubscriptionGeneration
-                        : GetSessionGeneration(acknowledgement.SubscriptionId);
-                }
-
-                // The identity map is only built when a handler changed the lists or asks for generations.
+                // The identity map is only built when a handler changed the lists.
                 bool TryLookup(SubscriptionAcknowledgement acknowledgement, out PendingAcknowledgement pending)
                 {
                     if (byIdentity == null)
@@ -2163,16 +2149,6 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Gets the generation the session currently assigns to a subscription id.
-        /// </summary>
-        private long GetSessionGeneration(uint subscriptionId)
-        {
-            return m_session is ISubscriptionAcknowledgementLifecycle lifecycle
-                ? lifecycle.GetSubscriptionGeneration(subscriptionId)
-                : 0;
-        }
-
-        /// <summary>
         /// Puts acknowledgements of an abandoned or failed Publish attempt back into
         /// the queue, except those that must not be sent anymore.
         /// </summary>
@@ -2187,12 +2163,10 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 m_acks.Writer.TryWrite(pending);
             }
-            ReportAbandonedAcknowledgements();
         }
 
         /// <summary>
-        /// Removes acknowledgements that must not be sent anymore and stamps the
-        /// remaining owned ones with their subscription generation. Each entry is
+        /// Removes acknowledgements that must not be sent anymore. Each entry is
         /// validated in constant time under a single registry lock acquisition.
         /// </summary>
         private void RemoveStaleAcknowledgements(List<PendingAcknowledgement> acknowledgements)
@@ -2203,22 +2177,10 @@ namespace Opc.Ua.Client.Subscriptions
                 for (int i = 0; i < acknowledgements.Count; i++)
                 {
                     PendingAcknowledgement pending = acknowledgements[i];
-                    if (pending.Owner != null)
+                    if (ValidateLocked(pending) == AcknowledgementState.Valid)
                     {
-                        AcknowledgementState state = ValidateLocked(pending, out long generation);
-                        if (state == AcknowledgementState.NotHeld)
-                        {
-                            // The subscription is alive, so no retirement covers this entry:
-                            // report it as the server would have answered it.
-                            m_abandonedAcknowledgements.Enqueue(pending.Acknowledgement);
-                        }
-                        if (state != AcknowledgementState.Valid)
-                        {
-                            continue;
-                        }
-                        pending = pending with { SubscriptionGeneration = generation };
+                        acknowledgements[kept++] = pending;
                     }
-                    acknowledgements[kept++] = pending;
                 }
             }
             int removed = acknowledgements.Count - kept;
@@ -2226,27 +2188,6 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 acknowledgements.RemoveRange(kept, removed);
                 m_logger.StaleAcknowledgementsDiscarded(removed);
-            }
-        }
-
-        /// <summary>
-        /// Reports acknowledgements discarded because the server no longer holds their
-        /// message as completed with <c>Bad_SequenceNumberUnknown</c>. Called without locks.
-        /// </summary>
-        private void ReportAbandonedAcknowledgements()
-        {
-            if (m_abandonedAcknowledgements.IsEmpty)
-            {
-                return;
-            }
-            var abandoned = new List<SubscriptionAcknowledgement>();
-            while (m_abandonedAcknowledgements.TryDequeue(out SubscriptionAcknowledgement? acknowledgement))
-            {
-                abandoned.Add(acknowledgement);
-            }
-            if (abandoned.Count != 0 && m_session is ISubscriptionAcknowledgementLifecycle lifecycle)
-            {
-                lifecycle.OnAcknowledgementsAbandoned(abandoned);
             }
         }
 
@@ -2259,28 +2200,23 @@ namespace Opc.Ua.Client.Subscriptions
         /// holds the message, or that it has no retransmission queue (Part 4, 5.14.5.2: the
         /// client should then not acknowledge).
         /// </summary>
-        private AcknowledgementState ValidateLocked(in PendingAcknowledgement pending, out long generation)
+        private AcknowledgementState ValidateLocked(in PendingAcknowledgement pending)
         {
-            generation = 0;
-            IMessageProcessor owner = pending.Owner!;
+            IMessageProcessor owner = pending.Owner;
             SubscriptionAcknowledgement acknowledgement = pending.Acknowledgement;
             uint subscriptionId = acknowledgement.SubscriptionId;
             if (owner.Id != subscriptionId ||
                 owner.MessageGeneration != pending.Generation ||
-                !IsRegisteredLocked(owner))
+                !IsRegisteredLocked(owner) ||
+                m_superseded.Contains(owner))
             {
                 return AcknowledgementState.Stale;
             }
-            if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim))
+            if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                !ReferenceEquals(claim.Owner, owner) &&
+                IsLiveOwnerLocked(claim.Owner, subscriptionId))
             {
-                if (ReferenceEquals(claim.Owner, owner))
-                {
-                    generation = claim.Generation;
-                }
-                else if (IsLiveOwnerLocked(claim.Owner, subscriptionId))
-                {
-                    return AcknowledgementState.Stale;
-                }
+                return AcknowledgementState.Stale;
             }
             if (m_windows.TryGetValue(owner, out AvailabilityWindow? window) &&
                 window.MessageGeneration == pending.Generation)
@@ -2355,41 +2291,20 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// Forgets the claim and retransmission view of a retiring owner. Returns whether the
-        /// retirement may be reported, and the highest generation of
-        /// <paramref name="subscriptionId"/> it retires. It must not be reported while another
-        /// live subscription owns the id: the session already retired every older generation
-        /// when that owner was created, and observers that track state by id alone would
-        /// otherwise invalidate the live owner's state.
+        /// Forgets the retransmission view of a retiring owner, and its claim on
+        /// <paramref name="subscriptionId"/> unless a live subscription created later holds it.
+        /// Requires the registry lock.
         /// </summary>
-        private bool ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId, out long generation)
+        private void ForgetOwnerLocked(IMessageProcessor owner, uint subscriptionId)
         {
-            generation = 0;
             m_windows.Remove(owner);
-            if (subscriptionId == 0)
+            m_superseded.Remove(owner);
+            if (subscriptionId != 0 &&
+                m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim) &&
+                (ReferenceEquals(claim.Owner, owner) || !IsLiveOwnerLocked(claim.Owner, subscriptionId)))
             {
-                return false;
-            }
-            if (m_claims.TryGetValue(subscriptionId, out SubscriptionClaim claim))
-            {
-                if (ReferenceEquals(claim.Owner, owner))
-                {
-                    // The most recently created owner retires its own generation; any older
-                    // sibling still registered under the id is stale.
-                    m_claims.Remove(subscriptionId);
-                    generation = claim.Generation;
-                    return true;
-                }
-                if (IsLiveOwnerLocked(claim.Owner, subscriptionId))
-                {
-                    return false;
-                }
-                // The claim's owner is gone; its generation is retired along with this owner.
                 m_claims.Remove(subscriptionId);
-                generation = claim.Generation;
             }
-            // Without a claim the creation order is unknown: report only if nobody else uses the id.
-            return !HasOtherLiveOwnerLocked(owner, subscriptionId);
         }
 
         /// <summary>
@@ -2406,26 +2321,6 @@ namespace Opc.Ua.Client.Subscriptions
         private bool IsLiveOwnerLocked(IMessageProcessor owner, uint subscriptionId)
         {
             return owner.Id == subscriptionId && IsRegisteredLocked(owner);
-        }
-
-        /// <summary>
-        /// Whether a registered subscription other than <paramref name="owner"/> uses the id.
-        /// Requires the registry lock.
-        /// </summary>
-        private bool HasOtherLiveOwnerLocked(IMessageProcessor owner, uint subscriptionId)
-        {
-            if (subscriptionId == 0)
-            {
-                return false;
-            }
-            foreach (IManagedSubscription registered in m_subscriptions)
-            {
-                if (registered.Id == subscriptionId && !ReferenceEquals(registered, owner))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         /// <summary>
@@ -2498,16 +2393,12 @@ namespace Opc.Ua.Client.Subscriptions
         /// that processor's message generation at the time.
         /// </summary>
         /// <param name="Acknowledgement">The acknowledgement to send.</param>
-        /// <param name="Owner">The producing processor, or <c>null</c> for one a
-        /// deferral handler created.</param>
+        /// <param name="Owner">The producing processor.</param>
         /// <param name="Generation">The owner's message generation when queued.</param>
-        /// <param name="SubscriptionGeneration">The session-assigned generation of the
-        /// subscription id, resolved when the entry was last validated.</param>
         private readonly record struct PendingAcknowledgement(
             SubscriptionAcknowledgement Acknowledgement,
-            IMessageProcessor? Owner,
-            long Generation,
-            long SubscriptionGeneration = 0);
+            IMessageProcessor Owner,
+            long Generation);
 
         /// <summary>
         /// Whether an owned acknowledgement may be sent.
@@ -2517,7 +2408,7 @@ namespace Opc.Ua.Client.Subscriptions
             /// <summary>It may be sent.</summary>
             Valid,
 
-            /// <summary>Its owner retired it; a retirement notification covers it.</summary>
+            /// <summary>Its owner retired it, or another subscription now owns its id.</summary>
             Stale,
 
             /// <summary>The server no longer holds the message, but the owner is alive.</summary>
@@ -2525,14 +2416,12 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         /// <summary>
-        /// The most recently created owner of a server id and the generation the session
-        /// assigned to it.
+        /// The most recently created owner of a server id.
         /// </summary>
         /// <param name="Owner">The owner.</param>
-        /// <param name="Generation">The session-assigned generation.</param>
         /// <param name="Sequence">Orders claims, so a response to a request sent before the
         /// claim can be told apart from one the current owner's server subscription sent.</param>
-        private readonly record struct SubscriptionClaim(IMessageProcessor Owner, long Generation, long Sequence);
+        private readonly record struct SubscriptionClaim(IMessageProcessor Owner, long Sequence);
 
         /// <summary>
         /// The retransmission queue the server last reported for an owner. Reused across
@@ -2769,7 +2658,6 @@ namespace Opc.Ua.Client.Subscriptions
                             continue;
                         }
                         batch = m_outer.PrepareAcknowledgementsToSend(batch);
-                        m_outer.ReportAbandonedAcknowledgements();
                         acks = batch.ConvertAll(pending => pending.Acknowledgement);
                         long claimMark = Interlocked.Read(ref m_outer.m_claimSequence);
                         publishLatencyStart = m_outer.m_timeProvider.GetTimestamp();
@@ -3353,23 +3241,24 @@ namespace Opc.Ua.Client.Subscriptions
         /// Application-deferred acknowledgements, reconsidered on subsequent Publish attempts.
         /// </summary>
         private readonly List<PendingAcknowledgement> m_deferredAcknowledgements = [];
-        private bool m_deferredWarningRaised;
         /// <summary>
-        /// Retired subscription ids (with the highest retired generation) whose discard
-        /// notification is raised once publishing is no longer quiesced.
+        /// Acknowledgements presented to the deferral callback. Guarded by
+        /// <see cref="m_acknowledgementPolicyLock"/>.
         /// </summary>
-        private readonly ConcurrentQueue<(uint SubscriptionId, long Generation)> m_retirementsToReport = new();
-        private int m_quiescedOperations;
+        private readonly List<SubscriptionAcknowledgement> m_presentedAcknowledgements = [];
+        private bool m_deferredWarningRaised;
         /// <summary>
         /// Most recently created owner of each server id. Guarded by <see cref="m_subscriptionLock"/>.
         /// </summary>
         private readonly Dictionary<uint, SubscriptionClaim> m_claims = [];
         private long m_claimSequence;
         /// <summary>
-        /// Acknowledgements discarded because the server no longer holds their message,
-        /// reported once the discarding locks are released.
+        /// Registered subscriptions whose server id a more recently created subscription claimed
+        /// (the server reused it). They stay superseded until they are recreated or retire, even
+        /// when the newer owner completes first. Guarded by <see cref="m_subscriptionLock"/>.
         /// </summary>
-        private readonly ConcurrentQueue<SubscriptionAcknowledgement> m_abandonedAcknowledgements = new();
+        private readonly HashSet<IMessageProcessor> m_superseded =
+            new(IdentityComparer<IMessageProcessor>.Instance);
         /// <summary>
         /// Latest retransmission-queue view the server reported per owner.
         /// Guarded by <see cref="m_subscriptionLock"/>.

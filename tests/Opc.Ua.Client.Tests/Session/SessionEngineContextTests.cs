@@ -186,33 +186,6 @@ namespace Opc.Ua.Client.Tests
             });
         }
 
-        /// <summary>
-        /// The handler sees the generation supplied by the engine through the internal policy
-        /// capability, or the session's current generation for the id through the public contract.
-        /// </summary>
-        [TestCase(true)]
-        [TestCase(false)]
-        public void PrepareAcknowledgementsExposesSubscriptionGenerations(bool engineResolver)
-        {
-            using TestSessionScope scope = CreateSessionScope();
-            var acknowledgement = new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 2 };
-            long observed = -1;
-            scope.Session.PublishSequenceNumbersToAcknowledge += (_, e) =>
-                observed = e.GetSubscriptionGeneration(acknowledgement);
-
-            if (engineResolver)
-            {
-                ((ISubscriptionAcknowledgementPolicy)scope.Context).PrepareAcknowledgementsToSend(
-                    [acknowledgement], _ => 42);
-            }
-            else
-            {
-                scope.Context.PrepareAcknowledgementsToSend([acknowledgement]);
-            }
-
-            Assert.That(observed, Is.EqualTo(engineResolver ? 42 : 0));
-        }
-
         [Test]
         public void PrepareAcknowledgementsCallbackFailureFallsBackToSendingAllAcknowledgements()
         {
@@ -262,7 +235,7 @@ namespace Opc.Ua.Client.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(toSend, Is.EqualTo(new[] { first, second }).Using<SubscriptionAcknowledgement>(
+                Assert.That(toSend, Is.EqualTo([first, second]).Using<SubscriptionAcknowledgement>(
                     (x, y) => ReferenceEquals(x, y)));
                 Assert.That(updatedPending, Is.Empty);
             });

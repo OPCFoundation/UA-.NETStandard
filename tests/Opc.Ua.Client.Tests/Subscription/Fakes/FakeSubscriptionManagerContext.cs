@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,50 +41,8 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
     /// via callback fields. Replaces
     /// <c>Mock&lt;ISubscriptionManagerContext&gt;</c>.
     /// </summary>
-    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext, ISubscriptionAcknowledgementLifecycle
+    internal sealed class FakeSubscriptionManagerContext : ISubscriptionManagerContext
     {
-        /// <summary>
-        /// Optional acknowledgement retirement observer.
-        /// </summary>
-        public Action<uint>? OnDiscardAcknowledgements { get; set; }
-
-        /// <summary>
-        /// Optional acknowledgement retirement observer that also receives the generation.
-        /// </summary>
-        public Action<uint, long>? OnDiscardAcknowledgementGenerations { get; set; }
-
-        /// <summary>
-        /// Optional session generation source; defaults to zero.
-        /// </summary>
-        public Func<uint, long>? OnGetSubscriptionGeneration { get; set; }
-
-        /// <inheritdoc/>
-        public long GetSubscriptionGeneration(uint subscriptionId)
-        {
-            return OnGetSubscriptionGeneration?.Invoke(subscriptionId) ?? 0;
-        }
-
-        /// <inheritdoc/>
-        public void OnAcknowledgementsDiscarded(uint subscriptionId, long generation)
-        {
-            OnDiscardAcknowledgements?.Invoke(subscriptionId);
-            OnDiscardAcknowledgementGenerations?.Invoke(subscriptionId, generation);
-        }
-
-        /// <summary>
-        /// Acknowledgements reported as abandoned because the server no longer holds them.
-        /// </summary>
-        public ConcurrentQueue<SubscriptionAcknowledgement> AbandonedAcknowledgements { get; } = new();
-
-        /// <inheritdoc/>
-        public void OnAcknowledgementsAbandoned(ArrayOf<SubscriptionAcknowledgement> acknowledgements)
-        {
-            foreach (SubscriptionAcknowledgement acknowledgement in acknowledgements)
-            {
-                AbandonedAcknowledgements.Enqueue(acknowledgement);
-            }
-        }
-
         /// <summary>Recorded calls to <see cref="CreateSubscription"/>.</summary>
         public IReadOnlyList<CreateSubscriptionCall> CreateSubscriptionCalls
             => Snapshot(m_createSubscriptionCalls);
@@ -176,18 +133,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             return subscription;
         }
 
-        /// <summary>
-        /// The generation resolver passed with the latest preparation call.
-        /// </summary>
-        public Func<SubscriptionAcknowledgement, long>? LastGenerations { get; private set; }
-
         /// <inheritdoc/>
         public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
             PrepareAcknowledgementsToSend(
-                List<SubscriptionAcknowledgement> acknowledgements,
-                Func<SubscriptionAcknowledgement, long>? generations)
+                List<SubscriptionAcknowledgement> acknowledgements)
         {
-            LastGenerations = generations;
             return OnPrepareAcknowledgements?.Invoke(acknowledgements) ?? (acknowledgements, []);
         }
 
@@ -319,6 +269,6 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         private readonly List<PublishCall> m_publishCalls = [];
         private readonly List<TransferCall> m_transferCalls = [];
         private readonly List<DeleteCall> m_deleteCalls = [];
-        private readonly System.Threading.Lock m_recordLock = new();
+        private readonly Lock m_recordLock = new();
     }
 }

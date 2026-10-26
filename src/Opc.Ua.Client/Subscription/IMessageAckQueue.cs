@@ -102,30 +102,16 @@ namespace Opc.Ua.Client.Subscriptions
 
         /// <summary>
         /// Retires the acknowledgement state <paramref name="owner"/> holds
-        /// under <paramref name="subscriptionId"/>: removes its deferred
-        /// acknowledgements and reports the id as retired. Used when a
-        /// subscription is recreated, deleted or completed. Queued and
-        /// in-flight acknowledgements are not scanned; they fail send-time
-        /// validation. The retirement is reported once publishing is no
-        /// longer quiesced, or only when
-        /// <see cref="ReportRetiredAcknowledgements"/> is called if
-        /// <paramref name="deferNotification"/> is set, so callers holding
-        /// their own locks can report after releasing them.
+        /// under <paramref name="subscriptionId"/> and removes its deferred
+        /// acknowledgements. Used when a subscription is recreated, deleted
+        /// or completed. Queued and in-flight acknowledgements are not
+        /// scanned; they fail send-time validation.
         /// </summary>
         /// <param name="owner">The subscription retiring the id.</param>
         /// <param name="subscriptionId">The retired server id.</param>
-        /// <param name="deferNotification">Whether to defer the retirement
-        /// notification until <see cref="ReportRetiredAcknowledgements"/>.</param>
         /// <returns>The number of deferred acknowledgements that were
         /// dropped.</returns>
-        int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId,
-            bool deferNotification = false);
-
-        /// <summary>
-        /// Raises pending retirement notifications unless publishing is
-        /// quiesced, in which case they are raised when it resumes.
-        /// </summary>
-        void ReportRetiredAcknowledgements();
+        int DropPendingForSubscription(IMessageProcessor owner, uint subscriptionId);
 
         /// <summary>
         /// Whether <paramref name="subscriptionId"/> still resolves to

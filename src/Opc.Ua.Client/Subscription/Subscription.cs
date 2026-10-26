@@ -552,7 +552,7 @@ namespace Opc.Ua.Client.Subscriptions
                             {
                                 // The pending acknowledgements under that id
                                 // now belong to the sibling; only this owner's
-                                // generation is retired.
+                                // deferred acknowledgements are dropped.
                                 Logger.SubscriptionSkippedDeleteOfReusedId(Id, oldId);
                                 AckQueue.DropPendingForSubscription(this, oldId);
                                 StopKeepAliveTimer();
@@ -694,13 +694,12 @@ namespace Opc.Ua.Client.Subscriptions
                 if (retiredId != 0)
                 {
                     // The server-side subscription is gone; retire this owner's claim on it.
-                    AckQueue.DropPendingForSubscription(this, retiredId, deferNotification: true);
+                    AckQueue.DropPendingForSubscription(this, retiredId);
                 }
             }
             finally
             {
                 m_stateLock.Release();
-                AckQueue.ReportRetiredAcknowledgements();
             }
             // Wake the state manager so the next pass observes
             // !Created and runs CreateAsync.
@@ -1182,7 +1181,6 @@ namespace Opc.Ua.Client.Subscriptions
             finally
             {
                 m_stateLock.Release();
-                AckQueue.ReportRetiredAcknowledgements();
             }
 
             if (recreateRequired && !ct.IsCancellationRequested)
@@ -1323,11 +1321,9 @@ namespace Opc.Ua.Client.Subscriptions
 
             // Publishing is not quiesced: the generation advanced, so a stale
             // acknowledgement a worker holds in flight is discarded if requeued.
-            // The retirement is generation scoped, so it is reported even when a
-            // sibling still uses the id, and only after the state lock is released.
             if (retiredId != 0)
             {
-                AckQueue.DropPendingForSubscription(this, retiredId, deferNotification: true);
+                AckQueue.DropPendingForSubscription(this, retiredId);
             }
         }
 

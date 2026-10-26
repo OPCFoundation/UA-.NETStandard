@@ -81,13 +81,9 @@ namespace Opc.Ua.Client.Subscriptions
         /// Applies the session's existing mutable acknowledgement-deferral callback.
         /// </summary>
         /// <param name="acknowledgements">Acknowledgements eligible for the next request.</param>
-        /// <param name="generations">Resolves the subscription generation of a presented
-        /// acknowledgement.</param>
         /// <returns>The acknowledgements to send and those to retain for a later request.</returns>
         (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
-            PrepareAcknowledgementsToSend(
-                List<SubscriptionAcknowledgement> acknowledgements,
-                Func<SubscriptionAcknowledgement, long>? generations);
+            PrepareAcknowledgementsToSend(List<SubscriptionAcknowledgement> acknowledgements);
 
         /// <summary>
         /// Publish service

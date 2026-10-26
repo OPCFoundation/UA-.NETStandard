@@ -990,8 +990,6 @@ namespace Opc.Ua.Client.Subscriptions
 
                 // Assert
                 Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
-                Assert.That(m_completion.DeferredRetirements, Is.EqualTo(1),
-                    "Delete runs under the state lock, so it must defer the retirement notification.");
                 Assert.That(m_completion.PublishingQuiescenceCalls, Is.Zero,
                     "Deleting one subscription must not pause publishing for the whole session.");
                 // m_mockSession.Verify() was no-op (no Verifiable setups on the context); inner-mock verifications retained.
@@ -999,7 +997,7 @@ namespace Opc.Ua.Client.Subscriptions
         }
 
         [Test]
-        public async Task ResetToRecreateRetiresTheServerIdAfterTheStateLockAsync()
+        public async Task ResetToRecreateRetiresTheServerIdAsync()
         {
             var sut = new TestSubscription(m_session, m_mockNotificationDataHandler.Object,
                 m_completion, m_options, m_telemetry, 22);
@@ -1009,8 +1007,6 @@ namespace Opc.Ua.Client.Subscriptions
 
                 Assert.That(sut.Id, Is.Zero);
                 Assert.That(m_completion.DroppedSubscriptions, Does.Contain(22u));
-                Assert.That(m_completion.DeferredRetirements, Is.EqualTo(1));
-                Assert.That(m_completion.RetirementReports, Is.GreaterThanOrEqualTo(1));
             }
         }
 
@@ -1173,15 +1169,17 @@ namespace Opc.Ua.Client.Subscriptions
                     List<SubscriptionAcknowledgement> acknowledgements = m_completion.QueuedAcks;
                     Assert.That(acknowledgements, Has.Count.EqualTo(retainedAcknowledgements + 1));
                     Assert.That(acknowledgements, Has.Exactly(retainedAcknowledgements).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 10 &&
+                        acknowledgement => acknowledgement is not null &&
+                            acknowledgement.SubscriptionId == 10 &&
                             acknowledgement.SequenceNumber == 4999));
                     Assert.That(acknowledgements, Has.Exactly(1).Matches<SubscriptionAcknowledgement>(
-                        acknowledgement => acknowledgement is not null && acknowledgement.SubscriptionId == 22 &&
+                        acknowledgement => acknowledgement is not null &&
+                            acknowledgement.SubscriptionId == 22 &&
                             acknowledgement.SequenceNumber == 1));
                     Assert.That(acknowledgements, Has.None.Matches<SubscriptionAcknowledgement>(
                         acknowledgement => acknowledgement is not null && acknowledgement.SequenceNumber == 5000));
                     List<long> generations = m_completion.QueuedAckGenerations;
-                    Assert.That(generations[generations.Count - 1], Is.EqualTo(sut.MessageGeneration),
+                    Assert.That(generations[^1], Is.EqualTo(sut.MessageGeneration),
                         "The replacement's acknowledgement carries the current generation.");
                 }
                 finally

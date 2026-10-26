@@ -616,8 +616,7 @@ namespace Opc.Ua.Subscriptions.Tests
             /// <inheritdoc/>
             public (List<SubscriptionAcknowledgement> ToSend, List<SubscriptionAcknowledgement> Deferred)
                 PrepareAcknowledgementsToSend(
-                    List<SubscriptionAcknowledgement> acknowledgements,
-                    Func<SubscriptionAcknowledgement, long>? generations)
+                    List<SubscriptionAcknowledgement> acknowledgements)
             {
                 return (acknowledgements, []);
             }
