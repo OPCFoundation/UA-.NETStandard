@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(PermissionType.Browse | PermissionType.Read)]
         public void TypeHierarchyNodeStaysVisibleWithoutGrant(PermissionType requested)
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_AuthenticatedUser);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_AuthenticatedUser);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_SecurityAdmin,
                 PermissionType.Browse | PermissionType.Read | PermissionType.Call);
@@ -76,7 +76,7 @@ namespace Opc.Ua.Server.Tests
         [TestCase(PermissionType.Browse | PermissionType.Write)]
         public void TypeHierarchyNodeEnforcesNonVisibilityPermissions(PermissionType requested)
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_Anonymous,
                 PermissionType.Browse | PermissionType.Read);
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeGrantsReceiveEventsToGrantedRole()
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
             NodeMetadata metadata = CreateTypeMetadata(
                 ObjectIds.WellKnownRole_SecurityAdmin,
                 PermissionType.Browse | PermissionType.ReceiveEvents);
@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeWithoutRolePermissionsAllowsReceiveEvents()
         {
-            OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+            using OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
             var metadata = new NodeMetadata(null!, ObjectTypeIds.BaseEventType)
             {
                 IsPartOfTypeHierarchy = true
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void TypeHierarchyNodeAccessRestrictionsSkippedOnlyForVisibility()
         {
-            OperationContext context = CreateContext(
+            using OperationContext context = CreateContext(
                 ObjectIds.WellKnownRole_Anonymous,
                 MessageSecurityMode.None);
             var metadata = new NodeMetadata(null!, new NodeId(1000))
@@ -171,8 +171,8 @@ namespace Opc.Ua.Server.Tests
                 var nodeManager = server.CurrentInstance.DiagnosticsNodeManager as AsyncCustomNodeManager;
                 Assert.That(nodeManager, Is.Not.Null);
 
-                OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
-                OperationContext securityAdmin = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
+                using OperationContext anonymous = CreateContext(ObjectIds.WellKnownRole_Anonymous);
+                using OperationContext securityAdmin = CreateContext(ObjectIds.WellKnownRole_SecurityAdmin);
 
                 ServiceResult audit = await nodeManager.ValidateEventReceivePermissionsAsync(
                     anonymous,
@@ -235,7 +235,7 @@ namespace Opc.Ua.Server.Tests
                 BaseObjectState serverObject = nodeManager.FindPredefinedNode<BaseObjectState>(ObjectIds.Server);
                 Assert.That(serverObject, Is.Not.Null);
 
-                OperationContext anonymous = CreateContext(
+                using OperationContext anonymous = CreateContext(
                     ObjectIds.WellKnownRole_Anonymous,
                     requestType: RequestType.Call);
                 ArrayOf<CallMethodRequest> requests =
