@@ -532,6 +532,14 @@ namespace Opc.Ua.Server
             {
                 ISession? activatedSession = Server.SessionManager.GetSessions().FirstOrDefault(
                     current => current.Id == sessionId);
+                if (activatedSession is null &&
+                    !sessionId.IsNull &&
+                    context.ActivationTargetSessionId == sessionId)
+                {
+                    // The protocol target was removed after StandardServer's activation check.
+                    return;
+                }
+
                 foreach (NotificationDispatchLease dispatch in dispatches)
                 {
                     try

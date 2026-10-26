@@ -43,6 +43,51 @@ namespace Opc.Ua.Server.Tests.NodeManager
     public sealed partial class GenerationReconcilerTests
     {
         /// <summary>
+        /// A removed protocol target cannot be activated through the standalone notification fallback.
+        /// </summary>
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task MissingActivationTargetPreservesStandaloneNotificationCompatibilityAsync(
+            bool registeredActivation,
+            bool matchingTarget)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            {
+                var sessions = new Mock<ISessionManager>();
+                sessions.Setup(value => value.GetSessions()).Returns([]);
+                server.SetupGet(value => value.SessionManager).Returns(sessions.Object);
+                var manager = new Mock<IAsyncNodeManager>();
+                await using MasterNodeManager master =
+                    DeterministicServerMock.CreateMasterNodeManager(server, [manager.Object]);
+                var sessionId = new NodeId("RemovedActivationTarget", 2);
+                using var context = new OperationContext(
+                    new RequestHeader(), null, RequestType.ActivateSession, RequestLifetime.None);
+                if (registeredActivation)
+                {
+                    context.ActivationTargetSessionId =
+                        matchingTarget ? sessionId : new NodeId("OtherActivationTarget", 2);
+                }
+
+                await master.SessionActivatedAsync(context, sessionId).ConfigureAwait(false);
+
+                manager.Verify(value => value.SessionActivatedAsync(
+                    context, sessionId, It.IsAny<CancellationToken>()),
+                    registeredActivation && matchingTarget ? Times.Never() : Times.Once());
+                foreach (IAsyncNodeManager activeManager in master.AsyncNodeManagers)
+                {
+                    NodeManagerGeneration generation = NodeManagerGenerationRegistry.GetOrCreate(activeManager);
+                    using (Assert.EnterMultipleScope())
+                    {
+                        Assert.That(generation.SessionBindings, Is.Empty);
+                        Assert.That(generation.Gate.ActiveCount, Is.Zero);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
         /// A failed session snapshot releases every notification admission before propagating the failure.
         /// </summary>
         [Test]
